@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+This is the AN::Tools master 'words' file.
+-->
+
+<words>
+	<meta>
+		<version>3.0.0</version>
+		<languages>en_CA,jp</languages>
+	</meta>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules">
+		
+		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
+		<key name="t_0000">Test</key>
+		<key name="t_0001">Test replace: [#!variable!test!#].</key>
+		<key name="t_0002">Test Out of order: [#!variable!second!#] replace: [#!variable!first!#].</key>
+		<!-- Do not use 't_0003'. It is used to test failures caused by calling a non-existent key. -->
+		<key name="t_0004">#!FREE!#</key>
+		
+	</language>
+	<!-- 日本語 -->
+	<language name="jp" long_name="日本語" description=">Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules.">
+		
+		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
+		<key name="t_0000">テスト</key>
+		<key name="t_0001">テスト いれかえる: [#!variable!test!#]。</key>
+		<key name="t_0002">テスト、 整理: [#!variable!second!#]/[#!variable!first!#]。</key>
+		<!-- Do not use 't_0003'. It is used to test failures caused by calling a non-existent key. -->
+		<key name="t_0004">#!FREE!#</key>
+	</language>
+</words>

@@ -38,7 +38,7 @@ Provides all methods related to storage on a system.
 
 =head1 METHODS
 
-Methods in the core module;
+Methods in this module;
 
 =cut
 sub new

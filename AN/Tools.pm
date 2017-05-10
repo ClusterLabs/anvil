@@ -13,8 +13,6 @@ BEGIN
 
 use strict;
 use warnings;
-use IO::Handle;
-use XML::Simple;
 use Data::Dumper;
 my $THIS_FILE = "Tools.pm";
 
@@ -24,9 +22,10 @@ $ENV{'PERL_UNICODE'} = 1;
 
 # I intentionally don't use EXPORT, @ISA and the like because I want my "subclass"es to be accessed in a
 # somewhat more OO style. I know some may wish to strike me down for this, but I like the idea of accessing
-# methods via their containing module's name. (A La: $an->Module->method rather than $an->method).
+# methods via their containing module's name. (A La: C<< $an->Module->method >> rather than C<< $an->method >>).
 use AN::Tools::Alert;
 use AN::Tools::Storage;
+use AN::Tools::Words;
 
 =pod
 
@@ -93,14 +92,13 @@ sub new
 		HANDLE				=>	{
 			ALERT				=>	AN::Tools::Alert->new(),
 			STORAGE				=>	AN::Tools::Storage->new(),
+			WORDS				=>	AN::Tools::Words->new(),
 		},
 		DATA				=>	{},
 		ERROR_COUNT			=>	0,
 		ERROR_LIMIT			=>	10000,
 		DEFAULT				=>	{
 			LANGUAGE			=>	'en_CA',
-			LOG_FILE			=>	'/var/log/an.log',
-			STRINGS				=>	'AN/strings.xml',
 		},
 		ENV_VALUES			=>	{
 			ENVIRONMENT			=>	'cli',
@@ -116,6 +114,7 @@ sub new
 	# Get a handle on the various submodules
 	$an->Alert->parent($an);
 	$an->Storage->parent($an);
+	$an->Words->parent($an);
 
 	# Set some system paths and system default variables
 	$an->_add_environment_path_to_search_directories;
@@ -129,8 +128,7 @@ sub new
 	$an->data($parameter->{data}) if $parameter->{data};
 
 	# I need to read the initial words early.
-# 	$self->{DEFAULT}{STRINGS} = $an->Storage->find({file => $self->{DEFAULT}{STRINGS}, fatal => 1});
-# 	$an->Storage->read_words({file  => $self->{DEFAULT}{STRINGS}});
+	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});
 
 	# Set passed parameters if needed.
 	if (ref($parameter) eq "HASH")
@@ -283,17 +281,15 @@ sub environment
 
 =head1 Submodule Access Methods
 
-The methods below are used to access methods of submodules using 'C<$an->Module->method()>'.
+The methods below are used to access methods of submodules using 'C<< $an->Module->method() >>'.
 
 =cut
 
 =head2 Alert
 
-Access the C<Alert.pm> methods via 'C<$an->Alert->method>'.
+Access the C<Alert.pm> methods via 'C<< $an->Alert->method >>'.
 
 =cut
-
-# Makes my handle to AN::Tools::Storage clearer when using this module to access its methods.
 sub Alert
 {
 	my $self = shift;
@@ -303,16 +299,26 @@ sub Alert
 
 =head2 Storage
 
-Access the C<Storage.pm> methods via 'C<$an->Storage->method>'.
+Access the C<Storage.pm> methods via 'C<< $an->Storage->method >>'.
 
 =cut
-
-# Makes my handle to AN::Tools::Storage clearer when using this module to access its methods.
 sub Storage
 {
 	my $self = shift;
 	
 	return ($self->{HANDLE}{STORAGE});
+}
+
+=head2 Words
+
+Access the C<Words.pm> methods via 'C<< $an->Words->method >>'.
+
+=cut
+sub Words
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{WORDS});
 }
 
 
@@ -328,7 +334,7 @@ These methods generally should never be called from a program using AN::Tools. H
 
 =head2 _add_environment_path_to_search_directories
 
-This method merges @INC and $ENV{'PATH'} into a single array and uses the result to set C<$an->Storage->search_directories>.
+This method merges @INC and $ENV{'PATH'} into a single array and uses the result to set C<< $an->Storage->search_directories >>.
 
 =cut
 sub _add_environment_path_to_search_directories
@@ -369,20 +375,42 @@ sub _set_paths
 	my ($an) = shift;
 	
 	# Executables
-	$an->data->{path}{exe} = {
-		gethostip		=>	"/usr/bin/gethostip",
-		hostname		=>	"/bin/hostname",
+	$an->data->{path} = {
+			exe		=>	{
+				gethostip		=>	"/usr/bin/gethostip",
+				hostname		=>	"/bin/hostname",
+			},
+			logs		=>	{
+				'an-tools.log'		=>	"/var/log/an-tools.log",
+			},
+			words		=>	{
+				'an-tools.xml'		=>	"/usr/share/perl5/AN/an-tools.xml",
+			},
 	};
 	
-	# Make sure we actually have each executable
-	foreach my $program (sort {$a cmp $b} keys %{$an->data->{path}{exe}})
+	# Make sure we actually have the requested files.
+	foreach my $type (sort {$a cmp $b} keys %{$an->data->{path}})
 	{
-		if (not -e $an->data->{path}{exe}{$program})
+		# We don't look for logs because we'll create them if they don't exist.
+		next if $type eq "logs";
+		foreach my $file (sort {$a cmp $b} keys %{$an->data->{path}{$type}})
 		{
-			my $full_path = $an->Storage->find({file => $program});
-			if ($full_path)
+			if (not -e $an->data->{path}{$type}{$file})
 			{
-				$an->data->{path}{exe}{$program} = $full_path;
+				my $fatal = 0;
+				if ($type eq "words")
+				{
+					# We have to die if we don't find a words file.
+					$fatal = 1;
+				}
+				my $full_path = $an->Storage->find({
+					file  => $file,
+					fatal => $fatal,
+				});
+				if ($full_path)
+				{
+					$an->data->{path}{$type}{$file} = $full_path;
+				}
 			}
 		}
 	}
@@ -398,7 +426,7 @@ AN::Tools->new() passed something other than a hash reference.
 
 =head2 C<2>
 
-Failed to find the requested file in C<AN::Tools::Storage->find> and 'fatal' was set.
+Failed to find the requested file in C<< AN::Tools::Storage->find >> and 'fatal' was set.
 
 =head1 Requirements
 
