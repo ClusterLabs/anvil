@@ -5,10 +5,10 @@ package AN::Tools;
 
 BEGIN
 {
-	our $VERSION = "3.0.000";
+	our $VERSION = "3.0.0";
 	# This suppresses the 'could not find ParserDetails.ini in /PerlApp/XML/SAX' warning message in 
 	# XML::Simple calls.
-	$ENV{HARNESS_ACTIVE} = 1;
+	#$ENV{HARNESS_ACTIVE} = 1;
 }
 
 use strict;
@@ -16,9 +16,17 @@ use warnings;
 use Data::Dumper;
 my $THIS_FILE = "Tools.pm";
 
-# Setup for UTF-8 mode.
+### Methods;
+# data
+# environment
+# _add_hash_reference
+# _make_hash_reference
+# _set_defaults
+# _set_paths
+
 use utf8;
-$ENV{'PERL_UNICODE'} = 1;
+binmode(STDERR, ':encoding(utf-8)');
+binmode(STDOUT, ':encoding(utf-8)');
 
 # I intentionally don't use EXPORT, @ISA and the like because I want my "subclass"es to be accessed in a
 # somewhat more OO style. I know some may wish to strike me down for this, but I like the idea of accessing
@@ -43,7 +51,7 @@ Provides a common oject handle to all AN::Tools::* module methods and handles in
 
  # Get a common object handle on all AN::Tools::* modules.
  my $an = AN::Tools->new();
-  
+ 
  # Again, but this time sets some initial values in the '$an->data' hash.
  my $an = AN::Tools->new(
  {
@@ -60,10 +68,10 @@ Provides a common oject handle to all AN::Tools::* module methods and handles in
  my $an = AN::Tools->new(
  {
  	'Log'		=>	{
- 	  	user_language	=>	"jp",
+ 		user_language	=>	"jp",
  		log_language	=>	"jp"
  		level		=>	2,
- 	  },
+ 	},
  });
 
 =head1 DESCRIPTION
@@ -117,15 +125,18 @@ sub new
 	$an->Words->parent($an);
 
 	# Set some system paths and system default variables
-	$an->_add_environment_path_to_search_directories;
 	$an->_set_paths;
-# 	$an->_set_defaults;
+	$an->_set_defaults;
 
 	# This checks the environment this program is running in.
 	$an->environment;
 
 	# Setup my '$an->data' hash right away so that I have a place to store the strings hash.
 	$an->data($parameter->{data}) if $parameter->{data};
+	
+	# Set my search directory to @INC + $ENV{'PATH'}, minus directories that don't exist. We trigger this
+	# build by passing in an invalid directory list.
+	$an->Storage->search_directories({ directories => 1 });
 
 	# I need to read the initial words early.
 	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});
@@ -133,33 +144,8 @@ sub new
 	# Set passed parameters if needed.
 	if (ref($parameter) eq "HASH")
 	{
-		### Local parameters
-		# Reset the paths
-# 		$an->_set_paths;
-# 
-# 		### AN::Tools::Log parameters
-# 		# Set the default languages.
-# 		$an->default_language		($parameter->{'Log'}{user_language}) 	if         $parameter->{'Log'}{user_language};
-# 		$an->default_log_language	($parameter->{'Log'}{log_language}) 	if         $parameter->{'Log'}{log_language};
-# 		
-# 		# Set the log file.
-# 		$an->Log->level			($parameter->{'Log'}{level}) 		if defined $parameter->{'Log'}{level};
-# 		$an->Log->db_transactions	($parameter->{'Log'}{db_transactions}) 	if defined $parameter->{'Log'}{db_transactions};
-# 
-# 		### AN::Tools::Readable parameters
-# 		# Readable needs to be set before Log so that changes to 'base2' are made before the default
-# 		# log cycle size is interpreted.
-# 		$an->Readable->base2		($parameter->{Readable}{base2}) 	if defined $parameter->{Readable}{base2};
-# 
-# 		### AN::Tools::String parameters
-# 		# Force UTF-8.
-# 		$an->String->force_utf8		($parameter->{String}{force_utf8}) 	if defined $parameter->{String}{force_utf8};
-# 
-# 		# Read in the user's words.
-# 		$an->Storage->read_words({file => $parameter->{String}{file}})          if defined $parameter->{String}{file};
-# 
-# 		### AN::Tools::Get parameters
-# 		$an->Get->use_24h		($parameter->{'Get'}{use_24h})		if defined $parameter->{'Get'}{use_24h};
+		### TODO: Calls to allow the user to override defaults...
+		# Local parameters...
 	}
 	elsif($parameter)
 	{
@@ -167,27 +153,6 @@ sub new
 		print $THIS_FILE." ".__LINE__."; AN::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
 		exit(1);
 	}
-
-	# Call methods that need to be loaded at invocation of the module.
-# 	if (($an->{DEFAULT}{STRINGS} =~ /^\.\//) && (not -e $an->{DEFAULT}{STRINGS}))
-# 	{
-# 		# Try to find the location of this module (I can't use Dir::Self' because it is not provided
-# 		# by RHEL 6)
-# 		my $root = ($INC{'AN/Tools.pm'} =~ /^(.*?)\/AN\/Tools.pm/)[0];
-# 		my $file = ($an->{DEFAULT}{STRINGS} =~ /^\.\/(.*)/)[0];
-# 		my $path = "$root/$file";
-# 		if (-e $path)
-# 		{
-# 			# Found the words file.
-# 			$an->{DEFAULT}{STRINGS} = $path;
-# 		}
-# 	}
-# 	if (not -e $an->{DEFAULT}{STRINGS})
-# 	{
-# 		print "Failed to read the core words file: [".$an->{DEFAULT}{STRINGS}."]\n";
-# 		$an->nice_exit({exit_code => 255});
-# 	}
-# 	$an->Storage->read_words({file => $an->{DEFAULT}{STRINGS}});
 
 	return ($self);
 }
@@ -332,35 +297,74 @@ These methods generally should never be called from a program using AN::Tools. H
 # Private methods                                                                                           #
 #############################################################################################################
 
-=head2 _add_environment_path_to_search_directories
+=head2 _add_hash_reference
 
-This method merges @INC and $ENV{'PATH'} into a single array and uses the result to set C<< $an->Storage->search_directories >>.
+This is a helper to the '$an->_make_hash_reference' method. It is called each time a new string is to be created as a new hash key in the passed hash reference.
+
+NOTE: Contributed by Shaun Fryer and Viktor Pavlenko by way of Toronto Perl Mongers.
 
 =cut
-sub _add_environment_path_to_search_directories
+sub _add_hash_reference
+{
+	my $self  = shift;
+	my $href1 = shift;
+	my $href2 = shift;
+	
+	for my $key (keys %$href2)
+	{
+		if (ref $href1->{$key} eq 'HASH')
+		{
+			$self->_add_hash_reference( $href1->{$key}, $href2->{$key} );
+		}
+		else
+		{
+			$href1->{$key} = $href2->{$key};
+		}
+	}
+}
+
+=head2 _make_hash_reference
+
+This takes a string with double-colon seperators and divides on those double-colons to create a hash reference where each element is a hash key.
+
+NOTE: Contributed by Shaun Fryer and Viktor Pavlenko by way of Toronto Perl Mongers.
+
+=cut
+sub _make_hash_reference
+{
+	my $self       = shift;
+	my $href       = shift;
+	my $key_string = shift;
+	my $value      = shift;
+	
+	my @keys            = split /::/, $key_string;
+	my $last_key        = pop @keys;
+	my $_href           = {};
+	$_href->{$last_key} = $value;
+	while (my $key = pop @keys)
+	{
+		my $elem      = {};
+		$elem->{$key} = $_href;
+		$_href        = $elem;
+	}
+	$self->_add_hash_reference($href, $_href);
+}
+
+=head2 _set_defaults
+
+This sets default variable values for the program.
+
+=cut
+sub _set_defaults
 {
 	my ($an) = shift;
 	
-	# If I have $ENV{'PATH'}, use it to add to $an->Storage->search_directories().
-	if (($ENV{'PATH'}) && ($ENV{'PATH'} =~ /:/))
-	{
-		my $new_hash       = [];
-		my $last_directory = "";
-		foreach my $directory (sort {$a cmp $b} @INC, (split/:/, $ENV{'PATH'}))
-		{
-			if (($directory eq ".") && ($ENV{PWD}))
-			{
-				$directory = $ENV{PWD};
-			}
-			next if $directory eq $last_directory;
-			push @{$new_hash}, $directory;
-		}
-		
-		if (@{$new_hash} > 1)
-		{
-			$an->Storage->search_directories({directories => $new_hash});
-		}
-	}
+	$an->data->{defaults} = {
+		languages	=>	{
+			'log'		=>	'en_CA',
+			output		=>	'en_CA',
+		},
+	};
 	
 	return(0);
 }
@@ -439,6 +443,7 @@ The following packages are required on EL7.
 * C<policycoreutils-python>
 * C<postgresql>
 * C<syslinux>
+* C<perl-XML-Simple>
 
 =head1 Recommended Packages
 

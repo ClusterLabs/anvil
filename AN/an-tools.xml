@@ -9,10 +9,7 @@ This is the AN::Tools master 'words' file.
 -->
 
 <words>
-	<meta>
-		<version>3.0.0</version>
-		<languages>en_CA,jp</languages>
-	</meta>
+	<meta version="3.0.0" languages="en_CA,jp"/>
 	<!-- Canadian English -->
 	<language name="en_CA" long_name="Canadian English" description="Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules">
 		
