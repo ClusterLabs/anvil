@@ -16,8 +16,10 @@ my $THIS_FILE = "Words.pm";
 # $ENV{'PERL_UNICODE'} = 1;
 
 ### Methods;
+# clean_spaces
 # key
 # read
+# string
 
 =pod
 
@@ -73,6 +75,34 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+=head2 clean_spaces
+
+This methid takes a string via a 'C<< line >>' parameter and strips leading and trailing spaces, plus compresses multiple spaces into single spaces. It is designed primarily for use by code parsing text coming in from a shell command.
+
+ my $line = $an->Words->clean_spaces({ string => $_ });
+
+Parameters;
+
+=head3 string (required)
+
+This sets the string to be cleaned. If it is not passed in, or if the string is empty, then an empty string will be returned without error.
+
+=cut
+sub clean_spaces
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# Setup default values
+	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
+	   $string =~ s/^\s+//;
+	   $string =~ s/\s+$//;
+	   $string =~ s/\s+/ /g;
+	
+	return($string);
+}
+
 =head2 key
 
 NOTE: This is likely not the method you want. This method does no parsing at all. It returns the raw string from the 'words' file. You probably want C<< $an->Words->string() >> if you want to inject variables and get a string back ready to display to the user.
@@ -90,7 +120,7 @@ Same, but specifying the key from Canadian english;
  my $string = $an->Words->key({
  	key      => 't_0001',
  	language => 'en_CA',
- })
+ });
 
 Same, but specifying a source file.
 
@@ -98,9 +128,15 @@ Same, but specifying a source file.
  	key      => 't_0001',
  	language => 'en_CA',
  	file     => 'an-tools.xml',
- })
+ });
 
 Parameters;
+
+=head3 file (optional)
+
+This is the specific file to read the string from. It should generally not be needed as string keys should not be reused. However, if it happens, this is a way to specify which file's version you want.
+
+The file can be the file name, or a path. The specified file is search for by matching the the passed in string against the end of the file path. For example, 'C<< file => 'AN/an-tools.xml' >> will match the file 'c<< /usr/share/perl5/AN/an-tools.xml >>'.
 
 =head3 key (required)
 
@@ -111,12 +147,6 @@ This is the key to return the string for.
 This is the ISO code for the language you wish to read. For example, 'en_CA' to get the Canadian English string, or 'jp' for the Japanese string.
 
 When no language is passed, 'C<< $an->data->{defaults}{languages}{output} >>' is used. 
-
-=head3 file (optional)
-
-This is the specific file to read the string from. It should generally not be needed as string keys should not be reused. However, if it happens, this is a way to specify which file's version you want.
-
-The file can be the file name, or a path. The specified file is search for by matching the the passed in string against the end of the file path. For example, 'C<< file => 'AN/an-tools.xml' >> will match the file 'c<< /usr/share/perl5/AN/an-tools.xml >>'.
  
 =cut
 sub key
@@ -251,6 +281,242 @@ sub read
 	}
 	
 	return($return_code);
+}
+
+=head2 string
+
+This method takes a string key and returns the string in the requested language. If not key is passed, the language key in 'defaults::languages::output' is used. A hash reference containing variables can be provided to inject values into a string.
+
+If the requested string is not found, 'C<< #!not_found!# >>' is returned.
+
+Example to retrieve 'C<< t_0001 >>';
+
+ my $string = $an->Words->string({key => 't_0001'});
+
+This time, requesting 'C<< t_0002 >>' and passing in two variables. Note that 'C<< t_0002 >>' in Canadian English is;
+
+ Test Out of order: [#!variable!second!#] replace: [#!variable!first!#].
+
+So to request this string in Canadian English is the two variables inserted, we would call:
+
+ my $string = $an->Words->string({	
+ 	language  => 'en_CA',
+ 	key       => 't_0002',
+ 	variables => {
+		first  => "foo",
+		second => "bar",
+ 	},
+ });
+
+This would return;
+
+ Test Out of order: [bar] replace: [foo].
+
+Normally, there should never be a key collision. However, just in case you find yourself needing to request the string from a specific file, you can do the same call with a file specified.
+
+ my $string = $an->Words->string({
+ 	language  => 'en_CA',
+ 	file      => 'an-tools.xml',
+ 	key       => 't_0002',
+ 	variables => {
+		first  => "foo",
+		second => "bar",
+ 	},
+ });
+
+If the passed in key isn't found (at all, or for the given language or file if specified), then 'C<< #!not_found!# >>' will be returned.
+
+Parameters;
+
+=head3 file (optional)
+
+This is the specific file to read the string from. It should generally not be needed as string keys should not be reused. However, if it happens, this is a way to specify which file's version you want.
+
+=head3 key (required)
+
+This is the key to return the string for.
+
+=head3 language (optional)
+
+This is the ISO code for the language you wish to read the string from. For example, 'en_CA' to get the Canadian English string, or 'jp' for the Japanese string.
+
+When no language is passed, 'C<< defaults::languages::output >>' is used. 
+
+=head3 variables (depends)
+
+If the string being requested has one or more 'C<< #!variable!x!# >>' replacement keys, then you must pass a hash reference containing the keys / value pairs where the key matches the replacement string. 
+
+=cut
+sub string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# Setup default values
+	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->data->{defaults}{languages}{output};
+	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
+	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
+	
+	# We'll get the string from our ->key() method, the inject any variables, if needed. This also 
+	# handles the initial sanity checks. If we get back '#!not_found!#', we'll exit.
+	my $string = $an->Words->key({
+		key      => $key,
+		language => $language,
+		file     => $file,
+	});
+	
+	if (($string ne "#!not_found!#") && ($string =~ /#!([^\s]+?)!#/))
+	{
+		# We've got a string and variables from the caller, so inject them as needed.
+		my $loops = 0;
+		my $limit = $an->data->{defaults}{limits}{string_loops} =~ /^\d+$/ ? $an->data->{defaults}{limits}{string_loops} : 1000;
+		
+		# We set the 'loop' variable to '1' and check it at the end of each pass. This is done 
+		# because we might inject a string near the end that adds a replacement key to an 
+		# otherwise-processed string and we don't want to miss that.
+		my $loop = 1;
+		while ($loop)
+		{
+			# First, look for any '#!...!#' keys that we don't recognize and protect them. We'll
+			# restore them once we're out of this loop.
+			foreach my $check ($string =~ /#!([^\s]+?)!#/)
+			{
+				if (($check !~ /^replace/) &&
+				    ($check !~ /^data/)    &&
+				    ($check !~ /^string/)  &&
+				    ($check !~ /^variable/))
+				{
+					# Simply invert the '#!...!#' to '!#...#!'.
+					$string =~ s/#!($check)!#/!#$1#!/g;
+				}
+				
+				# Die if I've looped too many times.
+				$loops++;
+				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
+			}
+			
+			# Now, look for any '#!string!x!#' embedded strings.
+			while ($string =~ /#!string!(.+?)!#/)
+			{
+				my $key         = $1;
+				my $this_string = $an->Words->key({
+					key      => $key,
+					language => $language,
+					file     => $file,
+				});
+				if ($this_string eq "#!not_found!#")
+				{
+					# The key was bad...
+					$string =~ s/#!string!$key!#/!!e[$key]!!/;
+				}
+				else
+				{
+					$string =~ s/#!string!$key!#/$this_string/;
+				}
+				
+				# Die if I've looped too many times.
+				$loops++;
+				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
+			}
+			
+			# Now insert variables in the strings.
+			while ($string =~ /#!variable!(.+?)!#/s)
+			{
+				my $variable = $1;
+				
+				# Sometimes, #!variable!*!# is used in explaining things to users. So we need
+				# to escape it. It will be restored later in '_restore_protected()'.
+				if ($variable eq "*")
+				{
+					$string =~ s/#!variable!\*!#/!#variable!*#!/;
+					next;
+				}
+				
+				if (not defined $variables->{$variable})
+				{
+					# I can't expect there to always be a defined value in the variables
+					# array at any given position so if it is blank qw blank the key.
+					$string =~ s/#!variable!$variable!#//;
+				}
+				else
+				{
+					my $value = $variables->{$variable};
+					chomp $value;
+					$string =~ s/#!variable!$variable!#/$value/;
+				}
+				
+				# Die if I've looped too many times.
+				$loops++;
+				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
+			}
+			
+			# Next, convert '#!data!x!#' to the value in '$an->data->{x}'.
+			while ($string =~ /#!data!(.+?)!#/)
+			{
+				my $id = $1;
+				if ($id =~ /::/)
+				{
+					# Multi-dimensional hash.
+					my $value = $an->_get_hash_reference({ key => $id });
+					if (not defined $value)
+					{
+						$string =~ s/#!data!$id!#/!!a[$id]!!/;
+					}
+					else
+					{
+						$string =~ s/#!data!$id!#/$value/;
+					}
+				}
+				else
+				{
+					# One dimension
+					if (not defined $an->data->{$id})
+					{
+						$string =~ s/#!data!$id!#/!!b[$id]!!/;
+					}
+					else
+					{
+						my $value  =  $an->data->{$id};
+						   $string =~ s/#!data!$id!#/$value/;
+					}
+				}
+				
+				# Die if I've looped too many times.
+				$loops++;
+				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
+			}
+			
+			$loops++;
+			die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
+			
+			# If there are no replacement keys left, exit the loop.
+			if ($string !~ /#!([^\s]+?)!#/)
+			{
+				$loop = 0;
+			}
+		}
+		
+		# Restore any protected keys. Reset the loop counter, too.
+		$loops = 0;
+		$loop  = 1;
+		while ($loop)
+		{
+			$string =~ s/!#([^\s]+?)#!/#!$1!#/g;
+			
+			$loops++;
+			die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
+			
+			if ($string !~ /!#[^\s]+?#!/)
+			{
+				$loop = 0;
+			}
+		}
+	}
+	
+	#print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n";
+	return($string);
 }
 
 # =head3

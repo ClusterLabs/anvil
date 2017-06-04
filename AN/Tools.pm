@@ -135,8 +135,8 @@ sub new
 	$an->data($parameter->{data}) if $parameter->{data};
 	
 	# Set my search directory to @INC + $ENV{'PATH'}, minus directories that don't exist. We trigger this
-	# build by passing in an invalid directory list.
-	$an->Storage->search_directories({ directories => 1 });
+	# build by passing in an empty directory list.
+	$an->Storage->search_directories({ directories => "" });
 
 	# I need to read the initial words early.
 	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});
@@ -323,6 +323,57 @@ sub _add_hash_reference
 	}
 }
 
+=head2 _get_hash_reference
+
+This is called when we need to parse a double-colon separated string into two or more elements which represent keys in the 'C<< $an->data >>' hash. Once suitably split up, the value is read and returned.
+
+For example;
+
+ $an->data->{foo}{bar} = "baz";
+ my $value = $an->_get_hash_reference({ key => "foo::bar" });
+
+The 'C<< $value >>' now contains "C<< baz >>".
+
+NOTE: If the key is not found, 'C<< undef >>' is returned.
+
+Parameters;
+
+=head3 key (required)
+
+This is the key to return the value for. If it is not passed, or if it does not have 'C<< :: >>' in it, 'C<< undef >>' will be returned.
+
+=cut
+sub _get_hash_reference
+{
+	# 'href' is the hash reference I am working on.
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self;
+	
+	#print "$THIS_FILE ".__LINE__."; hash: [".$an."], key: [$parameter->{key}]\n";
+	die "$THIS_FILE ".__LINE__."; The hash key string: [$parameter->{key}] doesn't seem to be valid. It should be a string in the format 'foo::bar::baz'.\n" if $parameter->{key} !~ /::/;
+	
+	# Split up the keys.
+	my $key   = $parameter->{key} ? $parameter->{key} : "";
+	my $value = undef;	# We return 'undef' so that the caller can tell the difference between an empty string versus nothing found.
+	if ($key =~ /::/)
+	{
+		my @keys     = split /::/, $key;
+		my $last_key = pop @keys;
+		
+		# Re-order the array.
+		my $current_hash_ref = $an->data;
+		foreach my $key (@keys)
+		{
+			$current_hash_ref = $current_hash_ref->{$key};
+		}
+		
+		$value = $current_hash_ref->{$last_key};
+	}
+	
+	return ($value);
+}
+
 =head2 _make_hash_reference
 
 This takes a string with double-colon seperators and divides on those double-colons to create a hash reference where each element is a hash key.
@@ -361,9 +412,16 @@ sub _set_defaults
 	
 	$an->data->{defaults} = {
 		languages	=>	{
+			# Default log langauge.
 			'log'		=>	'en_CA',
+			# Default language for all output shown to a user.
 			output		=>	'en_CA',
 		},
+		limits		=>	{
+			# This is the maximum number of times we're allow to loop when injecting variables 
+			# into a string being processed in AN::Tools::Words->string();
+			string_loops	=>	1000,
+		}
 	};
 	
 	return(0);
