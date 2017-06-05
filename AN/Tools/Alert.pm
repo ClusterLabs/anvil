@@ -24,7 +24,7 @@ Provides all methods related warnings and alerts.
 
 =head1 SYNOPSIS
 
- use AN::Tools::Alert;
+ use AN::Tools;
 
  # Get a common object handle on all AN::Tools modules.
  my $an = AN::Tools->new();

@@ -32,6 +32,8 @@ binmode(STDOUT, ':encoding(utf-8)');
 # somewhat more OO style. I know some may wish to strike me down for this, but I like the idea of accessing
 # methods via their containing module's name. (A La: C<< $an->Module->method >> rather than C<< $an->method >>).
 use AN::Tools::Alert;
+use AN::Tools::Get;
+use AN::Tools::Log;
 use AN::Tools::Storage;
 use AN::Tools::Words;
 
@@ -99,6 +101,8 @@ sub new
 	my $self      = {
 		HANDLE				=>	{
 			ALERT				=>	AN::Tools::Alert->new(),
+			GET				=>	AN::Tools::Get->new(),
+			LOG				=>	AN::Tools::Log->new(),
 			STORAGE				=>	AN::Tools::Storage->new(),
 			WORDS				=>	AN::Tools::Words->new(),
 		},
@@ -121,6 +125,8 @@ sub new
 	
 	# Get a handle on the various submodules
 	$an->Alert->parent($an);
+	$an->Get->parent($an);
+	$an->Log->parent($an);
 	$an->Storage->parent($an);
 	$an->Words->parent($an);
 
@@ -134,9 +140,8 @@ sub new
 	# Setup my '$an->data' hash right away so that I have a place to store the strings hash.
 	$an->data($parameter->{data}) if $parameter->{data};
 	
-	# Set my search directory to @INC + $ENV{'PATH'}, minus directories that don't exist. We trigger this
-	# build by passing in an empty directory list.
-	$an->Storage->search_directories({directories => 1});
+	# Initialize the list of directories to seach.
+	$an->Storage->search_directories({initialize => 1});
 
 	# I need to read the initial words early.
 	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});
@@ -260,6 +265,30 @@ sub Alert
 	my $self = shift;
 	
 	return ($self->{HANDLE}{ALERT});
+}
+
+=head2 Get
+
+Access the C<Get.pm> methods via 'C<< $an->Get->method >>'.
+
+=cut
+sub Get
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{GET});
+}
+
+=head2 Log
+
+Access the C<Log.pm> methods via 'C<< $an->Log->method >>'.
+
+=cut
+sub Log
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{LOG});
 }
 
 =head2 Storage
@@ -412,8 +441,6 @@ sub _set_defaults
 	
 	$an->data->{defaults} = {
 		languages	=>	{
-			# Default log langauge.
-			'log'		=>	'en_CA',
 			# Default language for all output shown to a user.
 			output		=>	'en_CA',
 		},
@@ -421,7 +448,14 @@ sub _set_defaults
 			# This is the maximum number of times we're allow to loop when injecting variables 
 			# into a string being processed in AN::Tools::Words->string();
 			string_loops	=>	1000,
-		}
+		},
+		'log'		=>	{
+			db_transactions	=>	0,
+			language	=>	"en_CA",
+			level		=>	1,
+			pid		=>	0,
+			secure		=>	0,
+		},
 	};
 	
 	return(0);

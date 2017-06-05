@@ -27,7 +27,7 @@ Provides all methods related to storage on a system.
 
 =head1 SYNOPSIS
 
- use AN::Tools::Storage;
+ use AN::Tools;
 
  # Get a common object handle on all AN::Tools modules.
  my $an = AN::Tools->new();
@@ -298,6 +298,12 @@ This accepts either an array reference of directories to search, or a comma-sepa
 
 By default, it is set to all directories in C<< \@INC >> and the C<< $ENV{'PATH'} >> variables, minus directories that don't actually exist. The returned array is sorted alphabetically.
 
+=head3 initialize (optional)
+
+If this is set, the list of directories to search will be set to '@INC + $ENV{'PATH'}'.
+
+NOTE: You don't need to call this manually unless you want to reset the list. Invoking AN::Tools->new() causes this to be called automatically.
+
 =cut 
 sub search_directories
 {
@@ -306,7 +312,8 @@ sub search_directories
 	my $an        = $self->parent;
 	
 	# Set a default if nothing was passed.
-	my $array = defined $parameter->{directories} ? $parameter->{directories} : "";
+	my $array      = defined $parameter->{directories} ? $parameter->{directories} : "";
+	my $initialize = defined $parameter->{initialize}  ? $parameter->{initialize}  : "";
 	
 	# If the array is a CSV of directories, convert it now.
 	if ($array =~ /,/)
@@ -315,10 +322,13 @@ sub search_directories
 		my @new_array = split/,/, $array;
 		   $array     = \@new_array;
 	}
-	elsif (($array) && (ref($array) ne "ARRAY"))
+	elsif (($initialize) or (($array) && (ref($array) ne "ARRAY")))
 	{
-		# TODO: Make this a $an->Alert->warning().
-		print $THIS_FILE." ".__LINE__."; [ Warning ] - The passed in array: [$array] wasn't actually an array. Using \@INC + \$ENV{'PATH'} for the list of directories to search instead.\n";
+		if (not $initialize)
+		{
+			# TODO: Make this a $an->Alert->warning().
+			print $THIS_FILE." ".__LINE__."; [ Warning ] - The passed in array: [$array] wasn't actually an array. Using \@INC + \$ENV{'PATH'} for the list of directories to search instead.\n";
+		}
 		
 		# Create a new array containing the '$ENV{'PATH'}' directories and the @INC directories.
 		my @new_array = split/:/, $ENV{'PATH'} if $ENV{'PATH'} =~ /:/;

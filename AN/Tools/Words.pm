@@ -33,7 +33,7 @@ Provides all methods related to generating translated strings for users.
 
 =head1 SYNOPSIS
 
- use AN::Tools::Words;
+ use AN::Tools;
 
  # Get a common object handle on all AN::Tools modules.
  my $an = AN::Tools->new();

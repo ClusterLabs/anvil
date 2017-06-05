@@ -10,7 +10,7 @@ use utf8;
 our $VERSION="3.0.0";
  
 # Call in the test module, telling it how many tests to expect to run.
-use Test::More tests => 30;
+use Test::More tests => 39;
 
 # Load my module via 'use_ok' test.
 BEGIN
@@ -68,7 +68,7 @@ is($an->Storage->read_config({ file => "AN/moo.conf" }), 2, "Verifying that '\$a
 cmp_ok($an->data->{foo}{bar}{a}, 'eq', 'I am "a"', "Verifying that 'AN/test.conf's 'foo::bar::a' overwrote an earlier set value.");
 cmp_ok($an->data->{foo}{bar}{b}, 'eq', 'I am "b", split with tabs and having trailing spaces.', "Verifying that 'AN/test.conf's 'foo::bar::b' has whitespaces removed as expected.");
 cmp_ok($an->data->{foo}{baz}{1}, 'eq', 'This is \'1\' with no spaces', "Verifying that 'AN/test.conf's 'foo::baz::1' parsed without spaces around '='.");
-cmp_ok($an->data->{foo}{baz}{2}, 'eq', 'I had a $dollar = sign and split with tabs.', "Verifying that 'AN/test.conf's 'foo::baz::2' had no trouble with a '$' and '=' characters in the string.");
+cmp_ok($an->data->{foo}{baz}{2}, 'eq', 'I had a $dollar = sign and split with tabs.', "Verifying that 'AN/test.conf's 'foo::baz::2' had no trouble with a '\$' and '=' characters in the string.");
 
 ### AN::Tools::Words methods
 # Make sure we can read words files
@@ -117,4 +117,27 @@ is($an->Words->string({
 ここで、「t_0000」を挿入します：[テスト いれかえる: [result!]。]
 ここでは、 「t_0002」に埋め込み変数を挿入します：「テスト、 整理: [2nd]/[1st]。」
 ここでは変数 「この文字列には「t_0001」が埋め込まれています：「テスト いれかえる: [result!]。」」を持つ 「t_0001」を注入する 「t_0006」を注入します。
-", "Verifying string processing in Japanese.")
+", "Verifying string processing in Japanese.");
+
+### Get tests.
+like($an->Get->date_and_time(), qr/^\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d$/, "Verifying the current date and time is returned.");
+like($an->Get->date_and_time({date_only => 1}), qr/^\d\d\d\d\/\d\d\/\d\d$/, "Verifying the current date alone is returned.");
+like($an->Get->date_and_time({time_only => 1}), qr/^\d\d:\d\d:\d\d$/, "Verifying the current time alone is returned.");
+like($an->Get->date_and_time({file_name => 1}), qr/^\d\d\d\d-\d\d-\d\d_\d\d-\d\d-\d\d$/, "Verifying the current date and time is returned in a file-friendly format.");
+like($an->Get->date_and_time({file_name => 1, date_only => 1}), qr/^\d\d\d\d-\d\d-\d\d$/, "Verifying the current date only is returned in a file-friendly format.");
+like($an->Get->date_and_time({file_name => 1, time_only => 1}), qr/^\d\d-\d\d-\d\d$/, "Verifying the current time only is returned in a file-friendly format.");
+# We can't be too specific because the user's TZ will shift the results
+like($an->Get->date_and_time({use_time => 1234567890}), qr/2009\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime returned the expected date.");
+like($an->Get->date_and_time({use_time => 1234567890, offset => 31536000}), qr/2010\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime with a one year in the future offset returned the expected date.");
+like($an->Get->date_and_time({use_time => 1234567890, offset => -31536000}), qr/2008\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime with a one year in the past offset returned the expected date.");
+
+# my $time     = time;
+# print "Current time: .............. [".$an->Get->date_and_time({})."]\n";
+# print "Current time only: ......... [".$an->Get->date_and_time({time_only => 1})."]\n";
+# print "Current date only: ......... [".$an->Get->date_and_time({date_only => 1})."]\n";
+# print "Current file time: ......... [".$an->Get->date_and_time({file_name => 1})."]\n";
+# print "Current file time only: .... [".$an->Get->date_and_time({file_name => 1, time_only => 1})."]\n";
+# print "Current file date only: .... [".$an->Get->date_and_time({file_name => 1, date_only => 1})."]\n";
+# print "One hour ago: .............. [".$an->Get->date_and_time({offset => -3600})."]\n";
+# print "Ten hours from now: ........ [".$an->Get->date_and_time({offset => 36000})."]\n";
+# print "Ten hours ago: ............. [".$an->Get->date_and_time({offset => -36000})."]\n";
