@@ -136,7 +136,7 @@ sub new
 	
 	# Set my search directory to @INC + $ENV{'PATH'}, minus directories that don't exist. We trigger this
 	# build by passing in an empty directory list.
-	$an->Storage->search_directories({ directories => "" });
+	$an->Storage->search_directories({directories => 1});
 
 	# I need to read the initial words early.
 	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});

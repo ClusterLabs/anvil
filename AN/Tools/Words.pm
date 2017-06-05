@@ -515,6 +515,9 @@ sub string
 		}
 	}
 	
+	# In some multi-line strings, the last line will be '\t\t</key>'. We clean this up.
+	$string =~ s/\t\t$//;
+	
 	#print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n";
 	return($string);
 }

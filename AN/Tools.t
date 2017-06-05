@@ -10,7 +10,7 @@ use utf8;
 our $VERSION="3.0.0";
  
 # Call in the test module, telling it how many tests to expect to run.
-use Test::More tests => 28;
+use Test::More tests => 30;
 
 # Load my module via 'use_ok' test.
 BEGIN
@@ -39,6 +39,7 @@ like($an->Words, qr/^AN::Tools::Words=HASH\(0x\w+\)$/, "Verifying that '\$an->Al
 my $array1   = $an->Storage->search_directories;
 my $a1_count = @{$array1};
 cmp_ok($a1_count, '>', 0, "Verifying that \$an->Storage->search_directories has at least one entry. Found: [$a1_count] directories.");
+
 $an->Storage->search_directories({directories => "/root,/usr/bin,/some/fake/directory"});
 my $array2   = $an->Storage->search_directories;
 my $a2_count = @{$array2};
@@ -71,13 +72,49 @@ cmp_ok($an->data->{foo}{baz}{2}, 'eq', 'I had a $dollar = sign and split with ta
 
 ### AN::Tools::Words methods
 # Make sure we can read words files
-is($an->Words->read({file =>$an->data->{path}{words}{'an-tools.xml'}}), 0, "Verifying that '\$an->Words->read' properly returned '0' when asked to read the AN::Tools's words file.");
+is($an->Words->read({file => $an->data->{path}{words}{'an-tools.xml'}}), 0, "Verifying that '\$an->Words->read' properly returned '0' when asked to read the AN::Tools's words file.");
 is($an->Words->read({file => ''}), 1, "Verifying that '\$an->Words->read' properly returned '1' when asked to read a works file without a file being passed.");
 is($an->Words->read({file => '/tmp/dummy.xml'}), 2, "Verifying that '\$an->Words->read' properly returned '2' when asked to read a non-existent file.");
 ### NOTE: At this time, we don't test for unreadable files (rc = 3) or general read faults as set by XML::Simple (rc = 4).
 
-# Make sure we can read strings.
+# Make sure we can read raw strings.
 is($an->Words->key({key => 't_0001'}), "Test replace: [#!variable!test!#].", "Verifying that '\$an->Words->key' returned the Canadian English 't_0001' string.");
 is($an->Words->key({key => 't_0001', language => 'jp'}), "テスト いれかえる: [#!variable!test!#]。", "Verifying that '\$an->Words->read' returned the Japanese 't_0001' string.");
 is($an->Words->key({key => 't_0003', language => 'jp'}), "#!not_found!#", "Verifying that '\$an->Words->read' returned '#!not_found!#' for the missing 't_0003' key.");
 
+# Make sure we can read processed strings.
+is($an->Words->string({
+	key       => 't_0005',
+	variables => {
+		test   => "result!",
+		first  => "1st",
+		second => "2nd",
+ 	},
+}), "
+This is a multi-line test string with various items to insert.
+
+It also has some #!invalid!# replacement #!keys!# to test the escaping and restoring.
+
+Here is the default output language: [en_CA]
+Here we will inject 't_0000': [Test replace: [result!].] 
+Here we will inject 't_0002' with its embedded variables: [Test Out of order: [2nd] replace: [1st].]
+Here we will inject 't_0006', which injects 't_0001' which has a variable: [This string embeds 't_0001': [Test replace: [result!].]].
+", "Verifying string processing in the default (Canadian English) language.");
+is($an->Words->string({
+	language  => 'jp',
+	key       => 't_0005',
+	variables => {
+		test   => "result!",
+		first  => "1st",
+		second => "2nd",
+ 	},
+}), "
+これは、挿入するさまざまな項目を含む複数行のテスト文字列です。
+
+#!無効#!な置換!#キー!#を使ってエスケープとリストアをテストすることもできます。
+
+デフォルトの出力言語は次のとおりです：「en_CA」
+ここで、「t_0000」を挿入します：[テスト いれかえる: [result!]。]
+ここでは、 「t_0002」に埋め込み変数を挿入します：「テスト、 整理: [2nd]/[1st]。」
+ここでは変数 「この文字列には「t_0001」が埋め込まれています：「テスト いれかえる: [result!]。」」を持つ 「t_0001」を注入する 「t_0006」を注入します。
+", "Verifying string processing in Japanese.")
