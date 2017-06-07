@@ -173,7 +173,7 @@ This method is used to read 'AN::Tools' style configuration files. These configu
 
 A configuration file can be read in like this;
 
- $an->Storage->read_config({ file => "test.conf" });
+ $an->Storage->read_config({file => "test.conf"});
 
 In this example, the file 'C<< test.conf >>' will be searched for in the directories returned by 'C<< $an->Storage->search_directories >>'. 
 

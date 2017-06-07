@@ -13,6 +13,24 @@ This is the AN::Tools master 'words' file.
 	<!-- Canadian English -->
 	<language name="en_CA" long_name="Canadian English" description="Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules">
 		
+		<!-- Log entries -->
+		<key name="log_0001">Starting: [#!variable!program!#].</key>
+		<key name="log_0002">
+This is a "test" entry.
+
+It is multiple lines with single quotes ['] and double-quotes (") and here are random brackets{!}.
+
+It also has replacement variables: [#!variable!first!#] and [#!variable!second!#].
+		</key>
+		<key name="log_0003">This is a test log entry that contains a secret [#!variable!password!#]!</key>
+		<key name="log_0004">This is a test log entry at log level 2.</key>
+		<key name="log_0005">This is a test log entry at log level 3.</key>
+		<key name="log_0006">This is a test log entry at log level 4.</key>
+		<key name="log_0007">This is a test critical log entry.</key>
+		<key name="log_0008">This is a test error log entry.</key>
+		<key name="log_0009">This is a test alert log entry.</key>
+		<key name="log_0010">This is a test emergency log entry.</key>
+		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
 		<key name="t_0001">Test replace: [#!variable!test!#].</key>

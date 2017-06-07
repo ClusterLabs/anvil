@@ -303,8 +303,8 @@ So to request this string in Canadian English is the two variables inserted, we 
  	language  => 'en_CA',
  	key       => 't_0002',
  	variables => {
-		first  => "foo",
-		second => "bar",
+ 		first  => "foo",
+ 		second => "bar",
  	},
  });
 

@@ -145,6 +145,12 @@ sub new
 
 	# I need to read the initial words early.
 	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});
+	
+	# If the local './tools.conf' file exists, read it in.
+	if (-r "./tools.conf")
+	{
+		$an->Storage->read_config({file => "./tools.conf"});
+	}
 
 	# Set passed parameters if needed.
 	if (ref($parameter) eq "HASH")
@@ -451,10 +457,12 @@ sub _set_defaults
 		},
 		'log'		=>	{
 			db_transactions	=>	0,
+			facility	=>	"local0",
 			language	=>	"en_CA",
 			level		=>	1,
-			pid		=>	0,
 			secure		=>	0,
+			server		=>	"",
+			tag		=>	"an-tools",
 		},
 	};
 	
@@ -475,9 +483,7 @@ sub _set_paths
 			exe		=>	{
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/bin/hostname",
-			},
-			logs		=>	{
-				'an-tools.log'		=>	"/var/log/an-tools.log",
+				logger			=>	"/usr/bin/logger",
 			},
 			words		=>	{
 				'an-tools.xml'		=>	"/usr/share/perl5/AN/an-tools.xml",

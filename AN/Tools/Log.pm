@@ -12,6 +12,8 @@ my $THIS_FILE = "Log.pm";
 
 ### Methods;
 # entry
+# level
+# secure
 
 =pod
 
@@ -69,18 +71,18 @@ sub parent
 
 =head2 entry
 
-This method writes an entry to the log file, provided the log file is equal to or higher than the active log level. The exception is if the log entry contains sensitive data, like a password, and 'C<< log::secure >> is set to 'C<< 0 >>' (the default).
+This method writes an entry to the journald logs, provided the log entry's level is equal to or higher than the active log level. The exception is if the log entry contains sensitive data, like a password, and 'C<< log::secure >> is set to 'C<< 0 >>' (the default).
 
 Here is a simple example of writing a simple log entry at log log level 1.
 
- $an->Log->entry({file => $THIS_FILE, line => __LINE__, level => 1, key => "log_0001"});
+ $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0001"});
 
 In the example above, the string will be written to the log file if the active log level is 'C<< 1 >>' or higher and it will use the 'C<< log::language >>' language to translate the string key.
 
 Now a more complex example;
 
  $an->Log->entry({
- 	file      => $THIS_FILE, 
+ 	source    => $THIS_FILE, 
  	line      => __LINE__, 
  	level     => 2,
  	secure    => 1,
@@ -96,7 +98,7 @@ In the above example, the log level is set to 'C<< 2 >>' and the 'C<< secure >>'
 Finally, it is possible to log pre-processed strings (as is done in 'Alert->warning()' and 'Alert->error()'). In this case, the 'C<< raw >>' parameter is used and it contains the processed string. Note that the source file and line number are still pre-pended to the raw message.
 
  $an->Log->entry({
- 	file      => $THIS_FILE, 
+ 	source    => $THIS_FILE, 
  	line      => __LINE__, 
  	level     => 2,
  	raw       => "This error can't be translated",
@@ -106,15 +108,25 @@ The above should be used very sparingly, and generally only in places where stri
 
 Parameters;
 
-=head3 file (optional)
+=head3 facility (optional)
 
-When set, the string is pre-pended to the log entry. This is generally set to 'C<< $THIS_FILE >>', which itself should contain the file name requesting the log entry.
+This is an optional log facility to log the message with. By default, 'C<< local0 >>' is used.
+
+If the 'C<< secure >>' flag is set, the facility is changed to 'C<< authpriv >>' and this is ignored.
+
+See 'C<< man logger >>' for a full list of valid priorities.
 
 =head3 key (required)
 
 NOTE: This is not required *if* 'C<< raw >>' is used instead.
 
 This is the string key to use for the log entry. By default, it will be translated into the 'C<< log::language >> language. If the string contains replacement variables, be sure to also use 'C<< variables >>'.
+
+=head3 language (optional)
+
+This is the ISO code for the language you wish to use for the log message. For example, 'en_CA' to get the Canadian English string, or 'jp' for the Japanese string.
+
+When no language is passed, 'C<< defaults::log::languages >>' is used. 
 
 =head3 level (required)
 
@@ -149,6 +161,20 @@ This is the highest log level, and it will generate a tremendous amount of log e
 
 When set, the string is prepended to the log entry, after 'C<< file >> if set, and should be set to C<< __LINE__ >>. It is used to show where in 'C<< file >>' the log entry was made and can assist with debugging.
 
+=head3 priority (optional)
+
+This is an optional log priority (level) name. By default, the following priorities will be used based on the log level of the message.
+
+* 0 = notice
+* 1 = info
+* 2 = info
+* 3 = debug
+* 4 = debug
+
+See 'C<< man logger >>' for a full list of valid priorities. Most notably, setting 'C<< crit >>' for critical events, 'C<< err >>' for errors, 'C<< alert >>' for alerts and 'C<< emerg >>' for emergencies are used.
+
+WARNING: Using 'C<< emerg >>' will spam all terminals. Only use it in true emergencies, like when about to shut down.
+
 =head3 raw (optional)
 
 NOTE: This *or* C<< key >> must be passed.
@@ -158,6 +184,18 @@ This can contain a string to record to the log file. It is treated as a raw stri
 =head3 secure (optional)
 
 When set, this indicates that the log entry might contain sensitive data, like a password. When set, the log entry will only be recorded if 'C<< log::secure >>' is set to '1' *and* the log level is equal to or higher than 'C<< log::level >>'.
+
+=head3 server (optional)
+
+This controls which log server the log entries are recorded. By default, this is blank (and logs are recorded locally).
+
+=head3 source (optional)
+
+When set, the string is pre-pended to the log entry. This is generally set to 'C<< $THIS_FILE >>', which itself should contain the file name requesting the log entry.
+
+=head3 tag (optional)
+
+This is the tag given to the log entry. By default, it will be 'C<< an-tools >>'.
 
 =head3 variables (optional)
 
@@ -170,19 +208,188 @@ sub entry
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->data->{defaults}{'log'}{language};;
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
+	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $an->data->{defaults}{'log'}{facility};
+	my $priority  = defined $parameter->{priority}  ? $parameter->{priority}  : "";
 	my $raw       = defined $parameter->{raw}       ? $parameter->{raw}       : "";
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : 0;
+	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $an->data->{defaults}{'log'}{server};
+	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
+	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $an->data->{defaults}{'log'}{tag};
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
+	#print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [$level], defaults::log::level: [".$an->Log->{defaults}{'log'}{level}."], logging secure? [".$an->Log->secure."]\n";
 	
-	if ($level > $an->data->{'log'}{level})
+	### TODO: Create a method for setting/checking the active log level.
+	if ($level > $an->Log->level)
 	{
 		return(1);
 	}
+	### TODO: Create a method for setting/checking if we're recording secure messages or not.
+	if (($secure) && (not $an->Log->secure))
+	{
+		return(2);
+	}
 	
+	# Build the priority, if not set by the user.
+	my $priority_string = $secure ? "authpriv" : $facility;
+	if ($priority)
+	{
+		$priority_string .= ".$priority";
+	}
+	elsif ($level eq "0")
+	{
+		$priority_string .= ".notice";
+	}
+	elsif (($level eq "1") or ($level eq "2"))
+	{
+		$priority_string .= ".info";
+	}
+	else
+	{
+		$priority_string .= ".debug";
+	}
+	
+	# Log the file and line, if passed.
+	my $string = "";
+	if (($source) && ($line))
+	{
+		$string .= "$source:$line";
+	}
+	elsif ($source)
+	{
+		$string .= "$source";
+	}
+	elsif ($line)
+	{
+		$string .= "$line";
+	}
+	$string .= "; ";
+	
+	# If I have a raw string, do no more processing.
+	if ($raw)
+	{
+		$string .= $raw;
+	}
+	elsif ($key)
+	{
+		# Build the string from the key/variables.
+		my $message .= $an->Words->string({	
+			language  => $language,
+			key       => $key,
+			variables => $variables,
+		});
+		$message =~ s/"/\\\"/gs;
+		#print $THIS_FILE." ".__LINE__."; [ Debug ] - message: [$message]\n";
+		$string .= $message;
+	}
+	
+	# NOTE: This might become too expensive, in which case we may need to create a connection to journald
+	#       that we can leave open during a run.
+	my $shell_call = $an->data->{path}{exe}{logger}." --id --tag ".$tag." --priority ".$priority_string;
+	if ($server)
+	{
+		$shell_call .= " --server ".$server;
+	}
+	$shell_call .= " -- \"".$string."\"";
+	#print $THIS_FILE." ".__LINE__."; [ Debug ] - shell_call: [$shell_call]\n";
+	
+	# Record it!
+	open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should never be hit...
+		chomp;
+		warn $THIS_FILE." ".__LINE__."; [ Warning ] - Unexpected output from: [".$shell_call."] -> [".$_."]\n";
+	}
+	close $file_handle;
 	
 	return(0);
+}
+
+=head2 level
+
+This sets or returns the active log level. Valid values are 0 to 4. See the 'entry()' method docs for more details.
+
+Check the current log level:
+
+ print "Current log level: [".$an->Log->level."]\n";
+ 
+Change the current log level to 'C<< 2 >>';
+
+ $an->Log->level(2);
+
+=cut
+sub level
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	if (defined $parameter)
+	{
+		if ($parameter eq "0")
+		{
+			$an->data->{defaults}{'log'}{level} = 0;
+		}
+		elsif ($parameter eq "1")
+		{
+			$an->data->{defaults}{'log'}{level} = 1;
+		}
+		elsif ($parameter eq "2")
+		{
+			$an->data->{defaults}{'log'}{level} = 2;
+		}
+		elsif ($parameter eq "3")
+		{
+			$an->data->{defaults}{'log'}{level} = 3;
+		}
+		elsif ($parameter eq "4")
+		{
+			$an->data->{defaults}{'log'}{level} = 4;
+		}
+	}
+	
+	return($an->data->{defaults}{'log'}{level});
+}
+
+=head2 secure
+
+This sets or returns whether logging of sensitive log strings is enabled. 
+
+It returns 'C<< 0 >>' if sensitive entries are *not* being logged. It returns 'C<< 1 >>' if they are.
+
+Passing 'C<< 0 >>' disables recording sensitive logs. Passing 'C<< 1 >>' enables logging sensitive entries.
+
+ if ($an->Log->secure)
+ {
+	# Sensitive data logging is enabled.
+ }
+ 
+Disable sensitive log entry recording.
+
+ $an->Log->secure(0);
+
+=cut
+sub secure
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	if (defined $parameter)
+	{
+		if ($parameter eq "0")
+		{
+			$an->data->{defaults}{'log'}{secure} = 0;
+		}
+		elsif ($parameter eq "1")
+		{
+			$an->data->{defaults}{'log'}{secure} = 1;
+		}
+	}
+	
+	return($an->data->{defaults}{'log'}{secure});
 }
