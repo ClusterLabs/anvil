@@ -107,13 +107,12 @@ sub new
 			WORDS				=>	AN::Tools::Words->new(),
 		},
 		DATA				=>	{},
-		ERROR_COUNT			=>	0,
-		ERROR_LIMIT			=>	10000,
-		DEFAULT				=>	{
-			LANGUAGE			=>	'en_CA',
-		},
 		ENV_VALUES			=>	{
 			ENVIRONMENT			=>	'cli',
+		},
+		HOST				=>	{
+			# This is the host's UUID. It should never be manually set.
+			UUID			=>	"",
 		},
 	};
 
@@ -151,7 +150,10 @@ sub new
 	{
 		$an->Storage->read_config({file => "./tools.conf"});
 	}
-
+	
+	# Read in any command line switches.
+	$an->Get->switches;
+	
 	# Set passed parameters if needed.
 	if (ref($parameter) eq "HASH")
 	{
@@ -481,6 +483,7 @@ sub _set_paths
 	# Executables
 	$an->data->{path} = {
 			exe		=>	{
+				dmidecode		=>	"/usr/sbin/dmidecode",
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/bin/hostname",
 				logger			=>	"/usr/bin/logger",

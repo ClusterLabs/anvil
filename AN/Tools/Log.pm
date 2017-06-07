@@ -14,6 +14,7 @@ my $THIS_FILE = "Log.pm";
 # entry
 # level
 # secure
+# _adjust_log_level
 
 =pod
 
@@ -256,17 +257,16 @@ sub entry
 	my $string = "";
 	if (($source) && ($line))
 	{
-		$string .= "$source:$line";
+		$string .= "$source:$line; ";
 	}
 	elsif ($source)
 	{
-		$string .= "$source";
+		$string .= "$source; ";
 	}
 	elsif ($line)
 	{
-		$string .= "$line";
+		$string .= "$line; ";
 	}
-	$string .= "; ";
 	
 	# If I have a raw string, do no more processing.
 	if ($raw)
@@ -294,9 +294,9 @@ sub entry
 		$shell_call .= " --server ".$server;
 	}
 	$shell_call .= " -- \"".$string."\"";
-	#print $THIS_FILE." ".__LINE__."; [ Debug ] - shell_call: [$shell_call]\n";
 	
 	# Record it!
+	#print $THIS_FILE." ".__LINE__."; [ Debug ] - shell_call: [$shell_call]\n";
 	open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
 	while(<$file_handle>)
 	{
@@ -392,4 +392,50 @@ sub secure
 	}
 	
 	return($an->data->{defaults}{'log'}{secure});
+}
+
+
+# =head3
+# 
+# Private Functions;
+# 
+# =cut
+
+#############################################################################################################
+# Private functions                                                                                         #
+#############################################################################################################
+
+=head2 _adjust_log_level
+
+This is a private method used by 'C<< $an->Get->switches >>' that automatically adjusts the active log level to 0 ~ 4. See 'C<< perldoc AN::Tools::Get >>' for more information.
+
+=cut 
+sub _adjust_log_level
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	if ($an->data->{switches}{V})
+	{
+		$an->Log->level(0);
+	}
+	elsif ($an->data->{switches}{v})
+	{
+		$an->Log->level(1);
+	}
+	elsif ($an->data->{switches}{vv})
+	{
+		$an->Log->level(2);
+	}
+	elsif ($an->data->{switches}{vvv})
+	{
+		$an->Log->level(3);
+	}
+	elsif ($an->data->{switches}{vvvv})
+	{
+		$an->Log->level(4);
+	}
+	
+	return(0);
 }

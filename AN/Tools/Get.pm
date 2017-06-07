@@ -12,6 +12,8 @@ my $THIS_FILE = "Get.pm";
 
 ### Methods;
 # date_and_time
+# host_uuid
+# switches
 
 =pod
 
@@ -43,7 +45,11 @@ Methods in this module;
 sub new
 {
 	my $class = shift;
-	my $self  = {};
+	my $self  = {
+		HOST	=>	{
+			UUID	=>	"",
+		},
+	};
 	
 	bless $self, $class;
 	
@@ -161,3 +167,138 @@ sub date_and_time
 	
 	return($return_string);
 }
+
+=head2 host_uuid
+
+This returns the local host's system UUID (as reported by 'dmidecode'). 
+
+ print "This host's UUID: [".$an->Get->host_uuid."]\n";
+
+It is possible to override the local UUID, though it is not recommended.
+
+ $an->Get->host_uuid({set => "720a0509-533d-406b-8fc1-03aca3e75fa7"})
+
+=cut
+sub host_uuid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	
+	if ($set)
+	{
+		$an->data->{HOST}{UUID} = $set;
+	}
+	elsif (not $an->data->{HOST}{UUID})
+	{
+		# Read dmidecode
+		my $uuid       = "";
+		my $shell_call = $an->data->{path}{exe}{dmidecode}." --string system-uuid";
+		#print $THIS_FILE." ".__LINE__."; [ Debug ] - shell_call: [$shell_call]\n";
+		open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
+		while(<$file_handle>)
+		{
+			# This should never be hit...
+			chomp;
+			$uuid = lc($_);
+		}
+		close $file_handle;
+		
+		if ($uuid)
+		{
+			$an->data->{HOST}{UUID} = $uuid;
+		}
+	}
+	
+	return($an->data->{HOST}{UUID});
+}
+
+=head2
+
+This reads in the command line switches used to invoke the parent program. 
+
+It takes no arguments, and data is stored in 'C<< $an->data->{switches}{x} >>', where 'x' is the switch used.
+
+Switches in the form 'C<< -x >>' and 'C<< --x >>' are treated the same and the corresponding 'C<< $an->data->{switches}{x} >>' will contain '#!set!#'. 
+
+Switches in the form 'C<< -x foo >>', 'C<< --x foo >>', 'C<< -x=foo >>' and 'C<< --x=foo >>' are treated the same and the corresponding 'C<< $an->data->{switches}{x} >>' will contain 'foo'. 
+
+The switches 'C<< -v >>', 'C<< -vv >>', 'C<< -vvv >>' and 'C<< -vvvv >>' will cause the active log level to automatically change to 1, 2, 3 or 4 respectively. Passing 'C<< -V >>' will set the log level to '0'.
+
+Anything after 'C<< -- >>' is treated as a raw string and is not processed. 
+
+=cut
+sub switches
+{
+	my $self = shift;
+	my $an   = $self->parent;
+	
+	my $last_argument = "";
+	foreach my $argument (@ARGV)
+	{
+		if ($last_argument eq "raw")
+		{
+			# Don't process anything.
+			$an->data->{switches}{raw} .= " $argument";
+		}
+		elsif ($argument =~ /^-/)
+		{
+			# If the argument is just '--', appeand everything after it to 'raw'.
+			if ($argument eq "--")
+			{
+				$last_argument         = "raw";
+				$an->data->{switches}{raw} = "";
+			}
+			else
+			{
+				($last_argument) = ($argument =~ /^-{1,2}(.*)/)[0];
+				if ($last_argument =~ /=/)
+				{
+					# Break up the variable/value.
+					($last_argument, my $value) = (split /=/, $last_argument, 2);
+					$an->data->{switches}{$last_argument} = $value;
+				}
+				else
+				{
+					$an->data->{switches}{$last_argument} = "#!SET!#";
+				}
+			}
+		}
+		else
+		{
+			if ($last_argument)
+			{
+				$an->data->{switches}{$last_argument} = $argument;
+				$last_argument                        = "";
+			}
+			else
+			{
+				# Got a value without an argument.
+				$an->data->{switches}{error} = 1;
+			}
+		}
+	}
+	# Clean up the initial space added to 'raw'.
+	if ($an->data->{switches}{raw})
+	{
+		$an->data->{switches}{raw} =~ s/^ //;
+	}
+
+	# Adjust the log level if requested.
+	$an->Log->_adjust_log_level();
+	
+	return(0);
+}
+
+
+# =head3
+# 
+# Private Functions;
+# 
+# =cut
+
+#############################################################################################################
+# Private functions                                                                                         #
+#############################################################################################################
