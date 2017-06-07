@@ -23,7 +23,7 @@ my $THIS_FILE = "Get.pm";
 
 AN::Tools::Get
 
-Provides all methods related to logging.
+Provides all methods related to getting access to frequently used data.
 
 =head1 SYNOPSIS
 

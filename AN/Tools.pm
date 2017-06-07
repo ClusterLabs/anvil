@@ -36,6 +36,7 @@ use AN::Tools::Get;
 use AN::Tools::Log;
 use AN::Tools::Storage;
 use AN::Tools::Words;
+use AN::Tools::Validate;
 
 =pod
 
@@ -105,6 +106,7 @@ sub new
 			LOG				=>	AN::Tools::Log->new(),
 			STORAGE				=>	AN::Tools::Storage->new(),
 			WORDS				=>	AN::Tools::Words->new(),
+			VALIDATE			=>	AN::Tools::Validate->new(),
 		},
 		DATA				=>	{},
 		ENV_VALUES			=>	{
@@ -128,6 +130,7 @@ sub new
 	$an->Log->parent($an);
 	$an->Storage->parent($an);
 	$an->Words->parent($an);
+	$an->Validate->parent($an);
 
 	# Set some system paths and system default variables
 	$an->_set_paths;
@@ -321,6 +324,18 @@ sub Words
 	my $self = shift;
 	
 	return ($self->{HANDLE}{WORDS});
+}
+
+=head2 Validate
+
+Access the C<Validate.pm> methods via 'C<< $an->Validate->method >>'.
+
+=cut
+sub Validate
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{VALIDATE});
 }
 
 
