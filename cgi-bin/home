@@ -1,0 +1,18 @@
+#!/usr/bin/perl
+#
+use strict;
+use warnings;
+use AN::Tools;
+
+my $an = AN::Tools->new();
+
+my $THIS_FILE = "home";
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+print "Content-type: text/html; charset=utf-8\n\n";
+print "hello.\n";
+
+
+exit(0);

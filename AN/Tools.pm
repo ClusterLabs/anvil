@@ -35,6 +35,7 @@ use AN::Tools::Alert;
 use AN::Tools::Get;
 use AN::Tools::Log;
 use AN::Tools::Storage;
+use AN::Tools::Template;
 use AN::Tools::Words;
 use AN::Tools::Validate;
 
@@ -105,6 +106,7 @@ sub new
 			GET				=>	AN::Tools::Get->new(),
 			LOG				=>	AN::Tools::Log->new(),
 			STORAGE				=>	AN::Tools::Storage->new(),
+			TEMPLATE			=>	AN::Tools::Template->new(),
 			WORDS				=>	AN::Tools::Words->new(),
 			VALIDATE			=>	AN::Tools::Validate->new(),
 		},
@@ -129,6 +131,7 @@ sub new
 	$an->Get->parent($an);
 	$an->Log->parent($an);
 	$an->Storage->parent($an);
+	$an->Template->parent($an);
 	$an->Words->parent($an);
 	$an->Validate->parent($an);
 
@@ -314,6 +317,18 @@ sub Storage
 	return ($self->{HANDLE}{STORAGE});
 }
 
+=head2 Template
+
+Access the C<Template.pm> methods via 'C<< $an->Template->method >>'.
+
+=cut
+sub Template
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{TEMPLATE});
+}
+
 =head2 Words
 
 Access the C<Words.pm> methods via 'C<< $an->Words->method >>'.
@@ -481,6 +496,9 @@ sub _set_defaults
 			server		=>	"",
 			tag		=>	"an-tools",
 		},
+		template	=>	{
+			html		=>	"alteeve",
+		},
 	};
 	
 	return(0);
@@ -502,6 +520,9 @@ sub _set_paths
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/bin/hostname",
 				logger			=>	"/usr/bin/logger",
+			},
+			source		=>	{
+				skins			=>	"/var/www/html/skins",
 			},
 			words		=>	{
 				'an-tools.xml'		=>	"/usr/share/perl5/AN/an-tools.xml",
@@ -533,7 +554,7 @@ sub _set_paths
 				}
 			}
 		}
-	}
+	};
 	
 	return(0);
 }
