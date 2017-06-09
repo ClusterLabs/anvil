@@ -347,6 +347,8 @@ sub search_directories
 		my $seen_directories = {};
 		foreach my $directory (sort {$a cmp $b} @{$array})
 		{
+			next if not defined $directory;
+			
 			# Convert '.' to $ENV{PWD}
 			if ($directory eq ".")
 			{

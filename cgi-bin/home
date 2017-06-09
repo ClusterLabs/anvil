@@ -14,5 +14,8 @@ $| = 1;
 print "Content-type: text/html; charset=utf-8\n\n";
 print "hello.\n";
 
+my $template = $an->Template->get({file => "main.html", name => "master"});
+
+print $template;
 
 exit(0);
