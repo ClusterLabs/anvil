@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+This is the AN::Tools master 'words' file.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="Striker/ScanCore language file.">
+		
+		<key name="brand_0001">Alteeve</key>
+		<key name="brand_0002">Anvil!</key>
+		<key name="brand_0003">Striker</key>
+		<key name="brand_0004">ScanCore</key>
+		
+	</language>
+	<!-- 日本語 -->
+	<language name="jp" long_name="日本語" description="Striker/ScanCore language file.">
+		
+		<key name="brand_0001">アルティーブ</key>
+		<key name="brand_0002">Anvil!</key>
+		<key name="brand_0003">ストライカ</key>
+		<key name="brand_0004">スカンコア</key>
+		
+	</language>
+</words>

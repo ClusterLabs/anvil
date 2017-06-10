@@ -30,6 +30,19 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0008">This is a test error log entry.</key>
 		<key name="log_0009">This is a test alert log entry.</key>
 		<key name="log_0010">This is a test emergency log entry.</key>
+		<key name="log_0011">About to run the shell command: [#!variable!shell_call!#]</key>
+		<key name="log_0012">About to read the file: [#!variable!shell_call!#]</key>
+		<key name="log_0013">About to write the file: [#!variable!shell_call!#]</key>
+		<key name="log_0014">There was a problem running the shell command: [#!variable!shell_call!#]. The error was: [#!variable!error!#].</key>
+		<key name="log_0015">There was a problem reading the file: [#!variable!shell_call!#]. The error was: [#!variable!error!#].</key>
+		<key name="log_0016">There was a problem writing the file: [#!variable!shell_call!#]. The error was: [#!variable!error!#].</key>
+		<key name="log_0017">Output: [#!variable!line!#].</key>
+		<key name="log_0018">About to open the directory: [#!variable!directory!#]</key>
+		<key name="log_0019">Variables:</key>
+		<key name="log_0020"><![CDATA[The module System->read_file() was called without a 'file' parameter, or the parameter was empty.]]></key>
+		<key name="log_0021"><![CDATA[The module System->read_file() was asked to read the file: [#!variable!file!#], but that file does not exist.]]></key>
+		<key name="log_0022"><![CDATA[The module System->read_file() was asked to read the file: [#!variable!file!#] which exists but can't be read.]]></key>
+		<key name="log_0023">Reading: [#!variable!line!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

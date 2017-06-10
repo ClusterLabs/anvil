@@ -1,0 +1,12 @@
+[Unit]
+Description=ScanCore daemon used to handle several jobs as part of the Anvil! IA suite
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/striker-daemon
+ExecStop=/bin/kill -WINCH ${MAINPID}
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

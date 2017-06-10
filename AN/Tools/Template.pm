@@ -115,7 +115,7 @@ sub get
 		# Make sure the file exists.
 		if ($skin)
 		{
-			$source = $an->data->{path}{source}{skins}."/".$skin."/".$file;
+			$source = $an->data->{path}{directories}{skins}."/".$skin."/".$file;
 			print $THIS_FILE." ".__LINE__."; [ Debug ] - source: [$source]\n";
 		}
 		else
@@ -204,7 +204,7 @@ sub skin
 	
 	if ($set)
 	{
-		my $skin_directory = $an->data->{path}{source}{skins}."/".$set;
+		my $skin_directory = $an->data->{path}{directories}{skins}."/".$set;
 		if (-d $skin_directory)
 		{
 			$self->{SKIN}{HTML} = $skin_directory
@@ -217,7 +217,7 @@ sub skin
 	
 	if (not $self->{SKIN}{HTML})
 	{
-		$self->{SKIN}{HTML} = $an->data->{path}{source}{skins}."/".$an->data->{defaults}{template}{html};
+		$self->{SKIN}{HTML} = $an->data->{path}{directories}{skins}."/".$an->data->{defaults}{template}{html};
 	}
 	
 	return($self->{SKIN}{HTML});

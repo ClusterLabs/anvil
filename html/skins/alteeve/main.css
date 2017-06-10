@@ -1,0 +1,14 @@
+/* 
+Colours;
+- Darkest Gray:    #343434
+- Logo Gray:       #9ba0a5
+- Lightest Gray:   #f7f7f7
+- Font Dark Gray:  #444444
+- Font Light Gray: #f2f2f2
+- Alteeve Red:     #d02724
+*/
+
+body {
+	background-image: url("skins/alteeve/images/Texture.jpg");
+	background-repeat: repeat-y;
+}

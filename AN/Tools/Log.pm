@@ -12,8 +12,10 @@ my $THIS_FILE = "Log.pm";
 
 ### Methods;
 # entry
+# language
 # level
 # secure
+# variables
 # _adjust_log_level
 
 =pod
@@ -46,7 +48,11 @@ Methods in this module;
 sub new
 {
 	my $class = shift;
-	my $self  = {};
+	my $self  = {
+		LOG	=>	{
+			LANGUAGE	=>	"",
+		},
+	};
 	
 	bless $self, $class;
 	
@@ -210,7 +216,7 @@ sub entry
 	my $an        = $self->parent;
 	
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->data->{defaults}{'log'}{language};;
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Log->language;
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $an->data->{defaults}{'log'}{facility};
@@ -223,12 +229,11 @@ sub entry
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
 	#print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [$level], defaults::log::level: [".$an->Log->{defaults}{'log'}{level}."], logging secure? [".$an->Log->secure."]\n";
 	
-	### TODO: Create a method for setting/checking the active log level.
+	# Exit immediately if this isn't going to be logged
 	if ($level > $an->Log->level)
 	{
 		return(1);
 	}
-	### TODO: Create a method for setting/checking if we're recording secure messages or not.
 	if (($secure) && (not $an->Log->secure))
 	{
 		return(2);
@@ -307,6 +312,40 @@ sub entry
 	close $file_handle;
 	
 	return(0);
+}
+
+=head2 language
+
+This sets or returns the log language ISO code.
+
+Get the current log language;
+
+ my $language = $an->Log->language;
+ 
+Set the log langauge to Japanese;
+
+ $an->Log->language({set => "jp"});
+
+=cut
+sub language
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	
+	if ($set)
+	{
+		$self->{LOG}{LANGUAGE} = $set;
+	}
+	
+	if (not $self->{LOG}{LANGUAGE})
+	{
+		$self->{LOG}{LANGUAGE} = $an->data->{defaults}{'log'}{language};
+	}
+	
+	return($self->{LOG}{LANGUAGE});
 }
 
 =head2 level
@@ -392,6 +431,97 @@ sub secure
 	}
 	
 	return($an->data->{defaults}{'log'}{secure});
+}
+
+=head2 variables
+
+This is a special method used in testing and debugging for logging a certain number of variables. It takes a hash reference via the 'C<< variables >>' parameter and creates a raw log entry showing the variables as 'C<< variable: [value] >>' pairs.
+
+parameters;
+
+NOTE: It takes all of the same parameters as 'C<< Log->entry >>', minus 'C<< raw >>', 'C<< key >>' and 'C<< variables >>':
+
+head3 list (required)
+
+This is a hash reference containing the variables to record.
+
+=cut
+sub variables
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->data->{defaults}{'log'}{language};
+	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
+	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
+	my $list      = defined $parameter->{list}      ? $parameter->{list}      : {};
+	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $an->data->{defaults}{'log'}{facility};
+	my $priority  = defined $parameter->{priority}  ? $parameter->{priority}  : "";
+	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : 0;
+	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $an->data->{defaults}{'log'}{server};
+	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
+	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $an->data->{defaults}{'log'}{tag};
+	
+	# Exit immediately if this isn't going to be logged
+	if ($level > $an->Log->level)
+	{
+		return(1);
+	}
+	if (($secure) && (not $an->Log->secure))
+	{
+		return(2);
+	}
+	
+	# If I don't have a list, or the list is empty, return.
+	my $entry   = 1;
+	my $entries = keys %{$list};
+	if ($entries)
+	{
+		my $raw = "";
+		if ($entries < 5)
+		{
+			# Put all the entries on one line.
+			foreach my $key (sort {$a cmp $b} keys %{$list})
+			{
+				$raw .= "$key: [".$list->{$key}."], ";
+			}
+			$raw =~ s/, $//;
+		}
+		else
+		{
+			# Put all the entries on their own line.
+			$raw .= $an->Words->string({key => "log_0019"})."\n";
+			foreach my $key (sort {$a cmp $b} keys %{$list})
+			{
+				if ($entry ne $entries)
+				{
+					$raw .= "|- $key: [".$list->{$key}."]\n";
+				}
+				else
+				{
+					$raw .= "\\- $key: [".$list->{$key}."]\n";
+				}
+				$entry++;
+			}
+		}
+		
+		# Do the raw log entry.
+		$an->Log->entry({
+			language => $language,
+			level    => $level,
+			line     => $line,
+			facility => $facility,
+			priority => $priority,
+			raw      => $raw,
+			secure   => $secure,
+			server   => $server,
+			source   => $source,
+			tag      => $tag,
+		})
+	}
+	
+	return(0);
 }
 
 

@@ -35,6 +35,7 @@ use AN::Tools::Alert;
 use AN::Tools::Get;
 use AN::Tools::Log;
 use AN::Tools::Storage;
+use AN::Tools::System;
 use AN::Tools::Template;
 use AN::Tools::Words;
 use AN::Tools::Validate;
@@ -106,6 +107,7 @@ sub new
 			GET				=>	AN::Tools::Get->new(),
 			LOG				=>	AN::Tools::Log->new(),
 			STORAGE				=>	AN::Tools::Storage->new(),
+			SYSTEM				=>	AN::Tools::System->new(),
 			TEMPLATE			=>	AN::Tools::Template->new(),
 			WORDS				=>	AN::Tools::Words->new(),
 			VALIDATE			=>	AN::Tools::Validate->new(),
@@ -131,6 +133,7 @@ sub new
 	$an->Get->parent($an);
 	$an->Log->parent($an);
 	$an->Storage->parent($an);
+	$an->System->parent($an);
 	$an->Template->parent($an);
 	$an->Words->parent($an);
 	$an->Validate->parent($an);
@@ -315,6 +318,18 @@ sub Storage
 	my $self = shift;
 	
 	return ($self->{HANDLE}{STORAGE});
+}
+
+=head2 System
+
+Access the C<System.pm> methods via 'C<< $an->System->method >>'.
+
+=cut
+sub System
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{SYSTEM});
 }
 
 =head2 Template
@@ -515,14 +530,23 @@ sub _set_paths
 	
 	# Executables
 	$an->data->{path} = {
+			directories	=>	{
+				skins			=>	"/var/www/html/skins",
+				tools			=>	"/usr/sbin/striker",
+				units			=>	"/usr/lib/systemd/system",
+			},
 			exe		=>	{
 				dmidecode		=>	"/usr/sbin/dmidecode",
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/bin/hostname",
 				logger			=>	"/usr/bin/logger",
 			},
-			source		=>	{
-				skins			=>	"/var/www/html/skins",
+			sysfs			=>	{
+				network_interfaces	=>	"/sys/class/net",
+			},
+			tools		=>	{
+				'scancore-daemon'	=>	"/usr/sbin/striker/scancore-daemon",
+				'scancore-update-states' =>	"/usr/sbin/striker/scancore-update-states",
 			},
 			words		=>	{
 				'an-tools.xml'		=>	"/usr/share/perl5/AN/an-tools.xml",

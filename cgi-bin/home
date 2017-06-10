@@ -4,16 +4,23 @@ use strict;
 use warnings;
 use AN::Tools;
 
-my $an = AN::Tools->new();
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
 
-my $THIS_FILE = "home";
+my $an = AN::Tools->new();
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
 print "Content-type: text/html; charset=utf-8\n\n";
-print "hello.\n";
 
+my $header   = $an->Template->get({file => "main.html", name => "header", variables => {
+	language => 
+}});
 my $template = $an->Template->get({file => "main.html", name => "master"});
 
 print $template;

@@ -1,0 +1,84 @@
+#!/usr/bin/perl
+# 
+# This is the master daemon that manages all periodically run processes on Striker dashboards and Anvil! 
+# nodes.
+# 
+use strict;
+use warnings;
+use AN::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $an = AN::Tools->new();
+$an->Log->level(2);
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+
+# my $shell_call = "/sys/class/net/ens11/address";
+# $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0012", variables => { shell_call => $shell_call }});
+# open (my $file_handle, "<$shell_call") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});;
+# while(<$file_handle>)
+# {
+# 	chomp;
+# 	my $line = $_;
+# 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0023", variables => { output => $line }});
+# 	print "line: [$line]\n";
+# }
+# close 
+
+report_network($an);
+
+exit(0);
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This reports the current network interface states, tracked by the MAC address.
+sub report_network
+{
+	my ($an) = @_;
+	
+	my $directory = $an->data->{path}{sysfs}{network_interfaces};
+	local(*DIRECTORY);
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0018", variables => { directory => $directory }});
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		next if $file eq "lo";
+		my $full_path = "$directory/$file";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+		if (-d $full_path)
+		{
+			# Pull out the data I want.
+			my $interface   = $file;
+			my $mac_address = $an->System->read_file({file => $full_path."/address"});
+			my $link_state  = $an->System->read_file({file => $full_path."/carrier"});
+			my $mtu         = $an->System->read_file({file => $full_path."/mtu"});
+			my $duplex      = $an->System->read_file({file => $full_path."/duplex"});	# full or half?
+			my $operational = $an->System->read_file({file => $full_path."/operstate"});	# up or down
+			my $speed       = $an->System->read_file({file => $full_path."/speed"});	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				interface   => $interface, 
+				mac_address => $mac_address, 
+				link_state  => $link_state, 
+				mtu         => $mtu, 
+				duplex      => $duplex,
+				operational => $operational,
+				speed       => $speed,
+			}});
+		}
+	}
+	closedir(DIRECTORY);
+	
+	return(0);
+}

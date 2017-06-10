@@ -296,11 +296,11 @@ Parameters;
 
 This accepts either an array reference of directories to search, or a comma-separated string of directories to search (which will be converted to an array). When passed, this sets the internal list of directories to search. 
 
-By default, it is set to all directories in C<< \@INC >> and the C<< $ENV{'PATH'} >> variables, minus directories that don't actually exist. The returned array is sorted alphabetically.
+By default, it is set to all directories in C<< @INC >>, 'C<< path::directories::tools >> (our tools) and the C<< $ENV{'PATH'} >> variables, minus directories that don't actually exist. The returned array is sorted alphabetically.
 
 =head3 initialize (optional)
 
-If this is set, the list of directories to search will be set to '@INC + $ENV{'PATH'}'.
+If this is set, the list of directories to search will be set to 'C<< @INC >>' + 'C<< $ENV{'PATH'} >>' + 'C<< path::directories::tools >>'.
 
 NOTE: You don't need to call this manually unless you want to reset the list. Invoking AN::Tools->new() causes this to be called automatically.
 
@@ -336,6 +336,9 @@ sub search_directories
 		{
 			push @new_array, $directory;
 		}
+		
+		# Add the tools directory
+		push @new_array, $an->data->{path}{directories}{tools};
 		$array = \@new_array;
 	}
 	
