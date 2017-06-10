@@ -4,9 +4,9 @@ Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/striker-daemon
+ExecStart=/usr/sbin/striker/scancore-daemon
 ExecStop=/bin/kill -WINCH ${MAINPID}
-PrivateTmp=true
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
