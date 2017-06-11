@@ -33,7 +33,23 @@ $| = 1;
 # }
 # close 
 
-report_network($an);
+my $status =  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+   $status .= "<status>\n";
+   $status .= report_network($an);
+   $status .= "</status>\n";
+   
+### TODO: Set the 'status.xml' name into 'striker.conf'
+# Write the file.
+my $output_file = $an->data->{path}{directories}{html}."/status.xml";
+$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_file => $output_file }});
+$an->Storage->write_file({
+	file      => $output_file, 
+	body      => $status, 
+	overwrite => 1,
+	mode      => "0644", 
+	user      => "apache", 
+	group     => "apache"
+});
 
 exit(0);
 
@@ -46,9 +62,10 @@ sub report_network
 {
 	my ($an) = @_;
 	
+	my $network = "	<network>\n";
 	my $directory = $an->data->{path}{sysfs}{network_interfaces};
 	local(*DIRECTORY);
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0018", variables => { directory => $directory }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
 	while(my $file = readdir(DIRECTORY))
 	{
@@ -56,18 +73,18 @@ sub report_network
 		next if $file eq "..";
 		next if $file eq "lo";
 		my $full_path = "$directory/$file";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
 			# Pull out the data I want.
 			my $interface   = $file;
-			my $mac_address = $an->System->read_file({file => $full_path."/address"});
-			my $link_state  = $an->System->read_file({file => $full_path."/carrier"});
-			my $mtu         = $an->System->read_file({file => $full_path."/mtu"});
-			my $duplex      = $an->System->read_file({file => $full_path."/duplex"});	# full or half?
-			my $operational = $an->System->read_file({file => $full_path."/operstate"});	# up or down
-			my $speed       = $an->System->read_file({file => $full_path."/speed"});	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			my $mac_address = $an->Storage->read_file({file => $full_path."/address"});
+			my $link_state  = $an->Storage->read_file({file => $full_path."/carrier"});
+			my $mtu         = $an->Storage->read_file({file => $full_path."/mtu"});
+			my $duplex      = $an->Storage->read_file({file => $full_path."/duplex"});	# full or half?
+			my $operational = $an->Storage->read_file({file => $full_path."/operstate"});	# up or down
+			my $speed       = $link_state ? $an->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				interface   => $interface, 
 				mac_address => $mac_address, 
 				link_state  => $link_state, 
@@ -76,9 +93,12 @@ sub report_network
 				operational => $operational,
 				speed       => $speed,
 			}});
+			$network .= "		<interface name=\"$interface\" mac=\"$mac_address\" link=\"$link_state\" duplex=\"$duplex\" state=\"$operational\" speed=\"$speed\">\n";
 		}
 	}
 	closedir(DIRECTORY);
+	$network .= "	<network>\n";
 	
-	return(0);
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network => $network }});
+	return($network);
 }

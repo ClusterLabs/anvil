@@ -83,13 +83,23 @@ This method takes a template file name and a template section name and returns t
 
 This is the name of the template file containing the template section you want to read.
 
+=head3 language (optional)
+
+This is the language (iso code) to use when inserting strings into the template. When not specified, 'C<< Words->language >>' is used.
+
 =head3 name (required)
 
 This is the name of the template section, bounded by 'C<< <!-- start foo --> >>' and 'C<< <!-- end food --> >>' to read in from the file.
 
 =head3 skin (optional)
 
-By default, the 
+By default, the active skin is set by 'C<< defaults::template::html >>' ('C<< alteeve >>' by default). This can be checked or set using 'C<< Template->skin >>'.
+
+This parameter allows for an override to use another skin.
+
+=head3 variables (optional)
+
+If there are variables to inject into the template, pass them as a hash referencce using this paramter. 
 
 =cut
 sub get
@@ -98,62 +108,81 @@ sub get
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $file     = defined $parameter->{file} ? $parameter->{file} : "";
-	my $name     = defined $parameter->{name} ? $parameter->{name} : "";
-	my $skin     = defined $parameter->{skin} ? $parameter->{skin} : "";
-	my $template = "";
-	my $source   = "";
+	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Words->language;
+	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
+	my $skin      = defined $parameter->{skin}      ? $parameter->{skin}      : "";
+	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
+	my $template  = "";
+	my $source    = "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		file     => $file,
+		language => $language,
+		name     => $name, 
+		skin     => $skin, 
+	}});
+	
+	# If the user passed the skin, prepend the skins directory. Otherwise use the active skin.
+	if (not $skin)
+	{
+		$skin = $an->Template->skin;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin => $skin }});
+	}
+	else
+	{
+		$skin = $an->data->{path}{directories}{skins}."/".$skin;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin => $skin }});
+	}
 	
 	my $error = 0;
 	if (not $file)
 	{
-		print $THIS_FILE." ".__LINE__."; [ Error ] - No template file passed to Template->get().\n";
+		# No file passed.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0024"});
 		$error = 1;
 	}
 	else
 	{
 		# Make sure the file exists.
-		if ($skin)
-		{
-			$source = $an->data->{path}{directories}{skins}."/".$skin."/".$file;
-			print $THIS_FILE." ".__LINE__."; [ Debug ] - source: [$source]\n";
-		}
-		else
-		{
-			$source = $an->Template->skin."/".$file;
-			print $THIS_FILE." ".__LINE__."; [ Debug ] - source: [$source]\n";
-		}
+		$source = $skin."/".$file;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { source => $source }});
+		
 		if (not -e $source)
 		{
-			print $THIS_FILE." ".__LINE__."; [ Error ] - No requested template file: [".$source."] does not exist. Is it missing in the active skin?\n";
+			# Source doesn't exist
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0025", variables => { source => $source }});
 			$error = 1;
 		}
 		elsif (not -r $source)
 		{
+			# Source isn't readable.
 			my $user_name = getpwuid($<);
 			   $user_name = $< if not $user_name;
-			print $THIS_FILE." ".__LINE__."; [ Error ] - The requested template file: [".$source."] is not readable. Please check that it is readable by the webserver user: [$user_name]\n";
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0026", variables => { source => $source, user_name => $user_name }});
 			$error = 1;
 		}
 	}
 	if (not $name)
 	{
-		print $THIS_FILE." ".__LINE__."; [ Error ] - No template file passed to Template->get().\n";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0027"});
 		$error = 1;
 	}
 	
 	if (not $error)
 	{
 		my $in_template = 0;
-		my $shell_call  = $source;
-		open(my $file_handle, "<$shell_call") or warn $THIS_FILE." ".__LINE__."; Failed to read: [$shell_call], error was: $!\n";
+		my $shell_call = $source;
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
+		open (my $file_handle, "<", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
 			if ($line =~ /^<!-- start $name -->/)
 			{
 				$in_template = 1;
+				next;
 			}
 			if ($in_template)
 			{
@@ -169,6 +198,14 @@ sub get
 			}
 		}
 		close $file_handle;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { source => $source }});
+		
+		# Now that I have the skin, inject my variables. We'll use Words->string() to do this for us.
+		$template = $an->Words->string({
+			string    => $template,
+			variables => $variables,
+		});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { source => $source }});
 	}
 	
 	return($template);
@@ -177,21 +214,17 @@ sub get
 
 =head2 skin
 
-This sets or returns the active skin used when rendering web output.
+This sets or returns the active skin used when rendering web output. The returned string is the full path to the skin directory, including the active skin name.
 
 The default skin is set via 'C<< defaults::template::html >>' and it must be the same as the directory name under 'C<< /var/www/html/skins/ >>'.
 
-Get the active skin;
+Get the active skin directory;
 
  my $skin = $an->Template->skin;
  
-Set the active skin to 'C<< foo >>'.
+Set the active skin to 'C<< foo >>'. Only pass the skin name, not the full path.
 
  $an->Template->skin({set => "foo"});
-
-Disable sensitive log entry recording.
-
- $an->Log->secure(0);
 
 =cut
 sub skin
@@ -201,17 +234,20 @@ sub skin
 	my $an        = $self->parent;
 	
 	my $set = defined $parameter->{skin} ? $parameter->{skin} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $set }});
 	
 	if ($set)
 	{
 		my $skin_directory = $an->data->{path}{directories}{skins}."/".$set;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin_directory => $skin_directory }});
 		if (-d $skin_directory)
 		{
-			$self->{SKIN}{HTML} = $skin_directory
+			$self->{SKIN}{HTML} = $skin_directory;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 		}
 		else
 		{
-			print $THIS_FILE." ".__LINE__."; [ Warning ] - Asked to set the skin: [$set], but the source directory: [$skin_directory] doesn't exist. Ignoring.\n";
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0031", variables => { set => $set, skin_directory => $skin_directory }});
 		}
 	}
 	

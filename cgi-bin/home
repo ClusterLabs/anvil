@@ -11,17 +11,34 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
+print "Content-type: text/html; charset=utf-8\n\n";
+
 my $an = AN::Tools->new();
+
+# Set the log level to 2
+$an->Log->level(2);
+
+# Read in our words file.
+$an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"});
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-print "Content-type: text/html; charset=utf-8\n\n";
-
-my $header   = $an->Template->get({file => "main.html", name => "header", variables => {
-	language => 
+my $header = $an->Template->get({file => "main.html", name => "header", variables => {
+	language       => $an->Words->language,
+	skin_directory => $an->Template->skin,
 }});
-my $template = $an->Template->get({file => "main.html", name => "master"});
+my $template = $an->Template->get({file => "main.html", name => "master", variables => {
+	header            => $header,
+	left_top_bar      => "",
+	center_top_bar    => "",
+	right_top_bar     => "",
+	center_body       => "",
+	left_bottom_bar   => "",
+	center_bottom_bar => "",
+	right_bottom_bar  => "",
+	footer            => "",
+}});
 
 print $template;
 

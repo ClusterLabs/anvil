@@ -18,6 +18,7 @@ my $THIS_FILE = "Words.pm";
 ### Methods;
 # clean_spaces
 # key
+# language
 # read
 # string
 
@@ -51,7 +52,11 @@ Methods in this module;
 sub new
 {
 	my $class = shift;
-	my $self  = {};
+	my $self  = {
+		WORDS	=>	{
+			LANGUAGE	=>	"",
+		},
+	};
 	
 	bless $self, $class;
 	
@@ -146,7 +151,7 @@ This is the key to return the string for.
 
 This is the ISO code for the language you wish to read. For example, 'en_CA' to get the Canadian English string, or 'jp' for the Japanese string.
 
-When no language is passed, 'C<< $an->data->{defaults}{languages}{output} >>' is used. 
+When no language is passed, 'C<< Words->language >>' is used. 
  
 =cut
 sub key
@@ -157,7 +162,7 @@ sub key
 	
 	# Setup default values
 	my $key      = defined $parameter->{key}      ? $parameter->{key}      : "";
-	my $language = defined $parameter->{language} ? $parameter->{language} : $an->data->{defaults}{languages}{output};
+	my $language = defined $parameter->{language} ? $parameter->{language} : $an->Words->language;
 	my $file     = defined $parameter->{file}     ? $parameter->{file}     : "";
 	my $string   = "#!not_found!#";
 	my $error    = 0;
@@ -192,6 +197,40 @@ sub key
 	
 	#print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n";
 	return($string);
+}
+
+=head2 language
+
+This sets or returns the output language ISO code.
+
+Get the current log language;
+
+ my $language = $an->Words->language;
+ 
+Set the output langauge to Japanese;
+
+ $an->Words->language({set => "jp"});
+
+=cut
+sub language
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	
+	if ($set)
+	{
+		$self->{WORDS}{LANGUAGE} = $set;
+	}
+	
+	if (not $self->{WORDS}{LANGUAGE})
+	{
+		$self->{WORDS}{LANGUAGE} = $an->data->{defaults}{language}{output};
+	}
+	
+	return($self->{WORDS}{LANGUAGE});
 }
 
 =head2 read
@@ -231,20 +270,20 @@ sub read
 	
 	if (not $file)
 	{
-		# TODO: Log the problem, do not translate.
-		print $THIS_FILE." ".__LINE__."; [ Warning ] - AN::Tools::Words->read()' called without a file name to read.\n";
+		# NOTE: Log the problem, do not translate.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' called without a file name to read."});
 		$return_code = 1;
 	}
 	elsif (not -e $file)
 	{
-		# TODO: Log the problem, do not translate.
-		print $THIS_FILE." ".__LINE__."; [ Warning ] - AN::Tools::Words->read()' asked to read: [$file] which was not found.\n";
+		# NOTE: Log the problem, do not translate.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not found."});
 		$return_code = 2;
 	}
 	elsif (not -r $file)
 	{
-		# TODO: Log the problem, do not translate.
-		print $THIS_FILE." ".__LINE__."; [ Warning ] - AN::Tools::Words->read()' asked to read: [$file] which was not readable by: [".getpwuid($<)."/".getpwuid($>)."] (uid/euid: [".$<."/".$>."]).\n";
+		# NOTE: Log the problem, do not translate.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not readable by: [".getpwuid($<)."/".getpwuid($>)."] (uid/euid: [".$<."/".$>."])."});
 		$return_code = 3;
 	}
 	else
@@ -255,28 +294,16 @@ sub read
 		if ($@)
 		{
 			chomp $@;
-			print $THIS_FILE." ".__LINE__."; [ Error ] - The was a problem reading: [$file]. The error was:\n";
-			print "===========================================================\n";
-			print $@."\n";
-			print "===========================================================\n";
+			my $error =  "[ Error ] - The was a problem reading: [$file]. The error was:\n";
+			   $error .= "===========================================================\n";
+			   $error .= $@."\n";
+			   $error .= "===========================================================\n";
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
 			$return_code = 4;
 		}
 		else
 		{
-			# Successfully read. 
-			
-			### Some debug stuff
-			# Read the meta data
-			#my $version    = $an->data->{words}{$file}{meta}{version};
-			#my $languages  = $an->data->{words}{$file}{meta}{languages};
-			#print $THIS_FILE." ".__LINE__."; [ Debug ] - Version: [$version], languages: [$languages]\n";
-			
-			#foreach my $this_language (sort {$a cmp $b} keys %{$an->data->{words}{$file}{language}})
-			#{
-			#	my $long_name = $an->data->{words}{$file}{language}{$this_language}{long_name};
-			#	print $THIS_FILE." ".__LINE__."; [ Debug ] - this_language: [$this_language], long_name: [$long_name]\n";
-			#	print $THIS_FILE." ".__LINE__."; [ Debug ] - "$this_language:t_0001: [".$an->data->{words}{$file}{language}{$this_language}{key}{t_0001}{content}."]\n";
-			#}
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0028", variables => { file => $file }});
 		}
 	}
 	
@@ -336,11 +363,17 @@ This is the specific file to read the string from. It should generally not be ne
 
 This is the key to return the string for.
 
+NOTE: This is ignored when 'C<< string >>' is used.
+
 =head3 language (optional)
 
 This is the ISO code for the language you wish to read the string from. For example, 'en_CA' to get the Canadian English string, or 'jp' for the Japanese string.
 
 When no language is passed, 'C<< defaults::languages::output >>' is used. 
+
+=head3 string (optional)
+
+If this is passed, it is treated as a raw string that needs variables inserted. When this is used, the 'C<< key >>' parameter is ignored.
 
 =head3 variables (depends)
 
@@ -355,17 +388,22 @@ sub string
 	
 	# Setup default values
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->data->{defaults}{languages}{output};
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Words->language;
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
+	my $string    = defined $parameter->{string}    ? $parameter->{string}    : "";
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
 	
-	# We'll get the string from our ->key() method, the inject any variables, if needed. This also 
-	# handles the initial sanity checks. If we get back '#!not_found!#', we'll exit.
-	my $string = $an->Words->key({
-		key      => $key,
-		language => $language,
-		file     => $file,
-	});
+	# If we weren't passed a raw string, we'll get the string from our ->key() method, the inject any 
+	# variables, if needed. This also handles the initial sanity checks. If we get back '#!not_found!#',
+	# we'll exit.
+	if (not $string)
+	{
+		$string = $an->Words->key({
+			key      => $key,
+			language => $language,
+			file     => $file,
+		});
+	}
 	
 	if (($string ne "#!not_found!#") && ($string =~ /#!([^\s]+?)!#/))
 	{

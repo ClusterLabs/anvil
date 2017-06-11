@@ -142,8 +142,18 @@ sub new
 	$an->_set_paths;
 	$an->_set_defaults;
 
-	# This checks the environment this program is running in.
-	$an->environment;
+	# This sets the environment this program is running in.
+	if ($ENV{SERVER_NAME})
+	{
+		$an->environment("html");
+		
+		# There is no PWD environment variable, so we'll use 'DOCUMENT_ROOT' as 'PWD'
+		$ENV{PWD} = $ENV{DOCUMENT_ROOT};
+	}
+	else
+	{
+		$an->environment("cli");
+	}
 
 	# Setup my '$an->data' hash right away so that I have a place to store the strings hash.
 	$an->data($parameter->{data}) if $parameter->{data};
@@ -493,7 +503,7 @@ sub _set_defaults
 	my ($an) = shift;
 	
 	$an->data->{defaults} = {
-		languages	=>	{
+		language	=>	{
 			# Default language for all output shown to a user.
 			output		=>	'en_CA',
 		},
@@ -531,15 +541,20 @@ sub _set_paths
 	# Executables
 	$an->data->{path} = {
 			directories	=>	{
+				'cgi-bin'		=>	"/var/www/cgi-bin",
+				html			=>	"/var/www/html",
 				skins			=>	"/var/www/html/skins",
 				tools			=>	"/usr/sbin/striker",
 				units			=>	"/usr/lib/systemd/system",
 			},
 			exe		=>	{
+				'chmod'			=>	"/usr/bin/chmod",
+				'chown'			=>	"/usr/bin/chown",
 				dmidecode		=>	"/usr/sbin/dmidecode",
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/bin/hostname",
 				logger			=>	"/usr/bin/logger",
+				'mkdir'			=>	"/usr/bin/mkdir",
 			},
 			sysfs			=>	{
 				network_interfaces	=>	"/sys/class/net",

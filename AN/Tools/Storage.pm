@@ -11,9 +11,14 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Storage.pm";
 
 ### Methods;
+# change_mode
+# change_owner
 # find
+# make_directory
 # read_config
+# read_file
 # search_directories
+# write_file
 
 =pod
 
@@ -72,6 +77,144 @@ sub parent
 #############################################################################################################
 
 
+=head2 change_mode
+
+This changes the mode of a file or directory.
+
+ $an->Storage->change_mode({target => "/tmp/foo", mode => "0644"});
+
+If it fails to write the file, an alert will be logged.
+
+Parameters;
+
+=head3 target (required)
+
+This is the file or directory to change the mode on.
+
+=head3 mode (required)
+
+This is the numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits.
+
+=cut
+sub change_mode
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $target = defined $parameter->{target} ? $parameter->{target} : "";
+	my $mode   = defined $parameter->{mode}   ? $parameter->{mode}   : "";
+	
+	my $error = 0;
+	if (not $target)
+	{
+		# No target...
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0036"});
+		$error = 1;
+	}
+	if (not $mode)
+	{
+		# No mode...
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0037"});
+		$error = 1;
+	}
+	elsif (($mode !~ /^\d\d\d$/) && ($mode !~ /^\d\d\d\d$/))
+	{
+		# Invalid mode
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0038", variables => { mode => $mode }});
+		$error = 1;
+	}
+	
+	if (not $error)
+	{
+		my $shell_call = $an->data->{path}{exe}{'chmod'}." $mode $target";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0011", variables => { shell_call => $shell_call }});
+		open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+		while(<$file_handle>)
+		{
+			chomp;
+			my $line = $_;
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0017", variables => { line => $line }});
+		}
+		close $file_handle;
+	}
+	
+	return(0);
+}
+
+=head2 change_owner
+
+This changes the owner and/or group of a file or directory.
+
+ $an->Storage->change_owner({target => "/tmp/foo", mode => "0644"});
+
+If it fails to write the file, an alert will be logged.
+
+Parameters;
+
+=head3 target (required)
+
+This is the file or directory to change the mode on.
+
+=head3 group (optional)
+
+This is the group name or UID to set the target to.
+
+=head3 user (optional)
+
+This is the user name or UID to set the target to.
+
+=cut
+sub change_owner
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $target = defined $parameter->{target} ? $parameter->{target} : "";
+	my $group  = defined $parameter->{group}  ? $parameter->{group}  : "";
+	my $user   = defined $parameter->{user}   ? $parameter->{user}   : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		target => $target,
+		group  => $group,
+		user   => $user,
+	}});
+	
+	my $string = "";
+	my $error  = 0;
+	if (not $target)
+	{
+		# No target...
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0039"});
+		$error = 1;
+	}
+	
+	if ($user)
+	{
+		$string = $user;
+	}
+	if ($group)
+	{
+		$string .= ":".$group;
+	}
+	
+	if ((not $error) && ($string))
+	{
+		my $shell_call = $an->data->{path}{exe}{'chown'}." $string $target";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0011", variables => { shell_call => $shell_call }});
+		open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+		while(<$file_handle>)
+		{
+			chomp;
+			my $line = $_;
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0017", variables => { line => $line }});
+		}
+		close $file_handle;
+	}
+	
+	return(0);
+}
+
 =head2 find
 
 This searches for the given file on the system. It will search in the directories returned by C<< $an->Storage->search_directories() >>.
@@ -91,10 +234,6 @@ If it fails to find the file and C<< fatal >> isn't set to 'C<< 1 >>', 'C<< 0 >>
 
 Parameters;
 
-=head3 fatal (optional)
-
-This can be set to 'C<< 1 >>' to tell the method to throw an error and exit if the file is not found. Default is 'C<< 0 >>' which only triggers a warning of the file isn't found.
-
 =head3 file (required)
 
 This is the name of the file to search for.
@@ -107,61 +246,128 @@ sub find
 	my $an        = $self->parent;
 	
 	# Setup default values
-	my $fatal = defined $parameter->{fatal} ? $parameter->{fatal} : 0;
 	my $file  = defined $parameter->{file}  ? $parameter->{file}  : "";
 	
 	# Each full path and file name will be stored here before the test.
 	my $full_path = "#!not_found!#";
-	foreach my $directory (@{$an->Storage->search_directories()})
+	if ($file)
 	{
-		# If "directory" is ".", expand it.
-		if (($directory eq ".") && ($ENV{PWD}))
+		foreach my $directory (@{$an->Storage->search_directories()})
 		{
-			$directory = $ENV{PWD};
-		}
-		
-		# Put together the initial path
-		my $test_path = $directory."/".$file;
+			# If "directory" is ".", expand it.
+			if (($directory eq ".") && ($ENV{PWD}))
+			{
+				$directory = $ENV{PWD};
+			}
+			
+			# Put together the initial path
+			my $test_path = $directory."/".$file;
 
-		# Clear double-delimiters.
-		$test_path =~ s/\/+/\//g;
-		
-		#print $THIS_FILE." ".__LINE__."; [ Debug ] - Test path: [$test_path] - ";
-		if (-f $test_path)
-		{
-			# Found it!
-			#print "Found!\n";
-			$full_path = $test_path;
-			last;
+			# Clear double-delimiters.
+			$test_path =~ s/\/+/\//g;
+			
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { test_path => $test_path }});
+			if (-f $test_path)
+			{
+				# Found it!
+				$full_path = $test_path;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { full_path => $full_path }});
+				last;
+			}
 		}
-		else
+		
+		# Log if we failed to find the path.
+		if ($full_path !~ /^\//)
 		{
-			#print "Not found...\n";
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0029", variables => { file => $file }});
 		}
 	}
-	
-	# Die if we didn't find the file and fatal is set.
-	if ($full_path !~ /^\//)
+	else
 	{
-		if ($fatal)
-		{
-			### TODO: Make this $an->Alert->error() later
-			print $THIS_FILE." ".__LINE__."; [ Error ] - Failed to find: [$file].\n";
-		}
-		else
-		{
-			### TODO: Make this $an->Alert->warning() later
-			print $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to find: [$file].\n";
-		}
-		if ($fatal)
-		{
-			print "Exiting on errors.\n";
-			exit(2);
-		}
+		# No file name passed in.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0030"});
 	}
 	
 	# Return
 	return ($full_path);
+}
+
+=head2 make_directory
+
+This creates a directory (and any parent directories).
+
+ $an->Storage->make_directory({directory => "/foo/bar/baz", owner => "me", grou[ => "me", group => 755});
+
+If it fails to create the directory, an alert will be logged.
+
+Parameters;
+
+=head3 directory (required)
+
+This is the name of the directory to create.
+
+=head3 group (optional)
+
+This is the group name or group ID to set the ownership of the directory to.
+
+=head3 mode (optional)
+
+This is the numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits.
+
+=head3 user (optional)
+
+This is the user name or user ID to set the ownership of the directory to.
+
+=cut
+sub make_directory
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $directory = defined $parameter->{directory} ? $parameter->{directory} : "";
+	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
+	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
+	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		directory => $directory,
+		group     => $group, 
+		mode      => $mode,
+		user      => $user,
+	}});
+	
+	# Break the directories apart.
+	my $working_directory = "";
+	foreach my $directory (split, /\//, $directory)
+	{
+		next if not $directory;
+		$working_directory .= "/$directory";
+		if (-e $working_directory)
+		{
+			# Directory doesn't exist, so create it.
+			my $shell_call = $an->data->{path}{exe}{'mkdir'}." ".$working_directory;
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0011", variables => { shell_call => $shell_call }});
+			open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+			while(<$file_handle>)
+			{
+				chomp;
+				my $line = $_;
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0017", variables => { line => $line }});
+			}
+			close $file_handle;
+			
+			if ($mode)
+			{
+				$an->Storage->change_mode({target => $working_directory, mode => $mode});
+			}
+			if (($user) or ($group))
+			{
+				$an->Storage->change_owner({target => $working_directory, user => $user, group => $group});
+			}
+		}
+	}
+	
+	return(0);
 }
 
 =head2 read_config
@@ -217,12 +423,12 @@ sub read_config
 	# Setup default values
 	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
 	my $return_code = 0;
-	#print $THIS_FILE." ".__LINE__."; [ Debug ] - file: [$file].\n";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	if (not $file)
 	{
-		# TODO: Log the problem, do not translate.
-		print $THIS_FILE." ".__LINE__."; [ Warning ] - AN::Tools::Words->read()' called without a file name to read.\n";
+		# No file to read
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0032"});
 		$return_code = 1;
 	}
 	
@@ -232,12 +438,12 @@ sub read_config
 		# Find the file, if possible. If not found, we'll not alter what the user passed in and hope
 		# it is relative to where we are.
 		my $path = $an->Storage->find({ file => $file });
-		#print $THIS_FILE." ".__LINE__."; [ Debug ] - path: [$path].\n";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { path => $path }});
 		if ($path ne "#!not_found!#")
 		{
 			# Update the file
 			$file = $path;
-			#print $THIS_FILE." ".__LINE__."; [ Debug ] - file: [$file].\n";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 		}
 	}
 	
@@ -245,14 +451,18 @@ sub read_config
 	{
 		if (not -e $file)
 		{
-			# TODO: Log the problem, do not translate.
-			print $THIS_FILE." ".__LINE__."; [ Warning ] - AN::Tools::Words->read()' asked to read: [$file] which was not found.\n";
+			# The file doesn't exist
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0033", variables => { file => $file }});
 			$return_code = 2;
 		}
 		elsif (not -r $file)
 		{
-			# TODO: Log the problem, do not translate.
-			print $THIS_FILE." ".__LINE__."; [ Warning ] - AN::Tools::Words->read()' asked to read: [$file] which was not readable by: [".getpwuid($<)."/".getpwuid($>)."] (uid/euid: [".$<."/".$>."]).\n";
+			# The file can't be read
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0034", variables => { 
+				file => $file,
+				user => getpwuid($<),
+				uid  => $<,
+			}});
 			$return_code = 3;
 		}
 		else
@@ -274,7 +484,11 @@ sub read_config
 				$value    =~ s/^\s+//;
 				if (not $variable)
 				{
-					print $THIS_FILE." ".__LINE__."; [ Warning ] - The config file: [$file] appears to have a malformed line: [$count:$line].\n";
+					$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0035", variables => { 
+						file  => $file,
+						count => $count,
+						line  => $line,
+					}});
 				}
 				
 				$an->_make_hash_reference($an->data, $variable, $value);
@@ -284,6 +498,64 @@ sub read_config
 	}
 	
 	return($return_code);
+}
+
+=head2 read_file
+
+This reads in a file and returns the contents of the file as a single string variable.
+
+ $an->Storage->read_file({file => "/tmp/foo"});
+
+If it fails to find the file, or the file is not readable, 'C<< undef >>' is returned.
+
+Parameters;
+
+=head3 file (required)
+
+This is the name of the file to read.
+
+=cut
+sub read_file
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $body = "";
+	my $file = defined $parameter->{file} ? $parameter->{file} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	
+	if (not $file)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020"});
+		return(undef);
+	}
+	elsif (not -e $file)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0021", variables => { file => $file }});
+		return(undef);
+	}
+	elsif (not -r $file)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0022", variables => { file => $file }});
+		return(undef);
+	}
+	
+	my $shell_call = $file;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
+	open (my $file_handle, "<", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
+	while(<$file_handle>)
+	{
+		chomp;
+		my $line = $_;
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
+		$body .= $line."\n";
+	}
+	close $file_handle;
+	$body =~ s/\n$//s;
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
+	return($body);
 }
 
 =head2 search_directories
@@ -326,8 +598,8 @@ sub search_directories
 	{
 		if (not $initialize)
 		{
-			# TODO: Make this a $an->Alert->warning().
-			print $THIS_FILE." ".__LINE__."; [ Warning ] - The passed in array: [$array] wasn't actually an array. Using \@INC + \$ENV{'PATH'} for the list of directories to search instead.\n";
+			# Not initializing and an array was passed that isn't.
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0031", variables => { array => $array }});
 		}
 		
 		# Create a new array containing the '$ENV{'PATH'}' directories and the @INC directories.
@@ -373,7 +645,125 @@ sub search_directories
 		$self->{SEARCH_DIRECTORIES} = $array;
 	}
 	
+	# Debug
+	foreach my $directory (@{$self->{SEARCH_DIRECTORIES}})
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
+	}
+	
 	return ($self->{SEARCH_DIRECTORIES});
+}
+
+=head2 write_file
+
+This writes out a file on the local system. It can optionally set the mode as well.
+
+ $an->Storage->write_file({file => "/tmp/foo", body => "some data", mode => 0644});
+
+If it fails to write the file, an alert will be logged.
+
+Parameters;
+
+=head3 body (optional)
+
+This is the contents of the file. If it is blank, an empty file will be created (similar to using 'C<< touch >>' on the command line).
+
+=head3 file (required)
+
+This is the name of the file to write.
+
+NOTE: The file must include the full directory it will be written into.
+
+=head3 group (optional)
+
+This is the group name or group ID to set the ownership of the file to.
+
+=head3 mode (optional)
+
+This is the numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits.
+
+=head3 overwrite (optional)
+
+Normally, if the file already exists, it won't be overwritten. Setting this to 'C<< 1 >>' will cause the file to be overwritten.
+
+=head3 user (optional)
+
+This is the user name or user ID to set the ownership of the file to.
+
+=cut
+sub write_file
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $body      = defined $parameter->{body}      ? $parameter->{body}      : "";
+	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
+	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
+	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
+	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
+	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		body      => $body,
+		file      => $file,
+		group     => $group, 
+		mode      => $mode,
+		overwrite => $overwrite,
+		user      => $user,
+	}});
+	
+	my $error = 0;
+	if ((-e $file) && (not $overwrite))
+	{
+		# Nope.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
+		$error = 1;
+	}
+	
+	if ($file !~ /^\/\w/)
+	{
+		# Not a fully defined path, abort.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0041", variables => { file => $file }});
+		$error = 1;
+	}
+	
+	if (not $error)
+	{
+		# Break the directory off the file.
+		my ($directory, $file_name) = ($file =~ /^(\/.*)\/(.*)$/);
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			directory => $directory,
+			file_name => $file_name,
+		}});
+		
+		if (not -d $directory)
+		{
+			$an->Storage->make_directory({
+				directory => $directory,
+				group     => $group, 
+				mode      => $mode,
+				user      => $user,
+			});
+		}
+		
+		# Now write the file.
+		my $shell_call = $file;
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0013", variables => { shell_call => $shell_call }});
+		open (my $file_handle, ">", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+		print $file_handle $body;
+		close $file_handle;
+		
+		if ($mode)
+		{
+			$an->Storage->change_mode({target => $file, mode => $mode});
+		}
+		if (($user) or ($group))
+		{
+			$an->Storage->change_owner({target => $file, user => $user, group => $group});
+		}
+	}
+	
+	return(0);
 }
 
 
