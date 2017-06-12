@@ -1,5 +1,5 @@
 [Unit]
-Description=ScanCore daemon used to handle several jobs as part of the Anvil! IA suite
+Description=ScanCore - Anvil! IA Suite
 Wants=network.target
 
 [Service]

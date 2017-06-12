@@ -24,7 +24,7 @@ while(1)
 {
 	update_state_file($an);
 	
-	sleep 10;
+	sleep 2;
 }
 
 exit(0);
@@ -40,12 +40,12 @@ sub update_state_file
 	my ($an) = @_;
 	
 	my $shell_call = $an->data->{path}{tools}{'scancore-update-states'};
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0011", variables => { shell_call => $shell_call }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
 	open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
 	{
 		chomp;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0017", variables => { output => $_ }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { output => $_ }});
 	}
 	close $file_handle;
 	

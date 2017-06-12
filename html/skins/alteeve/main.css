@@ -1,14 +1,81 @@
 /* 
 Colours;
-- Darkest Gray:    #343434
-- Logo Gray:       #9ba0a5
-- Lightest Gray:   #f7f7f7
-- Font Dark Gray:  #444444
-- Font Light Gray: #f2f2f2
-- Alteeve Red:     #d02724
+- Darkest Gray:      #343434
+- Logo Gray:         #9ba0a5
+- Lightest Gray:     #f7f7f7
+- Font Dark Gray:    #444444
+- Font Light Gray:   #f2f2f2
+- Alteeve Red:       #d02724
+- Footer background: #171717
+- Footer text:       #515151
 */
 
 body {
-	background-image: url("skins/alteeve/images/Texture.jpg");
-	background-repeat: repeat-y;
+	font-family: 'Dejavu Sans', Arial, Helvetica, Verdana, Sans-Serif;
+	background-image: url("/skins/alteeve/images/Texture.jpg");
+	background-repeat: repeat;
+	color:             #f2f2f2;
+}
+
+.body_table {
+	width: 90%;
+	border: 0.1em solid blue;
+	margin: auto;
+	top: 0;
+	position: absolute;
+	left: 5%
+}
+
+table {
+	border-spacing: 0;
+	border-collapse: collapse;
+}
+td {
+	border: 1px solid green;
+	padding: 0;
+	border-collapse: collapse;
+}
+
+.logo {
+	height:   2.5em;
+}
+
+.header {
+	text-align: center;
+	background: #343434;
+	color:      #f2f2f2;
+	border-bottom: 0.2em solid #d02724;
+}
+.header a:link, .header a:visited {
+	cursor:          pointer;
+	color:           #f6f6f6;
+	text-decoration: none;
+}
+.header a:hover {
+	cursor:          pointer;
+	color:           #f6f6f6;
+	text-decoration: none;
+}
+
+.footer {
+	text-align: center;
+	background: #171717;
+	font-size:  12px;
+	color:      #515151;
+	width:      90%;
+	position:   fixed;
+	bottom:     0;
+	left:       5%;
+}
+
+.footer a:link, .footer a:visited {
+	cursor:          pointer;
+	text-decoration: none;
+	color:           #515151;
+}
+
+.footer a:hover {
+	cursor:          pointer;
+	text-decoration: none;
+	color:           #616161;
 }

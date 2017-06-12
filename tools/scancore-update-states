@@ -20,36 +20,7 @@ $an->Log->level(2);
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-
-# my $shell_call = "/sys/class/net/ens11/address";
-# $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0012", variables => { shell_call => $shell_call }});
-# open (my $file_handle, "<$shell_call") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});;
-# while(<$file_handle>)
-# {
-# 	chomp;
-# 	my $line = $_;
-# 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0023", variables => { output => $line }});
-# 	print "line: [$line]\n";
-# }
-# close 
-
-my $status =  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-   $status .= "<status>\n";
-   $status .= report_network($an);
-   $status .= "</status>\n";
-   
-### TODO: Set the 'status.xml' name into 'striker.conf'
-# Write the file.
-my $output_file = $an->data->{path}{directories}{html}."/status.xml";
-$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_file => $output_file }});
-$an->Storage->write_file({
-	file      => $output_file, 
-	body      => $status, 
-	overwrite => 1,
-	mode      => "0644", 
-	user      => "apache", 
-	group     => "apache"
-});
+report_network($an);
 
 exit(0);
 
@@ -62,7 +33,11 @@ sub report_network
 {
 	my ($an) = @_;
 	
-	my $network = "	<network>\n";
+	# Write out the data in json format.
+	my $network_json =  "{\"networks\":[\n";
+	my $network_xml  =  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	   $network_xml  .= "<network>\n";
+	   
 	my $directory = $an->data->{path}{sysfs}{network_interfaces};
 	local(*DIRECTORY);
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
@@ -93,12 +68,42 @@ sub report_network
 				operational => $operational,
 				speed       => $speed,
 			}});
-			$network .= "		<interface name=\"$interface\" mac=\"$mac_address\" link=\"$link_state\" duplex=\"$duplex\" state=\"$operational\" speed=\"$speed\">\n";
+			
+			$network_json .= "	{ \"name\":\"$interface\", \"mac\":\"$mac_address\", \"link\":\"$link_state\", \"duplex\":\"$duplex\", \"state\":\"$operational\", \"speed\":\"$speed\" },\n";
+			$network_xml .= "	<interface name=\"$interface\" mac=\"$mac_address\" link=\"$link_state\" duplex=\"$duplex\" state=\"$operational\" speed=\"$speed\" />\n";
 		}
 	}
 	closedir(DIRECTORY);
-	$network .= "	<network>\n";
+	$network_json =~ s/,$//s;
+	$network_json .= "]}\n";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_json => $network_json }});
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network => $network }});
-	return($network);
+	$network_xml .= "</network>\n";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_xml => $network_xml }});
+	
+	### TODO: Set the 'status/network.xml' and 'status/network.json' names into 'striker.conf'
+	# Write the JSON file.
+	my $output_json = $an->data->{path}{directories}{html}."/status/network.json";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output_xml => $output_json }});
+	$an->Storage->write_file({
+		file      => $output_json, 
+		body      => $network_json, 
+		overwrite => 1,
+		mode      => "0644", 
+		user      => "apache", 
+		group     => "apache"
+	});
+	# Write the XML file.
+	my $output_xml = $an->data->{path}{directories}{html}."/status/network.xml";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_xml }});
+	$an->Storage->write_file({
+		file      => $output_xml, 
+		body      => $network_xml, 
+		overwrite => 1,
+		mode      => "0644", 
+		user      => "apache", 
+		group     => "apache"
+	});
+	
+	return(0);
 }

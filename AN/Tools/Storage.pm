@@ -128,13 +128,13 @@ sub change_mode
 	if (not $error)
 	{
 		my $shell_call = $an->data->{path}{exe}{'chmod'}." $mode $target";
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0011", variables => { shell_call => $shell_call }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
 		open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0017", variables => { line => $line }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
 		}
 		close $file_handle;
 	}
@@ -174,7 +174,7 @@ sub change_owner
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	my $group  = defined $parameter->{group}  ? $parameter->{group}  : "";
 	my $user   = defined $parameter->{user}   ? $parameter->{user}   : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		target => $target,
 		group  => $group,
 		user   => $user,
@@ -201,13 +201,13 @@ sub change_owner
 	if ((not $error) && ($string))
 	{
 		my $shell_call = $an->data->{path}{exe}{'chown'}." $string $target";
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0011", variables => { shell_call => $shell_call }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
 		open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0017", variables => { line => $line }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
 		}
 		close $file_handle;
 	}
@@ -329,7 +329,7 @@ sub make_directory
 	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
 	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
 	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		directory => $directory,
 		group     => $group, 
 		mode      => $mode,
@@ -342,17 +342,19 @@ sub make_directory
 	{
 		next if not $directory;
 		$working_directory .= "/$directory";
-		if (-e $working_directory)
+		$working_directory =~ s/\/\//\//g;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { working_directory => $working_directory }});
+		if (not -e $working_directory)
 		{
 			# Directory doesn't exist, so create it.
 			my $shell_call = $an->data->{path}{exe}{'mkdir'}." ".$working_directory;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0011", variables => { shell_call => $shell_call }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
 			open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 			while(<$file_handle>)
 			{
 				chomp;
 				my $line = $_;
-				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0017", variables => { line => $line }});
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
 			}
 			close $file_handle;
 			
@@ -703,7 +705,7 @@ sub write_file
 	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
 	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
 	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		body      => $body,
 		file      => $file,
 		group     => $group, 
@@ -731,24 +733,24 @@ sub write_file
 	{
 		# Break the directory off the file.
 		my ($directory, $file_name) = ($file =~ /^(\/.*)\/(.*)$/);
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			directory => $directory,
 			file_name => $file_name,
 		}});
 		
-		if (not -d $directory)
+		if (not -e $directory)
 		{
+			# Don't pass the mode as the file's mode is likely not executable.
 			$an->Storage->make_directory({
 				directory => $directory,
 				group     => $group, 
-				mode      => $mode,
 				user      => $user,
 			});
 		}
 		
 		# Now write the file.
 		my $shell_call = $file;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0013", variables => { shell_call => $shell_call }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0013", variables => { shell_call => $shell_call }});
 		open (my $file_handle, ">", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
 		print $file_handle $body;
 		close $file_handle;

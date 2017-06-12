@@ -12,6 +12,7 @@ my $THIS_FILE = "Template.pm";
 
 ### Methods;
 # get
+# skin
 
 =pod
 
@@ -125,7 +126,7 @@ sub get
 	# If the user passed the skin, prepend the skins directory. Otherwise use the active skin.
 	if (not $skin)
 	{
-		$skin = $an->Template->skin;
+		$skin = $an->data->{path}{directories}{skins}."/".$an->Template->skin;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin => $skin }});
 	}
 	else
@@ -211,10 +212,9 @@ sub get
 	return($template);
 }
 
-
 =head2 skin
 
-This sets or returns the active skin used when rendering web output. The returned string is the full path to the skin directory, including the active skin name.
+This sets or returns the active skin used when rendering web output.
 
 The default skin is set via 'C<< defaults::template::html >>' and it must be the same as the directory name under 'C<< /var/www/html/skins/ >>'.
 
@@ -242,7 +242,7 @@ sub skin
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin_directory => $skin_directory }});
 		if (-d $skin_directory)
 		{
-			$self->{SKIN}{HTML} = $skin_directory;
+			$self->{SKIN}{HTML} = $set;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 		}
 		else
@@ -253,7 +253,7 @@ sub skin
 	
 	if (not $self->{SKIN}{HTML})
 	{
-		$self->{SKIN}{HTML} = $an->data->{path}{directories}{skins}."/".$an->data->{defaults}{template}{html};
+		$self->{SKIN}{HTML} = $an->data->{defaults}{template}{html};
 	}
 	
 	return($self->{SKIN}{HTML});

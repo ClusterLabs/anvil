@@ -563,6 +563,9 @@ sub _set_paths
 				'scancore-daemon'	=>	"/usr/sbin/striker/scancore-daemon",
 				'scancore-update-states' =>	"/usr/sbin/striker/scancore-update-states",
 			},
+			urls		=>	{
+				skins			=>	"/skins",
+			},
 			words		=>	{
 				'an-tools.xml'		=>	"/usr/share/perl5/AN/an-tools.xml",
 			},
@@ -571,8 +574,8 @@ sub _set_paths
 	# Make sure we actually have the requested files.
 	foreach my $type (sort {$a cmp $b} keys %{$an->data->{path}})
 	{
-		# We don't look for logs because we'll create them if they don't exist.
-		next if $type eq "logs";
+		# We don't look for urls because they're relative to the domain.
+		next if $type eq "urls";
 		foreach my $file (sort {$a cmp $b} keys %{$an->data->{path}{$type}})
 		{
 			if (not -e $an->data->{path}{$type}{$file})

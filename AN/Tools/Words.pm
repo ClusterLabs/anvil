@@ -265,8 +265,9 @@ sub read
 	my $an        = $self->parent;
 	
 	# Setup default values
-	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
 	my $return_code = 0;
+	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	if (not $file)
 	{
@@ -283,7 +284,7 @@ sub read
 	elsif (not -r $file)
 	{
 		# NOTE: Log the problem, do not translate.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not readable by: [".getpwuid($<)."/".getpwuid($>)."] (uid/euid: [".$<."/".$>."])."});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not readable by: [".getpwuid($<)."] (uid/euid: [".$<."])."});
 		$return_code = 3;
 	}
 	else

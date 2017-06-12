@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use AN::Tools;
+use Data::Dumper;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -25,21 +26,77 @@ $an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"
 $| = 1;
 
 my $header = $an->Template->get({file => "main.html", name => "header", variables => {
-	language       => $an->Words->language,
-	skin_directory => $an->Template->skin,
+	language => $an->Words->language,
+	skin_url => $an->data->{path}{urls}{skins}."/".$an->Template->skin,
 }});
+my $footer   = $an->Template->get({file => "main.html", name => "footer"});
+my $network  = get_network_details($an);
 my $template = $an->Template->get({file => "main.html", name => "master", variables => {
 	header            => $header,
-	left_top_bar      => "",
-	center_top_bar    => "",
-	right_top_bar     => "",
-	center_body       => "",
-	left_bottom_bar   => "",
-	center_bottom_bar => "",
-	right_bottom_bar  => "",
-	footer            => "",
+	skin_url          => $an->data->{path}{urls}{skins}."/".$an->Template->skin,
+	left_top_bar      => "&nbsp;",
+	center_top_bar    => "$network",
+	right_top_bar     => "&nbsp;",
+	center_body       => "&nbsp;",
+	left_bottom_bar   => "&nbsp;",
+	center_bottom_bar => "&nbsp;",
+	right_bottom_bar  => "&nbsp;",
+	footer            => $footer,
 }});
 
 print $template;
 
 exit(0);
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This reads the network status XML file and creates the template body.
+sub get_network_details
+{
+	my ($an) = @_;
+	
+	my $file    = $an->data->{path}{directories}{html}."/status/network.xml";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	my $xml     = XML::Simple->new();
+	my $data    = "";
+	my $network = "";
+	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name' }, ForceArray => [ 'interface', 'key' ]) };
+	if ($@)
+	{
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem reading: [$file]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
+	}
+	else
+	{
+		my $interface_list = "";
+		   $network        = $an->Template->get({file => "main.html", name => "network_header"});
+		foreach my $interface (sort {$a cmp $b} keys %{$data->{interface}})
+		{
+			$interface_list .= "$interface,";
+			$network .= $an->Template->get({file => "main.html", name => "network_entry", variables => {
+				#mac            => $data->{interface}{$interface}{mac},
+				mac            => "",
+				mac_id         => $interface."_mac",
+				name           => $interface,
+				name_id        => $interface."_name",
+				#speed          => $data->{interface}{$interface}{speed},
+				speed          => "",
+				speed_id       => $interface."_speed",
+				#'link'         => $data->{interface}{$interface}{'link'},
+				'link'         => "",
+				link_id        => $interface."_link",
+			}});
+		}
+		$interface_list =~ s/,$//;
+		$network        .= $an->Template->get({file => "main.html", name => "network_footer", variables => { interface_list => $interface_list }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network => $network }});
+	return($network);
+}
