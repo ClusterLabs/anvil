@@ -84,7 +84,7 @@ sub report_network
 	### TODO: Set the 'status/network.xml' and 'status/network.json' names into 'striker.conf'
 	# Write the JSON file.
 	my $output_json = $an->data->{path}{directories}{html}."/status/network.json";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output_xml => $output_json }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_json }});
 	$an->Storage->write_file({
 		file      => $output_json, 
 		body      => $network_json, 

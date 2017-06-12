@@ -1,6 +1,8 @@
 $(function() { 
-	var say_up   = "Up";
-	var say_down = "Down";
+	var say_up           = $("#say_up").text();
+	var say_down         = $("#say_down").text();
+	var say_speed_suffix = $("#say_speed_suffix").text();
+	console.log('say_up: ['+say_up+'], say_down: ['+say_down+'], say_speed_suffix: ['+say_speed_suffix+']');
 	if($("#network_status").length) {
 		//alert('network status exists.');
 		$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
@@ -12,6 +14,7 @@ $(function() {
 				}
 				$("#"+element.name+"_mac").text(element.mac);
 				$("#"+element.name+"_link").text(link);
+				$("#"+element.name+"_speed").text(element.speed+' '+say_speed_suffix);
 			});
 		});    
 	}

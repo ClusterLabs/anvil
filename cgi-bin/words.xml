@@ -25,6 +25,10 @@ This is the AN::Tools master 'words' file.
 		<key name="header_0004">Link State</key>
 		<key name="header_0005">Link Speed (Mbps)</key>
 		
+		<!-- These are works and strings used by javascript/jqery -->
+		<key name="js_0001">Up</key>
+		<key name="js_0002">Down</key>
+		<key name="js_0003">Mbps</key>
 		
 	</language>
 	<!-- 日本語 -->
