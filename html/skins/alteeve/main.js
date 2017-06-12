@@ -1,7 +1,7 @@
 $(function() { 
-	var say_up           = $("#say_up").text();
-	var say_down         = $("#say_down").text();
-	var say_speed_suffix = $("#say_speed_suffix").text();
+	var say_up           = $('#network_link_state').data('up');
+	var say_down         = $('#network_link_state').data('down');
+	var say_speed_suffix = $('#network_link_speed').data('mbps');
 	console.log('say_up: ['+say_up+'], say_down: ['+say_down+'], say_speed_suffix: ['+say_speed_suffix+']');
 	if($("#network_status").length) {
 		//alert('network status exists.');
