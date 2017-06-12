@@ -59,6 +59,12 @@ sub report_network
 			my $duplex      = $an->Storage->read_file({file => $full_path."/duplex"});	# full or half?
 			my $operational = $an->Storage->read_file({file => $full_path."/operstate"});	# up or down
 			my $speed       = $link_state ? $an->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			if ($speed > 100000)
+			{
+				# This is probably 0 now... Though someday >100 Gbps will be reasonable and 
+				# we'll need to change this.
+				$speed = 0;
+			}
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				interface   => $interface, 
 				mac_address => $mac_address, 
@@ -76,7 +82,7 @@ sub report_network
 	closedir(DIRECTORY);
 	$network_json =~ s/,$//s;
 	$network_json .= "]}\n";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_json => $network_json }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_json => $network_json }});
 	
 	$network_xml .= "</network>\n";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_xml => $network_xml }});
