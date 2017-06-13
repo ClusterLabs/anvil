@@ -286,10 +286,13 @@ sub entry
 			key       => $key,
 			variables => $variables,
 		});
-		$message =~ s/"/\\\"/gs;
 		#print $THIS_FILE." ".__LINE__."; [ Debug ] - message: [$message]\n";
 		$string .= $message;
 	}
+	
+	# Clean up the string for bash
+	$string =~ s/"/\\\"/gs;
+	$string =~ s/\(/\\\(/gs;
 	
 	# NOTE: This might become too expensive, in which case we may need to create a connection to journald
 	#       that we can leave open during a run.

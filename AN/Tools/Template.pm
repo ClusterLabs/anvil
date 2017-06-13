@@ -112,8 +112,9 @@ sub get
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Words->language;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
-	my $skin      = defined $parameter->{skin}      ? $parameter->{skin}      : "";
+	my $skin      = defined $parameter->{skin}      ? $parameter->{skin}      : $an->Template->skin;
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
+	   $skin      = $an->data->{path}{directories}{skins}."/".$skin;
 	my $template  = "";
 	my $source    = "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -122,18 +123,6 @@ sub get
 		name     => $name, 
 		skin     => $skin, 
 	}});
-	
-	# If the user passed the skin, prepend the skins directory. Otherwise use the active skin.
-	if (not $skin)
-	{
-		$skin = $an->data->{path}{directories}{skins}."/".$an->Template->skin;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin => $skin }});
-	}
-	else
-	{
-		$skin = $an->data->{path}{directories}{skins}."/".$skin;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin => $skin }});
-	}
 	
 	my $error = 0;
 	if (not $file)
@@ -199,7 +188,7 @@ sub get
 			}
 		}
 		close $file_handle;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { source => $source }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { template => $template }});
 		
 		# Now that I have the skin, inject my variables. We'll use Words->string() to do this for us.
 		$template = $an->Words->string({

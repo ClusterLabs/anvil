@@ -1,5 +1,21 @@
 <!-- start button_bar -->
-<!--end button_bar -->
+			<table id="button_bar">
+				<tr>
+					<td>
+						<img src="#!data!skin::url!#/images/striker_icon.png" class="logo">
+					</td>
+					<td>
+						<img src="#!data!skin::url!#/images/anvil_icon.png" class="top_icon">
+					</td>
+					<td>
+						<img src="#!data!skin::url!#/images/users_icon.png" class="top_icon">
+					</td>
+					<td>
+						<img src="#!data!skin::url!#/images/help_icon.png" class="top_icon">
+					</td>
+				</tr>
+			</table>
+<!-- end button_bar -->
 
 <!-- start footer -->
 <div onload="show_status()" class="footer">
@@ -20,9 +36,9 @@
 	<meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
 	<meta http-equiv="pragma" content="no-cache" />	<title>#!string!brand_0001!# - #!string!brand_0003!#</title>
 	
-	<link rel="stylesheet" href="#!variable!skin_url!#/main.css" media="screen" />
+	<link rel="stylesheet" href="#!data!skin::url!#/main.css" media="screen" />
 	<script type="text/javascript" src="/jquery-latest.js"></script>
-	<script type="text/javascript" src="#!variable!skin_url!#/main.js"></script>
+	<script type="text/javascript" src="#!data!skin::url!#/main.js"></script>
 </head>
 <!-- end header -->
 
@@ -31,19 +47,19 @@
 
 <body>
 <table class="body_table">
-	<tr>
+<!--	<tr>
 		<td class="header" colspan="3">
-			<img src="#!variable!skin_url!#/images/logo.png" class="logo">
+			<img src="#!data!skin::url!#/images/logo.png" class="logo">
 		</td>
-	</tr>
+	</tr>-->
 	<tr>
-		<td>
-			#!variable!left_top_bar!#
+		<td class="header" width="5%">
+			<img src="#!data!skin::url!#/images/logo.png" class="logo">
 		</td>
-		<td>
+		<td class="header" width="90%">
 			#!variable!center_top_bar!#
 		</td>
-		<td>
+		<td class="header" width="5%" style="white-space: nowrap;">
 			#!variable!right_top_bar!#
 		</td>
 	</tr>

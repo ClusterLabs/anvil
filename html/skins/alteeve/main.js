@@ -1,3 +1,6 @@
+// $.ajaxSetup({
+//     cache: false
+// });
 $(function() { 
 	var say_up           = $('#network_link_state').data('up');
 	var say_down         = $('#network_link_state').data('down');
@@ -17,7 +20,7 @@ $(function() {
 					$("#"+element.name+"_link").text(link);
 					$("#"+element.name+"_speed").text(element.speed+' '+say_speed_suffix);
 				});
-			});    
+			});
 		}, 1000);
 	}
 	if($("#disk_status").length) {

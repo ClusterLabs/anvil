@@ -12,9 +12,10 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-print "Content-type: text/html; charset=utf-8\n\n";
-
 my $an = AN::Tools->new();
+
+# Print the html headers, with a new line to break the header from the body.
+print $an->Template->get({file => "shared.html", name => "http_headers"})."\n";
 
 # Set the log level to 2
 $an->Log->level(2);
@@ -25,19 +26,20 @@ $an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-my $header = $an->Template->get({file => "main.html", name => "header", variables => {
-	language => $an->Words->language,
-	skin_url => $an->data->{path}{urls}{skins}."/".$an->Template->skin,
-}});
-my $footer   = $an->Template->get({file => "main.html", name => "footer"});
+$an->data->{skin}{url} = $an->data->{path}{urls}{skins}."/".$an->Template->skin;
+my $header = $an->Template->get({file => "main.html", name => "header", variables => { language => $an->Words->language }});
 my $network  = get_network_details($an);
+my $buttons  = $an->Template->get({file => "main.html", name => "button_bar"});
+my $footer   = $an->Template->get({file => "main.html", name => "footer"});
+
+# Display the page.
 my $template = $an->Template->get({file => "main.html", name => "master", variables => {
 	header            => $header,
 	skin_url          => $an->data->{path}{urls}{skins}."/".$an->Template->skin,
 	left_top_bar      => "&nbsp;",
-	center_top_bar    => "$network",
-	right_top_bar     => "&nbsp;",
-	center_body       => "&nbsp;",
+	center_top_bar    => "&nbsp;",
+	right_top_bar     => "$buttons",
+	center_body       => "$network",
 	left_bottom_bar   => "&nbsp;",
 	center_bottom_bar => "&nbsp;",
 	right_bottom_bar  => "&nbsp;",

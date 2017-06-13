@@ -412,6 +412,22 @@ sub string
 		my $loops = 0;
 		my $limit = $an->data->{defaults}{limits}{string_loops} =~ /^\d+$/ ? $an->data->{defaults}{limits}{string_loops} : 1000;
 		
+		# If the user didn't pass in any variables, then we're in trouble.
+		if (($string =~ /#!variable!(.+?)!#/s) && ((not $variables) or (ref($variables) ne "HASH")))
+		{
+			# Escape the variables before the sending the error 
+			while ($string =~ /#!variable!(.+?)!#/s)
+			{
+				$string =~ s/#!variable!(.*?)!#/!!variable!$1!!/s;
+				
+				# Die if I've looped too many times.
+				$loops++;
+				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
+			}
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0042", variables => { string => $string }});
+			return("#!error!#");
+		}
+		
 		# We set the 'loop' variable to '1' and check it at the end of each pass. This is done 
 		# because we might inject a string near the end that adds a replacement key to an 
 		# otherwise-processed string and we don't want to miss that.
@@ -470,6 +486,11 @@ sub string
 				if ($variable eq "*")
 				{
 					$string =~ s/#!variable!\*!#/!#variable!*#!/;
+					next;
+				}
+				if ($variable eq "")
+				{
+					$string =~ s/#!variable!\*!#/!#variable!#!/;
 					next;
 				}
 				

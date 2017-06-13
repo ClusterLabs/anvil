@@ -1,3 +1,18 @@
 From the gnome project;
 - network-wired-connected.png
-- network-wired-disconnected.png 
+- network-wired-disconnected.png
+
+Anvil by Christopher T. Howlett from the Noun Project (https://thenounproject.com/term/anvil/90190/)
+- anvil_icon.png
+
+Anvil and Hammer by Ivana Milchanska from the Noun Project (https://thenounproject.com/term/anvil/226943/)
+- striker_icon.png 
+
+Users by Edgar Vargas, US from the Noun Project (https://thenounproject.com/term/user/13635/)
+- users_icon.png
+
+User by Wilson Joseph from the Noun Project (https://thenounproject.com/term/user/43761/)
+- users_icon_2.png
+
+Question by Travis Avery from the Noun Project (https://thenounproject.com/term/question/587291/)
+- help_icon.png

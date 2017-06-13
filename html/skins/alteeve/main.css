@@ -19,7 +19,7 @@ body {
 
 .body_table {
 	width: 90%;
-	border: 0.1em solid blue;
+/* 	border: 0.1em solid blue; */
 	margin: auto;
 	top: 0;
 	position: absolute;
@@ -31,19 +31,29 @@ table {
 	border-collapse: collapse;
 }
 td {
-	border: 1px solid green;
+/* 	border: 1px solid green; */
 	padding: 0;
 	border-collapse: collapse;
 }
 
 .logo {
-	height:   2.5em;
+	border-top:   0.3em solid transparent;
+	border-left:  0.3em solid transparent;
+	border-right: 0.3em solid transparent;
+	height: 2.5em;
+}
+
+.top_icon {
+	border-top:   0.3em solid transparent;
+	border-left:  0.3em solid transparent;
+	border-right: 0.3em solid transparent;
+	height:       2.5em;
 }
 
 .header {
-	text-align: center;
-	background: #343434;
-	color:      #f2f2f2;
+	text-align:    center;
+	background:    #343434;
+	color:         #f2f2f2;
 	border-bottom: 0.2em solid #d02724;
 }
 .header a:link, .header a:visited {
