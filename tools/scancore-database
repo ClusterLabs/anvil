@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+# 
+# This checks the state of the database server and, if necessary, sets up the database.
+
+use strict;
+use warnings;
+use Data::Dumper;
+use AN::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $an = AN::Tools->new();
+$an->Log->level(2);
+
+$an->Storage->read_config({file => "/etc/striker/striker.conf"});
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $local_id = $an->Database->get_local_id;
+if ($local_id)
+{
+	print "Local ID: [$local_id]\n";
+}
+else
+{
+	print "Failed to find a local ID, no databases are stored on this machine.\n";
+}
+
+exit(0);
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################

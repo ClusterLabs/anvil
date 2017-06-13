@@ -32,6 +32,8 @@ binmode(STDOUT, ':encoding(utf-8)');
 # somewhat more OO style. I know some may wish to strike me down for this, but I like the idea of accessing
 # methods via their containing module's name. (A La: C<< $an->Module->method >> rather than C<< $an->method >>).
 use AN::Tools::Alert;
+use AN::Tools::Database;
+use AN::Tools::Convert;
 use AN::Tools::Get;
 use AN::Tools::Log;
 use AN::Tools::Storage;
@@ -104,6 +106,8 @@ sub new
 	my $self      = {
 		HANDLE				=>	{
 			ALERT				=>	AN::Tools::Alert->new(),
+			DATABASE			=>	AN::Tools::Database->new(),
+			CONVERT				=>	AN::Tools::Convert->new(),
 			GET				=>	AN::Tools::Get->new(),
 			LOG				=>	AN::Tools::Log->new(),
 			STORAGE				=>	AN::Tools::Storage->new(),
@@ -130,6 +134,8 @@ sub new
 	
 	# Get a handle on the various submodules
 	$an->Alert->parent($an);
+	$an->Database->parent($an);
+	$an->Convert->parent($an);
 	$an->Get->parent($an);
 	$an->Log->parent($an);
 	$an->Storage->parent($an);
@@ -292,6 +298,30 @@ sub Alert
 	my $self = shift;
 	
 	return ($self->{HANDLE}{ALERT});
+}
+
+=head2 Database
+
+Access the C<Database.pm> methods via 'C<< $an->Database->method >>'.
+
+=cut
+sub Database
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{DATABASE});
+}
+
+=head2 Convert
+
+Access the C<Convert.pm> methods via 'C<< $an->Convert->method >>'.
+
+=cut
+sub Convert
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{CONVERT});
 }
 
 =head2 Get
@@ -553,6 +583,7 @@ sub _set_paths
 				dmidecode		=>	"/usr/sbin/dmidecode",
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/bin/hostname",
+				ip			=>	"/usr/sbin/ip",
 				logger			=>	"/usr/bin/logger",
 				'mkdir'			=>	"/usr/bin/mkdir",
 			},

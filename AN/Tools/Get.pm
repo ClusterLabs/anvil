@@ -13,6 +13,8 @@ my $THIS_FILE = "Get.pm";
 ### Methods;
 # date_and_time
 # host_uuid
+# local_db_id
+# network_details
 # switches
 
 =pod
@@ -78,7 +80,6 @@ sub parent
 This method returns the date and/or time using either the current time, or a specified unix time.
 
 NOTE: This only returns times in 24-hour notation.
-
 
 =head2 Parameters;
 
@@ -215,7 +216,75 @@ sub host_uuid
 	return($an->data->{HOST}{UUID});
 }
 
-=head2
+=head2 network_details
+
+This method returns the local hostname and IP addresses.
+
+It returns a hash reference containing data in the following keys:
+
+C<< hostname >> = <name>
+C<< interface::<interface>::ip >> = <ip_address>
+C<< interface::<interface>::netmask >> = <dotted_decimal_subnet>
+
+=cut
+sub network_details
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $network      = {};
+	my $hostname     = $an->System->call({shell_call => $an->data->{path}{exe}{hostname}});
+	my $ip_addr_list = $an->System->call({shell_call => $an->data->{path}{exe}{ip}." addr list"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		hostname     => $hostname, 
+		ip_addr_list => $ip_addr_list,
+	}});
+	$network->{hostname} = $hostname;
+	
+	my $in_interface = "";
+	my $ip_address   = "";
+	my $subnet_mask  = "";
+	foreach my $line (split/\n/, $ip_addr_list)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /^\d+: (.*?):/)
+		{
+			$in_interface = $1;
+			$ip_address   = "";
+			$subnet_mask  = "";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { in_interface => $in_interface }});
+			next if $in_interface eq "lo";
+			$network->{interface}{$in_interface}{ip}      = "--";
+			$network->{interface}{$in_interface}{netmask} = "--";
+		}
+		if ($in_interface)
+		{
+			next if $in_interface eq "lo";
+			if ($line =~ /inet (.*?)\/(.*?) /)
+			{
+				$ip_address   = $1;
+				$subnet_mask  = $2;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					ip_address  => $ip_address,
+					subnet_mask => $subnet_mask, 
+				}});
+				
+				if ((($subnet_mask =~ /^\d$/) or ($subnet_mask =~ /^\d\d$/)) && ($subnet_mask < 25))
+				{
+					$subnet_mask = $an->Convert->cidr({cidr => $subnet_mask});
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { subnet_mask => $subnet_mask }});
+				}
+				$network->{interface}{$in_interface}{ip}      = $ip_address;
+				$network->{interface}{$in_interface}{netmask} = $subnet_mask;
+			}
+		}
+	}
+	
+	return($network);
+}
+
+=head2 switches
 
 This reads in the command line switches used to invoke the parent program. 
 
