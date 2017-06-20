@@ -14,12 +14,24 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $an = AN::Tools->new();
-$an->Log->level(2);
-
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
+my $an = AN::Tools->new();
+$an->Log->level(2);
+
+# Paths
+$an->data->{path}{tools}{'scancore-database'}      = "/usr/sbin/striker/scancore-database";
+$an->data->{path}{tools}{'scancore-update-states'} = "/usr/sbin/striker/scancore-update-states";
+$an->data->{path}{config}{'striker.conf'}          = "/etc/striker/striker.conf";
+
+# Read our config.
+$an->Storage->read_config({file => $an->data->{path}{config}{'striker.conf'}});
+
+# There are some things we only want to run on (re)start and don't need to always run.
+run_once($an);
+
+# These are the things we always want running.
 while(1)
 {
 	update_state_file($an);
@@ -33,21 +45,32 @@ exit(0);
 # Functions                                                                                                 #
 #############################################################################################################
 
+# These are tools that don't need to constantly run.
+sub run_once
+{
+	my ($an) = @_;
+	
+	# Check that the database is ready.
+	my $database_output = $an->System->call({shell_call => $an->data->{path}{tools}{'scancore-database'}, source => $THIS_FILE, line => __LINE__});
+	if ($database_output)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_output => $database_output }});
+	}
+	
+	return(0);
+}
+
 # This calls 'scancore-update-states' which will scan the local machine's state (hardware and software) and
 # record write it out to an HTML file 
 sub update_state_file
 {
 	my ($an) = @_;
 	
-	my $shell_call = $an->data->{path}{tools}{'scancore-update-states'};
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
-	open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
-	while(<$file_handle>)
+	my $states_output = $an->System->call({shell_call => $an->data->{path}{tools}{'scancore-update-states'}, source => $THIS_FILE, line => __LINE__});
+	if ($states_output)
 	{
-		chomp;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { output => $_ }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { states_output => $states_output }});
 	}
-	close $file_handle;
 	
 	return(0);
 }

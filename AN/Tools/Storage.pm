@@ -13,6 +13,7 @@ my $THIS_FILE = "Storage.pm";
 ### Methods;
 # change_mode
 # change_owner
+# copy_file
 # find
 # make_directory
 # read_config
@@ -76,7 +77,6 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
-
 =head2 change_mode
 
 This changes the mode of a file or directory.
@@ -104,6 +104,10 @@ sub change_mode
 	
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	my $mode   = defined $parameter->{mode}   ? $parameter->{mode}   : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		target => $target,
+		mode   => $mode,
+	}});
 	
 	my $error = 0;
 	if (not $target)
@@ -180,6 +184,19 @@ sub change_owner
 		user   => $user,
 	}});
 	
+	# Make sure the user and group and just one digit or word.
+	$user  =~ s/^(\S+)\s.*$/$1/;
+	$group =~ s/^(\S+)\s.*$/$1/;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		group     => $group, 
+		user      => $user,
+	}});
+	
+	# If the group is a series of digits, remove all but the first.
+	if (defined $group)
+	{
+	}
+	
 	my $string = "";
 	my $error  = 0;
 	if (not $target)
@@ -189,11 +206,11 @@ sub change_owner
 		$error = 1;
 	}
 	
-	if ($user)
+	if (defined $user)
 	{
 		$string = $user;
 	}
-	if ($group)
+	if (defined $group)
 	{
 		$string .= ":".$group;
 	}
@@ -211,6 +228,94 @@ sub change_owner
 		}
 		close $file_handle;
 	}
+	
+	return(0);
+}
+
+=head2 copy_file
+
+This copies a file, with a few additional checks like creating the target directory if it doesn't exist, aborting if the file has already been backed up before, etc.
+
+ # Example
+ $an->Storage->copy_file({source => "/some/file", target => "/another/directory/file"});
+
+Parameters;
+
+=head3 overwrite (optional)
+
+If this is set to 'C<< 1 >>', and if the target file exists, it will be replaced.
+
+If this is not passed and the target exists, this module will return 'C<< 3 >>'.
+
+=head3 source (required)
+
+This is the source file. if it doesn't exist, this method will return 'C<< 1 >>'.
+
+=head3 target (required)
+
+This is the target *B<file>*, not the directory to put it in. The target file name can be different from the source file name.
+
+if this is not specified, 'C<< 2 >>' will be returned.
+
+=cut
+sub copy_file
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
+	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
+	my $target    = defined $parameter->{target}    ? $parameter->{target}    : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		overwrite => $overwrite,
+		source    => $source, 
+		target    => $target,
+	}});
+	
+	if (not $source)
+	{
+		# No source passed.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0044"});
+		return(1);
+	}
+	if (not $target)
+	{
+		# No target passed.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0045"});
+		return(2);
+	}
+	
+	# If the target exists, abort
+	if ((-e $target) && (not $overwrite))
+	{
+		# This isn't an error.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
+			source => $source,
+			target => $target,
+		}});
+		return(3);
+	}
+	
+	# Make sure the target directory exists and create it, if not.
+	my ($directory, $file) = ($target =~ /^(.*)\/(.*)$/);
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		directory => $directory, 
+		file      => $file,
+	}});
+	if (not -e $directory)
+	{
+		$an->Storage->make_directory({
+			directory => $directory,
+			group     => $(,	# Real UID
+			user      => $<,	# Real GID
+			mode      => "0750",
+		});
+	}
+	
+	# Now backup the file.
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{'cp'}." -af $source $target"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	
 	return(0);
 }
@@ -245,8 +350,10 @@ sub find
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	# Setup default values
+	# WARNING: Don't call Log from here! It causes it to abort
+	my $debug = 0;
 	my $file  = defined $parameter->{file}  ? $parameter->{file}  : "";
+	print $THIS_FILE." ".__LINE__."; [ Debug] - file: [$file]\n" if $debug;
 	
 	# Each full path and file name will be stored here before the test.
 	my $full_path = "#!not_found!#";
@@ -255,40 +362,33 @@ sub find
 		foreach my $directory (@{$an->Storage->search_directories()})
 		{
 			# If "directory" is ".", expand it.
+			print $THIS_FILE." ".__LINE__."; [ Debug] - >> directory: [$directory]\n" if $debug;
 			if (($directory eq ".") && ($ENV{PWD}))
 			{
 				$directory = $ENV{PWD};
+				print $THIS_FILE." ".__LINE__."; [ Debug] - << directory: [$directory]\n" if $debug;
 			}
 			
 			# Put together the initial path
 			my $test_path = $directory."/".$file;
+			print $THIS_FILE." ".__LINE__."; [ Debug] - >> test_path: [$test_path]\n" if $debug;
 
 			# Clear double-delimiters.
 			$test_path =~ s/\/+/\//g;
-			
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { test_path => $test_path }});
+			print $THIS_FILE." ".__LINE__."; [ Debug] - << test_path: [$test_path]\n" if $debug;
 			if (-f $test_path)
 			{
 				# Found it!
 				$full_path = $test_path;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { full_path => $full_path }});
+				print $THIS_FILE." ".__LINE__."; [ Debug] - >> full_path: [$full_path]\n" if $debug;
 				last;
 			}
 		}
-		
-		# Log if we failed to find the path.
-		if ($full_path !~ /^\//)
-		{
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0029", variables => { file => $file }});
-		}
-	}
-	else
-	{
-		# No file name passed in.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0030"});
+		print $THIS_FILE." ".__LINE__."; [ Debug] - << full_path: [$full_path]\n" if $debug;
 	}
 	
 	# Return
+	print $THIS_FILE." ".__LINE__."; [ Debug] - full_path: [$full_path]\n" if $debug;
 	return ($full_path);
 }
 
@@ -336,12 +436,20 @@ sub make_directory
 		user      => $user,
 	}});
 	
+	# Make sure the user and group and just one digit or word.
+	$user  =~ s/^(\S+)\s.*$/$1/;
+	$group =~ s/^(\S+)\s.*$/$1/;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		group     => $group, 
+		user      => $user,
+	}});
+	
 	# Break the directories apart.
 	my $working_directory = "";
-	foreach my $directory (split, /\//, $directory)
+	foreach my $this_directory (split/\//, $directory)
 	{
-		next if not $directory;
-		$working_directory .= "/$directory";
+		next if not $this_directory;
+		$working_directory .= "/$this_directory";
 		$working_directory =~ s/\/\//\//g;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { working_directory => $working_directory }});
 		if (not -e $working_directory)
@@ -688,6 +796,10 @@ This is the numeric mode to set on the file. It expects four digits to cover the
 
 Normally, if the file already exists, it won't be overwritten. Setting this to 'C<< 1 >>' will cause the file to be overwritten.
 
+=head3 secure (optional)
+
+If set to 'C<< 1 >>', the body is treated as containing secure data for logging purposes.
+
 =head3 user (optional)
 
 This is the user name or user ID to set the ownership of the file to.
@@ -704,13 +816,23 @@ sub write_file
 	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
 	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
 	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
+	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : "";
 	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, list => { 
 		body      => $body,
 		file      => $file,
 		group     => $group, 
 		mode      => $mode,
 		overwrite => $overwrite,
+		secure    => $secure,
+		user      => $user,
+	}});
+	
+	# Make sure the user and group and just one digit or word.
+	$user  =~ s/^(\S+)\s.*$/$1/;
+	$group =~ s/^(\S+)\s.*$/$1/;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		group     => $group, 
 		user      => $user,
 	}});
 	
@@ -750,8 +872,8 @@ sub write_file
 		
 		# Now write the file.
 		my $shell_call = $file;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0013", variables => { shell_call => $shell_call }});
-		open (my $file_handle, ">", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
+		open (my $file_handle, ">", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
 		print $file_handle $body;
 		close $file_handle;
 		

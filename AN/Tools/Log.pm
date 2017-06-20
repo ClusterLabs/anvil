@@ -291,11 +291,16 @@ sub entry
 	}
 	
 	# Clean up the string for bash
-	$string =~ s/"/\\\"/gs;
-	$string =~ s/\(/\\\(/gs;
+	$string =~ s/"/\\\"/gs;		# Single-escape "   -> \\"
+	$string =~ s/\\\\"/\\\\\\"/gs;	# triple-escape \\" -> \\\"
+	#$string =~ s/\(/\\\(/gs;
 	
 	# NOTE: This might become too expensive, in which case we may need to create a connection to journald
 	#       that we can leave open during a run.
+	if ((not defined $tag) or (not defined $priority_string) or (not defined $an->data->{path}{exe}{logger}))
+	{
+		die $THIS_FILE." ".__LINE__."; Something not defined in Log->entry; path::exe::logger: [".$an->data->{path}{exe}{logger}."], tag: [".$tag."], 'defaults::log::tag': [".$an->data->{defaults}{'log'}{tag}."], priority_string: [".$priority_string."]\n";
+	}
 	my $shell_call = $an->data->{path}{exe}{logger}." --id --tag ".$tag." --priority ".$priority_string;
 	if ($server)
 	{
@@ -393,6 +398,10 @@ sub level
 			$an->data->{defaults}{'log'}{level} = 4;
 		}
 	}
+	elsif (not $an->data->{defaults}{'log'}{level})
+	{
+		$an->data->{defaults}{'log'}{level} = 1;
+	}
 	
 	return($an->data->{defaults}{'log'}{level});
 }
@@ -467,6 +476,10 @@ sub variables
 	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $an->data->{defaults}{'log'}{tag};
 	
 	# Exit immediately if this isn't going to be logged
+	if ((not defined $level) or (not defined $an->Log->level))
+	{
+		die $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] or Log->level: [".$an->Log->level."] defined from: [$source : $line]\n";
+	}
 	if ($level > $an->Log->level)
 	{
 		return(1);

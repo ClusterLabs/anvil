@@ -13,7 +13,6 @@ my $THIS_FILE = "Get.pm";
 ### Methods;
 # date_and_time
 # host_uuid
-# local_db_id
 # network_details
 # switches
 

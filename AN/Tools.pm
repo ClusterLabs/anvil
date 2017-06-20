@@ -570,7 +570,12 @@ sub _set_paths
 	
 	# Executables
 	$an->data->{path} = {
+			configs		=>	{
+				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
+				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
+			},
 			directories	=>	{
+				backups			=>	"/usr/sbin/striker/backups",
 				'cgi-bin'		=>	"/var/www/cgi-bin",
 				html			=>	"/var/www/html",
 				skins			=>	"/var/www/html/skins",
@@ -580,19 +585,26 @@ sub _set_paths
 			exe		=>	{
 				'chmod'			=>	"/usr/bin/chmod",
 				'chown'			=>	"/usr/bin/chown",
+				cp			=>	"/usr/bin/cp",
+				createdb		=>	"/usr/bin/createdb",
+				createuser		=>	"/usr/bin/createuser",
 				dmidecode		=>	"/usr/sbin/dmidecode",
+				echo			=>	"/usr/bin/echo",
 				gethostip		=>	"/usr/bin/gethostip",
-				hostname		=>	"/bin/hostname",
+				hostname		=>	"/usr/bin/hostname",
 				ip			=>	"/usr/sbin/ip",
 				logger			=>	"/usr/bin/logger",
 				'mkdir'			=>	"/usr/bin/mkdir",
+				psql			=>	"/usr/bin/psql",
+				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
+				su			=>	"/usr/bin/su",
+				systemctl		=>	"/usr/bin/systemctl",
+			},
+			secure			=>	{
+				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",
 			},
 			sysfs			=>	{
 				network_interfaces	=>	"/sys/class/net",
-			},
-			tools		=>	{
-				'scancore-daemon'	=>	"/usr/sbin/striker/scancore-daemon",
-				'scancore-update-states' =>	"/usr/sbin/striker/scancore-update-states",
 			},
 			urls		=>	{
 				skins			=>	"/skins",
@@ -611,17 +623,8 @@ sub _set_paths
 		{
 			if (not -e $an->data->{path}{$type}{$file})
 			{
-				my $fatal = 0;
-				if ($type eq "words")
-				{
-					# We have to die if we don't find a words file.
-					$fatal = 1;
-				}
-				my $full_path = $an->Storage->find({
-					file  => $file,
-					fatal => $fatal,
-				});
-				if ($full_path)
+				my $full_path = $an->Storage->find({file => $file});
+				if (($full_path) && ($full_path ne "#!not_found!#"))
 				{
 					$an->data->{path}{$type}{$file} = $full_path;
 				}

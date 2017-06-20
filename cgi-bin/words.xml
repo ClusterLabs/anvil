@@ -30,6 +30,28 @@ This is the AN::Tools master 'words' file.
 		<key name="js_0002">Down</key>
 		<key name="js_0003">Mbps</key>
 		
+		<!-- Errors -->
+		<key name="error_0001">[ Error ] - There is a local database defined, but it does not appear to exist and we could not initialize the database server. Is 'postgresql-server' installed?</key>
+		<key name="error_0002">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
+		<key name="error_0003">[ Error ] - There is no ScanCore database user set for the local machine. Please check: [#!data!path::config::striker.conf!#]'s DB entry: [#!variable!id!#].</key>
+		<key name="error_0004">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
+		<key name="error_0005">[ Error ] - Failed to create the ScanCore database: [#!variable!database!#]</key>
+		
+		<!-- Messages -->
+		<key name="message_0001">Initialized PostgreSQL.</key>
+		<key name="message_0002">Updated: [#!variable!file!#] to listen on all interfaces.</key>
+		<key name="message_0003">Updated: [#!variable!file!#] to require passwords for access.</key>
+		<key name="message_0004">Started the PostgreSQL database server.</key>
+		<key name="message_0005">Database user: [#!variable!user!#] already exists with ID: [#!variable!id!#].</key>
+		<key name="message_0006">Database user: [#!variable!user!#] was created with ID: [#!variable!id!#].</key>
+		<key name="message_0007">Database user: [#!variable!user!#] password has been set/updated.</key>
+		<key name="message_0008">ScanCore database: [#!variable!database!#] already exists.</key>
+		<key name="message_0009">ScanCore database: [#!variable!database!#] created.</key>
+		<key name="message_0010">Failed to find a local ID, no databases are stored on this machine.</key>
+		
+		<!-- Warnings -->
+		<key name="warning_0001">[ Warning ] - Failed to delete the temporary postgres password.</key>
+		
 	</language>
 	<!-- 日本語 -->
 	<language name="jp" long_name="日本語" description="Striker/ScanCore language file.">
