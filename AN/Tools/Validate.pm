@@ -11,6 +11,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Validate.pm";
 
 ### Methods;
+# is_ipv4
 # is_uuid
 
 =pod
@@ -69,6 +70,68 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 is_ipv4
+
+Checks if the passed-in string is an IPv4 address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+ $ip = "111.222.33.44";
+ if ($an->Validate->is_ipv4({ip => $ip}))
+ {
+ 	print "The IP address: [$ip] is valid!\n";
+ }
+
+=head2 Parameters;
+
+=head3 ip (required)
+
+This is the IP address to verify.
+
+=cut
+sub is_ipv4
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { ip => $ip }});
+	
+	my $valid = 1;
+	if ($ip =~ /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+	{
+		# It is in the right format.
+		my $first_octet  = $1;
+		my $second_octet = $2;
+		my $third_octet  = $3;
+		my $fourth_octet = $4;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			first_octet  => $first_octet, 
+			second_octet => $second_octet, 
+			third_octet  => $third_octet, 
+			fourth_octet => $fourth_octet, 
+		}});
+		
+		if (($first_octet  < 0) or ($first_octet  > 255) or
+		    ($second_octet < 0) or ($second_octet > 255) or
+		    ($third_octet  < 0) or ($third_octet  > 255) or
+		    ($fourth_octet < 0) or ($fourth_octet > 255))
+		{
+			# One of the octets is out of range.
+			$valid = 0;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid }});
+		}
+	}
+	else
+	{
+		# Not in the right format.
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid }});
+	return($valid);
+}
 
 =head2 is_uuid
 

@@ -31,8 +31,130 @@ is($an->environment, "cli", "Verifying that environment was properly reset back 
 
 # Test handles to child modules.
 like($an->Alert, qr/^AN::Tools::Alert=HASH\(0x\w+\)$/, "Verifying that 'Alert' is a handle to AN::Tools::Alert.");
-like($an->Storage, qr/^AN::Tools::Storage=HASH\(0x\w+\)$/, "Verifying that 'Alert' is a handle to AN::Tools::Storage.");
-like($an->Words, qr/^AN::Tools::Words=HASH\(0x\w+\)$/, "Verifying that 'Alert' is a handle to AN::Tools::Words.");
+like($an->Convert, qr/^AN::Tools::Convert=HASH\(0x\w+\)$/, "Verifying that 'Convert' is a handle to AN::Tools::Convert.");
+like($an->Database, qr/^AN::Tools::Database=HASH\(0x\w+\)$/, "Verifying that 'Database' is a handle to AN::Tools::Database.");
+like($an->Get, qr/^AN::Tools::Get=HASH\(0x\w+\)$/, "Verifying that 'Get' is a handle to AN::Tools::Get.");
+like($an->Log, qr/^AN::Tools::Log=HASH\(0x\w+\)$/, "Verifying that 'Log' is a handle to AN::Tools::Log.");
+like($an->Storage, qr/^AN::Tools::Storage=HASH\(0x\w+\)$/, "Verifying that 'Storage' is a handle to AN::Tools::Storage.");
+like($an->System, qr/^AN::Tools::System=HASH\(0x\w+\)$/, "Verifying that 'System' is a handle to AN::Tools::System.");
+like($an->Template, qr/^AN::Tools::Template=HASH\(0x\w+\)$/, "Verifying that 'Template' is a handle to AN::Tools::Template.");
+like($an->Validate, qr/^AN::Tools::Validate=HASH\(0x\w+\)$/, "Verifying that 'Validate' is a handle to AN::Tools::Validate.");
+like($an->Words, qr/^AN::Tools::Words=HASH\(0x\w+\)$/, "Verifying that 'Words' is a handle to AN::Tools::Words.");
+
+### AN::Tools::Alert tests
+# <none yet>
+
+### AN::Tools::Convert tests
+# cidr tests
+is($an->Convert->cidr({cidr => "fake"}), "", "Verifying that Convert->cidr properly returned an empty string for a bad 'cidr' parameter.");
+is($an->Convert->cidr({cidr => "0"}), "0.0.0.0", "Verifying that Convert->cidr properly returned '0.0.0.0' when given a 'cidr' parameter of '0'.");
+is($an->Convert->cidr({cidr => "1"}), "128.0.0.0", "Verifying that Convert->cidr properly returned '128.0.0.0' when given a 'cidr' parameter of '1'.");
+is($an->Convert->cidr({cidr => "2"}), "192.0.0.0", "Verifying that Convert->cidr properly returned '192.0.0.0' when given a 'cidr' parameter of '2'.");
+is($an->Convert->cidr({cidr => "3"}), "224.0.0.0", "Verifying that Convert->cidr properly returned '224.0.0.0' when given a 'cidr' parameter of '3'.");
+is($an->Convert->cidr({cidr => "4"}), "240.0.0.0", "Verifying that Convert->cidr properly returned '240.0.0.0' when given a 'cidr' parameter of '4'.");
+is($an->Convert->cidr({cidr => "5"}), "248.0.0.0", "Verifying that Convert->cidr properly returned '248.0.0.0' when given a 'cidr' parameter of '5'.");
+is($an->Convert->cidr({cidr => "6"}), "252.0.0.0", "Verifying that Convert->cidr properly returned '252.0.0.0' when given a 'cidr' parameter of '6'.");
+is($an->Convert->cidr({cidr => "7"}), "254.0.0.0", "Verifying that Convert->cidr properly returned '254.0.0.0' when given a 'cidr' parameter of '7'.");
+is($an->Convert->cidr({cidr => "8"}), "255.0.0.0", "Verifying that Convert->cidr properly returned '255.0.0.0' when given a 'cidr' parameter of '8'.");
+is($an->Convert->cidr({cidr => "9"}), "255.128.0.0", "Verifying that Convert->cidr properly returned '255.128.0.0' when given a 'cidr' parameter of '9'.");
+is($an->Convert->cidr({cidr => "10"}), "255.192.0.0", "Verifying that Convert->cidr properly returned '255.192.0.0' when given a 'cidr' parameter of '10'.");
+is($an->Convert->cidr({cidr => "11"}), "255.224.0.0", "Verifying that Convert->cidr properly returned '255.224.0.0' when given a 'cidr' parameter of '11'.");
+is($an->Convert->cidr({cidr => "12"}), "255.240.0.0", "Verifying that Convert->cidr properly returned '255.240.0.0' when given a 'cidr' parameter of '12'.");
+is($an->Convert->cidr({cidr => "13"}), "255.248.0.0", "Verifying that Convert->cidr properly returned '255.248.0.0' when given a 'cidr' parameter of '13'.");
+is($an->Convert->cidr({cidr => "14"}), "255.252.0.0", "Verifying that Convert->cidr properly returned '255.252.0.0' when given a 'cidr' parameter of '14'.");
+is($an->Convert->cidr({cidr => "15"}), "255.254.0.0", "Verifying that Convert->cidr properly returned '255.254.0.0' when given a 'cidr' parameter of '15'.");
+is($an->Convert->cidr({cidr => "16"}), "255.255.0.0", "Verifying that Convert->cidr properly returned '255.255.0.0' when given a 'cidr' parameter of '16'.");
+is($an->Convert->cidr({cidr => "17"}), "255.255.128.0", "Verifying that Convert->cidr properly returned '255.255.128.0' when given a 'cidr' parameter of '17'.");
+is($an->Convert->cidr({cidr => "18"}), "255.255.192.0", "Verifying that Convert->cidr properly returned '255.255.192.0' when given a 'cidr' parameter of '18'.");
+is($an->Convert->cidr({cidr => "19"}), "255.255.224.0", "Verifying that Convert->cidr properly returned '255.255.224.0' when given a 'cidr' parameter of '19'.");
+is($an->Convert->cidr({cidr => "20"}), "255.255.240.0", "Verifying that Convert->cidr properly returned '255.255.240.0' when given a 'cidr' parameter of '20'.");
+is($an->Convert->cidr({cidr => "21"}), "255.255.248.0", "Verifying that Convert->cidr properly returned '255.255.248.0' when given a 'cidr' parameter of '21'.");
+is($an->Convert->cidr({cidr => "22"}), "255.255.252.0", "Verifying that Convert->cidr properly returned '255.255.252.0' when given a 'cidr' parameter of '22'.");
+is($an->Convert->cidr({cidr => "23"}), "255.255.254.0", "Verifying that Convert->cidr properly returned '255.255.254.0' when given a 'cidr' parameter of '23'.");
+is($an->Convert->cidr({cidr => "24"}), "255.255.255.0", "Verifying that Convert->cidr properly returned '255.255.255.0' when given a 'cidr' parameter of '24'.");
+is($an->Convert->cidr({cidr => "25"}), "255.255.255.128", "Verifying that Convert->cidr properly returned '255.255.255.128' when given a 'cidr' parameter of '25'.");
+is($an->Convert->cidr({cidr => "26"}), "255.255.255.192", "Verifying that Convert->cidr properly returned '255.255.255.192' when given a 'cidr' parameter of '26'.");
+is($an->Convert->cidr({cidr => "27"}), "255.255.255.224", "Verifying that Convert->cidr properly returned '255.255.255.224' when given a 'cidr' parameter of '27'.");
+is($an->Convert->cidr({cidr => "28"}), "255.255.255.240", "Verifying that Convert->cidr properly returned '255.255.255.240' when given a 'cidr' parameter of '28'.");
+is($an->Convert->cidr({cidr => "29"}), "255.255.255.248", "Verifying that Convert->cidr properly returned '255.255.255.248' when given a 'cidr' parameter of '29'.");
+is($an->Convert->cidr({cidr => "30"}), "255.255.255.252", "Verifying that Convert->cidr properly returned '255.255.255.252' when given a 'cidr' parameter of '30'.");
+is($an->Convert->cidr({cidr => "31"}), "255.255.255.254", "Verifying that Convert->cidr properly returned '255.255.255.254' when given a 'cidr' parameter of '31'.");
+is($an->Convert->cidr({cidr => "32"}), "255.255.255.255", "Verifying that Convert->cidr properly returned '255.255.255.255' when given a 'cidr' parameter of '32'.");
+is($an->Convert->cidr({subnet => "fake"}), "", "Verifying that Convert->cidr properly returned an empty string for a bad 'subnet' parameter.");
+is($an->Convert->cidr({subnet => "0.0.0.0"}), "0", "Verifying that Convert->cidr properly returned '0' when given a 'subnet' parameter of '0.0.0.0'.");
+is($an->Convert->cidr({subnet => "128.0.0.0"}), "1", "Verifying that Convert->cidr properly returned '1' when given a 'subnet' parameter of '128.0.0.0'.");
+is($an->Convert->cidr({subnet => "192.0.0.0"}), "2", "Verifying that Convert->cidr properly returned '2' when given a 'subnet' parameter of '192.0.0.0'.");
+is($an->Convert->cidr({subnet => "224.0.0.0"}), "3", "Verifying that Convert->cidr properly returned '3' when given a 'subnet' parameter of '224.0.0.0'.");
+is($an->Convert->cidr({subnet => "240.0.0.0"}), "4", "Verifying that Convert->cidr properly returned '4' when given a 'subnet' parameter of '240.0.0.0'.");
+is($an->Convert->cidr({subnet => "248.0.0.0"}), "5", "Verifying that Convert->cidr properly returned '5' when given a 'subnet' parameter of '248.0.0.0'.");
+is($an->Convert->cidr({subnet => "252.0.0.0"}), "6", "Verifying that Convert->cidr properly returned '6' when given a 'subnet' parameter of '252.0.0.0'.");
+is($an->Convert->cidr({subnet => "254.0.0.0"}), "7", "Verifying that Convert->cidr properly returned '7' when given a 'subnet' parameter of '254.0.0.0'.");
+is($an->Convert->cidr({subnet => "255.0.0.0"}), "8", "Verifying that Convert->cidr properly returned '8' when given a 'subnet' parameter of '255.0.0.0'.");
+is($an->Convert->cidr({subnet => "255.128.0.0"}), "9", "Verifying that Convert->cidr properly returned '9' when given a 'subnet' parameter of '255.128.0.0'.");
+is($an->Convert->cidr({subnet => "255.192.0.0"}), "10", "Verifying that Convert->cidr properly returned '10' when given a 'subnet' parameter of '255.192.0.0'.");
+is($an->Convert->cidr({subnet => "255.224.0.0"}), "11", "Verifying that Convert->cidr properly returned '11' when given a 'subnet' parameter of '255.224.0.0'.");
+is($an->Convert->cidr({subnet => "255.240.0.0"}), "12", "Verifying that Convert->cidr properly returned '12' when given a 'subnet' parameter of '255.240.0.0'.");
+is($an->Convert->cidr({subnet => "255.248.0.0"}), "13", "Verifying that Convert->cidr properly returned '13' when given a 'subnet' parameter of '255.248.0.0'.");
+is($an->Convert->cidr({subnet => "255.252.0.0"}), "14", "Verifying that Convert->cidr properly returned '14' when given a 'subnet' parameter of '255.252.0.0'.");
+is($an->Convert->cidr({subnet => "255.254.0.0"}), "15", "Verifying that Convert->cidr properly returned '15' when given a 'subnet' parameter of '255.254.0.0'.");
+is($an->Convert->cidr({subnet => "255.255.0.0"}), "16", "Verifying that Convert->cidr properly returned '16' when given a 'subnet' parameter of '255.255.0.0'.");
+is($an->Convert->cidr({subnet => "255.255.128.0"}), "17", "Verifying that Convert->cidr properly returned '17' when given a 'subnet' parameter of '255.255.128.0'.");
+is($an->Convert->cidr({subnet => "255.255.192.0"}), "18", "Verifying that Convert->cidr properly returned '18' when given a 'subnet' parameter of '255.255.192.0'.");
+is($an->Convert->cidr({subnet => "255.255.224.0"}), "19", "Verifying that Convert->cidr properly returned '19' when given a 'subnet' parameter of '255.255.224.0'.");
+is($an->Convert->cidr({subnet => "255.255.240.0"}), "20", "Verifying that Convert->cidr properly returned '20' when given a 'subnet' parameter of '255.255.240.0'.");
+is($an->Convert->cidr({subnet => "255.255.248.0"}), "21", "Verifying that Convert->cidr properly returned '21' when given a 'subnet' parameter of '255.255.248.0'.");
+is($an->Convert->cidr({subnet => "255.255.252.0"}), "22", "Verifying that Convert->cidr properly returned '22' when given a 'subnet' parameter of '255.255.252.0'.");
+is($an->Convert->cidr({subnet => "255.255.254.0"}), "23", "Verifying that Convert->cidr properly returned '23' when given a 'subnet' parameter of '255.255.254.0'.");
+is($an->Convert->cidr({subnet => "255.255.255.0"}), "24", "Verifying that Convert->cidr properly returned '24' when given a 'subnet' parameter of '255.255.255.0'.");
+is($an->Convert->cidr({subnet => "255.255.255.128"}), "25", "Verifying that Convert->cidr properly returned '25' when given a 'subnet' parameter of '255.255.255.128'.");
+is($an->Convert->cidr({subnet => "255.255.255.192"}), "26", "Verifying that Convert->cidr properly returned '26' when given a 'subnet' parameter of '255.255.255.192'.");
+is($an->Convert->cidr({subnet => "255.255.255.224"}), "27", "Verifying that Convert->cidr properly returned '27' when given a 'subnet' parameter of '255.255.255.224'.");
+is($an->Convert->cidr({subnet => "255.255.255.240"}), "28", "Verifying that Convert->cidr properly returned '28' when given a 'subnet' parameter of '255.255.255.240'.");
+is($an->Convert->cidr({subnet => "255.255.255.248"}), "29", "Verifying that Convert->cidr properly returned '29' when given a 'subnet' parameter of '255.255.255.248'.");
+is($an->Convert->cidr({subnet => "255.255.255.252"}), "30", "Verifying that Convert->cidr properly returned '30' when given a 'subnet' parameter of '255.255.255.252'.");
+is($an->Convert->cidr({subnet => "255.255.255.254"}), "31", "Verifying that Convert->cidr properly returned '31' when given a 'subnet' parameter of '255.255.255.254'.");
+is($an->Convert->cidr({subnet => "255.255.255.255"}), "32", "Verifying that Convert->cidr properly returned '32' when given a 'subnet' parameter of '255.255.255.255'.");
+
+### AN::Tools::Database tests
+# <none yet>
+
+### AN::Tools::Get tests
+# date_and_time
+like($an->Get->date_and_time(), qr/^\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d$/, "Verifying the current date and time is returned.");
+like($an->Get->date_and_time({date_only => 1}), qr/^\d\d\d\d\/\d\d\/\d\d$/, "Verifying the current date alone is returned.");
+like($an->Get->date_and_time({time_only => 1}), qr/^\d\d:\d\d:\d\d$/, "Verifying the current time alone is returned.");
+like($an->Get->date_and_time({file_name => 1}), qr/^\d\d\d\d-\d\d-\d\d_\d\d-\d\d-\d\d$/, "Verifying the current date and time is returned in a file-friendly format.");
+like($an->Get->date_and_time({file_name => 1, date_only => 1}), qr/^\d\d\d\d-\d\d-\d\d$/, "Verifying the current date only is returned in a file-friendly format.");
+like($an->Get->date_and_time({file_name => 1, time_only => 1}), qr/^\d\d-\d\d-\d\d$/, "Verifying the current time only is returned in a file-friendly format.");
+# We can't be too specific because the user's TZ will shift the results
+like($an->Get->date_and_time({use_time => 1234567890}), qr/2009\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime returned the expected date.");
+like($an->Get->date_and_time({use_time => 1234567890, offset => 31536000}), qr/2010\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime with a one year in the future offset returned the expected date.");
+like($an->Get->date_and_time({use_time => 1234567890, offset => -31536000}), qr/2008\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime with a one year in the past offset returned the expected date.");
+# host_uuid
+like($an->Get->host_uuid, qr/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "Verifying ability to read host uuid.");
+### TODO: How to test Get->switches?
+
+die;
+
+### AN::Tools::Log tests
+# 
+
+### AN::Tools::Storage tests
+# 
+
+### AN::Tools::System tests
+# 
+
+### AN::Tools::Template tests
+# 
+
+### AN::Tools::Validate tests
+# 
+
+### AN::Tools::Words tests
+# 
+
+
 
 ### AN::Tools::Storage methods
 # Search directory tests
@@ -120,18 +242,6 @@ is($an->Words->string({
 ", "Verifying string processing in Japanese.");
 
 ### Get tests.
-like($an->Get->date_and_time(), qr/^\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d$/, "Verifying the current date and time is returned.");
-like($an->Get->date_and_time({date_only => 1}), qr/^\d\d\d\d\/\d\d\/\d\d$/, "Verifying the current date alone is returned.");
-like($an->Get->date_and_time({time_only => 1}), qr/^\d\d:\d\d:\d\d$/, "Verifying the current time alone is returned.");
-like($an->Get->date_and_time({file_name => 1}), qr/^\d\d\d\d-\d\d-\d\d_\d\d-\d\d-\d\d$/, "Verifying the current date and time is returned in a file-friendly format.");
-like($an->Get->date_and_time({file_name => 1, date_only => 1}), qr/^\d\d\d\d-\d\d-\d\d$/, "Verifying the current date only is returned in a file-friendly format.");
-like($an->Get->date_and_time({file_name => 1, time_only => 1}), qr/^\d\d-\d\d-\d\d$/, "Verifying the current time only is returned in a file-friendly format.");
-# We can't be too specific because the user's TZ will shift the results
-like($an->Get->date_and_time({use_time => 1234567890}), qr/2009\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime returned the expected date.");
-like($an->Get->date_and_time({use_time => 1234567890, offset => 31536000}), qr/2010\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime with a one year in the future offset returned the expected date.");
-like($an->Get->date_and_time({use_time => 1234567890, offset => -31536000}), qr/2008\/02\/1[34] \d\d:\d\d:\d\d$/, "Verified that a specific unixtime with a one year in the past offset returned the expected date.");
-### TODO: How to test Get->switches?
-like($an->Get->host_uuid, qr/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "Verifying ability to read host uuid.");
 
 ### Logging
 # TODO: How to check logs in journalctl?

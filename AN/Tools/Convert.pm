@@ -108,7 +108,7 @@ sub cidr
 		subnet => $subnet, 
 	}});
 	
-	if ($cidr)
+	if ($cidr =~ /^\d{1,2}$/)
 	{
 		# Convert a cidr to a subnet
 		if    ($cidr eq "0")  { $output = "0.0.0.0"; }
@@ -145,41 +145,41 @@ sub cidr
 		elsif ($cidr eq "31") { $output = "255.255.255.254"; }
 		elsif ($cidr eq "32") { $output = "255.255.255.255"; }
 	}
-	elsif ($subnet)
+	elsif ($an->Validate->is_ipv4({ip => $subnet}))
 	{
 		if    ($subnet eq "0.0.0.0" )         { $output = "0"; }
-		elsif ($output eq "128.0.0.0" )       { $output = "1"; }
-		elsif ($output eq "192.0.0.0" )       { $output = "2"; }
-		elsif ($output eq "224.0.0.0" )       { $output = "3"; }
-		elsif ($output eq "240.0.0.0" )       { $output = "4"; }
-		elsif ($output eq "248.0.0.0" )       { $output = "5"; }
-		elsif ($output eq "252.0.0.0" )       { $output = "6"; }
-		elsif ($output eq "254.0.0.0" )       { $output = "7"; }
-		elsif ($output eq "255.0.0.0" )       { $output = "8"; }
-		elsif ($output eq "255.128.0.0" )     { $output = "9"; }
-		elsif ($output eq "255.192.0.0" )     { $output = "10"; }
-		elsif ($output eq "255.224.0.0" )     { $output = "11"; }
-		elsif ($output eq "255.240.0.0" )     { $output = "12"; }
-		elsif ($output eq "255.248.0.0" )     { $output = "13"; }
-		elsif ($output eq "255.252.0.0" )     { $output = "14"; }
-		elsif ($output eq "255.254.0.0" )     { $output = "15"; }
-		elsif ($output eq "255.255.0.0" )     { $output = "16"; }
-		elsif ($output eq "255.255.128.0" )   { $output = "17"; }
-		elsif ($output eq "255.255.192.0" )   { $output = "18"; }
-		elsif ($output eq "255.255.224.0" )   { $output = "19"; }
-		elsif ($output eq "255.255.240.0" )   { $output = "20"; }
-		elsif ($output eq "255.255.248.0" )   { $output = "21"; }
-		elsif ($output eq "255.255.252.0" )   { $output = "22"; }
-		elsif ($output eq "255.255.254.0" )   { $output = "23"; }
-		elsif ($output eq "255.255.255.0" )   { $output = "24"; }
-		elsif ($output eq "255.255.255.128" ) { $output = "25"; }
-		elsif ($output eq "255.255.255.192" ) { $output = "26"; }
-		elsif ($output eq "255.255.255.224" ) { $output = "27"; }
-		elsif ($output eq "255.255.255.240" ) { $output = "28"; }
-		elsif ($output eq "255.255.255.248" ) { $output = "29"; }
-		elsif ($output eq "255.255.255.252" ) { $output = "30"; }
-		elsif ($output eq "255.255.255.254" ) { $output = "31"; }
-		elsif ($output eq "255.255.255.255" ) { $output = "32"; }
+		elsif ($subnet eq "128.0.0.0" )       { $output = "1"; }
+		elsif ($subnet eq "192.0.0.0" )       { $output = "2"; }
+		elsif ($subnet eq "224.0.0.0" )       { $output = "3"; }
+		elsif ($subnet eq "240.0.0.0" )       { $output = "4"; }
+		elsif ($subnet eq "248.0.0.0" )       { $output = "5"; }
+		elsif ($subnet eq "252.0.0.0" )       { $output = "6"; }
+		elsif ($subnet eq "254.0.0.0" )       { $output = "7"; }
+		elsif ($subnet eq "255.0.0.0" )       { $output = "8"; }
+		elsif ($subnet eq "255.128.0.0" )     { $output = "9"; }
+		elsif ($subnet eq "255.192.0.0" )     { $output = "10"; }
+		elsif ($subnet eq "255.224.0.0" )     { $output = "11"; }
+		elsif ($subnet eq "255.240.0.0" )     { $output = "12"; }
+		elsif ($subnet eq "255.248.0.0" )     { $output = "13"; }
+		elsif ($subnet eq "255.252.0.0" )     { $output = "14"; }
+		elsif ($subnet eq "255.254.0.0" )     { $output = "15"; }
+		elsif ($subnet eq "255.255.0.0" )     { $output = "16"; }
+		elsif ($subnet eq "255.255.128.0" )   { $output = "17"; }
+		elsif ($subnet eq "255.255.192.0" )   { $output = "18"; }
+		elsif ($subnet eq "255.255.224.0" )   { $output = "19"; }
+		elsif ($subnet eq "255.255.240.0" )   { $output = "20"; }
+		elsif ($subnet eq "255.255.248.0" )   { $output = "21"; }
+		elsif ($subnet eq "255.255.252.0" )   { $output = "22"; }
+		elsif ($subnet eq "255.255.254.0" )   { $output = "23"; }
+		elsif ($subnet eq "255.255.255.0" )   { $output = "24"; }
+		elsif ($subnet eq "255.255.255.128" ) { $output = "25"; }
+		elsif ($subnet eq "255.255.255.192" ) { $output = "26"; }
+		elsif ($subnet eq "255.255.255.224" ) { $output = "27"; }
+		elsif ($subnet eq "255.255.255.240" ) { $output = "28"; }
+		elsif ($subnet eq "255.255.255.248" ) { $output = "29"; }
+		elsif ($subnet eq "255.255.255.252" ) { $output = "30"; }
+		elsif ($subnet eq "255.255.255.254" ) { $output = "31"; }
+		elsif ($subnet eq "255.255.255.255" ) { $output = "32"; }
 	}
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
