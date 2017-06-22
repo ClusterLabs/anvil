@@ -7,7 +7,8 @@ use Data::Dumper;
 use utf8;
 
 # Be nice and set a version number.
-our $VERSION="3.0.0";
+our $VERSION   = "3.0.0";
+our $THIS_FILE = "Tools.t";
  
 # Call in the test module, telling it how many tests to expect to run.
 use Test::More tests => 62;
@@ -40,6 +41,14 @@ like($an->System, qr/^AN::Tools::System=HASH\(0x\w+\)$/, "Verifying that 'System
 like($an->Template, qr/^AN::Tools::Template=HASH\(0x\w+\)$/, "Verifying that 'Template' is a handle to AN::Tools::Template.");
 like($an->Validate, qr/^AN::Tools::Validate=HASH\(0x\w+\)$/, "Verifying that 'Validate' is a handle to AN::Tools::Validate.");
 like($an->Words, qr/^AN::Tools::Words=HASH\(0x\w+\)$/, "Verifying that 'Words' is a handle to AN::Tools::Words.");
+
+### Special
+# We log a note telling the user to ignore log entries caused by this test suite. We'll then read it back and
+# make sure it logged properly
+$an->Log->entry({level => 0, priority => "alert", key => "log_0048"});
+my $message  = $an->Words->string({key => "log_0048"});
+my $last_log = $an->System->call({shell_call => $an->data->{path}{exe}{journalctl}." -t an-tools --lines 1 --full --output cat --no-pager"});
+is($last_log, $message, "Verified that we could write a log entry to journalctl by warning the user of incoming warnings and errors.");
 
 ### AN::Tools::Alert tests
 # <none yet>
@@ -134,25 +143,93 @@ like($an->Get->date_and_time({use_time => 1234567890, offset => -31536000}), qr/
 like($an->Get->host_uuid, qr/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "Verifying ability to read host uuid.");
 ### TODO: How to test Get->switches?
 
-die;
-
 ### AN::Tools::Log tests
-# 
+# language
+is($an->Log->language, "en_CA", "Verifying the default log language is 'en_CA'.");
+$an->Log->language({set => "jp"});
+is($an->Log->language, "jp", "Verifying the log language was changed to 'jp'.");
+$an->Log->language({set => "en_CA"});
+is($an->Log->language, "en_CA", "Verifying the log language is back to 'en_CA'.");
+
+# log_level
+is($an->Log->level, "1", "Verifying the default log level is '1'.");
+$an->Log->level({set => 0});
+is($an->Log->level, "0", "Verifying the log level changed to '0'.");
+$an->Log->level({set => 1});
+is($an->Log->level, "1", "Verifying the log level changed to '1'.");
+$an->Log->level({set => 2});
+is($an->Log->level, "2", "Verifying the log level changed to '2'.");
+$an->Log->level({set => 3});
+is($an->Log->level, "3", "Verifying the log level changed to '3'.");
+$an->Log->level({set => 4});
+is($an->Log->level, "4", "Verifying the log level changed to '4'.");
+$an->Log->level({set => "foo"});
+is($an->Log->level, "4", "Verifying the log level stayed at '4' with bad input.");
+$an->Log->level({set => 1});
+is($an->Log->level, "1", "Verifying the log level changed back to '1'.");
+# We're simulating switches to test Log->_adjust_log_level
+$an->data->{switches}{V} = "#!set!#";
+$an->data->{switches}{v} = "";
+$an->data->{switches}{vv} = "";
+$an->data->{switches}{vvv} = "";
+$an->data->{switches}{vvvv} = "";
+$an->Log->_adjust_log_level;
+is($an->Log->level, "0", "Verifying the log level was set to '0' with Log->_adjust_log_leve() with 'V' switch set.");
+$an->data->{switches}{V} = "";
+$an->data->{switches}{v} = "#!set!#";
+$an->Log->_adjust_log_level;
+is($an->Log->level, "1", "Verifying the log level was set to '1' with Log->_adjust_log_leve() with 'v' switch set.");
+$an->data->{switches}{v} = "";
+$an->data->{switches}{vv} = "#!set!#";
+$an->Log->_adjust_log_level;
+is($an->Log->level, "2", "Verifying the log level was set to '2' with Log->_adjust_log_leve() with 'vv' switch set.");
+$an->data->{switches}{vv} = "";
+$an->data->{switches}{vvv} = "#!set!#";
+$an->Log->_adjust_log_level;
+is($an->Log->level, "3", "Verifying the log level was set to '3' with Log->_adjust_log_leve() with 'vvv' switch set.");
+$an->data->{switches}{vvv} = "";
+$an->data->{switches}{vvvv} = "#!set!#";
+$an->Log->_adjust_log_level;
+is($an->Log->level, "4", "Verifying the log level was set to '4' with Log->_adjust_log_leve() with 'vvvv' switch set.");
+$an->data->{switches}{vvvv} = "";
+$an->data->{switches}{v} = "#!set!#";
+$an->Log->_adjust_log_level;
+is($an->Log->level, "1", "Verifying the log level was set back to '1' with Log->_adjust_log_leve() with 'v' switch set.");
+# Test Log->secure
+is($an->Log->secure, "0", "Verifying that logging secure messages is disabled by default.");
+$an->Log->secure({set => "foo"});
+is($an->Log->secure, "0", "Verifying that logging secure messages stayed disabled on bad input.");
+$an->Log->secure({set => 1});
+is($an->Log->secure, "1", "Verifying that logging secure messages was enabled.");
+$an->Log->secure({set => 0});
+is($an->Log->secure, "0", "Verifying that logging secure messages was disabled again.");
+
+die;
 
 ### AN::Tools::Storage tests
 # 
 
+die;
+
 ### AN::Tools::System tests
 # 
+
+die;
 
 ### AN::Tools::Template tests
 # 
 
+die;
+
 ### AN::Tools::Validate tests
 # 
 
+die;
+
 ### AN::Tools::Words tests
 # 
+
+die;
 
 
 
@@ -245,58 +322,6 @@ is($an->Words->string({
 
 ### Logging
 # TODO: How to check logs in journalctl?
-is($an->Log->level, "1", "Verifying the default log level is '1'.");
-$an->Log->level(0);
-is($an->Log->level, "0", "Verifying the log level changed to '0'.");
-$an->Log->level(1);
-is($an->Log->level, "1", "Verifying the log level changed to '1'.");
-$an->Log->level(2);
-is($an->Log->level, "2", "Verifying the log level changed to '2'.");
-$an->Log->level(3);
-is($an->Log->level, "3", "Verifying the log level changed to '3'.");
-$an->Log->level(4);
-is($an->Log->level, "4", "Verifying the log level changed to '4'.");
-$an->Log->level("foo");
-is($an->Log->level, "4", "Verifying the log level stayed at '4' with bad input.");
-$an->Log->level(1);
-is($an->Log->level, "1", "Verifying the log level changed back to '1'.");
-
-# We're simulating switches to test Log->_adjust_log_level
-$an->data->{switches}{V} = "#!set!#";
-$an->data->{switches}{v} = "";
-$an->data->{switches}{vv} = "";
-$an->data->{switches}{vvv} = "";
-$an->data->{switches}{vvvv} = "";
-$an->Log->_adjust_log_level;
-is($an->Log->level, "0", "Verifying the log level was set to '0' with Log->_adjust_log_leve() with 'V' switch set.");
-$an->data->{switches}{V} = "";
-$an->data->{switches}{v} = "#!set!#";
-$an->Log->_adjust_log_level;
-is($an->Log->level, "1", "Verifying the log level was set to '1' with Log->_adjust_log_leve() with 'v' switch set.");
-$an->data->{switches}{v} = "";
-$an->data->{switches}{vv} = "#!set!#";
-$an->Log->_adjust_log_level;
-is($an->Log->level, "2", "Verifying the log level was set to '2' with Log->_adjust_log_leve() with 'vv' switch set.");
-$an->data->{switches}{vv} = "";
-$an->data->{switches}{vvv} = "#!set!#";
-$an->Log->_adjust_log_level;
-is($an->Log->level, "3", "Verifying the log level was set to '3' with Log->_adjust_log_leve() with 'vvv' switch set.");
-$an->data->{switches}{vvv} = "";
-$an->data->{switches}{vvvv} = "#!set!#";
-$an->Log->_adjust_log_level;
-is($an->Log->level, "4", "Verifying the log level was set to '4' with Log->_adjust_log_leve() with 'vvvv' switch set.");
-$an->data->{switches}{vvvv} = "";
-$an->data->{switches}{v} = "#!set!#";
-$an->Log->_adjust_log_level;
-is($an->Log->level, "1", "Verifying the log level was set back to '1' with Log->_adjust_log_leve() with 'v' switch set.");
-# Test Log->secure
-is($an->Log->secure, "0", "Verifying that logging secure messages is disabled by default.");
-$an->Log->secure("foo");
-is($an->Log->secure, "0", "Verifying that logging secure messages stayed disabled on bad input.");
-$an->Log->secure(1);
-is($an->Log->secure, "1", "Verifying that logging secure messages was enabled.");
-$an->Log->secure(0);
-is($an->Log->secure, "0", "Verifying that logging secure messages was disabled again.");
 
 ### Template
 my $active_skin = $an->Template->skin;
@@ -306,3 +331,6 @@ is($an->Validate->is_uuid({uuid => $an->Get->host_uuid}), "1", "Verifying that V
 is($an->Validate->is_uuid({uuid => uc($an->Get->host_uuid)}), "0", "Verifying that Validate->is_uuid() fails to validates the host UUID in upper case.");
 is($an->Validate->is_uuid({uuid => "cfdab37c-5b1a-433d-9285-978e7caa134"}), "0", "Verifying that Validate->is_uuid() fails to validates a UUID missing a letter.");
 is($an->Validate->is_uuid({uuid => "cfdab37c5b1a433d9285-978e7caa1342"}), "0", "Verifying that Validate->is_uuid() fails to validate a UUID without hyphens.");
+
+# Tell the user that we're done making noise in their logs
+$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0049"});

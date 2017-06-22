@@ -18,7 +18,7 @@ my $an = AN::Tools->new();
 print $an->Template->get({file => "shared.html", name => "http_headers"})."\n";
 
 # Set the log level to 2
-$an->Log->level(2);
+$an->Log->level({set => 2});
 
 # Read in our words file.
 $an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"});

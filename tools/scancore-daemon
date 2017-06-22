@@ -18,7 +18,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 $| = 1;
 
 my $an = AN::Tools->new();
-$an->Log->level(2);
+$an->Log->level({set => 2});
 
 # Paths
 $an->data->{path}{tools}{'scancore-database'}      = "/usr/sbin/striker/scancore-database";

@@ -593,6 +593,7 @@ sub _set_paths
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/usr/bin/hostname",
 				ip			=>	"/usr/sbin/ip",
+				journalctl		=>	"/usr/bin/journalctl",
 				logger			=>	"/usr/bin/logger",
 				'mkdir'			=>	"/usr/bin/mkdir",
 				psql			=>	"/usr/bin/psql",

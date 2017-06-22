@@ -66,6 +66,9 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0044"><![CDATA[[ Error ] - The module Storage->copy_file() was called but 'source' was not passed or was empty.]]></key>
 		<key name="log_0045"><![CDATA[[ Error ] - The module Storage->copy_file() was called but 'target' was not passed or was empty.]]></key>
 		<key name="log_0046"><![CDATA[[ Error ] - The module Storage->copy_file() was asked to copy: [#!variable!source!#] to: [#!variable!target!#], but the target already exists and 'overwrite' wasn't specified, so aborting.]]></key>
+		<key name="log_0047"><![CDATA[[ Error ] - The module Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
+		<key name="log_0048"><![CDATA[[ Warning ] - Testing of AN::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
+		<key name="log_0049"><![CDATA[[ Warning ] - Testing of AN::Tools is complete.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

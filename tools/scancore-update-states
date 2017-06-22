@@ -15,7 +15,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $an = AN::Tools->new();
-$an->Log->level(2);
+$an->Log->level({set => 2});
 
 $an->Storage->read_config({file => "/etc/striker/striker.conf"});
 

@@ -341,18 +341,24 @@ sub language
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
+	my $debug = 0;
+	print $THIS_FILE." ".__LINE__."; set: [$set]\n" if $debug;
 	
 	if ($set)
 	{
 		$self->{LOG}{LANGUAGE} = $set;
+		print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."]\n" if $debug;
 	}
 	
+	print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."], defaults::log::language: [".$an->data->{defaults}{'log'}{language}."]\n" if $debug;
 	if (not $self->{LOG}{LANGUAGE})
 	{
 		$self->{LOG}{LANGUAGE} = $an->data->{defaults}{'log'}{language};
+		print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."]\n" if $debug;
 	}
 	
+	print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."]\n" if $debug;
 	return($self->{LOG}{LANGUAGE});
 }
 
@@ -366,7 +372,7 @@ Check the current log level:
  
 Change the current log level to 'C<< 2 >>';
 
- $an->Log->level(2);
+ $an->Log->level({set => 2});
 
 =cut
 sub level
@@ -375,34 +381,51 @@ sub level
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	if (defined $parameter)
+	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
+	my $debug = 0;
+	print $THIS_FILE." ".__LINE__."; set: [".$set."]\n" if $debug;
+	
+	if (($set =~ /^\d$/) && ($set >= 0) && ($set <= 4))
 	{
-		if ($parameter eq "0")
+		if ($set == 0)
 		{
 			$an->data->{defaults}{'log'}{level} = 0;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
-		elsif ($parameter eq "1")
+		elsif ($set == 1)
 		{
 			$an->data->{defaults}{'log'}{level} = 1;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
-		elsif ($parameter eq "2")
+		elsif ($set == 2)
 		{
 			$an->data->{defaults}{'log'}{level} = 2;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
-		elsif ($parameter eq "3")
+		elsif ($set == 3)
 		{
 			$an->data->{defaults}{'log'}{level} = 3;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
-		elsif ($parameter eq "4")
+		elsif ($set == 4)
 		{
 			$an->data->{defaults}{'log'}{level} = 4;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
 	}
-	elsif (not $an->data->{defaults}{'log'}{level})
+	elsif ($set ne "")
+	{
+		# Invalid value passed.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0047", variables => { set => $set }});
+	}
+
+	if ((not defined $an->data->{defaults}{'log'}{level}) or ($an->data->{defaults}{'log'}{level} !~ /^\d$/) or ($an->data->{defaults}{'log'}{level} < 0) or ($an->data->{defaults}{'log'}{level} > 4))
 	{
 		$an->data->{defaults}{'log'}{level} = 1;
+		print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
 	}
 	
+	print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
 	return($an->data->{defaults}{'log'}{level});
 }
 
@@ -410,10 +433,14 @@ sub level
 
 This sets or returns whether logging of sensitive log strings is enabled. 
 
-It returns 'C<< 0 >>' if sensitive entries are *not* being logged. It returns 'C<< 1 >>' if they are.
+It returns 'C<< 0 >>' if sensitive entries are *not* being logged (default). It returns 'C<< 1 >>' if they are.
 
 Passing 'C<< 0 >>' disables recording sensitive logs. Passing 'C<< 1 >>' enables logging sensitive entries.
+ 
+Enable logging of secure data;
 
+ $an->Log->secure({set => 1});
+ 
  if ($an->Log->secure)
  {
 	# Sensitive data logging is enabled.
@@ -421,7 +448,7 @@ Passing 'C<< 0 >>' disables recording sensitive logs. Passing 'C<< 1 >>' enables
  
 Disable sensitive log entry recording.
 
- $an->Log->secure(0);
+ $an->Log->secure({set => 0});
 
 =cut
 sub secure
@@ -430,13 +457,16 @@ sub secure
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	if (defined $parameter)
+	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
+	my $debug = 0;
+	
+	if (defined $set)
 	{
-		if ($parameter eq "0")
+		if ($set eq "0")
 		{
 			$an->data->{defaults}{'log'}{secure} = 0;
 		}
-		elsif ($parameter eq "1")
+		elsif ($set eq "1")
 		{
 			$an->data->{defaults}{'log'}{secure} = 1;
 		}
@@ -476,9 +506,13 @@ sub variables
 	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $an->data->{defaults}{'log'}{tag};
 	
 	# Exit immediately if this isn't going to be logged
-	if ((not defined $level) or (not defined $an->Log->level))
+	if (not defined $level)
 	{
-		die $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] or Log->level: [".$an->Log->level."] defined from: [$source : $line]\n";
+		die $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] defined from: [$source : $line]\n";
+	}
+	elsif (not defined $an->Log->level)
+	{
+		die $THIS_FILE." ".__LINE__."; Log->variables() called without Log->level: [".$an->Log->level."] defined from: [$source : $line]\n";
 	}
 	if ($level > $an->Log->level)
 	{
@@ -564,23 +598,23 @@ sub _adjust_log_level
 	
 	if ($an->data->{switches}{V})
 	{
-		$an->Log->level(0);
+		$an->Log->level({set => 0});
 	}
 	elsif ($an->data->{switches}{v})
 	{
-		$an->Log->level(1);
+		$an->Log->level({set => 1});
 	}
 	elsif ($an->data->{switches}{vv})
 	{
-		$an->Log->level(2);
+		$an->Log->level({set => 2});
 	}
 	elsif ($an->data->{switches}{vvv})
 	{
-		$an->Log->level(3);
+		$an->Log->level({set => 3});
 	}
 	elsif ($an->data->{switches}{vvvv})
 	{
-		$an->Log->level(4);
+		$an->Log->level({set => 4});
 	}
 	
 	return(0);
