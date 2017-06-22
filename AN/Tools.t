@@ -11,7 +11,7 @@ our $VERSION   = "3.0.0";
 our $THIS_FILE = "Tools.t";
  
 # Call in the test module, telling it how many tests to expect to run.
-use Test::More tests => 62;
+use Test::More tests => 121;
 
 # Load my module via 'use_ok' test.
 BEGIN
@@ -144,6 +144,7 @@ like($an->Get->host_uuid, qr/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a
 ### TODO: How to test Get->switches?
 
 ### AN::Tools::Log tests
+# entry is tested at the start of this test suite.
 # language
 is($an->Log->language, "en_CA", "Verifying the default log language is 'en_CA'.");
 $an->Log->language({set => "jp"});
@@ -167,7 +168,38 @@ $an->Log->level({set => "foo"});
 is($an->Log->level, "4", "Verifying the log level stayed at '4' with bad input.");
 $an->Log->level({set => 1});
 is($an->Log->level, "1", "Verifying the log level changed back to '1'.");
-# We're simulating switches to test Log->_adjust_log_level
+# secure
+is($an->Log->secure, "0", "Verifying that logging secure messages is disabled by default.");
+$an->Log->secure({set => "foo"});
+is($an->Log->secure, "0", "Verifying that logging secure messages stayed disabled on bad input.");
+$an->Log->secure({set => 1});
+is($an->Log->secure, "1", "Verifying that logging secure messages was enabled.");
+$an->Log->secure({set => 0});
+is($an->Log->secure, "0", "Verifying that logging secure messages was disabled again.");
+# variables
+$an->Log->variables({level => 0, list => { a => "1" }});
+my $list_a = $an->System->call({shell_call => $an->data->{path}{exe}{journalctl}." -t an-tools --lines 1 --full --output cat --no-pager"});
+is($list_a, "a: [1]", "Verified that we could log a list of variables (1 entry).");
+$an->Log->variables({level => 0, list => { a => "1", b => "2" }});
+my $list_b = $an->System->call({shell_call => $an->data->{path}{exe}{journalctl}." -t an-tools --lines 1 --full --output cat --no-pager"});
+is($list_b, "a: [1], b: [2]", "Verified that we could log a list of variables (2 entries).");
+$an->Log->variables({level => 0, list => { a => "1", b => "2", c => "3" }});
+my $list_c = $an->System->call({shell_call => $an->data->{path}{exe}{journalctl}." -t an-tools --lines 1 --full --output cat --no-pager"});
+is($list_c, "a: [1], b: [2], c: [3]", "Verified that we could log a list of variables (3 entries).");
+$an->Log->variables({level => 0, list => { a => "1", b => "2", c => "3", d => "4" }});
+my $list_d = $an->System->call({shell_call => $an->data->{path}{exe}{journalctl}." -t an-tools --lines 1 --full --output cat --no-pager"});
+is($list_d, "a: [1], b: [2], c: [3], d: [4]", "Verified that we could log a list of variables (4 entries).");
+$an->Log->variables({level => 0, list => { a => "1", b => "2", c => "3", d => "4", e => "5" }});
+my $list_e = $an->System->call({shell_call => $an->data->{path}{exe}{journalctl}." -t an-tools --lines 1 --full --output cat --no-pager"});
+my $say_variables = $an->Words->key({key => "log_0019"});
+my $expect_e = "$say_variables
+|- a: [1]
+|- b: [2]
+|- c: [3]
+|- d: [4]
+\\- e: [5]";
+is($list_e, $expect_e, "Verified that we could log a list of variables (5 entries, line wrapping).");
+# _adjust_log_level - We're simulating switches to test Log->_adjust_log_level
 $an->data->{switches}{V} = "#!set!#";
 $an->data->{switches}{v} = "";
 $an->data->{switches}{vv} = "";
@@ -195,18 +227,11 @@ $an->data->{switches}{vvvv} = "";
 $an->data->{switches}{v} = "#!set!#";
 $an->Log->_adjust_log_level;
 is($an->Log->level, "1", "Verifying the log level was set back to '1' with Log->_adjust_log_leve() with 'v' switch set.");
-# Test Log->secure
-is($an->Log->secure, "0", "Verifying that logging secure messages is disabled by default.");
-$an->Log->secure({set => "foo"});
-is($an->Log->secure, "0", "Verifying that logging secure messages stayed disabled on bad input.");
-$an->Log->secure({set => 1});
-is($an->Log->secure, "1", "Verifying that logging secure messages was enabled.");
-$an->Log->secure({set => 0});
-is($an->Log->secure, "0", "Verifying that logging secure messages was disabled again.");
 
 die;
 
-### AN::Tools::Storage tests
+### AN::Tools::Storage tests - These happen a little out of order.
+# Write a file /tmp/foo
 # 
 
 die;
