@@ -109,6 +109,7 @@ sub get
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
+	my $debug     = 1;
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Words->language;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
@@ -117,7 +118,7 @@ sub get
 	   $skin      = $an->data->{path}{directories}{skins}."/".$skin;
 	my $template  = "";
 	my $source    = "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		file     => $file,
 		language => $language,
 		name     => $name, 
@@ -134,8 +135,18 @@ sub get
 	else
 	{
 		# Make sure the file exists.
-		$source = $skin."/".$file;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { source => $source }});
+		if ($file =~ /^\//)
+		{
+			# Fully defined path, don't alter it.
+			$source = $file;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+		}
+		else
+		{
+			# Just a file name, prepend the skin path.
+			$source = $skin."/".$file;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+		}
 		
 		if (not -e $source)
 		{
@@ -162,13 +173,13 @@ sub get
 	{
 		my $in_template = 0;
 		my $shell_call = $source;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0012", variables => { shell_call => $shell_call }});
 		open (my $file_handle, "<", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
 			if ($line =~ /^<!-- start $name -->/)
 			{
 				$in_template = 1;
@@ -188,14 +199,14 @@ sub get
 			}
 		}
 		close $file_handle;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { template => $template }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
 		
 		# Now that I have the skin, inject my variables. We'll use Words->string() to do this for us.
 		$template = $an->Words->string({
 			string    => $template,
 			variables => $variables,
 		});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { source => $source }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
 	}
 	
 	return($template);
@@ -215,6 +226,16 @@ Set the active skin to 'C<< foo >>'. Only pass the skin name, not the full path.
 
  $an->Template->skin({set => "foo"});
 
+Parameters;
+
+=head3 fatal (optional)
+
+If passed along with C<< set >>, the skin will be set even if the skin directory does not exit.
+
+=head3 set (optional)
+
+If passed a string, that will become the new active skin. If the skin directory does not exist, however, and C<< fatal >> is not set, the request will be ignored.
+ 
 =cut
 sub skin
 {
@@ -222,17 +243,19 @@ sub skin
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $set = defined $parameter->{skin} ? $parameter->{skin} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $set }});
+	my $debug = 3;
+	my $fatal = defined $parameter->{fatal} ? $parameter->{fatal} : 1;
+	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fatal => $fatal, file => $set }});
 	
 	if ($set)
 	{
 		my $skin_directory = $an->data->{path}{directories}{skins}."/".$set;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skin_directory => $skin_directory }});
-		if (-d $skin_directory)
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { skin_directory => $skin_directory }});
+		if ((-d $skin_directory) or (not $fatal))
 		{
 			$self->{SKIN}{HTML} = $set;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 		}
 		else
 		{
@@ -240,11 +263,14 @@ sub skin
 		}
 	}
 	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 	if (not $self->{SKIN}{HTML})
 	{
 		$self->{SKIN}{HTML} = $an->data->{defaults}{template}{html};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML}, 'defaults::template::html' => $an->data->{defaults}{template}{html} }});
 	}
 	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 	return($self->{SKIN}{HTML});
 }
 

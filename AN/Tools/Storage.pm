@@ -18,6 +18,7 @@ my $THIS_FILE = "Storage.pm";
 # make_directory
 # read_config
 # read_file
+# read_mode
 # search_directories
 # write_file
 
@@ -152,7 +153,7 @@ This changes the owner and/or group of a file or directory.
 
  $an->Storage->change_owner({target => "/tmp/foo", mode => "0644"});
 
-If it fails to write the file, an alert will be logged.
+If it fails to write the file, an alert will be logged and 'C<< 1 >>' will be returned. Otherwise, 'C<< 0 >>' will be returned.
 
 Parameters;
 
@@ -178,7 +179,8 @@ sub change_owner
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	my $group  = defined $parameter->{group}  ? $parameter->{group}  : "";
 	my $user   = defined $parameter->{user}   ? $parameter->{user}   : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	my $debug  = 3;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target => $target,
 		group  => $group,
 		user   => $user,
@@ -187,15 +189,10 @@ sub change_owner
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		group     => $group, 
-		user      => $user,
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		group => $group, 
+		user  => $user,
 	}});
-	
-	# If the group is a series of digits, remove all but the first.
-	if (defined $group)
-	{
-	}
 	
 	my $string = "";
 	my $error  = 0;
@@ -205,31 +202,42 @@ sub change_owner
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0039"});
 		$error = 1;
 	}
+	if (not -e $target)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0051", variables => {target => $target }});
+		$error = 1;
+	}
 	
-	if (defined $user)
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
+	if ($user ne "")
 	{
 		$string = $user;
-	}
-	if (defined $group)
-	{
-		$string .= ":".$group;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
 	}
 	
-	if ((not $error) && ($string))
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { group => $group }});
+	if ($group ne "")
+	{
+		$string .= ":".$group;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error, string => $string }});
+	if ((not $error) && ($string ne ""))
 	{
 		my $shell_call = $an->data->{path}{exe}{'chown'}." $string $target";
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
 		open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0017", variables => { line => $line }});
 		}
 		close $file_handle;
 	}
 	
-	return(0);
+	return($error);
 }
 
 =head2 copy_file
@@ -249,7 +257,7 @@ If this is not passed and the target exists, this module will return 'C<< 3 >>'.
 
 =head3 source (required)
 
-This is the source file. if it doesn't exist, this method will return 'C<< 1 >>'.
+This is the source file. If it isn't specified, 'C<< 1 >>' will be returned. If it doesn't exist, this method will return 'C<< 4 >>'.
 
 =head3 target (required)
 
@@ -278,6 +286,11 @@ sub copy_file
 		# No source passed.
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0044"});
 		return(1);
+	}
+	elsif (not -e $source)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { source => $source }});
+		return(4);
 	}
 	if (not $target)
 	{
@@ -666,6 +679,62 @@ sub read_file
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
 	return($body);
+}
+
+=head2 read_mode
+
+This reads a file or directory's mode (sticky-bit and ownership) and returns the mode as a four-digit string (ie: 'c<< 0644 >>', 'C<< 4755 >>', etc.
+
+ my $mode = $an->Storage->read_mode({file => "/tmp/foo"});
+
+If it fails to find the file, or the file is not readable, 'C<< 0 >>' is returned.
+
+Parameters;
+
+=head3 file (required)
+
+This is the name of the file or directory to check the mode of.
+
+=cut
+sub read_mode
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $debug  = 1;
+	my $target = defined $parameter->{target} ? $parameter->{target} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+	
+	if (not $target)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+		return(1);
+	}
+	
+	# Read the mode and convert it to digits.
+	my $mode = (stat($target))[2];
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode }});
+	
+	# Return the full mode, unless it is a directory or file. In those cases, return the last four digits.
+	my $say_mode = $mode;
+	if (-d $target)
+	{
+		# Directory - five digits
+		$say_mode =  sprintf("%04o", $mode);
+		$say_mode =~ s/^\d(\d\d\d\d)$/$1/;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_mode => $say_mode }});
+	}
+	elsif (-f $target)
+	{
+		# File - six digits
+		$say_mode =  sprintf("%04o", $mode);
+		$say_mode =~ s/^\d\d(\d\d\d\d)$/$1/;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_mode => $say_mode }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode, say_mode => $say_mode }});
+	return($say_mode);
 }
 
 =head2 search_directories

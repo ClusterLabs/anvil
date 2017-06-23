@@ -15,6 +15,7 @@ my $THIS_FILE = "Get.pm";
 # host_uuid
 # network_details
 # switches
+# uuid
 
 =pod
 
@@ -353,13 +354,28 @@ sub switches
 	{
 		$an->data->{switches}{raw} =~ s/^ //;
 	}
-
+	
 	# Adjust the log level if requested.
 	$an->Log->_adjust_log_level();
 	
 	return(0);
 }
 
+=head2 uuid
+
+This method returns a new UUID (using 'uuidgen' from the system). It takes no parameters.
+
+=cut
+sub uuid
+{
+	my $self = shift;
+	my $an   = $self->parent;
+	
+	my $uuid = $an->System->call({shell_call => $an->data->{path}{exe}{uuidgen}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
+	
+	return($uuid);
+}
 
 # =head3
 # 

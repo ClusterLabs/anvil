@@ -228,26 +228,296 @@ $an->data->{switches}{v} = "#!set!#";
 $an->Log->_adjust_log_level;
 is($an->Log->level, "1", "Verifying the log level was set back to '1' with Log->_adjust_log_leve() with 'v' switch set.");
 
-die;
-
 ### AN::Tools::Storage tests - These happen a little out of order.
+# We need to pick a user name and group name to use for these tests. So we'll start by reading in passwd.
+my $passwd    = $an->Storage->read_file({file => "/etc/passwd"});
+my $group     = $an->Storage->read_file({file => "/etc/group"});
+my $read_ok   = 0;
+my $use_user  = "";
+my $use_group = "";
+foreach my $line (split/\n/, $passwd)
+{
+	if ($line =~ /^root:/)
+	{
+		$read_ok = 1;
+	}
+	elsif ($line =~ /^(\w+):x:\d/)
+	{
+		$use_user = $1;
+		last;
+	}
+}
+foreach my $line (split/\n/, $group)
+{
+	if ($line =~ /^root:/)
+	{
+		# skip
+	}
+	elsif ($line =~ /^(\w+):x:\d/)
+	{
+		$use_group = $1;
+		last;
+	}
+}
+# print "[ Debug ] - Using the user: [$use_user] and the group: [$use_group] for testing.\n";
+is($read_ok, "1", "Verified that 'Storage->read_file' could read a file.");
 # Write a file /tmp/foo
-# 
-
-die;
+my $body      = "This is a test file created as part of the AN::Tools test suite.\nYou can safely delete it if you wish.\n";
+my $test_file = "/tmp/an-tools.test";
+if (-e $test_file)
+{
+	# remove the old test file.
+	unlink $test_file or die "The test file: [$test_file] exists (from a previous run?) and can't be removed. The error was: $!\n";
+}
+$an->Storage->write_file({body => $body, file => $test_file, group => $use_group, user => $use_user, mode => "0666"});
+my $write_ok = 0;
+if (-e $test_file)
+{
+	$write_ok = 1;
+}
+is($write_ok, "1", "Verifying that 'Storage->write_file' could write a file (tested writing to: [$test_file]).");
+my $mode            = $an->Storage->read_mode({target => $test_file});
+my ($uid, $gid)     = (stat($test_file))[4,5];
+my $file_user_name  = getpwuid($uid);
+my $file_group_name = getgrgid($gid);
+#print "[ Debug ] - test_file: [$test_file], mode: [$mode], owning user: [$file_user_name ($uid)], owning group: [$file_group_name ($gid)]\n";
+is($mode, "0666", "Verifying that 'Storage->write_file' set the mode correctly when writing a file.");
+is($file_user_name, $use_user, "Verifying that 'Storage->write_file' set the user name properly when the file was written.");
+is($file_group_name, $use_group, "Verifying that 'Storage->write_file' set the group name properly when the file was written.");
+# change_mode
+$an->Storage->change_mode({target => $test_file, mode => "4755"});
+$mode = $an->Storage->read_mode({target => $test_file});
+is($mode, "4755", "Verifying that 'Storage->change_mode' was able to change the mode of the test file (including setting the setuid and setgid sticky bits).");
+$an->Storage->change_mode({target => $test_file, mode => "644"});
+$mode = $an->Storage->read_mode({target => $test_file});
+is($mode, "0644", "Verifying that 'Storage->change_mode' was able to change the mode of the test file using three digits instead of four.");
+# change_owner
+$an->Storage->change_owner({target => $test_file, user => 0});
+$file_user_name  = "";
+$file_group_name = "";
+($uid, $gid)     = (stat($test_file))[4,5];
+$file_user_name  = getpwuid($uid);
+$file_group_name = getgrgid($gid);
+is($file_user_name, "root", "Verifying that 'Storage->change_user', when passed only a user ID, changed the user.");
+is($file_group_name, $use_group, "Verifying that 'Storage->change_user', when passed only a user ID, did not change the group.");
+$an->Storage->change_owner({target => $test_file, user => $use_user});
+$file_user_name  = "";
+$file_group_name = "";
+($uid, $gid)     = (stat($test_file))[4,5];
+$file_user_name  = getpwuid($uid);
+$file_group_name = getgrgid($gid);
+is($file_user_name, $use_user, "Verifying that 'Storage->change_user', when passed only a user name, changed the user.");
+is($file_group_name, $use_group, "Verifying that 'Storage->change_user', when passed only a user ID, did not change the group.");
+$an->Storage->change_owner({target => $test_file, group => 0});
+$file_user_name  = "";
+$file_group_name = "";
+($uid, $gid)     = (stat($test_file))[4,5];
+$file_user_name  = getpwuid($uid);
+$file_group_name = getgrgid($gid);
+is($file_user_name, $use_user, "Verifying that 'Storage->change_user', when passed only a group ID, did not change the user.");
+is($file_group_name, "root", "Verifying that 'Storage->change_user', when passed only a group ID, changed the group.");
+$an->Storage->change_owner({target => $test_file, group => $use_group});
+$file_user_name  = "";
+$file_group_name = "";
+($uid, $gid)     = (stat($test_file))[4,5];
+$file_user_name  = getpwuid($uid);
+$file_group_name = getgrgid($gid);
+is($file_user_name, $use_user, "Verifying that 'Storage->change_user', when passed only a group name, did not change the user.");
+is($file_group_name, $use_group, "Verifying that 'Storage->change_user', when passed only a group name, changed the group.");
+$an->Storage->change_owner({target => $test_file, user => "root", group => "root"});
+$file_user_name  = "";
+$file_group_name = "";
+($uid, $gid)     = (stat($test_file))[4,5];
+$file_user_name  = getpwuid($uid);
+$file_group_name = getgrgid($gid);
+is($file_user_name, "root", "Verifying that 'Storage->change_user', when passed both a user and group name, changed the user.");
+is($file_group_name, "root", "Verifying that 'Storage->change_user', when passed both a user and group name, changed the group.");
+my $change_owner_rc = $an->Storage->change_owner({target => "", user => "root", group => "root"});
+is($change_owner_rc, "1", "Verifying that 'Storage->change_user', when passed no target, returned '1'.");
+$change_owner_rc = "";
+$change_owner_rc = $an->Storage->change_owner({target => "/fake/file", user => "root", group => "root"});
+is($change_owner_rc, "1", "Verifying that 'Storage->change_user', when passed a bad file, returned '1'.");
+# copy_file
+my $copy_file = "/tmp/an-tools.copy";
+my $copied_ok = 0;
+if (-e $copy_file)
+{
+	unlink $copy_file or die "The test copy file: [$copy_file] exists (from a previous run?) and can't be removed. The error was: $!\n";
+}
+$an->Storage->copy_file({source => $test_file, target => $copy_file});
+if (-e $copy_file)
+{
+	$copied_ok = 1;
+}
+is($copied_ok, "1", "Verifying that 'Storage->copy_file' was able to copy the test file.");
+my $copy_rc = $an->Storage->copy_file({target => $copy_file});
+is($copy_rc, "1", "Verifying that 'Storage->copy_file' returned '1' when no source file was passed.");
+$copy_rc = "";
+$copy_rc = $an->Storage->copy_file({source => $test_file});
+is($copy_rc, "2", "Verifying that 'Storage->copy_file' returned '2' when no target file was passed.");
+$copy_rc = "";
+$copy_rc = $an->Storage->copy_file({source => $test_file, target => $copy_file});
+is($copy_rc, "3", "Verifying that 'Storage->copy_file' returned '3' when the target file already exists.");
+$copy_rc = "";
+$copy_rc = $an->Storage->copy_file({source => $test_file, target => $copy_file, overwrite => 1});
+is($copy_rc, "0", "Verifying that 'Storage->copy_file' returned '0' when the target file already exists and overwrite was set.");
+$copy_rc = "";
+$copy_rc = $an->Storage->copy_file({source => "/fake/file", target => $copy_file});
+is($copy_rc, "4", "Verifying that 'Storage->copy_file' returned '4' when the target file is passed but doesn't exist.");
+# find
+my $test_path = $an->Storage->find({ file => "AN/Tools.t" });
+is($test_path, "/usr/share/perl5/AN/Tools.t", "Verifying that Storage->find successfully found 'AN/Tools.t'.");
+my $bad_path  = $an->Storage->find({ file => "AN/wa.t" });
+is($bad_path, "#!not_found!#", "Verifying that Storage->find properly returned '#!not_found!#' for a non-existed file.");
+# make_directory
+my $test_directory = "/tmp/an-tools/test/directory";
+if (-d $test_directory)
+{
+	foreach my $this_directory ("/tmp/an-tools/test/directory", "/tmp/an-tools/test", "/tmp/an-tools")
+	{
+		rmdir $this_directory or die "Failed to remove the test directory: [$this_directory] (from a previous test?). The error was: $!\n";
+	}
+}
+# This uses an odd mode on purpose
+$an->Storage->make_directory({directory => $test_directory, group => $use_group, user => $use_user, mode => "0757"});
+my $created_directory = 0;
+if (-d $test_directory)
+{
+	$created_directory = 1;
+}
+is($created_directory, "1", "Verifying that 'Storage->create_directory' created a directory and its parents.");
+my $directory_mode       = $an->Storage->read_mode({target => $test_directory});
+($uid, $gid)             = (stat($test_directory))[4,5];
+my $directory_user_name  = getpwuid($uid);
+my $directory_group_name = getgrgid($gid);
+is($directory_mode, "0757", "Verifying that 'Storage->create_directory' created a directory with the requested mode.");
+is($directory_user_name, $use_user, "Verifying that 'Storage->create_directory' created a directory with the requested owner.");
+is($directory_group_name, $use_group, "Verifying that 'Storage->create_directory' created a directory with the requested group.");
+# read_config
+$an->data->{foo}{bar}{a} = "test";
+is($an->Storage->read_config({ file => "AN/test.conf" }), 0, "Verifying that 'Storage->read_config' successfully found 'AN/test.conf'.");
+is($an->Storage->read_config({ file => "" }), 1, "Verifying that 'Storage->read_config' returns '1' when called without a 'file' parameter being set.");
+is($an->Storage->read_config({ file => "AN/moo.conf" }), 2, "Verifying that 'Storage->read_config' returns '2' when the non-existent 'AN/moo.conf' is passed.");
+cmp_ok($an->data->{foo}{bar}{a}, 'eq', 'I am "a"', "Verifying that 'AN/test.conf's 'foo::bar::a' overwrote an earlier set value.");
+cmp_ok($an->data->{foo}{bar}{b}, 'eq', 'I am "b", split with tabs and having trailing spaces.', "Verifying that 'AN/test.conf's 'foo::bar::b' has whitespaces removed as expected.");
+cmp_ok($an->data->{foo}{baz}{1}, 'eq', 'This is \'1\' with no spaces', "Verifying that 'AN/test.conf's 'foo::baz::1' parsed without spaces around '='.");
+cmp_ok($an->data->{foo}{baz}{2}, 'eq', 'I had a $dollar = sign and split with tabs.', "Verifying that 'AN/test.conf's 'foo::baz::2' had no trouble with a '\$' and '=' characters in the string.");
+# read_file was tested earlier.
+# read_mode was tested earlier.
+# search_directories
+my $array1   = $an->Storage->search_directories;
+my $a1_count = @{$array1};
+cmp_ok($a1_count, '>', 0, "Verifying that Storage->search_directories has at least one entry. Found: [$a1_count] directories.");
+$an->Storage->search_directories({directories => "/root,/usr/bin,/some/fake/directory"});
+my $array2   = $an->Storage->search_directories;
+my $a2_count = @{$array2};
+cmp_ok($a2_count, '==', 2, "Verifying that Storage->search_directories now has 2 entries from a passed in CSV, testing that the list changed and a fake directory was dropped.");
+$an->Storage->search_directories({directories => ["/usr/bin", "/tmp", "/home"] });
+my $array3   = $an->Storage->search_directories;
+my $a3_count = @{$array3};
+cmp_ok($a3_count, '==', 3, "Verifying that Storage->search_directories now has 3 entries from a passed in array reference, verifying that the list changed again.");
+$an->Storage->search_directories({directories => "invalid" });
+my $array4   = $an->Storage->search_directories;
+my $a4_count = @{$array4};
+cmp_ok($a4_count, '==', $a1_count, "Verifying that Storage->search_directories has the original number of directories: [$a4_count] after being called with an invalid 'directories' parameter, showing that it reset properly.");
+# write_file was tested earlier
+# Cleanup.
+unlink $test_file;
+unlink $copy_file;
+foreach my $this_directory ("/tmp/an-tools/test/directory", "/tmp/an-tools/test", "/tmp/an-tools")
+{
+	rmdir $this_directory or die "Failed to remove the test directory: [$this_directory] (from a previous test?). The error was: $!\n";
+}
 
 ### AN::Tools::System tests
-# 
+# call was tested during the Log->entry test and will be tested further below.
+# Daemon tests require that we create a test daemon and a unit for it...
+my $test_daemon_file = "/tmp/an-tools-test.daemon";
+my $test_daemon_body = q|#!/usr/bin/perl
+# This is a test daemon created for the AN::Tools test suite. It can safely be deleted.
 
-die;
+use strict;
+use warnings;
+use AN::Tools;
+my $an = AN::Tools->new();
+$an->Log->entry({level => 1, priority => "info", raw => "AN::Tools Test daemon started."});
+
+while(1)
+{
+	sleep 2;
+	$an->Log->entry({level => 1, priority => "info", raw => "AN::Tools Test daemon looped..."});
+}
+
+exit;
+|;
+$an->Storage->write_file({body => $test_daemon_body, file => $test_daemon_file, group => "root", user => "root", mode => "755", overwrite => 1});
+my $test_service_name = "an-tools-test.service";
+my $test_service_file = "/usr/lib/systemd/system/".$test_service_name;
+my $test_service_body = "[Unit]
+Description=Test daemon used by AN::Tools test suite. It can safely be ignored/deleted.
+
+[Service]
+Type=simple
+ExecStart=$test_daemon_file
+ExecStop=/bin/kill -WINCH \${MAINPID}
+";
+$an->Storage->write_file({body => $test_service_body, file => $test_service_file, group => "root", user => "root", mode => "644", overwrite => 1});
+$an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." daemon-reload"});
+$an->System->stop_daemon({daemon => $test_service_name});	# Just in case...
+# check_daemon
+my $test_daemon_rc = $an->System->check_daemon({daemon => $test_service_name});
+is($test_daemon_rc, "0", "Verifying that 'System->check_daemon' was able to confirm that the test service: [".$test_service_name."] was stopped.");
+$test_daemon_rc = "";
+$test_daemon_rc = $an->System->start_daemon({daemon => $test_service_name});
+is($test_daemon_rc, "0", "Verifying that 'System->start_daemon' was able to start the test service: [".$test_service_name."].");
+$test_daemon_rc = "";
+$test_daemon_rc = $an->System->check_daemon({daemon => $test_service_name});
+is($test_daemon_rc, "1", "Verifying that 'System->check_daemon' was able to confirm that the test service: [".$test_service_name."] is now running.");
+$test_daemon_rc = "";
+$test_daemon_rc = $an->System->stop_daemon({daemon => $test_service_name});
+is($test_daemon_rc, "0", "Verifying that 'System->stop_daemon' was able to stop the test service: [".$test_service_name."].");
+$test_daemon_rc = "";
+$test_daemon_rc = $an->System->check_daemon({daemon => $test_service_name});
+is($test_daemon_rc, "0", "Verifying that 'System->check_daemon' was able to confirm that the test service: [".$test_service_name."] was stopped.");
+
+# Cleanup
+unlink $test_service_file;
+unlink $test_daemon_file;
+$an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." daemon-reload"});
 
 ### AN::Tools::Template tests
-# 
+# We're going to need a fake template file to test.
+my $test_template_file = "/tmp/an-tools.html";
+my $test_template_body = '<!-- start test1 -->
+This is test template #1.
+<!-- end test1 -->
 
-die;
+<!-- start test2 -->
+This is test template #2. It has a replacement: [#!variable!test!#].
+<!-- end test2 -->
+';
+$an->Storage->write_file({body => $test_template_body, file => $test_template_file, mode => "644", overwrite => 1});
+# get
+my $test1_template = $an->Template->get({file => $test_template_file, name => "test1"});
+is($test1_template, "This is test template #1.\n", "Verifying that 'Template->get' was able to read a test template.");
+my $test2_template = $an->Template->get({file => $test_template_file, name => "test2", variables => { test => "boo!" }});
+is($test2_template, "This is test template #2. It has a replacement: [boo!].\n", "Verifying that 'Template->get' was able to read a test template with a variable insertion.");
+is($an->Template->skin, "alteeve", "Verifying that 'Template->skin' is initially set to 'alteeve'.");
+$an->Template->skin({fatal => 0, set => "test"});	# We disable fatal because there may be no skin directory yet.
+is($an->Template->skin, "test", "Verifying that 'Template->skin' was changed to 'test'.");
+$an->Template->skin({fatal => 0, set => "alteeve"});
+is($an->Template->skin, "alteeve", "Verifying that 'Template->skin' was changed back to 'alteeve'.");
+# Clean up
+unlink $test_template_file;
 
 ### AN::Tools::Validate tests
-# 
+# is_ipv4
+is($an->Validate->is_ipv4({ip => "0.0.0.0"}), "1", "Verifying that 'Validate->is_ipv4' recognizes '0.0.0.0' as a valid IP address.");
+is($an->Validate->is_ipv4({ip => "255.255.255.255"}), "1", "Verifying that 'Validate->is_ipv4' recognizes '255.255.255.255' as a valid IP address.");
+is($an->Validate->is_ipv4({ip => "256.255.255.255"}), "0", "Verifying that 'Validate->is_ipv4' recognizes '256.255.255.255' as an invalid IP address.");
+is($an->Validate->is_ipv4({ip => "alteeve.com"}), "0", "Verifying that 'Validate->is_ipv4' recognizes 'alteeve.com' as an invalid IP address.");
+is($an->Validate->is_ipv4({ip => "::1"}), "0", "Verifying that 'Validate->is_ipv4' recognizes '::1' as an invalid IP address.");
+my $test_uuid = $an->Get->uuid;
 
 die;
 
@@ -258,41 +528,6 @@ die;
 
 
 
-### AN::Tools::Storage methods
-# Search directory tests
-my $array1   = $an->Storage->search_directories;
-my $a1_count = @{$array1};
-cmp_ok($a1_count, '>', 0, "Verifying that Storage->search_directories has at least one entry. Found: [$a1_count] directories.");
-
-$an->Storage->search_directories({directories => "/root,/usr/bin,/some/fake/directory"});
-my $array2   = $an->Storage->search_directories;
-my $a2_count = @{$array2};
-cmp_ok($a2_count, '==', 2, "Verifying that Storage->search_directories now has 2 entries from a passed in CSV, testing that the list changed and a fake directory was dropped.");
-
-$an->Storage->search_directories({directories => ["/usr/bin", "/tmp", "/home"] });
-my $array3   = $an->Storage->search_directories;
-my $a3_count = @{$array3};
-cmp_ok($a3_count, '==', 3, "Verifying that Storage->search_directories now has 3 entries from a passed in array reference, verifying that the list changed again.");
-
-$an->Storage->search_directories({directories => "invalid" });
-my $array4   = $an->Storage->search_directories;
-my $a4_count = @{$array4};
-cmp_ok($a4_count, '==', $a1_count, "Verifying that Storage->search_directories has the original number of directories: [$a4_count] after being called with an invalid 'directories' parameter, showing that it reset properly.");
-
-my $test_path = $an->Storage->find({ file => "AN/Tools.t" });
-is($test_path, "/usr/share/perl5/AN/Tools.t", "Verifying that Storage->find successfully found 'AN/Tools.t'.");
-my $bad_path  = $an->Storage->find({ file => "AN/wa.t" });
-is($bad_path, "#!not_found!#", "Verifying that Storage->find properly returned '#!not_found!#' for a non-existed file.");
-
-# Config file read tests.
-$an->data->{foo}{bar}{a} = "test";
-is($an->Storage->read_config({ file => "AN/test.conf" }), 0, "Verifying that 'Storage->read_config' successfully found 'AN/test.conf'.");
-is($an->Storage->read_config({ file => "" }), 1, "Verifying that 'Storage->read_config' returns '1' when called without a 'file' parameter being set.");
-is($an->Storage->read_config({ file => "AN/moo.conf" }), 2, "Verifying that 'Storage->read_config' returns '2' when the non-existent 'AN/moo.conf' is passed.");
-cmp_ok($an->data->{foo}{bar}{a}, 'eq', 'I am "a"', "Verifying that 'AN/test.conf's 'foo::bar::a' overwrote an earlier set value.");
-cmp_ok($an->data->{foo}{bar}{b}, 'eq', 'I am "b", split with tabs and having trailing spaces.', "Verifying that 'AN/test.conf's 'foo::bar::b' has whitespaces removed as expected.");
-cmp_ok($an->data->{foo}{baz}{1}, 'eq', 'This is \'1\' with no spaces', "Verifying that 'AN/test.conf's 'foo::baz::1' parsed without spaces around '='.");
-cmp_ok($an->data->{foo}{baz}{2}, 'eq', 'I had a $dollar = sign and split with tabs.', "Verifying that 'AN/test.conf's 'foo::baz::2' had no trouble with a '\$' and '=' characters in the string.");
 
 ### AN::Tools::Words methods
 # Make sure we can read words files

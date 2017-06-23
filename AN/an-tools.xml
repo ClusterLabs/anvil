@@ -50,7 +50,7 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0028">Successfully read the words file: [#!variable!file!#].</key>
 		<key name="log_0029"><![CDATA[[ Error ] - Storage->find() failed to find: [#!variable!file!#].]]></key>
 		<key name="log_0030"><![CDATA[[ Warning ] - Template->skin() was asked to set the skin: [#!variable!set!#], but the source directory: [#!variable!skin_directory!#] doesn't exist. Ignoring.]]></key>
-		<key name="log_0031"><![CDATA[[ Warning ] - Storage->search_directories() was passed the array: [#!variable!array!#], but it wasn't actually an array. Using \@INC + path::directories::tools + \$ENV{'PATH'} for the list of directories to search instead.]]></key>
+		<key name="log_0031"><![CDATA[[ Warning ] - Storage->search_directories() was passed the array: [#!variable!array!#], but it wasn't actually an array. Using @INC + path::directories::tools + \$ENV{'PATH'} for the list of directories to search instead.]]></key>
 		<key name="log_0032"><![CDATA[[ Warning ] - Words->read()' called without a file name to read.]]></key>
 		<key name="log_0033"><![CDATA[[ Warning ] - Words->read()' asked to read: [#!variable!file!#] which was not found.]]></key>
 		<key name="log_0034"><![CDATA[[ Warning ] - AN::Tools::Words->read()' asked to read: [#!variable!file!#] which was not readable by: [#!variable!user!#] (uid/euid: [#!variable!uid!#]).]]></key>
@@ -69,6 +69,9 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0047"><![CDATA[[ Error ] - The module Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
 		<key name="log_0048"><![CDATA[[ Warning ] - Testing of AN::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
 		<key name="log_0049"><![CDATA[[ Warning ] - Testing of AN::Tools is complete.]]></key>
+		<key name="log_0050"><![CDATA[[ Error ] - The module Storage->read_mode() was called without a 'target' parameter, or the parameter was empty.]]></key>
+		<key name="log_0051"><![CDATA[[ Error ] - The module Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
+		<key name="log_0052"><![CDATA[[ Error ] - The module Storage->copy_file() was called but the source file: [#!variable!source!#] doesn't exist.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

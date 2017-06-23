@@ -600,6 +600,7 @@ sub _set_paths
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
+				uuidgen			=>	"/usr/bin/uuidgen",
 			},
 			secure			=>	{
 				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",

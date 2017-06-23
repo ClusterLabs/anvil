@@ -94,8 +94,9 @@ sub is_ipv4
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip => $ip }});
+	my $debug = 3;
+	my $ip    = defined $parameter->{ip} ? $parameter->{ip} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 	
 	my $valid = 1;
 	if ($ip =~ /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
@@ -105,7 +106,7 @@ sub is_ipv4
 		my $second_octet = $2;
 		my $third_octet  = $3;
 		my $fourth_octet = $4;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			first_octet  => $first_octet, 
 			second_octet => $second_octet, 
 			third_octet  => $third_octet, 
@@ -119,17 +120,17 @@ sub is_ipv4
 		{
 			# One of the octets is out of range.
 			$valid = 0;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { valid => $valid }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 		}
 	}
 	else
 	{
 		# Not in the right format.
 		$valid = 0;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { valid => $valid }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { valid => $valid }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	return($valid);
 }
 

@@ -14,6 +14,7 @@ my $THIS_FILE = "System.pm";
 # call
 # check_daemon
 # start_daemon
+# stop_daemon
 
 =pod
 
@@ -102,7 +103,7 @@ sub call
 	my $shell_call = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
 	my $secure     = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : $THIS_FILE;
-	$an->Log->variables({source => $source, line => $line, level => 2, secure => $secure, list => { shell_call => $shell_call }});
+	$an->Log->variables({source => $source, line => $line, level => 3, secure => $secure, list => { shell_call => $shell_call }});
 	
 	my $output = "#!error!#";
 	if (not $shell_call)
@@ -151,24 +152,30 @@ sub check_daemon
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $return = 2;
-	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon }});
+	my $return     = 2;
+	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon, say_daemon => $say_daemon }});
 	
-	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." status ".$daemon.".service; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." status ".$say_daemon."; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
 		if ($line =~ /return_code:(\d+)/)
 		{
 			my $return_code = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 			if ($return_code eq "3")
 			{
+				# Stopped
 				$return = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 			}
 			elsif ($return_code eq "0")
 			{
+				# Running
 				$return = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 			}
 		}
 	}
@@ -179,7 +186,9 @@ sub check_daemon
 
 =head2 start_daemon
 
-This method starts a daemon.
+This method starts a daemon. The return code from the start request will be returned.
+
+If the return code for the start command wasn't read, C<< undef >> is returned.
 
 Parameters;
 
@@ -194,29 +203,62 @@ sub start_daemon
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $return = 2;
-	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+	my $return     = undef;
+	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon, say_daemon => $say_daemon }});
 	
-	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." start ".$daemon.".service; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." start ".$say_daemon."; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
 		if ($line =~ /return_code:(\d+)/)
 		{
-			my $return_code = $1;
-			if ($return_code eq "3")
-			{
-				$return = 0;
-			}
-			elsif ($return_code eq "0")
-			{
-				$return = 1;
-			}
+			$return = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 		}
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+	return($return);
+}
+
+=head2 stop_daemon
+
+This method stops a daemon. The return code from the stop request will be returned.
+
+If the return code for the stop command wasn't read, C<< undef >> is returned.
+
+Parameters;
+
+=head3 daemon (required)
+
+This is the name of the daemon to stop.
+
+=cut
+sub stop_daemon
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $return     = undef;
+	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." stop ".$say_daemon."; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		if ($line =~ /return_code:(\d+)/)
+		{
+			$return = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 	return($return);
 }
 
