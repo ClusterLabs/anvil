@@ -371,8 +371,8 @@ sub uuid
 	my $self = shift;
 	my $an   = $self->parent;
 	
-	my $uuid = $an->System->call({shell_call => $an->data->{path}{exe}{uuidgen}});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
+	my $uuid = $an->System->call({shell_call => $an->data->{path}{exe}{uuidgen}." --random"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { uuid => $uuid }});
 	
 	return($uuid);
 }

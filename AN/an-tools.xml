@@ -84,7 +84,7 @@ This is a multi-line test string with various items to insert.
 
 It also has some #!invalid!# replacement #!keys!# to test the escaping and restoring.
 
-Here is the default output language: [#!data!defaults::languages::output!#]
+Here is the default output language: [#!data!defaults::language::output!#]
 Here we will inject 't_0000': [#!string!t_0001!#] 
 Here we will inject 't_0002' with its embedded variables: [#!string!t_0002!#]
 Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!string!t_0006!#].
@@ -106,7 +106,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 
 #!無効!#な置換#!キー!#を使ってエスケープとリストアをテストすることもできます。
 
-デフォルトの出力言語は次のとおりです：「#!data!defaults::languages::output!#」
+デフォルトの出力言語は次のとおりです：「#!data!defaults::language::output!#」
 ここで、「t_0000」を挿入します：[#!string!t_0001!#]
 ここでは、 「t_0002」に埋め込み変数を挿入します：「#!string!t_0002!#」
 ここでは変数 「#!string!t_0006!#」を持つ 「t_0001」を注入する 「t_0006」を注入します。

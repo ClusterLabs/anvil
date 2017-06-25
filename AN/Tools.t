@@ -11,7 +11,7 @@ our $VERSION   = "3.0.0";
 our $THIS_FILE = "Tools.t";
  
 # Call in the test module, telling it how many tests to expect to run.
-use Test::More tests => 121;
+use Test::More tests => 199;
 
 # Load my module via 'use_ok' test.
 BEGIN
@@ -142,6 +142,8 @@ like($an->Get->date_and_time({use_time => 1234567890, offset => -31536000}), qr/
 # host_uuid
 like($an->Get->host_uuid, qr/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "Verifying ability to read host uuid.");
 ### TODO: How to test Get->switches?
+# uuid
+like($an->Get->uuid, qr/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/, "Verifying ability to generate a random uuid.");
 
 ### AN::Tools::Log tests
 # entry is tested at the start of this test suite.
@@ -518,38 +520,51 @@ is($an->Validate->is_ipv4({ip => "256.255.255.255"}), "0", "Verifying that 'Vali
 is($an->Validate->is_ipv4({ip => "alteeve.com"}), "0", "Verifying that 'Validate->is_ipv4' recognizes 'alteeve.com' as an invalid IP address.");
 is($an->Validate->is_ipv4({ip => "::1"}), "0", "Verifying that 'Validate->is_ipv4' recognizes '::1' as an invalid IP address.");
 my $test_uuid = $an->Get->uuid;
-
-die;
+is($an->Validate->is_uuid({uuid => $test_uuid}), "1", "Verifying that 'Validate->is_uuid' recognized: [".$test_uuid."] as a valid UUID.");
+my $bad_uuid_1 =  $test_uuid;
+   $bad_uuid_1 =~ s/-//g;
+is($an->Validate->is_uuid({uuid => $bad_uuid_1}), "0", "Verifying that 'Validate->is_uuid' recognized: [".$bad_uuid_1."] as an invalid UUID.");
+my $bad_uuid_2 = uc($test_uuid);
+is($an->Validate->is_uuid({uuid => $bad_uuid_2}), "0", "Verifying that 'Validate->is_uuid' recognized: [".$bad_uuid_2."] as an invalid UUID.");
+my $bad_uuid_3 = $test_uuid."toolong";
+is($an->Validate->is_uuid({uuid => $bad_uuid_3}), "0", "Verifying that 'Validate->is_uuid' recognized: [".$bad_uuid_3."] as an invalid UUID.");
 
 ### AN::Tools::Words tests
-# 
-
-die;
-
-
-
-
-### AN::Tools::Words methods
-# Make sure we can read words files
+# clean_spaces
+my $clean_string1 = " A line   with	spaces all over		  	";
+my $clean_string2 = "A line with spaces at the end only    	 ";
+my $clean_string3 = "    		A line with spaces in the front only";
+my $clean_string4 = "A line with spaces 		 in the middle only";
+is($an->Words->clean_spaces({string => $clean_string1}), "A line with spaces all over", "Verifying that 'Words->clean_spaces' cleaned up a string with random spaces.");
+is($an->Words->clean_spaces({string => $clean_string2}), "A line with spaces at the end only", "Verifying that 'Words->clean_spaces' cleaned up a string spaces at the end of a string.");
+is($an->Words->clean_spaces({string => $clean_string3}), "A line with spaces in the front only", "Verifying that 'Words->clean_spaces' cleaned up a string with spaces in the front only.");
+is($an->Words->clean_spaces({string => $clean_string4}), "A line with spaces in the middle only", "Verifying that 'Words->clean_spaces' cleaned up a string with spaces in the middle only.");
+# key
+is($an->Words->key({key => "t_0001"}), "Test replace: [#!variable!test!#].", "Verifying that 'Words->key' returned the Canadian English 't_0001' string.");
+is($an->Words->key({key => "t_0001", language => "jp"}), "テスト いれかえる: [#!variable!test!#]。", "Verifying that 'Words->read' returned the Japanese 't_0001' string.");
+is($an->Words->key({key => "bad_key"}), "#!not_found!#", "Verified that 'Words->key' returns '#!not_found!#' for a bad key.");
+is($an->Words->key({key => "t_0003", language => "jp"}), "#!not_found!#", "Verifying that 'Words->read' returned '#!not_found!#' for the missing 't_0003' key.");
+# language
+is($an->Words->language, "en_CA", "Verifying the default words language is 'en_CA'.");
+$an->Words->language({set => "jp"});
+is($an->Words->language, "jp", "Verifying the words language was changed to 'jp'.");
+$an->Words->language({set => "en_CA"});
+is($an->Words->language, "en_CA", "Verifying the words language is back to 'en_CA'.");
+# read
+### NOTE: At this time, we don't test for unreadable files (rc = 3) or general read faults as set by XML::Simple (rc = 4).
 is($an->Words->read({file => $an->data->{path}{words}{'an-tools.xml'}}), 0, "Verifying that 'Words->read' properly returned '0' when asked to read the AN::Tools's words file.");
 is($an->Words->read({file => ''}), 1, "Verifying that 'Words->read' properly returned '1' when asked to read a works file without a file being passed.");
 is($an->Words->read({file => '/tmp/dummy.xml'}), 2, "Verifying that 'Words->read' properly returned '2' when asked to read a non-existent file.");
-### NOTE: At this time, we don't test for unreadable files (rc = 3) or general read faults as set by XML::Simple (rc = 4).
-
-# Make sure we can read raw strings.
-is($an->Words->key({key => 't_0001'}), "Test replace: [#!variable!test!#].", "Verifying that 'Words->key' returned the Canadian English 't_0001' string.");
-is($an->Words->key({key => 't_0001', language => 'jp'}), "テスト いれかえる: [#!variable!test!#]。", "Verifying that 'Words->read' returned the Japanese 't_0001' string.");
-is($an->Words->key({key => 't_0003', language => 'jp'}), "#!not_found!#", "Verifying that 'Words->read' returned '#!not_found!#' for the missing 't_0003' key.");
-
-# Make sure we can read processed strings.
-is($an->Words->string({
-	key       => 't_0005',
+# string
+my $test_string1 = $an->Words->string({
+	key       => "t_0005",
 	variables => {
 		test   => "result!",
 		first  => "1st",
 		second => "2nd",
  	},
-}), "
+});
+is($test_string1, "
 This is a multi-line test string with various items to insert.
 
 It also has some #!invalid!# replacement #!keys!# to test the escaping and restoring.
@@ -559,15 +574,16 @@ Here we will inject 't_0000': [Test replace: [result!].]
 Here we will inject 't_0002' with its embedded variables: [Test Out of order: [2nd] replace: [1st].]
 Here we will inject 't_0006', which injects 't_0001' which has a variable: [This string embeds 't_0001': [Test replace: [result!].]].
 ", "Verifying string processing in the default (Canadian English) language.");
-is($an->Words->string({
-	language  => 'jp',
-	key       => 't_0005',
+my $test_string2 = $an->Words->string({
+	language  => "jp",
+	key       => "t_0005",
 	variables => {
 		test   => "result!",
 		first  => "1st",
 		second => "2nd",
  	},
-}), "
+});
+is($test_string2, "
 これは、挿入するさまざまな項目を含む複数行のテスト文字列です。
 
 #!無効#!な置換!#キー!#を使ってエスケープとリストアをテストすることもできます。
@@ -578,19 +594,6 @@ is($an->Words->string({
 ここでは変数 「この文字列には「t_0001」が埋め込まれています：「テスト いれかえる: [result!]。」」を持つ 「t_0001」を注入する 「t_0006」を注入します。
 ", "Verifying string processing in Japanese.");
 
-### Get tests.
-
-### Logging
-# TODO: How to check logs in journalctl?
-
-### Template
-my $active_skin = $an->Template->skin;
-
-### Validate
-is($an->Validate->is_uuid({uuid => $an->Get->host_uuid}), "1", "Verifying that Validate->is_uuid() validates the host UUID.");
-is($an->Validate->is_uuid({uuid => uc($an->Get->host_uuid)}), "0", "Verifying that Validate->is_uuid() fails to validates the host UUID in upper case.");
-is($an->Validate->is_uuid({uuid => "cfdab37c-5b1a-433d-9285-978e7caa134"}), "0", "Verifying that Validate->is_uuid() fails to validates a UUID missing a letter.");
-is($an->Validate->is_uuid({uuid => "cfdab37c5b1a433d9285-978e7caa1342"}), "0", "Verifying that Validate->is_uuid() fails to validate a UUID without hyphens.");
-
+### DONE!
 # Tell the user that we're done making noise in their logs
 $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0049"});
