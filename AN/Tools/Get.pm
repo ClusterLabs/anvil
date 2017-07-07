@@ -15,6 +15,7 @@ my $THIS_FILE = "Get.pm";
 # host_uuid
 # network_details
 # switches
+# users_home
 # uuid
 
 =pod
@@ -359,6 +360,74 @@ sub switches
 	$an->Log->_adjust_log_level();
 	
 	return(0);
+}
+
+=head2 users_home
+
+This method takes a user's name and returns the user's home directory. If the home directory isn't found, C<< 0 >> is returned.
+
+Parameters;
+
+=head3 user (required)
+
+This is the user whose home directory you are looking for.
+
+=cut
+sub users_home
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $home_directory = 0;
+	
+	my $user = $parameter->{user} ? $parameter->{user} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+	
+	# Make sure the user is only one digit. Sometimes $< (and others) will return multiple IDs.
+	if ($user =~ /^\d+ \d$/)
+	{
+		$user =~ s/^(\d+)\s.*$/$1/;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+	}
+	
+	# If the user is numerical, convert it to a name.
+	if ($user =~ /^\d+$/)
+	{
+		$user = getpwuid($user);
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+	}
+	
+	# Still don't have a name? fail...
+	if ($user eq "")
+	{
+		# No user? No bueno...
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0060"});
+		return($home_directory);
+	}
+	
+	my $body = $an->Storage->read_file({file => $an->data->{path}{data}{passwd}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { body => $body }});
+	foreach my $line (split /\n/, $body)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /^$user:/)
+		{
+			$home_directory = (split/:/, $line)[5];
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { home_directory => $home_directory }});
+			last;
+		}
+	}
+	close $file_handle;
+	
+	# Do I have the a user's $HOME now?
+	if (not $home_directory)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0061", variables => { user => $user }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { home_directory => $home_directory }});
+	return($home_directory);
 }
 
 =head2 uuid

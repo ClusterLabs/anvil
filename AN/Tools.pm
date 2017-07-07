@@ -20,9 +20,11 @@ my $THIS_FILE = "Tools.pm";
 # data
 # environment
 # _add_hash_reference
+# _hostname
 # _make_hash_reference
 # _set_defaults
 # _set_paths
+# _short_hostname
 
 use utf8;
 binmode(STDERR, ':encoding(utf-8)');
@@ -445,6 +447,31 @@ sub _add_hash_reference
 	}
 }
 
+=head2 _hostname
+
+This returns the (full) hostname for the machine this is running on.
+
+=cut
+sub _hostname
+{
+	my $self = shift;
+	my $an   = $self;
+	
+	my $hostname = "";
+	if ($ENV{HOSTNAME})
+	{
+		# We have an environment variable, so use it.
+		$hostname = $ENV{HOSTNAME};
+	}
+	else
+	{
+		# The environment variable isn't set. Call 'hostname' on the command line.
+		$hostname = $an->System->call({shell_call => $an->data->{path}{exe}{hostname}});
+	}
+	
+	return($hostname);
+}
+
 =head2 _get_hash_reference
 
 This is called when we need to parse a double-colon separated string into two or more elements which represent keys in the 'C<< $an->data >>' hash. Once suitably split up, the value is read and returned.
@@ -573,6 +600,11 @@ sub _set_paths
 			configs		=>	{
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
+				ssh_config		=>	"/etc/ssh/ssh_config",
+				'striker.conf'		=>	"/etc/striker/striker.conf",
+			},
+			data		=>	{
+				passwd			=>	"/etc/passwd",
 			},
 			directories	=>	{
 				backups			=>	"/usr/sbin/striker/backups",
@@ -596,6 +628,7 @@ sub _set_paths
 				journalctl		=>	"/usr/bin/journalctl",
 				logger			=>	"/usr/bin/logger",
 				'mkdir'			=>	"/usr/bin/mkdir",
+				ping			=>	"/usr/bin/ping",
 				psql			=>	"/usr/bin/psql",
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
 				su			=>	"/usr/bin/su",
@@ -635,6 +668,22 @@ sub _set_paths
 	};
 	
 	return(0);
+}
+
+=head3 _short_hostname
+
+This returns the short hostname for the machine this is running on. That is to say, the hostname up to the first '.'.
+
+=cut
+sub _short_hostname
+{
+	my $self = shift;
+	my $an   =  $self;
+	
+	my $short_host_name =  $an->_hostname;
+	   $short_host_name =~ s/\..*$//;
+	
+	return($short_host_name);
 }
 
 =head1 Exit Codes

@@ -627,7 +627,7 @@ sub read_config
 
 This reads in a file and returns the contents of the file as a single string variable.
 
- $an->Storage->read_file({file => "/tmp/foo"});
+ my $body = $an->Storage->read_file({file => "/tmp/foo"});
 
 If it fails to find the file, or the file is not readable, 'C<< undef >>' is returned.
 

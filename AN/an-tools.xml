@@ -13,6 +13,18 @@ This is the AN::Tools master 'words' file.
 	<!-- Canadian English -->
 	<language name="en_CA" long_name="Canadian English" description="Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules">
 		
+		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
+		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
+		<key name="message_0002">The connection to: [#!variable!target!#] on port: [#!variable!port!#] as the user: [#!variable!user!#] was refused. If you recently booted the target, it may be just about finished booting. It is normal for the connection to be refused for a brief time during the boot process.</key>
+		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine in the process of booting up or powering off?</key>
+		<key name="message_0004">Timed out while waiting for a reply from: [#!variable!target!#]. Is the machine booting up? If so, please wait a minute or two and try again.</key>
+		<key name="message_0005">There was an unknown error while connecting to: [#!variable!target!#]. The error was: [#!variable!error!#]</key>
+		<key name="message_0006">We were unable to log in to: [#!variable!target!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
+		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
+		<key name="message_0008">There was a problem establishing an SSH channel to the target: [#!variable!target!#] for shell call: [#!variable!shell_call!#]</key>
+		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
+		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
+		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
 		<key name="log_0002">
@@ -39,9 +51,9 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0017">Output: [#!variable!line!#].</key>
 		<key name="log_0018">About to open the directory: [#!variable!directory!#]</key>
 		<key name="log_0019">Variables:</key>
-		<key name="log_0020"><![CDATA[[ Error ] - The module Storage->read_file() was called without a 'file' parameter, or the parameter was empty.]]></key>
-		<key name="log_0021"><![CDATA[[ Error ] - The module Storage->read_file() was asked to read the file: [#!variable!file!#], but that file does not exist.]]></key>
-		<key name="log_0022"><![CDATA[[ Error ] - The module Storage->read_file() was asked to read the file: [#!variable!file!#] which exists but can't be read.]]></key>
+		<key name="log_0020"><![CDATA[[ Error ] - The method Storage->read_file() was called without a 'file' parameter, or the parameter was empty.]]></key>
+		<key name="log_0021"><![CDATA[[ Error ] - The method Storage->read_file() was asked to read the file: [#!variable!file!#], but that file does not exist.]]></key>
+		<key name="log_0022"><![CDATA[[ Error ] - The method Storage->read_file() was asked to read the file: [#!variable!file!#] which exists but can't be read.]]></key>
 		<key name="log_0023">Reading: [#!variable!line!#].</key>
 		<key name="log_0024"><![CDATA[[ Error ] - No template file passed to Template->get().]]></key>
 		<key name="log_0025"><![CDATA[[ Error ] - No requested template file: [#!variable!source!#] does not exist. Is it missing in the active skin?]]></key>
@@ -55,23 +67,81 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0033"><![CDATA[[ Warning ] - Words->read()' asked to read: [#!variable!file!#] which was not found.]]></key>
 		<key name="log_0034"><![CDATA[[ Warning ] - AN::Tools::Words->read()' asked to read: [#!variable!file!#] which was not readable by: [#!variable!user!#] (uid/euid: [#!variable!uid!#]).]]></key>
 		<key name="log_0035"><![CDATA[[ Warning ] - The config file: [#!variable!file!#] appears to have a malformed line: [#!variable!count!#:#!variable!line!#].]]></key>
-		<key name="log_0036"><![CDATA[[ Error ] - The module Storage->change_mode() was called without a 'target' parameter, or the parameter was empty.]]></key>
-		<key name="log_0037"><![CDATA[[ Error ] - The module Storage->change_mode() was called without a 'mode' parameter, or the parameter was empty.]]></key>
-		<key name="log_0038"><![CDATA[[ Error ] - The module Storage->change_mode() was called without an invalid 'mode' parameter. It should have been three or four digits, but: [#!variable!mode!#] was passed.]]></key>
-		<key name="log_0039"><![CDATA[[ Error ] - The module Storage->change_owner() was called without a 'target' parameter, or the parameter was empty.]]></key>
-		<key name="log_0040"><![CDATA[[ Error ] - The module Storage->write_file() was asked to write the file: [#!variable!file!#] but it already exists and 'overwrite' was not set. Aborting.]]></key>
-		<key name="log_0041"><![CDATA[[ Error ] - The module Storage->write_file() was asked to write the file: [#!variable!file!#] but it is not a full path. Aborting.]]></key>
-		<key name="log_0042"><![CDATA[[ Error ] - The module Words->string() was asked to process the string: [#!variable!string!#] which has insertion variables, but nothing was passed to the 'variables' parameter.]]></key>
-		<key name="log_0043"><![CDATA[[ Error ] - The module System->call() was called but 'shell_call' was not passed or was empty.]]></key>
-		<key name="log_0044"><![CDATA[[ Error ] - The module Storage->copy_file() was called but 'source' was not passed or was empty.]]></key>
-		<key name="log_0045"><![CDATA[[ Error ] - The module Storage->copy_file() was called but 'target' was not passed or was empty.]]></key>
-		<key name="log_0046"><![CDATA[[ Error ] - The module Storage->copy_file() was asked to copy: [#!variable!source!#] to: [#!variable!target!#], but the target already exists and 'overwrite' wasn't specified, so aborting.]]></key>
-		<key name="log_0047"><![CDATA[[ Error ] - The module Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
+		<key name="log_0036"><![CDATA[[ Error ] - The method Storage->change_mode() was called without a 'target' parameter, or the parameter was empty.]]></key>
+		<key name="log_0037"><![CDATA[[ Error ] - The method Storage->change_mode() was called without a 'mode' parameter, or the parameter was empty.]]></key>
+		<key name="log_0038"><![CDATA[[ Error ] - The method Storage->change_mode() was called without an invalid 'mode' parameter. It should have been three or four digits, but: [#!variable!mode!#] was passed.]]></key>
+		<key name="log_0039"><![CDATA[[ Error ] - The method Storage->change_owner() was called without a 'target' parameter, or the parameter was empty.]]></key>
+		<key name="log_0040"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it already exists and 'overwrite' was not set. Aborting.]]></key>
+		<key name="log_0041"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it is not a full path. Aborting.]]></key>
+		<key name="log_0042"><![CDATA[[ Error ] - The method Words->string() was asked to process the string: [#!variable!string!#] which has insertion variables, but nothing was passed to the 'variables' parameter.]]></key>
+		<key name="log_0043"><![CDATA[[ Error ] - The method System->call() was called but 'shell_call' was not passed or was empty.]]></key>
+		<key name="log_0044"><![CDATA[[ Error ] - The method Storage->copy_file() was called but 'source' was not passed or was empty.]]></key>
+		<key name="log_0045"><![CDATA[[ Error ] - The method Storage->copy_file() was called but 'target' was not passed or was empty.]]></key>
+		<key name="log_0046"><![CDATA[[ Error ] - The method Storage->copy_file() was asked to copy: [#!variable!source!#] to: [#!variable!target!#], but the target already exists and 'overwrite' wasn't specified, so aborting.]]></key>
+		<key name="log_0047"><![CDATA[[ Error ] - The method Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
 		<key name="log_0048"><![CDATA[[ Warning ] - Testing of AN::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
 		<key name="log_0049"><![CDATA[[ Warning ] - Testing of AN::Tools is complete.]]></key>
-		<key name="log_0050"><![CDATA[[ Error ] - The module Storage->read_mode() was called without a 'target' parameter, or the parameter was empty.]]></key>
-		<key name="log_0051"><![CDATA[[ Error ] - The module Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
-		<key name="log_0052"><![CDATA[[ Error ] - The module Storage->copy_file() was called but the source file: [#!variable!source!#] doesn't exist.]]></key>
+		<key name="log_0050"><![CDATA[[ Error ] - The method Storage->read_mode() was called without a 'target' parameter, or the parameter was empty.]]></key>
+		<key name="log_0051"><![CDATA[[ Error ] - The method Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
+		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->copy_file() was called but the source file: [#!variable!source!#] doesn't exist.]]></key>
+		<key name="log_0053"><![CDATA[[ Error ] - The 'Database->connect()' method tried to connect to the same database twice: [#!variable!target!#].]]></key>
+		<key name="log_0054">
+Connecting to Database with configuration ID: [#!variable!id!#]
+- driver: .......... [#!variable!driver!#]
+- host: ............ [#!variable!host!#]
+- port: ............ [#!variable!port!#]
+- postgres_password: [#!variable!postgres_password!#]
+- name: ............ [#!variable!name!#]
+- user: ............ [#!variable!user!#]
+- password: ........ [#!variable!password!#]
+		</key>
+		<key name="log_0055"><![CDATA[[ Error ] - The method System->remote_call() was called but 'shell_call' was not passed or was empty.]]></key>
+		<key name="log_0056"><![CDATA[[ Error ] - The method System->remote_call() was called but 'target' was not passed or was empty.]]></key>
+		<key name="log_0057"><![CDATA[[ Error ] - The method System->remote_call() was called but 'user' was not passed or was empty.]]></key>
+		<key name="log_0058"><![CDATA[[ Error ] - The method System->remote_call() was called but the port: [#!variable!port!#] is invalid. It must be a digit between '1' and '65535'.]]></key>
+		<key name="log_0059"><![CDATA[[ Error ] - The method Convert->hostname_to_ip() was called but 'hostname' was not passed or was empty.]]></key>
+		<key name="log_0060"><![CDATA[[ Error ] - The method Get->users_home() was called but 'user' was not passed or was empty.]]></key>
+		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
+		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
+		<key name="log_0063">The database with the ID: [#!variable!id!#] did not respond to pings and 'database::#!variable!id!#::ping_before_connect' is not set to '0' in '#!data!path::configs::striker.conf!#', skipping it.</key>
+		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with ID: [#!variable!id!#] can not be used, skipping it.</key>
+		<key name="log_0065">
+The database connection error was:
+----------
+#!variable!dbi_error!#
+----------
+		</key>
+		<key name="log_0066">Is the database server running on: [#!variable!target!#] and does the target's firewall allow connections on TCP port: [#!variable!port!#]?</key>
+		<key name="log_0067"><![CDATA[The password was not passed, and it is required. Please set: [database::#!variable!id!#::password = <password>] in: [#!data!path::configs::striker.conf!#].]]></key>
+		<key name="log_0068"><![CDATA[The database user name: [#!variable!user!#] on the host: [#!variable!host!#] is either not the owner of the database: [#!variable!name!#], or the password for that user is incorrect. 
+- Please edit: [#!data!path::configs::striker.conf!#]
+  * If the user name is not correct, please update: 
+    database::#!variable!id!#::user = <user>
+  * If the user name is correct, please update: 
+    database::#!variable!id!#::password = <password>
+		]]></key>
+		<key name="log_0069">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] was refused. Is the database server running?</key>
+		<key name="log_0070">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] failed because the name could not be translated to an IP address. Is this database server's host name in '/etc/hosts'?</key>
+		<key name="log_0071">Successfully Connected to the database: [#!variable!name!#] (id: [#!variable!id!#]) on host: [#!variable!host!#:#!variable!port!#].</key>
+		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
+		<key name="log_0073"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
+		<key name="log_0074">About to query: [#!variable!id!#]:[#!variable!query!#]</key>
+		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$an->Log->secure' is not set.]]></key>
+		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$an->Log->secure' is not set.]]></key>
+		<key name="log_0077"><![CDATA[[ Error ] - The method Database->initialize() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
+		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
+		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!id!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
+		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
+		<key name="log_0081"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but the core SQL file: [#!variable!sql_file!#] exist, but can't be read.]]></key>
+		<key name="log_0082">The database: [#!variable!server!#] needs to be initialized using: [#!variable!sql_file!#].</key>
+		<key name="log_0083"></key>
+		<key name="log_0084"><![CDATA[[ Error ] - The method Database->query() was asked to query the database: [#!variable!server!#] but no query was given.]]></key>
+		<key name="log_0085"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database: [#!variable!server!#] but no query was given.]]></key>
+		<key name="log_0086"><![CDATA[[ Error ] - The method System->check_memory() was called without a program name or PID to check.]]></key>
+		<key name="log_0087">Testing access to the the database: [#!variable!server!#] prior to query or write. Program will exit if it fails.</key>
+		<key name="log_0088">Access confirmed.</key>
+		<key name="log_0089"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
+		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$an->Log->secure' is not set.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

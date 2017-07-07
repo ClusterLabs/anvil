@@ -12,6 +12,7 @@ my $THIS_FILE = "Convert.pm";
 
 ### Methods;
 # cidr
+# hostname_to_ip
 
 =pod
 
@@ -184,4 +185,49 @@ sub cidr
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	return($output);
+}
+
+=head2 hostname_to_ip
+
+This method takes a hostname and tries to convert it to an IP address. If it fails, it will return C<< 0 >>.
+
+Parameters;
+
+=head3 hostname
+
+This is the host name (or domain name) to try and convert to an IP address.
+
+=cut
+sub hostname_to_ip
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $hostname = defined $parameter->{hostname} ? $parameter->{hostname} : "";
+	my $ip       = 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hostname => $hostname }});
+	
+	if (not $hostname)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0059"});
+		return($ip);
+	}
+	
+	### TODO: Check local cached information later.
+	
+	# Try to resolve it using 'gethostip'.
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{gethostip}." -d $hostname"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($an->Validate->is_ipv4({ip => $line}))
+		{
+			$ip = $line;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip => $ip }});
+		}
+	}
+	
+	return($ip);
 }
