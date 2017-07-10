@@ -142,6 +142,8 @@ The database connection error was:
 		<key name="log_0088">Access confirmed.</key>
 		<key name="log_0089"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$an->Log->secure' is not set.]]></key>
+		<key name="log_0091">Failed to connect to any database.</key>
+		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!id!#]_.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

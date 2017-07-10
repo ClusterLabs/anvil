@@ -330,51 +330,38 @@ sub connect
 				});
 			}
 			
+			# Get a time stamp for this run, if not yet gotten.
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cache::db_fh::$id" => $an->data->{cache}{db_fh}{$id}, 
+				"sys::db_timestamp" => $an->data->{sys}{db_timestamp}
+			});
+			
 			
 			
 			### NOTE: Left off here.
-			
-			# Get a time stamp for this run, if not yet gotten.
-			$an->Log->entry({log_level => 3, message_key => "an_variables_0002", message_variables => {
-				name1 => "cache::db_fh::$id",          value1 => $an->data->{cache}{db_fh}{$id}, 
-				name2 => "sys::db_timestamp", value2 => $an->data->{sys}{db_timestamp}
-			}, file => $THIS_FILE, line => __LINE__});
 			if (not $an->data->{sys}{db_timestamp})
 			{
 				my $query = "SELECT cast(now() AS timestamp with time zone)";
-				$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-					name1 => "query", value1 => $query
-				}, file => $THIS_FILE, line => __LINE__});
-				$an->data->{sys}{db_timestamp} = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query });
 				
-				$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-					name1 => "sys::db_timestamp",  value1 => $an->data->{sys}{db_timestamp},
-				}, file => $THIS_FILE, line => __LINE__});
+				$an->data->{sys}{db_timestamp} = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::db_timestamp" => $an->data->{sys}{db_timestamp} });
 			}
 			
-			$an->Log->entry({log_level => 3, message_key => "an_variables_0003", message_variables => {
-				name1 => "sys::read_db_id",   value1 => $an->data->{sys}{read_db_id},
-				name2 => "sys::use_db_fh",    value2 => $an->data->{sys}{use_db_fh},
-				name3 => "sys::db_timestamp", value3 => $an->data->{sys}{db_timestamp},
-			}, file => $THIS_FILE, line => __LINE__});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::read_db_id"   => $an->data->{sys}{read_db_id},
+				"sys::use_db_fh"    => $an->data->{sys}{use_db_fh},
+				"sys::db_timestamp" => $an->data->{sys}{db_timestamp},
+			});
 		}
 	}
 	
 	# Do I have any connections? Don't die, if not, just return.
-	$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-		name1 => "connections", value1 => $connections, 
-	}, file => $THIS_FILE, line => __LINE__});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
 	if (not $connections)
 	{
 		# Failed to connect to any database. Log this, print to the caller and return.
-		$an->Log->entry({log_level => 1, message_key => "tools_log_0021", message_variables => {
-			title		=>	$an->String->get({key => "tools_title_0003"}),
-			message		=>	$an->String->get({key => "error_message_0060"}),
-		}, file => $THIS_FILE, line => __LINE__});
-		print $an->String->get({ key => "tools_log_0021", variables => {
-			title		=>	$an->String->get({key => "tools_title_0003"}),
-			message		=>	$an->String->get({key => "error_message_0060"}),
-		}})."\n";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0091"});
 		return($connections);
 	}
 	
@@ -385,9 +372,9 @@ sub connect
 		my $error_array = [];
 		
 		# Delete this DB so that we don't try to use it later.
-		$an->Log->entry({log_level => 3, message_key => "error_title_0018", message_variables => {
-			id	=>	$id
-		}, file => $THIS_FILE, line => __LINE__});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0092", variables => { server => $say_server, id => $id }});
+		
+		# Delete it from the list of known databases for this run.
 		delete $an->data->{database}{$id};
 		
 		# If I've not sent an alert about this DB loss before, send one now.
@@ -562,6 +549,9 @@ sub initialize
 		sql_file => $sql_file, 
 	}});
 	
+	# This just makes some logging cleaner below.
+	my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
+	
 	if (not $id)
 	{
 		# No database to talk to...
@@ -577,7 +567,7 @@ sub initialize
 	if (not $sql_file)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0079", variables => { 
-			server => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name}
+			server => $say_server,
 			id     => $id, 
 		}});
 		return(0);
@@ -585,7 +575,7 @@ sub initialize
 	elsif (not -e $sql_file)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0080", variables => { 
-			server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name}
+			server   => $say_server,
 			id       => $id, 
 			sql_file => $sql_file, 
 		}});
@@ -594,7 +584,7 @@ sub initialize
 	elsif (not -r $sql_file)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0081", variables => { 
-			server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name}
+			server   => $say_server,
 			id       => $id, 
 			sql_file => $sql_file, 
 		}});
@@ -603,13 +593,13 @@ sub initialize
 	
 	# Tell the user we need to initialize
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0082", variables => { 
-			server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name}
+			server   => $say_server,
 			id       => $id, 
 			sql_file => $sql_file, 
 	}});
 	
 	$an->Log->entry({log_level => 1, title_key => "tools_title_0005", message_key => "tools_log_0020", message_variables => {
-		server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name}
+		server   => $say_server,
 		sql_file => $sql_file, 
 	}, file => $THIS_FILE, line => __LINE__});
 	
@@ -720,6 +710,9 @@ sub query
 		source                => $source, 
 	}});
 	
+	# Make logging code a little cleaner
+	my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
+	
 	if (not $id)
 	{
 		# No database to talk to...
@@ -736,7 +729,7 @@ sub query
 	{
 		# No query
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0084", variables => { 
-			server => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
+			server => $say_server,
 		}});
 		return(undef);
 	}
@@ -759,15 +752,15 @@ sub query
 	
 	# Do the query.
 	my $DBreq = $an->data->{cache}{db_fh}{$id}->prepare($query) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
-			query    => ((not $an->Log->secure) && ($secure)), 
-			server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
+			query    => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
 	
 	# Execute on the query
 	$DBreq->execute() or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
-			query    => ((not $an->Log->secure) && ($secure)), 
-			server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
+			query    => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
 	
@@ -800,13 +793,14 @@ sub write
 		source                => $source, 
 	}});
 	
+	# Make logging code a little cleaner
+	my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
+	
 	# We don't check if ID is set here because not being set simply means to write to all available DBs.
 	if (not $query)
 	{
 		# No query
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0085", variables => { 
-			server => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
-		}});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0085", variables => { server => $say_server }});
 		return(undef);
 	}
 	
@@ -938,8 +932,8 @@ sub write
 			
 			# Do the do.
 			$an->data->{cache}{db_fh}{$id}->do($query) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
-					query    => ((not $an->Log->secure) && ($secure)), 
-					server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
+					query    => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+					server   => $say_server,
 					db_error => $DBI::errstr, 
 				}});
 		}
@@ -988,15 +982,16 @@ sub _test_access
 	my $id = $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
 	
+	# Make logging code a little cleaner
+	my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
+	
 	# Log our test
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0087", variables => { 
-		server => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
-	}});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0087", variables => { server => $say_server }});
 	
 	my $query = "SELECT 1";
 	my $DBreq = $an->data->{cache}{db_fh}{$id}->prepare($query) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
 			query    => $query, 
-			server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
+			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
 	
@@ -1004,7 +999,7 @@ sub _test_access
 	alarm(10);
 	$DBreq->execute() or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
 			query    => $query, 
-			server   => $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name},
+			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
 	# If we're here, we made contact.
