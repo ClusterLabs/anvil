@@ -10,7 +10,9 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Alert.pm";
 
 ### Methods;
+# check_alert_sent
 # error
+# register_alert
 
 =pod
 
@@ -65,6 +67,379 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+
+=head2 check_alert_sent
+
+This is used by scan agents that need to track whether an alert was sent when a sensor dropped below/rose above a set alert threshold. For example, if a sensor alerts at 20°C and clears at 25°C, this will be called when either value is passed. When passing the warning threshold, the alert is registered and sent to the user. Once set, no further warning alerts are sent. When the value passes over the clear threshold, this is checked and if an alert was previously registered, it is removed and an "all clear" message is sent. In this way, multiple alerts will not go out if a sensor floats around the warning threshold and a "cleared" message won't be sent unless a "warning" message was previously sent.
+
+If there is a problem, C<< undef >> is returned.
+
+Parameters;
+
+=head3 modified_date (optional)
+
+By default, this is set to C<< sys::db_timestamp >>. If you want to force a different timestamp, you can do so with this parameter.
+
+=head3 name (required)
+
+This is the name of the alert. So for an alert related to a critically high temperature, this might get set to C<< temperature_high_critical >>. It is meant to compliment the C<< record_locator >> parameter.
+
+=head3 record_locator
+
+This is a record locator, which generally allows a given alert to be tied to a given source. For example, an alert related to a temperature might use C<< an-a01n01.alteeve.com:cpu1_temperature >>.
+
+=head3 set_by (required)
+
+This is a string, usually the name of the program, that set the alert. Usuall this is simple C<< $THIS_FILE >> or C<< $0 >>.
+
+=head3 type (required)
+
+This is set to C<< set >> or C<< clear >>.
+
+If set to C<< set >>, C<< 1 >> will be returned if this is the first time we've tried to set this alert. If the alert was set before, C<< 0 >> is returned.
+
+If set to C<< clear >>, C<< 1 >> will be returned if this is the alert existed and was cleared. If the alert didn't exist (and thus didn't need to be cleared), C<< 0 >> is returned.
+
+=cut
+sub check_alert_sent
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $modified_date  = $parameter->{modified_date}  ? $parameter->{modified_date}  : $an->data->{sys}{db_timestamp};
+	my $name           = $parameter->{name}           ? $parameter->{name}           : "";
+	my $record_locator = $parameter->{record_locator} ? $parameter->{record_locator} : "";
+	my $set_by         = $parameter->{set_by}         ? $parameter->{set_by}         : "";
+	my $type           = $parameter->{type}           ? $parameter->{type}           : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		modified_date  => $modified_date, 
+		name           => $name, 
+		record_locator => $record_locator, 
+		set_by         => $set_by, 
+		type           => $type, 
+	}});
+	
+	# Do we have a timestamp?
+	if (not $modified_date)
+	{
+		# Nope
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0093"});
+		return(undef);
+	}
+	
+	# Do we have an alert name?
+	if (not $name)
+	{
+		# Nope
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
+		return(undef);
+	}
+	
+	# Do we have an record locator?
+	if (not $record_locator)
+	{
+		# Nope
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0095"});
+		return(undef);
+	}
+	
+	# Do we know who is setting this??
+	if (not $set_by)
+	{
+		# Nope
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096"});
+		return(undef);
+	}
+	
+	# Are we setting or clearing?
+	if (not $type)
+	{
+		# Neither...
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0097"});
+		return(undef);
+	}
+	
+	# This will get set to '1' if an alert is added or removed.
+	my $set = 0;
+	
+	my $query = "
+SELECT 
+    COUNT(*) 
+FROM 
+    alert_sent 
+WHERE 
+    alert_sent_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})." 
+AND 
+    alert_set_by         = ".$an->data->{sys}{use_db_fh}->quote($alert_set_by)." 
+AND 
+    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($alert_record_locator)." 
+AND 
+    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($alert_name)."
+;";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $count = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		type  => $type,
+		query => $query,
+	}});
+	
+	# Now, if this is type=set, register the alert if it doesn't exist. If it is type=clear, remove the 
+	# alert if it exists.
+	if (($type eq "set") && (not $count))
+	{
+		### New alert
+		# Make sure this host is in the database... It might not be on the very first run of ScanCore
+		# before the peer exists (tried to connect to the peer, fails, tries to send an alert, but
+		# this host hasn't been added because it is the very first attempt to connect...)
+		if (not $an->data->{sys}{host_is_in_db})
+		{
+			my $query = "
+SELECT 
+    COUNT(*)
+FROM 
+    hosts 
+WHERE 
+    host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})."
+;";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+
+			my $count = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			
+			if (not $count)
+			{
+				# Too early, we can't set an alert.
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0098", variables => {
+					type			=>	$type, 
+					alert_set_by		=>	$alert_set_by, 
+					alert_record_locator	=>	$alert_record_locator, 
+					alert_name		=>	$alert_name, 
+					modified_date		=>	$modified_date,
+				}});
+				return(undef);
+			}
+			else
+			{
+				$an->data->{sys}{host_is_in_db} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::host_is_in_db' => $an->data->{sys}{host_is_in_db} }});
+			}
+		}
+		
+		   $set   = 1;
+		my $query = "
+INSERT INTO 
+    alert_sent 
+(
+    alert_sent_host_uuid, 
+    alert_set_by, 
+    alert_record_locator, 
+    alert_name, 
+    modified_date
+) VALUES (
+    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_set_by).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_record_locator).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_name).", 
+    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+);
+";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			query => $query,
+			set   => $set, 
+		}});
+		$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	elsif (($type eq "clear") && ($count))
+	{
+		# Alert previously existed, clear it.
+		   $set   = 1;
+		my $query = "
+DELETE FROM 
+    alert_sent 
+WHERE 
+    alert_sent_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})." 
+AND 
+    alert_set_by        = ".$an->data->{sys}{use_db_fh}->quote($alert_set_by)." 
+AND 
+    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($alert_record_locator)." 
+AND 
+    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($alert_name)."
+;";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			query => $query,
+			set   => $set, 
+		}});
+		$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+	return($set);
+}
+
+=head2 register_alert
+
+This registers an alert to be sent later.
+
+If anything goes wrong, C<< undef >> will be returned.
+
+=cut
+sub register_alert
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $header            = defined $parameter->{header}            ? $parameter->{header}            : 1;
+	my $level             = defined $parameter->{level}             ? $parameter->{level}             : "warning";
+	my $message_key       = defined $parameter->{message_key}       ? $parameter->{message_key}       : "";
+	my $message_variables = defined $parameter->{message_variables} ? $parameter->{message_variables} : "";
+	my $set_by            = defined $parameter->{set_by}            ? $parameter->{set_by}            : "";
+	my $sort              = defined $parameter->{'sort'}            ? $parameter->{'sort'}            : 9999;
+	my $title_key         = defined $parameter->{title_key}         ? $parameter->{title_key}         : "title_0003";
+	my $title_variables   = defined $parameter->{title_variables}   ? $parameter->{title_variables}   : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		header            => $header,
+		level             => $level, 
+		message_key       => $message_key, 
+		message_variables => $message_variables, 
+		set_by            => $set_by,
+		'sort'            => $sort, 
+		title_key         => $title_key, 
+		title_variables   => $title_variables, 
+	}});
+	
+	if (not $set_by)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099"});
+		return(undef);
+	}
+	if (not $message_key)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0100"});
+		return(undef);
+	}
+	if (($header) && (not $title_key))
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0101"});
+		return(undef);
+	}
+	
+	# zero-pad sort numbers so that they sort properly.
+	$alert_sort = sprintf("%04d", $alert_sort);
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sort => $alert_sort }});
+	
+	# Convert the hash of title variables and message variables into '!!x!y!!,!!a!b!!,...' strings.
+	my $title_variables = "";
+	if (ref($alert_title_variables) eq "HASH")
+	{
+		foreach my $key (sort {$a cmp $b} keys %{$alert_title_variables})
+		{
+			$alert_title_variables->{$key} = "--" if not defined $alert_title_variables->{$key};
+			$title_variables .= "!!$key!".$alert_title_variables->{$key}."!!,";
+		}
+	}
+	my $message_variables = "";
+	if (ref($alert_message_variables) eq "HASH")
+	{
+		foreach my $key (sort {$a cmp $b} keys %{$alert_message_variables})
+		{
+			$alert_message_variables->{$key} = "--" if not defined $alert_message_variables->{$key};
+			$message_variables .= "!!$key!".$alert_message_variables->{$key}."!!,";
+		}
+	}
+	
+	
+	# In most cases, no one is listening to 'debug' or 'info' level alerts. If that is the case here, 
+	# don't record the alert because it can cause the history.alerts table to grow needlessly. So find
+	# the lowest level log level actually being listened to and simply skip anything lower than that.
+	# 5 == debug
+	# 1 == critical
+	my $lowest_log_level = 5;
+	foreach my $integer (sort {$a cmp $b} keys %{$an->data->{alerts}{recipient}})
+	{
+		# We want to know the alert level, regardless of whether the recipient is an email of file 
+		# target.
+		my $this_level;
+		if ($an->data->{alerts}{recipient}{$integer}{email})
+		{
+			# Email recipient
+			$this_level = ($an->data->{alerts}{recipient}{$integer}{email} =~ /level="(.*?)"/)[0];
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+		}
+		elsif ($an->data->{alerts}{recipient}{$integer}{file})
+		{
+			# File target
+			$this_level = ($an->data->{alerts}{recipient}{$integer}{file} =~ /level="(.*?)"/)[0];
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+		}
+		
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+		if ($this_level)
+		{
+			$this_level = $an->Alert->convert_level_name_to_number({level => $this_level});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				this_level       => $this_level,
+				lowest_log_level => $lowest_log_level,
+			}});
+			if ($this_level < $lowest_log_level)
+			{
+				$lowest_log_level = $this_level;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lowest_log_level => $lowest_log_level }});
+			}
+		}
+	}
+	
+	# Now get the numeric value of this alert and return if it is higher.
+	my $this_level = $an->Alert->convert_level_name_to_number({level => $alert_level});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		alert_level      => $alert_level,
+		this_level       => $this_level,
+		lowest_log_level => $lowest_log_level,
+	}});
+	if ($this_level > $lowest_log_level)
+	{
+		# Return.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0102", variables => { message_key => $alert_message_key }});
+		return(0);
+	}
+	
+	# Always INSERT. ScanCore removes them as they're acted on (copy is left in history.alerts).
+	my $query = "
+INSERT INTO 
+    alerts
+(
+    alert_uuid, 
+    alert_host_uuid, 
+    alert_set_by, 
+    alert_level, 
+    alert_title_key, 
+    alert_title_variables, 
+    alert_message_key, 
+    alert_message_variables, 
+    alert_sort, 
+    alert_header, 
+    modified_date
+) VALUES (
+    ".$an->data->{sys}{use_db_fh}->quote($an->Get->uuid()).", 
+    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_set_by).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_level).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_title_key).", 
+    ".$an->data->{sys}{use_db_fh}->quote($title_variables).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_message_key).", 
+    ".$an->data->{sys}{use_db_fh}->quote($message_variables).",
+    ".$an->data->{sys}{use_db_fh}->quote($alert_sort).", 
+    ".$an->data->{sys}{use_db_fh}->quote($alert_header).", 
+    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+);
+";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+	
+	return(0);
+}
 
 =head2 error
 

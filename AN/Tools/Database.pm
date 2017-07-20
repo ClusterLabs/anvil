@@ -12,11 +12,18 @@ my $THIS_FILE = "Database.pm";
 
 ### Methods;
 # connect
+# disconnect
 # get_local_id
 # initialize
+# insert_or_update_states
+# locking
+# mark_active
 # query
 # test_access
 # write
+# _find_behind_database
+# _mark_database_as_behind
+# _test_access
 
 =pod
 
@@ -106,17 +113,44 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
-=head3 file (required)
+=head3 source (optional)
 
-The C<< file >> parameter is used to check the special C<< updated >> table one all connected databases to see when that file (program name) last updated a given database. If the date stamp is the same on all connected databases, nothing further happens. If one of the databases differ, however, a resync will be requested.
+The C<< source >> parameter is used to check the special C<< updated >> table one all connected databases to see when that source (program name, usually) last updated a given database. If the date stamp is the same on all connected databases, nothing further happens. If one of the databases differ, however, a resync will be requested.
+
+If not defined, the core database will be checked.
+
+If this is not set, no attempt to resync the database will be made.
+
+=head3 sql_file (optional)
+
+This is the SQL schema file that will be used to initialize the database, if the C<< test_table >> isn't found in a given database that is connected to. By default, this is C<< path::sql::Tools.sql >> (C<< /usr/share/perl/AN/Tools.sql >> by default). 
 
 =head3 tables (optional)
 
-This is an optional array reference of tables to specifically check when connecting to databases. If specified, the table's most recent C<< modified_date >> time stamp will be read (specifically; C<< SELECT modified_date FROM $table ORDER BY modified_date DESC LIMIT 1 >>) and if a table doesn't return, or any of the time stamps are missing, a resync will be requested.
+This is an optional hash reference of tables and their host UUID columns to specifically check when connecting to databases. If specified, the table's most recent C<< modified_date >> time stamp will be read (specifically; C<< SELECT modified_date FROM history.$table WHERE $host_uuid_column = 'sys::host_uuid' ORDER BY modified_date DESC LIMIT 1 >>) and if a table doesn't return, or any of the time stamps are missing, a resync will be requested.
 
-To use this, use;
+Example use;
 
- $an->Database->connect({file => $THIS_FILE, tables => ("table1", "table2")});
+ $an->Database->connect({
+	tables => {
+		upses         => "ups_host_uuid",
+		ups_batteries => "ups_battery_host_uuid",
+	},
+ });
+
+If you want to specify a table that is not linked to a host, set the hash variable's value as an empty string.
+
+ $an->Database->connect({
+	tables => {
+		servers => "",
+	},
+ });
+
+=head3 test_table (optional)
+
+Once connected to the database, a query is made to see if the database needs to be initialized. Usually this is C<< defaults::sql::test_table >> (C<< hosts>> by default). 
+
+If you set this table manually, it will be checked and if the table doesn't exist on a connected database, the database will be initialized with the C<< sql_file >> parameter's file.
 
 =cut
 sub connect
@@ -126,8 +160,16 @@ sub connect
 	my $an        = $self->parent;
 	$an->Log->entry({log_level => 3, message_key => "tools_log_0001", message_variables => { function => "connect_to_databases" }, file => $THIS_FILE, line => __LINE__});
 	
-	my $file   = defined $parameter->{file}   ? $parameter->{file}   : "";
-	my $tables = defined $parameter->{tables} ? $parameter->{tables} : "";
+	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "core";
+	my $sql_file   = defined $parameter->{sql_file}   ? $parameter->{sql_file}   : $an->data->{path}{sql}{'Tools.sql'};
+	my $tables     = defined $parameter->{tables}     ? $parameter->{tables}     : "";
+	my $test_table = defined $parameter->{test_table} ? $parameter->{test_table} : $an->data->{defaults}{sql}{test_table};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		source     => $source, 
+		sql_file   => $sql_file, 
+		tables     => $tables, 
+		test_table => $test_table, 
+	}});
 	
 	# We need the host_uuid before we connect.
 	if (not $an->data->{sys}{host_uuid})
@@ -140,7 +182,7 @@ sub connect
 	$an->data->{sys}{local_db_id} = "";
 	
 	# This will be set to '1' if either DB needs to be initialized or if the last_updated differs on any node.
-	$an->data->{database_resync_needed} = 0;
+	$an->data->{database}{general}{resync_needed} = 0;
 	
 	# Now setup or however-many connections
 	my $seen_connections       = [];
@@ -295,7 +337,7 @@ sub connect
 			}});
 			
 			# Now that I have connected, see if my 'hosts' table exists.
-			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename='hosts' AND schemaname='public';";
+			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$an->data->{sys}{use_db_fh}->quote($test_table)." AND schemaname='public';";
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 			
 			my $count = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -304,7 +346,7 @@ sub connect
 			if ($count < 1)
 			{
 				# Need to load the database.
-				$an->Database->initialize({id => $id});
+				$an->Database->initialize({id => $id, sql_file => $sql_file});
 			}
 			
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -336,9 +378,7 @@ sub connect
 				"sys::db_timestamp" => $an->data->{sys}{db_timestamp}
 			});
 			
-			
-			
-			### NOTE: Left off here.
+			# Pick a timestamp for this run, if we haven't yet.
 			if (not $an->data->{sys}{db_timestamp})
 			{
 				my $query = "SELECT cast(now() AS timestamp with time zone)";
@@ -379,36 +419,32 @@ sub connect
 		
 		# If I've not sent an alert about this DB loss before, send one now.
 		my $set = $an->Alert->check_alert_sent({
-			type			=>	"warning",
-			alert_sent_by		=>	$THIS_FILE,
+			type			=>	"set",
+			alert_set_by		=>	$THIS_FILE,
 			alert_record_locator	=>	$id,
 			alert_name		=>	"connect_to_db",
 			modified_date		=>	$an->data->{sys}{db_timestamp},
 		});
-		$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-			name1  => "set", value1 => $set
-		}, file => $THIS_FILE, line => __LINE__});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set });
 		
 		if ($set)
 		{
-			$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-				name1  => "error_array", value1 => $error_array
-			}, file => $THIS_FILE, line => __LINE__});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error_array => $error_array });
 			foreach my $hash (@{$error_array})
 			{
 				my $message_key       = $hash->{message_key};
 				my $message_variables = $hash->{message_variables};
-				$an->Log->entry({log_level => 3, message_key => "an_variables_0003", message_variables => {
-					name1 => "hash",              value1 => $hash, 
-					name2 => "message_key",       value2 => $message_key, 
-					name3 => "message_variables", value3 => $message_variables, 
-				}, file => $THIS_FILE, line => __LINE__});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					hash              => $hash, 
+					message_key       => $message_key, 
+					message_variables => $message_variables, 
+				});
 				
 				# These are warning level alerts.
 				$an->Alert->register_alert({
 					alert_level		=>	"warning", 
-					alert_agent_name	=>	"ScanCore",
-					alert_title_key		=>	"an_alert_title_0004",
+					alert_set_by		=>	$THIS_FILE,
+					alert_title_key		=>	"alert_title_0003",
 					alert_message_key	=>	$message_key,
 					alert_message_variables	=>	$message_variables,
 				});
@@ -422,13 +458,10 @@ sub connect
 		# Query to see if the newly connected host is in the DB yet. If it isn't, don't send an
 		# alert as it'd cause a duplicate UUID error.
 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$an->data->{sys}{use_db_fh}->quote($an->data->{database}{$id}{host}).";";
-		$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-			name1 => "query", value1 => $query
-		}, file => $THIS_FILE, line => __LINE__});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query });
+
 		my $count = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-			name1 => "count", value1 => $count
-		}, file => $THIS_FILE, line => __LINE__});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count });
 		
 		if ($count > 0)
 		{
@@ -456,30 +489,70 @@ sub connect
 		}
 	}
 
-	$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-		name1 => "sys::host_uuid", value1 => $an->data->{sys}{host_uuid}, 
-	}, file => $THIS_FILE, line => __LINE__});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $an->data->{sys}{host_uuid} });
 	if ($an->data->{sys}{host_uuid} !~ /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/)
 	{
-		# derp
-		$an->Log->entry({log_level => 0, message_key => "error_message_0061", file => $THIS_FILE, line => __LINE__});
+		# derp. bad UUID
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0103"});
 		
+		### TODO: Left off here
 		# Disconnect and set the connection count to '0'.
-		$an->DB->disconnect_from_databases();
+		$an->Database->disconnect();
 		$connections = 0;
 	}
 	
 	# For now, we just find which DBs are behind and let each agent deal with bringing their tables up to
 	# date.
-	$an->DB->find_behind_databases({file => $file});
+	$an->database->_find_behind_databases({
+		source => $source, 
+		tables => $$tables,
+	});
 	
 	# Hold if a lock has been requested.
-	$an->DB->locking();
+	$an->Database->locking();
 	
 	# Mark that we're not active.
-	$an->DB->mark_active({set => 1});
+	$an->Database->mark_active({set => 1});
 	
 	return($connections);
+}
+
+=head2
+
+This cleanly closes any open file handles to all connected databases and clears some internal database related variables.
+
+=cut
+sub disconnect
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	$an->Log->entry({log_level => 3, message_key => "tools_log_0001", message_variables => { function => "disconnect_from_databases" }, file => $THIS_FILE, line => __LINE__});
+	
+	my $marked_inactive = 0;
+	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
+	{
+		# Don't do anything if there isn't an active file handle for this DB.
+		next if ((not $an->data->{cache}{db_fh}{$id}) or ($an->data->{cache}{db_fh}{$id} !~ /^DBI::db=HASH/));
+		
+		# Clear locks and mark that we're done running.
+		if (not $marked_inactive)
+		{
+			$an->Database->mark_active({set => 0});
+			$an->DB->locking({release => 1});
+			$marked_inactive = 1;
+		}
+		
+		$an->data->{cache}{db_fh}{$id}->disconnect;
+		delete $an->data->{cache}{db_fh}{$id};
+	}
+	
+	# Delete the stored DB-related values.
+	delete $an->data->{sys}{db_timestamp};
+	delete $an->data->{sys}{use_db_fh};
+	delete $an->data->{sys}{read_db_id};
+	
+	return(0);
 }
 
 =head2 get_local_id
@@ -532,7 +605,7 @@ sub get_local_id
 
 =head2 initialize
 
-This will initialize an empty database.
+This will initialize a database using a given file.
 
 =cut
 sub initialize
@@ -542,7 +615,7 @@ sub initialize
 	my $an        = $self->parent;
 	
 	my $id       = $parameter->{id}       ? $parameter->{id}       : $an->data->{sys}{read_db_id};
-	my $sql_file = $parameter->{sql_file} ? $parameter->{sql_file} : $an->data->{database}{$id}{core_sql};
+	my $sql_file = $parameter->{sql_file} ? $parameter->{sql_file} : $an->data->{path}{sql}{'Tools.sql'};
 	my $success  = 1;
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		id       => $id, 
@@ -620,10 +693,460 @@ sub initialize
 	$an->data->{sys}{db_initialized}{$id} = 1;
 	
 	# Mark that we need to update the DB.
-	$an->data->{database_resync_needed} = 1;
+	$an->data->{database}{general}{resync_needed} = 1;
 	
 	return($success);
 };
+
+=head2 insert_or_update_states
+
+This updates (or inserts) a record in the 'states' table. The C<< state_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 state_uuid (optional)
+
+This is the C<< state_uuid >> to update. If it is not specified but the C<< state_name >> is, a check will be made to see if an entry already exists. If so, that row will be UPDATEd. If not, a random UUID will be generated and a new entry will be INSERTed.
+
+=head3 state_name (required)
+
+This is the C<< state_name >> to INSERT or UPDATE. If a C<< state_uuid >> is passed, then the C<< state_name >> can be changed.
+
+=head3 state_host_uuid (optional)
+
+This is the host's UUID that this state entry belongs to. If not passed, C<< sys::host_uuid >> will be used.
+
+=head3 state_note (optional)
+
+This is an optional note related to this state entry.
+
+=cut 
+sub insert_or_update_states
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $state_uuid      = $parameter->{state_uuid}      ? $parameter->{state_uuid}      : "";
+	my $state_name      = $parameter->{state_name}      ? $parameter->{state_name}      : "";
+	my $state_host_uuid = $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $an->data->{sys}{host_uuid};
+	my $state_note      = $parameter->{state_note}      ? $parameter->{state_note}      : "NULL";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		state_uuid      => $state_uuid, 
+		state_name      => $state_name, 
+		state_host_uuid => $state_host_uuid, 
+		state_note      => $state_note, 
+	}});
+	
+	if (not $state_name)
+	{
+		# Throw an error and exit.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0107"});
+		return("");
+	}
+	if (not $state_host_uuid)
+	{
+		# Throw an error and exit.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0108"});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given state server name.
+	if (not $state_uuid)
+	{
+		my $query = "
+SELECT 
+    state_uuid 
+FROM 
+    states 
+WHERE 
+    state_name      = ".$an->data->{sys}{use_db_fh}->quote($state_name)." 
+AND 
+    state_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($state_host_uuid)." 
+;";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $results = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			$state_uuid = $row->[0];
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
+		}
+	}
+	
+	# If I still don't have an state_uuid, we're INSERT'ing .
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
+	if (not $state_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $an->ScanCore->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $an->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $an->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		   $state_uuid = $an->Get->uuid();
+		my $query      = "
+INSERT INTO 
+    states 
+(
+    state_uuid, 
+    state_name,
+    state_host_uuid, 
+    state_note, 
+    modified_date 
+) VALUES (
+    ".$an->data->{sys}{use_db_fh}->quote($state_uuid).", 
+    ".$an->data->{sys}{use_db_fh}->quote($state_name).", 
+    ".$an->data->{sys}{use_db_fh}->quote($state_host_uuid).", 
+    ".$an->data->{sys}{use_db_fh}->quote($state_note).", 
+    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    state_name,
+    state_host_uuid, 
+    state_note 
+FROM 
+    states 
+WHERE 
+    state_uuid = ".$an->data->{sys}{use_db_fh}->quote($state_uuid)." 
+;";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $results = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_state_name         =         $row->[0];
+			my $old_state_host_uuid    =         $row->[1];
+			my $old_state_note         = defined $row->[2] ? $row->[2] : "NULL";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_state_name      => $old_state_name, 
+				old_state_host_uuid => $old_state_host_uuid, 
+				old_state_note      => $old_state_note, 
+			}});
+			
+			# Anything change?
+			if (($old_state_name      ne $state_name)      or 
+			    ($old_state_host_uuid ne $state_host_uuid) or 
+			    ($old_state_note      ne $state_note))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    states 
+SET 
+    state_name       = ".$an->data->{sys}{use_db_fh}->quote($state_name).", 
+    state_host_uuid  = ".$an->data->{sys}{use_db_fh}->quote($state_host_uuid).",  
+    state_note       = ".$an->data->{sys}{use_db_fh}->quote($state_note).", 
+    modified_date    = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})." 
+WHERE 
+    state_uuid       = ".$an->data->{sys}{use_db_fh}->quote($state_uuid)." 
+";
+				$query =~ s/'NULL'/NULL/g;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
+	return($state_uuid);
+}
+
+=head2 locking
+
+This handles requesting, releasing and waiting on locks.
+
+Parameters;
+
+=head3 
+
+=cut
+sub locking
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $request     = defined $parameter->{request}     ? $parameter->{request}     : 0;
+	my $release     = defined $parameter->{release}     ? $parameter->{release}     : 0;
+	my $renew       = defined $parameter->{renew}       ? $parameter->{renew}       : 0;
+	my $check       = defined $parameter->{check}       ? $parameter->{check}       : 0;
+	my $source_name =         $parameter->{source_name} ? $parameter->{source_name} : $an->hostname;
+	my $source_uuid =         $parameter->{source_uuid} ? $parameter->{source_uuid} : $an->data->{sys}{host_uuid};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		request     => $request, 
+		release     => $release, 
+		renew       => $renew, 
+		check       => $check, 
+		source_name => $source_name, 
+		source_uuid => $source_uuid, 
+	}});
+	
+	### TODO: Left off here
+	my $set            = 0;
+	my $variable_name  = "lock_request";
+	my $variable_value = $source_name."::".$source_uuid."::".time;
+	$an->Log->entry({log_level => 3, message_key => "an_variables_0002", message_variables => {
+		name1 => "variable_name",  value1 => $variable_name, 
+		name2 => "variable_value", value2 => $variable_value, 
+	}, file => $THIS_FILE, line => __LINE__});
+	
+	# Make sure we have a sane lock age
+	if ((not $an->data->{scancore}{locking}{reap_age}) or ($an->data->{scancore}{locking}{reap_age} =~ /\D/))
+	{
+		$an->data->{scancore}{locking}{reap_age} = 300;
+		$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
+			name1 => "scancore::locking::reap_age", value1 => $an->data->{scancore}{locking}{reap_age}, 
+		}, file => $THIS_FILE, line => __LINE__});
+	}
+	
+	# If I have been asked to check, we will return the variable_uuid if a lock is set.
+	if ($check)
+	{
+		my ($lock_value, $variable_uuid, $modified_date) = $an->ScanCore->read_variable({variable_name => $variable_name});
+		$an->Log->entry({log_level => 3, message_key => "an_variables_0003", message_variables => {
+			name1 => "lock_value",    value1 => $lock_value, 
+			name2 => "variable_uuid", value2 => $variable_uuid, 
+			name3 => "modified_date", value3 => $modified_date, 
+		}, file => $THIS_FILE, line => __LINE__});
+		
+		return($lock_value);
+	}
+	
+	# If I've been asked to clear a lock, do so now.
+	if ($release)
+	{
+		# We check to see if there is a lock before we clear it. This way we don't log that we 
+		# released a lock unless we really released a lock.
+		my ($lock_value, $variable_uuid, $modified_date) = $an->ScanCore->read_variable({variable_name => $variable_name});
+		$an->Log->entry({log_level => 3, message_key => "an_variables_0003", message_variables => {
+			name1 => "lock_value",    value1 => $lock_value, 
+			name2 => "variable_uuid", value2 => $variable_uuid, 
+			name3 => "modified_date", value3 => $modified_date, 
+		}, file => $THIS_FILE, line => __LINE__});
+		
+		if ($lock_value)
+		{
+			my $variable_uuid = $an->ScanCore->insert_or_update_variables({
+				variable_name     => $variable_name,
+				variable_value    => "",
+				update_value_only => 1,
+			});
+			$an->data->{sys}{local_lock_active} = 0;
+			$an->Log->entry({log_level => 3, message_key => "an_variables_0002", message_variables => {
+				name1 => "variable_uuid",          value1 => $variable_uuid, 
+				name2 => "sys::local_lock_active", value2 => $an->data->{sys}{local_lock_active}, 
+			}, file => $THIS_FILE, line => __LINE__});
+			
+			$an->Log->entry({log_level => 1, message_key => "tools_log_0040", message_variables => { host => $an->hostname }, file => $THIS_FILE, line => __LINE__});
+		}
+		return($set);
+	}
+	
+	# If I've been asked to renew, do so now.
+	if ($renew)
+	{
+		# Yup, do it.
+		my $variable_uuid = $an->ScanCore->insert_or_update_variables({
+			variable_name     => $variable_name,
+			variable_value    => $variable_value,
+			update_value_only => 1,
+		});
+		$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
+			name1 => "variable_uuid", value1 => $variable_uuid, 
+		}, file => $THIS_FILE, line => __LINE__});
+		
+		if ($variable_uuid)
+		{
+			$set = 1;
+			$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
+				name1 => "set", value1 => $set, 
+			}, file => $THIS_FILE, line => __LINE__});
+		}
+		$an->data->{sys}{local_lock_active} = time;
+		$an->Log->entry({log_level => 3, message_key => "an_variables_0002", message_variables => {
+			name1 => "variable_uuid",          value1 => $variable_uuid, 
+			name2 => "sys::local_lock_active", value2 => $an->data->{sys}{local_lock_active}, 
+		}, file => $THIS_FILE, line => __LINE__});
+		
+		$an->Log->entry({log_level => 1, message_key => "tools_log_0039", message_variables => { host => $an->hostname }, file => $THIS_FILE, line => __LINE__});
+		return($set);
+	}
+	
+	# No matter what, we always check for, and then wait for, locks. Read in the locks, if any. If any 
+	# are set and they are younger than scancore::locking::reap_age, we'll hold.
+	my $waiting = 1;
+	while ($waiting)
+	{
+		# Set the 'waiting' to '0'. If we find a lock, we'll set it back to '1'.
+		$waiting = 0;
+		
+		# See if we had a lock.
+		my ($lock_value, $variable_uuid, $modified_date) = $an->ScanCore->read_variable({variable_name => $variable_name});
+		$an->Log->entry({log_level => 3, message_key => "an_variables_0004", message_variables => {
+			name1 => "waiting",       value1 => $waiting, 
+			name2 => "lock_value",    value2 => $lock_value, 
+			name3 => "variable_uuid", value3 => $variable_uuid, 
+			name4 => "modified_date", value4 => $modified_date, 
+		}, file => $THIS_FILE, line => __LINE__});
+		if ($lock_value =~ /^(.*?)::(.*?)::(\d+)/)
+		{
+			my $lock_source_name = $1;
+			my $lock_source_uuid = $2;
+			my $lock_time        = $3;
+			my $current_time     = time;
+			my $timeout_time     = $lock_time + $an->data->{scancore}{locking}{reap_age};
+			my $lock_age         = $current_time - $lock_time;
+			$an->Log->entry({log_level => 3, message_key => "an_variables_0006", message_variables => {
+				name1 => "lock_source_name", value1 => $lock_source_name, 
+				name2 => "lock_source_uuid", value2 => $lock_source_uuid, 
+				name3 => "current_time",     value3 => $current_time, 
+				name4 => "lock_time",        value4 => $lock_time, 
+				name5 => "timeout_time",     value5 => $timeout_time, 
+				name6 => "lock_age",         value6 => $lock_age, 
+			}, file => $THIS_FILE, line => __LINE__});
+			
+			# If the lock is stale, delete it.
+			if ($current_time > $timeout_time)
+			{
+				# The lock is stale.
+				my $variable_uuid = $an->ScanCore->insert_or_update_variables({
+					variable_name     => $variable_name,
+					variable_value    => "",
+					update_value_only => 1,
+				});
+				$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
+					name1 => "variable_uuid", value1 => $variable_uuid, 
+				}, file => $THIS_FILE, line => __LINE__});
+			}
+			# Only wait if this isn't our own lock.
+			elsif ($lock_source_uuid ne $source_uuid)
+			{
+				# Mark 'wait', set inactive and sleep.
+				$an->DB->mark_active({set => 0});
+				
+				$waiting = 1;
+				$an->Log->entry({log_level => 3, message_key => "an_variables_0003", message_variables => {
+					name1 => "lock_source_uuid", value1 => $lock_source_uuid, 
+					name2 => "source_uuid",      value2 => $source_uuid, 
+					name3 => "waiting",          value3 => $waiting, 
+				}, file => $THIS_FILE, line => __LINE__});
+				sleep 5;
+			}
+		}
+	}
+	
+	# If I am here, there are no pending locks. Have I been asked to set one?
+	if ($request)
+	{
+		# Yup, do it.
+		my $variable_uuid = $an->ScanCore->insert_or_update_variables({
+			variable_name     => $variable_name,
+			variable_value    => $variable_value,
+			update_value_only => 1,
+		});
+		$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
+			name1 => "variable_uuid", value1 => $variable_uuid, 
+		}, file => $THIS_FILE, line => __LINE__});
+		
+		if ($variable_uuid)
+		{
+			$set = 1;
+			$an->data->{sys}{local_lock_active} = time;
+			$an->Log->entry({log_level => 3, message_key => "an_variables_0003", message_variables => {
+				name1 => "set",                    value1 => $set, 
+				name2 => "variable_uuid",          value2 => $variable_uuid, 
+				name3 => "sys::local_lock_active", value3 => $an->data->{sys}{local_lock_active}, 
+			}, file => $THIS_FILE, line => __LINE__});
+			
+			$an->Log->entry({log_level => 1, message_key => "tools_log_0038", message_variables => { host => $an->hostname }, file => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Now return.
+	return($set);
+}
+
+=head2 mark_active
+
+This sets or clears that the caller is about to work on the database
+
+Parameters;
+
+=head3 set (optional, default C<< 1 >>)
+
+If set to c<< 0 >>, 
+
+=cut
+sub mark_active
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $set = defined $parameter->{set} ? $parameter->{set} : 1;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+	
+	# If I haven't connected to a database yet, why am I here?
+	if (not $an->data->{sys}{read_db_id})
+	{
+		return(0);
+	}
+	
+	my $value = "false";
+	if ($set)
+	{
+		$value = "true";
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
+	
+	my $state_uuid = $an->Database->insert_or_update_states({
+		state_name      => "db_in_use",
+		state_host_uuid => $an->data->{sys}{host_uuid},
+		state_note      => $value,
+	});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
+	
+	return($state_uuid);
+}
 
 =head2 query
 
@@ -965,6 +1488,253 @@ sub write
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2 _find_behind_databases
+
+This returns the most up to date database ID, the time it was last updated and an array or DB IDs that are behind.
+
+If there is a problem, C<< undef >> is returned.
+
+Parameters;
+
+=head3 source (required)
+
+This is used the same as in C<< Database->connect >>'s C<< source >> parameter. Please read that for usage information.
+
+=head3 tables (optional)
+
+This is used the same as in C<< Database->connect >>'s C<< tables >> parameter. Please read that for usage information.
+
+=cut
+sub _find_behind_databases
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	$an->Log->entry({log_level => 3, title_key => "tools_log_0001", title_variables => { function => "find_behind_databases" }, message_key => "tools_log_0002", file => $THIS_FILE, line => __LINE__});
+	
+	my $source = $parameter->{source} ? $parameter->{source} : "";
+	my $tables = $parameter->{tables} ? $parameter->{tables} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		source => $source, 
+		tables => $tables, 
+	}});
+	
+	# This should always be set, but just in case...
+	if (not $source)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0105"});
+		return(undef);
+	}
+	
+	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
+	$an->data->{database}{general}{source_db_id}        = 0;
+	$an->data->{database}{general}{source_updated_time} = 0;
+	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
+	{
+		my $name = $an->data->{database}{$id}{name};
+		my $user = $an->data->{database}{$id}{user};
+		
+		# Read the table's last modified_date
+		my $query = "
+SELECT 
+    round(extract(epoch from modified_date)) 
+FROM 
+    updated 
+WHERE 
+    updated_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})."
+AND
+    updated_by = ".$an->data->{sys}{use_db_fh}->quote($source).";";
+;";";
+		
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			id    => $id, 
+			query => $query, 
+		});
+		my $last_updated = $an->DB->do_db_query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		   $last_updated = 0 if not defined $last_updated;
+		   
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			last_updated                             => $last_updated, 
+			"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
+		});
+		if ($last_updated > $an->data->{database}{general}{source_updated_time})
+		{
+			$an->data->{database}{general}{source_updated_time} = $last_updated;
+			$an->data->{database}{general}{source_db_id}        = $id;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"database::general::source_db_id"        => $an->data->{database}{general}{source_db_id}, 
+				"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
+			});
+		}
+		
+		# Get the last updated time for this database (and source).
+		$an->data->{database}{$id}{last_updated} = $last_updated;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
+			"database::general::source_db_id"        => $an->data->{database}{general}{source_db_id}, 
+			"database::${id}::last_updated"          => $an->data->{database}{$id}{last_updated}
+		});
+		
+		# If we have a tables hash, look into them, too.
+		if (ref($tables) eq "HASH")
+		{
+			foreach my $table (sort {$a cmp $b} keys %{$tables})
+			{
+				# I'm going to both check the number of entries in the history schema 
+				my $table_name  = $an->data->{sys}{use_db_fh}->quote($test_table);
+				   $table_name  =~ s/'(.*?)'/$1/;
+				my $host_column =  $an->data->{sys}{use_db_fh}->quote($tables->{$table});
+				   $host_column =~ s/'(.*?)'/$1/;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					table_name  => $table_name, 
+					host_column => $host_column,
+				});
+		
+				my $query       =  "
+SELECT 
+    round(extract(epoch from modified_date)) 
+FROM 
+    history.$table_name ";
+				if ($host_column)
+				{
+					$query .= "
+WHERE 
+    $host_column = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})."
+";
+				}
+				$query .= "
+ORDER BY 
+    modified_date DESC
+;";
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					id    => $id, 
+					query => $query, 
+				});
+				
+				my $last_updated = $an->DB->do_db_query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				   $last_updated = 0 if not defined $last_updated;
+				$an->data->{database}{$id}{tables}{$table}{last_updated} = $last_updated;
+				
+				### TODO: Left off here. Loop through these looking for differences in the tables.
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"database::${id}::tables::${table}::last_updated" => $an->data->{database}{$id}{tables}{$table}{last_updated}, 
+				});
+			}
+		}
+	}
+	
+	# Find which DB is most up to date.
+	$an->data->{database}{general}{to_update} = {};
+	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
+			"database::${id}::last_updated"          => $an->data->{database}{$id}{last_updated}, 
+		});
+		if ($an->data->{database}{general}{source_updated_time} > $an->data->{database}{$id}{last_updated})
+		{
+			# This database is behind
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0104", variables => {
+				id   => $id,
+				file => $file,
+			}});
+			
+			# A database is behind, resync
+			$an->Database->_mark_database_as_behind({id => $id});
+		}
+		else
+		{
+			# This database is up to date (so far).
+			$an->data->{database}{general}{to_update}{$id}{behind} = 0;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"database::general::to_update::${id}::behind" => $an->data->{database}{general}{to_update}{$id}{behind}, 
+			});
+		}
+		
+		# If we don't yet need a resync, and if we were passed one or more tables, check those tables
+		# for differences
+		if ((not $an->data->{database}{general}{resync_needed}) && (ref($tables) eq "HASH"))
+		{
+			foreach my $table (sort {$a cmp $b} keys %{$tables})
+			{
+				if (not defined $an->data->{database}{general}{tables}{$table}{last_updated})
+				{
+					# First we've seen, set the general updated time to this entry
+					$an->data->{database}{general}{tables}{$table}{last_updated} = $an->data->{database}{$id}{tables}{$table}{last_updated};
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"database::general::tables::${table}::last_updated" => $an->data->{database}{general}{tables}{$table}{last_updated}
+					});
+				}
+				
+				if ($an->data->{database}{general}{tables}{$table}{last_updated} > $an->data->{database}{$id}{tables}{$table}{last_updated})
+				{
+					# This database is behind
+					$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => {
+						id    => $id,
+						file  => $file,
+						table => $table, 
+					}});
+				}
+				
+				# Mark it as behind.
+				$an->Database->_mark_database_as_behind({id => $id});
+			}
+		}
+	}
+	
+	return(0);
+}
+
+=head2 _mark_database_as_behind
+
+This method marks that a resync is needed and, if needed, switches the database this machine will read from.
+
+Parameters;
+
+=head3 id
+
+This is the C<< id >> of the database being marked as "behind".
+
+=cut
+sub _mark_database_as_behind
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $id = $parameter->{id} ? $parameter->{id} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
+	
+	$an->data->{database}{general}{to_update}{$id}{behind} = 1;
+	$an->data->{database}{general}{resync_needed}          = 1;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"database::general::to_update::${id}::behind" => $an->data->{database}{general}{to_update}{$id}{behind}, 
+		"database::general::resync_needed"            => $an->data->{database}{general}{resync_needed}, 
+	});
+		
+	# We can't trust this database for reads, so switch to another database for reads if
+	# necessary.
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		id                => $id, 
+		"sys::read_db_id" => $an->data->{sys}{read_db_id}, 
+	});
+	}, file => $THIS_FILE, line => __LINE__});
+	if ($id eq $an->data->{sys}{read_db_id})
+	{
+		# Switch.
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> sys::read_db_id" => $an->data->{sys}{read_db_id} });
+		foreach my $this_id (sort {$a cmp $b} keys %{$an->data->{database}})
+		{
+			next if $this_id eq $id;
+			$an->data->{sys}{read_db_id} = $this_id;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< sys::read_db_id" => $an->data->{sys}{read_db_id} });
+			last;
+		}
+	}
+	
+	return(0);
+}
 
 =head2 _test_access
 

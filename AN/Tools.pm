@@ -578,6 +578,9 @@ sub _set_defaults
 			server		=>	"",
 			tag		=>	"an-tools",
 		},
+		sql		=>	{
+			test_table	=>	"hosts",
+		},
 		template	=>	{
 			html		=>	"alteeve",
 		},
@@ -640,6 +643,9 @@ sub _set_paths
 			},
 			sysfs			=>	{
 				network_interfaces	=>	"/sys/class/net",
+			},
+			sql			=>	{
+				'Tools.sql'		=>	"/usr/share/perl5/AN/Tools.sql",
 			},
 			urls		=>	{
 				skins			=>	"/skins",
