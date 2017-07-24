@@ -114,13 +114,13 @@ sub change_mode
 	if (not $target)
 	{
 		# No target...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0036"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "target" }});
 		$error = 1;
 	}
 	if (not $mode)
 	{
 		# No mode...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0037"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "mode" }});
 		$error = 1;
 	}
 	elsif (($mode !~ /^\d\d\d$/) && ($mode !~ /^\d\d\d\d$/))
@@ -199,7 +199,7 @@ sub change_owner
 	if (not $target)
 	{
 		# No target...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0039"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_owner()", parameter => "target" }});
 		$error = 1;
 	}
 	if (not -e $target)
@@ -284,7 +284,7 @@ sub copy_file
 	if (not $source)
 	{
 		# No source passed.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0044"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "source" }});
 		return(1);
 	}
 	elsif (not -e $source)
@@ -295,7 +295,7 @@ sub copy_file
 	if (not $target)
 	{
 		# No target passed.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0045"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "target" }});
 		return(2);
 	}
 	
@@ -650,7 +650,7 @@ sub read_file
 	
 	if (not $file)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_file()", parameter => "file" }});
 		return(undef);
 	}
 	elsif (not -e $file)
@@ -708,7 +708,7 @@ sub read_mode
 	
 	if (not $target)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_mode()", parameter => "target" }});
 		return(1);
 	}
 	

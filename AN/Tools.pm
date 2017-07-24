@@ -560,6 +560,11 @@ sub _set_defaults
 	my ($an) = shift;
 	
 	$an->data->{defaults} = {
+		database	=>	{
+			locking		=>	{
+				reap_age	=>	300,
+			}
+		},
 		language	=>	{
 			# Default language for all output shown to a user.
 			output		=>	'en_CA',

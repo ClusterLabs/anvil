@@ -177,6 +177,71 @@ CREATE TRIGGER trigger_alerts
 	FOR EACH ROW EXECUTE PROCEDURE history_alerts();
 
 
+-- This holds user-configurable variable. These values override defaults but NOT configuration files.
+CREATE TABLE variables (
+	variable_uuid			uuid				not null	primary key,	-- 
+	variable_name			text				not null,			-- This is the 'x::y::z' style variable name.
+	variable_value			text,								-- It is up to the software to sanity check variable values before they are stored
+	variable_default		text,								-- This acts as a reference for the user should they want to roll-back changes.
+	variable_description		text,								-- This is a string key that describes this variable's use.
+	variable_section		text,								-- This is a free-form field that is used when displaying the various entries to a user. This allows for the various variables to be grouped into sections.
+	variable_source_uuid		text,								-- Optional; Marks the variable as belonging to a specific X_uuid, where 'X' is a table name set in 'variable_source_table'
+	variable_source_table		text,								-- Optional; Marks the database table corresponding to the 'variable_source_uuid' value.
+	modified_date			timestamp with time zone	not null 
+);
+ALTER TABLE variables OWNER TO #!variable!user!#;
+
+CREATE TABLE history.variables (
+	history_id			bigserial,
+	variable_uuid			uuid,
+	variable_name			text,
+	variable_value			text,
+	variable_default		text,
+	variable_description		text,
+	variable_section		text,
+	variable_source_uuid		text,
+	variable_source_table		text,
+	modified_date			timestamp with time zone	not null 
+);
+ALTER TABLE history.variables OWNER TO #!variable!user!#;
+
+CREATE FUNCTION history_variables() RETURNS trigger
+AS $$
+DECLARE
+	history_variables RECORD;
+BEGIN
+	SELECT INTO history_variables * FROM variables WHERE variable_uuid = new.variable_uuid;
+	INSERT INTO history.variables
+		(variable_uuid,
+		 variable_name, 
+		 variable_value, 
+		 variable_default, 
+		 variable_description, 
+		 variable_section, 
+		 variable_source_uuid, 
+		 variable_source_table, 
+		 modified_date)
+	VALUES
+		(history_variables.variable_uuid,
+		 history_variables.variable_name, 
+		 history_variables.variable_value, 
+		 history_variables.variable_default, 
+		 history_variables.variable_description, 
+		 history_variables.variable_section, 
+		 history_variables.variable_source_uuid, 
+		 history_variables.variable_source_table, 
+		 history_variables.modified_date);
+	RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_variables() OWNER TO #!variable!user!#;
+
+CREATE TRIGGER trigger_variables
+	AFTER INSERT OR UPDATE ON variables
+	FOR EACH ROW EXECUTE PROCEDURE history_variables();
+
+
 -- ------------------------------------------------------------------------------------------------------- --
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --
 -- ------------------------------------------------------------------------------------------------------- --

@@ -402,7 +402,7 @@ sub users_home
 	if ($user eq "")
 	{
 		# No user? No bueno...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0060"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->users_home()", parameter => "user" }});
 		return($home_directory);
 	}
 	
@@ -418,7 +418,6 @@ sub users_home
 			last;
 		}
 	}
-	close $file_handle;
 	
 	# Do I have the a user's $HOME now?
 	if (not $home_directory)

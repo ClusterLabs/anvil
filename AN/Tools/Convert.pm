@@ -210,7 +210,7 @@ sub hostname_to_ip
 	
 	if (not $hostname)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0059"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->hostname_to_ip()", parameter => "hostnmae" }});
 		return($ip);
 	}
 	

@@ -348,7 +348,7 @@ sub ping
 		else
 		{
 			### Local calls
-			$output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." start ".$say_daemon."; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
+			$output = $an->System->call({shell_call => $shell_call});
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
 		}
 		
@@ -410,7 +410,8 @@ sub read_ssh_config
 	my $an   = $self->parent;
 	
 	# This will hold the raw contents of the file.
-	$an->data->{raw}{ssh_config} = $an->Storage->read_file({file => $an->data->{path}{configs}{ssh_config}});
+	my $this_host                   = "";
+	   $an->data->{raw}{ssh_config} = $an->Storage->read_file({file => $an->data->{path}{configs}{ssh_config}});
 	foreach my $line (split/\n/, $an->data->{raw}{ssh_config})
 	{
 		$line =~ s/#.*$//;
@@ -545,18 +546,18 @@ sub remote_call
 	if (not $shell_call)
 	{
 		# No shell call
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0055"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "shell_call" }});
 		return(undef);
 	}
 	if (not $target)
 	{
 		# No target
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0056"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "target" }});
 		return(undef);
 	}
 	if (not $user)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0057"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "user" }});
 		return(undef);
 	}
 	

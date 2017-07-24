@@ -132,7 +132,7 @@ sub check_alert_sent
 	if (not $name)
 	{
 		# Nope
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "name" }});
 		return(undef);
 	}
 	
@@ -140,7 +140,7 @@ sub check_alert_sent
 	if (not $record_locator)
 	{
 		# Nope
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0095"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "record_locator" }});
 		return(undef);
 	}
 	
@@ -148,7 +148,7 @@ sub check_alert_sent
 	if (not $set_by)
 	{
 		# Nope
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "set_by" }});
 		return(undef);
 	}
 	
@@ -171,11 +171,11 @@ FROM
 WHERE 
     alert_sent_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})." 
 AND 
-    alert_set_by         = ".$an->data->{sys}{use_db_fh}->quote($alert_set_by)." 
+    alert_set_by         = ".$an->data->{sys}{use_db_fh}->quote($set_by)." 
 AND 
-    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($alert_record_locator)." 
+    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($record_locator)." 
 AND 
-    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($alert_name)."
+    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($name)."
 ;";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
@@ -213,9 +213,9 @@ WHERE
 				# Too early, we can't set an alert.
 				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0098", variables => {
 					type			=>	$type, 
-					alert_set_by		=>	$alert_set_by, 
-					alert_record_locator	=>	$alert_record_locator, 
-					alert_name		=>	$alert_name, 
+					alert_set_by		=>	$set_by, 
+					alert_record_locator	=>	$record_locator, 
+					alert_name		=>	$name, 
 					modified_date		=>	$modified_date,
 				}});
 				return(undef);
@@ -239,9 +239,9 @@ INSERT INTO
     modified_date
 ) VALUES (
     ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_set_by).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_record_locator).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_name).", 
+    ".$an->data->{sys}{use_db_fh}->quote($set_by).", 
+    ".$an->data->{sys}{use_db_fh}->quote($record_locator).", 
+    ".$an->data->{sys}{use_db_fh}->quote($name).", 
     ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
 );
 ";
@@ -261,17 +261,17 @@ DELETE FROM
 WHERE 
     alert_sent_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})." 
 AND 
-    alert_set_by        = ".$an->data->{sys}{use_db_fh}->quote($alert_set_by)." 
+    alert_set_by        = ".$an->data->{sys}{use_db_fh}->quote($set_by)." 
 AND 
-    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($alert_record_locator)." 
+    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($record_locator)." 
 AND 
-    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($alert_name)."
+    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($name)."
 ;";
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			query => $query,
 			set   => $set, 
 		}});
-		$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+		$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
@@ -312,12 +312,12 @@ sub register_alert
 	
 	if (not $set_by)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "set_by" }});
 		return(undef);
 	}
 	if (not $message_key)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0100"});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "message_key" }});
 		return(undef);
 	}
 	if (($header) && (not $title_key))
@@ -327,26 +327,24 @@ sub register_alert
 	}
 	
 	# zero-pad sort numbers so that they sort properly.
-	$alert_sort = sprintf("%04d", $alert_sort);
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sort => $alert_sort }});
+	$sort = sprintf("%04d", $sort);
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sort => $sort }});
 	
 	# Convert the hash of title variables and message variables into '!!x!y!!,!!a!b!!,...' strings.
-	my $title_variables = "";
-	if (ref($alert_title_variables) eq "HASH")
+	if (ref($title_variables) eq "HASH")
 	{
-		foreach my $key (sort {$a cmp $b} keys %{$alert_title_variables})
+		foreach my $key (sort {$a cmp $b} keys %{$title_variables})
 		{
-			$alert_title_variables->{$key} = "--" if not defined $alert_title_variables->{$key};
-			$title_variables .= "!!$key!".$alert_title_variables->{$key}."!!,";
+			$title_variables->{$key} = "--" if not defined $title_variables->{$key};
+			$title_variables .= "!!$key!".$title_variables->{$key}."!!,";
 		}
 	}
-	my $message_variables = "";
-	if (ref($alert_message_variables) eq "HASH")
+	if (ref($message_variables) eq "HASH")
 	{
-		foreach my $key (sort {$a cmp $b} keys %{$alert_message_variables})
+		foreach my $key (sort {$a cmp $b} keys %{$message_variables})
 		{
-			$alert_message_variables->{$key} = "--" if not defined $alert_message_variables->{$key};
-			$message_variables .= "!!$key!".$alert_message_variables->{$key}."!!,";
+			$message_variables->{$key} = "--" if not defined $message_variables->{$key};
+			$message_variables .= "!!$key!".$message_variables->{$key}."!!,";
 		}
 	}
 	
@@ -392,16 +390,16 @@ sub register_alert
 	}
 	
 	# Now get the numeric value of this alert and return if it is higher.
-	my $this_level = $an->Alert->convert_level_name_to_number({level => $alert_level});
+	my $this_level = $an->Alert->convert_level_name_to_number({level => $level});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		alert_level      => $alert_level,
+		alert_level      => $level,
 		this_level       => $this_level,
 		lowest_log_level => $lowest_log_level,
 	}});
 	if ($this_level > $lowest_log_level)
 	{
 		# Return.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0102", variables => { message_key => $alert_message_key }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0102", variables => { message_key => $message_key }});
 		return(0);
 	}
 	
@@ -424,19 +422,19 @@ INSERT INTO
 ) VALUES (
     ".$an->data->{sys}{use_db_fh}->quote($an->Get->uuid()).", 
     ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_set_by).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_level).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_title_key).", 
+    ".$an->data->{sys}{use_db_fh}->quote($set_by).", 
+    ".$an->data->{sys}{use_db_fh}->quote($level).", 
+    ".$an->data->{sys}{use_db_fh}->quote($title_key).", 
     ".$an->data->{sys}{use_db_fh}->quote($title_variables).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_message_key).", 
+    ".$an->data->{sys}{use_db_fh}->quote($message_key).", 
     ".$an->data->{sys}{use_db_fh}->quote($message_variables).",
-    ".$an->data->{sys}{use_db_fh}->quote($alert_sort).", 
-    ".$an->data->{sys}{use_db_fh}->quote($alert_header).", 
+    ".$an->data->{sys}{use_db_fh}->quote($sort).", 
+    ".$an->data->{sys}{use_db_fh}->quote($header).", 
     ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
 );
 ";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+	$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	
 	return(0);
 }
