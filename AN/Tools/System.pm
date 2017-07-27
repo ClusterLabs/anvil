@@ -18,6 +18,7 @@ my $THIS_FILE = "System.pm";
 # ping
 # read_ssh_config
 # remote_call
+# reload_daemon
 # start_daemon
 # stop_daemon
 
@@ -293,7 +294,7 @@ sub ping
 	my $ping     = $parameter->{ping}     ? $parameter->{ping}     : "";
 	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
 	my $target   = $parameter->{target}   ? $parameter->{target}   : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		count    => $count, 
 		fragment => $fragment, 
 		payload  => $payload, 
@@ -307,28 +308,28 @@ sub ping
 	if ($payload)
 	{
 		$payload -= 28;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { payload => $payload }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { payload => $payload }});
 	}
 	
 	# Build the call
 	my $shell_call = $an->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	if (not $fragment)
 	{
 		$shell_call .= " -M do";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	}
 	if ($payload)
 	{
 		$shell_call .= " -s $payload";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	}
 	
 	my $pinged            = 0;
 	my $average_ping_time = 0;
 	foreach my $try (1..$count)
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count, try => $try }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count, try => $try }});
 		last if $pinged;
 		
 		my $output = "";
@@ -343,24 +344,24 @@ sub ping
 				port       => $port, 
 				password   => $password,
 			});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 		}
 		else
 		{
 			### Local calls
 			$output = $an->System->call({shell_call => $shell_call});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 		}
 		
 		foreach my $line (split/\n/, $output)
 		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 			if ($line =~ /(\d+) packets transmitted, (\d+) received/)
 			{
 				# This isn't really needed, but might help folks watching the logs.
 				my $pings_sent     = $1;
 				my $pings_received = $2;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					pings_sent     => $pings_sent,
 					pings_received => $pings_received, 
 				}});
@@ -369,7 +370,7 @@ sub ping
 				{
 					# Contact!
 					$pinged = 1;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pinged => $pinged }});
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pinged => $pinged }});
 				}
 				else
 				{
@@ -381,14 +382,14 @@ sub ping
 			if ($line =~ /min\/avg\/max\/mdev = .*?\/(.*?)\//)
 			{
 				$average_ping_time = $1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { average_ping_time => $average_ping_time }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { average_ping_time => $average_ping_time }});
 			}
 		}
 	}
 	
 	# 0 == Ping failed
 	# 1 == Ping success
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		pinged            => $pinged,
 		average_ping_time => $average_ping_time,
 	}});
@@ -851,6 +852,45 @@ sub remote_call
 	return($error, $output);
 };
 
+=head2 reload_daemon
+
+This method reloads a daemon (typically to pick up a change in configuration). The return code from the start request will be returned.
+
+If the return code for the reload command wasn't read, C<< undef >> is returned. If it did reload, C<< 0 >> is returned. If the reload failed, a non-0 return code will be returned.
+
+Parameters;
+
+=head3 daemon (required)
+
+This is the name of the daemon to reload.
+
+=cut
+sub reload_daemon
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $return     = undef;
+	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." reload ".$say_daemon."; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		if ($line =~ /return_code:(\d+)/)
+		{
+			$return = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+	return($return);
+}
+
 =head2 start_daemon
 
 This method starts a daemon. The return code from the start request will be returned.
@@ -879,6 +919,7 @@ sub start_daemon
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /return_code:(\d+)/)
 		{
 			$return = $1;

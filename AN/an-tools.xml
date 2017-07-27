@@ -87,11 +87,11 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0043"><![CDATA[[ Error ] - The method System->call() was called but 'shell_call' was not passed or was empty.]]></key>
 		<key name="log_0044">The host: [#!variable!host!#] has renewed its database lock.</key>
 		<key name="log_0045">The host: [#!variable!host!#] is requesting a database lock.</key>
-		<key name="log_0046"><![CDATA[[ Error ] - The method Storage->copy_file() was asked to copy: [#!variable!source!#] to: [#!variable!target!#], but the target already exists and 'overwrite' wasn't specified, so aborting.]]></key>
+		<key name="log_0046"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source!#] to: [#!variable!target!#], but the target already exists and 'overwrite' wasn't specified, skipping.]]></key>
 		<key name="log_0047"><![CDATA[[ Error ] - The method Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
 		<key name="log_0048"><![CDATA[[ Warning ] - Testing of AN::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
 		<key name="log_0049"><![CDATA[[ Warning ] - Testing of AN::Tools is complete.]]></key>
-		<key name="log_0050">#!free!#</key>
+		<key name="log_0050">[ Error ] - There is a local database defined, but it does not appear to exist and we could not initialize the database server. Is 'postgresql-server' installed?</key>
 		<key name="log_0051"><![CDATA[[ Error ] - The method Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
 		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->copy_file() was called but the source file: [#!variable!source!#] doesn't exist.]]></key>
 		<key name="log_0053"><![CDATA[[ Error ] - The 'Database->connect()' method tried to connect to the same database twice: [#!variable!target!#].]]></key>
@@ -105,12 +105,12 @@ Connecting to Database with configuration ID: [#!variable!id!#]
 - user: ............ [#!variable!user!#]
 - password: ........ [#!variable!password!#]
 		</key>
-		<key name="log_0055">#!free!#</key>
-		<key name="log_0056">#!free!#</key>
-		<key name="log_0057">#!free!#</key>
+		<key name="log_0055">Initialized PostgreSQL.</key>
+		<key name="log_0056">Updated: [#!variable!file!#] to listen on all interfaces.</key>
+		<key name="log_0057">Updated: [#!variable!file!#] to require passwords for access.</key>
 		<key name="log_0058"><![CDATA[[ Error ] - The method System->remote_call() was called but the port: [#!variable!port!#] is invalid. It must be a digit between '1' and '65535'.]]></key>
-		<key name="log_0059">#!free!#</key>
-		<key name="log_0060">#!free!#</key>
+		<key name="log_0059">Started the PostgreSQL database server.</key>
+		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!id!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
 		<key name="log_0063">The database with the ID: [#!variable!id!#] did not respond to pings and 'database::#!variable!id!#::ping_before_connect' is not set to '0' in '#!data!path::configs::striker.conf!#', skipping it.</key>
@@ -155,9 +155,9 @@ The database connection error was:
 		<key name="log_0091">Failed to connect to any database.</key>
 		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!id!#]_.]]></key>
 		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'modified_date' parameter was not passed and/or 'sys::db_timestamp' is not set. Did the program fail to connect to any databases?]]></key>
-		<key name="log_0094">#!free!#</key>
-		<key name="log_0095">#!free!#</key>
-		<key name="log_0096">#!free!#</key>
+		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
+		<key name="log_0095">The database user: [#!variable!user!#] was created with ID: [#!variable!id!#].</key>
+		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
 		<key name="log_0097"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'set' parameter was not passed or it is empty. It should be 'set' or 'clear'.]]></key>
 		<key name="log_0098">
 [ Warning ] - Failed to set an alert because this host is not yet in the database. This can happen if the alert was set before this host was added to the database.
@@ -168,16 +168,21 @@ The database connection error was:
 - Name:           [#!variable!alert_name!#]
 - Timestamp:      [#!variable!modified_date!#]
 		</key>
-		<key name="log_0099">#!free!#</key>
-		<key name="log_0100">#!free!#</key>
+		<key name="log_0099">[ Error ] - There is no ScanCore database user set for the local machine. Please check: [#!data!path::config::striker.conf!#]'s DB entry: [#!variable!id!#].</key>
+		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
 		<key name="log_0101"><![CDATA[[ Error ] - The method Alert->register_alert() was called but the 'title_key' parameter was not passed or it is empty and 'header' is enable (default).]]></key>
 		<key name="log_0102">I am not recording the alert with message_key: [#!variable!message_key!#] to the database because its log level was lower than any recipients.</key>
 		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">The database with ID: [#!variable!id!#] for: [#!variable!file!#] is behind.</key>
-		<key name="log_0105">#!free!#</key>
+		<key name="log_0105">ScanCore database: [#!variable!database!#] already exists.</key>
 		<key name="log_0106">The database with ID: [#!variable!id!#] for: [#!variable!file!#] and table: [#!variable!table!#] is behind.</key>
-		<key name="log_0107">#!free!#</key>
+		<key name="log_0107">[ Warning ] - Failed to delete the temporary postgres password.</key>
 		<key name="log_0108"><![CDATA[[ Error ] - The method Database->insert_or_update_states() was called but the 'state_host_uuid' parameter was not passed or it is empty. Normally this is set to 'sys::data_uuid'.]]></key>
+		<key name="log_0109">[ Error ] - Failed to create the ScanCore database: [#!variable!database!#]</key>
+		<key name="log_0110">ScanCore database: [#!variable!database!#] created.</key>
+		<key name="log_0111">[ Warning ] - Failed to reload the Postgres server. Please check the system logs for details. The updated configuration is probably not active yet.</key>
+		<key name="log_0112">Reloaded the PostgreSQL database server.</key>
+		<key name="log_0113"><![CDATA[[ Note ] - The 'Database->configure_pgsql() method was called but the parent program is not running with root priviledges. Returning without doing anything.]]>.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

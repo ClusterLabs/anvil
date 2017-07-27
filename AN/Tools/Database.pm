@@ -5,12 +5,14 @@ package AN::Tools::Database;
 
 use strict;
 use warnings;
+use DBI;
 use Data::Dumper;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
 
 ### Methods;
+# configure_pgsql
 # connect
 # disconnect
 # get_local_id
@@ -79,6 +81,354 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 configure_pgsql
+
+This configures the local database server. Specifically, it checks to make sure the daemon is running and starts it if not. It also checks the 'pg_hba.conf' configuration to make sure it is set properly to listen on this machine's IP addresses and interfaces.
+
+If the system is already configured, this method will do nothing, so it is safe to call it at any time.
+
+If there is a problem, C<< undef >> is returned.
+
+Parameters;
+
+=head3 id (required)
+
+This is the ID of the local database in the local configuration file that will be used to configure the local system.
+
+=cut
+sub configure_pgsql
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $id = defined $parameter->{id} ? $parameter->{id} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
+	
+	if (not $id)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->configure_pgsql()", parameter => "id" }});
+		return(undef);
+	}
+	
+	# If we're not running with root access, return.
+	if (($< != 0) && ($> != 0))
+	{
+		# This is a minor error as it will be hit by every unpriviledged program that connects to the
+		# database(s).
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "log_0113"});
+		return(undef);
+	}
+	
+	# First, is it running?
+	my $running = $an->System->check_daemon({daemon => "postgresql"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+	
+	if (not $running)
+	{
+		# Do we need to initialize the databae?
+		if (not -e $an->data->{path}{configs}{'pg_hba.conf'})
+		{
+			# Initialize.
+			my $output = $an->System->call({shell_call => $an->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			
+			# Did it succeed?
+			if (not -e $an->data->{path}{configs}{'pg_hba.conf'})
+			{
+				# Failed... 
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+				return(undef);
+			}
+			else
+			{
+				# Initialized!
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
+			}
+		}
+	}
+	
+	# Setup postgresql.conf, if needed
+	my $postgresql_conf        = $an->Storage->read_file({file => $an->data->{path}{configs}{'postgresql.conf'}});
+	my $update_postgresql_file = 1;
+	my $new_postgresql_conf    = "";
+	foreach my $line (split/\n/, $postgresql_conf)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /^listen_addresses = '\*'/)
+		{
+			# No need to update.
+			$update_postgresql_file = 0;
+			last;
+		}
+		elsif ($line =~ /^#listen_addresses = 'localhost'/)
+		{
+			# Inject the new listen_addresses
+			$new_postgresql_conf .= "# This has been changed by AN::Tools::Database->configure_pgsql() to enable\n";
+			$new_postgresql_conf .= "# listening on all interfaces.\n";
+			$new_postgresql_conf .= "#listen_addresses = 'localhost'\n";
+			$new_postgresql_conf .= "listen_addresses = '*'\n";
+		}
+		$new_postgresql_conf .= $line."\n";
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_postgresql_file => $update_postgresql_file }});
+	if ($update_postgresql_file)
+	{
+		# Back up the existing one, if needed.
+		my $postgresql_backup = $an->data->{path}{directories}{backups}."/pgsql/postgresql.conf";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { postgresql_backup => $postgresql_backup }});
+		if (not -e $postgresql_backup)
+		{
+			$an->Storage->copy_file({source => $an->data->{path}{configs}{'postgresql.conf'}, target => $postgresql_backup});
+		}
+		
+		# Write the updated one.
+		$an->Storage->write_file({
+			file      => $an->data->{path}{configs}{'postgresql.conf'}, 
+			body      => $new_postgresql_conf,
+			user      => "postgres", 
+			group     => "postgres",
+			mode      => "0600",
+			overwrite => 1,
+		});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0056", variables => { file => $an->data->{path}{configs}{'postgresql.conf'} }});
+	}
+	
+	# Setup pg_hba.conf now, if needed.
+	my $pg_hba_conf        = $an->Storage->read_file({file => $an->data->{path}{configs}{'pg_hba.conf'}});
+	my $update_pg_hba_file = 1;
+	my $new_pg_hba_conf    = "";
+	foreach my $line (split/\n/, $pg_hba_conf)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /^host\s+all\s+all\s+\all\s+md5$/)
+		{
+			# No need to update.
+			$update_pg_hba_file = 0;
+			last;
+		}
+		elsif ($line =~ /^# TYPE\s+DATABASE/)
+		{
+			# Inject the new listen_addresses
+			$new_pg_hba_conf .= $line."\n";
+			$new_pg_hba_conf .= "host\tall\t\tall\t\tall\t\t\tmd5\n";
+		}
+		else
+		{
+			$new_pg_hba_conf .= $line."\n";
+		}
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_pg_hba_file => $update_pg_hba_file }});
+	if ($update_pg_hba_file)
+	{
+		# Back up the existing one, if needed.
+		my $pg_hba_backup = $an->data->{path}{directories}{backups}."/pgsql/pg_hba.conf";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pg_hba_backup => $pg_hba_backup }});
+		if (not -e $pg_hba_backup)
+		{
+			$an->Storage->copy_file({source => $an->data->{path}{configs}{'pg_hba.conf'}, target => $pg_hba_backup});
+		}
+		
+		# Write the new one.
+		$an->Storage->write_file({
+			file      => $an->data->{path}{configs}{'pg_hba.conf'}, 
+			body      => $new_pg_hba_conf,
+			user      => "postgres", 
+			group     => "postgres",
+			mode      => "0600",
+			overwrite => 1,
+		});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0057", variables => { file => $an->data->{path}{configs}{'postgresql.conf'} }});
+	}
+	
+	# Start or restart the daemon?
+	if (not $running)
+	{
+		# Start the daemon.
+		my $return_code = $an->System->start_daemon({daemon => "postgresql"});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		if ($return_code eq "0")
+		{
+			# Started the daemon.
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
+		}
+		else
+		{
+			# Failed to start
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
+			return(undef);
+		}
+	}
+	elsif (($update_postgresql_file) or ($update_pg_hba_file))
+	{
+		# Reload
+		my $return_code = $an->System->start_daemon({daemon => "postgresql"});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		if ($return_code eq "0")
+		{
+			# Reloaded the daemon.
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0112"});
+		}
+		else
+		{
+			# Failed to reload
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0111"});
+		}
+	}
+	
+	### TODO: This might be a security issue... We create the file owned as root with 600 permissions, 
+	###       but if we're not doing something write, we might still be exposing the password for a 
+	###       moment... 
+	# Create the .pgpass file, if needed.
+	my $created_pgpass = 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
+		'path::secure::postgres_pgpass' => $an->data->{path}{secure}{postgres_pgpass},
+		"database::${id}::password"     => $an->data->{database}{$id}{password}, 
+	}});
+	if ((not -e $an->data->{path}{secure}{postgres_pgpass}) && ($an->data->{database}{$id}{password}))
+	{
+		my $body = "*:*:*:postgres:".$an->data->{database}{$id}{password}."\n";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { body => $body }});
+		$an->Storage->write_file({
+			file      => $an->data->{path}{secure}{postgres_pgpass},  
+			body      => $body,
+			user      => "postgres", 
+			group     => "postgres",
+			mode      => "0600",
+			overwrite => 1,
+			secure    => 1,
+		});
+		if (-e $an->data->{path}{secure}{postgres_pgpass})
+		{
+			$created_pgpass = 1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { created_pgpass => $created_pgpass }});
+		}
+	}
+	
+	# Does the database user exist?
+	my $create_user   = 1;
+	my $scancore_user = $an->data->{database}{$id}{user};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scancore_user => $scancore_user }});
+	if (not $scancore_user)
+	{
+		# No database user defined
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { id => $id }});
+		return(undef);
+	}
+	my $user_list = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_list => $user_list }});
+	foreach my $line (split/\n/, $user_list)
+	{
+		if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
+		{
+			# User exists already
+			my $id = $1;
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0060", variables => { user => $scancore_user, id => $id }});
+			$create_user = 0;
+			last;
+		}
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_user => $create_user }});
+	if ($create_user)
+	{
+		# Create the user
+		my $create_output = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $scancore_user\"", source => $THIS_FILE, line => __LINE__});
+		my $user_list     = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+		my $user_exists   = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output, user_list => $user_list }});
+		foreach my $line (split/\n/, $user_list)
+		{
+			if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
+			{
+				# Success!
+				my $id = $1;
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0095", variables => { user => $scancore_user, id => $id }});
+				$user_exists = 1;
+				last;
+			}
+		}
+		if (not $user_exists)
+		{
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $scancore_user }});
+			return(undef);
+		}
+		
+		# Update/set the passwords.
+		if ($an->data->{database}{$id}{password})
+		{
+			foreach my $user ("postgres", $scancore_user)
+			{
+				my $update_output = $an->System->call({secure => 1, shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$an->data->{database}{$id}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { update_output => $update_output }});
+				foreach my $line (split/\n/, $user_list)
+				{
+					if ($line =~ /ALTER ROLE/)
+					{
+						# Password set
+						$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0100", variables => { user => $user }});
+					}
+				}
+			}
+		}
+	}
+	
+	# Create the database, if needed.
+	my $create_database   = 1;
+	my $scancore_database = $an->data->{database}{$id}{name};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "database::${id}::name" => $an->data->{database}{$id}{name} }});
+	
+	my $database_list = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+	foreach my $line (split/\n/, $database_list)
+	{
+		if ($line =~ /^ $scancore_database$/)
+		{
+			# Database already exists.
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0105", variables => { database => $scancore_database }});
+			$create_database = 0;
+			last;
+		}
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_database => $create_database }});
+	if ($create_database)
+	{
+		my $create_output = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{createdb}."  --owner $scancore_user $scancore_database\"", source => $THIS_FILE, line => __LINE__});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output }});
+		
+		my $database_exists = 0;
+		my $database_list   = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+		foreach my $line (split/\n/, $database_list)
+		{
+			if ($line =~ /^ $scancore_database$/)
+			{
+				# Database created
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0110", variables => { database => $scancore_database }});
+				$database_exists = 1;
+				last;
+			}
+		}
+		if (not $database_exists)
+		{
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $scancore_database }});
+			return(undef);
+		}
+	}
+	
+	# Remove the temporary password file.
+	if (($created_pgpass) && (-e $an->data->{path}{secure}{postgres_pgpass}))
+	{
+		unlink $an->data->{path}{secure}{postgres_pgpass};
+		if (-e $an->data->{path}{secure}{postgres_pgpass})
+		{
+			# Failed to unlink the file.
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0107"});
+		}
+	}
+	
+	return(0);
+}
 
 =head2 connect_to_databases
 
@@ -256,11 +606,29 @@ sub connect
 			}
 		}
 		
+		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
+		if (($host eq $an->_hostname)       or 
+		    ($host eq $an->_short_hostname) or 
+		    ($host eq "localhost")          or 
+		    ($host eq "127.0.0.1")          or 
+		(not $an->data->{sys}{read_db_id}))
+		{
+			$an->data->{sys}{read_db_id} = $id;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
+			
+			# Set it up (or update it) if needed. This method just returns if nothing is needed.
+			$an->Database->configure_pgsql({id => $id});
+		}
+		
 		# Connect!
 		my $dbh = "";
 		### NOTE: The Database->write() method, when passed an array, will automatically disable 
 		###       autocommit, do the bulk write, then commit when done.
 		# We connect with fatal errors, autocommit and UTF8 enabled.
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			db_connect_string => $db_connect_string, 
+			user              => $user, 
+		}});
 		eval { $dbh = DBI->connect($db_connect_string, $user, $password, {
 			RaiseError     => 1,
 			AutoCommit     => 1,
@@ -321,7 +689,7 @@ sub connect
 					port => $port,
 				};
 			}
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => { $variables }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables });
 		}
 		elsif ($dbh =~ /^DBI::db=HASH/)
 		{
@@ -336,6 +704,12 @@ sub connect
 				name => $name,
 				id   => $id,
 			}});
+			
+			if (not $an->data->{sys}{use_db_fh})
+			{
+				$an->data->{sys}{use_db_fh} = $dbh;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::use_db_fh' => $an->data->{sys}{use_db_fh} }});
+			}
 			
 			# Now that I have connected, see if my 'hosts' table exists.
 			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$an->data->{sys}{use_db_fh}->quote($test_table)." AND schemaname='public';";
@@ -480,7 +854,7 @@ sub connect
 					alert_level		=>	"warning", 
 					alert_agent_name	=>	"ScanCore",
 					alert_title_key		=>	"an_alert_title_0006",
-					alert_message_key	=>	"cleared_message_0001",
+					alert_message_key	=>	"cleared_log_0055",
 					alert_message_variables	=>	{
 						name			=>	$an->data->{database}{$id}{name},
 						host			=>	$an->data->{database}{$id}{host},

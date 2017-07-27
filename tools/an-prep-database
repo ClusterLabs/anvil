@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 # 
-# This checks the state of the database server and, if necessary, sets up the database.
+# This checks the state of the postgresql database server and, if necessary, configures it for external 
+# access, initializes it and gets it running.
 # 
 # Exit codes;
 # 0 = Normal exit.
@@ -30,7 +31,7 @@ $an->Log->level({set => 2});
 $an->Log->secure({set => 1});
 
 # Paths
-$an->data->{path}{tools}{'scancore-database'}      = "/usr/sbin/striker/scancore-database";
+$an->data->{path}{tools}{'an-prep-database'}      = "/usr/sbin/striker/scancore-database";
 $an->data->{path}{tools}{'scancore-update-states'} = "/usr/sbin/striker/scancore-update-states";
 $an->data->{path}{config}{'striker.conf'}          = "/etc/striker/striker.conf";
 
