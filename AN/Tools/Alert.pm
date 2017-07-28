@@ -179,7 +179,7 @@ AND
 ;";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
-	my $count = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		type  => $type,
 		query => $query,
@@ -205,7 +205,7 @@ WHERE
 ;";
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 
-			my $count = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 			
 			if (not $count)

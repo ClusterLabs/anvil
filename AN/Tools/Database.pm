@@ -145,6 +145,10 @@ sub configure_pgsql
 			{
 				# Initialized!
 				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
+				
+				# Enable it on boot.
+				my $return_code = $an->System->enable_daemon({daemon => "postgresql"});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 			}
 		}
 	}
@@ -521,6 +525,8 @@ sub connect
 		test_table => $test_table, 
 	}});
 	
+	$an->data->{sys}{db_timestamp} = "" if not defined $an->data->{sys}{db_timestamp};
+	
 	# We need the host_uuid before we connect.
 	if (not $an->data->{sys}{host_uuid})
 	{
@@ -533,7 +539,7 @@ sub connect
 	$an->data->{sys}{local_db_id} = "";
 	
 	# This will be set to '1' if either DB needs to be initialized or if the last_updated differs on any node.
-	$an->data->{database}{general}{resync_needed} = 0;
+	$an->data->{sys}{database}{resync_needed} = 0;
 	
 	# Now setup or however-many connections
 	my $seen_connections       = [];
@@ -542,7 +548,6 @@ sub connect
 	my $successful_connections = [];
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
-		next if $id eq "general";	# This is used for global values.
 		my $driver   = "DBI:Pg";
 		my $host     = $an->data->{database}{$id}{host}     ? $an->data->{database}{$id}{host}     : ""; # This should fail
 		my $port     = $an->data->{database}{$id}{port}     ? $an->data->{database}{$id}{port}     : 5432;
@@ -750,7 +755,7 @@ sub connect
 			# Get a time stamp for this run, if not yet gotten.
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"cache::db_fh::$id" => $an->data->{cache}{db_fh}{$id}, 
-				"sys::db_timestamp" => $an->data->{sys}{db_timestamp}
+				"sys::db_timestamp" => $an->data->{sys}{db_timestamp},
 			}});
 			
 			# Pick a timestamp for this run, if we haven't yet.
@@ -795,11 +800,11 @@ sub connect
 		
 		# If I've not sent an alert about this DB loss before, send one now.
 		my $set = $an->Alert->check_alert_sent({
-			type			=>	"set",
-			alert_set_by		=>	$THIS_FILE,
-			alert_record_locator	=>	$id,
-			alert_name		=>	"connect_to_db",
-			modified_date		=>	$an->data->{sys}{db_timestamp},
+			type		=>	"set",
+			set_by		=>	$THIS_FILE,
+			record_locator	=>	$id,
+			name		=>	"connect_to_db",
+			modified_date	=>	$an->data->{sys}{db_timestamp},
 		});
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
 		
@@ -842,11 +847,11 @@ sub connect
 		if ($count > 0)
 		{
 			my $cleared = $an->Alert->check_alert_sent({
-				type			=>	"clear",
-				alert_sent_by		=>	$THIS_FILE,
-				alert_record_locator	=>	$id,
-				alert_name		=>	"connect_to_db",
-				modified_date		=>	$an->data->{sys}{db_timestamp},
+				type		=>	"clear",
+				sent_by		=>	$THIS_FILE,
+				record_locator	=>	$id,
+				name		=>	"connect_to_db",
+				modified_date	=>	$an->data->{sys}{db_timestamp},
 			});
 			if ($cleared)
 			{
@@ -878,9 +883,9 @@ sub connect
 	
 	# For now, we just find which DBs are behind and let each agent deal with bringing their tables up to
 	# date.
-	$an->database->_find_behind_databases({
+	$an->Database->_find_behind_databases({
 		source => $source, 
-		tables => $$tables,
+		tables => $tables,
 	});
 	
 	# Hold if a lock has been requested.
@@ -949,7 +954,6 @@ sub get_local_id
 	my $network_details = $an->Get->network_details;
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
-		next if $id eq "general";	# This is used for global values.
 		if ($network_details->{hostname} eq $an->data->{database}{$id}{host})
 		{
 			$local_id = $id;
@@ -964,7 +968,6 @@ sub get_local_id
 			my $subnet_mask = $network_details->{interface}{$interface}{netmask};
 			foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 			{
-				next if $id eq "general";	# This is used for global values.
 				if ($ip_address eq $an->data->{database}{$id}{host})
 				{
 					$local_id = $id;
@@ -1062,7 +1065,7 @@ sub initialize
 	$an->data->{sys}{db_initialized}{$id} = 1;
 	
 	# Mark that we need to update the DB.
-	$an->data->{database}{general}{resync_needed} = 1;
+	$an->data->{sys}{database}{resync_needed} = 1;
 	
 	return($success);
 };
@@ -2157,18 +2160,18 @@ sub write
 	my $limit     = 25000;
 	my $count     = 0;
 	my $query_set = [];
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "database::general::maximum_batch_size" => $an->data->{database}{general}{maximum_batch_size} }});
-	if ($an->data->{database}{general}{maximum_batch_size})
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
+	if ($an->data->{sys}{database}{maximum_batch_size})
 	{
-		if ($an->data->{database}{general}{maximum_batch_size} =~ /\D/)
+		if ($an->data->{sys}{database}{maximum_batch_size} =~ /\D/)
 		{
 			# Bad value.
-			$an->data->{database}{general}{maximum_batch_size} = 25000;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "database::general::maximum_batch_size" => $an->data->{database}{general}{maximum_batch_size} }});
+			$an->data->{sys}{database}{maximum_batch_size} = 25000;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
 		}
 		
 		# Use the set value now.
-		$limit = $an->data->{database}{general}{maximum_batch_size};
+		$limit = $an->data->{sys}{database}{maximum_batch_size};
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { limit => $limit }});
 	}
 	if (ref($query) eq "ARRAY")
@@ -2336,8 +2339,8 @@ sub _find_behind_databases
 	}
 	
 	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
-	$an->data->{database}{general}{source_db_id}        = 0;
-	$an->data->{database}{general}{source_updated_time} = 0;
+	$an->data->{sys}{database}{source_db_id}        = 0;
+	$an->data->{sys}{database}{source_updated_time} = 0;
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
 		my $name = $an->data->{database}{$id}{name};
@@ -2362,25 +2365,25 @@ AND
 		   $last_updated = 0 if not defined $last_updated;
 		   
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			last_updated                             => $last_updated, 
-			"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
+			last_updated                         => $last_updated, 
+			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
 		}});
-		if ($last_updated > $an->data->{database}{general}{source_updated_time})
+		if ($last_updated > $an->data->{sys}{database}{source_updated_time})
 		{
-			$an->data->{database}{general}{source_updated_time} = $last_updated;
-			$an->data->{database}{general}{source_db_id}        = $id;
+			$an->data->{sys}{database}{source_updated_time} = $last_updated;
+			$an->data->{sys}{database}{source_db_id}        = $id;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"database::general::source_db_id"        => $an->data->{database}{general}{source_db_id}, 
-				"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
+				"sys::database::source_db_id"        => $an->data->{sys}{database}{source_db_id}, 
+				"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
 			}});
 		}
 		
 		# Get the last updated time for this database (and source).
 		$an->data->{database}{$id}{last_updated} = $last_updated;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
-			"database::general::source_db_id"        => $an->data->{database}{general}{source_db_id}, 
-			"database::${id}::last_updated"          => $an->data->{database}{$id}{last_updated}
+			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
+			"sys::database::source_db_id"        => $an->data->{sys}{database}{source_db_id}, 
+			"database::${id}::last_updated"      => $an->data->{database}{$id}{last_updated}
 		}});
 		
 		# If we have a tables hash, look into them, too.
@@ -2431,14 +2434,14 @@ ORDER BY
 	}
 	
 	# Find which DB is most up to date.
-	$an->data->{database}{general}{to_update} = {};
+	$an->data->{sys}{database}{to_update} = {};
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"database::general::source_updated_time" => $an->data->{database}{general}{source_updated_time}, 
-			"database::${id}::last_updated"          => $an->data->{database}{$id}{last_updated}, 
+			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
+			"database::${id}::last_updated"      => $an->data->{database}{$id}{last_updated}, 
 		}});
-		if ($an->data->{database}{general}{source_updated_time} > $an->data->{database}{$id}{last_updated})
+		if ($an->data->{sys}{database}{source_updated_time} > $an->data->{database}{$id}{last_updated})
 		{
 			# This database is behind
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0104", variables => {
@@ -2452,28 +2455,28 @@ ORDER BY
 		else
 		{
 			# This database is up to date (so far).
-			$an->data->{database}{general}{to_update}{$id}{behind} = 0;
+			$an->data->{sys}{database}{to_update}{$id}{behind} = 0;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"database::general::to_update::${id}::behind" => $an->data->{database}{general}{to_update}{$id}{behind}, 
+				"sys::database::to_update::${id}::behind" => $an->data->{sys}{database}{to_update}{$id}{behind}, 
 			}});
 		}
 		
 		# If we don't yet need a resync, and if we were passed one or more tables, check those tables
 		# for differences
-		if ((not $an->data->{database}{general}{resync_needed}) && (ref($tables) eq "HASH"))
+		if ((not $an->data->{sys}{database}{resync_needed}) && (ref($tables) eq "HASH"))
 		{
 			foreach my $table (sort {$a cmp $b} keys %{$tables})
 			{
-				if (not defined $an->data->{database}{general}{tables}{$table}{last_updated})
+				if (not defined $an->data->{sys}{database}{tables}{$table}{last_updated})
 				{
 					# First we've seen, set the general updated time to this entry
-					$an->data->{database}{general}{tables}{$table}{last_updated} = $an->data->{database}{$id}{tables}{$table}{last_updated};
+					$an->data->{sys}{database}{tables}{$table}{last_updated} = $an->data->{database}{$id}{tables}{$table}{last_updated};
 					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"database::general::tables::${table}::last_updated" => $an->data->{database}{general}{tables}{$table}{last_updated}
+						"sys::database::tables::${table}::last_updated" => $an->data->{sys}{database}{tables}{$table}{last_updated}
 					}});
 				}
 				
-				if ($an->data->{database}{general}{tables}{$table}{last_updated} > $an->data->{database}{$id}{tables}{$table}{last_updated})
+				if ($an->data->{sys}{database}{tables}{$table}{last_updated} > $an->data->{database}{$id}{tables}{$table}{last_updated})
 				{
 					# This database is behind
 					$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => {
@@ -2512,11 +2515,11 @@ sub _mark_database_as_behind
 	my $id = $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
 	
-	$an->data->{database}{general}{to_update}{$id}{behind} = 1;
-	$an->data->{database}{general}{resync_needed}          = 1;
+	$an->data->{sys}{database}{to_update}{$id}{behind} = 1;
+	$an->data->{sys}{database}{resync_needed}          = 1;
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"database::general::to_update::${id}::behind" => $an->data->{database}{general}{to_update}{$id}{behind}, 
-		"database::general::resync_needed"            => $an->data->{database}{general}{resync_needed}, 
+		"sys::database::to_update::${id}::behind" => $an->data->{sys}{database}{to_update}{$id}{behind}, 
+		"sys::database::resync_needed"            => $an->data->{sys}{database}{resync_needed}, 
 	}});
 		
 	# We can't trust this database for reads, so switch to another database for reads if

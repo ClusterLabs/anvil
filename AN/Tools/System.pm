@@ -15,6 +15,7 @@ my $THIS_FILE = "System.pm";
 # call
 # check_daemon
 # check_memory
+# enable_daemon
 # ping
 # read_ssh_config
 # remote_call
@@ -217,6 +218,46 @@ sub check_memory
 	###        return the answer to the caller.
 	
 	return($used_ram);
+}
+
+=head2 enable_daemon
+
+This method enables a daemon (so that it starts when the OS boots). The return code from the start request will be returned.
+
+If the return code for the enable command wasn't read, C<< undef >> is returned.
+
+Parameters;
+
+=head3 daemon (required)
+
+This is the name of the daemon to enable.
+
+=cut
+sub enable_daemon
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $return     = undef;
+	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{systemctl}." enable ".$say_daemon." 2>&1; ".$an->data->{path}{exe}{'echo'}." return_code:\$?"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /return_code:(\d+)/)
+		{
+			$return = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+	return($return);
 }
 
 =head2 ping

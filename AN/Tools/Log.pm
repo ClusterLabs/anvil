@@ -528,6 +528,15 @@ sub variables
 	my $entries = keys %{$list};
 	if ($entries)
 	{
+		# If the key points to an undefined value, convert it to '!!undef!!' so that we don't scare
+		# the user with 'undefined variable' warnings.
+		foreach my $key (sort {$a cmp $b} keys %{$list})
+		{
+			if (not defined $list->{$key})
+			{
+				$list->{$key} = "!!undef!!";
+			}
+		}
 		my $raw = "";
 		if ($entries < 5)
 		{

@@ -2,7 +2,18 @@
 -- It expects PostgreSQL v. 9.1+
 
 SET client_encoding = 'UTF8';
-CREATE SCHEMA IF NOT EXISTS history;
+-- This doesn't work before 9.3 - CREATE SCHEMA IF NOT EXISTS history;
+-- So we'll use the query below until (if) we upgrade.
+DO $$
+BEGIN
+	IF NOT EXISTS(
+		SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'history'
+	)
+	THEN
+		EXECUTE 'CREATE SCHEMA history';
+	END IF;
+END
+$$;
 
 -- This stores information about the host machine. This is the master table that everything will be linked 
 -- to. 
@@ -10,9 +21,7 @@ CREATE TABLE hosts (
 	host_uuid			uuid				not null	primary key,	-- This is the single most important record in ScanCore. Everything links back to here.
 	host_name			text				not null,
 	host_type			text				not null,			-- Either 'node' or 'dashboard'.
-	modified_date			timestamp with time zone	not null,
-	
-	FOREIGN KEY(host_location_uuid) REFERENCES locations(location_uuid)
+	modified_date			timestamp with time zone	not null
 );
 ALTER TABLE hosts OWNER TO #!variable!user!#;
 
@@ -58,9 +67,7 @@ CREATE TABLE host_variable (
 	host_variable_host_uuid		uuid				not null,
 	host_variable_name		text				not null,
 	host_variable_value		text,
-	modified_date			timestamp with time zone	not null,
-	
-	FOREIGN KEY(host_location_uuid) REFERENCES locations(location_uuid)
+	modified_date			timestamp with time zone	not null
 );
 ALTER TABLE host_variable OWNER TO #!variable!user!#;
 
@@ -110,7 +117,7 @@ CREATE TABLE alerts (
 	alert_level		text				not null,			-- debug (log only), info (+ admin email), notice (+ curious users), warning (+ client technical staff), critical (+ all)
 	alert_title_key		text				not null,			-- ScanCore will read in the agents <name>.xml words file and look for this message key
 	alert_title_variables	text,								-- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
-	alert_message_key	text				not null			-- ScanCore will read in the agents <name>.xml words file and look for this message key
+	alert_message_key	text				not null,			-- ScanCore will read in the agents <name>.xml words file and look for this message key
 	alert_message_variables	text,								-- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
 	alert_sort		text,								-- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
 	alert_header		boolean				not null	default TRUE,	-- This can be set to have the alert be printed with only the contents of the string, no headers.
@@ -264,7 +271,7 @@ ALTER TABLE updated OWNER TO #!variable!user!#;
 CREATE TABLE alert_sent (
 	alert_sent_host_uuid	uuid				not null,			-- The node associated with this alert
 	alert_set_by		text				not null,			-- name of the program that set this alert
-	alert_record_locator	text,				not null			-- String used by the agent to identify the source of the alert (ie: UPS serial number)
+	alert_record_locator	text				not null,			-- String used by the agent to identify the source of the alert (ie: UPS serial number)
 	alert_name		text				not null,			-- A free-form name used by the caller to identify this alert.
 	modified_date		timestamp with time zone	not null,
 	
