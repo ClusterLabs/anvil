@@ -1615,7 +1615,7 @@ sub locking
 	}});
 	
 	# These are used to ID this lock.
-	my $source_name = $an->hostname;
+	my $source_name = $an->_hostname;
 	my $source_uuid = $an->data->{sys}{host_uuid};
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		source_name => $source_name, 
@@ -1680,7 +1680,7 @@ sub locking
 			}});
 			
 			# Log that the lock has been released.
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0039", variables => { host => $an->hostname }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0039", variables => { host => $an->_hostname }});
 		}
 		
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
@@ -1710,7 +1710,7 @@ sub locking
 		}});
 		
 		# Log that we've renewed the lock.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0044", variables => { host => $an->hostname }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0044", variables => { host => $an->_hostname }});
 		
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
 		return($set);
@@ -1799,7 +1799,7 @@ sub locking
 			}});
 			
 			# Log that we've got the lock.
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $an->hostname }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $an->_hostname }});
 		}
 	}
 	

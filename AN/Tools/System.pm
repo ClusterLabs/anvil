@@ -376,7 +376,7 @@ sub ping
 		my $output = "";
 		
 		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our hostname.
-		if (($target) && ($target ne "local") && ($target ne $an->hostname) && ($target ne $an->short_hostname))
+		if (($target) && ($target ne "local") && ($target ne $an->_hostname) && ($target ne $an->_short_hostname))
 		{
 			### Remote calls
 			$output = $an->System->remote_call({
