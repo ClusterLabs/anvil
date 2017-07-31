@@ -15,6 +15,7 @@ my $THIS_FILE = "System.pm";
 # call
 # check_daemon
 # check_memory
+# determine_host_type
 # enable_daemon
 # ping
 # read_ssh_config
@@ -192,13 +193,15 @@ sub check_daemon
 }
 
 =head2 check_memory
+
+# Not yet written...
+
 =cut
 sub check_memory
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	
 	
 	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
 	my $program_pid  = defined $parameter->{program_pid}  ? $parameter->{program_pid}  : 0;
@@ -218,6 +221,52 @@ sub check_memory
 	###        return the answer to the caller.
 	
 	return($used_ram);
+}
+
+=head2 determine_host_type
+
+This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
+
+First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
+
+If that isn't set, it then looks at the short host name. The following rules are used, in order;
+
+1. If the host name ends in C<< n<digits> >> or C<< node<digits> >>, C<< node >> is returned.
+2. If the host name ends in C<< striker<digits> >> or C<< dashboard<digits> >>, C<< dashboard >> is returned.
+3. If the host name ends in C<< dr<digits> >>, C<< dr >> is returned.
+
+=cut
+sub determine_host_type
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $host_type = "";
+	my $host_name = $an->_hostname;
+	   $host_type = "unknown";
+	if ($an->data->{sys}{host_type})
+	{
+		$host_type = $an->data->{sys}{host_type};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	}
+	elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/))
+	{
+		$host_type = "node";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	}
+	elsif (($host_name =~ /striker\d+$/) or ($host_name =~ /dashboard\d+$/))
+	{
+		$host_type = "dashboard";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	}
+	elsif ($host_name =~ /dr\d+$/)
+	{
+		$host_type = "dr";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	}
+	
+	return($host_type);
 }
 
 =head2 enable_daemon

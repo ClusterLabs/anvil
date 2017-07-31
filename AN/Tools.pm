@@ -126,6 +126,9 @@ sub new
 			# This is the host's UUID. It should never be manually set.
 			UUID			=>	"",
 		},
+		sys				=>	{
+			host_type			=>	"",
+		},
 	};
 
 	# Bless you!

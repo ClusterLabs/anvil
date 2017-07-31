@@ -15,8 +15,10 @@ my $THIS_FILE = "Database.pm";
 # configure_pgsql
 # connect
 # disconnect
+# get_hosts
 # get_local_id
 # initialize
+# insert_or_update_hosts
 # insert_or_update_states
 # insert_or_update_variables
 # locking
@@ -894,6 +896,9 @@ sub connect
 	# Mark that we're not active.
 	$an->Database->mark_active({set => 1});
 	
+	# Add ourselves to the database, if needed.
+	$an->Database->insert_or_update_hosts();
+	
 	return($connections);
 }
 
@@ -932,6 +937,72 @@ sub disconnect
 	delete $an->data->{sys}{read_db_id};
 	
 	return(0);
+}
+
+
+=head2 get_hosts
+
+Get a list of hosts from the c<< hosts >> table, returned as an array of hash references.
+
+Each anonymous hash is structured as:
+
+ host_uuid     => $host_uuid, 
+ host_name     => $host_name, 
+ host_type     => $host_type, 
+ modified_date => $modified_date, 
+
+It also sets the variables C<< sys::hosts::by_uuid::<host_uuid> = <host_name> >> and C<< sys::hosts::by_name::<host_name> = <host_uuid> >> per host read, for quick reference.
+
+=cut
+sub get_hosts
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $query = "
+SELECT 
+    host_uuid, 
+    host_name, 
+    host_type, 
+    modified_date 
+FROM 
+    hosts
+;";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $return  = [];
+	my $results = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $host_uuid     = $row->[0];
+		my $host_name     = $row->[1];
+		my $host_type     = $row->[2];
+		my $modified_date = $row->[3];
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_uuid     => $host_uuid, 
+			host_name     => $host_name, 
+			host_type     => $host_type, 
+			modified_date => $modified_date, 
+		}});
+		push @{$return}, {
+			host_uuid     => $host_uuid,
+			host_name     => $host_name, 
+			host_type     => $host_type, 
+			modified_date => $modified_date, 
+		};
+		
+		# Record the host_uuid in a hash so that the name can be easily retrieved.
+		$an->data->{sys}{hosts}{by_uuid}{$host_uuid} = $host_name;
+		$an->data->{sys}{hosts}{by_name}{$host_name} = $host_uuid;
+	}
+	
+	return($return);
 }
 
 =head2 get_local_id
@@ -1070,6 +1141,136 @@ sub initialize
 	return($success);
 };
 
+=head2 insert_or_update_hosts
+
+This updates (or inserts) a record in the 'hosts' table. 
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 host_name (required)
+
+This default value is the local hostname.
+
+=head3 host_type (required)
+
+This default value is the value returned by C<< System->determine_host_type >>.
+
+=head3 host_uuid (required)
+
+The default value is the host's UUID (as returned by C<< Get->host_uuid >>.
+
+=head3 id (optional)
+
+If set, only the corresponding database will be written to.
+
+=cut
+sub insert_or_update_hosts
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $host_name = $parameter->{host_name} ? $parameter->{host_name} : $an->_hostname;
+	my $host_type = $parameter->{host_type} ? $parameter->{host_type} : $an->System->determine_host_type;
+	my $host_uuid = $parameter->{host_uuid} ? $parameter->{host_uuid} : $an->Get->host_uuid;
+	my $id        = $parameter->{id}        ? $parameter->{id}        : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name => $host_name, 
+		host_type => $host_type, 
+		host_uuid => $host_uuid, 
+		id        => $id, 
+	}});
+	
+	if (not $host_name)
+	{
+		# Throw an error and exit.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_hosts()", parameter => "host_name" }});
+		return("");
+	}
+	if (not $host_uuid)
+	{
+		# Throw an error and exit.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_hosts()", parameter => "host_uuid" }});
+		return("");
+	}
+	
+	# Read the old values, if they exist.
+	my $old_host_name = "";
+	my $old_host_type = "";
+	my $query = "
+SELECT 
+    host_name, 
+    host_type  
+FROM 
+    hosts 
+WHERE 
+    host_uuid = ".$an->data->{sys}{use_db_fh}->quote($host_uuid)."
+;";
+	$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+		name1  => "query", value1 => $query
+	}, file => $THIS_FILE, line => __LINE__});
+	
+	my $results = $an->Database->query({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		$old_host_name = $row->[0];
+		$old_host_type = $row->[1];
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			old_host_name => $old_host_name, 
+			old_host_type => $old_host_type, 
+		}});
+	}
+	if (not $count)
+	{
+		# Add this host to the database
+		my $query = "
+INSERT INTO 
+    hosts 
+(
+    host_uuid, 
+    host_name, 
+    host_type, 
+    modified_date
+) VALUES (
+    ".$an->data->{sys}{use_db_fh}->quote($host_uuid).", 
+    ".$an->data->{sys}{use_db_fh}->quote($host_name).",
+    ".$an->data->{sys}{use_db_fh}->quote($host_type).",
+    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+	}
+	else
+	{
+		# Clear the stop data.
+		my $query = "
+UPDATE 
+    hosts
+SET 
+    host_name     = ".$an->data->{sys}{use_db_fh}->quote($host_name).", 
+    host_type     = ".$an->data->{sys}{use_db_fh}->quote($host_type).", 
+    modified_date = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+WHERE
+    host_uuid     = ".$an->data->{sys}{use_db_fh}->quote($host_uuid)."
+;";
+		$query =~ s/'NULL'/NULL/g;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
+
 =head2 insert_or_update_states
 
 This updates (or inserts) a record in the 'states' table. The C<< state_uuid >> referencing the database row will be returned.
@@ -1159,7 +1360,7 @@ AND
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $an->ScanCore->get_hosts();
+		my $hosts = $an->Database->get_hosts();
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -1974,6 +2175,7 @@ sub query
 	}
 	
 	# Test access to the DB before we do the actual query
+	$an->Log->entry({source => $source, line => $line, secure => $secure, level => 2, key => "log_0074", variables => { id => $id }});
 	$an->Database->_test_access({ id => $id });
 	
 	# Do the query.
@@ -2000,7 +2202,7 @@ This reads a variable from the C<< variables >> table. Be sure to only use the r
 
 The method returns an array reference containing, in order, the variable's value, database UUID and last modified date stamp.
 
-If anything goes wrong, C<< undef >> is returned.
+If anything goes wrong, C<< undef >> is returned. If the variable didn't exist in the database, an empty string will be returned for the UUID, value and modified date.
 
 Parameters;
 
@@ -2068,8 +2270,8 @@ AND
 	$query .= ";";
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { query => $query }});
 	
-	my $variable_value = undef;
-	my $modified_date  = undef;
+	my $variable_value = "";
+	my $modified_date  = "";
 	my $results        = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count          = @{$results};
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -2234,6 +2436,7 @@ sub write
 	foreach my $id (@db_ids)
 	{
 		# Test access to the DB before we do the actual query
+		$an->Log->entry({source => $source, line => $line, secure => $secure, level => 2, key => "log_0074", variables => { id => $id }});
 		$an->Database->_test_access({id => $id});
 		
 		# Do the actual query(ies)
