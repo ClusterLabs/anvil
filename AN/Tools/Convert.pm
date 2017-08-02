@@ -95,12 +95,12 @@ sub add_commas
 	
 	# Now see if the user passed the values in a hash reference or directly.
 	my $number = defined $parameter->{number} ? $parameter->{number} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
 	
 	# Remove any existing commands or leading '+' signs.
 	$number =~ s/,//g;
 	$number =~ s/^\+//g;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
 	
 	# Split on the left-most period.
 	my ($whole, $decimal) = split/\./, $number, 2;
@@ -110,7 +110,7 @@ sub add_commas
 	# Now die if either number has a non-digit character in it.
 	if (($whole =~ /\D/) or ($decimal =~ /\D/))
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
 		return ($number);
 	}
 	
@@ -122,7 +122,7 @@ sub add_commas
 	# Put it together
 	$number = $decimal ? "$whole.$decimal" : $whole;
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
 	return ($number);
 }
 
@@ -183,9 +183,10 @@ sub bytes_to_human_readable
 	my $size  = defined $parameter->{'bytes'} ? $parameter->{'bytes'}  : 0;
 	my $unit  = defined $parameter->{unit}    ? uc($parameter->{unit}) : "";
 	my $base2 = defined $parameter->{base2}   ? $parameter->{base2}    : $an->data->{sys}{use_base2};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		size => $size, 
-		unit => $unit, 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		size   => $size, 
+		unit   => $unit, 
+		base2  => $base2, 
 	}});
 	
 	# Expand exponential numbers.
@@ -226,7 +227,7 @@ sub bytes_to_human_readable
 	}
 	
 	# Do the math.
-	if ($an->data->{sys}{use_base2})
+	if ($base2)
 	{
 		# Has the user requested a certain unit to use?
 		if ($unit)
@@ -675,7 +676,7 @@ sub human_readable_to_bytes
 	my $base10 =  defined $parameter->{base10} ? $parameter->{base10} : 0;
 	my $size   =  defined $parameter->{size}   ? $parameter->{size}   : 0;
 	my $type   =  defined $parameter->{type}   ? $parameter->{type}   : 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		base2  => $base2,
 		base10 => $base10,
 		size   => $size,
@@ -686,6 +687,7 @@ sub human_readable_to_bytes
 	my $value  =  $size;
 	   $size   =~ s/ //g;
 	   $type   =~ s/ //g;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { size => $size, value => $value }});
 	
 	# Store and strip the sign, if passed
 	my $sign = "";
@@ -702,6 +704,7 @@ sub human_readable_to_bytes
 	
 	# Strip any commas
 	$size =~ s/,//g;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { size => $size, sign => $sign }});
 	
 	# If I don't have a passed type, see if there is a letter or letters after the size to hack off.
 	if ((not $type) && ($size =~ /[a-zA-Z]$/))
@@ -711,6 +714,7 @@ sub human_readable_to_bytes
 	}
 	# Make the type lower close for simplicity.
 	$type = lc($type);
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { size => $size, type => $type }});
 	
 	# Make sure that 'size' is now an integer or float.
 	if ($size !~ /\d+[\.\d+]?/)
@@ -764,6 +768,10 @@ sub human_readable_to_bytes
 		}
 	}
 	
+	# Clear up the last characters now.
+	$type =~ s/^(\w).*/$1/;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
+	
 	# Check if we have a valid type.
 	if (($type ne "p") && 
 	    ($type ne "e") && 
@@ -785,6 +793,7 @@ sub human_readable_to_bytes
 	
 	# Now the magic... lame magic, true, but still.
 	my $bytes = 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { base2 => $base2, base10 => $base10 }});
 	if ($base10)
 	{
 		if    ($type eq "y") { $bytes = Math::BigInt->new('10')->bpow('24')->bmul($size); }	# Yottabyte
@@ -795,6 +804,7 @@ sub human_readable_to_bytes
 		elsif ($type eq "g") { $bytes = ($size * (10 ** 9)) }					# Gigabyte
 		elsif ($type eq "m") { $bytes = ($size * (10 ** 6)) }					# Megabyte
 		elsif ($type eq "k") { $bytes = ($size * (10 ** 3)) }					# Kilobyte
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'bytes' => $bytes }});
 	}
 	else
 	{
@@ -806,6 +816,7 @@ sub human_readable_to_bytes
 		elsif ($type eq "g") { $bytes = ($size * (2 ** 30)) }					# Gibibyte
 		elsif ($type eq "m") { $bytes = ($size * (2 ** 20)) }					# Mebibyte
 		elsif ($type eq "k") { $bytes = ($size * (2 ** 10)) }					# Kibibyte
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'bytes' => $bytes }});
 	}
 	
 	# Last, round off the byte size if it is a float.
@@ -822,6 +833,7 @@ sub human_readable_to_bytes
 		$bytes = $sign.$bytes;
 	}
 	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'bytes' => $bytes }});
 	return ($bytes);
 }
 

@@ -127,16 +127,6 @@ sub new
 			# This is the host's UUID. It should never be manually set.
 			UUID			=>	"",
 		},
-		sys				=>	{
-			database			=>	{
-				local_lock_active		=>	0,
-				locking_reap_age		=>	300,
-				log_transactions		=>	0,
-				maximum_batch_size		=>	25000,
-			},
-			host_type			=>	"",
-			use_base2			=>	1,
-		},
 	};
 
 	# Bless you!
@@ -596,6 +586,16 @@ sub _set_defaults
 {
 	my ($an) = shift;
 	
+	$an->data->{sys}      = {
+		database			=>	{
+			local_lock_active		=>	0,
+			locking_reap_age		=>	300,
+			log_transactions		=>	0,
+			maximum_batch_size		=>	25000,
+		},
+		host_type			=>	"",
+		use_base2			=>	1,
+	};
 	$an->data->{defaults} = {
 		database	=>	{
 			locking		=>	{
