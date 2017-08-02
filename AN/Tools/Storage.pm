@@ -939,6 +939,17 @@ sub write_file
 			});
 		}
 		
+		# If 'secure' is set, the file will probably contain sensitive data so touch the file and set
+		# the mode before writing it.
+		if ($secure)
+		{
+			my $shell_call = $an->data->{path}{exe}{touch}." ".$file;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			$an->System->call({shell_call => $shell_call});
+			$an->Storage->change_mode({target => $file, mode => $mode});
+		}
+		
 		# Now write the file.
 		my $shell_call = $file;
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});

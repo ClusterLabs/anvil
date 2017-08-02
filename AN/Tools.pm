@@ -680,6 +680,8 @@ sub _set_paths
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
+				touch			=>	"/usr/bin/touch",
+				timeout			=>	"/usr/bin/timeout",
 				uuidgen			=>	"/usr/bin/uuidgen",
 			},
 			'lock'			=>	{

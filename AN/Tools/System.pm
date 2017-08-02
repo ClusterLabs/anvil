@@ -204,12 +204,8 @@ sub check_memory
 	my $an        = $self->parent;
 	
 	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
-	my $program_pid  = defined $parameter->{program_pid}  ? $parameter->{program_pid}  : 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		program_name => $program_name, 
-		program_pid  => $program_pid, 
-	}});
-	if ((not $program_name) && (not $program_pid))
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { program_name => $program_name }});
+	if (not $program_name)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0086"});
 		return("");
@@ -217,9 +213,18 @@ sub check_memory
 	
 	my $used_ram = 0;
 	
-	### TODO: This needs to call the new version of 'anvil-report-memory' to get the amount of memory and
-	###        return the answer to the caller.
+	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{''}." --program $program_name"});
+	foreach my $line (split/\n/, $output)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /= (\d+) /)
+		{
+			$used_ram = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { used_ram => $used_ram }});
+		}
+	}
 	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { used_ram => $used_ram }});
 	return($used_ram);
 }
 
@@ -374,7 +379,6 @@ sub ping
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({log_level => 3, message_key => "tools_log_0001", message_variables => { function => "ping" }, file => $THIS_FILE, line => __LINE__});
 	
 	# If we were passed a target, try pinging from it instead of locally
 	my $count    = $parameter->{count}    ? $parameter->{count}    : 1;	# How many times to try to ping it? Will exit as soon as one succeeds
@@ -401,8 +405,9 @@ sub ping
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { payload => $payload }});
 	}
 	
-	# Build the call
-	my $shell_call = $an->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
+	# Build the call. Note that we use 'timeout' because if there is no connection and the hostname is 
+	# used to ping and DNS is not available, it could take upwards of 30 seconds time timeout otherwise.
+	my $shell_call = $an->data->{path}{exe}{timeout}." 2 ".$an->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	if (not $fragment)
 	{
@@ -414,6 +419,7 @@ sub ping
 		$shell_call .= " -s $payload";
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	}
+	$shell_call .= " || ".$an->data->{path}{exe}{echo}." timeout";
 	
 	my $pinged            = 0;
 	my $average_ping_time = 0;

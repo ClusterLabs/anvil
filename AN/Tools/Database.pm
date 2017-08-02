@@ -117,23 +117,23 @@ sub check_lock_age
 	if ((not defined $an->data->{sys}{database}{local_lock_active}) or ($an->data->{sys}{database}{local_lock_active} =~ /\D/))
 	{
 		$an->data->{sys}{database}{local_lock_active} = 0;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
 	}
 	if ((not $an->data->{sys}{database}{locking_reap_age}) or ($an->data->{sys}{database}{locking_reap_age} =~ /\D/))
 	{
 		$an->data->{sys}{database}{locking_reap_age} = 300;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
 	}
 	
 	# If I have an active lock, check its age and also update the ScanCore lock file.
 	my $renewed = 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
 	if ($an->data->{sys}{database}{local_lock_active})
 	{
 		my $current_time  = time;
 		my $lock_age      = $current_time - $an->data->{sys}{database}{local_lock_active};
 		my $half_reap_age = int($an->data->{sys}{database}{locking_reap_age} / 2);
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			current_time  => $current_time,
 			lock_age      => $lock_age,
 			half_reap_age => $half_reap_age, 
@@ -147,15 +147,15 @@ sub check_lock_age
 			
 			# Update the lock age
 			$an->data->{sys}{database}{local_lock_active} = time;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
 			
 			# Update the lock file
 			my $lock_file_age = $an->Database->lock_file({'do' => "set"});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lock_file_age => $lock_file_age }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { lock_file_age => $lock_file_age }});
 		}
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { renewed => $renewed }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { renewed => $renewed }});
 	return($renewed);
 }
 
@@ -181,7 +181,7 @@ sub configure_pgsql
 	my $an        = $self->parent;
 	
 	my $id = defined $parameter->{id} ? $parameter->{id} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
 	
 	if (not $id)
 	{
@@ -200,7 +200,7 @@ sub configure_pgsql
 	
 	# First, is it running?
 	my $running = $an->System->check_daemon({daemon => "postgresql"});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { running => $running }});
 	
 	if (not $running)
 	{
@@ -209,7 +209,7 @@ sub configure_pgsql
 		{
 			# Initialize.
 			my $output = $an->System->call({shell_call => $an->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 			
 			# Did it succeed?
 			if (not -e $an->data->{path}{configs}{'pg_hba.conf'})
@@ -225,7 +225,7 @@ sub configure_pgsql
 				
 				# Enable it on boot.
 				my $return_code = $an->System->enable_daemon({daemon => "postgresql"});
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 			}
 		}
 	}
@@ -253,12 +253,12 @@ sub configure_pgsql
 		}
 		$new_postgresql_conf .= $line."\n";
 	}
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_postgresql_file => $update_postgresql_file }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_postgresql_file => $update_postgresql_file }});
 	if ($update_postgresql_file)
 	{
 		# Back up the existing one, if needed.
 		my $postgresql_backup = $an->data->{path}{directories}{backups}."/pgsql/postgresql.conf";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { postgresql_backup => $postgresql_backup }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { postgresql_backup => $postgresql_backup }});
 		if (not -e $postgresql_backup)
 		{
 			$an->Storage->copy_file({source => $an->data->{path}{configs}{'postgresql.conf'}, target => $postgresql_backup});
@@ -283,10 +283,11 @@ sub configure_pgsql
 	foreach my $line (split/\n/, $pg_hba_conf)
 	{
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
-		if ($line =~ /^host\s+all\s+all\s+\all\s+md5$/)
+		if ($line =~ /^host\s+all\s+all\s+all\s+md5$/)
 		{
 			# No need to update.
 			$update_pg_hba_file = 0;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_pg_hba_file => $update_pg_hba_file }});
 			last;
 		}
 		elsif ($line =~ /^# TYPE\s+DATABASE/)
@@ -300,12 +301,12 @@ sub configure_pgsql
 			$new_pg_hba_conf .= $line."\n";
 		}
 	}
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_pg_hba_file => $update_pg_hba_file }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_pg_hba_file => $update_pg_hba_file }});
 	if ($update_pg_hba_file)
 	{
 		# Back up the existing one, if needed.
 		my $pg_hba_backup = $an->data->{path}{directories}{backups}."/pgsql/pg_hba.conf";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pg_hba_backup => $pg_hba_backup }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pg_hba_backup => $pg_hba_backup }});
 		if (not -e $pg_hba_backup)
 		{
 			$an->Storage->copy_file({source => $an->data->{path}{configs}{'pg_hba.conf'}, target => $pg_hba_backup});
@@ -328,7 +329,7 @@ sub configure_pgsql
 	{
 		# Start the daemon.
 		my $return_code = $an->System->start_daemon({daemon => "postgresql"});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 		if ($return_code eq "0")
 		{
 			# Started the daemon.
@@ -345,7 +346,7 @@ sub configure_pgsql
 	{
 		# Reload
 		my $return_code = $an->System->start_daemon({daemon => "postgresql"});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 		if ($return_code eq "0")
 		{
 			# Reloaded the daemon.
@@ -358,19 +359,16 @@ sub configure_pgsql
 		}
 	}
 	
-	### TODO: This might be a security issue... We create the file owned as root with 600 permissions, 
-	###       but if we're not doing something write, we might still be exposing the password for a 
-	###       moment... 
 	# Create the .pgpass file, if needed.
 	my $created_pgpass = 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { 
 		'path::secure::postgres_pgpass' => $an->data->{path}{secure}{postgres_pgpass},
 		"database::${id}::password"     => $an->data->{database}{$id}{password}, 
 	}});
 	if ((not -e $an->data->{path}{secure}{postgres_pgpass}) && ($an->data->{database}{$id}{password}))
 	{
-		my $body = "*:*:*:postgres:".$an->data->{database}{$id}{password}."\n";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { body => $body }});
+		my $body = "*:*:*:postgres:".$an->data->{database}{$id}{password};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { body => $body }});
 		$an->Storage->write_file({
 			file      => $an->data->{path}{secure}{postgres_pgpass},  
 			body      => $body,
@@ -383,71 +381,71 @@ sub configure_pgsql
 		if (-e $an->data->{path}{secure}{postgres_pgpass})
 		{
 			$created_pgpass = 1;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { created_pgpass => $created_pgpass }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { created_pgpass => $created_pgpass }});
 		}
 	}
 	
 	# Does the database user exist?
 	my $create_user   = 1;
-	my $scancore_user = $an->data->{database}{$id}{user};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scancore_user => $scancore_user }});
-	if (not $scancore_user)
+	my $database_user = $an->data->{database}{$id}{user};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_user => $database_user }});
+	if (not $database_user)
 	{
 		# No database user defined
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { id => $id }});
 		return("!!error!!");
 	}
 	my $user_list = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_list => $user_list }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user_list => $user_list }});
 	foreach my $line (split/\n/, $user_list)
 	{
-		if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
+		if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
 		{
 			# User exists already
 			my $id = $1;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0060", variables => { user => $scancore_user, id => $id }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0060", variables => { user => $database_user, id => $id }});
 			$create_user = 0;
 			last;
 		}
 	}
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_user => $create_user }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_user => $create_user }});
 	if ($create_user)
 	{
 		# Create the user
-		my $create_output = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $scancore_user\"", source => $THIS_FILE, line => __LINE__});
+		my $create_output = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $database_user\"", source => $THIS_FILE, line => __LINE__});
 		my $user_list     = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
 		my $user_exists   = 0;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output, user_list => $user_list }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_output => $create_output, user_list => $user_list }});
 		foreach my $line (split/\n/, $user_list)
 		{
-			if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
+			if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
 			{
 				# Success!
 				my $id = $1;
-				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0095", variables => { user => $scancore_user, id => $id }});
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0095", variables => { user => $database_user, id => $id }});
 				$user_exists = 1;
 				last;
 			}
 		}
 		if (not $user_exists)
 		{
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $scancore_user }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $database_user }});
 			return("!!error!!");
 		}
 		
 		# Update/set the passwords.
 		if ($an->data->{database}{$id}{password})
 		{
-			foreach my $user ("postgres", $scancore_user)
+			foreach my $user ("postgres", $database_user)
 			{
 				my $update_output = $an->System->call({secure => 1, shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$an->data->{database}{$id}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { update_output => $update_output }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { update_output => $update_output }});
 				foreach my $line (split/\n/, $user_list)
 				{
 					if ($line =~ /ALTER ROLE/)
 					{
 						# Password set
-						$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0100", variables => { user => $user }});
+						$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0100", variables => { user => $user }});
 					}
 				}
 			}
@@ -455,44 +453,44 @@ sub configure_pgsql
 	}
 	
 	# Create the database, if needed.
-	my $create_database   = 1;
-	my $scancore_database = $an->data->{database}{$id}{name};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "database::${id}::name" => $an->data->{database}{$id}{name} }});
+	my $create_database = 1;
+	my $database_name   = $an->data->{database}{$id}{name};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "database::${id}::name" => $an->data->{database}{$id}{name} }});
 	
 	my $database_list = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_list => $database_list }});
 	foreach my $line (split/\n/, $database_list)
 	{
-		if ($line =~ /^ $scancore_database$/)
+		if ($line =~ /^ $database_name$/)
 		{
 			# Database already exists.
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0105", variables => { database => $scancore_database }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0105", variables => { database => $database_name }});
 			$create_database = 0;
 			last;
 		}
 	}
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_database => $create_database }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_database => $create_database }});
 	if ($create_database)
 	{
-		my $create_output = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{createdb}."  --owner $scancore_user $scancore_database\"", source => $THIS_FILE, line => __LINE__});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output }});
+		my $create_output = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{createdb}."  --owner $database_user $database_name\"", source => $THIS_FILE, line => __LINE__});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_output => $create_output }});
 		
 		my $database_exists = 0;
 		my $database_list   = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_list => $database_list }});
 		foreach my $line (split/\n/, $database_list)
 		{
-			if ($line =~ /^ $scancore_database$/)
+			if ($line =~ /^ $database_name$/)
 			{
 				# Database created
-				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0110", variables => { database => $scancore_database }});
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0110", variables => { database => $database_name }});
 				$database_exists = 1;
 				last;
 			}
 		}
 		if (not $database_exists)
 		{
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $scancore_database }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $database_name }});
 			return("!!error!!");
 		}
 	}
@@ -608,7 +606,7 @@ sub connect
 	if (not $an->data->{sys}{host_uuid})
 	{
 		$an->data->{sys}{host_uuid} = $an->Get->host_uuid;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $an->data->{sys}{host_uuid} }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::host_uuid" => $an->data->{sys}{host_uuid} }});
 	}
 	
 	# This will be used in a few cases where the local DB ID is needed (or the lack of it being set 
@@ -657,7 +655,7 @@ sub connect
 		next if $duplicate;
 		
 		# Log what we're doing.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0054", variables => { 
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0054", variables => { 
 			id       => $id,
 			driver   => $driver,
 			host     => $host,
@@ -669,7 +667,7 @@ sub connect
 		
 		# Assemble my connection string
 		my $db_connect_string = "$driver:dbname=$name;host=$host;port=$port";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			db_connect_string                      => $db_connect_string, 
 			"database::${id}::ping_before_connect" => $an->data->{database}{$id}{ping_before_connect},
 		}});
@@ -677,11 +675,11 @@ sub connect
 		{
 			# Can I ping?
 			my ($pinged) = $an->System->ping({ping => $host, count => 1});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pinged => $pinged }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pinged => $pinged }});
 			if (not $pinged)
 			{
 				# Didn't ping and 'database::<id>::ping_before_connect' not set. Record this 
-				# is the failed connections array.
+				# in the failed connections array.
 				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0063", variables => { id => $id }});
 				push @{$failed_connections}, $id;
 				next;
@@ -696,7 +694,7 @@ sub connect
 		(not $an->data->{sys}{read_db_id}))
 		{
 			$an->data->{sys}{read_db_id} = $id;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
 			
 			# Set it up (or update it) if needed. This method just returns if nothing is needed.
 			$an->Database->configure_pgsql({id => $id});
@@ -707,7 +705,7 @@ sub connect
 		### NOTE: The Database->write() method, when passed an array, will automatically disable 
 		###       autocommit, do the bulk write, then commit when done.
 		# We connect with fatal errors, autocommit and UTF8 enabled.
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			db_connect_string => $db_connect_string, 
 			user              => $user, 
 		}});
@@ -780,7 +778,7 @@ sub connect
 			push @{$successful_connections}, $id;
 			$an->data->{cache}{db_fh}{$id} = $dbh;
 			
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0071", variables => { 
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0071", variables => { 
 				host => $host,
 				port => $port,
 				name => $name,
@@ -790,23 +788,23 @@ sub connect
 			if (not $an->data->{sys}{use_db_fh})
 			{
 				$an->data->{sys}{use_db_fh} = $dbh;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::use_db_fh' => $an->data->{sys}{use_db_fh} }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'sys::use_db_fh' => $an->data->{sys}{use_db_fh} }});
 			}
 			
 			# Now that I have connected, see if my 'hosts' table exists.
 			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$an->data->{sys}{use_db_fh}->quote($test_table)." AND schemaname='public';";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 			
 			my $count = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 			if ($count < 1)
 			{
 				# Need to load the database.
 				$an->Database->initialize({id => $id, sql_file => $sql_file});
 			}
 			
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"sys::read_db_id"   => $an->data->{sys}{read_db_id}, 
 				"cache::db_fh::$id" => $an->data->{cache}{db_fh}{$id}, 
 			}});
@@ -823,14 +821,14 @@ sub connect
 				$an->data->{sys}{local_db_id} = $id;
 				$an->data->{sys}{use_db_fh}   = $an->data->{cache}{db_fh}{$id};
 				
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"sys::read_db_id" => $an->data->{sys}{read_db_id}, 
 					"sys::use_db_fh"  => $an->data->{sys}{use_db_fh}
 				}});
 			}
 			
 			# Get a time stamp for this run, if not yet gotten.
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"cache::db_fh::$id" => $an->data->{cache}{db_fh}{$id}, 
 				"sys::db_timestamp" => $an->data->{sys}{db_timestamp},
 			}});
@@ -839,13 +837,13 @@ sub connect
 			if (not $an->data->{sys}{db_timestamp})
 			{
 				my $query = "SELECT cast(now() AS timestamp with time zone)";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				
 				$an->data->{sys}{db_timestamp} = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::db_timestamp" => $an->data->{sys}{db_timestamp} }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::db_timestamp" => $an->data->{sys}{db_timestamp} }});
 			}
 			
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"sys::read_db_id"   => $an->data->{sys}{read_db_id},
 				"sys::use_db_fh"    => $an->data->{sys}{use_db_fh},
 				"sys::db_timestamp" => $an->data->{sys}{db_timestamp},
@@ -854,7 +852,7 @@ sub connect
 	}
 	
 	# Do I have any connections? Don't die, if not, just return.
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { connections => $connections }});
 	if (not $connections)
 	{
 		# Failed to connect to any database. Log this, print to the caller and return.
@@ -868,22 +866,23 @@ sub connect
 		# Copy my alert hash before I delete the id.
 		my $error_array = [];
 		
-		# Delete this DB so that we don't try to use it later.
+		# Delete this DB so that we don't try to use it later. This is a quiet alert because the 
+		# original connection error was likely logged.
 		my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0092", variables => { server => $say_server, id => $id }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, priority => "alert", key => "log_0092", variables => { server => $say_server, id => $id }});
 		
 		# Delete it from the list of known databases for this run.
 		delete $an->data->{database}{$id};
 		
 		# If I've not sent an alert about this DB loss before, send one now.
 		my $set = $an->Alert->check_alert_sent({
-			type		=>	"set",
-			set_by		=>	$THIS_FILE,
-			record_locator	=>	$id,
-			name		=>	"connect_to_db",
-			modified_date	=>	$an->data->{sys}{db_timestamp},
+			type           => "set",
+			set_by         => $THIS_FILE,
+			record_locator => $id,
+			name           => "connect_to_db",
+			modified_date  => $an->data->{sys}{db_timestamp},
 		});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
 		
 		if ($set)
 		{
@@ -913,6 +912,7 @@ sub connect
 	# Send an 'all clear' message if a now-connected DB previously wasn't.
 	foreach my $id (@{$successful_connections})
 	{
+		### NOTE: Left off here... 
 		# Query to see if the newly connected host is in the DB yet. If it isn't, don't send an
 		# alert as it'd cause a duplicate UUID error.
 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$an->data->{sys}{use_db_fh}->quote($an->data->{database}{$id}{host}).";";
@@ -2253,11 +2253,11 @@ sub query
 	my $query  = $parameter->{query}  ? $parameter->{query}  : "";
 	my $secure = $parameter->{secure} ? $parameter->{secure} : 0;
 	my $source = $parameter->{source} ? $parameter->{source} : $THIS_FILE;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		id                    => $id, 
 		"cache::db_fh::${id}" => $an->data->{cache}{db_fh}{$id}, 
 		line                  => $line, 
-		query                 => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+		query                 => ((not $secure) or (($secure) && (not $an->Log->secure))) ? $query : "--", 
 		secure                => $secure, 
 		source                => $source, 
 	}});
@@ -2292,26 +2292,25 @@ sub query
 	# Do I need to log the transaction?
 	if ($an->data->{sys}{database}{log_transactions})
 	{
-		$an->Log->entry({source => $source, line => $line, secure => $secure, level => 2, key => "log_0074", variables => { 
+		$an->Log->entry({source => $source, line => $line, secure => $secure, level => 0, key => "log_0074", variables => { 
 			id    => $id, 
 			query => $query, 
 		}});
 	}
 	
 	# Test access to the DB before we do the actual query
-	$an->Log->entry({source => $source, line => $line, secure => $secure, level => 2, key => "log_0074", variables => { id => $id }});
-	$an->Database->_test_access({ id => $id });
+	$an->Database->_test_access({id => $id});
 	
 	# Do the query.
 	my $DBreq = $an->data->{cache}{db_fh}{$id}->prepare($query) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
-			query    => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+			query    => ((not $secure) or (($secure) && (not $an->Log->secure))) ? $query : "--", 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
 	
 	# Execute on the query
 	$DBreq->execute() or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
-			query    => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+			query    => ((not $secure) or (($secure) && (not $an->Log->secure))) ? $query : "--", 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
@@ -2474,7 +2473,7 @@ sub write
 		id                    => $id, 
 		"cache::db_fh::${id}" => $an->data->{cache}{db_fh}{$id}, 
 		line                  => $line, 
-		query                 => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+		query                 => ((not $secure) or (($secure) && (not $an->Log->secure))) ? $query : "--", 
 		secure                => $secure, 
 		source                => $source, 
 		reenter               => $reenter,
@@ -2560,7 +2559,8 @@ sub write
 						###       send an alert) if the RAM use is too high.
 						# This can get memory intensive, so check our RAM usage and 
 						# bail if we're eating too much.
-						#my $ram_use = $an->System->check_memory({ program_name => $THIS_FILE });
+						my $ram_use = $an->System->check_memory({program_name => $THIS_FILE});
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ram_use => $ram_use }});
 						
 						# Wipe out the old set array, create it as a new anonymous array and reset 'i'.
 						undef $query_set;
@@ -2620,7 +2620,7 @@ sub write
 			
 			# Do the do.
 			$an->data->{cache}{db_fh}{$id}->do($query) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
-					query    => ((not $an->Log->secure) && ($secure)) ? $query : "--", 
+					query    => ((not $secure) or (($secure) && (not $an->Log->secure))) ? $query : "--", 
 					server   => $say_server,
 					db_error => $DBI::errstr, 
 				}});
@@ -2911,13 +2911,13 @@ sub _test_access
 	my $an        = $self->parent;
 	
 	my $id = $parameter->{id} ? $parameter->{id} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
 	
 	# Make logging code a little cleaner
 	my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
 	
 	# Log our test
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0087", variables => { server => $say_server }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0087", variables => { server => $say_server }});
 	
 	my $query = "SELECT 1";
 	my $DBreq = $an->data->{cache}{db_fh}{$id}->prepare($query) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
@@ -2937,7 +2937,7 @@ sub _test_access
 	alarm(0);
 	
 	# Success!
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0088"});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0088"});
 	
 	return(0);
 }

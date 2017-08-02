@@ -112,7 +112,7 @@ sub check_alert_sent
 	my $record_locator = $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = $parameter->{set_by}         ? $parameter->{set_by}         : "";
 	my $type           = $parameter->{type}           ? $parameter->{type}           : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		modified_date  => $modified_date, 
 		name           => $name, 
 		record_locator => $record_locator, 
@@ -177,16 +177,15 @@ AND
 AND 
     alert_name           = ".$an->data->{sys}{use_db_fh}->quote($name)."
 ;";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	
-	my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		type  => $type,
-		query => $query,
-	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	# Now, if this is type=set, register the alert if it doesn't exist. If it is type=clear, remove the 
 	# alert if it exists.
+	my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		type  => $type,
+		count => $count,
+	}});
 	if (($type eq "set") && (not $count))
 	{
 		### New alert
@@ -203,27 +202,27 @@ FROM
 WHERE 
     host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})."
 ;";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 
 			my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 			
 			if (not $count)
 			{
 				# Too early, we can't set an alert.
 				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0098", variables => {
-					type			=>	$type, 
-					alert_set_by		=>	$set_by, 
-					alert_record_locator	=>	$record_locator, 
-					alert_name		=>	$name, 
-					modified_date		=>	$modified_date,
+					type                 => $type, 
+					alert_set_by         => $set_by, 
+					alert_record_locator => $record_locator, 
+					alert_name           => $name, 
+					modified_date        => $modified_date,
 				}});
 				return("!!error!!");
 			}
 			else
 			{
 				$an->data->{sys}{host_is_in_db} = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::host_is_in_db' => $an->data->{sys}{host_is_in_db} }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'sys::host_is_in_db' => $an->data->{sys}{host_is_in_db} }});
 			}
 		}
 		
@@ -245,7 +244,7 @@ INSERT INTO
     ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
 );
 ";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			query => $query,
 			set   => $set, 
 		}});
@@ -267,14 +266,14 @@ AND
 AND 
     alert_name           = ".$an->data->{sys}{use_db_fh}->quote($name)."
 ;";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			query => $query,
 			set   => $set, 
 		}});
 		$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
 	return($set);
 }
 
