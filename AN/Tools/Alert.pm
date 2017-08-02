@@ -72,7 +72,7 @@ sub parent
 
 This is used by scan agents that need to track whether an alert was sent when a sensor dropped below/rose above a set alert threshold. For example, if a sensor alerts at 20°C and clears at 25°C, this will be called when either value is passed. When passing the warning threshold, the alert is registered and sent to the user. Once set, no further warning alerts are sent. When the value passes over the clear threshold, this is checked and if an alert was previously registered, it is removed and an "all clear" message is sent. In this way, multiple alerts will not go out if a sensor floats around the warning threshold and a "cleared" message won't be sent unless a "warning" message was previously sent.
 
-If there is a problem, C<< undef >> is returned.
+If there is a problem, C<< !!error!! >> is returned.
 
 Parameters;
 
@@ -125,7 +125,7 @@ sub check_alert_sent
 	{
 		# Nope
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0093"});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# Do we have an alert name?
@@ -133,7 +133,7 @@ sub check_alert_sent
 	{
 		# Nope
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "name" }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# Do we have an record locator?
@@ -141,7 +141,7 @@ sub check_alert_sent
 	{
 		# Nope
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "record_locator" }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# Do we know who is setting this??
@@ -149,7 +149,7 @@ sub check_alert_sent
 	{
 		# Nope
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "set_by" }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# Are we setting or clearing?
@@ -157,7 +157,7 @@ sub check_alert_sent
 	{
 		# Neither...
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0097"});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# This will get set to '1' if an alert is added or removed.
@@ -218,7 +218,7 @@ WHERE
 					alert_name		=>	$name, 
 					modified_date		=>	$modified_date,
 				}});
-				return(undef);
+				return("!!error!!");
 			}
 			else
 			{
@@ -282,7 +282,7 @@ AND
 
 This registers an alert to be sent later.
 
-If anything goes wrong, C<< undef >> will be returned.
+If anything goes wrong, C<< !!error!! >> will be returned.
 
 =cut
 sub register_alert
@@ -313,17 +313,17 @@ sub register_alert
 	if (not $set_by)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "set_by" }});
-		return(undef);
+		return("!!error!!");
 	}
 	if (not $message_key)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "message_key" }});
-		return(undef);
+		return("!!error!!");
 	}
 	if (($header) && (not $title_key))
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0101"});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# zero-pad sort numbers so that they sort properly.

@@ -273,7 +273,7 @@ sub determine_host_type
 
 This method enables a daemon (so that it starts when the OS boots). The return code from the start request will be returned.
 
-If the return code for the enable command wasn't read, C<< undef >> is returned.
+If the return code for the enable command wasn't read, C<< !!error!! >> is returned.
 
 Parameters;
 
@@ -638,18 +638,18 @@ sub remote_call
 	{
 		# No shell call
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "shell_call" }});
-		return(undef);
+		return("!!error!!");
 	}
 	if (not $target)
 	{
 		# No target
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "target" }});
-		return(undef);
+		return("!!error!!");
 	}
 	if (not $user)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "user" }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# If the user didn't pass a port, but there is an entry in 'hosts::<host>::port', use it.
@@ -695,7 +695,7 @@ sub remote_call
 	if (($port !~ /^\d+$/) or ($port < 0) or ($port > 65536))
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0058", variables => { port => $port }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# If the target is a host name, convert it to an IP.
@@ -946,7 +946,7 @@ sub remote_call
 
 This method reloads a daemon (typically to pick up a change in configuration). The return code from the start request will be returned.
 
-If the return code for the reload command wasn't read, C<< undef >> is returned. If it did reload, C<< 0 >> is returned. If the reload failed, a non-0 return code will be returned.
+If the return code for the reload command wasn't read, C<< !!error!! >> is returned. If it did reload, C<< 0 >> is returned. If the reload failed, a non-0 return code will be returned.
 
 Parameters;
 
@@ -985,7 +985,7 @@ sub reload_daemon
 
 This method starts a daemon. The return code from the start request will be returned.
 
-If the return code for the start command wasn't read, C<< undef >> is returned.
+If the return code for the start command wasn't read, C<< !!error!! >> is returned.
 
 Parameters;
 
@@ -1025,7 +1025,7 @@ sub start_daemon
 
 This method stops a daemon. The return code from the stop request will be returned.
 
-If the return code for the stop command wasn't read, C<< undef >> is returned.
+If the return code for the stop command wasn't read, C<< !!error!! >> is returned.
 
 Parameters;
 

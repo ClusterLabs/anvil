@@ -19,6 +19,7 @@ my $THIS_FILE = "Tools.pm";
 ### Methods;
 # data
 # environment
+# nice_exit
 # _add_hash_reference
 # _hostname
 # _make_hash_reference
@@ -127,7 +128,14 @@ sub new
 			UUID			=>	"",
 		},
 		sys				=>	{
+			database			=>	{
+				local_lock_active		=>	0,
+				locking_reap_age		=>	300,
+				log_transactions		=>	0,
+				maximum_batch_size		=>	25000,
+			},
 			host_type			=>	"",
+			use_base2			=>	1,
 		},
 	};
 
@@ -282,6 +290,32 @@ sub environment
 	
 	return ($an->{ENV_VALUES}{ENVIRONMENT});
 }
+
+=head2 nice_exit
+
+This is a simple method to exit cleanly, closing database connections and exiting with the set exit code.
+
+Parameters;
+
+=head3 exit_code (optional)
+
+If set, this will be the exit code. The default is to exit with code C<< 0 >>.
+
+=cut
+sub nice_exit
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self;
+	
+	my $exit_code = defined $parameter->{exit_code} ? $parameter->{exit_code} : 0;
+	
+	# Close database connections (if any).
+	$an->Database->disconnect();
+	
+	exit($exit_code);
+}
+
 
 #############################################################################################################
 # Public methods used to access sub modules.                                                                #
@@ -608,16 +642,16 @@ sub _set_paths
 	
 	# Executables
 	$an->data->{path} = {
-			configs		=>	{
+			configs			=>	{
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
 				ssh_config		=>	"/etc/ssh/ssh_config",
 				'striker.conf'		=>	"/etc/striker/striker.conf",
 			},
-			data		=>	{
+			data			=>	{
 				passwd			=>	"/etc/passwd",
 			},
-			directories	=>	{
+			directories		=>	{
 				backups			=>	"/usr/sbin/striker/backups",
 				'cgi-bin'		=>	"/var/www/cgi-bin",
 				html			=>	"/var/www/html",
@@ -625,7 +659,8 @@ sub _set_paths
 				tools			=>	"/usr/sbin/striker",
 				units			=>	"/usr/lib/systemd/system",
 			},
-			exe		=>	{
+			exe			=>	{
+				'an-report-memory'	=>	"/usr/sbin/an-report-memory",
 				'chmod'			=>	"/usr/bin/chmod",
 				'chown'			=>	"/usr/bin/chown",
 				cp			=>	"/usr/bin/cp",
@@ -640,11 +675,15 @@ sub _set_paths
 				logger			=>	"/usr/bin/logger",
 				'mkdir'			=>	"/usr/bin/mkdir",
 				ping			=>	"/usr/bin/ping",
+				pgrep			=>	"/usr/bin/pgrep",
 				psql			=>	"/usr/bin/psql",
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
 				uuidgen			=>	"/usr/bin/uuidgen",
+			},
+			'lock'			=>	{
+				database		=>	"/tmp/an-tools.database.lock",
 			},
 			secure			=>	{
 				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",

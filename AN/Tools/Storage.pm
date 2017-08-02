@@ -629,7 +629,7 @@ This reads in a file and returns the contents of the file as a single string var
 
  my $body = $an->Storage->read_file({file => "/tmp/foo"});
 
-If it fails to find the file, or the file is not readable, 'C<< undef >>' is returned.
+If it fails to find the file, or the file is not readable, 'C<< !!error!! >>' is returned.
 
 Parameters;
 
@@ -651,17 +651,17 @@ sub read_file
 	if (not $file)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_file()", parameter => "file" }});
-		return(undef);
+		return("!!error!!");
 	}
 	elsif (not -e $file)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0021", variables => { file => $file }});
-		return(undef);
+		return("!!error!!");
 	}
 	elsif (not -r $file)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0022", variables => { file => $file }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	my $shell_call = $file;

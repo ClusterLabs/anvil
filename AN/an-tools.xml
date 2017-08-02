@@ -183,6 +183,16 @@ The database connection error was:
 		<key name="log_0111">[ Warning ] - Failed to reload the Postgres server. Please check the system logs for details. The updated configuration is probably not active yet.</key>
 		<key name="log_0112">Reloaded the PostgreSQL database server.</key>
 		<key name="log_0113"><![CDATA[[ Note ] - The 'Database->configure_pgsql() method was called but the parent program is not running with root priviledges. Returning without doing anything.]]>.</key>
+		<key name="log_0114"><![CDATA[The program: [#!data!path::exe::an-report-memory!#] must be called with '--program <name>', but no program name was read in.]]></key>
+		<key name="log_0115">#!variable!program!# has started.</key>
+		<key name="log_0116"><![CDATA[The method: [#!variable!method!#] was passed the parameter: [#!variable!parameter!#] with the value: [#!variable!value!#], which is invalid.]]></key>
+		<key name="log_0117"><![CDATA[The method 'Convert->human_readable_to_bytes()' was passed the byte size: [#!variable!size!#] in the string: [sign: #!variable!sign!#, size: #!variable!size!#, type: #!variable!type!#] contains an illegal value. Sizes can only be integers or real numbers. It may also have commas in it which will be removed automatically.]]></key>
+		<key name="log_0118"><![CDATA[The method 'Convert->human_readable_to_bytes()' was passed the byte size: [#!variable!size!#] in the string: [sign: #!variable!sign!#, size: #!variable!size!#, type: #!variable!type!#] appears to be a byte size already but the size does not seem to be an integer. Byte sizes can only be signed integers. It may also have commas in it which will be removed automatically.]]></key>
+		<key name="log_0119"><![CDATA[The method 'Convert->human_readable_to_bytes()' method was called with the value: [#!variable!value!#] which we split into the size: [#!variable!size!#] and type: [#!variable!type!#]. The type appears to be invalid.]]></key>
+		<key name="log_0120"><![CDATA[The method 'Convert->round()' was passed the number: [#!variable!number!#] which contains an illegal value. Only digits and one decimal place are allowed.]]></key>
+		<key name="log_0121">Current memory used by: [#!variable!program_name!#] is approximately: [#!variable!bytes!#] bytes (#!variable!hr_size!#).</key>
+		<key name="log_0122">The 'smaps' proc file for the process ID: [#!variable!pid!#] was not found. Did the program just close?</key>
+		<key name="log_0123"><![CDATA[[ Error ] - Asked 'pgrep' to return the PIDs (process IDs) of the program: [#!variable!program!#] and a non-digit value was returned in: [#!variable!line!#]. This should not have happened.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

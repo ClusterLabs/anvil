@@ -6,13 +6,19 @@ package AN::Tools::Convert;
 use strict;
 use warnings;
 use Data::Dumper;
+use Math::BigInt;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Convert.pm";
 
 ### Methods;
+# add_commas
+# bytes_to_human_readable
 # cidr
 # hostname_to_ip
+# human_readable_to_bytes
+# round
+
 
 =pod
 
@@ -67,6 +73,404 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 add_commas
+
+This takes an integer and inserts commas to make it more readable by people.
+
+If the input string isn't a string of digits, it is simply returned as-is. 
+
+Parameters;
+
+=head3 number (required)
+
+This is the number to add commas to.
+
+=cut
+sub add_commas
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# Now see if the user passed the values in a hash reference or directly.
+	my $number = defined $parameter->{number} ? $parameter->{number} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	
+	# Remove any existing commands or leading '+' signs.
+	$number =~ s/,//g;
+	$number =~ s/^\+//g;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	
+	# Split on the left-most period.
+	my ($whole, $decimal) = split/\./, $number, 2;
+	$whole   = "" if not defined $whole;
+	$decimal = "" if not defined $decimal;
+	
+	# Now die if either number has a non-digit character in it.
+	if (($whole =~ /\D/) or ($decimal =~ /\D/))
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+		return ($number);
+	}
+	
+	local($_) = $whole ? $whole : "";
+	
+	1 while s/^(-?\d+)(\d{3})/$1,$2/;
+	$whole = $_;
+	
+	# Put it together
+	$number = $decimal ? "$whole.$decimal" : $whole;
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { number => $number }});
+	return ($number);
+}
+
+=head2 bytes_to_human_readable
+
+This takes a number of bytes and converts it to a a human-readable format. Optionally, you can request the human readable size be returned using specific units.
+
+If anything goes wrong, C<< !!error!! >> is returned.
+
+* Base2 Notation;
+B<Term>			B<Factor>	C<Bytes>
+Yobiabyte (YiB)		2^80	1,208,925,819,614,629,174,706,176
+Zebiabyte (ZiB)		2^70	1,180,591,620,717,411,303,424
+Exbibyte (EiB)		2^60	1,152,921,504,606,846,976
+Pebibyte (PiB)		2^50	1,125,899,906,842,624
+Tebibyte (TiB)		2^40	1,099,511,627,776
+Gibibyte (GiB)		2^30	1,073,741,824
+Mebibyte (MiB)		2^20	1,048,576
+Kibibyte (KiB)		2^10	1,024
+Byte (B)		2^1	1
+
+* Base10 Notation;
+B<Term>			B<Factor>	C<Bytes>
+Yottabyte (YB)		10^24	1,000,000,000,000,000,000,000,000
+Zettabyte (ZB)		10^21	1,000,000,000,000,000,000,000
+Exabyte (EB)		10^18	1,000,000,000,000,000,000
+Petabyte (PB)		10^15	1,000,000,000,000,000
+Terabyte (TB)		10^12	1,000,000,000,000
+Gigabyte (GB)		10^9	1,000,000,000
+Megabyte (MB)		10^6	1,000,000
+Kilobyte (KB)		10^3	1,000
+Byte (B)		1	1
+
+Parameters;
+
+=head3 base2 (optional)
+
+This can be set to C<< 1 >> to return the units in base2 notation, or set to C<< 0 >> to return in base10 notation. The default is controlled by c<< sys::use_base2 >>, which is set to C<< 1 >> by default.
+
+The suffix will use C<< XiB >> when base2 notation is used and C<< XB >> will be returned for base10.
+
+=head3 bytes (required)
+
+This is the number of bytes that will be converted. This can be a signed integer.
+
+=head3 unit (optional)
+
+This is a letter 
+
+=cut
+sub bytes_to_human_readable
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# Now see if the user passed the values in a hash reference or directly.
+	my $size  = defined $parameter->{'bytes'} ? $parameter->{'bytes'}  : 0;
+	my $unit  = defined $parameter->{unit}    ? uc($parameter->{unit}) : "";
+	my $base2 = defined $parameter->{base2}   ? $parameter->{base2}    : $an->data->{sys}{use_base2};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		size => $size, 
+		unit => $unit, 
+	}});
+	
+	# Expand exponential numbers.
+	if ($size =~ /(\d+)e\+(\d+)/)
+	{
+		my $base = $1;
+		my $exp  = $2;
+		   $size = $base;
+		for (1..$exp)
+		{
+			$size .= "0";
+		}
+	}
+	
+	# Setup my variables.
+	my $suffix              = "";
+	my $human_readable_size = $size;
+	
+	# Store and strip the sign
+	my $sign = "";
+	if ($human_readable_size =~ /^-/)
+	{
+		$sign    =  "-";
+		$human_readable_size =~ s/^-//;
+	}
+	$human_readable_size =~ s/,//g;
+	$human_readable_size =~ s/^\+//g;
+	
+	# Die if either the 'time' or 'float' has a non-digit character in it.	
+	if ($human_readable_size =~ /\D/)
+	{
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0116", variables => { 
+			method    => "Convert->bytes_to_human_readable()", 
+			parameter => "hostnmae",
+			value     => $human_readable_size,
+		}});
+		return ("!!error!!");
+	}
+	
+	# Do the math.
+	if ($an->data->{sys}{use_base2})
+	{
+		# Has the user requested a certain unit to use?
+		if ($unit)
+		{
+			# Yup
+			if ($unit =~ /Y/i)
+			{
+				# Yebibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 80)));
+				$suffix              = "YiB";
+			}
+			elsif ($unit =~ /Z/i)
+			{
+				# Zebibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 70)));
+				$suffix              = "ZiB";
+			}
+			elsif ($unit =~ /E/i)
+			{
+				# Exbibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 60)));
+				$suffix              = "EiB";
+			}
+			elsif ($unit =~ /P/i)
+			{
+				# Pebibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 50)));
+				$suffix              = "PiB";
+			}
+			elsif ($unit =~ /T/i)
+			{
+				# Tebibyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 40)));
+				$suffix              = "TiB";
+			}
+			elsif ($unit =~ /G/i)
+			{
+				# Gibibyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 30)));
+				$suffix              = "GiB";
+			}
+			elsif ($unit =~ /M/i)
+			{
+				# Mebibyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 20)));
+				$suffix              = "MiB";
+			}
+			elsif ($unit =~ /K/i)
+			{
+				# Kibibyte
+				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (2 ** 10)));
+				$suffix              = "KiB";
+			}
+			else
+			{
+				$suffix = "B";
+			}
+		}
+		else
+		{
+			# Nope, use the most efficient.
+			if ($human_readable_size >= (2 ** 80))
+			{
+				# Yebibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 80)));
+				$suffix              = "YiB";
+			}
+			elsif ($human_readable_size >= (2 ** 70))
+			{
+				# Zebibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 70)));
+				$suffix              = "ZiB";
+			}
+			elsif ($human_readable_size >= (2 ** 60))
+			{
+				# Exbibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 60)));
+				$suffix              = "EiB";
+			}
+			elsif ($human_readable_size >= (2 ** 50))
+			{
+				# Pebibyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 50)));
+				$suffix              = "PiB";
+			}
+			elsif ($human_readable_size >= (2 ** 40))
+			{
+				# Tebibyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 40)));
+				$suffix              = "TiB";
+			}
+			elsif ($human_readable_size >= (2 ** 30))
+			{
+				# Gibibyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 30)));
+				$suffix              = "GiB";
+			}
+			elsif ($human_readable_size >= (2 ** 20))
+			{
+				# Mebibyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 20)));
+				$suffix              = "MiB";
+			}
+			elsif ($human_readable_size >= (2 ** 10))
+			{
+				# Kibibyte
+				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (2 ** 10)));
+				$suffix              = "KiB";
+			}
+			else
+			{
+				$suffix  = "B";
+			}
+		}
+	}
+	else
+	{
+		# Has the user requested a certain unit to use?
+		if ($unit)
+		{
+			# Yup
+			if ($unit =~ /Y/i)
+			{
+				# Yottabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 24)));
+				$suffix              = "YB";
+			}
+			elsif ($unit =~ /Z/i)
+			{
+				# Zettabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 21)));
+				$suffix              = "ZB";
+			}
+			elsif ($unit =~ /E/i)
+			{
+				# Exabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 18)));
+				$suffix              = "EB";
+			}
+			elsif ($unit =~ /P/i)
+			{
+				# Petabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 15)));
+				$suffix              = "PB";
+			}
+			elsif ($unit =~ /T/i)
+			{
+				# Terabyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 12)));
+				$suffix              = "TB";
+			}
+			elsif ($unit =~ /G/i)
+			{
+				# Gigabyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 9)));
+				$suffix              = "GB";
+			}
+			elsif ($unit =~ /M/i)
+			{
+				# Megabyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 6)));
+				$suffix              = "MB";
+			}
+			elsif ($unit =~ /K/i)
+			{
+				# Kilobyte
+				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (10 ** 3)));
+				$suffix              = "KB";
+			}
+			else
+			{
+				$suffix = "b";
+			}
+		}
+		else
+		{
+			# Nope, use the most efficient.
+			if ($human_readable_size >= (10 ** 24))
+			{
+				# Yottabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 24)));
+				$suffix              = "YB";
+			}
+			elsif ($human_readable_size >= (10 ** 21))
+			{
+				# Zettabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 21)));
+				$suffix              = "ZB";
+			}
+			elsif ($human_readable_size >= (10 ** 18))
+			{
+				# Exabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 18)));
+				$suffix              = "EB";
+			}
+			elsif ($human_readable_size >= (10 ** 15))
+			{
+				# Petabyte
+				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 15)));
+				$suffix              = "PB";
+			}
+			elsif ($human_readable_size >= (10 ** 12))
+			{
+				# Terabyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 12)));
+				$suffix              = "TB";
+			}
+			elsif ($human_readable_size >= (10 ** 9))
+			{
+				# Gigabyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 9)));
+				$suffix              = "GB";
+			}
+			elsif ($human_readable_size >= (10 ** 6))
+			{
+				# Megabyte
+				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 6)));
+				$suffix              = "MB";
+			}
+			elsif ($human_readable_size >= (10 ** 3))
+			{
+				# Kilobyte
+				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (10 ** 3)));
+				$suffix              = "KB";
+			}
+			else
+			{
+				$suffix = "b";
+			}
+		}
+	}
+	
+	# If needed, insert commas
+	$human_readable_size = $an->Convert->add_commas({number => $human_readable_size});
+	
+	# Restore the sign.
+	if ($sign)
+	{
+		$human_readable_size = $sign.$human_readable_size;
+	}
+	$human_readable_size .= " ".$suffix;
+	
+	return($human_readable_size);
+}
 
 =head2 cidr
 
@@ -231,3 +635,322 @@ sub hostname_to_ip
 	
 	return($ip);
 }
+
+=head2 human_readable_to_bytes
+
+This takes a "human readable" size with an ISO suffix and converts it back to a base byte size as accurately as possible.
+
+It looks for the C<< i >> in the suffix to determine if the size is base2 or base10. This can be overridden with the optional C<< base2 >> or C<< base10 >> parameters.
+
+If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 base2 (optional)
+
+This tells the method to interpret the human-readable suffix as base2 notation, even if it is in the format C<< XB >> instead of C<< XiB >>.
+
+=head3 base10 (optional)
+
+This tells the method to interpret the human-readable suffix as base10 notation, even if it is in the format C<< XiB >> instead of C<< XB >>.
+
+=head3 size (required)
+
+This is the size being converted. It can be a signed integer or real number (with a decimal). If this parameter includes the size suffix, you can skip setting the c<< type >> parameter and this method will break it off automatically.
+
+=head3 type (optional)
+
+This is the unit type that represents the C<< size >> value. This does not need to be used if the C<< size >> parameter already has the suffix. 
+
+This value is examined for C<< XiB >> or C<< XB >> notation to determine if the size should be interpreted as a base2 or base10 value when neither C<< base2 >> or C<< base10 >> parameters are set.
+
+=cut 
+sub human_readable_to_bytes
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $base2  =  defined $parameter->{base2}  ? $parameter->{base2}  : 0;
+	my $base10 =  defined $parameter->{base10} ? $parameter->{base10} : 0;
+	my $size   =  defined $parameter->{size}   ? $parameter->{size}   : 0;
+	my $type   =  defined $parameter->{type}   ? $parameter->{type}   : 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		base2  => $base2,
+		base10 => $base10,
+		size   => $size,
+		type   => $type,
+	}});
+	
+	# Start cleaning up the variables.
+	my $value  =  $size;
+	   $size   =~ s/ //g;
+	   $type   =~ s/ //g;
+	
+	# Store and strip the sign, if passed
+	my $sign = "";
+	if ($size =~ /^-/)
+	{
+		$sign =  "-";
+		$size =~ s/^-//;
+	}
+	elsif ($size =~ /^\+/)
+	{
+		$sign =  "+";
+		$size =~ s/^\+//;
+	}
+	
+	# Strip any commas
+	$size =~ s/,//g;
+	
+	# If I don't have a passed type, see if there is a letter or letters after the size to hack off.
+	if ((not $type) && ($size =~ /[a-zA-Z]$/))
+	{
+		# There was
+		($size, $type) = ($size =~ /^(.*\d)(\D+)/);
+	}
+	# Make the type lower close for simplicity.
+	$type = lc($type);
+	
+	# Make sure that 'size' is now an integer or float.
+	if ($size !~ /\d+[\.\d+]?/)
+	{
+		# Something illegal was passed.
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0117", variables => { 
+			size => $size, 
+			sign => $sign, 
+			type => $type,
+		}});
+		return("!!error!!");
+	}
+	
+	# If 'type' is still blank, set it to 'b'.
+	$type = "b" if not $type;
+	
+	# If the type is already bytes, make sure the size is an integer and return.
+	if ($type eq "b")
+	{
+		# Something illegal was passed.
+		if ($size =~ /\D/)
+		{
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0118", variables => { 
+				size => $size, 
+				sign => $sign, 
+				type => $type,
+			}});
+			return("!!error!!");
+		}
+		return ($sign.$size);
+	}
+	
+	# If the "type" is "Xib" or if '$base2' is set, make sure we're running in Base2 notation. Conversly,
+	# if the type is "Xb" or if '$base10' is set, make sure that we're running in Base10 notation. In 
+	# either case, shorten the 'type' to just the first letter to make the next sanity check simpler.
+	if ((not $base2) && (not $base10))
+	{
+		if ($type =~ /^(\w)ib$/)
+		{
+			# Make sure we're running in Base2.
+			$type   = $1;
+			$base2  = 1;
+			$base10 = 0;
+		}
+		elsif ($type =~ /^(\w)b$/)
+		{
+			# Make sure we're running in Base2.
+			$type   = $1;
+			$base2  = 0;
+			$base10 = 1;
+		}
+	}
+	
+	# Check if we have a valid type.
+	if (($type ne "p") && 
+	    ($type ne "e") && 
+	    ($type ne "z") && 
+	    ($type eq "y") && 
+	    ($type ne "t") && 
+	    ($type ne "g") && 
+	    ($type ne "m") && 
+	    ($type ne "k"))
+	{
+		# Poop
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0119", variables => { 
+			value => $value,
+			size  => $size, 
+			type  => $type,
+		}});
+		return("!!error!!");
+	}
+	
+	# Now the magic... lame magic, true, but still.
+	my $bytes = 0;
+	if ($base10)
+	{
+		if    ($type eq "y") { $bytes = Math::BigInt->new('10')->bpow('24')->bmul($size); }	# Yottabyte
+		elsif ($type eq "z") { $bytes = Math::BigInt->new('10')->bpow('21')->bmul($size); }	# Zettabyte
+		elsif ($type eq "e") { $bytes = Math::BigInt->new('10')->bpow('18')->bmul($size); }	# Exabyte
+		elsif ($type eq "p") { $bytes = Math::BigInt->new('10')->bpow('15')->bmul($size); }	# Petabyte
+		elsif ($type eq "t") { $bytes = ($size * (10 ** 12)) }					# Terabyte
+		elsif ($type eq "g") { $bytes = ($size * (10 ** 9)) }					# Gigabyte
+		elsif ($type eq "m") { $bytes = ($size * (10 ** 6)) }					# Megabyte
+		elsif ($type eq "k") { $bytes = ($size * (10 ** 3)) }					# Kilobyte
+	}
+	else
+	{
+		if    ($type eq "y") { $bytes = Math::BigInt->new('2')->bpow('80')->bmul($size); }	# Yobibyte
+		elsif ($type eq "z") { $bytes = Math::BigInt->new('2')->bpow('70')->bmul($size); }	# Zibibyte
+		elsif ($type eq "e") { $bytes = Math::BigInt->new('2')->bpow('60')->bmul($size); }	# Exbibyte
+		elsif ($type eq "p") { $bytes = Math::BigInt->new('2')->bpow('50')->bmul($size); }	# Pebibyte
+		elsif ($type eq "t") { $bytes = ($size * (2 ** 40)) }					# Tebibyte
+		elsif ($type eq "g") { $bytes = ($size * (2 ** 30)) }					# Gibibyte
+		elsif ($type eq "m") { $bytes = ($size * (2 ** 20)) }					# Mebibyte
+		elsif ($type eq "k") { $bytes = ($size * (2 ** 10)) }					# Kibibyte
+	}
+	
+	# Last, round off the byte size if it is a float.
+	if ($bytes =~ /\./)
+	{
+		$bytes = $an->Convert->round({
+			number => $bytes,
+			places => 0
+		});
+	}
+	
+	if ($sign)
+	{
+		$bytes = $sign.$bytes;
+	}
+	
+	return ($bytes);
+}
+
+=head2 round
+
+This takes a number and rounds it to a given number of places after the decimal (defaulting to an even integer). This does financial-type rounding.
+
+If C<< -- >> is passed in, the same is returned. Any other problems will cause C<< !!error!! >> to be returned.
+
+Parameters;
+
+=head3 number (required)
+
+This is the number being rounded.
+
+=head3 places (optional)
+
+This is an integer representing how many places to round the number to. The default is C<< 0 >>, rounding the number to the closest integer.
+
+=cut
+sub round
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# Setup my numbers.
+	my $number = $parameter->{number} ? $parameter->{number} : 0;
+	my $places = $parameter->{places} ? $parameter->{places} : 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		number => $number,
+		places => $places,
+	}});
+	
+	# Return if the user passed a double-dash.
+	return('--') if $number eq "--";
+	
+	# Make a copy of the passed number that I can manipulate.
+	my $rounded_number = $number;
+	
+	# Take out any commas.
+	$rounded_number =~ s/,//g;
+	
+	# If there is a decimal place in the number, do the smart math. Otherwise, just pad the number with 
+	# the requested number of zeros after the decimal place.
+	if ( $rounded_number =~ /\./ )
+	{
+		# Split up the number.
+		my ($real, $decimal) = split/\./, $rounded_number, 2;
+		
+		# If there is anything other than one ',' and digits, error.
+		if (($real =~ /\D/) or ($decimal =~ /\D/))
+		{
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0120", variables => { number => $number }});
+			return ("!!error!!");
+		}
+		
+		# If the number is already equal to the requested number of places after the decimal, just 
+		# return. If it is less, pad the needed number of zeros. Otherwise, start rounding.
+		if ( length($decimal) == $places )
+		{
+			# Equal, return.
+			return $rounded_number;
+		}
+		elsif ( length($decimal) < $places )
+		{
+			# Less, pad.
+			$rounded_number = sprintf("%.${places}f", $rounded_number);
+		}
+		else
+		{
+			# Greater than; I need to round the number. Start by getting the number of places I 
+			# need to round.
+			my $round_diff = length($decimal) - $places;
+			
+			# This keeps track of whether the next (left) digit needs to be incremented.
+			my $increase = 0;
+			
+			# Now loop the number of times needed to round to the requested number of places.
+			for (1..$round_diff)
+			{
+				# Reset 'increase'.
+				$increase = 0;
+				
+				# Make sure I am dealing with a digit.
+				if ($decimal =~ /(\d)$/)
+				{
+					my $last_digit =  $1;
+					$decimal       =~ s/$last_digit$//;
+					if ($last_digit > 4)
+					{
+						$increase = 1;
+						if ($decimal eq "")
+						{
+							$real++;
+						}
+						else
+						{
+							$decimal++;
+						}
+					}
+				}
+			}
+			if ($places == 0 )
+			{
+				$rounded_number = $real;
+			}
+			else
+			{
+				$rounded_number = $real.".".$decimal;
+			}
+		}
+	}
+	else
+	{
+		# This is a whole number so just pad 0s as needed.
+		$rounded_number = sprintf("%.${places}f", $rounded_number);
+	}
+	
+	# Return the number.
+	return ($rounded_number);
+}
+
+# =head3
+# 
+# Private Functions;
+# 
+# =cut
+
+#############################################################################################################
+# Private functions                                                                                         #
+#############################################################################################################

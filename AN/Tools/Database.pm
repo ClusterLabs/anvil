@@ -12,6 +12,8 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
 
 ### Methods;
+# archive_databases
+# check_lock_age
 # configure_pgsql
 # connect
 # disconnect
@@ -21,10 +23,12 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_hosts
 # insert_or_update_states
 # insert_or_update_variables
+# lock_file
 # locking
 # mark_active
 # query
 # read_variable
+# resync_databases
 # write
 # _find_behind_database
 # _mark_database_as_behind
@@ -84,13 +88,84 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+=head2 archive_databases
+
+NOTE: Not implemented yet.
+
+=cut
+sub archive_databases
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	return(0);
+}
+
+=head2 check_lock_age
+
+This checks to see if 'sys::database::local_lock_active' is set. If it is, its age is checked and if the age is >50% of sys::database::locking_reap_age, it will renew the lock.
+
+=cut
+sub check_lock_age
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# Make sure we've got the 'sys::database::local_lock_active' and 'reap_age' variables set.
+	if ((not defined $an->data->{sys}{database}{local_lock_active}) or ($an->data->{sys}{database}{local_lock_active} =~ /\D/))
+	{
+		$an->data->{sys}{database}{local_lock_active} = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+	}
+	if ((not $an->data->{sys}{database}{locking_reap_age}) or ($an->data->{sys}{database}{locking_reap_age} =~ /\D/))
+	{
+		$an->data->{sys}{database}{locking_reap_age} = 300;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+	}
+	
+	# If I have an active lock, check its age and also update the ScanCore lock file.
+	my $renewed = 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+	if ($an->data->{sys}{database}{local_lock_active})
+	{
+		my $current_time  = time;
+		my $lock_age      = $current_time - $an->data->{sys}{database}{local_lock_active};
+		my $half_reap_age = int($an->data->{sys}{database}{locking_reap_age} / 2);
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			current_time  => $current_time,
+			lock_age      => $lock_age,
+			half_reap_age => $half_reap_age, 
+		}});
+		
+		if ($lock_age > $half_reap_age)
+		{
+			# Renew the lock.
+			$an->Database->locking({renew => 1});
+			$renewed = 1;
+			
+			# Update the lock age
+			$an->data->{sys}{database}{local_lock_active} = time;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::local_lock_active" => $an->data->{sys}{database}{local_lock_active} }});
+			
+			# Update the lock file
+			my $lock_file_age = $an->Database->lock_file({'do' => "set"});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lock_file_age => $lock_file_age }});
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { renewed => $renewed }});
+	return($renewed);
+}
+
 =head2 configure_pgsql
 
 This configures the local database server. Specifically, it checks to make sure the daemon is running and starts it if not. It also checks the 'pg_hba.conf' configuration to make sure it is set properly to listen on this machine's IP addresses and interfaces.
 
 If the system is already configured, this method will do nothing, so it is safe to call it at any time.
 
-If there is a problem, C<< undef >> is returned.
+If there is a problem, C<< !!error!! >> is returned.
 
 Parameters;
 
@@ -111,7 +186,7 @@ sub configure_pgsql
 	if (not $id)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->configure_pgsql()", parameter => "id" }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# If we're not running with root access, return.
@@ -120,7 +195,7 @@ sub configure_pgsql
 		# This is a minor error as it will be hit by every unpriviledged program that connects to the
 		# database(s).
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "log_0113"});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# First, is it running?
@@ -141,7 +216,7 @@ sub configure_pgsql
 			{
 				# Failed... 
 				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
-				return(undef);
+				return("!!error!!");
 			}
 			else
 			{
@@ -263,7 +338,7 @@ sub configure_pgsql
 		{
 			# Failed to start
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
-			return(undef);
+			return("!!error!!");
 		}
 	}
 	elsif (($update_postgresql_file) or ($update_pg_hba_file))
@@ -320,7 +395,7 @@ sub configure_pgsql
 	{
 		# No database user defined
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { id => $id }});
-		return(undef);
+		return("!!error!!");
 	}
 	my $user_list = $an->System->call({shell_call => $an->data->{path}{exe}{su}." - postgres -c \"".$an->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_list => $user_list }});
@@ -357,7 +432,7 @@ sub configure_pgsql
 		if (not $user_exists)
 		{
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $scancore_user }});
-			return(undef);
+			return("!!error!!");
 		}
 		
 		# Update/set the passwords.
@@ -418,7 +493,7 @@ sub configure_pgsql
 		if (not $database_exists)
 		{
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $scancore_database }});
-			return(undef);
+			return("!!error!!");
 		}
 	}
 	
@@ -896,8 +971,22 @@ sub connect
 	# Mark that we're not active.
 	$an->Database->mark_active({set => 1});
 	
+	# Archive old data.
+	$an->Database->archive_databases({});
+	
+	# Sync the database, if needed.
+	$an->Database->resync_databases({tables => [
+			"hosts",
+			"host_variable",
+			"alerts", 
+			"variables", 
+			"updated",
+			"alert_sent",
+			"states",
+		]});
+	
 	# Add ourselves to the database, if needed.
-	$an->Database->insert_or_update_hosts();
+	$an->Database->insert_or_update_hosts;
 	
 	return($connections);
 }
@@ -1469,7 +1558,7 @@ This updates (or inserts) a record in the 'variables' table. The C<< state_uuid 
 
 Unlike the other methods of this type, this method can be told to update the 'variable_value' only. This is so because the section, description and default columns rarely ever change. If this is set and the variable name is new, an INSERT will be done the same as if it weren't set, with the unset columns set to NULL.
 
-If there is an error, C<< undef >> is returned.
+If there is an error, C<< !!error!! >> is returned.
 
 Parameters;
 
@@ -1544,7 +1633,7 @@ sub insert_or_update_variables
 	{
 		# Neither given, throw an error and return.
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0037"});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# If we have a variable UUID but not a name, read the variable name. If we don't have a UUID, see if
@@ -1771,7 +1860,44 @@ WHERE
 	return($variable_uuid);
 }
 
+=head2 lock_file
 
+This reads, sets or updates the database lock file timestamp.
+
+=cut
+sub lock_file
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $do = $parameter->{'do'} ? $parameter->{'do'} : "get";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'do' => $do }});
+	
+	my $lock_time = 0;
+	if ($do eq "set")
+	{
+		$lock_time = time;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lock_time => $lock_time }});
+		$an->Storage->write_file({
+			file      => $an->data->{path}{'lock'}{database}, 
+			body      => $lock_time,
+			overwrite => 1,
+		});
+	}
+	else
+	{
+		# Read the lock file's time stamp, if the file exists.
+		if (-e $an->data->{path}{'lock'}{database})
+		{
+			$lock_time = $an->Storage->read_file({file => $an->data->{path}{'lock'}{database}});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lock_time => $lock_time }});
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lock_time => $lock_time }});
+	return($lock_time);
+}
 
 =head2 locking
 
@@ -1823,7 +1949,6 @@ sub locking
 		source_uuid => $source_uuid, 
 	}});
 	
-	### TODO: Left off here
 	my $set            = 0;
 	my $variable_name  = "lock_request";
 	my $variable_value = $source_name."::".$source_uuid."::".time;
@@ -1874,10 +1999,10 @@ sub locking
 				variable_value    => "",
 				update_value_only => 1,
 			});
-			$an->data->{sys}{local_lock_active} = 0;
+			$an->data->{sys}{database}{local_lock_active} = 0;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				variable_uuid            => $variable_uuid, 
-				"sys::local_lock_active" => $an->data->{sys}{local_lock_active}, 
+				"sys::local_lock_active" => $an->data->{sys}{database}{local_lock_active}, 
 			}});
 			
 			# Log that the lock has been released.
@@ -1904,10 +2029,10 @@ sub locking
 			$set = 1;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
 		}
-		$an->data->{sys}{local_lock_active} = time;
+		$an->data->{sys}{database}{local_lock_active} = time;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			variable_uuid            => $variable_uuid, 
-			"sys::local_lock_active" => $an->data->{sys}{local_lock_active}, 
+			"sys::local_lock_active" => $an->data->{sys}{database}{local_lock_active}, 
 		}});
 		
 		# Log that we've renewed the lock.
@@ -1992,11 +2117,11 @@ sub locking
 		if ($variable_uuid)
 		{
 			$set = 1;
-			$an->data->{sys}{local_lock_active} = time;
+			$an->data->{sys}{database}{local_lock_active} = time;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				set                      => $set, 
 				variable_uuid            => $variable_uuid, 
-				"sys::local_lock_active" => $an->data->{sys}{local_lock_active}, 
+				"sys::local_lock_active" => $an->data->{sys}{database}{local_lock_active}, 
 			}});
 			
 			# Log that we've got the lock.
@@ -2056,7 +2181,7 @@ sub mark_active
 
 This performs a query and returns an array reference of array references (from C<< DBO->fetchall_arrayref >>). The first array contains all the returned rows and each row is an array reference of columns in that row.
 
-If an error occurs, C<< undef >> will be returned.
+If an error occurs, C<< !!error!! >> will be returned.
 
 For example, given the query;
 
@@ -2095,7 +2220,7 @@ Parameters;
 
 By default, the local database will be queried (if run on a machine with a database). Otherwise, the first database successfully connected to will be used for queries (as stored in C<< $an->data->{sys}{read_db_id} >>).
 
-If you want to read from a specific database, though, you can set this parameter to the ID of the database (C<< database::<id>::host). If you specify a read from a database that isn't available, C<< undef >> will be returned.
+If you want to read from a specific database, though, you can set this parameter to the ID of the database (C<< database::<id>::host). If you specify a read from a database that isn't available, C<< !!error!! >> will be returned.
 
 =head3 line (optional)
 
@@ -2144,13 +2269,13 @@ sub query
 	{
 		# No database to talk to...
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0072"});
-		return(undef);
+		return("!!error!!");
 	}
 	elsif (not defined $an->data->{cache}{db_fh}{$id})
 	{
 		# Database handle is gone.
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0073", variables => { id => $id }});
-		return(undef);
+		return("!!error!!");
 	}
 	if (not $query)
 	{
@@ -2158,15 +2283,14 @@ sub query
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0084", variables => { 
 			server => $say_server,
 		}});
-		return(undef);
+		return("!!error!!");
 	}
 	
-	### TODO:  If I am still alive check if any locks need to be renewed.
-	#$an->Database->check_lock_age;
+	# If I am still alive check if any locks need to be renewed.
+	$an->Database->check_lock_age;
 	
-	### TODO: Do I need to log the transaction?
-	#if ($an->Log->db_transactions())
-	if (1)
+	# Do I need to log the transaction?
+	if ($an->data->{sys}{database}{log_transactions})
 	{
 		$an->Log->entry({source => $source, line => $line, secure => $secure, level => 2, key => "log_0074", variables => { 
 			id    => $id, 
@@ -2202,7 +2326,7 @@ This reads a variable from the C<< variables >> table. Be sure to only use the r
 
 The method returns an array reference containing, in order, the variable's value, database UUID and last modified date stamp.
 
-If anything goes wrong, C<< undef >> is returned. If the variable didn't exist in the database, an empty string will be returned for the UUID, value and modified date.
+If anything goes wrong, C<< !!error!! >> is returned. If the variable didn't exist in the database, an empty string will be returned for the UUID, value and modified date.
 
 Parameters;
 
@@ -2236,7 +2360,7 @@ sub read_variable
 	{
 		# Throw an error and exit.
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0036"});
-		return(undef, undef, undef);
+		return("!!error!!", "!!error!!", "!!error!!");
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given SMTP server name.
@@ -2302,6 +2426,32 @@ AND
 	return($variable_value, $variable_uuid, $modified_date);
 }
 
+=head2 resync_databases
+
+NOTE: Not implemented yet.
+
+This will resync the database data on this and peer database(s) if needed.
+
+=cut
+sub resync_databases
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# Get a list if tables. Note that we'll only sync a given table with peers that have the same table.
+	my $table_array = ref($parameter->{tables}) eq "ARRAY" ? $parameter->{tables} : [];
+	
+	# Show tables;
+	# SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY table_name ASC, table_schema DESC;
+	
+	# Show columns;
+	# SELECT table_catalog, table_schema, table_name, column_name, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'alerts';
+	
+	# psql -E scancore <<-- LOVE <3
+	
+	return(0);
+}
 
 =head2 write
 
@@ -2338,11 +2488,11 @@ sub write
 	{
 		# No query
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0085", variables => { server => $say_server }});
-		return(undef);
+		return("!!error!!");
 	}
 	
-	# TODO: If I am still alive check if any locks need to be renewed.
-	#$an->Database->check_lock_age;
+	# If I am still alive check if any locks need to be renewed.
+	$an->Database->check_lock_age;
 	
 	# This array will hold either just the passed DB ID or all of them, if no ID was specified.
 	my @db_ids;
@@ -2508,7 +2658,7 @@ sub write
 
 This returns the most up to date database ID, the time it was last updated and an array or DB IDs that are behind.
 
-If there is a problem, C<< undef >> is returned.
+If there is a problem, C<< !!error!! >> is returned.
 
 Parameters;
 
@@ -2538,7 +2688,7 @@ sub _find_behind_databases
 	if (not $source)
 	{
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->_find_behind_databases()", parameter => "source" }});
-		return(undef);
+		return("!!error!!");
 	}
 	
 	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
