@@ -161,11 +161,11 @@ The database connection error was:
 		<key name="log_0098">
 [ Warning ] - Failed to set an alert because this host is not yet in the database. This can happen if the alert was set before this host was added to the database.
 * Details of the alert:
-- Type:           [#!variable!type!#]
-- Sent By:        [#!variable!alert_sent_by!#]
-- Record Locator: [#!variable!alert_record_locator!#]
-- Name:           [#!variable!alert_name!#]
-- Timestamp:      [#!variable!modified_date!#]
+- Type: ......... [#!variable!type!#]
+- Set By: ....... [#!variable!set_by!#]
+- Record Locator: [#!variable!record_locator!#]
+- Name: ......... [#!variable!name!#]
+- Timestamp: .... [#!variable!modified_date!#]
 		</key>
 		<key name="log_0099">[ Error ] - There is no ScanCore database user set for the local machine. Please check: [#!data!path::config::striker.conf!#]'s DB entry: [#!variable!id!#].</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
@@ -192,6 +192,7 @@ The database connection error was:
 		<key name="log_0121">Current memory used by: [#!variable!program_name!#] is approximately: [#!variable!bytes!#] bytes (#!variable!hr_size!#).</key>
 		<key name="log_0122">The 'smaps' proc file for the process ID: [#!variable!pid!#] was not found. Did the program just close?</key>
 		<key name="log_0123"><![CDATA[[ Error ] - Asked 'pgrep' to return the PIDs (process IDs) of the program: [#!variable!program!#] and a non-digit value was returned in: [#!variable!line!#]. This should not have happened.]]></key>
+		<key name="log_0124">About to query: [#!variable!query!#]</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

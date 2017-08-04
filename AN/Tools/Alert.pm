@@ -211,11 +211,11 @@ WHERE
 			{
 				# Too early, we can't set an alert.
 				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0098", variables => {
-					type                 => $type, 
-					alert_set_by         => $set_by, 
-					alert_record_locator => $record_locator, 
-					alert_name           => $name, 
-					modified_date        => $modified_date,
+					type           => $type, 
+					set_by         => $set_by, 
+					record_locator => $record_locator, 
+					name           => $name, 
+					modified_date  => $modified_date,
 				}});
 				return("!!error!!");
 			}
