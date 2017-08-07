@@ -506,6 +506,12 @@ sub configure_pgsql
 		}
 	}
 	
+	# Finally, make sure firewalld is listening on the local port.
+	# my $zone = firewall-cmd --get-default-zone
+	# firewall-cmd --zone=$zone --list-all 
+	# check for 'services: ... postgresql ...' (for 5432) or 'ports: ... X ...' otherwise
+	# Check 'firewall-cmd --info-service=postgresql' to nonfirm 'ports: 5432/tcp'
+	
 	return(0);
 }
 
@@ -606,7 +612,7 @@ sub connect
 	if (not $an->data->{sys}{host_uuid})
 	{
 		$an->data->{sys}{host_uuid} = $an->Get->host_uuid;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::host_uuid" => $an->data->{sys}{host_uuid} }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $an->data->{sys}{host_uuid} }});
 	}
 	
 	# This will be used in a few cases where the local DB ID is needed (or the lack of it being set 
@@ -629,6 +635,13 @@ sub connect
 		my $name     = $an->data->{database}{$id}{name}     ? $an->data->{database}{$id}{name}     : ""; # This should fail
 		my $user     = $an->data->{database}{$id}{user}     ? $an->data->{database}{$id}{user}     : ""; # This should fail
 		my $password = $an->data->{database}{$id}{password} ? $an->data->{database}{$id}{password} : "";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			host     => $host,
+			port     => $port,
+			name     => $name,
+			user     => $user, 
+			password => $an->Log->secure ? $password : "--", 
+		}});
 		
 		# If not set, we will always ping before connecting.
 		if ((not exists $an->data->{database}{$id}{ping_before_connect}) or (not defined $an->data->{database}{$id}{ping_before_connect}))
@@ -680,7 +693,11 @@ sub connect
 			{
 				# Didn't ping and 'database::<id>::ping_before_connect' not set. Record this 
 				# in the failed connections array.
-				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0063", variables => { id => $id }});
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0063", variables => { 
+					host => $port ? $host.":".$port : $host,
+					name => $name, 
+					id   => $id,
+				}});
 				push @{$failed_connections}, $id;
 				next;
 			}
@@ -778,7 +795,7 @@ sub connect
 			push @{$successful_connections}, $id;
 			$an->data->{cache}{db_fh}{$id} = $dbh;
 			
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0071", variables => { 
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0071", variables => { 
 				host => $host,
 				port => $port,
 				name => $name,
@@ -863,6 +880,14 @@ sub connect
 	# Report any failed DB connections
 	foreach my $id (@{$failed_connections})
 	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"database::${id}::host"     => $an->data->{database}{$id}{host},
+			"database::${id}::port"     => $an->data->{database}{$id}{port},
+			"database::${id}::name"     => $an->data->{database}{$id}{name},
+			"database::${id}::user"     => $an->data->{database}{$id}{user}, 
+			"database::${id}::password" => $an->Log->secure ? $an->data->{database}{$id}{password} : "--", 
+		}});
+		
 		# Copy my alert hash before I delete the id.
 		my $error_array = [];
 		
@@ -912,6 +937,14 @@ sub connect
 	# Send an 'all clear' message if a now-connected DB previously wasn't.
 	foreach my $id (@{$successful_connections})
 	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"database::${id}::host"     => $an->data->{database}{$id}{host},
+			"database::${id}::port"     => $an->data->{database}{$id}{port},
+			"database::${id}::name"     => $an->data->{database}{$id}{name},
+			"database::${id}::user"     => $an->data->{database}{$id}{user}, 
+			"database::${id}::password" => $an->Log->secure ? $an->data->{database}{$id}{password} : "--", 
+		}});
+		
 		### TODO: Is this still an issue? If so, then we either need to require that the DB host 
 		###       matches the actual hostname (dumb) or find another way of mapping the host name.
 		# Query to see if the newly connected host is in the DB yet. If it isn't, don't send an
@@ -965,6 +998,7 @@ sub connect
 		source => $source, 
 		tables => $tables,
 	});
+	die;
 	
 	# Hold if a lock has been requested.
 	$an->Database->locking();
@@ -1261,6 +1295,7 @@ sub insert_or_update_hosts
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_hosts()" }});
 	
 	my $host_name = $parameter->{host_name} ? $parameter->{host_name} : $an->_hostname;
 	my $host_type = $parameter->{host_type} ? $parameter->{host_type} : $an->System->determine_host_type;
@@ -1357,6 +1392,7 @@ WHERE
 		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 	}
 	
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
 	return(0);
 }
 
@@ -2676,7 +2712,7 @@ sub _find_behind_databases
 	
 	my $source = $parameter->{source} ? $parameter->{source} : "";
 	my $tables = $parameter->{tables} ? $parameter->{tables} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		source => $source, 
 		tables => $tables, 
 	}});
@@ -2693,6 +2729,14 @@ sub _find_behind_databases
 	$an->data->{sys}{database}{source_updated_time} = 0;
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"database::${id}::host"     => $an->data->{database}{$id}{host},
+			"database::${id}::port"     => $an->data->{database}{$id}{port},
+			"database::${id}::name"     => $an->data->{database}{$id}{name},
+			"database::${id}::user"     => $an->data->{database}{$id}{user}, 
+			"database::${id}::password" => $an->Log->secure ? $an->data->{database}{$id}{password} : "--", 
+		}});
+		
 		my $name = $an->data->{database}{$id}{name};
 		my $user = $an->data->{database}{$id}{user};
 		
@@ -2707,14 +2751,14 @@ WHERE
 AND
     updated_by = ".$an->data->{sys}{use_db_fh}->quote($source).";";
 		
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			id    => $id, 
 			query => $query, 
 		}});
 		my $last_updated = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		   $last_updated = 0 if not defined $last_updated;
 		   
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			last_updated                         => $last_updated, 
 			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
 		}});
@@ -2722,7 +2766,7 @@ AND
 		{
 			$an->data->{sys}{database}{source_updated_time} = $last_updated;
 			$an->data->{sys}{database}{source_db_id}        = $id;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"sys::database::source_db_id"        => $an->data->{sys}{database}{source_db_id}, 
 				"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
 			}});
@@ -2730,7 +2774,7 @@ AND
 		
 		# Get the last updated time for this database (and source).
 		$an->data->{database}{$id}{last_updated} = $last_updated;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
 			"sys::database::source_db_id"        => $an->data->{sys}{database}{source_db_id}, 
 			"database::${id}::last_updated"      => $an->data->{database}{$id}{last_updated}
@@ -2746,7 +2790,7 @@ AND
 				   $table_name  =~ s/'(.*?)'/$1/;
 				my $host_column =  $an->data->{sys}{use_db_fh}->quote($tables->{$table});
 				   $host_column =~ s/'(.*?)'/$1/;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					table_name  => $table_name, 
 					host_column => $host_column,
 				}});
@@ -2767,7 +2811,7 @@ WHERE
 ORDER BY 
     modified_date DESC
 ;";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					id    => $id, 
 					query => $query, 
 				}});
@@ -2776,7 +2820,7 @@ ORDER BY
 				   $last_updated = 0 if not defined $last_updated;
 				   
 				$an->data->{database}{$id}{tables}{$table}{last_updated} = $last_updated;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"database::${id}::tables::${table}::last_updated" => $an->data->{database}{$id}{tables}{$table}{last_updated}, 
 				}});
 			}
@@ -2787,7 +2831,7 @@ ORDER BY
 	$an->data->{sys}{database}{to_update} = {};
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
 			"database::${id}::last_updated"      => $an->data->{database}{$id}{last_updated}, 
 		}});
@@ -2806,7 +2850,7 @@ ORDER BY
 		{
 			# This database is up to date (so far).
 			$an->data->{sys}{database}{to_update}{$id}{behind} = 0;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"sys::database::to_update::${id}::behind" => $an->data->{sys}{database}{to_update}{$id}{behind}, 
 			}});
 		}
@@ -2821,7 +2865,7 @@ ORDER BY
 				{
 					# First we've seen, set the general updated time to this entry
 					$an->data->{sys}{database}{tables}{$table}{last_updated} = $an->data->{database}{$id}{tables}{$table}{last_updated};
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"sys::database::tables::${table}::last_updated" => $an->data->{sys}{database}{tables}{$table}{last_updated}
 					}});
 				}
@@ -2863,30 +2907,30 @@ sub _mark_database_as_behind
 	my $an        = $self->parent;
 	
 	my $id = $parameter->{id} ? $parameter->{id} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
 	
 	$an->data->{sys}{database}{to_update}{$id}{behind} = 1;
 	$an->data->{sys}{database}{resync_needed}          = 1;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"sys::database::to_update::${id}::behind" => $an->data->{sys}{database}{to_update}{$id}{behind}, 
 		"sys::database::resync_needed"            => $an->data->{sys}{database}{resync_needed}, 
 	}});
 		
 	# We can't trust this database for reads, so switch to another database for reads if
 	# necessary.
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		id                => $id, 
 		"sys::read_db_id" => $an->data->{sys}{read_db_id}, 
 	}});
 	if ($id eq $an->data->{sys}{read_db_id})
 	{
 		# Switch.
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ">> sys::read_db_id" => $an->data->{sys}{read_db_id} }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> sys::read_db_id" => $an->data->{sys}{read_db_id} }});
 		foreach my $this_id (sort {$a cmp $b} keys %{$an->data->{database}})
 		{
 			next if $this_id eq $id;
 			$an->data->{sys}{read_db_id} = $this_id;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "<< sys::read_db_id" => $an->data->{sys}{read_db_id} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< sys::read_db_id" => $an->data->{sys}{read_db_id} }});
 			last;
 		}
 	}

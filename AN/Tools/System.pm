@@ -17,6 +17,7 @@ my $THIS_FILE = "System.pm";
 # check_memory
 # determine_host_type
 # enable_daemon
+# manage_firewall
 # ping
 # read_ssh_config
 # remote_call
@@ -312,6 +313,89 @@ sub enable_daemon
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 	return($return);
+}
+
+=head2 manage_firewall
+
+This method manages a firewalld firewall.
+
+Parameters;
+
+=head3 task (optional)
+
+If set to C<< open >>, it will open the corresponding C<< port >> or C<< service >>. If set to C<< close >>, it will close the corresponding C<< port >> or C<< service >>. If set to c<< check >>, the state of the given C<< port >> or C<< service >> is returned.
+
+The default is C<< check >>.
+
+=head3 port (optional)
+
+If set, this is the port number to work on.
+
+If not specified, C<< service >> is required.
+
+=head3 port_type (optional)
+
+This can be c<< tcp >> or C<< upd >> and is used to specify what protocol to use with the C<< port >>, when specified. The default is C<< tcp >>.
+
+=head3 service (optional) 
+
+This is the name of the service to work on.
+
+If not specified, C<< port >> is required.
+
+=cut
+sub manage_firewall
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $task      = defined $parameter->{task}      ? $parameter->{task}      : "check";
+	my $port      = defined $parameter->{port}      ? $parameter->{port}      : "";
+	my $port_type = defined $parameter->{port_type} ? $parameter->{port_type} : "";
+	my $service   = defined $parameter->{service}   ? $parameter->{service}   : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		task      => $task,
+		port      => $port,
+		port_type => $port_type, 
+		service   => $service,
+	}});
+	
+	# Make sure we have a port or service.
+	if ((not $port) && (not $service))
+	{
+		# ...
+		return("!!error!!");
+	}
+	
+	# Before we do anything, what zone is active?
+	my $shell_call  = $an->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
+	my $output      = $an->System->call({shell_call => $shell_call})
+	my $active_zone = "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		shell_call => $shell_call, 
+		output     => $output,
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /^\S$/)
+		{
+			$active_zone = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_zone => $active_zone }});
+		}
+		last;
+	}
+	if ($service)
+	{
+		# 
+	}
+	else
+	{
+		
+	}
+	
+	return(0);
 }
 
 =head2 ping

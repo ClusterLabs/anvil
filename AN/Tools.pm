@@ -668,6 +668,7 @@ sub _set_paths
 				createuser		=>	"/usr/bin/createuser",
 				dmidecode		=>	"/usr/sbin/dmidecode",
 				echo			=>	"/usr/bin/echo",
+				'firewall-cmd'		=>	"/usr/bin/firewall-cmd",
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/usr/bin/hostname",
 				ip			=>	"/usr/sbin/ip",

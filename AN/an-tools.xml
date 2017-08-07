@@ -112,7 +112,7 @@ Connecting to Database with configuration ID: [#!variable!id!#]
 		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!id!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
-		<key name="log_0063">The database with the ID: [#!variable!id!#] did not respond to pings and 'database::#!variable!id!#::ping_before_connect' is not set to '0' in '#!data!path::configs::striker.conf!#', skipping it.</key>
+		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the ID: [#!variable!id!#] did not respond to pings and 'database::#!variable!id!#::ping_before_connect' is not set to '0' in '#!data!path::configs::striker.conf!#', skipping it.</key>
 		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with ID: [#!variable!id!#] can not be used, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
@@ -193,6 +193,8 @@ The database connection error was:
 		<key name="log_0122">The 'smaps' proc file for the process ID: [#!variable!pid!#] was not found. Did the program just close?</key>
 		<key name="log_0123"><![CDATA[[ Error ] - Asked 'pgrep' to return the PIDs (process IDs) of the program: [#!variable!program!#] and a non-digit value was returned in: [#!variable!line!#]. This should not have happened.]]></key>
 		<key name="log_0124">About to query: [#!variable!query!#]</key>
+		<key name="log_0125">Entering method: [#!variable!method!#]</key>
+		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
