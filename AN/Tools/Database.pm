@@ -98,7 +98,12 @@ sub archive_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->archive_databases()" }});
 	
+	
+	
+	
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0126", variables => { method => "Database->archive_databases()" }});
 	return(0);
 }
 
@@ -112,6 +117,7 @@ sub check_lock_age
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->check_lock_age()" }});
 	
 	# Make sure we've got the 'sys::database::local_lock_active' and 'reap_age' variables set.
 	if ((not defined $an->data->{sys}{database}{local_lock_active}) or ($an->data->{sys}{database}{local_lock_active} =~ /\D/))
@@ -179,6 +185,7 @@ sub configure_pgsql
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->configure_pgsql()" }});
 	
 	my $id = defined $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
@@ -506,11 +513,15 @@ sub configure_pgsql
 		}
 	}
 	
-	# Finally, make sure firewalld is listening on the local port.
-	# my $zone = firewall-cmd --get-default-zone
-	# firewall-cmd --zone=$zone --list-all 
-	# check for 'services: ... postgresql ...' (for 5432) or 'ports: ... X ...' otherwise
-	# Check 'firewall-cmd --info-service=postgresql' to nonfirm 'ports: 5432/tcp'
+	# Make sure the psql TCP port is open.
+	$an->data->{database}{$id}{port} = 5432 if not $an->data->{database}{$id}{port};
+	my $port_status = $an->System->manage_firewall({
+		task        => "open",
+		port_number => $an->data->{database}{$id}{port},
+	});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port_status => $port_status }});
+	
+	die $THIS_FILE." ".__LINE__."; testing...\n";
 	
 	return(0);
 }
@@ -594,6 +605,7 @@ sub connect
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->connect()" }});
 	
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "core";
 	my $sql_file   = defined $parameter->{sql_file}   ? $parameter->{sql_file}   : $an->data->{path}{sql}{'Tools.sql'};
@@ -612,7 +624,7 @@ sub connect
 	if (not $an->data->{sys}{host_uuid})
 	{
 		$an->data->{sys}{host_uuid} = $an->Get->host_uuid;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::host_uuid" => $an->data->{sys}{host_uuid} }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::host_uuid" => $an->data->{sys}{host_uuid} }});
 	}
 	
 	# This will be used in a few cases where the local DB ID is needed (or the lack of it being set 
@@ -704,18 +716,22 @@ sub connect
 		}
 		
 		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
-		if (($host eq $an->_hostname)       or 
-		    ($host eq $an->_short_hostname) or 
-		    ($host eq "localhost")          or 
-		    ($host eq "127.0.0.1")          or 
-		(not $an->data->{sys}{read_db_id}))
+		my $is_local = $an->System->is_local({host => $host});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { is_local => $is_local }});
+		if ($is_local)
 		{
 			$an->data->{sys}{read_db_id} = $id;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
 			
 			# Set it up (or update it) if needed. This method just returns if nothing is needed.
 			$an->Database->configure_pgsql({id => $id});
 		}
+		elsif (not $an->data->{sys}{read_db_id})
+		{
+			$an->data->{sys}{read_db_id} = $id;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
+		}
+		next;
 		
 		# Connect!
 		my $dbh = "";
@@ -867,6 +883,7 @@ sub connect
 			}});
 		}
 	}
+	die;
 	
 	# Do I have any connections? Don't die, if not, just return.
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { connections => $connections }});
@@ -1036,6 +1053,7 @@ sub disconnect
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->disconnect()" }});
 	
 	my $marked_inactive = 0;
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
@@ -1083,6 +1101,7 @@ sub get_hosts
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->get_hosts()" }});
 	
 	my $query = "
 SELECT 
@@ -1144,6 +1163,7 @@ sub get_local_id
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->get_local_id()" }});
 	
 	my $local_id        = "";
 	my $network_details = $an->Get->network_details;
@@ -1185,6 +1205,7 @@ sub initialize
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->initialize()" }});
 	
 	my $id       = $parameter->{id}       ? $parameter->{id}       : $an->data->{sys}{read_db_id};
 	my $sql_file = $parameter->{sql_file} ? $parameter->{sql_file} : $an->data->{path}{sql}{'Tools.sql'};
@@ -1333,9 +1354,7 @@ FROM
 WHERE 
     host_uuid = ".$an->data->{sys}{use_db_fh}->quote($host_uuid)."
 ;";
-	$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-		name1  => "query", value1 => $query
-	}, file => $THIS_FILE, line => __LINE__});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $results = $an->Database->query({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -1427,6 +1446,7 @@ sub insert_or_update_states
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
 	
 	my $state_uuid      = $parameter->{state_uuid}      ? $parameter->{state_uuid}      : "";
 	my $state_name      = $parameter->{state_name}      ? $parameter->{state_name}      : "";
@@ -1643,6 +1663,7 @@ sub insert_or_update_variables
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
 	
 	my $variable_uuid         = defined $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = defined $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
@@ -1907,6 +1928,7 @@ sub lock_file
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->lock_file()" }});
 	
 	my $do = $parameter->{'do'} ? $parameter->{'do'} : "get";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'do' => $do }});
@@ -1966,6 +1988,7 @@ sub locking
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->locking()" }});
 	
 	my $request     = defined $parameter->{request}     ? $parameter->{request}     : 0;
 	my $release     = defined $parameter->{release}     ? $parameter->{release}     : 0;
@@ -2187,6 +2210,7 @@ sub mark_active
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->mark_active()" }});
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : 1;
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
@@ -2284,6 +2308,7 @@ sub query
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->query()" }});
 	
 	my $id     = $parameter->{id}     ? $parameter->{id}     : $an->data->{sys}{read_db_id};
 	my $line   = $parameter->{line}   ? $parameter->{line}   : __LINE__;
@@ -2378,6 +2403,7 @@ sub read_variable
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->read_variable()" }});
 	
 	my $variable_uuid         = $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
@@ -2470,6 +2496,7 @@ sub resync_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->resync_databases()" }});
 	
 	# Get a list if tables. Note that we'll only sync a given table with peers that have the same table.
 	my $table_array = ref($parameter->{tables}) eq "ARRAY" ? $parameter->{tables} : [];
@@ -2495,6 +2522,7 @@ sub write
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->write()" }});
 	
 	my $id      = $parameter->{id}      ? $parameter->{id}     : $an->data->{sys}{read_db_id};
 	my $line    = $parameter->{line}    ? $parameter->{line}   : __LINE__;
@@ -2709,6 +2737,7 @@ sub _find_behind_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->_find_behind_databases()" }});
 	
 	my $source = $parameter->{source} ? $parameter->{source} : "";
 	my $tables = $parameter->{tables} ? $parameter->{tables} : "";
@@ -2905,6 +2934,7 @@ sub _mark_database_as_behind
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->_mark_database_as_behind()" }});
 	
 	my $id = $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
@@ -2950,6 +2980,7 @@ sub _test_access
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->_test_access()" }});
 	
 	my $id = $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});

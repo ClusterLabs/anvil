@@ -17,6 +17,7 @@ my $THIS_FILE = "System.pm";
 # check_memory
 # determine_host_type
 # enable_daemon
+# is_local
 # manage_firewall
 # ping
 # read_ssh_config
@@ -315,33 +316,80 @@ sub enable_daemon
 	return($return);
 }
 
+=head2 is_local
+
+This method takes a host name or IP address and looks to see if it matches the local system. If it does, it returns C<< 1 >>. Otherwise it returns C<< 0 >>.
+
+Parameters;
+
+=head3 host (required)
+
+This is the host name (or IP address) to check against the local system.
+
+=cut
+sub is_local
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "System->_is_local()" }});
+	
+	my $host = $parameter->{host} ? $parameter->{host} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host => $host }});
+	
+	my $is_local = 0;
+	if (($host eq $an->_hostname)       or 
+	    ($host eq $an->_short_hostname) or 
+	    ($host eq "localhost")          or 
+	    ($host eq "127.0.0.1"))
+	{
+		# It's local
+		$is_local = 1;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { is_local => $is_local }});
+	}
+	else
+	{
+		# Get the list of current IPs and see if they match.
+		my $network = $an->Get->network_details;
+		foreach my $interface (keys %{$network->{interface}})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network->interface::${interface}::ip" => $network->{interface}{$interface}{ip} }});
+			if ($host eq $network->{interface}{$interface}{ip})
+			{
+				$is_local = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { is_local => $is_local }});
+				last;
+			}
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { is_local => $is_local }});
+	return($is_local);
+}
+
 =head2 manage_firewall
 
 This method manages a firewalld firewall.
+
+B<NOTE>: This is pretty basic at this time. Capabilities will be added over time so please expect changes to this method.
 
 Parameters;
 
 =head3 task (optional)
 
-If set to C<< open >>, it will open the corresponding C<< port >> or C<< service >>. If set to C<< close >>, it will close the corresponding C<< port >> or C<< service >>. If set to c<< check >>, the state of the given C<< port >> or C<< service >> is returned.
+If set to C<< open >>, it will open the corresponding C<< port >>. If set to C<< close >>, it will close the corresponding C<< port >>. If set to c<< check >>, the state of the given C<< port >> is returned.
 
 The default is C<< check >>.
 
-=head3 port (optional)
+=head3 port_number (required)
 
-If set, this is the port number to work on.
+This is the port number to work on.
 
 If not specified, C<< service >> is required.
 
 =head3 port_type (optional)
 
 This can be c<< tcp >> or C<< upd >> and is used to specify what protocol to use with the C<< port >>, when specified. The default is C<< tcp >>.
-
-=head3 service (optional) 
-
-This is the name of the service to work on.
-
-If not specified, C<< port >> is required.
 
 =cut
 sub manage_firewall
@@ -350,52 +398,255 @@ sub manage_firewall
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $task      = defined $parameter->{task}      ? $parameter->{task}      : "check";
-	my $port      = defined $parameter->{port}      ? $parameter->{port}      : "";
-	my $port_type = defined $parameter->{port_type} ? $parameter->{port_type} : "";
-	my $service   = defined $parameter->{service}   ? $parameter->{service}   : "";
+	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "check";
+	my $port_number = defined $parameter->{port_number} ? $parameter->{port_number} : "";
+	my $port_type   = defined $parameter->{port_type}   ? $parameter->{port_type}   : "tcp";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		task      => $task,
-		port      => $port,
-		port_type => $port_type, 
-		service   => $service,
+		task        => $task,
+		port_number => $port_number,
+		port_type   => $port_type, 
 	}});
 	
 	# Make sure we have a port or service.
-	if ((not $port) && (not $service))
+	if (not $port_number)
 	{
 		# ...
 		return("!!error!!");
 	}
 	
 	# Before we do anything, what zone is active?
-	my $shell_call  = $an->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
-	my $output      = $an->System->call({shell_call => $shell_call})
 	my $active_zone = "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		shell_call => $shell_call, 
-		output     => $output,
-	}});
-	foreach my $line (split/\n/, $output)
+	if (not $active_zone)
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-		if ($line =~ /^\S$/)
+		my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my $output = $an->System->call({shell_call => $shell_call});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+		foreach my $line (split/\n/, $output)
 		{
-			$active_zone = $1;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_zone => $active_zone }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line !~ /\s/)
+			{
+				$active_zone = $line;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_zone => $active_zone }});
+			}
+			last;
 		}
-		last;
 	}
-	if ($service)
+	
+	# What is the default zone?
+	my $default_zone = "";
+	if (not $default_zone)
 	{
-		# 
+		my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --get-default-zone";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my $output = $an->System->call({shell_call => $shell_call});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+		foreach my $line (split/\n/, $output)
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line !~ /\s/)
+			{
+				$default_zone = $line;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_zone => $default_zone }});
+			}
+			last;
+		}
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		active_zone  => $active_zone,
+		default_zone => $default_zone,
+	}});
+	
+	# If we have an active zone, see if the requested port is open.
+	my $open_tcp_ports = [];
+	my $open_udp_ports = [];
+	my $open_services  = [];
+	if ($active_zone)
+	{
+		my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --zone=".$active_zone." --list-all";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my $output = $an->System->call({shell_call => $shell_call});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+		foreach my $line (split/\n/, $output)
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /services: (.*)$/)
+			{
+				my $services = $an->Words->clean_spaces({ string => $1 });
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { services => $services }});
+				foreach my $service (split/\s/, $services)
+				{
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { service => $service }});
+					push @{$open_services}, $service;
+				}
+			}
+			if ($line =~ /ports: (.*)$/)
+			{
+				my $open_ports = $an->Words->clean_spaces({ string => $1 });
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { open_ports => $open_ports }});
+				foreach my $port (split/\s/, $open_ports)
+				{
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+					if ($port =~ /^(\d+)\/tcp/)
+					{
+						my $tcp_port = $1;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tcp_port => $tcp_port }});
+						push @{$open_tcp_ports}, $tcp_port;
+					}
+					elsif ($port =~ /^(\d+)\/udp/)
+					{
+						my $udp_port = $1;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { udp_port => $udp_port }});
+						push @{$open_udp_ports}, $udp_port;
+					}
+					else
+					{
+						# Bad port.
+						return("!!error!!");
+					}
+				}
+			}
+		}
+		
+		# Convert services to ports.
+		foreach my $service (sort @{$open_services})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { service => $service }});
+			
+			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --info-service ".$service;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my $output   = $an->System->call({shell_call => $shell_call});
+			my $port     = "";
+			my $protocol = "";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+			foreach my $line (split/\n/, $output)
+			{
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				if ($line =~ /ports: (\d+)\/(.*)$/)
+				{
+					$port     = $1;
+					$protocol = $2;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						port     => $port,
+						protocol => $protocol,
+					}});
+					if ($protocol eq "tcp")
+					{
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+						push @{$open_tcp_ports}, $port;
+					}
+					elsif ($protocol eq "udp")
+					{
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+						push @{$open_udp_ports}, $port;
+					}
+					else
+					{
+						# What?
+						return("!!error!!");
+					}
+				}
+			}
+			if ((not $port) or (not $protocol))
+			{
+				# What?
+				return("!!error!!");
+			}
+		}
+	}
+	
+	# Debugging
+	foreach my $open_tcp_port (sort {$a cmp $b} @{$open_tcp_ports})
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { open_tcp_port => $open_tcp_port }});
+	}
+	foreach my $open_udp_port (sort {$a cmp $b} @{$open_udp_ports})
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { open_udp_port => $open_udp_port }});
+	}
+	
+	# See if the requested port is open.
+	my $open = 0;
+	if ($port_type eq "tcp")
+	{
+		foreach my $port (sort {$a cmp $b} @{$open_tcp_ports})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+			if ($port eq $port_number)
+			{
+				$open = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open }});
+				last;
+			}
+		}
+	}
+	elsif ($port_type eq "udp")
+	{
+		foreach my $port (sort {$a cmp $b} @{$open_udp_ports})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+			if ($port eq $port_number)
+			{
+				$open = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open }});
+				last;
+			}
+		}
 	}
 	else
 	{
-		
+		# Bad port type
+		return("!!error!!");
 	}
 	
-	return(0);
+	# We're done if we were just checking.
+	if ($task eq "check")
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open }});
+		return($open);
+	}
+	
+	# If we're opening or closing, work on the active and default zones (or just the one when they're the
+	# same zone)
+	my $zones = $default_zone;
+	if (($default_zone) && ($active_zone))
+	{
+		if ($default_zone ne $active_zone)
+		{
+			$zones = $active_zone.",".$default_zone;
+		}
+	}
+	elsif ($default_zone)
+	{
+		$zones = $default_zone;
+	}
+	elsif ($active_zone)
+	{
+		$zones = $active_zone;
+	}
+	else
+	{
+		# No zones found...
+		return("!!error!!");
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zones => $zones }});
+	foreach my $zone (split/,/, $zones)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zone => $zone }});
+	}
+	
+	
+	# my $zone = firewall-cmd --get-default-zone
+	# firewall-cmd --zone=$zone --list-all 
+	# check for 'services: ... postgresql ...' (for 5432) or 'ports: ... X ...' otherwise
+	# Check 'firewall-cmd --info-service=postgresql' to nonfirm 'ports: 5432/tcp'
+	
+	return($open);
 }
 
 =head2 ping
