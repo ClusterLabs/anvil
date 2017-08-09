@@ -643,6 +643,7 @@ sub _set_paths
 	# Executables
 	$an->data->{path} = {
 			configs			=>	{
+				'firewalld.conf'	=>	"/etc/firewalld/firewalld.conf",
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
 				ssh_config		=>	"/etc/ssh/ssh_config",
@@ -654,6 +655,7 @@ sub _set_paths
 			directories		=>	{
 				backups			=>	"/usr/sbin/striker/backups",
 				'cgi-bin'		=>	"/var/www/cgi-bin",
+				firewalld_services	=>	"/usr/lib/firewalld/services",
 				html			=>	"/var/www/html",
 				skins			=>	"/var/www/html/skins",
 				tools			=>	"/usr/sbin/striker",
