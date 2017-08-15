@@ -656,6 +656,7 @@ sub _set_paths
 				backups			=>	"/usr/sbin/striker/backups",
 				'cgi-bin'		=>	"/var/www/cgi-bin",
 				firewalld_services	=>	"/usr/lib/firewalld/services",
+				firewalld_zones		=>	"/etc/firewalld/zones/",
 				html			=>	"/var/www/html",
 				skins			=>	"/var/www/html/skins",
 				tools			=>	"/usr/sbin/striker",
