@@ -406,16 +406,21 @@ sub manage_firewall
 	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "check";
 	my $port_number = defined $parameter->{port_number} ? $parameter->{port_number} : "";
 	my $protocol    = defined $parameter->{protocol}    ? $parameter->{protocol}    : "tcp";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		task        => $task,
 		port_number => $port_number,
-		protocol   => $protocol, 
+		protocol    => $protocol, 
 	}});
 	
 	# Make sure we have a port or service.
 	if (not $port_number)
 	{
 		# ...
+		return("!!error!!");
+	}
+	if (($protocol ne "tcp") && ($protocol ne "udp"))
+	{
+		# Bad protocol
 		return("!!error!!");
 	}
 	
@@ -439,279 +444,81 @@ sub manage_firewall
 			last;
 		}
 	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { active_zone  => $active_zone }});
 	
-	# Read in all services and store information about them.
-	#$an->System->_load_firewalld_zones;
-	
-	# What is the default zone? Read the config file, if possible, as it is several times faster than 
-	# invoking 'firewall-cmd'.
-	my $default_zone   = "";
-	my $firewalld_conf = $an->Storage->read_file({file => $an->data->{path}{configs}{'firewalld.conf'}});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { firewalld_conf => $firewalld_conf }});
-	if ($firewalld_conf =~ /^DefaultZone=(.*)$/m)
+	# If I still don't know what the active zone is, we're done.
+	if (not $active_zone)
 	{
-		$default_zone = $1;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { default_zone => $default_zone }});
-	}
-	# If we didn't get the default zone from the file, try with the 'firewall-cmd' command.
-	if (not $default_zone)
-	{
-		my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --get-default-zone";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		
-		my $output = $an->System->call({shell_call => $shell_call});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
-		foreach my $line (split/\n/, $output)
-		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
-			if ($line !~ /\s/)
-			{
-				$default_zone = $line;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { default_zone => $default_zone }});
-			}
-			last;
-		}
-	}
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		active_zone  => $active_zone,
-		default_zone => $default_zone,
-	}});
-	
-	# If we have an active zone, see if the requested port is open.
-	my $open_tcp_ports = [];
-	my $open_udp_ports = [];
-	my $open_services  = [];
-	if ($active_zone)
-	{
-		### TODO: Read /etc/firewalld/zones/${active_zone}.xml with XMLin and for each 
-		###       '<service name="foo"/>', read in '$an->data->{path}{directories}{firewalld_services}/foo.xml'.
-		if (1)
-		{
-			my $zone_file = $an->data->{path}{directories}{firewalld_zones}."/".$active_zone.".xml";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zone_file => $zone_file }});
-			
-			if (not -e $zone_file)
-			{
-				die $THIS_FILE." ".__LINE__."; zone config not found: [$zone_file]\n";
-			}
-			my $xml  = XML::Simple->new();
-			my $body = "";
-			eval { $body = $xml->XMLin($zone_file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'service' ]) };
-			if ($@)
-			{
-				chomp $@;
-				my $error =  "[ Error ] - The was a problem reading: [$zone_file]. The error was:\n";
-				   $error .= "===========================================================\n";
-				   $error .= $@."\n";
-				   $error .= "===========================================================\n";
-				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
-			}
-			else
-			{
-				#print Dumper $body;
-				print "Zone: [$active_zone] open services;\n";
-				foreach my $hash_ref (@{$body->{service}})
-				{
-					my $service = $hash_ref->{name};
-					print "- $service\n";
-					$an->System->_load_specific_firewalld_zone({service => $hash_ref->{name}});
-				}
-				
-				foreach my $service (sort {$a cmp $b} keys %{$an->data->{firewalld}{zones}{by_name}})
-				{
-					print "- $service\n";
-					my $tcp_ports = "";
-					foreach my $port (sort {$a cmp $b} @{$an->data->{firewalld}{zones}{by_name}{$service}{tcp}})
-					{
-						#print "- tcp: [$port]\n";
-						$tcp_ports .= $port.", ";
-					}
-					$tcp_ports =~ s/, $//;
-					if ($tcp_ports)
-					{
-						print " - TCP Ports: [$tcp_ports]\n";
-					}
-					
-					my $udp_ports = "";
-					foreach my $port (sort {$a cmp $b} @{$an->data->{firewalld}{zones}{by_name}{$service}{udp}})
-					{
-						$udp_ports .= $port.", ";
-					}
-					$udp_ports =~ s/, $//;
-					if ($udp_ports)
-					{
-						print " - UDP Ports: [$udp_ports]\n";
-					}
-				}
-			}
-		}
-		if (0)
-		{
-			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --zone=".$active_zone." --list-all";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			
-			my $output = $an->System->call({shell_call => $shell_call});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
-			foreach my $line (split/\n/, $output)
-			{
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
-				if ($line =~ /services: (.*)$/)
-				{
-					my $services = $an->Words->clean_spaces({ string => $1 });
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { services => $services }});
-					foreach my $service (split/\s/, $services)
-					{
-						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service => $service }});
-						push @{$open_services}, $service;
-					}
-				}
-				if ($line =~ /ports: (.*)$/)
-				{
-					my $open_ports = $an->Words->clean_spaces({ string => $1 });
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { open_ports => $open_ports }});
-					foreach my $port (split/\s/, $open_ports)
-					{
-						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { port => $port }});
-						if ($port =~ /^(\d+)\/tcp/)
-						{
-							my $tcp_port = $1;
-							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { tcp_port => $tcp_port }});
-							push @{$open_tcp_ports}, $tcp_port;
-						}
-						elsif ($port =~ /^(\d+)\/udp/)
-						{
-							my $udp_port = $1;
-							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { udp_port => $udp_port }});
-							push @{$open_udp_ports}, $udp_port;
-						}
-						else
-						{
-							# Bad port.
-							return("!!error!!");
-						}
-					}
-				}
-			}
-			
-			# Convert services to ports.
-			foreach my $service (sort @{$open_services})
-			{
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service => $service }});
-				
-				my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --info-service ".$service;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				
-				my $output        = $an->System->call({shell_call => $shell_call});
-				my $this_port     = "";
-				my $this_protocol = "";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
-				foreach my $line (split/\n/, $output)
-				{
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
-					if ($line =~ /ports: (\d+)\/(.*)$/)
-					{
-						$this_port     = $1;
-						$this_protocol = $2;
-						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-							this_port     => $this_port,
-							this_protocol => $this_protocol,
-						}});
-						if ($this_protocol eq "tcp")
-						{
-							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { this_port => $this_port }});
-							push @{$open_tcp_ports}, $this_port;
-						}
-						elsif ($this_protocol eq "udp")
-						{
-							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { this_port => $this_port }});
-							push @{$open_udp_ports}, $this_port;
-						}
-						else
-						{
-							# What?
-							return("!!error!!");
-						}
-					}
-				}
-				if ((not $this_port) or (not $this_protocol))
-				{
-					# What?
-					return("!!error!!");
-				}
-			}
-		}
-	}
-	
-	# Debugging
-	foreach my $open_tcp_port (sort {$a cmp $b} @{$open_tcp_ports})
-	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { open_tcp_port => $open_tcp_port }});
-	}
-	foreach my $open_udp_port (sort {$a cmp $b} @{$open_udp_ports})
-	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { open_udp_port => $open_udp_port }});
+		return("!!error!!");
 	}
 	
 	# See if the requested port is open.
 	my $open = 0;
-	if ($protocol eq "tcp")
+	
+	# If we have an active zone, see if the requested port is open.
+	my $zone_file = $an->data->{path}{directories}{firewalld_zones}."/".$active_zone.".xml";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { zone_file => $zone_file }});
+	if (not -e $zone_file)
 	{
-		foreach my $port (sort {$a cmp $b} @{$open_tcp_ports})
-		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { port => $port }});
-			if ($port eq $port_number)
-			{
-				$open = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open }});
-				last;
-			}
-		}
-	}
-	elsif ($protocol eq "udp")
-	{
-		foreach my $port (sort {$a cmp $b} @{$open_udp_ports})
-		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { port => $port }});
-			if ($port eq $port_number)
-			{
-				$open = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open }});
-				last;
-			}
-		}
-	}
-	else
-	{
-		# Bad port type
+		#...
 		return("!!error!!");
 	}
 	
-	# If we're opening or closing, work on the active and default zones (or just the one when they're the
-	# same zone)
-	my $zones = $default_zone;
-	if (($default_zone) && ($active_zone))
+	# Read the XML to see what services are opened already and translate those into port numbers and 
+	# protocols.
+	my $open_services = [];
+	my $xml           = XML::Simple->new();
+	my $body          = "";
+	eval { $body = $xml->XMLin($zone_file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'service' ]) };
+	if ($@)
 	{
-		if ($default_zone ne $active_zone)
-		{
-			$zones = $active_zone.",".$default_zone;
-		}
-	}
-	elsif ($default_zone)
-	{
-		$zones = $default_zone;
-	}
-	elsif ($active_zone)
-	{
-		$zones = $active_zone;
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem reading: [$zone_file]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
 	}
 	else
 	{
-		# No zones found...
-		return("!!error!!");
+		# Parse the already-opened services
+		foreach my $hash_ref (@{$body->{service}})
+		{
+			# Load the details of this service.
+			my $service = $hash_ref->{name};
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service => $service }});
+			$an->System->_load_specific_firewalld_zone({service => $hash_ref->{name}});
+			push @{$open_services}, $service;
+		}
+		
+		# Now loop through the open services, protocols and ports looking for the one passed in by 
+		# the caller. If found, the port is already open.
+		foreach my $service (sort {$a cmp $b} @{$open_services})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service => $service }});
+			foreach my $this_protocol ("tcp", "udp")
+			{
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { this_protocol => $this_protocol }});
+				foreach my $this_port (sort {$a cmp $b} @{$an->data->{firewalld}{zones}{by_name}{$service}{tcp}})
+				{
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { this_port => $this_port }});
+					if (($port_number eq $this_port) && ($this_protocol eq $protocol))
+					{
+						# Opened already (as the recorded service).
+						$open = $service;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open }});
+						last if $open;
+					}
+					last if $open;
+				}
+				last if $open;
+			}
+			last if $open;
+		}
 	}
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { zones => $zones }});
 	
-	# We're done if we were just checking.
+	# We're done if we were just checking. However, if we've been asked to open a currently closed port,
+	# or vice versa, make the change before returning.
 	my $changed = 0;
 	if (($task eq "open") && (not $open))
 	{
@@ -720,47 +527,42 @@ sub manage_firewall
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { service => $service }});
 		
 		# Open the port
-		foreach my $zone (split/,/, $zones)
+		if ($service)
 		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zone => $zone }});
+			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --add-service ".$service;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
-			if ($service)
+			my $output = $an->System->call({shell_call => $shell_call});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			if ($output eq "success")
 			{
-				my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --add-service ".$service;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				
-				my $output = $an->System->call({shell_call => $shell_call});
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
-				if ($output eq "success")
-				{
-					$open    = 1;
-					$changed = 1;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
-				}
-				else
-				{
-					# Something went wrong...
-					return("!!error!!");
-				}
+				$open    = 1;
+				$changed = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
 			}
 			else
 			{
-				my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --add-port ".$port_number."/".$protocol;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				
-				my $output = $an->System->call({shell_call => $shell_call});
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
-				if ($output eq "success")
-				{
-					$open    = 1;
-					$changed = 1;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
-				}
-				else
-				{
-					# Something went wrong...
-					return("!!error!!");
-				}
+				# Something went wrong...
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --add-port ".$port_number."/".$protocol;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my $output = $an->System->call({shell_call => $shell_call});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			if ($output eq "success")
+			{
+				$open    = 1;
+				$changed = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
+			}
+			else
+			{
+				# Something went wrong...
+				return("!!error!!");
 			}
 		}
 	}
@@ -771,47 +573,42 @@ sub manage_firewall
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { service => $service }});
 		
 		# Close the port
-		foreach my $zone (split/,/, $zones)
+		if ($service)
 		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zone => $zone }});
+			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-service ".$service;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
-			if ($service)
+			my $output = $an->System->call({shell_call => $shell_call});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			if ($output eq "success")
 			{
-				my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-service ".$service;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				
-				my $output = $an->System->call({shell_call => $shell_call});
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
-				if ($output eq "success")
-				{
-					$open    = 0;
-					$changed = 1;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
-				}
-				else
-				{
-					# Something went wrong...
-					return("!!error!!");
-				}
+				$open    = 0;
+				$changed = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
 			}
 			else
 			{
-				my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-port ".$port_number."/".$protocol;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				
-				my $output = $an->System->call({shell_call => $shell_call});
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
-				if ($output eq "success")
-				{
-					$open    = 0;
-					$changed = 1;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
-				}
-				else
-				{
-					# Something went wrong...
-					return("!!error!!");
-				}
+				# Something went wrong...
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-port ".$port_number."/".$protocol;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my $output = $an->System->call({shell_call => $shell_call});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			if ($output eq "success")
+			{
+				$open    = 0;
+				$changed = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
+			}
+			else
+			{
+				# Something went wrong...
+				return("!!error!!");
 			}
 		}
 	}
@@ -1612,6 +1409,10 @@ sub _load_firewalld_zones
 		# Missing directory...
 		return("!!error!!");
 	}
+	
+	$an->data->{sys}{firewalld}{services_loaded} = 0 if not defined $an->data->{sys}{firewalld}{services_loaded};
+	return(0) if $an->data->{sys}{firewalld}{services_loaded};
+	
 	local(*DIRECTORY);
 	opendir(DIRECTORY, $directory);
 	while(my $file = readdir(DIRECTORY))
@@ -1628,49 +1429,8 @@ sub _load_firewalld_zones
 	}
 	closedir DIRECTORY;
 	
-	### DEBUG stuff...
-	if (0)
-	{
-		foreach my $service (sort {$a cmp $b} keys %{$an->data->{firewalld}{zones}{by_name}})
-		{
-			print "Service name: [$service (".$an->data->{firewalld}{zones}{by_name}{$service}{name}.")]\n";
-			
-			my $tcp_ports = "";
-			foreach my $port (sort {$a cmp $b} @{$an->data->{firewalld}{zones}{by_name}{$service}{tcp}})
-			{
-				#print "- tcp: [$port]\n";
-				$tcp_ports .= $port.", ";
-			}
-			$tcp_ports =~ s/, $//;
-			if ($tcp_ports)
-			{
-				print "- TCP Ports: [$tcp_ports]\n";
-			}
-			
-			my $udp_ports = "";
-			foreach my $port (sort {$a cmp $b} @{$an->data->{firewalld}{zones}{by_name}{$service}{udp}})
-			{
-				$udp_ports .= $port.", ";
-			}
-			$udp_ports =~ s/, $//;
-			if ($udp_ports)
-			{
-				print "- UDP Ports: [$udp_ports]\n";
-			}
-		}
-	}
-	
-	if (0)
-	{
-		foreach my $protocol ("tcp", "udp")
-		{
-			foreach my $port (sort {$a <=> $b} keys %{$an->data->{firewalld}{zones}{by_port}{$protocol}})
-			{
-				my $service = $an->data->{firewalld}{zones}{by_port}{$protocol}{$port};
-				print "$port / $protocol -> [$service] (".$an->data->{firewalld}{zones}{by_name}{$service}{name}.")\n";
-			}
-		}
-	}
+	# Set this so we don't waste time calling this again.
+	$an->data->{sys}{firewalld}{services_loaded} = 1;
 	
 	return(0);
 }
@@ -1718,6 +1478,10 @@ sub _load_specific_firewalld_zone
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service => $service }});
 	}
 	
+	# We want the service name to be the file name without the '.xml' suffix.
+	my $service_name = ($service =~ /^(.*?)\.xml$/)[0];
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service_name => $service_name }});
+	
 	my $full_path = $an->data->{path}{directories}{firewalld_services}."/".$service;
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
 	if (not -e $full_path)
@@ -1733,26 +1497,26 @@ sub _load_specific_firewalld_zone
 	{
 		chomp $@;
 		my $error =  "[ Error ] - The was a problem reading: [$full_path]. The error was:\n";
-			$error .= "===========================================================\n";
-			$error .= $@."\n";
-			$error .= "===========================================================\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
 	}
 	else
 	{
-		#print Dumper $body;
 		my $name = $body->{short};
-		$an->data->{firewalld}{zones}{by_name}{$service}{name} = $name;
-		if ((not defined $an->data->{firewalld}{zones}{by_name}{$service}{tcp}) or (ref($an->data->{firewalld}{zones}{by_name}{$service}{tcp}) ne "ARRAY"))
+		$an->data->{firewalld}{zones}{by_name}{$service_name}{name} = $name;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "firewalld::zones::by_name::${service_name}::name" => $an->data->{firewalld}{zones}{by_name}{$service_name}{name} }});
+		
+		if ((not defined $an->data->{firewalld}{zones}{by_name}{$service_name}{tcp}) or (ref($an->data->{firewalld}{zones}{by_name}{$service_name}{tcp}) ne "ARRAY"))
 		{
-			$an->data->{firewalld}{zones}{by_name}{$service}{tcp} = [];
+			$an->data->{firewalld}{zones}{by_name}{$service_name}{tcp} = [];
 		}
-		if ((not defined $an->data->{firewalld}{zones}{by_name}{$service}{udp}) or (ref($an->data->{firewalld}{zones}{by_name}{$service}{udp}) ne "ARRAY"))
+		if ((not defined $an->data->{firewalld}{zones}{by_name}{$service_name}{udp}) or (ref($an->data->{firewalld}{zones}{by_name}{$service_name}{udp}) ne "ARRAY"))
 		{
-			$an->data->{firewalld}{zones}{by_name}{$service}{udp} = [];
+			$an->data->{firewalld}{zones}{by_name}{$service_name}{udp} = [];
 		}
 		
-		#print "Name: [$name], file: [$file]\n";
 		foreach my $hash_ref (@{$body->{port}})
 		{
 			my $this_port     = $hash_ref->{port};
@@ -1772,20 +1536,17 @@ sub _load_specific_firewalld_zone
 					start => $start,
 					end   => $end,
 				}});
-				#print "- Range - $this_port ($start -> $end)...\n";
 				foreach my $port ($start..$end)
 				{
-					#print "- $port / $this_protocol\n";
-					$an->data->{firewalld}{zones}{by_port}{$this_protocol}{$port} = $service;
-					push @{$an->data->{firewalld}{zones}{by_name}{$service}{$this_protocol}}, $port;
+					$an->data->{firewalld}{zones}{by_port}{$this_protocol}{$port} = $service_name;
+					push @{$an->data->{firewalld}{zones}{by_name}{$service_name}{$this_protocol}}, $port;
 				}
 			}
 			else
 			{
 				# Nope
-				#print "- $this_port / $this_protocol\n";
-				$an->data->{firewalld}{zones}{by_port}{$this_protocol}{$this_port} = $service;
-				push @{$an->data->{firewalld}{zones}{by_name}{$service}{$this_protocol}}, $this_port;
+				$an->data->{firewalld}{zones}{by_port}{$this_protocol}{$this_port} = $service_name;
+				push @{$an->data->{firewalld}{zones}{by_name}{$service_name}{$this_protocol}}, $this_port;
 			}
 		}
 	}
@@ -1818,72 +1579,32 @@ sub _match_port_to_service
 	
 	my $port     = defined $parameter->{port}     ? $parameter->{port}     : "";
 	my $protocol = defined $parameter->{protocol} ? $parameter->{protocol} : "tcp";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		port     => $port, 
 		protocol => $protocol,
 	}});
 	
+	# Do we already know about this service?
 	my $service_name = "";
-	my $services     = [];
-	
-	# Read in the firewall 
-	my $directory = $an->data->{path}{directories}{firewalld_services};
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0018", variables => { directory => $directory }});
-	if (not -d $directory)
+	if ((exists $an->data->{firewalld}{zones}{by_port}{$protocol}{$port}) && ($an->data->{firewalld}{zones}{by_port}{$protocol}{$port}))
 	{
-		# Missing directory...
-		return("!!error!!");
+		# Yay!
+		$service_name = $an->data->{firewalld}{zones}{by_port}{$protocol}{$port};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service_name => $service_name }});
 	}
-	local(*DIRECTORY);
-	opendir(DIRECTORY, $directory);
-	while(my $file = readdir(DIRECTORY))
+	else
 	{
-		next if $file !~ /\.xml$/;
-		my $full_path = $directory."/".$file;
-		my $service   = ($file =~ /^(.*?)\.xml$/)[0];
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			full_path => $full_path,
-			service   => $service, 
-		}});
-		
-		my $xml  = XML::Simple->new();
-		my $body = "";
-		eval { $body = $xml->XMLin($full_path, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'port' ]) };
-		if ($@)
+		# Load all zones and look
+		$an->System->_load_firewalld_zones;
+		if ((exists $an->data->{firewalld}{zones}{by_port}{$protocol}{$port}) && ($an->data->{firewalld}{zones}{by_port}{$protocol}{$port}))
 		{
-			chomp $@;
-			my $error =  "[ Error ] - The was a problem reading: [$file]. The error was:\n";
-			   $error .= "===========================================================\n";
-			   $error .= $@."\n";
-			   $error .= "===========================================================\n";
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
+			# Got it now.
+			$service_name = $an->data->{firewalld}{zones}{by_port}{$protocol}{$port};
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service_name => $service_name }});
 		}
-		else
-		{
-			#print Dumper $body;
-			my $name = $body->{short};
-			foreach my $hash_ref (@{$body->{port}})
-			{
-				my $this_port     = $hash_ref->{port};
-				my $this_protocol = $hash_ref->{protocol};
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					this_port     => $this_port,
-					this_protocol => $this_protocol,
-				}});
-				if (($this_port eq $port) && ($this_protocol eq $protocol))
-				{
-					# Found it!
-					$service_name = $service;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service_name => $service_name }});
-					last;
-				}
-			}
-		}
-		last if $service_name;
 	}
-	closedir DIRECTORY;
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { service_name => $service_name }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service_name => $service_name }});
 	return($service_name);
 }
 
