@@ -6,6 +6,7 @@ package AN::Tools::Storage;
 use strict;
 use warnings;
 use Data::Dumper;
+use Scalar::Util qw(weaken isweak);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Storage.pm";
@@ -69,6 +70,12 @@ sub parent
 	my $parent = shift;
 	
 	$self->{HANDLE}{TOOLS} = $parent if $parent;
+	
+	# Defend against memory leads. See Scalar::Util'.
+	if (not isweak($self->{HANDLE}{TOOLS}))
+	{
+		weaken($self->{HANDLE}{TOOLS});;
+	}
 	
 	return ($self->{HANDLE}{TOOLS});
 }
@@ -944,7 +951,7 @@ sub write_file
 		if ($secure)
 		{
 			my $shell_call = $an->data->{path}{exe}{touch}." ".$file;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
 			$an->System->call({shell_call => $shell_call});
 			$an->Storage->change_mode({target => $file, mode => $mode});

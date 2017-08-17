@@ -6,6 +6,7 @@ package AN::Tools::Database;
 use strict;
 use warnings;
 use DBI;
+use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 
 our $VERSION  = "3.0.0";
@@ -79,6 +80,12 @@ sub parent
 	my $parent = shift;
 	
 	$self->{HANDLE}{TOOLS} = $parent if $parent;
+	
+	# Defend against memory leads. See Scalar::Util'.
+	if (not isweak($self->{HANDLE}{TOOLS}))
+	{
+		weaken($self->{HANDLE}{TOOLS});;
+	}
 	
 	return ($self->{HANDLE}{TOOLS});
 }
@@ -185,7 +192,7 @@ sub configure_pgsql
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->configure_pgsql()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->configure_pgsql()" }});
 	
 	my $id = defined $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
@@ -519,9 +526,7 @@ sub configure_pgsql
 		task        => "open",
 		port_number => $an->data->{database}{$id}{port},
 	});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port_status => $port_status }});
-	
-	die $THIS_FILE." ".__LINE__."; testing...\n";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { port_status => $port_status }});
 	
 	return(0);
 }
@@ -605,7 +610,7 @@ sub connect
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->connect()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->connect()" }});
 	
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "core";
 	my $sql_file   = defined $parameter->{sql_file}   ? $parameter->{sql_file}   : $an->data->{path}{sql}{'Tools.sql'};
@@ -647,7 +652,7 @@ sub connect
 		my $name     = $an->data->{database}{$id}{name}     ? $an->data->{database}{$id}{name}     : ""; # This should fail
 		my $user     = $an->data->{database}{$id}{user}     ? $an->data->{database}{$id}{user}     : ""; # This should fail
 		my $password = $an->data->{database}{$id}{password} ? $an->data->{database}{$id}{password} : "";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host     => $host,
 			port     => $port,
 			name     => $name,
@@ -721,7 +726,7 @@ sub connect
 		if ($is_local)
 		{
 			$an->data->{sys}{read_db_id} = $id;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
 			
 			# Set it up (or update it) if needed. This method just returns if nothing is needed.
 			$an->Database->configure_pgsql({id => $id});
@@ -731,7 +736,6 @@ sub connect
 			$an->data->{sys}{read_db_id} = $id;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::read_db_id" => $an->data->{sys}{read_db_id} }});
 		}
-		next;
 		
 		# Connect!
 		my $dbh = "";
@@ -883,10 +887,9 @@ sub connect
 			}});
 		}
 	}
-	die;
 	
 	# Do I have any connections? Don't die, if not, just return.
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { connections => $connections }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
 	if (not $connections)
 	{
 		# Failed to connect to any database. Log this, print to the caller and return.
@@ -1015,7 +1018,6 @@ sub connect
 		source => $source, 
 		tables => $tables,
 	});
-	die;
 	
 	# Hold if a lock has been requested.
 	$an->Database->locking();
@@ -1269,12 +1271,11 @@ sub initialize
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
 	
 	my $sql = $an->Storage->read_file({file => $sql_file});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> sql" => $sql }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ">> sql" => $sql }});
 	
 	$sql =~ s/#!variable!user!#/$user/sg;
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< sql" => $sql }});
 	
-	### NOTE: Left off here
 	# Now that I am ready, disable autocommit, write and commit.
 	$an->Database->write({id => $id, query => $sql, source => $THIS_FILE, line => __LINE__});
 	

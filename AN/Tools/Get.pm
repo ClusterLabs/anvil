@@ -5,6 +5,7 @@ package AN::Tools::Get;
 
 use strict;
 use warnings;
+use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 
 our $VERSION  = "3.0.0";
@@ -67,6 +68,12 @@ sub parent
 	my $parent = shift;
 	
 	$self->{HANDLE}{TOOLS} = $parent if $parent;
+	
+	# Defend against memory leads. See Scalar::Util'.
+	if (not isweak($self->{HANDLE}{TOOLS}))
+	{
+		weaken($self->{HANDLE}{TOOLS});;
+	}
 	
 	return ($self->{HANDLE}{TOOLS});
 }

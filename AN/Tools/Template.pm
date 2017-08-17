@@ -6,6 +6,7 @@ package AN::Tools::Template;
 use strict;
 use warnings;
 use Data::Dumper;
+use Scalar::Util qw(weaken isweak);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Template.pm";
@@ -63,6 +64,12 @@ sub parent
 	my $parent = shift;
 	
 	$self->{HANDLE}{TOOLS} = $parent if $parent;
+	
+	# Defend against memory leads. See Scalar::Util'.
+	if (not isweak($self->{HANDLE}{TOOLS}))
+	{
+		weaken($self->{HANDLE}{TOOLS});;
+	}
 	
 	return ($self->{HANDLE}{TOOLS});
 }

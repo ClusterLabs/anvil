@@ -13,6 +13,7 @@ BEGIN
 
 use strict;
 use warnings;
+use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 my $THIS_FILE = "Tools.pm";
 
@@ -128,12 +129,13 @@ sub new
 			UUID			=>	"",
 		},
 	};
-
+	
 	# Bless you!
 	bless $self, $class;
-
+	
 	# This isn't needed, but it makes the code below more consistent with and portable to other modules.
-	my $an = $self;
+	my $an = $self; 
+	weaken($an);	# Helps avoid memory leaks. See Scalar::Utils
 	
 	# Get a handle on the various submodules
 	$an->Alert->parent($an);
@@ -146,11 +148,15 @@ sub new
 	$an->Template->parent($an);
 	$an->Words->parent($an);
 	$an->Validate->parent($an);
-
+	
 	# Set some system paths and system default variables
 	$an->_set_paths;
 	$an->_set_defaults;
-
+	
+	# This will help clean up if we catch a signal.
+	$SIG{INT}  = sub { $an->catch_sig({signal => "INT"});  };
+	$SIG{TERM} = sub { $an->catch_sig({signal => "TERM"}); };
+	
 	# This sets the environment this program is running in.
 	if ($ENV{SERVER_NAME})
 	{
@@ -163,13 +169,13 @@ sub new
 	{
 		$an->environment("cli");
 	}
-
+	
 	# Setup my '$an->data' hash right away so that I have a place to store the strings hash.
 	$an->data($parameter->{data}) if $parameter->{data};
 	
 	# Initialize the list of directories to seach.
 	$an->Storage->search_directories({initialize => 1});
-
+	
 	# I need to read the initial words early.
 	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});
 	
@@ -194,7 +200,7 @@ sub new
 		print $THIS_FILE." ".__LINE__."; AN::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
 		exit(1);
 	}
-
+	
 	return ($self);
 }
 
@@ -273,7 +279,9 @@ Technically, any string can be used, however only 'cli' or 'html' are used by co
 =cut
 sub environment
 {
-	my ($an) = shift;
+	my ($an) = shift; 
+	weaken($an);
+	
 	
 	# Pick up the passed in delimiter, if any.
 	$an->{ENV_VALUES}{ENVIRONMENT} = shift if $_[0];
@@ -779,5 +787,22 @@ The following packages provide non-critical functionality.
 * C<subscription-manager>
 
 =cut
+
+
+# This catches SIGINT and SIGTERM and fires out an email before shutting down.
+sub catch_sig
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self;
+	my $signal    = $parameter->{signal} ? $parameter->{signal} : "";
+	
+	if ($signal)
+	{
+		print "Process with PID: [$$] exiting on SIG".$signal.".\n";
+	}
+	$an->nice_exit({code => 255});
+}
+
 
 1;
