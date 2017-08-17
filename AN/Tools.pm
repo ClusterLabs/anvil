@@ -587,6 +587,9 @@ sub _set_defaults
 	my ($an) = shift;
 	
 	$an->data->{sys}      = {
+		daemons				=>	{
+			restart_firewalld		=>	1,
+		},
 		database			=>	{
 			local_lock_active		=>	0,
 			locking_reap_age		=>	300,

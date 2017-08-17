@@ -446,19 +446,44 @@ sub manage_firewall
 	
 	# If the port is open and the task is 'check' or 'open', we're done and can return now and save a lot
 	# of time.
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'task' => $task, 'open' => $open }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'task' => $task, 'open' => $open }});
 	if ((($task eq "check") or ($task eq "open")) && ($open))
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open }});
 		return($open);
 	}
+	
+	# Make sure firewalld is running.
+	my $firewalld_running = $an->System->check_daemon({daemon => "firewalld"});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { firewalld_running => $firewalld_running }});
+	if (not $firewalld_running)
+	{
+		if ($an->data->{sys}{daemons}{restart_firewalld})
+		{
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0127"});
+			my $return_code = $an->System->start_daemon({daemon => "firewalld"});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+			if ($return_code)
+			{
+				# non-0 means something went wrong.
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			# We've been asked to leave it off.
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0128"});
+			return(0);
+		}
+	}
+
 	
 	# Before we do anything, what zone is active?
 	my $active_zone = "";
 	if (not $active_zone)
 	{
 		my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 		
 		my $output = $an->System->call({shell_call => $shell_call});
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
@@ -550,21 +575,21 @@ sub manage_firewall
 	{
 		# Map the port to a service, if possible.
 		my $service = $an->System->_match_port_to_service({port => $port_number});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { service => $service }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service => $service }});
 		
 		# Open the port
 		if ($service)
 		{
 			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --add-service ".$service;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
 			my $output = $an->System->call({shell_call => $shell_call});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 			if ($output eq "success")
 			{
 				$open    = 1;
 				$changed = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open, changed => $changed }});
 			}
 			else
 			{
@@ -575,15 +600,15 @@ sub manage_firewall
 		else
 		{
 			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --add-port ".$port_number."/".$protocol;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
 			my $output = $an->System->call({shell_call => $shell_call});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 			if ($output eq "success")
 			{
 				$open    = 1;
 				$changed = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open, changed => $changed }});
 			}
 			else
 			{
@@ -596,21 +621,21 @@ sub manage_firewall
 	{
 		# Map the port to a service, if possible.
 		my $service = $an->System->_match_port_to_service({port => $port_number});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { service => $service }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { service => $service }});
 		
 		# Close the port
 		if ($service)
 		{
 			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-service ".$service;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
 			my $output = $an->System->call({shell_call => $shell_call});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 			if ($output eq "success")
 			{
 				$open    = 0;
 				$changed = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open, changed => $changed }});
 			}
 			else
 			{
@@ -621,15 +646,15 @@ sub manage_firewall
 		else
 		{
 			my $shell_call = $an->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-port ".$port_number."/".$protocol;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
 			my $output = $an->System->call({shell_call => $shell_call});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 			if ($output eq "success")
 			{
 				$open    = 0;
 				$changed = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open, changed => $changed }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open, changed => $changed }});
 			}
 			else
 			{
@@ -645,7 +670,7 @@ sub manage_firewall
 		$an->System->reload_daemon({daemon => "firewalld"});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open }});
 	return($open);
 }
 
