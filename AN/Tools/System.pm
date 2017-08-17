@@ -424,6 +424,35 @@ sub manage_firewall
 		return("!!error!!");
 	}
 	
+	# This will be set if the port is found to be open.
+	my $open = 0;
+	
+	# Checking the iptables rules in memory is very fast, relative to firewall-cmd. So we'll do an 
+	# initial check there to see if the port in question is listed.
+	my $shell_call = $an->data->{path}{exe}{'iptables-save'};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+	
+	my $iptables = $an->System->call({shell_call => $shell_call});
+	foreach my $line (split/\n/, $iptables)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if (($line =~ /-m $protocol /) && ($line =~ /--dport $port_number /) && ($line =~ /ACCEPT/))
+		{
+			$open = 1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'open' => $open }});
+			last;
+		}
+	}
+	
+	# If the port is open and the task is 'check' or 'open', we're done and can return now and save a lot
+	# of time.
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'task' => $task, 'open' => $open }});
+	if ((($task eq "check") or ($task eq "open")) && ($open))
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'open' => $open }});
+		return($open);
+	}
+	
 	# Before we do anything, what zone is active?
 	my $active_zone = "";
 	if (not $active_zone)
@@ -452,16 +481,13 @@ sub manage_firewall
 		return("!!error!!");
 	}
 	
-	# See if the requested port is open.
-	my $open = 0;
-	
 	# If we have an active zone, see if the requested port is open.
 	my $zone_file = $an->data->{path}{directories}{firewalld_zones}."/".$active_zone.".xml";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { zone_file => $zone_file }});
 	if (not -e $zone_file)
 	{
 		#...
-		return("!!error!!");
+		return($open);
 	}
 	
 	# Read the XML to see what services are opened already and translate those into port numbers and 

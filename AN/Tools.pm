@@ -675,6 +675,7 @@ sub _set_paths
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/usr/bin/hostname",
 				ip			=>	"/usr/sbin/ip",
+				'iptables-save'		=>	"/usr/sbin/iptables-save",
 				journalctl		=>	"/usr/bin/journalctl",
 				logger			=>	"/usr/bin/logger",
 				'mkdir'			=>	"/usr/bin/mkdir",
