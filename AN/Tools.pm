@@ -599,6 +599,14 @@ sub _set_defaults
 			restart_firewalld		=>	1,
 		},
 		database			=>	{
+			core_tables			=>	[
+									"hosts", 
+									"host_variable",
+									"alerts",
+									"variables",
+									"alert_sent",
+									"states",
+								],
 			local_lock_active		=>	0,
 			locking_reap_age		=>	300,
 			log_transactions		=>	0,

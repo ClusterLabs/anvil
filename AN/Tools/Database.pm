@@ -105,12 +105,12 @@ sub archive_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->archive_databases()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->archive_databases()" }});
 	
 	
 	
 	
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0126", variables => { method => "Database->archive_databases()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0126", variables => { method => "Database->archive_databases()" }});
 	return(0);
 }
 
@@ -124,7 +124,7 @@ sub check_lock_age
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->check_lock_age()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->check_lock_age()" }});
 	
 	# Make sure we've got the 'sys::database::local_lock_active' and 'reap_age' variables set.
 	if ((not defined $an->data->{sys}{database}{local_lock_active}) or ($an->data->{sys}{database}{local_lock_active} =~ /\D/))
@@ -579,15 +579,14 @@ This is the SQL schema file that will be used to initialize the database, if the
 
 =head3 tables (optional)
 
-This is an optional hash reference of tables and their host UUID columns to specifically check when connecting to databases. If specified, the table's most recent C<< modified_date >> time stamp will be read (specifically; C<< SELECT modified_date FROM history.$table WHERE $host_uuid_column = 'sys::host_uuid' ORDER BY modified_date DESC LIMIT 1 >>) and if a table doesn't return, or any of the time stamps are missing, a resync will be requested.
+This is an optional array reference of of tables to specifically check when connecting to databases. Each entry is treated as a table name, and that table's most recent C<< modified_date >> time stamp will be read. If a column name in the table ends in C<< _host_uuid >>, then the check and resync will be restricted to entries in that column matching the current host's C<< sys::host_uuid >>. If the table does not have a corresponding table in the C<< history >> schema, then only the public table will be synced. 
+
+Note; The array order is used to allow you to ensure tables with primary keys are synchronyzed before tables with foreign keys. As such, please be aware of the order the table hash references are put into the array reference.
 
 Example use;
 
  $an->Database->connect({
-	tables => {
-		upses         => "ups_host_uuid",
-		ups_batteries => "ups_battery_host_uuid",
-	},
+	tables => ["upses", "ups_batteries"],
  });
 
 If you want to specify a table that is not linked to a host, set the hash variable's value as an empty string.
@@ -616,7 +615,7 @@ sub connect
 	my $sql_file   = defined $parameter->{sql_file}   ? $parameter->{sql_file}   : $an->data->{path}{sql}{'Tools.sql'};
 	my $tables     = defined $parameter->{tables}     ? $parameter->{tables}     : "";
 	my $test_table = defined $parameter->{test_table} ? $parameter->{test_table} : $an->data->{defaults}{sql}{test_table};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		source     => $source, 
 		sql_file   => $sql_file, 
 		tables     => $tables, 
@@ -652,7 +651,7 @@ sub connect
 		my $name     = $an->data->{database}{$id}{name}     ? $an->data->{database}{$id}{name}     : ""; # This should fail
 		my $user     = $an->data->{database}{$id}{user}     ? $an->data->{database}{$id}{user}     : ""; # This should fail
 		my $password = $an->data->{database}{$id}{password} ? $an->data->{database}{$id}{password} : "";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			host     => $host,
 			port     => $port,
 			name     => $name,
@@ -815,7 +814,7 @@ sub connect
 			push @{$successful_connections}, $id;
 			$an->data->{cache}{db_fh}{$id} = $dbh;
 			
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0071", variables => { 
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0071", variables => { 
 				host => $host,
 				port => $port,
 				name => $name,
@@ -889,7 +888,7 @@ sub connect
 	}
 	
 	# Do I have any connections? Don't die, if not, just return.
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { connections => $connections }});
 	if (not $connections)
 	{
 		# Failed to connect to any database. Log this, print to the caller and return.
@@ -1014,10 +1013,15 @@ sub connect
 	
 	# For now, we just find which DBs are behind and let each agent deal with bringing their tables up to
 	# date.
-	$an->Database->_find_behind_databases({
-		source => $source, 
-		tables => $tables,
-	});
+	if ($connections > 1)
+	{
+		$an->Database->_find_behind_databases({
+			source => $source, 
+			tables => $tables,
+		});
+	}
+	
+	die;
 	
 	# Hold if a lock has been requested.
 	$an->Database->locking();
@@ -1029,15 +1033,7 @@ sub connect
 	$an->Database->archive_databases({});
 	
 	# Sync the database, if needed.
-	$an->Database->resync_databases({tables => [
-			"hosts",
-			"host_variable",
-			"alerts", 
-			"variables", 
-			"updated",
-			"alert_sent",
-			"states",
-		]});
+	$an->Database->resync_databases({tables => $tables});
 	
 	# Add ourselves to the database, if needed.
 	$an->Database->insert_or_update_hosts;
@@ -1055,7 +1051,7 @@ sub disconnect
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->disconnect()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->disconnect()" }});
 	
 	my $marked_inactive = 0;
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
@@ -1103,7 +1099,7 @@ sub get_hosts
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->get_hosts()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->get_hosts()" }});
 	
 	my $query = "
 SELECT 
@@ -1165,7 +1161,7 @@ sub get_local_id
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->get_local_id()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->get_local_id()" }});
 	
 	my $local_id        = "";
 	my $network_details = $an->Get->network_details;
@@ -1207,7 +1203,7 @@ sub initialize
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->initialize()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->initialize()" }});
 	
 	my $id       = $parameter->{id}       ? $parameter->{id}       : $an->data->{sys}{read_db_id};
 	my $sql_file = $parameter->{sql_file} ? $parameter->{sql_file} : $an->data->{path}{sql}{'Tools.sql'};
@@ -1317,7 +1313,7 @@ sub insert_or_update_hosts
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_hosts()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->insert_or_update_hosts()" }});
 	
 	my $host_name = $parameter->{host_name} ? $parameter->{host_name} : $an->_hostname;
 	my $host_type = $parameter->{host_type} ? $parameter->{host_type} : $an->System->determine_host_type;
@@ -1410,9 +1406,11 @@ WHERE
 		$query =~ s/'NULL'/NULL/g;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+		die;
 	}
+	die;
 	
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
 	return(0);
 }
 
@@ -1447,7 +1445,7 @@ sub insert_or_update_states
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
 	
 	my $state_uuid      = $parameter->{state_uuid}      ? $parameter->{state_uuid}      : "";
 	my $state_name      = $parameter->{state_name}      ? $parameter->{state_name}      : "";
@@ -1664,7 +1662,7 @@ sub insert_or_update_variables
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
 	
 	my $variable_uuid         = defined $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = defined $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
@@ -1929,7 +1927,7 @@ sub lock_file
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->lock_file()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->lock_file()" }});
 	
 	my $do = $parameter->{'do'} ? $parameter->{'do'} : "get";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'do' => $do }});
@@ -1989,13 +1987,13 @@ sub locking
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->locking()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->locking()" }});
 	
 	my $request     = defined $parameter->{request}     ? $parameter->{request}     : 0;
 	my $release     = defined $parameter->{release}     ? $parameter->{release}     : 0;
 	my $renew       = defined $parameter->{renew}       ? $parameter->{renew}       : 0;
 	my $check       = defined $parameter->{check}       ? $parameter->{check}       : 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		request => $request, 
 		release => $release, 
 		renew   => $renew, 
@@ -2005,7 +2003,7 @@ sub locking
 	# These are used to ID this lock.
 	my $source_name = $an->_hostname;
 	my $source_uuid = $an->data->{sys}{host_uuid};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		source_name => $source_name, 
 		source_uuid => $source_uuid, 
 	}});
@@ -2013,7 +2011,7 @@ sub locking
 	my $set            = 0;
 	my $variable_name  = "lock_request";
 	my $variable_value = $source_name."::".$source_uuid."::".time;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		variable_name  => $variable_name, 
 		variable_value => $variable_value, 
 	}});
@@ -2025,14 +2023,14 @@ sub locking
 	)
 	{
 		$an->data->{database}{locking}{reap_age} = $an->data->{defaults}{database}{locking}{reap_age};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "database::locking::reap_age" => $an->data->{database}{locking}{reap_age} }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "database::locking::reap_age" => $an->data->{database}{locking}{reap_age} }});
 	}
 	
 	# If I have been asked to check, we will return the variable_uuid if a lock is set.
 	if ($check)
 	{
 		my ($lock_value, $variable_uuid, $modified_date) = $an->Database->read_variable({variable_name => $variable_name});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			lock_value    => $lock_value, 
 			variable_uuid => $variable_uuid, 
 			modified_date => $modified_date, 
@@ -2047,7 +2045,7 @@ sub locking
 		# We check to see if there is a lock before we clear it. This way we don't log that we 
 		# released a lock unless we really released a lock.
 		my ($lock_value, $variable_uuid, $modified_date) = $an->Database->read_variable({variable_name => $variable_name});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			lock_value    => $lock_value, 
 			variable_uuid => $variable_uuid, 
 			modified_date => $modified_date, 
@@ -2061,7 +2059,7 @@ sub locking
 				update_value_only => 1,
 			});
 			$an->data->{sys}{database}{local_lock_active} = 0;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				variable_uuid            => $variable_uuid, 
 				"sys::local_lock_active" => $an->data->{sys}{database}{local_lock_active}, 
 			}});
@@ -2070,7 +2068,7 @@ sub locking
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0039", variables => { host => $an->_hostname }});
 		}
 		
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
 		return($set);
 	}
 	
@@ -2083,15 +2081,15 @@ sub locking
 			variable_value    => $variable_value,
 			update_value_only => 1,
 		});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
 		
 		if ($variable_uuid)
 		{
 			$set = 1;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
 		}
 		$an->data->{sys}{database}{local_lock_active} = time;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			variable_uuid            => $variable_uuid, 
 			"sys::local_lock_active" => $an->data->{sys}{database}{local_lock_active}, 
 		}});
@@ -2099,7 +2097,7 @@ sub locking
 		# Log that we've renewed the lock.
 		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0044", variables => { host => $an->_hostname }});
 		
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
 		return($set);
 	}
 	
@@ -2113,7 +2111,7 @@ sub locking
 		
 		# See if we had a lock.
 		my ($lock_value, $variable_uuid, $modified_date) = $an->Database->read_variable({variable_name => $variable_name});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			waiting       => $waiting, 
 			lock_value    => $lock_value, 
 			variable_uuid => $variable_uuid, 
@@ -2127,7 +2125,7 @@ sub locking
 			my $current_time     = time;
 			my $timeout_time     = $lock_time + $an->data->{database}{locking}{reap_age};
 			my $lock_age         = $current_time - $lock_time;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				lock_source_name => $lock_source_name, 
 				lock_source_uuid => $lock_source_uuid, 
 				current_time     => $current_time, 
@@ -2145,7 +2143,7 @@ sub locking
 					variable_value    => "",
 					update_value_only => 1,
 				});
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
 			}
 			# Only wait if this isn't our own lock.
 			elsif ($lock_source_uuid ne $source_uuid)
@@ -2154,7 +2152,7 @@ sub locking
 				$an->Database->mark_active({set => 0});
 				
 				$waiting = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					lock_source_uuid => $lock_source_uuid, 
 					source_uuid      => $source_uuid, 
 					waiting          => $waiting, 
@@ -2173,13 +2171,13 @@ sub locking
 			variable_value    => $variable_value,
 			update_value_only => 1,
 		});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
 		
 		if ($variable_uuid)
 		{
 			$set = 1;
 			$an->data->{sys}{database}{local_lock_active} = time;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				set                      => $set, 
 				variable_uuid            => $variable_uuid, 
 				"sys::local_lock_active" => $an->data->{sys}{database}{local_lock_active}, 
@@ -2191,7 +2189,7 @@ sub locking
 	}
 	
 	# Now return.
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
 	return($set);
 }
 
@@ -2211,7 +2209,7 @@ sub mark_active
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->mark_active()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->mark_active()" }});
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : 1;
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
@@ -2309,7 +2307,7 @@ sub query
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->query()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->query()" }});
 	
 	my $id     = $parameter->{id}     ? $parameter->{id}     : $an->data->{sys}{read_db_id};
 	my $line   = $parameter->{line}   ? $parameter->{line}   : __LINE__;
@@ -2404,7 +2402,7 @@ sub read_variable
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->read_variable()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->read_variable()" }});
 	
 	my $variable_uuid         = $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
@@ -2497,7 +2495,7 @@ sub resync_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->resync_databases()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->resync_databases()" }});
 	
 	# Get a list if tables. Note that we'll only sync a given table with peers that have the same table.
 	my $table_array = ref($parameter->{tables}) eq "ARRAY" ? $parameter->{tables} : [];
@@ -2523,15 +2521,15 @@ sub write
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->write()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->write()" }});
 	
-	my $id      = $parameter->{id}      ? $parameter->{id}     : $an->data->{sys}{read_db_id};
+	my $id      = $parameter->{id}      ? $parameter->{id}     : "";
 	my $line    = $parameter->{line}    ? $parameter->{line}   : __LINE__;
 	my $query   = $parameter->{query}   ? $parameter->{query}  : "";
 	my $secure  = $parameter->{secure}  ? $parameter->{secure} : 0;
 	my $source  = $parameter->{source}  ? $parameter->{source} : $THIS_FILE;
 	my $reenter = $parameter->{reenter} ? $parameter->{reenter} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		id                    => $id, 
 		"cache::db_fh::${id}" => $an->data->{cache}{db_fh}{$id}, 
 		line                  => $line, 
@@ -2559,12 +2557,14 @@ sub write
 	my @db_ids;
 	if ($id)
 	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
 		push @db_ids, $id;
 	}
 	else
 	{
 		foreach my $id (sort {$a cmp $b} keys %{$an->data->{cache}{db_fh}})
 		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
 			push @db_ids, $id;
 		}
 	}
@@ -2573,19 +2573,19 @@ sub write
 	my $limit     = 25000;
 	my $count     = 0;
 	my $query_set = [];
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
 	if ($an->data->{sys}{database}{maximum_batch_size})
 	{
 		if ($an->data->{sys}{database}{maximum_batch_size} =~ /\D/)
 		{
 			# Bad value.
 			$an->data->{sys}{database}{maximum_batch_size} = 25000;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
 		}
 		
 		# Use the set value now.
 		$limit = $an->data->{sys}{database}{maximum_batch_size};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { limit => $limit }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { limit => $limit }});
 	}
 	if (ref($query) eq "ARRAY")
 	{
@@ -2594,7 +2594,7 @@ sub write
 		
 		# If I am re-entering, then we'll proceed normally. If not, and if we have more than 10k 
 		# queries, we'll split up the queries into 10k chunks and re-enter.
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			count   => $count, 
 			limit   => $limit, 
 			reenter => $reenter, 
@@ -2603,7 +2603,7 @@ sub write
 		{
 			my $i    = 0;
 			my $next = $limit;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { i => $i, 'next' => $next }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i, 'next' => $next }});
 			foreach my $this_query (@{$query})
 			{
 				push @{$query_set}, $this_query;
@@ -2622,7 +2622,7 @@ sub write
 						# This can get memory intensive, so check our RAM usage and 
 						# bail if we're eating too much.
 						my $ram_use = $an->System->check_memory({program_name => $THIS_FILE});
-						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ram_use => $ram_use }});
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ram_use => $ram_use }});
 						
 						# Wipe out the old set array, create it as a new anonymous array and reset 'i'.
 						undef $query_set;
@@ -2648,11 +2648,11 @@ sub write
 	foreach my $id (@db_ids)
 	{
 		# Test access to the DB before we do the actual query
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
 		$an->Database->_test_access({id => $id});
 		
 		# Do the actual query(ies)
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			id    => $id, 
 			count => $count, 
 		}});
@@ -2668,7 +2668,7 @@ sub write
 			#if ($an->Log->db_transactions())
 			if (1)
 			{
-				$an->Log->entry({source => $source, line => $line, secure => $secure, level => 3, key => "log_0074", variables => { 
+				$an->Log->entry({source => $source, line => $line, secure => $secure, level => 2, key => "log_0074", variables => { 
 					id    => $id, 
 					query => $query, 
 				}});
@@ -2688,7 +2688,7 @@ sub write
 				}});
 		}
 		
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 		if ($count)
 		{
 			# Commit the changes.
@@ -2696,7 +2696,7 @@ sub write
 		}
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 	if ($count)
 	{
 		# Free up some memory.
@@ -2738,7 +2738,7 @@ sub _find_behind_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->_find_behind_databases()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->_find_behind_databases()" }});
 	
 	my $source = $parameter->{source} ? $parameter->{source} : "";
 	my $tables = $parameter->{tables} ? $parameter->{tables} : "";
@@ -2754,12 +2754,30 @@ sub _find_behind_databases
 		return("!!error!!");
 	}
 	
+	# Now, look through the core tables, plus any tables the user might have passed, for differing 
+	# 'modified_date' entries, or no entries in one DB with entries in the other (as can happen with a 
+	# newly setup db).
+	my $check_tables = [];
+	foreach my $table (@{$an->data->{sys}{database}{core_tables}})
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { table => $table }});
+		push @{$check_tables}, $table;
+	}
+	if (ref($tables) eq "ARRAY")
+	{
+		foreach my $table (@{$tables})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { table => $table }});
+			push @{$check_tables}, $table;
+		}
+	}
+	
 	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
 	$an->data->{sys}{database}{source_db_id}        = 0;
 	$an->data->{sys}{database}{source_updated_time} = 0;
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"database::${id}::host"     => $an->data->{database}{$id}{host},
 			"database::${id}::port"     => $an->data->{database}{$id}{port},
 			"database::${id}::name"     => $an->data->{database}{$id}{name},
@@ -2810,32 +2828,44 @@ AND
 			"database::${id}::last_updated"      => $an->data->{database}{$id}{last_updated}
 		}});
 		
-		# If we have a tables hash, look into them, too.
-		if (ref($tables) eq "HASH")
+		foreach my $table (@{$check_tables})
 		{
-			foreach my $table (sort {$a cmp $b} keys %{$tables})
+			# Does this table exist yet?
+			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			my $count = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			
+			if ($count == 1)
 			{
-				# I'm going to both check the number of entries in the history schema 
-				my $table_name  = $an->data->{sys}{use_db_fh}->quote($table);
-				   $table_name  =~ s/'(.*?)'/$1/;
-				my $host_column =  $an->data->{sys}{use_db_fh}->quote($tables->{$table});
-				   $host_column =~ s/'(.*?)'/$1/;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					table_name  => $table_name, 
-					host_column => $host_column,
-				}});
-		
-				my $query       =  "
+				# Does this table have a '*_host_uuid' column?
+				my $query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name LIKE '\%_host_uuid' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $host_column = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				   $host_column = "" if not defined $host_column;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_column => $host_column }});
+				
+				# Does this table have a history schema version?
+				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $count = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				
+				my $schema = $count ? "history" : "public";
+				
+				$query =  "
 SELECT 
     round(extract(epoch from modified_date)) 
 FROM 
-    history.$table_name ";
+    $schema.$table ";
 				if ($host_column)
 				{
 					$query .= "
 WHERE 
-    $host_column = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})."
-";
+    $host_column = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}) ;
 				}
 				$query .= "
 ORDER BY 
@@ -2847,8 +2877,8 @@ ORDER BY
 				}});
 				
 				my $last_updated = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				   $last_updated = 0 if not defined $last_updated;
-				   
+				$last_updated = 0 if not defined $last_updated;
+				
 				$an->data->{database}{$id}{tables}{$table}{last_updated} = $last_updated;
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"database::${id}::tables::${table}::last_updated" => $an->data->{database}{$id}{tables}{$table}{last_updated}, 
@@ -2935,7 +2965,7 @@ sub _mark_database_as_behind
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->_mark_database_as_behind()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->_mark_database_as_behind()" }});
 	
 	my $id = $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
@@ -2981,7 +3011,7 @@ sub _test_access
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->_test_access()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->_test_access()" }});
 	
 	my $id = $parameter->{id} ? $parameter->{id} : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});

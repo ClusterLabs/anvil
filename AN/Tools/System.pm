@@ -260,27 +260,32 @@ sub determine_host_type
 	my $an        = $self->parent;
 	
 	my $host_type = "";
-	my $host_name = $an->_hostname;
+	my $host_name = $an->_short_hostname;
 	   $host_type = "unknown";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		host_type        => $host_type,
+		host_name        => $host_name,
+		"sys::host_type" => $an->data->{sys}{host_type},
+	}});
 	if ($an->data->{sys}{host_type})
 	{
 		$host_type = $an->data->{sys}{host_type};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 	}
 	elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/))
 	{
 		$host_type = "node";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 	}
 	elsif (($host_name =~ /striker\d+$/) or ($host_name =~ /dashboard\d+$/))
 	{
 		$host_type = "dashboard";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 	}
 	elsif ($host_name =~ /dr\d+$/)
 	{
 		$host_type = "dr";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 	}
 	
 	return($host_type);
