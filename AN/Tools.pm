@@ -606,6 +606,7 @@ sub _set_defaults
 									"variables",
 									"alert_sent",
 									"states",
+									"updated",
 								],
 			local_lock_active		=>	0,
 			locking_reap_age		=>	300,

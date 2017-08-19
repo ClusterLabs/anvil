@@ -174,7 +174,7 @@ The database connection error was:
 		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">The database with ID: [#!variable!id!#] for: [#!variable!file!#] is behind.</key>
 		<key name="log_0105">ScanCore database: [#!variable!database!#] already exists.</key>
-		<key name="log_0106">The database with ID: [#!variable!id!#] for: [#!variable!file!#] and table: [#!variable!table!#] is behind.</key>
+		<key name="log_0106">The database with ID: [#!variable!id!#] is behind. A database esync will be requested.</key>
 		<key name="log_0107">[ Warning ] - Failed to delete the temporary postgres password.</key>
 		<key name="log_0108"><![CDATA[[ Error ] - The method Database->insert_or_update_states() was called but the 'state_host_uuid' parameter was not passed or it is empty. Normally this is set to 'sys::data_uuid'.]]></key>
 		<key name="log_0109">[ Error ] - Failed to create the ScanCore database: [#!variable!database!#]</key>

@@ -253,7 +253,9 @@ CREATE TRIGGER trigger_variables
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --
 -- ------------------------------------------------------------------------------------------------------- --
 
--- This table records the last time a scan ran.
+
+-- This table records the last time a scan ran. It's sole purpose is to make sure at least one table's
+-- 'modified_date' changes per run, so that database resyncs can be triggered reliably.
 CREATE TABLE updated (
 	updated_host_uuid	uuid				not null,
 	updated_by		text				not null,			-- The name of the agent (or "ScanCore' itself) that updated.

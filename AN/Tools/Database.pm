@@ -2742,7 +2742,7 @@ sub _find_behind_databases
 	
 	my $source = $parameter->{source} ? $parameter->{source} : "";
 	my $tables = $parameter->{tables} ? $parameter->{tables} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		source => $source, 
 		tables => $tables, 
 	}});
@@ -2760,21 +2760,24 @@ sub _find_behind_databases
 	my $check_tables = [];
 	foreach my $table (@{$an->data->{sys}{database}{core_tables}})
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { table => $table }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { table => $table }});
 		push @{$check_tables}, $table;
 	}
 	if (ref($tables) eq "ARRAY")
 	{
 		foreach my $table (@{$tables})
 		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { table => $table }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { table => $table }});
 			push @{$check_tables}, $table;
+			
+			# This will store the most recent time stamp.
+			$an->data->{sys}{database}{table}{$table}{last_updated} = 0;
+			
 		}
 	}
 	
 	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
-	$an->data->{sys}{database}{source_db_id}        = 0;
-	$an->data->{sys}{database}{source_updated_time} = 0;
+	my $source_updated_time = 0;
 	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
 	{
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -2785,74 +2788,34 @@ sub _find_behind_databases
 			"database::${id}::password" => $an->Log->secure ? $an->data->{database}{$id}{password} : "--", 
 		}});
 		
-		my $name = $an->data->{database}{$id}{name};
-		my $user = $an->data->{database}{$id}{user};
-		
-		# Read the table's last modified_date
-		my $query = "
-SELECT 
-    round(extract(epoch from modified_date)) 
-FROM 
-    updated 
-WHERE 
-    updated_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})."
-AND
-    updated_by = ".$an->data->{sys}{use_db_fh}->quote($source).";";
-		
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			id    => $id, 
-			query => $query, 
-		}});
-		my $last_updated = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		   $last_updated = 0 if not defined $last_updated;
-		   
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			last_updated                         => $last_updated, 
-			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
-		}});
-		if ($last_updated > $an->data->{sys}{database}{source_updated_time})
-		{
-			$an->data->{sys}{database}{source_updated_time} = $last_updated;
-			$an->data->{sys}{database}{source_db_id}        = $id;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"sys::database::source_db_id"        => $an->data->{sys}{database}{source_db_id}, 
-				"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
-			}});
-		}
-		
-		# Get the last updated time for this database (and source).
-		$an->data->{database}{$id}{last_updated} = $last_updated;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
-			"sys::database::source_db_id"        => $an->data->{sys}{database}{source_db_id}, 
-			"database::${id}::last_updated"      => $an->data->{database}{$id}{last_updated}
-		}});
-		
+		# Loop through the tables in this DB. For each table, we'll record the most recent time 
+		# stamp. Later, We'll look through again and any table/DB with an older time stamp will be 
+		# behind and a resync will be needed.
 		foreach my $table (@{$check_tables})
 		{
 			# Does this table exist yet?
 			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 			
 			my $count = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 			
 			if ($count == 1)
 			{
 				# Does this table have a '*_host_uuid' column?
 				my $query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name LIKE '\%_host_uuid' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				
 				my $host_column = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				   $host_column = "" if not defined $host_column;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_column => $host_column }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_column => $host_column }});
 				
 				# Does this table have a history schema version?
 				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				
 				my $count = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 				
 				my $schema = $count ? "history" : "public";
 				
@@ -2871,79 +2834,56 @@ WHERE
 ORDER BY 
     modified_date DESC
 ;";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					id    => $id, 
 					query => $query, 
 				}});
 				
 				my $last_updated = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$last_updated = 0 if not defined $last_updated;
+				   $last_updated = 0 if not defined $last_updated;
 				
-				$an->data->{database}{$id}{tables}{$table}{last_updated} = $last_updated;
+				# Record this table's last modified_date for later comparison.
+				$an->data->{sys}{database}{table}{$table}{id}{$id}{last_updated} = $last_updated;
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"database::${id}::tables::${table}::last_updated" => $an->data->{database}{$id}{tables}{$table}{last_updated}, 
+					"sys::database::table::${table}::id::${id}::last_updated" => $an->data->{sys}{database}{table}{$table}{id}{$id}{last_updated}, 
+					"sys::database::table::${table}::last_updated"            => $an->data->{sys}{database}{table}{$table}{last_updated},
+					
 				}});
+				
+				if ($an->data->{sys}{database}{table}{$table}{id}{$id}{last_updated} > $an->data->{sys}{database}{table}{$table}{last_updated})
+				{
+					$an->data->{sys}{database}{table}{$table}{last_updated} = $an->data->{sys}{database}{table}{$table}{id}{$id}{last_updated};
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"sys::database::table::${table}::last_updated" => $an->data->{sys}{database}{table}{$table}{last_updated}, 
+					}});
+				}
 			}
 		}
 	}
 	
-	# Find which DB is most up to date.
-	$an->data->{sys}{database}{to_update} = {};
-	foreach my $id (sort {$a cmp $b} keys %{$an->data->{database}})
+	# Now loop through each table we've seen and see if the moditied_date differs for any of the 
+	# databases. If it has, trigger a resync.
+	foreach my $table (sort {$a cmp $b} keys %{$an->data->{sys}{database}{table}})
 	{
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sys::database::source_updated_time" => $an->data->{sys}{database}{source_updated_time}, 
-			"database::${id}::last_updated"      => $an->data->{database}{$id}{last_updated}, 
+			"sys::database::table::${table}::last_updated" => $an->data->{sys}{database}{table}{$table}{last_updated}, 
 		}});
-		if ($an->data->{sys}{database}{source_updated_time} > $an->data->{database}{$id}{last_updated})
+		foreach my $id (sort {$a cmp $b} keys %{$an->data->{sys}{database}{table}{$table}{id}})
 		{
-			# This database is behind
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0104", variables => {
-				id     => $id,
-				source => $source,
-			}});
-			
-			# A database is behind, resync
-			$an->Database->_mark_database_as_behind({id => $id});
-		}
-		else
-		{
-			# This database is up to date (so far).
-			$an->data->{sys}{database}{to_update}{$id}{behind} = 0;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"sys::database::to_update::${id}::behind" => $an->data->{sys}{database}{to_update}{$id}{behind}, 
+				"sys::database::table::${table}::id::${id}::last_updated" => $an->data->{sys}{database}{table}{$table}{id}{$id}{last_updated}, 
 			}});
-		}
-		
-		# If we don't yet need a resync, and if we were passed one or more tables, check those tables
-		# for differences
-		if ((not $an->data->{sys}{database}{resync_needed}) && (ref($tables) eq "HASH"))
-		{
-			foreach my $table (sort {$a cmp $b} keys %{$tables})
+			if ($an->data->{sys}{database}{table}{$table}{last_updated} > $an->data->{sys}{database}{table}{$table}{id}{$id}{last_updated})
 			{
-				if (not defined $an->data->{sys}{database}{tables}{$table}{last_updated})
-				{
-					# First we've seen, set the general updated time to this entry
-					$an->data->{sys}{database}{tables}{$table}{last_updated} = $an->data->{database}{$id}{tables}{$table}{last_updated};
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"sys::database::tables::${table}::last_updated" => $an->data->{sys}{database}{tables}{$table}{last_updated}
-					}});
-				}
-				
-				if ($an->data->{sys}{database}{tables}{$table}{last_updated} > $an->data->{database}{$id}{tables}{$table}{last_updated})
-				{
-					# This database is behind
-					$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => {
-						id     => $id,
-						source => $source,
-						table  => $table, 
-					}});
-				}
+				# Resync needed.
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { id => $id }});
 				
 				# Mark it as behind.
 				$an->Database->_mark_database_as_behind({id => $id});
+				last;
 			}
 		}
+		last if $an->data->{sys}{database}{resync_needed};
 	}
 	
 	return(0);
