@@ -1,6 +1,24 @@
 -- This is the core database schema for AN::Tools. 
 -- It expects PostgreSQL v. 9.1+
 
+-- Table construction rules;
+-- 
+-- All tables need to have a column called '<table>_uuid  uuid  not null  primary key' that will have a 
+-- unique UUID. This is used to keep track of the same entry in the history schema. If the table ends in a
+-- plural, the '<table>_uuid' and can use the singular form of the table. For example, the table 'hosts' can
+-- use 'host_uuid'.
+-- 
+-- All tables must hast a 'modified_date  timestamp with time zone  not null' column. This is used to track
+-- changes through time in the history schema and used to groups changes when resync'ing.
+-- 
+-- Tables can optionally have a '*_host_uuid  uuid  not null' colum. If this is found, when resync'ing the
+-- table, the resync will be restricted to the host's 'sys::host_uuid'.
+-- 
+-- Most tables will want to have a matching table in the history schema with an additional 
+-- 'history_id  bigserial' column. Match the function and trigger seen elsewhere to copy your data from the
+-- public schema to the history schema on UPDATE or INSERT.
+
+
 SET client_encoding = 'UTF8';
 -- This doesn't work before 9.3 - CREATE SCHEMA IF NOT EXISTS history;
 -- So we'll use the query below until (if) we upgrade.
@@ -271,6 +289,7 @@ ALTER TABLE updated OWNER TO #!variable!user!#;
 -- previously pass the "alert" threshold, we DON'T want to send an "all clear" message. So do solve that, 
 -- this table is used by agents to record when a warning message was sent. 
 CREATE TABLE alert_sent (
+	alert_sent_uuid		uuid				primary key,
 	alert_sent_host_uuid	uuid				not null,			-- The node associated with this alert
 	alert_set_by		text				not null,			-- name of the program that set this alert
 	alert_record_locator	text				not null,			-- String used by the agent to identify the source of the alert (ie: UPS serial number)

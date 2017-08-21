@@ -494,6 +494,29 @@ head3 list (required)
 
 This is a hash reference containing the variables to record.
 
+If the passed in number of entries is 5 or less, the output will all be on one line. If more entries are passed, the variable/value pairs will be presented as one entry per line.
+
+To allow for sorting, if the key starts with 's#:', that part of the key will be removed in the log. For example;
+
+ $an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+ 	"s1:i"            => $i,
+ 	"s2:column_name"  => $column_name, 
+ 	"s3:column_value" => $column_value,
+ 	"s4:not_null"     => $not_null,
+ 	"s5:data_type"    => $data_type, 
+ }});
+ 
+Would generate a sorted log entry that looks like:
+ 
+ Aug 20 13:10:28 m3-striker01.alteeve.com an-tools[9445]: Database.pm:2604; Variables:
+                                                          |- i: [0]
+                                                          |- column_name: [host_name]
+                                                          |- column_value: [m3-striker01.alteeve.com]
+                                                          |- not_null: [1]
+                                                          \- data_type: [text]
+
+All other key names are left alone and output is sorted alphabetically.
+
 =cut
 sub variables
 {
@@ -545,12 +568,15 @@ sub variables
 			}
 		}
 		my $raw = "";
-		if ($entries < 5)
+		if ($entries <= 5)
 		{
 			# Put all the entries on one line.
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
-				$raw .= "$key: [".$list->{$key}."], ";
+				# Strip a leading 'sX:' in case the user is sorting the output.
+				my $say_key =  $key;
+				   $say_key =~ s/^s(\d+)://;
+				$raw .= "$say_key: [".$list->{$key}."], ";
 			}
 			$raw =~ s/, $//;
 		}
@@ -560,13 +586,16 @@ sub variables
 			$raw .= $an->Words->string({key => "log_0019"})."\n";
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
+				# Strip a leading 'sX:' in case the user is sorting the output.
+				my $say_key =  $key;
+				   $say_key =~ s/^s(\d+)://;
 				if ($entry ne $entries)
 				{
-					$raw .= "|- $key: [".$list->{$key}."]\n";
+					$raw .= "|- $say_key: [".$list->{$key}."]\n";
 				}
 				else
 				{
-					$raw .= "\\- $key: [".$list->{$key}."]\n";
+					$raw .= "\\- $say_key: [".$list->{$key}."]\n";
 				}
 				$entry++;
 			}

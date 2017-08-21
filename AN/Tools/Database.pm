@@ -2508,7 +2508,8 @@ sub resync_databases
 	
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.
-	# We're going to use the array of tables assembles by _find_behind_databases() stored in 'sys::database::check_tables'
+	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
+	# 'sys::database::check_tables'
 	foreach my $table (@{$an->data->{sys}{database}{check_tables}})
 	{
 		# If the 'schema' is 'public', there is no table in the history schema. If there is a host 
@@ -2521,9 +2522,29 @@ sub resync_databases
 			host_column => $host_column, 
 		}});
 		
+		# If there is a column name that is '<table>_uuid', or the same with the table's name minus 
+		# the last 's', this will be the UUID column to keep records linked in history. We'll need to
+		# know this off the bat. Tables where we don't find a UUID column won't be sync'ed.
+		my $column1 = $table."_uuid";
+		my $column2 = "";
+		if ($table =~ /^(.*)s$/)
+		{
+			$column2 = $1."_uuid";
+		}
+		my $query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = 'scancore' AND table_schema = 'public' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND column_name = ".$an->data->{sys}{use_db_fh}->quote($column1).";";
+		if ($column2)
+		{
+			$query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = 'scancore' AND table_schema = 'public' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND (column_name = ".$an->data->{sys}{use_db_fh}->quote($column1)." OR column_name = ".$an->data->{sys}{use_db_fh}->quote($column2).");";
+		}
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+		my $uuid_column = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		   $uuid_column = "" if not defined $uuid_column;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid_column => $uuid_column }});
+		next if not $uuid_column;
+		
 		# Get all the columns in this table.
-		my $query = "SELECT column_name, is_nullable, data_type FROM information_schema.columns WHERE table_schema = ".$an->data->{sys}{use_db_fh}->quote($schema)." AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table)." AND column_name != 'history_id';";
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+		$query = "SELECT column_name, is_nullable, data_type FROM information_schema.columns WHERE table_schema = ".$an->data->{sys}{use_db_fh}->quote($schema)." AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table)." AND column_name != 'history_id';";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 		
 		my $results = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
@@ -2558,32 +2579,32 @@ sub resync_databases
 			$an->data->{db_resync}{$id}{public}{sql}  = [];
 			$an->data->{db_resync}{$id}{history}{sql} = [];
 			
-			# Read in the history schema
-			my $query = "SELECT ";
+			# Read in the data, modified_date first as we'll need that for all entries we record.
+			my $query        = "SELECT modified_date, $uuid_column, ";
 			my $read_columns = [];
+			push @{$read_columns}, "modified_date";
 			foreach my $column_name (sort {$a cmp $b} keys %{$an->data->{sys}{database}{table}{$table}{column}})
 			{
 				# We'll skip the host column as we'll use it in the conditional.
-				next if $column_name eq $host_column;
 				next if $column_name eq "modified_date";
+				next if $column_name eq $host_column;
+				next if $column_name eq $uuid_column;
 				$query .= $column_name.", ";
 				
 				push @{$read_columns}, $column_name;
 			}
 			
-			# Manually add modified_date.
-			push @{$read_columns}, "modified_date";
-			$query .= "modified_date FROM ".$schema.".".$table." ";
+			# Strip the last comma and the add the schema.table name.
+			$query =~ s/, $/ /;
+			$query .= "FROM ".$schema.".".$table;
 			
 			# Restrict to this host if a host column was found.
 			if ($host_column)
 			{
-				$query .= "WHERE ".$host_column." = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid});
+				$query .= " WHERE ".$host_column." = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid});
 			}
 			$query .= ";";
 			$an->Log->entry({level => 2, key => "log_0074", variables => { id => $id, query => $query }});
-			
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
 			
 			my $results = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
@@ -2595,6 +2616,8 @@ sub resync_databases
 			
 			foreach my $row (@{$results})
 			{
+				my $modified_date = "";
+				my $row_uuid      = "";
 				for (my $i = 0; $i < @{$read_columns}; $i++)
 				{
 					my $column_name  = $read_columns->[$i];
@@ -2602,16 +2625,80 @@ sub resync_databases
 					my $not_null     = $an->data->{sys}{database}{table}{$table}{column}{$column_name}{not_null};
 					my $data_type    = $an->data->{sys}{database}{table}{$table}{column}{$column_name}{data_type};
 					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						column_name  => $column_name, 
-						column_value => $column_value,
-						not_null     => $not_null,
-						data_type    => $data_type, 
+						"s1:i"            => $i,
+						"s2:column_name"  => $column_name, 
+						"s3:column_value" => $column_value,
+						"s4:not_null"     => $not_null,
+						"s5:data_type"    => $data_type, 
 					}});
 					if ((not $not_null) && ($column_value eq "NULL"))
 					{
 						$column_value = "";
 						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { column_value => $column_value }});
 					}
+					
+					# The modified_date should be the first row.
+					if ($column_name eq "modified_date")
+					{
+						$modified_date = $column_value;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { modified_date => $modified_date }});
+						next;
+					}
+					
+					# The row's UUID should be the second row.
+					if ($column_name eq $uuid_column)
+					{
+						$row_uuid = $column_value;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { row_uuid => $row_uuid }});
+						
+						# This is used to determine if a given entry needs to be 
+						# updated or inserted into the public schema
+						$an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'} = 1;
+						$an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen}     = 0;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::exists" => $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'}, 
+							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::seen"   => $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen}, 
+						}});
+						next;
+					}
+					
+					die $THIS_FILE." ".__LINE__."; This row's modified_date wasn't the first column returned in query: [$query]\n" if not $modified_date;
+					die $THIS_FILE." ".__LINE__."; This row's UUID column: [$uuid_column] wasn't the second column returned in query: [$query]\n" if not $modified_date;
+					
+					# Record this in the unified and local hashes. Note that we'll handle
+					# the 'hosts' table in a special way, then the rest depending on 
+					# whether we have a host column or not.
+					if ($host_column)
+					{
+						# We habe a host column
+					}
+					else
+					{
+						# This table isn't restricted to given hosts.
+						$an->data->{db_data}{unified}{hosts}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"db_data::unified::hosts::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}" => $an->data->{db_data}{unified}{hosts}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
+						}});
+					}
+# 					$an->data->{db_data}{unified}{hosts}{modified_date}{$modified_date}{host_uuid}{$host_uuid} = {
+# 						host_location_uuid	=>	$host_location_uuid, 
+# 						host_name		=>	$host_name, 
+# 						host_type		=>	$host_type, 
+# 						host_emergency_stop	=>	$host_emergency_stop, 
+# 						host_stop_reason	=>	$host_stop_reason, 
+# 						host_health		=>	$host_health, 
+# 					};
+# 					
+# 					$an->data->{db_data}{$id}{hosts}{host_uuid}{$host_uuid}{'exists'} = 1;
+# 					$an->data->{db_data}{$id}{hosts}{host_uuid}{$host_uuid}{seen}     = 0;
+# 					$an->data->{db_data}{$id}{hosts}{modified_date}{$modified_date}{host_uuid}{$host_uuid} = {
+# 						host_location_uuid	=>	$host_location_uuid, 
+# 						host_name		=>	$host_name, 
+# 						host_type		=>	$host_type,
+# 						host_emergency_stop	=>	$host_emergency_stop,
+# 						host_stop_reason	=>	$host_stop_reason,
+# 						host_health		=>	$host_health, 
+# 					};
 				}
 			}
 			die;
@@ -2990,6 +3077,9 @@ sub _find_behind_databases
 				my $query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name LIKE '\%_host_uuid' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				
+				# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
+				# it later to restrict resync activity to these columns with the local 
+				# 'sys::host_uuid'.
 				my $host_column = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				   $host_column = "" if not defined $host_column;
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_column => $host_column }});
@@ -3002,8 +3092,7 @@ sub _find_behind_databases
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 				
 				my $schema = $count ? "history" : "public";
-				
-				$query =  "
+				   $query  =  "
 SELECT 
     round(extract(epoch from modified_date)) 
 FROM 
