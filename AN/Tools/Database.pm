@@ -2488,9 +2488,7 @@ AND
 
 =head2 resync_databases
 
-NOTE: Not implemented yet.
-
-This will resync the database data on this and peer database(s) if needed.
+This will resync the database data on this and peer database(s) if needed. It takes no arguments and will immediately return unless C<< sys::database::resync_needed >> was set.
 
 =cut
 sub resync_databases
@@ -2517,7 +2515,7 @@ sub resync_databases
 		# column, the resync will be restricted to entries from this host uuid.
 		my $schema      = $an->data->{sys}{database}{table}{$table}{schema};
 		my $host_column = $an->data->{sys}{database}{table}{$table}{host_column};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			table       => $table, 
 			schema      => $schema, 
 			host_column => $host_column, 
@@ -2580,7 +2578,7 @@ sub resync_databases
 			$an->data->{db_resync}{$id}{history}{sql} = [];
 			
 			# Read in the data, modified_date first as we'll need that for all entries we record.
-			my $query        = "SELECT modified_date, $uuid_column, ";
+			my $query        = "SELECT modified_date AT time zone 'UTC', $uuid_column, ";
 			my $read_columns = [];
 			push @{$read_columns}, "modified_date";
 			push @{$read_columns}, $uuid_column;
@@ -2604,7 +2602,7 @@ sub resync_databases
 			{
 				$query .= " WHERE ".$host_column." = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid});
 			}
-			$query .= ";";
+			$query .= " ORDER BY modified_date DESC;";
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0074", variables => { id => $id, query => $query }});
 			
 			my $results = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
@@ -2666,192 +2664,187 @@ sub resync_databases
 					die $THIS_FILE." ".__LINE__."; This row's modified_date wasn't the first column returned in query: [$query]\n" if not $modified_date;
 					die $THIS_FILE." ".__LINE__."; This row's UUID column: [$uuid_column] wasn't the second column returned in query: [$query]\n" if not $row_uuid;
 					
-					# Record this in the unified and local hashes. Note that we'll handle
-					# the 'hosts' table in a special way, then the rest depending on 
-					# whether we have a host column or not.
-					if ($host_column)
-					{
-						# We habe a host column
-					}
-					else
-					{
-						# This table isn't restricted to given hosts.
-						$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
-						$an->data->{db_data}{$id}{hosts}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}     = $column_value;
-						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-							"db_data::unified::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}" => $an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
-							"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}"   => $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
-						}});
-					}
+					# Record this in the unified and local hashes. 						# This table isn't restricted to given hosts.
+					$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
+					$an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}     = $column_value;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						"db_data::unified::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}" => $an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
+						"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}"   => $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
+					}});
 				}
 			}
+		}
+		
+		# Now all the data is read in, we can see what might be missing from each DB.
+		foreach my $modified_date (sort {$b cmp $a} keys %{$an->data->{db_data}{unified}{$table}{modified_date}})
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { modified_date => $modified_date }});
 			
-			# Now all the data is read in, we can see what might be missing from each DB.
-			foreach my $modified_date (sort {$b cmp $a} keys %{$an->data->{db_data}{unified}{$table}{modified_date}})
+			foreach my $row_uuid (sort {$a cmp $b} keys %{$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}})
 			{
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { modified_date => $modified_date }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { row_uuid => $row_uuid }});
 				
-				foreach my $row_uuid (sort {$a cmp $b} keys %{$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}})
+				foreach my $id (sort {$a cmp $b} keys %{$an->data->{cache}{db_fh}})
 				{
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { row_uuid => $row_uuid }});
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
 					
-					foreach my $id (sort {$a cmp $b} keys %{$an->data->{cache}{db_fh}})
+					# For each 'row_uuid' we see;
+					# - Check if we've *seen* it before
+					#   |- If not seen; See if it *exists* in the public schema yet.
+					#   |  |- If so, check to see if the entry in the public schema is up to date.
+					#   |  |  \- If not, _UPDATE_ public schema.
+					#   |  \- If not, do an _INSERT_ into public schema.
+					#   \- If we have seen, see if it exists at the current timestamp.
+					#      \- If not, _INSERT_ it into history schema.
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						"db_data::${id}::${table}::${uuid_column}::${row_uuid}::seen" => $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} 
+					}});
+					if (not $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen})
 					{
-						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
-						
-						# For each 'row_uuid' we see;
-						# - Check if we've *seen* it before
-						#   |- If not seen; See if it *exists* in the public schema yet.
-						#   |  |- If so, check to see if the entry in the public schema is up to date.
-						#   |  |  \- If not, _UPDATE_ public schema.
-						#   |  \- If not, do an _INSERT_ into public schema.
-						#   \- If we have seen, see if it exists at the current timestamp.
-						#      \- If not, _INSERT_ it into history schema.
+						# Mark this record as now having been seen.
+						$an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} = 1;
 						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::seen" => $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} 
 						}});
-						if (not $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen})
+						
+						# Does it exist?
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::exists" => $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'} 
+						}});
+						if ($an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'})
 						{
-							# Mark this record as now having been seen.
-							$an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} = 1;
-							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-								"db_data::${id}::${table}::${uuid_column}::${row_uuid}::seen" => $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} 
-							}});
-							
-							# Does it exist?
-							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-								"db_data::${id}::${table}::${uuid_column}::${row_uuid}::exists" => $an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'} 
-							}});
-							if ($an->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'})
-							{
-								# It exists, but does it exist at this time stamp?
-								$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-									"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
-								}});
-								if (not $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
-								{
-									# No, so UPDATE it. We'll build the query now...
-									my $query = "UPDATE public.$table SET ";
-									foreach my $column_name (sort {$a cmp $b} keys %{$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
-									{
-										my $column_value =  $an->data->{sys}{use_db_fh}->quote($an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
-										   $column_value =~ s/'NULL'/NULL/g;
-										$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-											column_name  => $column_name, 
-											column_value => $column_value, 
-										}});
-										
-										$query .= "$column_name = ".$an->data->{sys}{use_db_fh}->quote().", ";
-									}
-									$query .= "modified_date = ".$an->data->{sys}{use_db_fh}->quote($modified_date)." WHERE $uuid_column = ".$an->data->{sys}{use_db_fh}->quote($row_uuid).";";
-									$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
-									
-									# Now record the query in the array
-									push @{$an->data->{db_resync}{$id}{public}{sql}}, $query;
-								} # if not exists - timestamp
-							} # if exists
-							else
-							{
-								# It doesn't exist, so INSERT it. We need to 
-								# build entries for the column names and 
-								# values at the same time to make certain 
-								# they're in the same order.
-								my $columns = "";
-								my $values  = "";
-								foreach my $column_name (sort {$a cmp $b} keys %{$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
-								{
-									my $column_value =  $an->data->{sys}{use_db_fh}->quote($an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
-									   $column_value =~ s/'NULL'/NULL/g;
-									$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-										column_name  => $column_name, 
-										column_value => $column_value, 
-									}});
-									$columns .= $column_name.", ";
-									$values  .= $column_value.", ";
-								}
-								$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-									columns  => $columns, 
-									'values' => $values, 
-								}});
-								
-								my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date).");";
-								$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
-								
-								# Now record the query in the array
-								push @{$an->data->{db_resync}{$id}{public}{sql}}, $query;
-							} # if not exists
-						} # if not seen
-						else
-						{
-							### NOTE: If the table doesn't have a history schema,
-							###       we skip this.
-							next if $schema eq "public";
-							
-							# We've seen this row_uuid before, so it is just a 
-							# question of whether the entry for the current 
-							# timestamp exists in the history schema.
+							# It exists, but does it exist at this time stamp?
 							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
 							}});
 							if (not $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
 							{
-								# It hasn't been seen, so INSERT it. We need 
-								# to build entries for the column names and 
-								# values at the same time to make certain 
-								# they're in the same order.
-								my $columns = "";
-								my $values  = "";
+								# No, so UPDATE it. We'll build the query now...
+								my $query = "UPDATE public.$table SET ";
 								foreach my $column_name (sort {$a cmp $b} keys %{$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
 								{
 									my $column_value =  $an->data->{sys}{use_db_fh}->quote($an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
-									   $column_value =~ s/'NULL'/NULL/g;
+										$column_value =~ s/'NULL'/NULL/g;
 									$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 										column_name  => $column_name, 
 										column_value => $column_value, 
 									}});
-									$columns .= $column_name.", ";
-									$values  .= $column_value.", ";
+									
+									$query .= "$column_name = ".$an->data->{sys}{use_db_fh}->quote().", ";
 								}
-								$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-									columns  => $columns, 
-									'values' => $values, 
-								}});
-								
-								my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date).");";
+								$query .= "modified_date = ".$an->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$an->data->{sys}{use_db_fh}->quote($row_uuid).";";
 								$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
 								
 								# Now record the query in the array
-								push @{$an->data->{db_resync}{$id}{history}{sql}}, $query;
+								push @{$an->data->{db_resync}{$id}{public}{sql}}, $query;
 							} # if not exists - timestamp
-						} # if seen
-					} # foreach $id
-				} # foreach $row_uuid
-			} # foreach $modified_date ...
+						} # if exists
+						else
+						{
+							# It doesn't exist, so INSERT it. We need to 
+							# build entries for the column names and 
+							# values at the same time to make certain 
+							# they're in the same order.
+							my $columns = "";
+							my $values  = "";
+							foreach my $column_name (sort {$a cmp $b} keys %{$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
+							{
+								my $column_value =  $an->data->{sys}{use_db_fh}->quote($an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+									$column_value =~ s/'NULL'/NULL/g;
+								$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+									column_name  => $column_name, 
+									column_value => $column_value, 
+								}});
+								$columns .= $column_name.", ";
+								$values  .= $column_value.", ";
+							}
+							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+								columns  => $columns, 
+								'values' => $values, 
+							}});
+							
+							my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
+							
+							# Now record the query in the array
+							push @{$an->data->{db_resync}{$id}{public}{sql}}, $query;
+						} # if not exists
+					} # if not seen
+					else
+					{
+						### NOTE: If the table doesn't have a history schema,
+						###       we skip this.
+						next if $schema eq "public";
+						
+						# We've seen this row_uuid before, so it is just a 
+						# question of whether the entry for the current 
+						# timestamp exists in the history schema.
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+							"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
+						}});
+						if (not $an->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
+						{
+							# It hasn't been seen, so INSERT it. We need 
+							# to build entries for the column names and 
+							# values at the same time to make certain 
+							# they're in the same order.
+							my $columns = "";
+							my $values  = "";
+							foreach my $column_name (sort {$a cmp $b} keys %{$an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
+							{
+								my $column_value =  $an->data->{sys}{use_db_fh}->quote($an->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+									$column_value =~ s/'NULL'/NULL/g;
+								$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+									column_name  => $column_name, 
+									column_value => $column_value, 
+								}});
+								$columns .= $column_name.", ";
+								$values  .= $column_value.", ";
+							}
+							$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+								columns  => $columns, 
+								'values' => $values, 
+							}});
+							
+							my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
+							
+							# Now record the query in the array
+							push @{$an->data->{db_resync}{$id}{history}{sql}}, $query;
+						} # if not exists - timestamp
+					} # if seen
+				} # foreach $id
+			} # foreach $row_uuid
+		} # foreach $modified_date ...
+		
+		# Free up memory by deleting the DB data from the main hash.
+		delete $an->data->{db_data};
+		
+		# Do the INSERTs now and then release the memory.
+		foreach my $id (sort {$a cmp $b} keys %{$an->data->{cache}{db_fh}})
+		{
+			# Merge the queries for both schemas into one array, with public schema 
+			# queries being first, then delete the arrays holding them to free memory
+			# before we start the resync.
+			my $merged = [];
+			@{$merged} = (@{$an->data->{db_resync}{$id}{public}{sql}}, @{$an->data->{db_resync}{$id}{history}{sql}});
+			undef $an->data->{db_resync}{$id}{public}{sql};
+			undef $an->data->{db_resync}{$id}{history}{sql};
 			
-			# Free up memory by deleting the DB data from the main hash.
-			delete $an->data->{db_data};
+			#print "Unified for: [$id]\n";
+			#print Dumper $merged;
 			
-			# Do the INSERTs now and then release the memory.
-			foreach my $id (sort {$a cmp $b} keys %{$an->data->{cache}{db_fh}})
+			if (@{$merged} > 0)
 			{
-				# Merge the queries for both schemas into one array, with public schema 
-				# queries being first, then delete the arrays holding them to free memory
-				# before we start the resync.
-				my $merged = [];
-				@{$merged} = (@{$an->data->{db_resync}{$id}{public}{sql}}, @{$an->data->{db_resync}{$id}{history}{sql}});
-				undef $an->data->{db_resync}{$id}{public}{sql};
-				undef $an->data->{db_resync}{$id}{history}{sql};
-				
-				if (@{$merged} > 0)
-				{
-					$an->Database->write({id => $id, query => $merged, source => $THIS_FILE, line => __LINE__});
-					undef $merged;
-				}
+				$an->Database->write({id => $id, query => $merged, source => $THIS_FILE, line => __LINE__});
+				undef $merged;
 			}
-			
-			die;
 		}
-	}
+		
+		die;
+	} # foreach my $table
+	
+	die;
 	
 	# Show tables;
 	# SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY table_name ASC, table_schema DESC;
