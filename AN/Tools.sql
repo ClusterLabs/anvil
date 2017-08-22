@@ -91,6 +91,7 @@ ALTER TABLE host_variable OWNER TO #!variable!user!#;
 
 CREATE TABLE history.host_variable (
 	history_id			bigserial,
+	host_variable_uuid		uuid				not null,
 	host_variable_host_uuid		uuid,
 	host_variable_name		text,
 	host_variable_value		text,

@@ -108,7 +108,7 @@ sub archive_databases
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->archive_databases()" }});
 	
 	
-	
+	die;
 	
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0126", variables => { method => "Database->archive_databases()" }});
 	return(0);
@@ -1019,12 +1019,7 @@ sub connect
 			source => $source, 
 			tables => $tables,
 		});
-		
-		### TEMP
-		$an->Database->resync_databases;
 	}
-	
-	die;
 	
 	# Hold if a lock has been requested.
 	$an->Database->locking();
@@ -2504,7 +2499,6 @@ sub resync_databases
 		return(0);
 	}
 	
-	### TODO: I don't know if this works yet for tables without a '*_host_uuid' column
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.
 	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
@@ -2764,6 +2758,11 @@ sub resync_databases
 							}});
 							
 							my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							if ($host_column)
+							{
+								# Add the host column.
+								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", ".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							}
 							$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
 							
 							# Now record the query in the array
@@ -2807,6 +2806,11 @@ sub resync_databases
 							}});
 							
 							my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							if ($host_column)
+							{
+								# Add the host column.
+								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", ".$an->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$an->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							}
 							$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
 							
 							# Now record the query in the array
@@ -2831,20 +2835,14 @@ sub resync_databases
 			undef $an->data->{db_resync}{$id}{public}{sql};
 			undef $an->data->{db_resync}{$id}{history}{sql};
 			
-			#print "Unified for: [$id]\n";
-			#print Dumper $merged;
-			
+			# If the merged array has any entries, push them in.
 			if (@{$merged} > 0)
 			{
 				$an->Database->write({id => $id, query => $merged, source => $THIS_FILE, line => __LINE__});
 				undef $merged;
 			}
 		}
-		
-		die;
 	} # foreach my $table
-	
-	die;
 	
 	# Show tables;
 	# SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY table_name ASC, table_schema DESC;
