@@ -13,7 +13,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
 
 ### Methods;
-# archive_databases
+# archive_database
 # check_lock_age
 # configure_pgsql
 # connect
@@ -31,6 +31,7 @@ my $THIS_FILE = "Database.pm";
 # read_variable
 # resync_databases
 # write
+# _archive_table
 # _find_behind_database
 # _mark_database_as_behind
 # _test_access
@@ -95,22 +96,28 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
-=head2 archive_databases
+=head2 archive_database
 
 NOTE: Not implemented yet.
 
 =cut
-sub archive_databases
+sub archive_database
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->archive_databases()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->archive_database()" }});
 	
+	# We'll use the list of tables created for _find_behind_databases()'s 'sys::database::check_tables' 
+	# array, but in reverse so that tables with primary keys (first in the array) are archived last.
+	foreach my $table (reverse(@{$an->data->{sys}{database}{check_tables}}))
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { table => $table }});
+		
+		$an->Database->_archive_table({table => $table});
+	}
 	
-	die;
-	
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0126", variables => { method => "Database->archive_databases()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0126", variables => { method => "Database->archive_database()" }});
 	return(0);
 }
 
@@ -1028,7 +1035,7 @@ sub connect
 	$an->Database->mark_active({set => 1});
 	
 	# Archive old data.
-	$an->Database->archive_databases({});
+	$an->Database->archive_database({});
 	
 	# Sync the database, if needed.
 	$an->Database->resync_databases;
@@ -1404,9 +1411,7 @@ WHERE
 		$query =~ s/'NULL'/NULL/g;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
-		die;
 	}
-	die;
 	
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
 	return(0);
@@ -2885,6 +2890,7 @@ sub write
 	
 	# Make logging code a little cleaner
 	my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
+	#print "id: [$id], say_server: [$say_server]\n";
 	
 	# We don't check if ID is set here because not being set simply means to write to all available DBs.
 	if (not $query)
@@ -3056,6 +3062,112 @@ sub write
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2 _archive_table
+
+NOTE: Not implemented yet (will do so once enough records are in the DB.)
+
+This takes a table name 
+
+This takes a table to check to see if old records need to be archived the data from the history schema to a plain-text dump. 
+
+B<NOTE>: If we're asked to use an offset that is too high, we'll go into a loop and may end up doing some empty loops. We don't check to see if the offset is sensible, though setting it too high won't cause the archive operation to fail, but it won't chunk as expected.
+
+B<NOTE>: The archive process works on all records, B<NOT> restricted to records referencing this host via a C<< *_host_uuid >> column.  
+
+Parameters;
+
+=head3 table <required>
+
+This is the table that will be archived, if needed. 
+
+An archive will be deemed required if there are more than C<< sys::database::archive::trigger >> records (default is C<< 100000 >>) in the table's C<< history >> schema. If this is set to C<< 0 >>, archiving will be disabled.
+
+Individual tables can have custom triggers by setting C<< sys::database::archive::tables::<table>::trigger >>.
+
+=cut
+sub _archive_table
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->_archive_table()" }});
+	
+	my $table    = $parameter->{table}    ? $parameter->{table}    : "";
+	my $offset   = $parameter->{offset}   ? $parameter->{offset}   : 0;
+	my $loop     = $parameter->{loop}     ? $parameter->{loop}     : 0;
+	my $division = $parameter->{division} ? $parameter->{division} : $an->data->{sys}{database}{archive}{division};
+	my $compress = $parameter->{compress} ? $parameter->{compress} : $an->data->{sys}{database}{archive}{compress};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		table    => $table, 
+		offset   => $offset, 
+		loop     => $loop, 
+		division => $division, 
+		compress => $compress, 
+	}});
+	
+	if (not $table)
+	{
+		# ...
+		return("!!error!!");
+	}
+	
+	# Has the user disabled archiving?
+	my $trigger = $an->data->{sys}{database}{archive}{trigger};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { trigger => $trigger }});
+	if ((exists $an->data->{sys}{database}{archive}{tables}{$table}{division}) && ($an->data->{sys}{database}{archive}{tables}{$table}{division} =~ /^\d+$/))
+	{
+		$trigger = $an->data->{sys}{database}{archive}{tables}{$table}{division};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { trigger => $trigger }});
+	}
+	if ($trigger)
+	{
+		# Archiving is disabled.
+		return(0);
+	}
+	
+	# First, if this table doesn't have a history schema, exit.
+	my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table).";";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+	if (not $count)
+	{
+		# History table doesn't exist, we're done.
+		return(0);
+	}
+	
+	# Before we do any real analysis, do we have enough entries in the history schema to trigger an archive?
+	$query = "SELECT COUNT(*) FROM history.".$table.";";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	$count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+	if ($count <= $trigger)
+	{
+		# History table doesn't exist, we're done.
+		return(0);
+	}
+	
+	# There is enough data to trigger an archive, so lets get started with a list of columns in this 
+	# table.
+	$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$an->data->{sys}{use_db_fh}->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+	
+	my $columns      = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $column_count = @{$columns};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		columns      => $columns, 
+		column_count => $column_count 
+	}});
+	
+	print Dumper $columns;
+	
+	# See m2's DB->archive_if_needed() for old version of this.
+	
+	return(0);
+}
 
 =head2 _find_behind_databases
 

@@ -599,6 +599,13 @@ sub _set_defaults
 			restart_firewalld		=>	1,
 		},
 		database			=>	{
+			archive				=>	{
+				compress			=>	1,
+				count				=>	50000,
+				directory			=>	"/usr/local/an-tools/archives/",
+				division			=>	6000,
+				trigger				=>	100000,
+			},
 			core_tables			=>	[
 									"hosts", 
 									"host_variable",

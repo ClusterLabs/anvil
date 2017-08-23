@@ -17,6 +17,10 @@
 -- Most tables will want to have a matching table in the history schema with an additional 
 -- 'history_id  bigserial' column. Match the function and trigger seen elsewhere to copy your data from the
 -- public schema to the history schema on UPDATE or INSERT.
+-- 
+-- If a table is a child of another table, ie: a UPS battery is a child of a UPS, and you have tables for 
+-- each that you plan to link, still use a '*_host_uuid' column (if the data is host-specific). This is 
+-- needed by the resync method.
 
 
 SET client_encoding = 'UTF8';
