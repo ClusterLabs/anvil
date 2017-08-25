@@ -116,10 +116,10 @@ BEGIN
 		 host_variable_value, 
 		 modified_date)
 	VALUES
-		(host_variable_uuid,
-		 host_variable_host_uuid, 
-		 host_variable_name, 
-		 host_variable_value,
+		(history_host_variable.host_variable_uuid,
+		 history_host_variable.host_variable_host_uuid, 
+		 history_host_variable.host_variable_name, 
+		 history_host_variable.host_variable_value,
 		 history_host_variable.modified_date);
 	RETURN NULL;
 END;

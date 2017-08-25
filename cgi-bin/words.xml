@@ -25,6 +25,12 @@ This is the AN::Tools master 'words' file.
 		<key name="header_0004">Link State</key>
 		<key name="header_0005">Link Speed (Mbps)</key>
 		
+		<!-- Titles -->
+		<key name="title_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard!</key>
+		
+		<!-- General strings -->
+		<key name="message_0001">We're going to ask you a few questions so that we can set things up for your environment. If you need help at any time, just click on the "[?]" icon in the top-right. Let's get started!</key>
+		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>
 		<key name="js_0002">Down</key>

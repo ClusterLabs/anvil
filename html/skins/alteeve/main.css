@@ -26,6 +26,18 @@ body {
 	left: 5%
 }
 
+.config_header1 {
+	color: #f7f7f7;
+	text-align: center;
+	font-size: 2em;
+}
+
+.config_header2 {
+	color: #f2f2f2;
+	text-align: center;
+	font-size: 1em;
+}
+
 table {
 	border-spacing: 0;
 	border-collapse: collapse;
