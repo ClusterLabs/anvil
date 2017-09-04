@@ -7,11 +7,13 @@ use strict;
 use warnings;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
+use Encode;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
 
 ### Methods;
+# cgi
 # date_and_time
 # host_uuid
 # network_details
@@ -82,6 +84,74 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 cgi
+
+This reads in the CGI variables passed in by a form or URL.
+
+This will read the 'cgi_list' CGI variable for a comma-separated list of CGI variables to read in. So your form must set this in order for this method to work.
+
+=cut
+sub cgi
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	# This will store all of the CGI variables.
+	$an->data->{sys}{cgi_string} = "?";
+	
+	# Needed to read in passed CGI variables
+	my $cgi = CGI->new();
+	
+	# The list of CGI variables to try and read will always be in 'cgi_list'.
+	my $cgis      = [];
+	my $cgi_count = 0;
+	if (defined $cgi->param("cgi_list"))
+	{
+		my $cgi_list = $cgi->param("cgi_list");
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cgi_list => $cgi_list }});
+		
+		foreach my $variable (split/,/, $cgi_list)
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable => $variable }});
+			push @{$cgis}, $variable;
+		}
+		
+		$cgi_count = @{$cgis};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cgi_count => $cgi_count }});
+	}
+	
+	# If we don't have at least one variable, we're done.
+	if ($cgi_count < 1)
+	{
+		return(0);
+	}
+	
+	# NOTE: Later, we will have another array for handling file uploads.
+	# Now read in the variables.
+	foreach my $variable (sort {$a cmp $b} @{$cgis})
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable => $variable }});
+		
+		$an->data->{cgi}{$variable} = "";
+		
+		if (defined $cgi->param($variable))
+		{
+			$an->data->{cgi}{$variable} = $cgi->param($variable);
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::$variable" => $an->data->{cgi}{$variable} }});
+		}
+		
+		# Make this UTF8 if it isn't already.
+		if (not Encode::is_utf8($an->data->{cgi}{$variable}))
+		{
+			$an->data->{cgi}{$variable} = Encode::decode_utf8( $an->data->{cgi}{$variable} );
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::$variable" => $an->data->{cgi}{$variable} }});
+		}
+	}
+	
+	return(0);
+}
 
 =head2 date_and_time
 

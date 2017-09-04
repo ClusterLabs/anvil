@@ -116,7 +116,7 @@ sub get
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $debug     = 1;
+	my $debug     = 3;
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Words->language;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";

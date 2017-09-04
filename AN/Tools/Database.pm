@@ -108,6 +108,12 @@ sub archive_database
 	my $an        = $self->parent;
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->archive_database()" }});
 	
+	# If we don't have an array of tables, we have nothing to do.
+	if ((not exists $an->data->{sys}{database}{check_tables}) or (ref(@{$an->data->{sys}{database}{check_tables}} ne "ARRAY")))
+	{
+		return(0);
+	}
+	
 	# We'll use the list of tables created for _find_behind_databases()'s 'sys::database::check_tables' 
 	# array, but in reverse so that tables with primary keys (first in the array) are archived last.
 	foreach my $table (reverse(@{$an->data->{sys}{database}{check_tables}}))
@@ -2888,8 +2894,10 @@ sub write
 		reenter               => $reenter,
 	}});
 	
+	print $THIS_FILE." ".__LINE__."; ID: [$id], query: [$query]\n";
+	
 	# Make logging code a little cleaner
-	my $say_server = $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
+	my $say_server = $id eq "" ? "#!string!log_0129!#" : $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
 	#print "id: [$id], say_server: [$say_server]\n";
 	
 	# We don't check if ID is set here because not being set simply means to write to all available DBs.

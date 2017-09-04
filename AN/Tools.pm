@@ -282,9 +282,17 @@ sub environment
 	my ($an) = shift; 
 	weaken($an);
 	
-	
 	# Pick up the passed in delimiter, if any.
-	$an->{ENV_VALUES}{ENVIRONMENT} = shift if $_[0];
+	if ($_[0])
+	{
+		$an->{ENV_VALUES}{ENVIRONMENT} = shift;
+		if ($an->{ENV_VALUES}{ENVIRONMENT} eq "html")
+		{
+			# Load the CGI stuff if we're in a browser
+			use CGI;
+			use CGI::Carp qw(fatalsToBrowser);
+		}
+	}
 	
 	return ($an->{ENV_VALUES}{ENVIRONMENT});
 }

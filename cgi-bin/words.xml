@@ -18,6 +18,7 @@ This is the AN::Tools master 'words' file.
 		<key name="brand_0003">Striker</key>
 		<key name="brand_0004">ScanCore</key>
 		<key name="brand_0005"><![CDATA[&copy; 2017 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		
 		<key name="header_0001">Network Interfaces</key>
 		<key name="header_0002">MAC Address</key>
@@ -28,6 +29,13 @@ This is the AN::Tools master 'words' file.
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard!</key>
 		<key name="striker_0002">We're going to ask you a few questions so that we can set things up for your environment. If you need help at any time, just click on the "[?]" icon in the top-right. Let's get started!</key>
+		<key name="striker_0003">Organization name</key>
+		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
+		<key name="striker_0005">Prefix</key>
+		<key name="striker_0006">This is a two to five character prefix used to identify this organization. It is used as the prefix for host names for dashboards, nodes and foundation pack equipment. You can use letters and numbers and set whatever makes sense to you.</key>
+		<key name="striker_0007">Internet-Facing Network Count</key>
+		<key name="striker_0008"><![CDATA[How many internal networks will this dashboard have access to? In most cases, this is just '1'.<br /><b>NOTE</b>: You must have a network interface for the back-channel network, plus one for each internal network. If you have two interfaces for each network, we will setup bonds for redundancy automatically.]]></key>
+		<key name="striker_0009">Next</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

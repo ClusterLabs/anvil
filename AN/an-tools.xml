@@ -197,6 +197,7 @@ The database connection error was:
 		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
 		<key name="log_0127">Firewalld was not running, re-enabling it. If you do not want this behaviour, please set 'sys::daemons::restart_firewalld = 0' in the configuration file for this program (or in 'tools.conf').</key>
 		<key name="log_0128">Firewalld was not running, and 'sys::daemons::restart_firewalld = 0' is set. NOT starting it.</key>
+		<key name="log_0129">all</key>	<!-- Used when logging DB writes to all DBs -->
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

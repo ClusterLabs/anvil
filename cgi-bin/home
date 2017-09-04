@@ -26,13 +26,31 @@ $an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
+# Read in any CGI variables, if needed.
+$an->Get->cgi();
+
 $an->data->{skin}{url} = $an->data->{path}{urls}{skins}."/".$an->Template->skin;
 my $header = $an->Template->get({file => "main.html", name => "header", variables => { language => $an->Words->language }});
 my $body   = "";
 # This will be true when the dashboard is unconfigured.
-if (1)
+if (not $an->data->{cgi}{step})
 {
 	$body = config_step1($an);
+}
+elsif ($an->data->{cgi}{step} eq "step1")
+{
+	# Sanity check step1.
+	my $sane = sanity_check_step1($an);
+	if ($sane)
+	{
+		# No good
+		$body = config_step1($an);
+	}
+	else
+	{
+		# Step 1 was sanem show step 2.
+		$body = config_step2($an);
+	}
 }
 else
 {
@@ -63,6 +81,27 @@ exit(0);
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This is step2 where the user maps their network.
+sub config_step2
+{
+	my ($an) = @_;
+	
+	# TODO...
+	
+	return(0);
+}
+
+# This sanity-checks step 1 and returns '1' if there was a problem.
+sub sanity_check_step1
+{
+	my ($an) = @_;
+	
+	my $sane = 1;
+	# TODO...
+	
+	return($sane);
+}
+
 # This is step 1 in asking the user how to configure Striker.
 sub config_step1
 {
@@ -75,12 +114,44 @@ sub config_step1
 	{
 		# Old config exists. Load the detail and present the option to reload.
 	}
+	
+	my $say_organization = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "organization",
+		id          => "organization",
+		field       => "#!string!striker_0003!#",
+		description => "#!string!striker_0004!#",
+		value       => defined $an->data->{cgi}{organization} ? $an->data->{cgi}{organization} : "",
+		extra       => "",
+	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_organization => $say_organization }});
+	my $say_prefix = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "prefix",
+		id          => "prefix",
+		field       => "#!string!striker_0005!#",
+		description => "#!string!striker_0006!#",
+		value       => defined $an->data->{cgi}{prefix} ? $an->data->{cgi}{prefix} : "",
+		extra       => "maxlength=\"5\"",
+	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_prefix => $say_prefix }});
+	my $say_ifn_count = $an->Template->get({file => "main.html", name => "input_number_form", variables => {
+		name        => "ifn_count",
+		id          => "ifn_count",
+		field       => "#!string!striker_0007!#",
+		description => "#!string!striker_0008!#",
+		value       => defined $an->data->{cgi}{ifn_count} ? $an->data->{cgi}{ifn_count} : "",
+		extra       => "maxlength=\"2\"",
+	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_ifn_count => $say_ifn_count }});
+	
 	my $step1_body = $an->Template->get({file => "main.html", name => "config_step1", variables => {
 		step1_welcome_title_id   => "",
 		step1_welcome_message_id => "",
-		reload_option            => "",
-		question_form            => "",
+		organization_form        => $say_organization,
+		prefix_form              => $say_prefix,
+		ifn_count_form           => $say_ifn_count,
+		cgi_list                 => "organization,prefix,ifn_count",
 	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step1_body => $step1_body }});
 	
 	return($step1_body);
 }

@@ -19,6 +19,8 @@
 
 <!-- start config_step1 -->
 			<table>
+				<div id="config_step1_div">
+				<form name="config_step1" action="">
 				<tr>
 					<td>
 						<span name="#!variable!step1_welcome_title_id!#" id="#!variable!step1_welcome_title_id!#" class="config_header1">#!string!striker_0001!#</span><br />
@@ -27,16 +29,53 @@
 				</tr>
 				<tr>
 					<td>
-						#!variable!reload_option!#
+						<hr>
+						&nbsp;
 					</td>
 				</tr>
 				<tr>
 					<td>
-						#!variable!question_form!#
+						#!variable!organization_form!#
 					</td>
 				</tr>
+				<tr>
+					<td>
+						#!variable!prefix_form!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						#!variable!ifn_count_form!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<br />
+						<hr>
+						<input type="submit" name="next" id="next" value="#!string!striker_0009!#">
+					</td>
+				</tr>
+				<input type="hidden" name="step" id="step" value="step1">
+				<input type="hidden" name="cgi_list" id="cgi_list" value="next,step,#!variable!cgi_list!#">
+				</form>
+				</div>
 			</table>
 <!-- end config_step1 -->
+
+<!-- start select_form -->
+						#!variable!description!#<br />
+						<input type="select" name="#!variable!name!#" id="#!variable!id!#" #!variable!extra!#>#!variable!options!#</select>
+<!-- end select_form -->
+
+<!-- start input_text_form -->
+						<span id="description_id">#!variable!description!#</span><br />
+						<input type="text" name="#!variable!name!#" id="#!variable!id!#" value="#!variable!value!#" placeholder="#!variable!field!#" #!variable!extra!#>
+<!-- end input_text_form -->
+
+<!-- start input_number_form -->
+						<span id="description_id">#!variable!description!#</span><br />
+						<input type="number" name="#!variable!name!#" id="#!variable!id!#" value="#!variable!value!#" placeholder="#!variable!field!#" #!variable!extra!#>
+<!-- end input_number_form -->
 
 <!-- start footer -->
 <div onload="show_status()" class="footer">

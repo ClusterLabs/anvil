@@ -10,6 +10,30 @@ Colours;
 - Footer text:       #515151
 */
 
+input[type=text] {
+	width: 100%;
+	padding: 6px 10px;
+	margin: 2px 0;
+	display: inline-block;
+	border: 1px solid #9ba0a5;
+	border-radius: 2px;
+	box-sizing: border-box;
+	background-color: #343434;
+	color: #f7f7f7;
+}
+
+input[type=number] {
+	width: 100%;
+	padding: 6px 10px;
+	margin: 2px 0;
+	display: inline-block;
+	border: 1px solid #9ba0a5;
+	border-radius: 2px;
+	box-sizing: border-box;
+	background-color: #343434;
+	color: #f7f7f7;
+}
+
 body {
 	font-family: 'Dejavu Sans', Arial, Helvetica, Verdana, Sans-Serif;
 	background-image: url("/skins/alteeve/images/Texture.jpg");
