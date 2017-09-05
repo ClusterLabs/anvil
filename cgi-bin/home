@@ -33,11 +33,11 @@ $an->data->{skin}{url} = $an->data->{path}{urls}{skins}."/".$an->Template->skin;
 my $header = $an->Template->get({file => "main.html", name => "header", variables => { language => $an->Words->language }});
 my $body   = "";
 # This will be true when the dashboard is unconfigured.
-if (not $an->data->{cgi}{step})
+if (not $an->data->{cgi}{step}{value})
 {
 	$body = config_step1($an);
 }
-elsif ($an->data->{cgi}{step} eq "step1")
+elsif ($an->data->{cgi}{step}{value} eq "step1")
 {
 	# Sanity check step1.
 	my $sane = sanity_check_step1($an);
@@ -120,7 +120,7 @@ sub config_step1
 		id          => "organization",
 		field       => "#!string!striker_0003!#",
 		description => "#!string!striker_0004!#",
-		value       => defined $an->data->{cgi}{organization} ? $an->data->{cgi}{organization} : "",
+		value       => defined $an->data->{cgi}{organization}{value} ? $an->data->{cgi}{organization}{value} : "",
 		extra       => "",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_organization => $say_organization }});
@@ -129,16 +129,34 @@ sub config_step1
 		id          => "prefix",
 		field       => "#!string!striker_0005!#",
 		description => "#!string!striker_0006!#",
-		value       => defined $an->data->{cgi}{prefix} ? $an->data->{cgi}{prefix} : "",
+		value       => defined $an->data->{cgi}{prefix}{value} ? $an->data->{cgi}{prefix}{value} : "",
 		extra       => "maxlength=\"5\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_prefix => $say_prefix }});
+	my $say_domain = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "domain",
+		id          => "domain",
+		field       => "#!string!striker_0007!#",
+		description => "#!string!striker_0008!#",
+		value       => defined $an->data->{cgi}{domain}{value} ? $an->data->{cgi}{domain}{value} : "",
+		extra       => "maxlength=\"255\"",
+	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_domain => $say_domain }});
+	my $say_sequence = $an->Template->get({file => "main.html", name => "input_number_form", variables => {
+		name        => "sequence",
+		id          => "sequence",
+		field       => "#!string!striker_0009!#",
+		description => "#!string!striker_0010!#",
+		value       => defined $an->data->{cgi}{sequence}{value} ? $an->data->{cgi}{sequence}{value} : "",
+		extra       => "maxlength=\"2\"",
+	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_domain => $say_domain }});
 	my $say_ifn_count = $an->Template->get({file => "main.html", name => "input_number_form", variables => {
 		name        => "ifn_count",
 		id          => "ifn_count",
-		field       => "#!string!striker_0007!#",
-		description => "#!string!striker_0008!#",
-		value       => defined $an->data->{cgi}{ifn_count} ? $an->data->{cgi}{ifn_count} : "",
+		field       => "#!string!striker_0011!#",
+		description => "#!string!striker_0012!#",
+		value       => defined $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : "",
 		extra       => "maxlength=\"2\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_ifn_count => $say_ifn_count }});
@@ -148,8 +166,10 @@ sub config_step1
 		step1_welcome_message_id => "",
 		organization_form        => $say_organization,
 		prefix_form              => $say_prefix,
+		domain_form              => $say_domain,
+		sequence_form            => $say_sequence,
 		ifn_count_form           => $say_ifn_count,
-		cgi_list                 => "organization,prefix,ifn_count",
+		cgi_list                 => "organization,prefix,domain,sequence,ifn_count",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step1_body => $step1_body }});
 	

@@ -91,6 +91,8 @@ This reads in the CGI variables passed in by a form or URL.
 
 This will read the 'cgi_list' CGI variable for a comma-separated list of CGI variables to read in. So your form must set this in order for this method to work.
 
+If the variable 'file' is passed, it will be treated as a binary stream containing an uploaded file.
+
 =cut
 sub cgi
 {
@@ -110,7 +112,7 @@ sub cgi
 	if (defined $cgi->param("cgi_list"))
 	{
 		my $cgi_list = $cgi->param("cgi_list");
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cgi_list => $cgi_list }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cgi_list => $cgi_list }});
 		
 		foreach my $variable (split/,/, $cgi_list)
 		{
@@ -132,23 +134,104 @@ sub cgi
 	# Now read in the variables.
 	foreach my $variable (sort {$a cmp $b} @{$cgis})
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable => $variable }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable => $variable }});
 		
-		$an->data->{cgi}{$variable} = "";
+		$an->data->{cgi}{$variable}{value}      = "";
+		$an->data->{cgi}{$variable}{mimetype}   = "string";
+		$an->data->{cgi}{$variable}{filehandle} = "";
+		
+		if ($variable eq "file")
+		{
+			if (not $cgi->upload($variable))
+			{
+				# Empty file passed, looks like the user forgot to select a file to upload.
+				#$an->Log->entry({log_level => 3, message_key => "log_0016", file => $THIS_FILE, line => __LINE__});
+			}
+			else
+			{
+				   $an->data->{cgi}{$variable}{filehandle} = $cgi->upload($variable);
+				my $file                                   = $an->data->{cgi}{$variable}{filehandle};
+				   $an->data->{cgi}{$variable}{mimetype}   = $cgi->uploadInfo($file)->{'Content-Type'};
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					variable                       => $variable,
+					"cgi::${variable}::filehandle" => $an->data->{cgi}{$variable}{filehandle},
+					"cgi::${variable}::mimetype"   => $an->data->{cgi}{$variable}{mimetype},
+				}});
+			}
+		}
 		
 		if (defined $cgi->param($variable))
 		{
-			$an->data->{cgi}{$variable} = $cgi->param($variable);
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::$variable" => $an->data->{cgi}{$variable} }});
-		}
-		
-		# Make this UTF8 if it isn't already.
-		if (not Encode::is_utf8($an->data->{cgi}{$variable}))
-		{
-			$an->data->{cgi}{$variable} = Encode::decode_utf8( $an->data->{cgi}{$variable} );
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::$variable" => $an->data->{cgi}{$variable} }});
+			# Make this UTF8 if it isn't already.
+			if (Encode::is_utf8($cgi->param($variable)))
+			{
+				$an->data->{cgi}{$variable}{value} = $cgi->param($variable);
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cgi::${variable}::value" => $an->data->{cgi}{$variable}{value} }});
+			}
+			else
+			{
+				$an->data->{cgi}{$variable}{value} = Encode::decode_utf8($cgi->param($variable));
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cgi::${variable}::value" => $an->data->{cgi}{$variable}{value} }});
+			}
+			
+			# Append to 'sys::cgi_string'
+			$an->data->{sys}{cgi_string} .= "$variable=".$an->data->{cgi}{$variable}{value}."&";
 		}
 	}
+	
+	# This is a pretty way of displaying the passed-in CGI variables. It loops through all we've got and
+	# sorts out the longest variable name. Then it loops again, appending '.' to shorter ones so that 
+	# everything is lined up in the logs.
+	my $debug = 2;
+	if ($an->Log->level >= $debug)
+	{
+		my $longest_variable = 0;
+		foreach my $variable (sort {$a cmp $b} keys %{$an->data->{cgi}})
+		{
+			next if $an->data->{cgi}{$variable} eq "";
+			if (length($variable) > $longest_variable)
+			{
+				$longest_variable = length($variable);
+			}
+		}
+		
+		# Now loop again in the order that the variables were passed is 'cgi_list'.
+		foreach my $variable (@{$cgis})
+		{
+			next if $an->data->{cgi}{$variable} eq "";
+			my $difference   = $longest_variable - length($variable);
+			my $say_value    = "value";
+			if ($difference == 0)
+			{
+				# Do nothing
+			}
+			elsif ($difference == 1) 
+			{
+				$say_value .= " ";
+			}
+			elsif ($difference == 2) 
+			{
+				$say_value .= "  ";
+			}
+			else
+			{
+				my $dots      =  $difference - 2;
+				   $say_value .= " ";
+				for (1 .. $dots)
+				{
+					$say_value .= ".";
+				}
+				$say_value .= " ";
+			}
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"cgi::${variable}::$say_value" => $an->data->{cgi}{$variable}{value},
+			}});
+		}
+	}
+	
+	# Clear the last &
+	$an->data->{sys}{cgi_string} =~ s/&$//;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::cgi_string" => $an->data->{sys}{cgi_string} }});
 	
 	return(0);
 }

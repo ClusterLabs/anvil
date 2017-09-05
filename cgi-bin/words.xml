@@ -33,9 +33,13 @@ This is the AN::Tools master 'words' file.
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
 		<key name="striker_0005">Prefix</key>
 		<key name="striker_0006">This is a two to five character prefix used to identify this organization. It is used as the prefix for host names for dashboards, nodes and foundation pack equipment. You can use letters and numbers and set whatever makes sense to you.</key>
-		<key name="striker_0007">Internet-Facing Network Count</key>
-		<key name="striker_0008"><![CDATA[How many internal networks will this dashboard have access to? In most cases, this is just '1'.<br /><b>NOTE</b>: You must have a network interface for the back-channel network, plus one for each internal network. If you have two interfaces for each network, we will setup bonds for redundancy automatically.]]></key>
-		<key name="striker_0009">Next</key>
+		<key name="striker_0007">Domain Name</key>
+		<key name="striker_0008">This is the domain name you would like to use for this dashboard. This will also be used as the default domain used when creating new install manifests.</key>
+		<key name="striker_0009">Sequence Number</key>
+		<key name="striker_0010">If this is your first Striker, set this to '1'. If it is the second one, set '2'. If it is the third, '3' and so on.</key>
+		<key name="striker_0011">Internet-Facing Network Count</key>
+		<key name="striker_0012"><![CDATA[How many internal networks will this dashboard have access to? In most cases, this is just '1'.<br /><b>NOTE</b>: You must have a network interface for the back-channel network, plus one for each internal network. If you have two interfaces for each network, we will setup bonds for redundancy automatically.]]></key>
+		<key name="striker_0013">Next</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>
