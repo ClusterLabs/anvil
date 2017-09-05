@@ -72,6 +72,105 @@
 			</table>
 <!-- end config_step1 -->
 
+<!-- start config_step2 -->
+			<table>
+				<div id="config_step1_div">
+				<form name="config_step1" action="">
+				<tr>
+					<td colspan="2">
+						<span name="#!variable!step1_welcome_title_id!#" id="#!variable!step1_welcome_title_id!#" class="config_header1">#!string!striker_0001!#</span><br />
+						<span name="#!variable!step1_welcome_message_id!#" id="#!variable!step1_welcome_message_id!#" class="config_header2">#!string!striker_0002!#</span>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<hr>
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td width="75%">
+						1. 
+					</td>
+					<td width="25%">
+						<table class="data_table">
+							<tr>
+								<td class="column_header" colspan="2">
+									#!string!striker_0014!#
+								</td>
+							</tr>
+							<tr class="data_row">
+								<!-- Organization name -->
+								<td class="column_row_name">
+									#!string!striker_0003!#:
+								</td>
+								<td class="column_row_value">
+									#!variable!organization!#
+									<input type="hidden" name="organization" id="organization" value="#!variable!organization!#">
+								</td>
+							</tr>
+							<tr class="data_row">
+								<!-- Prefix -->
+								<td class="column_row_name">
+									#!string!striker_0005!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!prefix!#
+									<input type="hidden" name="prefix" id="prefix" value="#!variable!prefix!#">
+								</td>
+							</tr>
+							<tr class="data_row">
+								<!-- Domain name -->
+								<td class="column_row_name">
+									#!string!striker_0007!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!domain!#
+									<input type="hidden" name="domain" id="domain" value="#!variable!domain!#">
+								</td>
+							</tr>
+							<tr class="data_row">
+								<!-- Sequence number -->
+								<td class="column_row_name">
+									#!string!striker_0009!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!sequence!#
+									<input type="hidden" name="sequence" id="sequence" value="#!variable!sequence!#">
+								</td>
+							</tr>
+							<tr class="data_row">
+								<!-- IFN count -->
+								<td class="column_row_name">
+									#!string!striker_0015!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!ifn_count!#
+									<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						2.
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<br />
+						<hr>
+						<input type="submit" name="next" id="next" value="#!string!striker_0013!#">
+					</td>
+				</tr>
+				<input type="hidden" name="step" id="step" value="step2">
+				<input type="hidden" name="cgi_list" id="cgi_list" value="organization,prefix,domain,sequence,next,step,#!variable!cgi_list!#">
+				</form>
+				</div>
+			</table>
+<!-- end config_step2 -->
+
 <!-- start select_form -->
 						#!variable!description!#<br />
 						<input type="select" name="#!variable!name!#" id="#!variable!id!#" #!variable!extra!#>#!variable!options!#</select>
@@ -79,12 +178,12 @@
 
 <!-- start input_text_form -->
 						<span id="description_id">#!variable!description!#</span><br />
-						<input type="text" name="#!variable!name!#" id="#!variable!id!#" value="#!variable!value!#" placeholder="#!variable!field!#" #!variable!extra!#>
+						<input type="text" name="#!variable!name!#" id="#!variable!id!#" value="#!variable!value!#" placeholder="#!variable!field!#" class="#!variable!class!#" #!variable!extra!#>
 <!-- end input_text_form -->
 
 <!-- start input_number_form -->
 						<span id="description_id">#!variable!description!#</span><br />
-						<input type="number" name="#!variable!name!#" id="#!variable!id!#" value="#!variable!value!#" placeholder="#!variable!field!#" #!variable!extra!#>
+						<input type="number" name="#!variable!name!#" id="#!variable!id!#" value="#!variable!value!#" placeholder="#!variable!field!#" class="#!variable!class!#" #!variable!extra!#>
 <!-- end input_number_form -->
 
 <!-- start footer -->

@@ -2894,8 +2894,6 @@ sub write
 		reenter               => $reenter,
 	}});
 	
-	print $THIS_FILE." ".__LINE__."; ID: [$id], query: [$query]\n";
-	
 	# Make logging code a little cleaner
 	my $say_server = $id eq "" ? "#!string!log_0129!#" : $an->data->{database}{$id}{host}.":".$an->data->{database}{$id}{port}." -> ".$an->data->{database}{$id}{name};
 	#print "id: [$id], say_server: [$say_server]\n";

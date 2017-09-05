@@ -12,7 +12,10 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Validate.pm";
 
 ### Methods;
+# is_alphanumeric
+# is_domain_name
 # is_ipv4
+# is_positive_integer
 # is_uuid
 
 =pod
@@ -78,6 +81,96 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+=head2 is_alphanumeric
+
+This verifies that the passed-in string contains only alpha-numeric characters. This is strict and will return invalid if spaces, hyphens or other characters are found.
+
+NOTE: An empty string is considered invalid.
+
+ $string = "4words";
+ if ($an->Validate->is_alphanumeric({string => $string}))
+ {
+ 	print "The string: [$string] is valid!\n";
+ }
+
+=head2 Parameters;
+
+=head3 string (required)
+
+This is the string name to validate.
+
+=cut
+sub is_alphanumeric
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $valid  = 1;
+	my $debug  = 3;
+	my $string = defined $parameter->{string} ? $parameter->{string} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+	
+	if (not $string)
+	{
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	if ($string !~ /^[a-zA-Z0-9]+$/)
+	{
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
+=head2 is_domain_name
+
+Checks if the passed-in string is a valid domain name. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+ $name = "alteeve.com";
+ if ($an->Validate->is_domain_name({name => $name}))
+ {
+ 	print "The domain name: [$name] is valid!\n";
+ }
+
+=head2 Parameters;
+
+=head3 name (required)
+
+This is the domain name to validate.
+
+=cut
+sub is_domain_name
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $valid = 1;
+	my $debug = 3;
+	my $name  = $parameter->{name} ? $parameter->{name} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
+	
+	if (not $name)
+	{
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	elsif (($name !~ /^((([a-z]|[0-9]|\-)+)\.)+([a-z])+$/i) && (($name !~ /^\w+$/) && ($name !~ /-/)))
+	{
+		# Doesn't appear to be valid.
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
 =head2 is_ipv4
 
 Checks if the passed-in string is an IPv4 address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
@@ -133,6 +226,64 @@ sub is_ipv4
 	else
 	{
 		# Not in the right format.
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
+=head2 is_positive_integer
+
+This method verifies that the passed in value is a positive integer. 
+
+NOTE: This method is strict and will only validate numbers without decimal places and that have no sign or a positive sign only (ie: C<< +3 >>, or C<< 3 >> are valid, but C<< -3 >> or C<< 3.0 >> are not).
+
+ my $number = 3;
+ if ($an->Validate->is_positive_integer({number => $number}))
+ {
+ 	print "The number: [$number] is valid!\n";
+ }
+
+=head2 Parameters;
+
+=head3 number (required)
+
+This is the number to verify.
+
+=head3 zero (optional)
+
+If set, the number C<< 0 >> will be considered valid. By default, c<< 0 >> is not considered "positive".
+
+=cut
+sub is_positive_integer
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $debug  = 3;
+	my $valid  = 1;
+	my $number = defined $parameter->{number} ? $parameter->{number} : "";
+	my $zero   = defined $parameter->{zero}   ? $parameter->{zero}   : 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		number => $number,
+		zero   => $zero,
+	}});
+	
+	# We'll strip a positive leading character as that is allowed.
+	$number =~ s/^\+//;
+	
+	# Now anything 
+	if ($number !~ /^\d+$/)
+	{
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	if ((not $zero) && (not $number))
+	{
 		$valid = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	}

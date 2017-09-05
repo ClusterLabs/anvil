@@ -139,6 +139,7 @@ sub cgi
 		$an->data->{cgi}{$variable}{value}      = "";
 		$an->data->{cgi}{$variable}{mimetype}   = "string";
 		$an->data->{cgi}{$variable}{filehandle} = "";
+		$an->data->{cgi}{$variable}{alert}      = 0;	# This is set if a sanity check fails
 		
 		if ($variable eq "file")
 		{

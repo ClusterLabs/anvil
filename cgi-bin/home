@@ -41,23 +41,24 @@ elsif ($an->data->{cgi}{step}{value} eq "step1")
 {
 	# Sanity check step1.
 	my $sane = sanity_check_step1($an);
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
 	if ($sane)
-	{
-		# No good
-		$body = config_step1($an);
-	}
-	else
 	{
 		# Step 1 was sanem show step 2.
 		$body = config_step2($an);
+	}
+	else
+	{
+		# No good
+		$body = config_step1($an);
 	}
 }
 else
 {
 	$body = get_network_details($an);
 }
-my $buttons  = $an->Template->get({file => "main.html", name => "button_bar"});
-my $footer   = $an->Template->get({file => "main.html", name => "footer"});
+my $buttons = $an->Template->get({file => "main.html", name => "button_bar"});
+my $footer  = $an->Template->get({file => "main.html", name => "footer"});
 
 # Display the page.
 my $template = $an->Template->get({file => "main.html", name => "master", variables => {
@@ -86,9 +87,20 @@ sub config_step2
 {
 	my ($an) = @_;
 	
-	# TODO...
+	my $step2_body = $an->Template->get({file => "main.html", name => "config_step2", variables => {
+		step1_welcome_title_id   => "",
+		step1_welcome_message_id => "",
+		organization             => $an->data->{cgi}{organization}{value},
+		prefix                   => $an->data->{cgi}{prefix}{value},
+		domain                   => $an->data->{cgi}{domain}{value},
+		sequence                 => $an->data->{cgi}{sequence}{value},
+		ifn_count                => $an->data->{cgi}{ifn_count}{value},
+		hostname_form            => "",
+		cgi_list                 => "hostname",
+	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step2_body => $step2_body }});
 	
-	return(0);
+	return($step2_body);
 }
 
 # This sanity-checks step 1 and returns '1' if there was a problem.
@@ -96,9 +108,48 @@ sub sanity_check_step1
 {
 	my ($an) = @_;
 	
+	# This will flip if we run into a problem.
 	my $sane = 1;
-	# TODO...
 	
+	# Organization just needs *something*
+	if ((not defined $an->data->{cgi}{organization}{value}) or (not $an->data->{cgi}{organization}{value}))
+	{
+		$an->data->{cgi}{organization}{alert} = 1;
+		$sane                                 = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::organization::alert" => $an->data->{cgi}{organization}{alert} }});
+	}
+	
+	# The prefix needs to be alphanumeric and be between 1 ~ 5 chatacters.
+	if ((not $an->Validate->is_alphanumeric({string => $an->data->{cgi}{prefix}{value}})) or (length($an->data->{cgi}{prefix}{value}) > 5))
+	{
+		$an->data->{cgi}{prefix}{alert} = 1;
+		$sane                           = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::prefix::alert" => $an->data->{cgi}{prefix}{alert} }});
+	}
+	
+	# We can use Validate to check the domain.
+	if (not $an->Validate->is_domain_name({name => $an->data->{cgi}{domain}{value}}))
+	{
+		$an->data->{cgi}{domain}{alert} = 1;
+		$sane                           = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::domain::alert" => $an->data->{cgi}{domain}{alert} }});
+	}
+	
+	# The sequence and IFN count need to be integers.
+	if (not $an->Validate->is_positive_integer({number => $an->data->{cgi}{sequence}{value}}))
+	{
+		$an->data->{cgi}{sequence}{alert} = 1;
+		$sane                             = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::sequence::alert" => $an->data->{cgi}{sequence}{alert} }});
+	}
+	if (not $an->Validate->is_positive_integer({number => $an->data->{cgi}{ifn_count}{value}}))
+	{
+		$an->data->{cgi}{ifn_count}{alert} = 1;
+		$sane                              = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::ifn_count::alert" => $an->data->{cgi}{ifn_count}{alert} }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
 	return($sane);
 }
 
@@ -112,51 +163,62 @@ sub config_step1
 	my $reload_old_config = "";
 	if (1)
 	{
+		### TODO: ...
 		# Old config exists. Load the detail and present the option to reload.
 	}
 	
-	my $say_organization = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+	my $organization_class = $an->data->{cgi}{organization}{alert} ? "input_alert" : "input_clear";
+	my $say_organization   = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
 		name        => "organization",
 		id          => "organization",
 		field       => "#!string!striker_0003!#",
 		description => "#!string!striker_0004!#",
 		value       => defined $an->data->{cgi}{organization}{value} ? $an->data->{cgi}{organization}{value} : "",
+		class       => $organization_class,
 		extra       => "",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_organization => $say_organization }});
-	my $say_prefix = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+	my $prefix_class = $an->data->{cgi}{prefix}{alert} ? "input_alert" : "input_clear";
+	my $say_prefix   = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
 		name        => "prefix",
 		id          => "prefix",
 		field       => "#!string!striker_0005!#",
 		description => "#!string!striker_0006!#",
 		value       => defined $an->data->{cgi}{prefix}{value} ? $an->data->{cgi}{prefix}{value} : "",
+		class       => $prefix_class,
 		extra       => "maxlength=\"5\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_prefix => $say_prefix }});
-	my $say_domain = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+	my $domain_class = $an->data->{cgi}{domain}{alert} ? "input_alert" : "input_clear";
+	my $say_domain   = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
 		name        => "domain",
 		id          => "domain",
 		field       => "#!string!striker_0007!#",
 		description => "#!string!striker_0008!#",
 		value       => defined $an->data->{cgi}{domain}{value} ? $an->data->{cgi}{domain}{value} : "",
+		class       => $domain_class,
 		extra       => "maxlength=\"255\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_domain => $say_domain }});
-	my $say_sequence = $an->Template->get({file => "main.html", name => "input_number_form", variables => {
+	my $sequence_class = $an->data->{cgi}{sequence}{alert} ? "input_alert" : "input_clear";
+	my $say_sequence   = $an->Template->get({file => "main.html", name => "input_number_form", variables => {
 		name        => "sequence",
 		id          => "sequence",
 		field       => "#!string!striker_0009!#",
 		description => "#!string!striker_0010!#",
 		value       => defined $an->data->{cgi}{sequence}{value} ? $an->data->{cgi}{sequence}{value} : "",
+		class       => $sequence_class,
 		extra       => "maxlength=\"2\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_domain => $say_domain }});
-	my $say_ifn_count = $an->Template->get({file => "main.html", name => "input_number_form", variables => {
+	my $ifn_count_class = $an->data->{cgi}{ifn_count}{alert} ? "input_alert" : "input_clear";
+	my $say_ifn_count   = $an->Template->get({file => "main.html", name => "input_number_form", variables => {
 		name        => "ifn_count",
 		id          => "ifn_count",
 		field       => "#!string!striker_0011!#",
 		description => "#!string!striker_0012!#",
 		value       => defined $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : "",
+		class       => $ifn_count_class,
 		extra       => "maxlength=\"2\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_ifn_count => $say_ifn_count }});

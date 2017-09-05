@@ -40,6 +40,8 @@ This is the AN::Tools master 'words' file.
 		<key name="striker_0011">Internet-Facing Network Count</key>
 		<key name="striker_0012"><![CDATA[How many internal networks will this dashboard have access to? In most cases, this is just '1'.<br /><b>NOTE</b>: You must have a network interface for the back-channel network, plus one for each internal network. If you have two interfaces for each network, we will setup bonds for redundancy automatically.]]></key>
 		<key name="striker_0013">Next</key>
+		<key name="striker_0014">Step 1</key>
+		<key name="striker_0015">IFN Count</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>
