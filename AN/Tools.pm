@@ -718,6 +718,7 @@ sub _set_paths
 				pgrep			=>	"/usr/bin/pgrep",
 				psql			=>	"/usr/bin/psql",
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
+				'scancore-update-states' =>	"/sbin/striker/scancore-update-states",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
 				touch			=>	"/usr/bin/touch",

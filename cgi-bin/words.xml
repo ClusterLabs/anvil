@@ -27,7 +27,7 @@ This is the AN::Tools master 'words' file.
 		<key name="header_0005">Link Speed (Mbps)</key>
 		
 		<!-- General strings shown in Striker -->
-		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard!</key>
+		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
 		<key name="striker_0002">We're going to ask you a few questions so that we can set things up for your environment. If you need help at any time, just click on the "[?]" icon in the top-right. Let's get started!</key>
 		<key name="striker_0003">Organization name</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
@@ -42,6 +42,11 @@ This is the AN::Tools master 'words' file.
 		<key name="striker_0013">Next</key>
 		<key name="striker_0014">Step 1</key>
 		<key name="striker_0015">IFN Count</key>
+		<key name="striker_0016">Host name</key>
+		<key name="striker_0017">This is the hostname for this Striker dashboard. Generally it is a good idea to stick with the default.</key>
+		
+		<!-- Errors -->
+		<key name="striker_error_0001">There are not enuogh network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

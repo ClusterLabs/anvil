@@ -55,7 +55,7 @@ elsif ($an->data->{cgi}{step}{value} eq "step1")
 }
 else
 {
-	$body = get_network_details($an);
+	$body = get_network_details_form($an);
 }
 my $buttons = $an->Template->get({file => "main.html", name => "button_bar"});
 my $footer  = $an->Template->get({file => "main.html", name => "footer"});
@@ -87,6 +87,55 @@ sub config_step2
 {
 	my ($an) = @_;
 	
+	# We need to decide how many IFNs there is, decide if we have enough NICs and then build the form 
+	# either complaining about insufficient NICs or a list of interfaces (single or bond, depending on
+	# iface count), the IPs to assign and mapping MACs to ifaces. We'll also offer an option to 
+	# "blind-map" as we did in v2.
+	get_network_details($an);
+	my $required_interfaces_for_single = 1 + $an->data->{cgi}{ifn_count}{value};
+	my $required_interfaces_for_bonds  = 2 * $required_interfaces_for_single;
+	my $interface_count                = keys %{$an->data->{interfaces}};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		required_interfaces_for_single => $required_interfaces_for_single,
+		required_interfaces_for_bonds  => $required_interfaces_for_bonds,
+		interface_count                => $interface_count,
+	}});
+	
+	my $problem        = 0;
+	my $interface_form = "";
+	if ($interface_count < $required_interfaces_for_single)
+	{
+		# Build the error message.
+		my $say_message = $an->Words->string({key => "striker_error_0001", variables => {
+			interface_count                => $interface_count,
+			required_interfaces_for_single => $required_interfaces_for_single,
+		}});
+		
+		# Not enough interfaces found.
+		$problem        = 1;
+		$interface_form = $an->Template->get({file => "main.html", name => "error_message", variables => { error_message => $say_message }});
+	}
+	elsif ($interface_count >= $required_interfaces_for_bonds)
+	{
+		# Show the bonded ifaces form.
+	}
+	else
+	{
+		# Show the single iface per network form.
+	}
+	
+	my $say_default_hostname = $an->data->{cgi}{prefix}{value}."-striker0".$an->data->{cgi}{sequence}{value}.".".$an->data->{cgi}{domain}{value};
+	my $hostname_class       = $an->data->{cgi}{hostname}{alert} ? "input_alert" : "input_clear";
+	my $say_hostname         = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "hostname",
+		id          => "hostname",
+		field       => "#!string!striker_0016!#",
+		description => "#!string!striker_0017!#",
+		value       => defined $an->data->{cgi}{hostname}{value} ? $an->data->{cgi}{hostname}{value} : $say_default_hostname,
+		class       => $hostname_class,
+		extra       => "",
+	}});
+	
 	my $step2_body = $an->Template->get({file => "main.html", name => "config_step2", variables => {
 		step1_welcome_title_id   => "",
 		step1_welcome_message_id => "",
@@ -95,7 +144,8 @@ sub config_step2
 		domain                   => $an->data->{cgi}{domain}{value},
 		sequence                 => $an->data->{cgi}{sequence}{value},
 		ifn_count                => $an->data->{cgi}{ifn_count}{value},
-		hostname_form            => "",
+		interface_form           => $interface_form,
+		hostname_form            => $say_hostname,
 		cgi_list                 => "hostname",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step2_body => $step2_body }});
@@ -238,8 +288,54 @@ sub config_step1
 	return($step1_body);
 }
 
-# This reads the network status XML file and creates the template body.
+# This reads the network status XML file and loads the data into $an->data->{network}{{...}.
 sub get_network_details
+{
+	my ($an) = @_;
+	
+	### TODO: Daemonize this or solve selinux issues
+	### Refresh the network.xml
+	#$an->System->call({shell_call => $an->data->{path}{exe}{'scancore-update-states'}});
+	
+	# Now read the network.xml
+	my $file = $an->data->{path}{directories}{html}."/status/network.xml";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	
+	# Parse...
+	my $xml     = XML::Simple->new();
+	my $data    = "";
+	my $network = "";
+	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name' }, ForceArray => [ 'interface', 'key' ]) };
+	if ($@)
+	{
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem reading: [$file]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
+	}
+	else
+	{
+		foreach my $interface (sort {$a cmp $b} keys %{$data->{interface}})
+		{
+			$an->data->{interfaces}{$interface} = {
+				mac    => $data->{interface}{$interface}{mac},
+				speed  => $data->{interface}{$interface}{speed},
+				'link' => $data->{interface}{$interface}{'link'}
+			};
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"interfaces::${interface}::mac"   => $an->data->{interfaces}{$interface}{mac}, 
+				"interfaces::${interface}::speed" => $an->data->{interfaces}{$interface}{speed}, 
+				"interfaces::${interface}::link"  => $an->data->{interfaces}{$interface}{'link'}, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+sub get_network_details_form
 {
 	my ($an) = @_;
 	

@@ -89,10 +89,21 @@
 					</td>
 				</tr>
 				<tr>
-					<td width="75%">
-						1. 
+					<td width="75%" style="vertical-align: top;">
+						<table>
+							<tr>
+								<td>
+#!variable!interface_form!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+#!variable!hostname_form!#
+								</td>
+							</tr>
+						</table>
 					</td>
-					<td width="25%">
+					<td width="25%" style="padding-left: 1em;">
 						<table class="data_table">
 							<tr>
 								<td class="column_header" colspan="2">
@@ -153,11 +164,6 @@
 					</td>
 				</tr>
 				<tr>
-					<td>
-						2.
-					</td>
-				</tr>
-				<tr>
 					<td colspan="2">
 						<br />
 						<hr>
@@ -170,6 +176,10 @@
 				</div>
 			</table>
 <!-- end config_step2 -->
+
+<!-- start error_message -->
+<div class="error_message"> #!variable!error_message!# </div><br />
+<!-- end error_message -->
 
 <!-- start select_form -->
 						#!variable!description!#<br />
