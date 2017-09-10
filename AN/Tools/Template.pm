@@ -13,6 +13,7 @@ my $THIS_FILE = "Template.pm";
 
 ### Methods;
 # get
+# select_form
 # skin
 
 =pod
@@ -217,6 +218,168 @@ sub get
 	}
 	
 	return($template);
+}
+
+=head2 select_form
+
+This builds a <select/> form field for use when building forms in templates.
+
+Parameters;
+
+=head3 blank (optional, default C<< 0 >>)
+
+By default, only the options passed are available in the select menu. If this is set to C<< 1 >>, then a blank entry will be inserted to the top of the select list.
+
+=head3 class (optional)
+
+This allows a custom CSS class to be used.
+
+=head3 id (optional)
+
+This is the ID to set. If this is not passed, the C<< name >> is used for the ID.
+
+=head3 name (required)
+
+This is the name of the select box.
+
+=head3 options (required)
+
+This is an array reference of options to put into the select box.
+
+Example;
+
+ my $options = ["a", "b", "c"];
+
+If you wanted to have a separate value passed to the form versus what is shown to the user, you can do so by using c<< <value>#!#<string> >>. In the case, C<< <string >> is what the user sees but C<< <value> >> is what is returned if that option is selected.
+
+Example
+
+ my $options = ["MiB#!#Mibibyte", "GiB#!#Gibibyte"];
+
+Would create a list where the user can choose between C<< Mibibyte >> or C<< Gibibyte >>, and the form would return C<< MiB >> or C<< GiB >>, respectively.
+
+=head3 say_blank (optional)
+
+If C<< blank >> is set, this can be a string to show in the place of the empty entry. This entry will use the C<< subtle_text >> CSS class and if it is selected, nothing is returned when the form is submitted.
+
+=head3 selected (optional)
+
+If this is set and if it matches one of the C<< options >> array values, then that option will be selected when the form is loaded.
+
+=head3 sort (optional, default C<< 1 >>)
+
+By default, the options array will be sorted alphabetically. If this is set to C<< 0 >>, then the order the options were entered into the array is used.
+
+=cut
+sub select_form
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $debug     = 3;
+	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
+	my $options   = defined $parameter->{options}   ? $parameter->{options}   : "";
+	my $id        = defined $parameter->{id}        ? $parameter->{id}        : $name;
+	my $sort      = defined $parameter->{'sort'}    ? $parameter->{'sort'}    : 1;	# Sort the entries?
+	my $class     = defined $parameter->{class}     ? $parameter->{class}     : "";
+	my $blank     = defined $parameter->{blank}     ? $parameter->{blank}     : 0;	# Add a blank/null entry?
+	my $say_blank = defined $parameter->{say_blank} ? $parameter->{say_blank} : "";	# An optional, grayed-out string in the place of the "blank" option
+	my $selected  = defined $parameter->{selected}  ? $parameter->{selected}  : "";	# Pre-select an option?
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		name      => $name, 
+		options   => $options, 
+		'sort'    => $sort, 
+		class     => $class, 
+		blank     => $blank, 
+		say_blank => $say_blank, 
+		selected  => $selected, 
+	}});
+	
+	# Lets start!
+	my $select = "<select name=\"$name\" id=\"$id\">\n";
+	if ($class)
+	{
+		$select = "<select name=\"$name\" id=\"$id\" class=\"$class\">\n";
+	}
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+	
+	# Insert a blank line.
+	if ($blank)
+	{
+		# If 'say_blank' is a string key, use it.
+		my $blank_string = "";
+		my $blank_class  = "";
+		if ($say_blank)
+		{
+			$blank_string = $say_blank;
+			$blank_class  = "class=\"subtle_text\"";
+		}
+		if ($selected eq "new")
+		{
+			$selected =  "";
+			$select   .= "<option value=\"\" $blank_class selected>$blank_string</option>\n";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+		}
+		else
+		{
+			$select .= "<option value=\"\" $blank_class>$blank_string</option>\n";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+		}
+	}
+	
+	# TODO: This needs to be smarter... I shouldn't need two loops for sorted/not sorted.
+	if ($sort)
+	{
+		foreach my $entry (sort {$a cmp $b} @{$options})
+		{
+			next if not $entry;
+			if ($entry =~ /^(.*?)#!#(.*)$/)
+			{
+				my $value       =  $1;
+				my $description =  $2;
+				   $select      .= "<option value=\"$value\">$description</option>\n";
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+			}
+			else
+			{
+				$select .= "<option value=\"$entry\">$entry</option>\n";
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+			}
+		}
+	}
+	else
+	{
+		foreach my $entry (@{$options})
+		{
+			next if not $entry;
+			if ($entry =~ /^(.*?)#!#(.*)$/)
+			{
+				my $value       =  $1;
+				my $description =  $2;
+				   $select      .= "<option value=\"$value\">$description</option>\n";
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+			}
+			else
+			{
+				$select .= "<option value=\"$entry\">$entry</option>\n";
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+			}
+		}
+	}
+	
+	# Was an entry selected?
+	if ($selected)
+	{
+		$select =~ s/value=\"$selected\">/value=\"$selected\" selected>/m;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+	}
+	
+	# Done!
+	$select .= "</select>\n";
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+	return($select);
 }
 
 =head2 skin

@@ -20,7 +20,7 @@ This is the AN::Tools master 'words' file.
 		<key name="brand_0005"><![CDATA[&copy; 2017 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		
-		<key name="header_0001">Network Interfaces</key>
+		<key name="header_0001">Current Network Interfaces and States</key>
 		<key name="header_0002">MAC Address</key>
 		<key name="header_0003">Current Name</key>
 		<key name="header_0004">Link State</key>
@@ -44,9 +44,26 @@ This is the AN::Tools master 'words' file.
 		<key name="striker_0015">IFN Count</key>
 		<key name="striker_0016">Host name</key>
 		<key name="striker_0017">This is the hostname for this Striker dashboard. Generally it is a good idea to stick with the default.</key>
+		<key name="striker_0018">Back-Channel Network link #!variable!number!#:</key>
+		<key name="striker_0019">This is where you configure the network to enable access this Back-Channel Network.</key>
+		<key name="striker_0020">Storage Network link #!variable!number!#:</key>
+		<key name="striker_0021">This is where you configure the network to enable access this Storage Network.</key>
+		<key name="striker_0022">Internet-Facing Network link #!variable!number!#:</key>
+		<key name="striker_0023">This is where you configure the network to enable access this Internet-Facing Network.</key>
+		<key name="striker_0024">IP Address</key>
+		<key name="striker_0025">Subnet</key>
+		<key name="striker_0026">Gateway</key>
+		<key name="striker_0027">DNS Server</key>
+		<key name="striker_0028">Network Interface</key>
+		<key name="striker_0029">Primary Interface</key>
+		<key name="striker_0030">Backup Interface</key>
+		<key name="striker_0031">Striker user name</key>
+		<key name="striker_0032">This is the user name that you will log into Striker as and the name of the user that owns the database.</key>
+		<key name="striker_0033">Striker password</key>
+		<key name="striker_0034"><![CDATA[This will be the password used to log into this Striker and connect to its database.<br /><b>NOTE</b>: This password needs to be stored in plain text. Do not use a password you use elsewhere.]]></key>
 		
 		<!-- Errors -->
-		<key name="striker_error_0001">There are not enuogh network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
+		<key name="striker_error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

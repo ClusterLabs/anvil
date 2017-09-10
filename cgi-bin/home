@@ -26,6 +26,24 @@ $an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
+### Setup some variables.
+$an->data->{form}{error_massage}     = "&nbsp;";
+## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such, we need to use
+##                  a wider spread between the BCNs, SNs and IFNs than we had in v2.
+# BCN starts at 10.(0+n)/16
+$an->data->{'default'}{bcn}{subnet}         = "10.0.0.0";
+$an->data->{'default'}{bcn}{netmask}        = "255.255.0.0";
+$an->data->{'default'}{bcn}{pdu_octet3}     = "1";
+$an->data->{'default'}{bcn}{ups_octet3}     = "2";
+$an->data->{'default'}{bcn}{switch_octet3}  = "3";
+$an->data->{'default'}{bcn}{striker_octet3} = "4";
+# SN starts at 10.(40+n)/16
+$an->data->{'default'}{sn}{subnet}  = "10.40.0.0";
+$an->data->{'default'}{sn}{netmask} = "255.255.0.0";
+# IFN starts at 10.(80+)/16
+$an->data->{'default'}{ifn}{subnet}  = "10.80.0.0";
+$an->data->{'default'}{ifn}{netmask} = "255.255.0.0";
+
 # Read in any CGI variables, if needed.
 $an->Get->cgi();
 
@@ -65,7 +83,7 @@ my $template = $an->Template->get({file => "main.html", name => "master", variab
 	header            => $header,
 	skin_url          => $an->data->{path}{urls}{skins}."/".$an->Template->skin,
 	left_top_bar      => "&nbsp;",
-	center_top_bar    => "&nbsp;",
+	center_top_bar    => $an->data->{form}{error_massage},
 	right_top_bar     => $buttons,
 	center_body       => $body,
 	left_bottom_bar   => "&nbsp;",
@@ -101,29 +119,118 @@ sub config_step2
 		interface_count                => $interface_count,
 	}});
 	
+	my $interface_options = [];
+	foreach my $interface (sort {$a cmp $b} keys %{$an->data->{interfaces}})
+	{
+		my $this_mac = $an->data->{interfaces}{$interface}{mac};
+		push @{$interface_options}, $this_mac;
+	}
+	
 	my $problem        = 0;
 	my $interface_form = "";
-	if ($interface_count < $required_interfaces_for_single)
+	my $cgi            = "";
+	if ($interface_count >= $required_interfaces_for_bonds)
 	{
-		# Build the error message.
-		my $say_message = $an->Words->string({key => "striker_error_0001", variables => {
-			interface_count                => $interface_count,
-			required_interfaces_for_single => $required_interfaces_for_single,
-		}});
+		### Show the bonded ifaces form.
+		# BCN
+		my $bcn_count = $an->data->{cgi}{bcn_count}{value} ? $an->data->{cgi}{bcn_count}{value} : 1;
+		foreach my $bcn (1..$bcn_count)
+		{
+			my $this_bcn_key      =  "bcn".$bcn;
+			my $this_ip_key       =  "bcn".$bcn."_ip";
+			my $this_subnet_key   =  "bcn".$bcn."_subnet";
+			my $this_iface1_key   =  "bcn".$bcn."_iface1_mac";
+			my $this_iface2_key   =  "bcn".$bcn."_iface2_mac";
+			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
+			my $this_ip           =  generate_ip($an, "bcn", 1, $an->data->{cgi}{sequence}{value});
+			my $this_ip_class     =  $an->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_class =  $an->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface1_class =  $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface2_class =  $an->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear";
+			
+			# Build the interface select boxes...
+			my $this_iface1_form = $an->Template->select_form({
+				name     => $this_iface1_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $an->data->{cgi}{$this_iface1_key}{value} ? $an->data->{cgi}{$this_iface1_key}{value} : "",
+				class    => $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear",
+			});
+			my $this_iface2_form = $an->Template->select_form({
+				name     => $this_iface2_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $an->data->{cgi}{$this_iface2_key}{value} ? $an->data->{cgi}{$this_iface2_key}{value} : "",
+				class    => $an->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear",
+			});
+			
+			# Assemble the form
+			$interface_form .= $an->Template->get({file => "main.html", name => "bonded_interface_form", variables => {
+				field         => $an->Words->string({key => "striker_0018", variables => { number => $bcn }}),
+				description   => "#!string!striker_0019!#",
+				ip_key        => $this_ip_key,
+				ip_value      => defined $an->data->{cgi}{$this_ip_key}{value} ? $an->data->{cgi}{$this_ip_key}{value} : $this_ip,
+				ip_class      => $this_ip_class,
+				subnet_key    => $this_subnet_key, 
+				subnet_value  => defined $an->data->{cgi}{$this_subnet_key}{value} ? $an->data->{cgi}{$this_subnet_key}{value} : $an->data->{'default'}{bcn}{netmask},
+				subnet_class  => $this_subnet_class,
+				iface1_select => $this_iface1_form,
+				iface2_select => $this_iface2_form,
+			}});
+		}
 		
-		# Not enough interfaces found.
-		$problem        = 1;
-		$interface_form = $an->Template->get({file => "main.html", name => "error_message", variables => { error_message => $say_message }});
-	}
-	elsif ($interface_count >= $required_interfaces_for_bonds)
-	{
-		# Show the bonded ifaces form.
+		my $ifn_count = $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : 1;
+		foreach my $ifn (1..$ifn_count)
+		{
+			my $this_ifn_key      =  "ifn".$ifn;
+			my $this_ip_key       =  "ifn".$ifn."_ip";
+			my $this_subnet_key   =  "ifn".$ifn."_subnet";
+			my $this_iface1_key   =  "ifn".$ifn."_iface1_mac";
+			my $this_iface2_key   =  "ifn".$ifn."_iface2_mac";
+			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
+			my $this_ip           =  generate_ip($an, "ifn", 1, $an->data->{cgi}{sequence}{value});
+			my $this_ip_class     =  $an->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_class =  $an->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface1_class =  $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface2_class =  $an->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear";
+			
+			# Build the interface select boxes...
+			my $this_iface1_form = $an->Template->select_form({
+				name     => $this_iface1_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $an->data->{cgi}{$this_iface1_key}{value} ? $an->data->{cgi}{$this_iface1_key}{value} : "",
+				class    => $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear",
+			});
+			my $this_iface2_form = $an->Template->select_form({
+				name     => $this_iface2_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $an->data->{cgi}{$this_iface2_key}{value} ? $an->data->{cgi}{$this_iface2_key}{value} : "",
+				class    => $an->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear",
+			});
+			
+			# Assemble the form
+			$interface_form .= $an->Template->get({file => "main.html", name => "bonded_interface_form", variables => {
+				field         => $an->Words->string({key => "striker_0022", variables => { number => $ifn }}),
+				description   => "#!string!striker_0023!#",
+				ip_key        => $this_ip_key,
+				ip_value      => defined $an->data->{cgi}{$this_ip_key}{value} ? $an->data->{cgi}{$this_ip_key}{value} : $this_ip,
+				ip_class      => $this_ip_class,
+				subnet_key    => $this_subnet_key, 
+				subnet_value  => defined $an->data->{cgi}{$this_subnet_key}{value} ? $an->data->{cgi}{$this_subnet_key}{value} : $an->data->{'default'}{ifn}{netmask},
+				subnet_class  => $this_subnet_class,
+				iface1_select => $this_iface1_form,
+				iface2_select => $this_iface2_form,
+			}});
+		}
 	}
 	else
 	{
-		# Show the single iface per network form.
+		### Show the single iface per network form.
 	}
 	
+	# Hostname
 	my $say_default_hostname = $an->data->{cgi}{prefix}{value}."-striker0".$an->data->{cgi}{sequence}{value}.".".$an->data->{cgi}{domain}{value};
 	my $hostname_class       = $an->data->{cgi}{hostname}{alert} ? "input_alert" : "input_clear";
 	my $say_hostname         = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
@@ -136,6 +243,36 @@ sub config_step2
 		extra       => "",
 	}});
 	
+	# Admin user
+	my $say_default_striker_user = "striker";
+	my $striker_user_class       = $an->data->{cgi}{striker_user}{alert} ? "input_alert" : "input_clear";
+	my $say_striker_user         = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "striker_user",
+		id          => "striker_user",
+		field       => "#!string!striker_0031!#",
+		description => "#!string!striker_0032!#",
+		value       => defined $an->data->{cgi}{striker_user}{value} ? $an->data->{cgi}{striker_user}{value} : $say_default_striker_user,
+		class       => $striker_user_class,
+		extra       => "",
+	}});
+	
+	# Password
+	my $say_default_striker_password = "";
+	my $striker_password_class       = $an->data->{cgi}{striker_password}{alert} ? "input_alert" : "input_clear";
+	my $say_striker_password         = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "striker_password",
+		id          => "striker_password",
+		field       => "#!string!striker_0033!#",
+		description => "#!string!striker_0034!#",
+		value       => defined $an->data->{cgi}{striker_password}{value} ? $an->data->{cgi}{striker_password}{value} : $say_default_striker_password,
+		class       => $striker_password_class,
+		extra       => "",
+	}});
+	
+	# Get the table that shows the current interface states.
+	my $interface_states = get_network_details_form($an);
+	
+	# Store the previous CGI variables and display the new fields.
 	my $step2_body = $an->Template->get({file => "main.html", name => "config_step2", variables => {
 		step1_welcome_title_id   => "",
 		step1_welcome_message_id => "",
@@ -145,8 +282,11 @@ sub config_step2
 		sequence                 => $an->data->{cgi}{sequence}{value},
 		ifn_count                => $an->data->{cgi}{ifn_count}{value},
 		interface_form           => $interface_form,
+		interface_states         => $interface_states,
+		striker_user_form        => $say_striker_user,
+		striker_password_form    => $say_striker_password,
 		hostname_form            => $say_hostname,
-		cgi_list                 => "hostname",
+		cgi_list                 => $cgi."hostname,striker_user,striker_password",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step2_body => $step2_body }});
 	
@@ -197,6 +337,31 @@ sub sanity_check_step1
 		$an->data->{cgi}{ifn_count}{alert} = 1;
 		$sane                              = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::ifn_count::alert" => $an->data->{cgi}{ifn_count}{alert} }});
+	}
+	
+	# Make sure we have enough interfaces.
+	get_network_details($an);
+	my $required_interfaces_for_single = 1 + $an->data->{cgi}{ifn_count}{value};
+	my $interface_count                = keys %{$an->data->{interfaces}};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		required_interfaces_for_single => $required_interfaces_for_single,
+		interface_count                => $interface_count,
+	}});
+	
+	if ($interface_count < $required_interfaces_for_single)
+	{
+		# Build the error message.
+		my $say_message = $an->Words->string({key => "striker_error_0001", variables => {
+			interface_count                => $interface_count,
+			required_interfaces_for_single => $required_interfaces_for_single,
+		}});
+		
+		# Not enough interfaces found.
+		$an->data->{form}{error_massage} = $an->Template->get({file => "main.html", name => "error_message", variables => { error_message => $say_message }});
+		
+		# We're not sane
+		$an->data->{cgi}{ifn_count}{alert} = 1;
+		$sane                              = 0;
 	}
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
@@ -324,7 +489,7 @@ sub get_network_details
 				speed  => $data->{interface}{$interface}{speed},
 				'link' => $data->{interface}{$interface}{'link'}
 			};
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"interfaces::${interface}::mac"   => $an->data->{interfaces}{$interface}{mac}, 
 				"interfaces::${interface}::speed" => $an->data->{interfaces}{$interface}{speed}, 
 				"interfaces::${interface}::link"  => $an->data->{interfaces}{$interface}{'link'}, 
@@ -381,4 +546,61 @@ sub get_network_details_form
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network => $network }});
 	return($network);
+}
+
+# This is a rudimentary function for generating default Striker IPs.
+sub generate_ip
+{
+	my ($an, $network, $network_sequence, $device_sequence) = @_;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		network          => $network,
+		network_sequence => $network_sequence, 
+		device_sequence  => $device_sequence, 
+	}});
+	
+	# An empty string is returned if we can't make a sane guess at what should be set.
+	my $ip = "";
+	
+	# The subnet's second octet will be '+X' where 'X' is the sequence.
+	my $default_ip      = $an->data->{'default'}{$network}{subnet};
+	my $default_netmark = $an->data->{'default'}{$network}{netmask};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		default_ip      => $default_ip,
+		default_netmark => $default_netmark, 
+	}});
+	
+	if (($an->Validate->is_ipv4({ip => $default_ip})) && ($an->Validate->is_ipv4({ip => $default_netmark})))
+	{
+		# Valid values.
+		my ($ip_octet1, $ip_octet2, $ip_octet3, $ip_octet4) = (split/\./, $default_ip);
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			ip_octet1 => $ip_octet1,
+			ip_octet2 => $ip_octet2,
+			ip_octet3 => $ip_octet3,
+			ip_octet4 => $ip_octet4,
+		}});
+		
+		if ($default_netmark eq "255.255.0.0")
+		{
+			# We can work with this.
+			$ip_octet2 += $network_sequence;
+			$ip_octet3 =  $an->data->{'default'}{bcn}{striker_octet3};
+			$ip_octet4 =  $device_sequence;
+			$ip        =  $ip_octet1.".".$ip_octet2.".".$ip_octet3.".".$ip_octet4;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:ip_octet2" => $ip_octet2,
+				"s2:ip_octet3" => $ip_octet3,
+				"s3:ip_octet4" => $ip_octet4,
+				"s4:ip"        => $ip,
+			}});
+		}
+	}
+	else
+	{
+		# Something wrong with our defaults.
+		$ip = "#!error!#";
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip => $ip }});
+	return($ip);
 }

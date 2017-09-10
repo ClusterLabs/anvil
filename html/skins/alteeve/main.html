@@ -65,8 +65,10 @@
 						<input type="submit" name="next" id="next" value="#!string!striker_0013!#">
 					</td>
 				</tr>
-				<input type="hidden" name="step" id="step" value="step1">
-				<input type="hidden" name="cgi_list" id="cgi_list" value="next,step,#!variable!cgi_list!#">
+				<!-- NOTE: For now, we support only one BCN in the web UI, but the system will be ready for N-number later. -->
+				<input type="hidden" name="bcn_count" id="bcn_count" value="1">
+				<input type="hidden" name="step"      id="step"      value="step1">
+				<input type="hidden" name="cgi_list"  id="cgi_list"  value="next,bcn_count,step,#!variable!cgi_list!#">
 				</form>
 				</div>
 			</table>
@@ -98,12 +100,27 @@
 							</tr>
 							<tr>
 								<td>
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td>
 #!variable!hostname_form!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+#!variable!striker_user_form!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+#!variable!striker_password_form!#
 								</td>
 							</tr>
 						</table>
 					</td>
-					<td width="25%" style="padding-left: 1em;">
+					<td width="25%" style="padding-left: 1em; vertical-align: top;">
 						<table class="data_table">
 							<tr>
 								<td class="column_header" colspan="2">
@@ -161,6 +178,8 @@
 								</td>
 							</tr>
 						</table>
+						<br />
+						#!variable!interface_states!#
 					</td>
 				</tr>
 				<tr>
@@ -178,7 +197,7 @@
 <!-- end config_step2 -->
 
 <!-- start error_message -->
-<div class="error_message"> #!variable!error_message!# </div><br />
+<div class="error_message"><span style="color: #ff3f7f;">*</span> #!variable!error_message!# </div>
 <!-- end error_message -->
 
 <!-- start select_form -->
@@ -195,6 +214,100 @@
 						<span id="description_id">#!variable!description!#</span><br />
 						<input type="number" name="#!variable!name!#" id="#!variable!id!#" value="#!variable!value!#" placeholder="#!variable!field!#" class="#!variable!class!#" #!variable!extra!#>
 <!-- end input_number_form -->
+
+<!-- start bonded_interface_form -->
+						<table>
+							<tr>
+								<td colspan="5" class="form_group_header1">
+									#!variable!field!#
+								</td>
+							</tr>
+							<tr>
+								<td colspan="5" class="form_group_header2">
+									#!variable!description!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0024!#
+								</td>
+								<td>
+									<input type="text" name="#!variable!ip_key!#" id="#!variable!ip_key!#" value="#!variable!ip_value!#" placeholder="#!string!striker_0024!#" class="#!variable!ip_class!#">
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									#!string!striker_0029!#
+								</td>
+								<td>
+									#!variable!iface1_select!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0025!#
+								</td>
+								<td>
+									<input type="text" name="#!variable!subnet_key!#" id="#!variable!subnet_key!#" value="#!variable!subnet_value!#" placeholder="#!string!striker_0025!#" class="#!variable!subnet_class!#">
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									#!string!striker_0030!#
+								</td>
+								<td>
+									#!variable!iface2_select!#
+								</td>
+							</tr>
+						</table>
+<!-- end bonded_interface_form -->
+
+<!-- start network_header -->
+						<table id="network_status" class="data_table_nowrap">
+							<tr>
+								<td colspan="4" class="column_header">
+									#!string!header_0001!#
+								</td>
+							</tr>
+							<tr class="data_row">
+								<td class="column_row_name">
+									#!string!header_0002!#
+								</td>
+								<td class="column_row_name">
+									#!string!header_0003!#
+								</td>
+								<td id="network_link_state" data-up="#!string!js_0001!#" data-down="#!string!js_0002!#" class="column_row_name">
+									#!string!header_0004!#
+								</td>
+								<td id="network_link_speed" data-mbps="#!string!js_0003!#" class="column_row_name">
+									#!string!header_0005!#
+								</td>
+							</tr>
+<!-- end network_header -->
+
+<!-- start network_entry -->
+							<tr class="data_row">
+								<td class="column_row_value_fixed">
+									<span name="#!variable!mac_id!#" id="#!variable!mac_id!#">#!variable!mac!#</span>
+								</td>
+								<td class="column_row_value_fixed_centered">
+									<span name="#!variable!name_id!#" id="#!variable!name_id!#">#!variable!name!#</span>
+								</td>
+								<td class="column_row_value_fixed_centered">
+									<span name="#!variable!link_id!#" id="#!variable!link_id!#">#!variable!link!#</span>
+								</td>
+								<td class="column_row_value_fixed_centered">
+									<span name="#!variable!speed_id!#" id="#!variable!speed_id!#">#!variable!speed!#</span>
+								</td>
+							</tr>
+<!-- end network_entry -->
+
+<!-- start network_footer -->
+							<input type="hidden" name="interface_list" id="interface_list" value="#!variable!interface_list!#" />
+						</table>
+<!-- end network_footer -->
 
 <!-- start footer -->
 <div onload="show_status()" class="footer">
@@ -226,11 +339,6 @@
 
 <body>
 <table class="body_table">
-<!--	<tr>
-		<td class="header" colspan="3">
-			<img src="#!data!skin::url!#/images/logo.png" class="logo">
-		</td>
-	</tr>-->
 	<tr>
 		<td class="header" width="5%">
 			<img src="#!data!skin::url!#/images/logo.png" class="logo">
@@ -264,48 +372,3 @@
 #!variable!footer!#
 </html>
 <!-- end master -->
-
-<!-- start network_footer -->
-				<input type="hidden" name="interface_list" id="interface_list" value="#!variable!interface_list!#" />
-			</table>
-<!-- end network_footer -->
-
-<!-- start network_entry -->
-				<tr>
-					<td>
-						<span name="#!variable!mac_id!#" id="#!variable!mac_id!#">#!variable!mac!#</span>
-					</td>
-					<td>
-						<span name="#!variable!name_id!#" id="#!variable!name_id!#">#!variable!name!#</span>
-					</td>
-					<td>
-						<span name="#!variable!link_id!#" id="#!variable!link_id!#">#!variable!link!#</span>
-					</td>
-					<td>
-						<span name="#!variable!speed_id!#" id="#!variable!speed_id!#">#!variable!speed!#</span>
-					</td>
-				</tr>
-<!-- end network_entry -->
-
-<!-- start network_header -->
-			<table id="network_status">
-				<tr>
-					<td colspan="4">
-						#!string!header_0001!#
-					</td>
-				</tr>
-				<tr>
-					<td>
-						#!string!header_0002!#
-					</td>
-					<td>
-						#!string!header_0003!#
-					</td>
-					<td id="network_link_state" data-up="#!string!js_0001!#" data-down="#!string!js_0002!#">
-						#!string!header_0004!#
-					</td>
-					<td id="network_link_speed" data-mbps="#!string!js_0003!#">
-						#!string!header_0005!#
-					</td>
-				</tr>
-<!-- end network_header -->
