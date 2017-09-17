@@ -61,6 +61,12 @@ This is the AN::Tools master 'words' file.
 		<key name="striker_0032">This is the user name that you will log into Striker as and the name of the user that owns the database.</key>
 		<key name="striker_0033">Striker password</key>
 		<key name="striker_0034"><![CDATA[This will be the password used to log into this Striker and connect to its database.<br /><b>NOTE</b>: This password needs to be stored in plain text. Do not use a password you use elsewhere.]]></key>
+		<key name="striker_0035">Gateway</key>
+		<key name="striker_0036">This is the network gateway used to access the outside world.</key>
+		<key name="striker_0037">DNS</key>
+		<key name="striker_0038">This is the domain name server(s) to use when resolving domain names. You can specify 2 or more, separated by commas.</key>
+		<key name="striker_0039">Gateway Interface</key>
+		<key name="striker_0040">This is the interface with the internet access. Usually this is "ifn_link1".</key>	<!-- Translation note; leave 'ifn_link1' as it is, it is the device name. -->
 		
 		<!-- Errors -->
 		<key name="striker_error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

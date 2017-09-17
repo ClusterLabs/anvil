@@ -129,6 +129,7 @@ sub config_step2
 	my $problem        = 0;
 	my $interface_form = "";
 	my $cgi            = "";
+	my $links          = [];
 	if ($interface_count >= $required_interfaces_for_bonds)
 	{
 		### Show the bonded ifaces form.
@@ -136,6 +137,7 @@ sub config_step2
 		my $bcn_count = $an->data->{cgi}{bcn_count}{value} ? $an->data->{cgi}{bcn_count}{value} : 1;
 		foreach my $bcn (1..$bcn_count)
 		{
+			push @{$links}, "bcn_link".$bcn;
 			my $this_bcn_key      =  "bcn".$bcn;
 			my $this_ip_key       =  "bcn".$bcn."_ip";
 			my $this_subnet_key   =  "bcn".$bcn."_subnet";
@@ -182,6 +184,7 @@ sub config_step2
 		my $ifn_count = $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : 1;
 		foreach my $ifn (1..$ifn_count)
 		{
+			push @{$links}, "ifn_link".$bcn;
 			my $this_ifn_key      =  "ifn".$ifn;
 			my $this_ip_key       =  "ifn".$ifn."_ip";
 			my $this_subnet_key   =  "ifn".$ifn."_subnet";
@@ -229,6 +232,48 @@ sub config_step2
 	{
 		### Show the single iface per network form.
 	}
+	
+	### TODO: Add a form for Gateway, DNS and which interface to use
+	# Gateway
+	my $say_default_gateway = "";
+	my $gateway_class       = $an->data->{cgi}{gateway}{alert} ? "input_alert" : "input_clear";
+	my $say_gateway         = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "gateway",
+		id          => "gateway",
+		field       => "#!string!striker_0035!#",
+		description => "#!string!striker_0036!#",
+		value       => defined $an->data->{cgi}{gateway}{value} ? $an->data->{cgi}{gateway}{value} : $say_default_gateway,
+		class       => $gateway_class,
+		extra       => "",
+	}});
+	
+	# DNS
+	my $dns_class       = $an->data->{cgi}{dns}{alert} ? "input_alert" : "input_clear";
+	my $say_dns         = $an->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name        => "dns",
+		id          => "dns",
+		field       => "#!string!striker_0037!#",
+		description => "#!string!striker_0038!#",
+		value       => defined $an->data->{cgi}{dns}{value} ? $an->data->{cgi}{dns}{value} : "8.8.8.8, 8.8.4.4",
+		class       => $dns_class,
+		extra       => "",
+	}});
+	
+	# Which interface gets the route?
+	my $default_dg_iface = defined $an->data->{cgi}{dg_iface}{value} ? $an->data->{cgi}{dg_iface}{value} : "ifn_link1";
+	my $dg_iface_select  = $an->Template->select_form({
+		name     => "dg_iface",
+		options  => $links,
+		blank    => 0,
+		selected => $default_dg_iface,
+		class    => $an->data->{cgi}{dg_iface}{alert} ? "input_alert" : "input_clear",
+	});
+	my $dg_iface_class = $an->data->{cgi}{dg_iface}{alert} ? "input_alert" : "input_clear";
+	my $say_dg_iface   = $an->Template->get({file => "main.html", name => "input_select_form", variables => {
+		field       => "#!string!striker_0039!#",
+		description => "#!string!striker_0040!#",
+		'select'    => "",
+	}});
 	
 	# Hostname
 	my $say_default_hostname = $an->data->{cgi}{prefix}{value}."-striker0".$an->data->{cgi}{sequence}{value}.".".$an->data->{cgi}{domain}{value};
@@ -285,13 +330,73 @@ sub config_step2
 		interface_states         => $interface_states,
 		striker_user_form        => $say_striker_user,
 		striker_password_form    => $say_striker_password,
+		gateway_form             => $say_gateway,
+		dns_form                 => $say_dns,
 		hostname_form            => $say_hostname,
-		cgi_list                 => $cgi."hostname,striker_user,striker_password",
+		cgi_list                 => $cgi."gateway,hostname,striker_user,striker_password",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step2_body => $step2_body }});
 	
 	return($step2_body);
 }
+
+# This sanity-checks step 2 and returns '1' if there was a problem.
+sub sanity_check_step2
+{
+	my ($an) = @_;
+	
+	# This will flip if we run into a problem. We start by running through step1's sanity checks again. 
+	# This should only fail is someone was passing raw data to us and screwed something up.
+	my $sane = sanity_check_step1($an);
+	
+	# Do we have a host name, striker user and password?
+	if ((not defined $an->data->{cgi}{hostname}{value}) or (not $an->data->{cgi}{hostname}{value}))
+	{
+		$an->data->{cgi}{hostname}{alert} = 1;
+		$sane                                 = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::hostname::alert" => $an->data->{cgi}{hostname}{alert} }});
+	}
+	if ((not defined $an->data->{cgi}{striker_user}{value}) or (not $an->data->{cgi}{striker_user}{value}))
+	{
+		$an->data->{cgi}{striker_user}{alert} = 1;
+		$sane                                 = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_user::alert" => $an->data->{cgi}{striker_user}{alert} }});
+	}
+	if ((not defined $an->data->{cgi}{striker_password}{value}) or (not $an->data->{cgi}{striker_password}{value}))
+	{
+		$an->data->{cgi}{striker_password}{alert} = 1;
+		$sane                                 = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_password::alert" => $an->data->{cgi}{striker_password}{alert} }});
+	}
+	
+	# Now it gets a bit tricker as we'll need to loop through the BCNs and IFNs.
+	my $bcn_count = $an->data->{cgi}{bcn_count}{value} ? $an->data->{cgi}{bcn_count}{value} : 1;
+	foreach my $bcn (1..$bcn_count)
+	{
+		my $this_bcn_key      =  "bcn".$bcn;
+		my $this_ip_key       =  "bcn".$bcn."_ip";
+		my $this_subnet_key   =  "bcn".$bcn."_subnet";
+		my $this_iface1_key   =  "bcn".$bcn."_iface1_mac";
+		my $this_iface2_key   =  "bcn".$bcn."_iface2_mac";
+		
+		# If I only have the iface1, we'll create a non-bonded interface (even if the option for a 
+		# bond was presented to the user). So to be sane, we need a valid IP, subnet
+		
+	}
+	my $ifn_count = $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : 1;
+	foreach my $ifn (1..$ifn_count)
+	{
+		my $this_ifn_key      =  "ifn".$ifn;
+		my $this_ip_key       =  "ifn".$ifn."_ip";
+		my $this_subnet_key   =  "ifn".$ifn."_subnet";
+		my $this_iface1_key   =  "ifn".$ifn."_iface1_mac";
+		my $this_iface2_key   =  "ifn".$ifn."_iface2_mac";
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+	return($sane);
+}
+
 
 # This sanity-checks step 1 and returns '1' if there was a problem.
 sub sanity_check_step1
