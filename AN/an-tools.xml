@@ -143,7 +143,7 @@ The database connection error was:
 		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
 		<key name="log_0081"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but the core SQL file: [#!variable!sql_file!#] exist, but can't be read.]]></key>
 		<key name="log_0082">The database: [#!variable!server!#] needs to be initialized using: [#!variable!sql_file!#].</key>
-		<key name="log_0083"></key>
+		<key name="log_0083">About to record: [#!variable!id!#]:[#!variable!query!#]</key>
 		<key name="log_0084"><![CDATA[[ Error ] - The method Database->query() was asked to query the database: [#!variable!server!#] but no query was given.]]></key>
 		<key name="log_0085"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database: [#!variable!server!#] but no query was given.]]></key>
 		<key name="log_0086"><![CDATA[[ Error ] - The method System->check_memory() was called without a program name to check.]]></key>
@@ -198,6 +198,7 @@ The database connection error was:
 		<key name="log_0127">Firewalld was not running, re-enabling it. If you do not want this behaviour, please set 'sys::daemons::restart_firewalld = 0' in the configuration file for this program (or in 'tools.conf').</key>
 		<key name="log_0128">Firewalld was not running, and 'sys::daemons::restart_firewalld = 0' is set. NOT starting it.</key>
 		<key name="log_0129">all</key>	<!-- Used when logging DB writes to all DBs -->
+		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

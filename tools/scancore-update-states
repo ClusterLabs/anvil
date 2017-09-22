@@ -18,6 +18,10 @@ my $an = AN::Tools->new();
 $an->Log->level({set => 2});
 
 $an->Storage->read_config({file => "/etc/striker/striker.conf"});
+my $connections = $an->Database->connect({
+	sql_file   => $an->data->{sys}{database}{schema},
+	test_table => "network_interfaces", 
+});
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
@@ -37,10 +41,7 @@ sub report_network
 	
 	# Write out the data in json format.
 	my $network_json =  "{\"networks\":[\n";
-	my $network_xml  =  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-	   $network_xml  .= "<network>\n";
-	   
-	my $directory = $an->data->{path}{sysfs}{network_interfaces};
+	my $directory    = $an->data->{path}{sysfs}{network_interfaces};
 	local(*DIRECTORY);
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
@@ -63,11 +64,25 @@ sub report_network
 			my $speed       = $link_state ? $an->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
 			if ($speed > 100000)
 			{
-				# This is probably 0 now... Though someday >100 Gbps will be reasonable and 
-				# we'll need to change this.
+				# NOTE: This is probably 0 now... Though someday >100 Gbps will be reasonable
+				#       and we'll need to change this.
 				$speed = 0;
 			}
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			
+			# Find the media, if possible.
+			my $media   = "unknown";
+			my $ethtool = $an->System->call({shell_call => $an->data->{path}{exe}{ethtool}});
+			foreach my $line (split/\n/, $ethtool)
+			{
+				if ($line =~ /Supported ports: \[ (.*?) \]/i)
+				{
+					$media = lc($1);
+					last;
+				}
+			}
+			
+			# Log
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
 				mac_address => $mac_address, 
 				link_state  => $link_state, 
@@ -75,10 +90,21 @@ sub report_network
 				duplex      => $duplex,
 				operational => $operational,
 				speed       => $speed,
+				media       => $media, 
 			}});
 			
-			$network_json .= "	{ \"name\":\"$interface\", \"mac\":\"$mac_address\", \"link\":\"$link_state\", \"duplex\":\"$duplex\", \"state\":\"$operational\", \"speed\":\"$speed\" },\n";
-			$network_xml .= "	<interface name=\"$interface\" mac=\"$mac_address\" link=\"$link_state\" duplex=\"$duplex\" state=\"$operational\" speed=\"$speed\" />\n";
+			$an->Database->insert_or_update_network_interfaces({
+				network_interface_current_name   => $interface,
+				network_interface_duplex         => $duplex, 
+				network_interface_link_state     => $link_state, 
+				network_interface_operational    => $operational, 
+				network_interface_mac_address    => $mac_address, 
+				network_interface_medium         => $media, 
+				network_interface_mtu            => $mtu, 
+				network_interface_speed          => $speed, 
+			});
+			
+			$network_json .= "	{ \"name\":\"$interface\", \"mac\":\"$mac_address\", \"link\":\"$link_state\", \"mtu\":\"$mtu\" \"duplex\":\"$duplex\", \"state\":\"$operational\", \"speed\":\"$speed\", \"media\":\"$media\" },\n";
 		}
 	}
 	closedir(DIRECTORY);
@@ -86,27 +112,13 @@ sub report_network
 	$network_json .= "]}\n";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_json => $network_json }});
 	
-	$network_xml .= "</network>\n";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_xml => $network_xml }});
-	
-	### TODO: Set the 'status/network.xml' and 'status/network.json' names into 'striker.conf'
+	### TODO: Set the 'status/network.json' name into 'striker.conf'
 	# Write the JSON file.
 	my $output_json = $an->data->{path}{directories}{html}."/status/network.json";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_json }});
 	$an->Storage->write_file({
 		file      => $output_json, 
 		body      => $network_json, 
-		overwrite => 1,
-		mode      => "0644", 
-		user      => "apache", 
-		group     => "apache"
-	});
-	# Write the XML file.
-	my $output_xml = $an->data->{path}{directories}{html}."/status/network.xml";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_xml }});
-	$an->Storage->write_file({
-		file      => $output_xml, 
-		body      => $network_xml, 
 		overwrite => 1,
 		mode      => "0644", 
 		user      => "apache", 

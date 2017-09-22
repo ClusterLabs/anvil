@@ -1,6 +1,6 @@
-// $.ajaxSetup({
-//     cache: false
-// });
+$.ajaxSetup({
+    cache: false
+});
 $(function() { 
 	var say_up           = $('#network_link_state').data('up');
 	var say_down         = $('#network_link_state').data('down');
@@ -11,7 +11,9 @@ $(function() {
 		setInterval(function() {
 			$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
 				$.each(data.networks, function(index, element) {
-					//console.log('entry: ['+index+'], name: ['+element.name+'], mac: ['+element.mac+'], link: ['+element.link+']');
+					
+					console.log('entry: ['+index+'], name: ['+element.name+'], mac: ['+element.mac+'], link: ['+element.link+']');
+					
 					var link = say_up;
 					if (element.link == 0) {
 						link = say_down;
@@ -22,6 +24,10 @@ $(function() {
 				});
 			});
 		}, 1000);
+	}
+	else
+	{
+		alert('network status does not exist.');
 	}
 	if($("#disk_status").length) {
 		//alert('disk status exists.');

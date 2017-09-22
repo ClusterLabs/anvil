@@ -123,7 +123,7 @@ sub config_step2
 	foreach my $interface (sort {$a cmp $b} keys %{$an->data->{interfaces}})
 	{
 		my $this_mac = $an->data->{interfaces}{$interface}{mac};
-		push @{$interface_options}, $this_mac;
+		push @{$interface_options}, $this_mac."#!#".$this_mac." (".$interface.")";
 	}
 	
 	my $problem        = 0;
@@ -184,7 +184,7 @@ sub config_step2
 		my $ifn_count = $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : 1;
 		foreach my $ifn (1..$ifn_count)
 		{
-			push @{$links}, "ifn_link".$bcn;
+			push @{$links}, "ifn_link".$ifn;
 			my $this_ifn_key      =  "ifn".$ifn;
 			my $this_ip_key       =  "ifn".$ifn."_ip";
 			my $this_subnet_key   =  "ifn".$ifn."_subnet";

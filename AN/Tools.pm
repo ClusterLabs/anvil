@@ -706,6 +706,7 @@ sub _set_paths
 				createuser		=>	"/usr/bin/createuser",
 				dmidecode		=>	"/usr/sbin/dmidecode",
 				echo			=>	"/usr/bin/echo",
+				ethtool			=>	"/usr/sbin/ethtool",
 				'firewall-cmd'		=>	"/usr/bin/firewall-cmd",
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/usr/bin/hostname",
