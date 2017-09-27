@@ -27,7 +27,7 @@ $(function() {
 	}
 	else
 	{
-		alert('network status does not exist.');
+		//alert('network status strings not loaded.');
 	}
 	if($("#disk_status").length) {
 		//alert('disk status exists.');

@@ -10,8 +10,7 @@ CREATE TABLE network_interfaces (
 	network_interface_uuid			uuid				not null	primary key,
 	network_interface_host_uuid		uuid				not null,
 	network_interface_mac_address		text				not null,
-	network_interface_current_name		text				not null,			-- This is the current name of the interface. 
-	network_interface_requested_name	text,								-- This is the name of the interface that the user requested. This will differ from the current name pending a commit request by the user.
+	network_interface_name			text				not null,			-- This is the current name of the interface. 
 	network_interface_speed			bigint				not null,			-- This is the speed, in bits-per-second, of the interface.
 	network_interface_mtu			bigint,								-- This is the MTU (Maximum Transmitable Size), in bytes, for this interface.
 	network_interface_link_state		text				not null,			-- 0 or 1
@@ -29,8 +28,7 @@ CREATE TABLE history.network_interfaces (
 	network_interface_uuid			uuid				not null,
 	network_interface_host_uuid		uuid,
 	network_interface_mac_address		text,
-	network_interface_current_name		text,
-	network_interface_requested_name	text,
+	network_interface_name			text,
 	network_interface_speed			bigint,
 	network_interface_mtu			bigint,
 	network_interface_link_state		text,
@@ -53,8 +51,7 @@ BEGIN
 		(network_interface_uuid,
 		 network_interface_host_uuid, 
 		 network_interface_mac_address, 
-		 network_interface_current_name,
-		 network_interface_requested_name,
+		 network_interface_name,
 		 network_interface_speed, 
 		 network_interface_mtu, 
 		 network_interface_link_state, 
@@ -68,8 +65,7 @@ BEGIN
 		(history_network_interfaces.network_interface_uuid,
 		 history_network_interfaces.network_interface_host_uuid, 
 		 history_network_interfaces.network_interface_mac_address, 
-		 history_network_interfaces.network_interface_current_name,
-		 history_network_interfaces.network_interface_requested_name,
+		 history_network_interfaces.network_interface_name,
 		 history_network_interfaces.network_interface_speed, 
 		 history_network_interfaces.network_interface_mtu, 
 		 history_network_interfaces.network_interface_link_state, 

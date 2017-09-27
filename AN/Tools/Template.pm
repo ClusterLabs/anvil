@@ -179,14 +179,10 @@ sub get
 	
 	if (not $error)
 	{
-		my $in_template = 0;
-		my $shell_call = $source;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0012", variables => { shell_call => $shell_call }});
-		open (my $file_handle, "<", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
-		while(<$file_handle>)
+		my $in_template   = 0;
+		my $template_file = $an->Storage->read_file({file => $source});
+		foreach my $line (split/\n/, $template_file)
 		{
-			chomp;
-			my $line = $_;
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
 			if ($line =~ /^<!-- start $name -->/)
 			{
@@ -206,7 +202,6 @@ sub get
 				}
 			}
 		}
-		close $file_handle;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
 		
 		# Now that I have the skin, inject my variables. We'll use Words->string() to do this for us.
@@ -416,7 +411,7 @@ sub skin
 	my $debug = 3;
 	my $fatal = defined $parameter->{fatal} ? $parameter->{fatal} : 1;
 	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fatal => $fatal, file => $set }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fatal => $fatal, set => $set }});
 	
 	if ($set)
 	{

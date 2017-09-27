@@ -356,22 +356,44 @@ sub host_uuid
 	}
 	elsif (not $an->data->{HOST}{UUID})
 	{
-		# Read dmidecode
-		my $uuid       = "";
-		my $shell_call = $an->data->{path}{exe}{dmidecode}." --string system-uuid";
-		#print $THIS_FILE." ".__LINE__."; [ Debug ] - shell_call: [$shell_call]\n";
-		open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
-		while(<$file_handle>)
+		# Read dmidecode if I am root, and the cache if not.
+		my $uuid = "";
+		if (($< == 0) or ($> == 0))
 		{
-			# This should never be hit...
-			chomp;
-			$uuid = lc($_);
+			my $shell_call = $an->data->{path}{exe}{dmidecode}." --string system-uuid";
+			#print $THIS_FILE." ".__LINE__."; [ Debug ] - shell_call: [$shell_call]\n";
+			open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
+			while(<$file_handle>)
+			{
+				# This should never be hit...
+				chomp;
+				$uuid = lc($_);
+			}
+			close $file_handle;
 		}
-		close $file_handle;
+		else
+		{
+			# Not running as root, so I have to rely on the cache file, or die if it doesn't 
+			# exist.
+			if (not -e $an->data->{path}{data}{host_uuid})
+			{
+				# We're done.
+			}
+			else
+			{
+				$uuid = $an->Storage->read_file({ file => $an->data->{path}{data}{host_uuid} });
+			}
+		}
 		
-		if ($uuid)
+		if ($an->Validate->is_uuid({uuid => $uuid}))
 		{
 			$an->data->{HOST}{UUID} = $uuid;
+		}
+		else
+		{
+			# Bad UUID.
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0134", variables => { uuid => $uuid }});
+			$an->data->{HOST}{UUID} = "";
 		}
 	}
 	

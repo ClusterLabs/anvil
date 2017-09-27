@@ -31,7 +31,7 @@ $an->Log->level({set => 2});
 $an->Log->secure({set => 1});
 
 # Paths
-$an->data->{path}{tools}{'an-prep-database'}      = "/usr/sbin/striker/scancore-database";
+$an->data->{path}{tools}{'an-prep-database'}       = "/usr/sbin/striker/scancore-database";
 $an->data->{path}{tools}{'scancore-update-states'} = "/usr/sbin/striker/scancore-update-states";
 $an->data->{path}{config}{'striker.conf'}          = "/etc/striker/striker.conf";
 
@@ -309,6 +309,22 @@ if ($local_id)
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0001"});
 		}
 	}
+	
+	### TODO: This will need to set the proper SELinux context.
+	# Apache run scripts can't call the system UUID, so we'll write it to a text file.
+	if (not -e $an->data->{path}{data}{host_uuid})
+	{
+		$an->Storage->write_file({
+			file      => $an->data->{path}{data}{host_uuid}, 
+			body      => $an->Get->host_uuid,
+			user      => "apache", 
+			group     => "apache",
+			mode      => "0666",
+			overwrite => 0,
+		});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0002", variables => { file => $an->data->{path}{configs}{'postgresql.conf'} }});
+	}
+	
 }
 else
 {

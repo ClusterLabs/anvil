@@ -1460,10 +1460,6 @@ If this interface is part of a bond, this UUID will be the C<< bonds >> -> C<< b
 
 If this interface is connected to a bridge, this is the C<< bridges >> -> C<< bridge_uuid >> of that bridge.
 
-=head3 network_interface_current_name (required)
-
-This is the current device name for this interface.
-
 =head3 network_interface_duplex (optional)
 
 This can be set to C<< full >>, C<< half >> or C<< unknown >>, with the later being the default.
@@ -1488,13 +1484,13 @@ This is the medium the interface uses. This is generally C<< copper >>, C<< fibe
 
 This is the maximum transmit unit (MTU) that this interface supports, in bytes per second. This is usally C<< 1500 >>.
 
+=head3 network_interface_name (required)
+
+This is the current device name for this interface.
+
 =head3 network_interface_operational (optional)
 
 This can be set to C<< up >>, C<< down >> or C<< unknown >>, with the later being the default. This indicates whether the interface is active or not.
-
-=head3 network_interface_requested_name (optional)
-
-This can be set to a different device name from what is currently assigned. If it is set, and if it differs from the current device name, it will be reconfigured the next time the network is updated.
 
 =head3 network_interface_speed (optional)
 
@@ -1512,35 +1508,33 @@ sub insert_or_update_network_interfaces
 	my $an        = $self->parent;
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->insert_or_update_network_interfaces()" }});
 	
-	my $id                               = defined $parameter->{id}                               ? $parameter->{id}                               : "";
-	my $network_interface_bond_uuid      = defined $parameter->{network_interface_bond_uuid}      ? $parameter->{network_interface_bond_uuid}      : "--";
-	my $network_interface_bridge_uuid    = defined $parameter->{network_interface_bridge_uuid}    ? $parameter->{network_interface_bridge_uuid}    : "--";
-	my $network_interface_current_name   = defined $parameter->{network_interface_current_name}   ? $parameter->{network_interface_current_name}   : "--";
-	my $network_interface_duplex         = defined $parameter->{network_interface_duplex}         ? $parameter->{network_interface_duplex}         : "--";
-	my $network_interface_host_uuid      = defined $parameter->{network_interface_host_uuid}      ? $parameter->{network_interface_host_uuid}      : $an->Get->host_uuid;
-	my $network_interface_link_state     = defined $parameter->{network_interface_link_state}     ? $parameter->{network_interface_link_state}     : "--";
-	my $network_interface_operational    = defined $parameter->{network_interface_operational}    ? $parameter->{network_interface_operational}    : "--";
-	my $network_interface_mac_address    = defined $parameter->{network_interface_mac_address}    ? $parameter->{network_interface_mac_address}    : "--";
-	my $network_interface_medium         = defined $parameter->{network_interface_medium}         ? $parameter->{network_interface_medium}         : "--";
-	my $network_interface_mtu            = defined $parameter->{network_interface_mtu}            ? $parameter->{network_interface_mtu}            : "--";
-	my $network_interface_requested_name = defined $parameter->{network_interface_requested_name} ? $parameter->{network_interface_requested_name} : "--";
-	my $network_interface_speed          = defined $parameter->{network_interface_speed}          ? $parameter->{network_interface_speed}          : "--";
-	my $network_interface_uuid           = defined $parameter->{network_interface_uuid}           ? $parameter->{interface_uuid}                   : "";
+	my $id                            = defined $parameter->{id}                            ? $parameter->{id}                            : "";
+	my $network_interface_bond_uuid   = defined $parameter->{network_interface_bond_uuid}   ? $parameter->{network_interface_bond_uuid}   : "--";
+	my $network_interface_bridge_uuid = defined $parameter->{network_interface_bridge_uuid} ? $parameter->{network_interface_bridge_uuid} : "--";
+	my $network_interface_duplex      = defined $parameter->{network_interface_duplex}      ? $parameter->{network_interface_duplex}      : "--";
+	my $network_interface_host_uuid   = defined $parameter->{network_interface_host_uuid}   ? $parameter->{network_interface_host_uuid}   : $an->Get->host_uuid;
+	my $network_interface_link_state  = defined $parameter->{network_interface_link_state}  ? $parameter->{network_interface_link_state}  : "--";
+	my $network_interface_operational = defined $parameter->{network_interface_operational} ? $parameter->{network_interface_operational} : "--";
+	my $network_interface_mac_address = defined $parameter->{network_interface_mac_address} ? $parameter->{network_interface_mac_address} : "--";
+	my $network_interface_medium      = defined $parameter->{network_interface_medium}      ? $parameter->{network_interface_medium}      : "--";
+	my $network_interface_mtu         = defined $parameter->{network_interface_mtu}         ? $parameter->{network_interface_mtu}         : "--";
+	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "--";
+	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : "--";
+	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		id                               => $id, 
-		network_interface_bond_uuid      => $network_interface_bond_uuid, 
-		network_interface_bridge_uuid    => $network_interface_bridge_uuid, 
-		network_interface_current_name   => $network_interface_current_name,
-		network_interface_duplex         => $network_interface_duplex, 
-		network_interface_host_uuid      => $network_interface_host_uuid, 
-		network_interface_link_state     => $network_interface_link_state, 
-		network_interface_operational    => $network_interface_operational, 
-		network_interface_mac_address    => $network_interface_mac_address, 
-		network_interface_medium         => $network_interface_medium, 
-		network_interface_mtu            => $network_interface_mtu, 
-		network_interface_requested_name => $network_interface_requested_name,
-		network_interface_speed          => $network_interface_speed, 
-		network_interface_uuid           => $network_interface_uuid,
+		id                            => $id, 
+		network_interface_bond_uuid   => $network_interface_bond_uuid, 
+		network_interface_bridge_uuid => $network_interface_bridge_uuid, 
+		network_interface_duplex      => $network_interface_duplex, 
+		network_interface_host_uuid   => $network_interface_host_uuid, 
+		network_interface_link_state  => $network_interface_link_state, 
+		network_interface_operational => $network_interface_operational, 
+		network_interface_mac_address => $network_interface_mac_address, 
+		network_interface_medium      => $network_interface_medium, 
+		network_interface_mtu         => $network_interface_mtu, 
+		network_interface_name        => $network_interface_name,
+		network_interface_speed       => $network_interface_speed, 
+		network_interface_uuid        => $network_interface_uuid,
 	}});
 	
 	# I will need a MAC address and a UUID. If I don't have one, use the other to look it up.
@@ -1568,8 +1562,7 @@ sub insert_or_update_network_interfaces
 SELECT 
     network_interface_host_uuid, 
     network_interface_mac_address, 
-    network_interface_current_name,
-    network_interface_requested_name,
+    network_interface_name,
     network_interface_speed, 
     network_interface_mtu, 
     network_interface_link_state, 
@@ -1593,104 +1586,97 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_network_interface_host_uuid      =         $row->[0];
-			my $old_network_interface_mac_address    =         $row->[1];
-			my $old_network_interface_current_name   =         $row->[2];
-			my $old_network_interface_requested_name = defined $row->[3]  ? $row->[3]  : "";
-			my $old_network_interface_speed          =         $row->[4];
-			my $old_network_interface_mtu            = defined $row->[5]  ? $row->[5]  : "";
-			my $old_network_interface_link_state     =         $row->[6];
-			my $old_network_interface_operational    =         $row->[7];
-			my $old_network_interface_duplex         =         $row->[8];
-			my $old_network_interface_medium         = defined $row->[9]  ? $row->[9]  : "";
-			my $old_network_interface_bond_uuid      = defined $row->[10] ? $row->[10] : "";
-			my $old_network_interface_bridge_uuid    = defined $row->[10] ? $row->[11] : "";
+			my $old_network_interface_host_uuid   =         $row->[0];
+			my $old_network_interface_mac_address =         $row->[1];
+			my $old_network_interface_name        =         $row->[2];
+			my $old_network_interface_speed       =         $row->[3];
+			my $old_network_interface_mtu         = defined $row->[4]  ? $row->[4]  : "";
+			my $old_network_interface_link_state  =         $row->[5];
+			my $old_network_interface_operational =         $row->[6];
+			my $old_network_interface_duplex      =         $row->[7];
+			my $old_network_interface_medium      = defined $row->[8]  ? $row->[8]  : "";
+			my $old_network_interface_bond_uuid   = defined $row->[9]  ? $row->[9]  : "";
+			my $old_network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : "";
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				old_network_interface_host_uuid      => $old_network_interface_host_uuid,
-				old_network_interface_mac_address    => $old_network_interface_mac_address,
-				old_network_interface_current_name   => $old_network_interface_current_name,
-				old_network_interface_requested_name => $old_network_interface_requested_name,
-				old_network_interface_speed          => $old_network_interface_speed,
-				old_network_interface_mtu            => $old_network_interface_mtu,
-				old_network_interface_link_state     => $old_network_interface_link_state,
-				old_network_interface_operational    => $old_network_interface_operational, 
-				old_network_interface_duplex         => $old_network_interface_duplex,
-				old_network_interface_medium         => $old_network_interface_medium,
-				old_network_interface_bond_uuid      => $old_network_interface_bond_uuid,
-				old_network_interface_bridge_uuid    => $old_network_interface_bridge_uuid,
+				old_network_interface_host_uuid   => $old_network_interface_host_uuid,
+				old_network_interface_mac_address => $old_network_interface_mac_address,
+				old_network_interface_name        => $old_network_interface_name,
+				old_network_interface_speed       => $old_network_interface_speed,
+				old_network_interface_mtu         => $old_network_interface_mtu,
+				old_network_interface_link_state  => $old_network_interface_link_state,
+				old_network_interface_operational => $old_network_interface_operational, 
+				old_network_interface_duplex      => $old_network_interface_duplex,
+				old_network_interface_medium      => $old_network_interface_medium,
+				old_network_interface_bond_uuid   => $old_network_interface_bond_uuid,
+				old_network_interface_bridge_uuid => $old_network_interface_bridge_uuid,
 			}});
 			
 			# If the caller didn't pass some values, we'll treat the 
 			
 			# Anything to update? This is a little extra complicated because if a variable was
 			# not passed in, we want to not compare it.
-			if ((($network_interface_bond_uuid      ne "--") && ($network_interface_bond_uuid      ne $old_network_interface_bond_uuid))      or 
-			    (($network_interface_bridge_uuid    ne "--") && ($network_interface_bridge_uuid    ne $old_network_interface_bridge_uuid))    or 
-			    (($network_interface_current_name   ne "--") && ($network_interface_current_name   ne $old_network_interface_current_name))   or 
-			    (($network_interface_duplex         ne "--") && ($network_interface_duplex         ne $old_network_interface_duplex))         or 
-			    (($network_interface_link_state     ne "--") && ($network_interface_link_state     ne $old_network_interface_link_state))     or 
-			    (($network_interface_operational    ne "--") && ($network_interface_operational    ne $old_network_interface_operational))    or 
-			    (($network_interface_mac_address    ne "--") && ($network_interface_mac_address    ne $old_network_interface_mac_address))    or 
-			    (($network_interface_medium         ne "--") && ($network_interface_medium         ne $old_network_interface_medium))         or 
-			    (($network_interface_mtu            ne "--") && ($network_interface_mtu            ne $old_network_interface_mtu))            or 
-			    (($network_interface_requested_name ne "--") && ($network_interface_requested_name ne $old_network_interface_requested_name)) or 
-			    (($network_interface_speed          ne "--") && ($network_interface_speed          ne $old_network_interface_speed))          or
-			                                                    ($network_interface_host_uuid      ne $old_network_interface_host_uuid)) 
+			if ((($network_interface_bond_uuid   ne "--") && ($network_interface_bond_uuid   ne $old_network_interface_bond_uuid))   or 
+			    (($network_interface_bridge_uuid ne "--") && ($network_interface_bridge_uuid ne $old_network_interface_bridge_uuid)) or 
+			    (($network_interface_name        ne "--") && ($network_interface_name        ne $old_network_interface_name))        or 
+			    (($network_interface_duplex      ne "--") && ($network_interface_duplex      ne $old_network_interface_duplex))      or 
+			    (($network_interface_link_state  ne "--") && ($network_interface_link_state  ne $old_network_interface_link_state))  or 
+			    (($network_interface_operational ne "--") && ($network_interface_operational ne $old_network_interface_operational)) or 
+			    (($network_interface_mac_address ne "--") && ($network_interface_mac_address ne $old_network_interface_mac_address)) or 
+			    (($network_interface_medium      ne "--") && ($network_interface_medium      ne $old_network_interface_medium))      or 
+			    (($network_interface_mtu         ne "--") && ($network_interface_mtu         ne $old_network_interface_mtu))         or 
+			    (($network_interface_speed       ne "--") && ($network_interface_speed       ne $old_network_interface_speed))       or
+			                                                 ($network_interface_host_uuid   ne $old_network_interface_host_uuid)) 
 			{
 				# UPDATE any rows passed to us.
 				my $query = "
 UPDATE 
     network_interfaces
 SET 
-    network_interface_host_uuid      = ".$an->data->{sys}{use_db_fh}->quote($network_interface_host_uuid).", 
+    network_interface_host_uuid   = ".$an->data->{sys}{use_db_fh}->quote($network_interface_host_uuid).", 
 ";
 				if ($network_interface_bond_uuid ne "--")
 				{
-					$query .= "    network_interface_bond_uuid      = ".$an->data->{sys}{use_db_fh}->quote($network_interface_bond_uuid).", \n";
+					$query .= "    network_interface_bond_uuid   = ".$an->data->{sys}{use_db_fh}->quote($network_interface_bond_uuid).", \n";
 				}
 				if ($network_interface_bridge_uuid ne "--")
 				{
-					$query .= "    network_interface_bridge_uuid    = ".$an->data->{sys}{use_db_fh}->quote($network_interface_bridge_uuid).", \n";
+					$query .= "    network_interface_bridge_uuid = ".$an->data->{sys}{use_db_fh}->quote($network_interface_bridge_uuid).", \n";
 				}
-				if ($network_interface_current_name ne "--")
+				if ($network_interface_name ne "--")
 				{
-					$query .= "    network_interface_current_name   = ".$an->data->{sys}{use_db_fh}->quote($network_interface_current_name).", \n";
+					$query .= "    network_interface_name        = ".$an->data->{sys}{use_db_fh}->quote($network_interface_name).", \n";
 				}
 				if ($network_interface_duplex ne "--")
 				{
-					$query .= "    network_interface_duplex         = ".$an->data->{sys}{use_db_fh}->quote($network_interface_duplex).", \n";
+					$query .= "    network_interface_duplex      = ".$an->data->{sys}{use_db_fh}->quote($network_interface_duplex).", \n";
 				}
 				if ($network_interface_link_state ne "--")
 				{
-					$query .= "    network_interface_link_state     = ".$an->data->{sys}{use_db_fh}->quote($network_interface_link_state).", \n";
+					$query .= "    network_interface_link_state  = ".$an->data->{sys}{use_db_fh}->quote($network_interface_link_state).", \n";
 				}
 				if ($network_interface_operational ne "--")
 				{
-					$query .= "    network_interface_operational    = ".$an->data->{sys}{use_db_fh}->quote($network_interface_operational).", \n";
+					$query .= "    network_interface_operational = ".$an->data->{sys}{use_db_fh}->quote($network_interface_operational).", \n";
 				}
 				if ($network_interface_mac_address ne "--")
 				{
-					$query .= "    network_interface_mac_address    = ".$an->data->{sys}{use_db_fh}->quote($network_interface_mac_address).", \n";
+					$query .= "    network_interface_mac_address = ".$an->data->{sys}{use_db_fh}->quote($network_interface_mac_address).", \n";
 				}
 				if ($network_interface_medium ne "--")
 				{
-					$query .= "    network_interface_medium         = ".$an->data->{sys}{use_db_fh}->quote($network_interface_medium).", \n";
+					$query .= "    network_interface_medium      = ".$an->data->{sys}{use_db_fh}->quote($network_interface_medium).", \n";
 				}
 				if ($network_interface_mtu ne "--")
 				{
-					$query .= "    network_interface_mtu            = ".$an->data->{sys}{use_db_fh}->quote($network_interface_mtu).", \n";
-				}
-				if ($network_interface_requested_name ne "--")
-				{
-					$query .= "    network_interface_requested_name = ".$an->data->{sys}{use_db_fh}->quote($network_interface_requested_name).", \n";
+					$query .= "    network_interface_mtu         = ".$an->data->{sys}{use_db_fh}->quote($network_interface_mtu).", \n";
 				}
 				if ($network_interface_speed ne "--")
 				{
-					$query .= "    network_interface_speed          = ".$an->data->{sys}{use_db_fh}->quote($network_interface_speed).", \n";
+					$query .= "    network_interface_speed       = ".$an->data->{sys}{use_db_fh}->quote($network_interface_speed).", \n";
 				}
-				$query .= "    modified_date                    = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+				$query .= "    modified_date                 = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
 WHERE
-    network_interface_uuid           = ".$an->data->{sys}{use_db_fh}->quote($network_interface_uuid)."
+    network_interface_uuid        = ".$an->data->{sys}{use_db_fh}->quote($network_interface_uuid)."
 ;";
 				$query =~ s/'NULL'/NULL/g;
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -1710,34 +1696,33 @@ WHERE
 			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_mac_address" }});
 			return("");
 		}
-		if (($network_interface_current_name eq "--") or (not $network_interface_current_name))
+		if (($network_interface_name eq "--") or (not $network_interface_name))
 		{
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_current_name" }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name" }});
 			return("");
 		}
 		
 		# Convert unpassed values to their defaults.
-		$network_interface_bond_uuid      = "NULL"    if $network_interface_bond_uuid      eq "--";
-		$network_interface_bridge_uuid    = "NULL"    if $network_interface_bridge_uuid    eq "--";
-		$network_interface_duplex         = "unknown" if $network_interface_duplex         eq "--";
-		$network_interface_link_state     = 0         if $network_interface_link_state     eq "--";
-		$network_interface_operational    = "unknown" if $network_interface_operational    eq "--";
-		$network_interface_medium         = ""        if $network_interface_medium         eq "--";
-		$network_interface_requested_name = ""        if $network_interface_requested_name eq "--";
-		$network_interface_speed          = 0         if $network_interface_speed          eq "--";
-		$network_interface_mtu            = 0         if $network_interface_mtu            eq "--";
+		$network_interface_bond_uuid   = "NULL"    if $network_interface_bond_uuid   eq "--";
+		$network_interface_bridge_uuid = "NULL"    if $network_interface_bridge_uuid eq "--";
+		$network_interface_duplex      = "unknown" if $network_interface_duplex      eq "--";
+		$network_interface_link_state  = 0         if $network_interface_link_state  eq "--";
+		$network_interface_operational = "unknown" if $network_interface_operational eq "--";
+		$network_interface_medium      = ""        if $network_interface_medium      eq "--";
+		$network_interface_speed       = 0         if $network_interface_speed       eq "--";
+		$network_interface_mtu         = 0         if $network_interface_mtu         eq "--";
 		
 		# Make sure the UUIDs are sane.
 		if (($network_interface_bond_uuid ne "NULL") && (not $an->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
 		{
 			# Bad UUID.
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_current_name", uuid => $network_interface_bond_uuid }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bond_uuid }});
 			return("");
 		}
 		if (($network_interface_bridge_uuid ne "NULL") && (not $an->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
 		{
 			# Bad UUID.
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_current_name", uuid => $network_interface_bridge_uuid }});
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bridge_uuid }});
 			return("");
 		}
 		
@@ -1752,7 +1737,7 @@ INSERT INTO
     network_interface_uuid, 
     network_interface_bond_uuid, 
     network_interface_bridge_uuid, 
-    network_interface_current_name, 
+    network_interface_name, 
     network_interface_duplex, 
     network_interface_host_uuid, 
     network_interface_link_state,
@@ -1760,14 +1745,13 @@ INSERT INTO
     network_interface_mac_address, 
     network_interface_medium, 
     network_interface_mtu, 
-    network_interface_requested_name, 
     network_interface_speed, 
     modified_date
 ) VALUES (
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_uuid).",  
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_bond_uuid).", 
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_bridge_uuid).", 
-    ".$an->data->{sys}{use_db_fh}->quote($network_interface_current_name).", 
+    ".$an->data->{sys}{use_db_fh}->quote($network_interface_name).", 
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_duplex).", 
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_host_uuid).", 
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_link_state).", 
@@ -1775,7 +1759,6 @@ INSERT INTO
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_mac_address).", 
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_medium).", 
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_mtu).", 
-    ".$an->data->{sys}{use_db_fh}->quote($network_interface_requested_name).", 
     ".$an->data->{sys}{use_db_fh}->quote($network_interface_speed).", 
     ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
 );
@@ -2037,7 +2020,7 @@ sub insert_or_update_variables
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
 	
 	my $variable_uuid         = defined $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = defined $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
@@ -2804,7 +2787,7 @@ sub read_variable
 SELECT 
     variable_value, 
     variable_uuid, 
-    round(extract(epoch from modified_date)) 
+    round(extract(epoch from modified_date)) AS mtime
 FROM 
     variables 
 WHERE ";
@@ -2828,13 +2811,13 @@ AND
 		}
 	}
 	$query .= ";";
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	
 	my $variable_value = "";
 	my $modified_date  = "";
 	my $results        = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count          = @{$results};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -2843,7 +2826,7 @@ AND
 		$variable_value = defined $row->[0] ? $row->[0] : "";
 		$variable_uuid  =         $row->[1];
 		$modified_date  =         $row->[2];
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			variable_value => $variable_value, 
 			variable_uuid  => $variable_uuid, 
 			modified_date  => $modified_date, 

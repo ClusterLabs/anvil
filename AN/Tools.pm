@@ -685,6 +685,8 @@ sub _set_paths
 				'striker.conf'		=>	"/etc/striker/striker.conf",
 			},
 			data			=>	{
+				group			=>	"/etc/group",
+				host_uuid		=>	"/etc/an/host.uuid",
 				passwd			=>	"/etc/passwd",
 			},
 			directories		=>	{

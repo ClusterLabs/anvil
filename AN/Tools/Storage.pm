@@ -640,9 +640,17 @@ If it fails to find the file, or the file is not readable, 'C<< !!error!! >>' is
 
 Parameters;
 
+=head3 cache (optional)
+
+This is an optional parameter that controls whether the file is cached in case something else tries to read the same file later. By default, all read files are cached. Set this to C<< 0 >> to disable caching. This should only be needed when reading large files.
+
 =head3 file (required)
 
 This is the name of the file to read.
+
+=head3 force_read (optional)
+
+This is an otpional parameter that, if set, forces the file to be read, bypassing cache if it exists. Set this to C<< 1 >> to bypass the cache.
 
 =cut
 sub read_file
@@ -651,9 +659,15 @@ sub read_file
 	my $parameter = shift;
 	my $an        = $self->parent;
 	
-	my $body = "";
-	my $file = defined $parameter->{file} ? $parameter->{file} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	my $body       = "";
+	my $cache      = defined $parameter->{cache}      ? $parameter->{cache}      : 1;
+	my $file       = defined $parameter->{file}       ? $parameter->{file}       : "";
+	my $force_read = defined $parameter->{force_read} ? $parameter->{force_read} : 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		cache      => $cache, 
+		file       => $file,
+		force_read => $force_read, 
+	}});
 	
 	if (not $file)
 	{
@@ -671,18 +685,35 @@ sub read_file
 		return("!!error!!");
 	}
 	
-	my $shell_call = $file;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
-	open (my $file_handle, "<", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
-	while(<$file_handle>)
+	# If I've read this before, don't read it again.
+	if ((exists $an->data->{cache}{file}{$file}) && (not $force_read))
 	{
-		chomp;
-		my $line = $_;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
-		$body .= $line."\n";
+		# Use the cache
+		$body = $an->data->{cache}{file}{$file};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
 	}
-	close $file_handle;
-	$body =~ s/\n$//s;
+	else
+	{
+		# Read from disk.
+		my $shell_call = $file;
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
+		open (my $file_handle, "<", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
+		while(<$file_handle>)
+		{
+			chomp;
+			my $line = $_;
+			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
+			$body .= $line."\n";
+		}
+		close $file_handle;
+		$body =~ s/\n$//s;
+		
+		if ($cache)
+		{
+			$an->data->{cache}{file}{$file} = $body;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::file::$file" => $an->data->{cache}{file}{$file} }});
+		}
+	}
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
 	return($body);

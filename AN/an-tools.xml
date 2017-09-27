@@ -181,7 +181,7 @@ The database connection error was:
 		<key name="log_0110">ScanCore database: [#!variable!database!#] created.</key>
 		<key name="log_0111">[ Warning ] - Failed to reload the Postgres server. Please check the system logs for details. The updated configuration is probably not active yet.</key>
 		<key name="log_0112">Reloaded the PostgreSQL database server.</key>
-		<key name="log_0113"><![CDATA[[ Note ] - The 'Database->configure_pgsql() method was called but the parent program is not running with root priviledges. Returning without doing anything.]]>.</key>
+		<key name="log_0113"><![CDATA[[ Note ] - The 'Database->configure_pgsql() method was called but the parent program is not running with root priviledges. Returning without doing anything.]]></key>
 		<key name="log_0114"><![CDATA[The program: [#!data!path::exe::an-report-memory!#] must be called with '--program <name>', but no program name was read in.]]></key>
 		<key name="log_0115">#!variable!program!# has started.</key>
 		<key name="log_0116"><![CDATA[The method: [#!variable!method!#] was passed the parameter: [#!variable!parameter!#] with the value: [#!variable!value!#], which is invalid.]]></key>
@@ -199,6 +199,10 @@ The database connection error was:
 		<key name="log_0128">Firewalld was not running, and 'sys::daemons::restart_firewalld = 0' is set. NOT starting it.</key>
 		<key name="log_0129">all</key>	<!-- Used when logging DB writes to all DBs -->
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
+		<key name="log_0131">Entering function: [#!variable!function!#]</key>
+		<key name="log_0132">Connected to: [#!variable!connections!#] database(s).</key>
+		<key name="log_0133">Failed to read the system UUID. Received a non-UUID string: [#!variable!uuid!#]. Is the user: [#!variable!user!#] in the 'kmem' group?</key>
+		<key name="log_0134">The read host UUID: [#!variable!uuid!#] does not appear to be a valid UUID.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

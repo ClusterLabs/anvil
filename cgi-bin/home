@@ -1,5 +1,10 @@
 #!/usr/bin/perl
 #
+# Exit codes;
+# 0 == OK
+# 1 == Host UUID not available yet.
+# 
+
 use strict;
 use warnings;
 use AN::Tools;
@@ -17,11 +22,28 @@ my $an = AN::Tools->new();
 # Print the html headers, with a new line to break the header from the body.
 print $an->Template->get({file => "shared.html", name => "http_headers"})."\n";
 
-# Set the log level to 2
+# Set the log level to 2. Setting 3 slows he program down a LOT.
 $an->Log->level({set => 2});
 
 # Read in our words file.
 $an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"});
+
+# Read the config and then connect to the database.
+$an->Storage->read_config({file => "/etc/striker/striker.conf"});
+
+# Make sure I can read the host UUID.
+if (not $an->Get->host_uuid)
+{
+	# Too early, exit.
+	print $an->Words->string({key => "striker_error_0002"});
+	exit(1);
+}
+
+my $connections = $an->Database->connect({
+	sql_file   => $an->data->{sys}{database}{schema},
+	test_table => "network_interfaces", 
+});
+$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132", variables => { connections => $connections }});
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
@@ -402,6 +424,7 @@ sub sanity_check_step2
 sub sanity_check_step1
 {
 	my ($an) = @_;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0131", variables => { function => "sanity_check_step1()" }});
 	
 	# This will flip if we run into a problem.
 	my $sane = 1;
@@ -413,6 +436,20 @@ sub sanity_check_step1
 		$sane                                 = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::organization::alert" => $an->data->{cgi}{organization}{alert} }});
 	}
+	else
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step1::organization::value", 
+			variable_value        => $an->data->{cgi}{organization}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0004", 
+			variable_section      => "config_step1", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
+	}
 	
 	# The prefix needs to be alphanumeric and be between 1 ~ 5 chatacters.
 	if ((not $an->Validate->is_alphanumeric({string => $an->data->{cgi}{prefix}{value}})) or (length($an->data->{cgi}{prefix}{value}) > 5))
@@ -420,6 +457,20 @@ sub sanity_check_step1
 		$an->data->{cgi}{prefix}{alert} = 1;
 		$sane                           = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::prefix::alert" => $an->data->{cgi}{prefix}{alert} }});
+	}
+	else
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step1::prefix::value", 
+			variable_value        => $an->data->{cgi}{prefix}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0006", 
+			variable_section      => "config_step1", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
 	}
 	
 	# We can use Validate to check the domain.
@@ -429,6 +480,20 @@ sub sanity_check_step1
 		$sane                           = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::domain::alert" => $an->data->{cgi}{domain}{alert} }});
 	}
+	else
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step1::domain::value", 
+			variable_value        => $an->data->{cgi}{domain}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0008", 
+			variable_section      => "config_step1", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
+	}
 	
 	# The sequence and IFN count need to be integers.
 	if (not $an->Validate->is_positive_integer({number => $an->data->{cgi}{sequence}{value}}))
@@ -437,6 +502,21 @@ sub sanity_check_step1
 		$sane                             = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::sequence::alert" => $an->data->{cgi}{sequence}{alert} }});
 	}
+	else
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step1::sequence::value", 
+			variable_value        => $an->data->{cgi}{sequence}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0010", 
+			variable_section      => "config_step1", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
+	}
+	
 	if (not $an->Validate->is_positive_integer({number => $an->data->{cgi}{ifn_count}{value}}))
 	{
 		$an->data->{cgi}{ifn_count}{alert} = 1;
@@ -468,6 +548,20 @@ sub sanity_check_step1
 		$an->data->{cgi}{ifn_count}{alert} = 1;
 		$sane                              = 0;
 	}
+	else
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step1::ifn_count::value", 
+			variable_value        => $an->data->{cgi}{ifn_count}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0012", 
+			variable_section      => "config_step1", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
+	}
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
 	return($sane);
@@ -478,13 +572,54 @@ sub config_step1
 {
 	my ($an) = @_;
 	
-	# TODO: Later, this will be a check to see if we've configured this Striker before and, if so, offer
-	#       an option to restore.
-	my $reload_old_config = "";
-	if (1)
+	if (not $an->data->{cgi}{'next'}{value})
 	{
-		### TODO: ...
-		# Old config exists. Load the detail and present the option to reload.
+		# First load. See if we can read old data.
+		my ($organization) = $an->Database->read_variable({
+			variable_name         => "form::config_step1::organization::value", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		my ($prefix) = $an->Database->read_variable({
+			variable_name         => "form::config_step1::prefix::value", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		my ($domain) = $an->Database->read_variable({
+			variable_name         => "form::config_step1::domain::value", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		my ($sequence) = $an->Database->read_variable({
+			variable_name         => "form::config_step1::sequence::value", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		my ($ifn_count) = $an->Database->read_variable({
+			variable_name         => "form::config_step1::ifn_count::value", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			organization => $organization, 
+			prefix       => $prefix, 
+			domain       => $domain, 
+			sequence     => $sequence, 
+			ifn_count    => $ifn_count, 
+		}});
+		
+		$an->data->{cgi}{organization}{value} = $organization ne "" ? $organization : "";
+		$an->data->{cgi}{prefix}{value}       = $prefix       ne "" ? $prefix       : "";
+		$an->data->{cgi}{domain}{value}       = $domain       ne "" ? $domain       : "";
+		$an->data->{cgi}{sequence}{value}     = $sequence     ne "" ? $sequence     : 1;
+		$an->data->{cgi}{ifn_count}{value}    = $ifn_count    ne "" ? $ifn_count    : 1;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'cgi::organization::value' => $an->data->{cgi}{organization}{value}, 
+			'cgi::prefix::value'       => $an->data->{cgi}{prefix}{value}, 
+			'cgi::domain::value'       => $an->data->{cgi}{domain}{value}, 
+			'cgi::sequence::value'     => $an->data->{cgi}{sequence}{value}, 
+			'cgi::ifn_count::value'    => $an->data->{cgi}{ifn_count}{value}, 
+		}});
 	}
 	
 	my $organization_class = $an->data->{cgi}{organization}{alert} ? "input_alert" : "input_clear";
@@ -528,7 +663,7 @@ sub config_step1
 		description => "#!string!striker_0010!#",
 		value       => defined $an->data->{cgi}{sequence}{value} ? $an->data->{cgi}{sequence}{value} : "",
 		class       => $sequence_class,
-		extra       => "maxlength=\"2\"",
+		extra       => "min=\"1\" max=\"24\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_domain => $say_domain }});
 	my $ifn_count_class = $an->data->{cgi}{ifn_count}{alert} ? "input_alert" : "input_clear";
@@ -539,7 +674,7 @@ sub config_step1
 		description => "#!string!striker_0012!#",
 		value       => defined $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : "",
 		class       => $ifn_count_class,
-		extra       => "maxlength=\"2\"",
+		extra       => "min=\"1\" max=\"24\"",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_ifn_count => $say_ifn_count }});
 	

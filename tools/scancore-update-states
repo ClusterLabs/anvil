@@ -94,14 +94,14 @@ sub report_network
 			}});
 			
 			$an->Database->insert_or_update_network_interfaces({
-				network_interface_current_name   => $interface,
-				network_interface_duplex         => $duplex, 
-				network_interface_link_state     => $link_state, 
-				network_interface_operational    => $operational, 
-				network_interface_mac_address    => $mac_address, 
-				network_interface_medium         => $media, 
-				network_interface_mtu            => $mtu, 
-				network_interface_speed          => $speed, 
+				network_interface_name        => $interface,
+				network_interface_duplex      => $duplex, 
+				network_interface_link_state  => $link_state, 
+				network_interface_operational => $operational, 
+				network_interface_mac_address => $mac_address, 
+				network_interface_medium      => $media, 
+				network_interface_mtu         => $mtu, 
+				network_interface_speed       => $speed, 
 			});
 			
 			$network_json .= "	{ \"name\":\"$interface\", \"mac\":\"$mac_address\", \"link\":\"$link_state\", \"mtu\":\"$mtu\" \"duplex\":\"$duplex\", \"state\":\"$operational\", \"speed\":\"$speed\", \"media\":\"$media\" },\n";
