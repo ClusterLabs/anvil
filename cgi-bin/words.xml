@@ -71,6 +71,7 @@ This is the AN::Tools master 'words' file.
 		<!-- Errors -->
 		<key name="striker_error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
 		<key name="striker_error_0002">The local system UUID can't be read yet. This might be because the system is brand new and/or ScanCore hasn't run yet. Please try again in a minute.</key>
+		<key name="striker_error_0003">None of the databases are accessible, unable to proceed.</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

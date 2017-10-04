@@ -14,6 +14,7 @@ BEGIN
 use strict;
 use warnings;
 use Scalar::Util qw(weaken isweak);
+use Time::HiRes;
 use Data::Dumper;
 my $THIS_FILE = "Tools.pm";
 
@@ -136,6 +137,9 @@ sub new
 	# This isn't needed, but it makes the code below more consistent with and portable to other modules.
 	my $an = $self; 
 	weaken($an);	# Helps avoid memory leaks. See Scalar::Utils
+	
+	# Record the start time.
+	$an->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
 	
 	# Get a handle on the various submodules
 	$an->Alert->parent($an);
@@ -318,6 +322,16 @@ sub nice_exit
 	
 	# Close database connections (if any).
 	$an->Database->disconnect();
+	
+	# Report the runtime.
+	my $end_time = Time::HiRes::time;
+	my $run_time = $end_time - $an->data->{ENV_VALUES}{START_TIME};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:ENV_VALUES::START_TIME' => $an->data->{ENV_VALUES}{START_TIME}, 
+		's2:end_time'               => $end_time, 
+		's3:run_time'               => $run_time, 
+	}});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { runtime => $run_time }});
 	
 	exit($exit_code);
 }
@@ -679,6 +693,7 @@ sub _set_paths
 	$an->data->{path} = {
 			configs			=>	{
 				'firewalld.conf'	=>	"/etc/firewalld/firewalld.conf",
+				'journald_an'		=>	"/etc/systemd/journald.conf.d/an.conf",
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
 				ssh_config		=>	"/etc/ssh/ssh_config",

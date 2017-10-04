@@ -34,6 +34,8 @@ This is the AN::Tools master 'words' file.
 		<key name="message_0008">There was a problem establishing an SSH channel to the target: [#!variable!target!#] for shell call: [#!variable!shell_call!#]</key>
 		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
+		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
+		<key name="message_0012">Wrote the journald config file: [#!variable!file!#] to disable rate limiting to ensure high log levels are not lost.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -203,6 +205,7 @@ The database connection error was:
 		<key name="log_0132">Connected to: [#!variable!connections!#] database(s).</key>
 		<key name="log_0133">Failed to read the system UUID. Received a non-UUID string: [#!variable!uuid!#]. Is the user: [#!variable!user!#] in the 'kmem' group?</key>
 		<key name="log_0134">The read host UUID: [#!variable!uuid!#] does not appear to be a valid UUID.</key>
+		<key name="log_0135">Runtime was approximately: [#!variable!runtime!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

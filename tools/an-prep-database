@@ -310,6 +310,10 @@ if ($local_id)
 		}
 	}
 	
+	#####################################################################################################
+	# NOTE: Below here is stuff that is for general setup. If it grows, we'll have to rename this tool. #
+	#####################################################################################################
+	
 	### TODO: This will need to set the proper SELinux context.
 	# Apache run scripts can't call the system UUID, so we'll write it to a text file.
 	if (not -e $an->data->{path}{data}{host_uuid})
@@ -322,9 +326,38 @@ if ($local_id)
 			mode      => "0666",
 			overwrite => 0,
 		});
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0002", variables => { file => $an->data->{path}{configs}{'postgresql.conf'} }});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0011", variables => { file => $an->data->{path}{configs}{'postgresql.conf'} }});
 	}
 	
+	# Log level 3 creates so much logging that it hits journald's rate limiting (1000 logs per 30 
+	# seconds). So we need to disable it.
+	if (not -e $an->data->{path}{configs}{'journald_an'})
+	{
+		# Write the file to disable journald rate limiting.
+		my $body = "# This disables the rate limiting so that when log level is set to 3, log 
+# entries aren't lost. If you want to override this, don't delete the file, 
+# just comment out the lines below.
+
+[Journal]
+RateLimitInterval=0
+RateLimitBurst=0
+";
+		$an->Storage->write_file({
+			file      => $an->data->{path}{configs}{'journald_an'}, 
+			body      => $body,
+			user      => "root", 
+			group     => "root",
+			mode      => "0644",
+			overwrite => 0,
+		});
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0012", variables => { file => $an->data->{path}{configs}{'journald_an'} }});
+		
+		my $shell_call = $an->data->{path}{exe}{systemctl}." restart systemd-journald.service";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my $output = $an->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	}
 }
 else
 {

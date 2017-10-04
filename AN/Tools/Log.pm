@@ -7,6 +7,9 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
+use Log::Journald;
+use Sys::Syslog qw/:macros/;
+
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Log.pm";
@@ -297,34 +300,15 @@ sub entry
 		$string .= $message;
 	}
 	
-	# Clean up the string for bash
-	$string =~ s/"/\\\"/gs;		# Single-escape "   -> \\"
-	$string =~ s/\\\\"/\\\\\\"/gs;	# triple-escape \\" -> \\\"
-	#$string =~ s/\(/\\\(/gs;
-	
-	# NOTE: This might become too expensive, in which case we may need to create a connection to journald
-	#       that we can leave open during a run.
-	if ((not defined $tag) or (not defined $priority_string) or (not defined $an->data->{path}{exe}{logger}))
-	{
-		die $THIS_FILE." ".__LINE__."; Something not defined in Log->entry; path::exe::logger: [".$an->data->{path}{exe}{logger}."], tag: [".$tag."], 'defaults::log::tag': [".$an->data->{defaults}{'log'}{tag}."], priority_string: [".$priority_string."]\n";
-	}
-	my $shell_call = $an->data->{path}{exe}{logger}." --id --tag ".$tag." --priority ".$priority_string;
-	if ($server)
-	{
-		$shell_call .= " --server ".$server;
-	}
-	$shell_call .= " -- \"".$string."\"";
-	
-	# Record it!
-	#print $THIS_FILE." ".__LINE__."; [ Debug ] - shell_call: [$shell_call]\n";
-	open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
-	while(<$file_handle>)
-	{
-		# This should never be hit...
-		chomp;
-		warn $THIS_FILE." ".__LINE__."; [ Warning ] - Unexpected output from: [".$shell_call."] -> [".$_."]\n";
-	}
-	close $file_handle;
+	# Log with Log::Journald
+	Log::Journald::send(
+		PRIORITY          => $priority, 
+		MESSAGE           => $string, 
+		CODE_FILE         => $source, 
+		CODE_LINE         => $line, 
+		SYSLOG_FACILITY   => $secure ? "authpriv" : $facility,
+		SYSLOG_IDENTIFIER => $tag,
+	);
 	
 	return(0);
 }
