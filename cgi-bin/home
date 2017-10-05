@@ -23,7 +23,7 @@ my $an = AN::Tools->new();
 print $an->Template->get({file => "shared.html", name => "http_headers"})."\n";
 
 # Set the log level to 2. Setting 3 slows he program down a LOT.
-$an->Log->level({set => 3});
+$an->Log->level({set => 2});
 
 # Read in our words file.
 $an->Words->read({file => $an->data->{path}{directories}{'cgi-bin'}."/words.xml"});
@@ -711,7 +711,7 @@ sub get_network_details
 	
 	# Now read the network.xml
 	my $file = $an->data->{path}{directories}{html}."/status/network.xml";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
 	
 	# Parse...
 	my $xml     = XML::Simple->new();
@@ -732,14 +732,28 @@ sub get_network_details
 		foreach my $interface (sort {$a cmp $b} keys %{$data->{interface}})
 		{
 			$an->data->{interfaces}{$interface} = {
-				mac    => $data->{interface}{$interface}{mac},
-				speed  => $data->{interface}{$interface}{speed},
-				'link' => $data->{interface}{$interface}{'link'}
+				bond    => $data->{interface}{$interface}{bond}, 
+				bridge  => $data->{interface}{$interface}{bridge}, 
+				duplex  => $data->{interface}{$interface}{duplex}, 
+				'link'  => $data->{interface}{$interface}{'link'}, 
+				mac     => $data->{interface}{$interface}{mac},
+				media   => $data->{interface}{$interface}{media},
+				mtu     => $data->{interface}{$interface}{mtu},
+				order   => $data->{interface}{$interface}{order},
+				speed   => $data->{interface}{$interface}{speed},
+				'state' => $data->{interface}{$interface}{'state'},
 			};
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"interfaces::${interface}::mac"   => $an->data->{interfaces}{$interface}{mac}, 
-				"interfaces::${interface}::speed" => $an->data->{interfaces}{$interface}{speed}, 
-				"interfaces::${interface}::link"  => $an->data->{interfaces}{$interface}{'link'}, 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"interfaces::${interface}::bond"   => $an->data->{interfaces}{$interface}{bond}, 
+				"interfaces::${interface}::bridge" => $an->data->{interfaces}{$interface}{bridge}, 
+				"interfaces::${interface}::duplex" => $an->data->{interfaces}{$interface}{duplex}, 
+				"interfaces::${interface}::link"   => $an->data->{interfaces}{$interface}{'link'}, 
+				"interfaces::${interface}::mac"    => $an->data->{interfaces}{$interface}{mac}, 
+				"interfaces::${interface}::media"  => $an->data->{interfaces}{$interface}{media}, 
+				"interfaces::${interface}::mtu"    => $an->data->{interfaces}{$interface}{mtu}, 
+				"interfaces::${interface}::order"  => $an->data->{interfaces}{$interface}{order}, 
+				"interfaces::${interface}::speed"  => $an->data->{interfaces}{$interface}{speed}, 
+				"interfaces::${interface}::state"  => $an->data->{interfaces}{$interface}{'state'}, 
 			}});
 		}
 	}
@@ -774,17 +788,19 @@ sub get_network_details_form
 		{
 			$interface_list .= "$interface,";
 			$network .= $an->Template->get({file => "main.html", name => "network_entry", variables => {
-				#mac            => $data->{interface}{$interface}{mac},
-				mac            => "",
-				mac_id         => $interface."_mac",
-				name           => $interface,
-				name_id        => $interface."_name",
-				#speed          => $data->{interface}{$interface}{speed},
-				speed          => "",
-				speed_id       => $interface."_speed",
-				#'link'         => $data->{interface}{$interface}{'link'},
-				'link'         => "",
-				link_id        => $interface."_link",
+				#mac     => $data->{interface}{$interface}{mac},
+				mac      => "",
+				mac_id   => $interface."_mac",
+				name     => $interface,
+				name_id  => $interface."_name",
+				#speed   => $data->{interface}{$interface}{speed},
+				speed    => "",
+				speed_id => $interface."_speed",
+				#'link'  => $data->{interface}{$interface}{'link'},
+				'link'   => "",
+				link_id  => $interface."_link",
+				order    => "",
+				order_id => $interface."_order",
 			}});
 		}
 		$interface_list =~ s/,$//;

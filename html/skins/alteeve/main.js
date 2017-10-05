@@ -12,7 +12,7 @@ $(function() {
 			$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
 				$.each(data.networks, function(index, element) {
 					
-					console.log('entry: ['+index+'], name: ['+element.name+'], mac: ['+element.mac+'], link: ['+element.link+']');
+					console.log('entry: ['+index+'], name: ['+element.name+'], mac: ['+element.mac+'], link: ['+element.link+'], up order: ['+element.order+']');
 					
 					var link = say_up;
 					if (element.link == 0) {
@@ -21,6 +21,7 @@ $(function() {
 					$("#"+element.name+"_mac").text(element.mac);
 					$("#"+element.name+"_link").text(link);
 					$("#"+element.name+"_speed").text(element.speed+' '+say_speed_suffix);
+					$("#"+element.name+"_order").text(element.order);
 				});
 			});
 		}, 1000);

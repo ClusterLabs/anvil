@@ -902,10 +902,10 @@ sub connect
 			if (not $an->data->{sys}{db_timestamp})
 			{
 				my $query = "SELECT cast(now() AS timestamp with time zone)::timestamptz(0);";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				
 				$an->data->{sys}{db_timestamp} = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::db_timestamp" => $an->data->{sys}{db_timestamp} }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::db_timestamp" => $an->data->{sys}{db_timestamp} }});
 			}
 			
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -1346,7 +1346,7 @@ sub insert_or_update_hosts
 	my $host_type = $parameter->{host_type} ? $parameter->{host_type} : $an->System->determine_host_type;
 	my $host_uuid = $parameter->{host_uuid} ? $parameter->{host_uuid} : $an->Get->host_uuid;
 	my $id        = $parameter->{id}        ? $parameter->{id}        : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		host_name => $host_name, 
 		host_type => $host_type, 
 		host_uuid => $host_uuid, 
@@ -1378,11 +1378,11 @@ FROM
 WHERE 
     host_uuid = ".$an->data->{sys}{use_db_fh}->quote($host_uuid)."
 ;";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	my $results = $an->Database->query({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -1390,7 +1390,7 @@ WHERE
 	{
 		$old_host_name = $row->[0];
 		$old_host_type = $row->[1];
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			old_host_name => $old_host_name, 
 			old_host_type => $old_host_type, 
 		}});
@@ -1414,7 +1414,7 @@ INSERT INTO
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 	}
 	elsif (($old_host_name ne $host_name) or ($old_host_type ne $host_type))
@@ -1431,7 +1431,7 @@ WHERE
     host_uuid     = ".$an->data->{sys}{use_db_fh}->quote($host_uuid)."
 ;";
 		$query =~ s/'NULL'/NULL/g;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 	}
 	
@@ -1521,7 +1521,7 @@ sub insert_or_update_network_interfaces
 	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "--";
 	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : "--";
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		id                            => $id, 
 		network_interface_bond_uuid   => $network_interface_bond_uuid, 
 		network_interface_bridge_uuid => $network_interface_bridge_uuid, 
@@ -1547,11 +1547,11 @@ sub insert_or_update_network_interfaces
 	{
 		# See if I know this NIC by referencing it's MAC.
 		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$an->data->{sys}{use_db_fh}->quote($network_interface_mac_address).";";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		
 		$network_interface_uuid = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$network_interface_uuid = "" if not defined $network_interface_uuid;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_uuid => $network_interface_uuid }});
 	}
 	
 	# Now, if we're inserting or updating, we'll need to require different bits.
@@ -1576,11 +1576,11 @@ FROM
 WHERE 
     network_interface_uuid = ".$an->data->{sys}{use_db_fh}->quote($network_interface_uuid).";
 ";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		
 		my $results = $an->Database->query({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			results => $results, 
 			count   => $count,
 		}});
@@ -1597,7 +1597,7 @@ WHERE
 			my $old_network_interface_medium      = defined $row->[8]  ? $row->[8]  : "";
 			my $old_network_interface_bond_uuid   = defined $row->[9]  ? $row->[9]  : "";
 			my $old_network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : "";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				old_network_interface_host_uuid   => $old_network_interface_host_uuid,
 				old_network_interface_mac_address => $old_network_interface_mac_address,
 				old_network_interface_name        => $old_network_interface_name,
@@ -1679,7 +1679,7 @@ WHERE
     network_interface_uuid        = ".$an->data->{sys}{use_db_fh}->quote($network_interface_uuid)."
 ;";
 				$query =~ s/'NULL'/NULL/g;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 			}
 			else
@@ -1728,7 +1728,7 @@ WHERE
 		
 		# And INSERT
 		$network_interface_uuid = $an->Get->uuid;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_uuid => $network_interface_uuid }});
 		
 		my $query = "
 INSERT INTO 
@@ -1764,7 +1764,7 @@ INSERT INTO
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		$an->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
 	}
 	
@@ -2767,7 +2767,7 @@ sub read_variable
 	my $variable_source_uuid  = $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "NULL";
 	my $variable_source_table = $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "NULL";
 	my $id                    = $parameter->{id}                    ? $parameter->{id}                    : $an->data->{sys}{read_db_id};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		variable_uuid         => $variable_uuid, 
 		variable_name         => $variable_name, 
 		variable_source_uuid  => $variable_source_uuid, 
@@ -2811,13 +2811,13 @@ AND
 		}
 	}
 	$query .= ";";
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
 	
 	my $variable_value = "";
 	my $modified_date  = "";
 	my $results        = $an->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count          = @{$results};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -2826,14 +2826,14 @@ AND
 		$variable_value = defined $row->[0] ? $row->[0] : "";
 		$variable_uuid  =         $row->[1];
 		$modified_date  =         $row->[2];
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			variable_value => $variable_value, 
 			variable_uuid  => $variable_uuid, 
 			modified_date  => $modified_date, 
 		}});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		variable_value => $variable_value, 
 		variable_uuid  => $variable_uuid, 
 		modified_date  => $modified_date, 

@@ -22,9 +22,10 @@ This is the AN::Tools master 'words' file.
 		
 		<key name="header_0001">Current Network Interfaces and States</key>
 		<key name="header_0002">MAC Address</key>
-		<key name="header_0003">Current Name</key>
-		<key name="header_0004">Link State</key>
-		<key name="header_0005">Link Speed (Mbps)</key>
+		<key name="header_0003">Name</key>
+		<key name="header_0004">State</key>
+		<key name="header_0005">Speed</key>
+		<key name="header_0006">Up Order</key>
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
