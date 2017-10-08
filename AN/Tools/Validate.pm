@@ -12,10 +12,13 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Validate.pm";
 
 ### Methods;
+# form_field
 # is_alphanumeric
 # is_domain_name
 # is_ipv4
+# is_mac
 # is_positive_integer
+# is_subnet
 # is_uuid
 
 =pod
@@ -80,6 +83,132 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 form_field
+
+This validates that a given HTML form field is valid. It takes an input ID and the type of data that is expected. If it is sane, C<< 1 >> is returned. If it fails to validate, C<< 0 >> is returned and C<< cgi::<name>::alert >> is set to C<< 1 >>.
+
+=head2 Parameters;
+
+=head3 empty_ok (optional)
+
+This can be set to C<< 1 >> to have this method return valid is the variable exists, is defined by is an empty string.
+
+=head3 name (required)
+
+This is the input field name, which is used to check C<< cgi::<name>::value >>.
+
+=head3 type (required)
+
+This is the type to be checked. Valid options are;
+
+=head4 alphanumeric
+
+=head4 domain_name
+
+=head4 ipv4
+
+=head4 mac
+
+=head4 positive_integer
+
+If this type is used, you can use the C<< zero >> parameter which can be set to C<< 1 >>  to have a value of C<< 0 >> be considered valid.
+
+=head4 subnet
+
+=head4 uuid
+
+=cut
+sub form_field
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $valid    = 1;
+	my $debug    = 2;
+	my $name     = defined $parameter->{name}     ? $parameter->{name}     : "";
+	my $type     = defined $parameter->{type}     ? $parameter->{type}     : "";
+	my $empty_ok = defined $parameter->{empty_ok} ? $parameter->{empty_ok} : 0;
+	my $zero     = defined $parameter->{zero}     ? $parameter->{zero}     : 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		name     => $name,
+		type     => $type,
+		empty_ok => $empty_ok,
+	}});
+	
+	if ((not $name) or (not $type))
+	{
+		$valid = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	else
+	{
+		if ((not exists $an->data->{cgi}{$name}{value}) or (not defined $an->data->{cgi}{$name}{value}))
+		{
+			# Not defined
+			$valid = 0;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+		}
+		else
+		{
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cgi::${name}::value" => $an->data->{cgi}{$name}{value} }});
+			if (not $an->data->{cgi}{$name}{value})
+			{
+				if (not $empty_ok)
+				{
+					$valid = 0;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+				}
+			}
+			elsif (($type eq "alphanumeric") && (not $an->Validate->is_alphanumeric({string => $an->data->{cgi}{$name}{value}})))
+			{
+				$valid                         = 0;
+				$an->data->{cgi}{$name}{alert} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $an->data->{cgi}{$name}{alert} }});
+			}
+			elsif (($type eq "domain_name") && (not $an->Validate->is_domain_name({name => $an->data->{cgi}{$name}{value}})))
+			{
+				$valid                         = 0;
+				$an->data->{cgi}{$name}{alert} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $an->data->{cgi}{$name}{alert} }});
+			}
+			elsif (($type eq "ipv4") && (not $an->Validate->is_ipv4({ip => $an->data->{cgi}{$name}{value}})))
+			{
+				$valid                         = 0;
+				$an->data->{cgi}{$name}{alert} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $an->data->{cgi}{$name}{alert} }});
+			}
+			elsif (($type eq "mac") && (not $an->Validate->is_mac({mac => $an->data->{cgi}{$name}{value}})))
+			{
+				$valid                         = 0;
+				$an->data->{cgi}{$name}{alert} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $an->data->{cgi}{$name}{alert} }});
+			}
+			elsif (($type eq "positive_integer") && (not $an->Validate->is_positive_integer({number => $an->data->{cgi}{$name}{value}, zero => $zero})))
+			{
+				$valid                         = 0;
+				$an->data->{cgi}{$name}{alert} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $an->data->{cgi}{$name}{alert} }});
+			}
+			elsif (($type eq "subnet") && (not $an->Validate->is_subnet({subnet => $an->data->{cgi}{$name}{value}})))
+			{
+				$valid                         = 0;
+				$an->data->{cgi}{$name}{alert} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $an->data->{cgi}{$name}{alert} }});
+			}
+			elsif (($type eq "uuid") && (not $an->Validate->is_uuid({uuid => $an->data->{cgi}{$name}{value}})))
+			{
+				$valid                         = 0;
+				$an->data->{cgi}{$name}{alert} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $an->data->{cgi}{$name}{alert} }});
+			}
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
 
 =head2 is_alphanumeric
 
@@ -234,6 +363,39 @@ sub is_ipv4
 	return($valid);
 }
 
+=head2 is_mac
+
+Checks if the passed-in string is a valid network MAC address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+=head2 Parameters;
+
+=head3 mac (required)
+
+This is the network MAC address to verify.
+
+=cut
+sub is_mac
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $debug = 3;
+	my $mac   = defined $parameter->{mac} ? $parameter->{mac} : "";
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac => $mac }});
+	
+	my $valid = 0;
+	if ($mac =~ /^([0-9a-f]{2}([:-]|$)){6}$/i)
+	{
+		# It is in the right format.
+		$valid = 1;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
 =head2 is_positive_integer
 
 This method verifies that the passed in value is a positive integer. 
@@ -292,6 +454,61 @@ sub is_positive_integer
 	return($valid);
 }
 
+=head2 is_subnet
+
+This method takes a subnet string and checks to see if it is a valid IPv4 address or CIDR notation. It returns 'C<< 1 >>' if it is a valid address. Otherwise it returns 'C<< 0 >>'.
+
+=head2 Parameters;
+
+=head3 subnet (required)
+
+This is the address to verify.
+
+=cut
+sub is_subnet
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	
+	my $valid  = 0;
+	my $debug  = 3;
+	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : 0;
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet => $subnet }});
+	
+	if ($subnet)
+	{
+		# We have something. Is it an IPv4 address?
+		if ($an->Validate->is_ipv4({ip => $subnet}))
+		{
+			# It is. Try converting it to a CIDR notation. If we get an empty string back, it isn't valid.
+			my $cidr = $an->Convert->cidr({subnet => $subnet});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cidr => $cidr }});
+			if ($cidr)
+			{
+				# It's valid.
+				$valid = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+			}
+			else
+			{
+				# OK, maybe it's a CIDR notation?
+				my $ip = $an->Convert->cidr({cidr => $subnet});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+				if ($ip)
+				{
+					# There we go.
+					$valid = 1;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+				}
+			}
+		}
+	}
+	
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
 =head2 is_uuid
 
 This method takes a UUID string and returns 'C<< 1 >>' if it is a valid UUID string. Otherwise it returns 'C<< 0 >>'.
@@ -326,3 +543,6 @@ sub is_uuid
 	
 	return($valid);
 }
+
+1;
+ 

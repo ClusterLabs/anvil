@@ -2020,7 +2020,7 @@ sub insert_or_update_variables
 	my $self      = shift;
 	my $parameter = shift;
 	my $an        = $self->parent;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
 	
 	my $variable_uuid         = defined $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = defined $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
@@ -2031,7 +2031,8 @@ sub insert_or_update_variables
 	my $variable_source_uuid  = defined $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "NULL";
 	my $variable_source_table = defined $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "NULL";
 	my $update_value_only     = defined $parameter->{update_value_only}     ? $parameter->{update_value_only}     : 1;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	my $log_level             = defined $parameter->{log_level}             ? $parameter->{log_level}             : 3;	# Undocumented for now.
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 		variable_uuid         => $variable_uuid, 
 		variable_name         => $variable_name, 
 		variable_value        => $variable_value, 
@@ -2041,6 +2042,7 @@ sub insert_or_update_variables
 		variable_source_uuid  => $variable_source_uuid, 
 		variable_source_table => $variable_source_table, 
 		update_value_only     => $update_value_only, 
+		log_level             => $log_level, 
 	}});
 	
 	# We'll need either the name or UUID.
@@ -2062,11 +2064,11 @@ FROM
     variables 
 WHERE 
     variable_uuid = ".$an->data->{sys}{use_db_fh}->quote($variable_uuid);
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
 		$variable_name = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$variable_name = "" if not defined $variable_name;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_name => $variable_name }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_name => $variable_name }});
 	}
 	
 	if (($variable_name) && (not $variable_uuid))
@@ -2088,23 +2090,23 @@ AND
 ";
 		}
 		$query .= ";";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
 		my $results = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 			results => $results, 
 			count   => $count,
 		}});
 		foreach my $row (@{$results})
 		{
 			$variable_uuid = $row->[0];
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_uuid => $variable_uuid }});
 		}
 	}
 	
 	# If I still don't have an variable_uuid, we're INSERT'ing .
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_uuid => $variable_uuid }});
 	if (not $variable_uuid)
 	{
 		# INSERT
@@ -2135,7 +2137,7 @@ INSERT INTO
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
 		$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
@@ -2161,18 +2163,18 @@ AND
 ";
 			}
 			$query .= ";";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 			
 			my $results = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 				results => $results, 
 				count   => $count,
 			}});
 			foreach my $row (@{$results})
 			{
 				my $old_variable_value = defined $row->[0] ? $row->[0] : "";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_variable_value => $old_variable_value }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { old_variable_value => $old_variable_value }});
 				
 				# Anything change?
 				if ($old_variable_value ne $variable_value)
@@ -2197,7 +2199,7 @@ AND
 					}
 					$query .= ";";
 					$query =~ s/'NULL'/NULL/g;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 					
 					$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 				}
@@ -2218,11 +2220,11 @@ FROM
 WHERE 
     variable_uuid = ".$an->data->{sys}{use_db_fh}->quote($variable_uuid)." 
 ;";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 			
 			my $results = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 				results => $results, 
 				count   => $count,
 			}});
@@ -2233,7 +2235,7 @@ WHERE
 				my $old_variable_default     = $row->[2] ? $row->[2] : "NULL";
 				my $old_variable_description = $row->[3] ? $row->[3] : "NULL";
 				my $old_variable_section     = $row->[4] ? $row->[4] : "NULL";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 					old_variable_name        => $old_variable_name, 
 					old_variable_value       => $old_variable_value, 
 					old_variable_default     => $old_variable_default, 
@@ -2263,7 +2265,7 @@ WHERE
     variable_uuid        = ".$an->data->{sys}{use_db_fh}->quote($variable_uuid)." 
 ";
 					$query =~ s/'NULL'/NULL/g;
-					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 					
 					$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 				}
@@ -2271,7 +2273,7 @@ WHERE
 		}
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_uuid => $variable_uuid }});
 	return($variable_uuid);
 }
 
@@ -3233,7 +3235,7 @@ sub write
 	my $secure  = $parameter->{secure}  ? $parameter->{secure} : 0;
 	my $source  = $parameter->{source}  ? $parameter->{source} : $THIS_FILE;
 	my $reenter = $parameter->{reenter} ? $parameter->{reenter} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		id                    => $id, 
 		"cache::db_fh::${id}" => $an->data->{cache}{db_fh}{$id}, 
 		line                  => $line, 
@@ -3262,14 +3264,14 @@ sub write
 	my @db_ids;
 	if ($id)
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
 		push @db_ids, $id;
 	}
 	else
 	{
 		foreach my $id (sort {$a cmp $b} keys %{$an->data->{cache}{db_fh}})
 		{
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
 			push @db_ids, $id;
 		}
 	}
@@ -3278,19 +3280,19 @@ sub write
 	my $limit     = 25000;
 	my $count     = 0;
 	my $query_set = [];
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
 	if ($an->data->{sys}{database}{maximum_batch_size})
 	{
 		if ($an->data->{sys}{database}{maximum_batch_size} =~ /\D/)
 		{
 			# Bad value.
 			$an->data->{sys}{database}{maximum_batch_size} = 25000;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::maximum_batch_size" => $an->data->{sys}{database}{maximum_batch_size} }});
 		}
 		
 		# Use the set value now.
 		$limit = $an->data->{sys}{database}{maximum_batch_size};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { limit => $limit }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { limit => $limit }});
 	}
 	if (ref($query) eq "ARRAY")
 	{
@@ -3299,7 +3301,7 @@ sub write
 		
 		# If I am re-entering, then we'll proceed normally. If not, and if we have more than 10k 
 		# queries, we'll split up the queries into 10k chunks and re-enter.
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			count   => $count, 
 			limit   => $limit, 
 			reenter => $reenter, 
@@ -3308,7 +3310,7 @@ sub write
 		{
 			my $i    = 0;
 			my $next = $limit;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i, 'next' => $next }});
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { i => $i, 'next' => $next }});
 			foreach my $this_query (@{$query})
 			{
 				push @{$query_set}, $this_query;
@@ -3327,7 +3329,7 @@ sub write
 						# This can get memory intensive, so check our RAM usage and 
 						# bail if we're eating too much.
 						my $ram_use = $an->System->check_memory({program_name => $THIS_FILE});
-						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ram_use => $ram_use }});
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ram_use => $ram_use }});
 						
 						# Wipe out the old set array, create it as a new anonymous array and reset 'i'.
 						undef $query_set;
@@ -3353,11 +3355,11 @@ sub write
 	foreach my $id (@db_ids)
 	{
 		# Test access to the DB before we do the actual query
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id => $id }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
 		$an->Database->_test_access({id => $id});
 		
 		# Do the actual query(ies)
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			id    => $id, 
 			count => $count, 
 		}});
@@ -3391,7 +3393,7 @@ sub write
 				}});
 		}
 		
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 		if ($count)
 		{
 			# Commit the changes.
@@ -3399,7 +3401,7 @@ sub write
 		}
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 	if ($count)
 	{
 		# Free up some memory.

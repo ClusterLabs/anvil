@@ -132,6 +132,7 @@ sub get
 		name     => $name, 
 		skin     => $skin, 
 	}});
+	my $show_name = $name eq "http_headers" ? 0 : 1;
 	
 	my $error = 0;
 	if (not $file)
@@ -187,6 +188,10 @@ sub get
 			if ($line =~ /^<!-- start $name -->/)
 			{
 				$in_template = 1;
+				if ($show_name)
+				{
+					$template .= $line."\n";
+				}
 				next;
 			}
 			if ($in_template)
@@ -194,6 +199,10 @@ sub get
 				if ($line =~ /^<!-- end $name -->/)
 				{
 					$in_template = 0;
+					if ($show_name)
+					{
+						$template .= $line."\n";
+					}
 					last;
 				}
 				else

@@ -199,8 +199,9 @@
 						<input type="submit" name="next" id="next" value="#!string!striker_0013!#">
 					</td>
 				</tr>
-				<input type="hidden" name="step" id="step" value="step2">
-				<input type="hidden" name="cgi_list" id="cgi_list" value="organization,prefix,domain,sequence,next,step,#!variable!cgi_list!#">
+				<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
+				<input type="hidden" name="step"      id="step"      value="step2">
+				<input type="hidden" name="cgi_list"  id="cgi_list"  value="organization,prefix,domain,sequence,next,step,#!variable!cgi_list!#">
 				</form>
 				</div>
 			</table>
@@ -274,10 +275,59 @@
 						</table>
 <!-- end bonded_interface_form -->
 
+<!-- start single_interface_form -->
+						<table>
+							<tr>
+								<td colspan="5" class="form_group_header1">
+									#!variable!field!#
+								</td>
+							</tr>
+							<tr>
+								<td colspan="5" class="form_group_header2">
+									#!variable!description!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0024!#
+								</td>
+								<td>
+									<input type="text" name="#!variable!ip_key!#" id="#!variable!ip_key!#" value="#!variable!ip_value!#" placeholder="#!string!striker_0024!#" class="#!variable!ip_class!#">
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									#!string!striker_0028!#
+								</td>
+								<td>
+									#!variable!iface1_select!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0025!#
+								</td>
+								<td>
+									<input type="text" name="#!variable!subnet_key!#" id="#!variable!subnet_key!#" value="#!variable!subnet_value!#" placeholder="#!string!striker_0025!#" class="#!variable!subnet_class!#">
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									&nbsp;
+								</td>
+							</tr>
+						</table>
+<!-- end single_interface_form -->
+
 <!-- start network_header -->
 						<table id="network_status" class="data_table_nowrap">
 							<tr>
-								<td colspan="4" class="column_header">
+								<td colspan="5" class="column_header">
 									#!string!header_0001!#
 								</td>
 							</tr>

@@ -99,6 +99,22 @@ elsif ($an->data->{cgi}{step}{value} eq "step1")
 		$body = config_step1($an);
 	}
 }
+elsif ($an->data->{cgi}{step}{value} eq "step2")
+{
+	# Sanity check step1.
+	my $sane = sanity_check_step2($an);
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+	if ($sane)
+	{
+		# Step 1 was sanem show step 2.
+		$body = config_step3($an);
+	}
+	else
+	{
+		# No good
+		$body = config_step2($an);
+	}
+}
 else
 {
 	$body = get_network_details_form($an);
@@ -167,13 +183,12 @@ sub config_step2
 		foreach my $bcn (1..$bcn_count)
 		{
 			push @{$links}, "bcn_link".$bcn;
-			my $this_bcn_key      =  "bcn".$bcn;
 			my $this_ip_key       =  "bcn".$bcn."_ip";
 			my $this_subnet_key   =  "bcn".$bcn."_subnet";
 			my $this_iface1_key   =  "bcn".$bcn."_iface1_mac";
 			my $this_iface2_key   =  "bcn".$bcn."_iface2_mac";
 			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
-			my $this_ip           =  generate_ip($an, "bcn", 1, $an->data->{cgi}{sequence}{value});
+			my $this_ip           =  generate_ip($an, "bcn", $bcn, $an->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $an->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
 			my $this_subnet_class =  $an->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
@@ -210,17 +225,17 @@ sub config_step2
 			}});
 		}
 		
+		# IFN
 		my $ifn_count = $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : 1;
 		foreach my $ifn (1..$ifn_count)
 		{
 			push @{$links}, "ifn_link".$ifn;
-			my $this_ifn_key      =  "ifn".$ifn;
 			my $this_ip_key       =  "ifn".$ifn."_ip";
 			my $this_subnet_key   =  "ifn".$ifn."_subnet";
 			my $this_iface1_key   =  "ifn".$ifn."_iface1_mac";
 			my $this_iface2_key   =  "ifn".$ifn."_iface2_mac";
 			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
-			my $this_ip           =  generate_ip($an, "ifn", 1, $an->data->{cgi}{sequence}{value});
+			my $this_ip           =  generate_ip($an, "ifn", $ifn, $an->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $an->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
 			my $this_subnet_class =  $an->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
@@ -260,6 +275,79 @@ sub config_step2
 	else
 	{
 		### Show the single iface per network form.
+		# BCN
+		my $bcn_count = $an->data->{cgi}{bcn_count}{value} ? $an->data->{cgi}{bcn_count}{value} : 1;
+		foreach my $bcn (1..$bcn_count)
+		{
+			push @{$links}, "bcn_link".$bcn;
+			my $this_ip_key       =  "bcn".$bcn."_ip";
+			my $this_subnet_key   =  "bcn".$bcn."_subnet";
+			my $this_iface1_key   =  "bcn".$bcn."_iface1_mac";
+			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",";
+			my $this_ip           =  generate_ip($an, "bcn", $bcn, $an->data->{cgi}{sequence}{value});
+			my $this_ip_class     =  $an->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_class =  $an->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface1_class =  $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
+			
+			# Build the interface select boxes...
+			my $this_iface1_form = $an->Template->select_form({
+				name     => $this_iface1_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $an->data->{cgi}{$this_iface1_key}{value} ? $an->data->{cgi}{$this_iface1_key}{value} : "",
+				class    => $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear",
+			});
+			
+			# Assemble the form
+			$interface_form .= $an->Template->get({file => "main.html", name => "single_interface_form", variables => {
+				field         => $an->Words->string({key => "striker_0018", variables => { number => $bcn }}),
+				description   => "#!string!striker_0019!#",
+				ip_key        => $this_ip_key,
+				ip_value      => defined $an->data->{cgi}{$this_ip_key}{value} ? $an->data->{cgi}{$this_ip_key}{value} : $this_ip,
+				ip_class      => $this_ip_class,
+				subnet_key    => $this_subnet_key, 
+				subnet_value  => defined $an->data->{cgi}{$this_subnet_key}{value} ? $an->data->{cgi}{$this_subnet_key}{value} : $an->data->{'default'}{bcn}{netmask},
+				subnet_class  => $this_subnet_class,
+				iface1_select => $this_iface1_form,
+			}});
+		}
+		
+		# IFN
+		my $ifn_count = $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : 1;
+		foreach my $ifn (1..$ifn_count)
+		{
+			push @{$links}, "ifn_link".$ifn;
+			my $this_ip_key       =  "ifn".$ifn."_ip";
+			my $this_subnet_key   =  "ifn".$ifn."_subnet";
+			my $this_iface1_key   =  "ifn".$ifn."_iface1_mac";
+			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",";
+			my $this_ip           =  generate_ip($an, "ifn", $ifn, $an->data->{cgi}{sequence}{value});
+			my $this_ip_class     =  $an->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_class =  $an->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface1_class =  $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
+			
+			# Build the interface select boxes...
+			my $this_iface1_form = $an->Template->select_form({
+				name     => $this_iface1_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $an->data->{cgi}{$this_iface1_key}{value} ? $an->data->{cgi}{$this_iface1_key}{value} : "",
+				class    => $an->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear",
+			});
+			
+			# Assemble the form
+			$interface_form .= $an->Template->get({file => "main.html", name => "single_interface_form", variables => {
+				field         => $an->Words->string({key => "striker_0022", variables => { number => $ifn }}),
+				description   => "#!string!striker_0023!#",
+				ip_key        => $this_ip_key,
+				ip_value      => defined $an->data->{cgi}{$this_ip_key}{value} ? $an->data->{cgi}{$this_ip_key}{value} : $this_ip,
+				ip_class      => $this_ip_class,
+				subnet_key    => $this_subnet_key, 
+				subnet_value  => defined $an->data->{cgi}{$this_subnet_key}{value} ? $an->data->{cgi}{$this_subnet_key}{value} : $an->data->{'default'}{ifn}{netmask},
+				subnet_class  => $this_subnet_class,
+				iface1_select => $this_iface1_form,
+			}});
+		}
 	}
 	
 	### TODO: Add a form for Gateway, DNS and which interface to use
@@ -343,6 +431,8 @@ sub config_step2
 		extra       => "",
 	}});
 	
+	
+	
 	# Get the table that shows the current interface states.
 	my $interface_states = get_network_details_form($an);
 	
@@ -354,6 +444,7 @@ sub config_step2
 		prefix                   => $an->data->{cgi}{prefix}{value},
 		domain                   => $an->data->{cgi}{domain}{value},
 		sequence                 => $an->data->{cgi}{sequence}{value},
+		bcn_count                => $an->data->{cgi}{bcn_count}{value},
 		ifn_count                => $an->data->{cgi}{ifn_count}{value},
 		interface_form           => $interface_form,
 		interface_states         => $interface_states,
@@ -362,7 +453,7 @@ sub config_step2
 		gateway_form             => $say_gateway,
 		dns_form                 => $say_dns,
 		hostname_form            => $say_hostname,
-		cgi_list                 => $cgi."gateway,hostname,striker_user,striker_password",
+		cgi_list                 => $cgi."organization,prefix,domain,sequence,bcn_count,ifn_count,gateway,hostname,dns,striker_user,striker_password",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step2_body => $step2_body }});
 	
@@ -374,64 +465,182 @@ sub sanity_check_step2
 {
 	my ($an) = @_;
 	
-	# This will flip if we run into a problem. We start by running through step1's sanity checks again. 
-	# This should only fail is someone was passing raw data to us and screwed something up.
-	my $sane = sanity_check_step1($an);
+	# This will flip if we run into a problem.
+	my $sane = 1;
 	
 	# Do we have a host name, striker user and password?
-	if ((not defined $an->data->{cgi}{hostname}{value}) or (not $an->data->{cgi}{hostname}{value}))
+	if (not $an->Validate->form_field({name => "hostname", type => "domain_name"}))
 	{
-		$an->data->{cgi}{hostname}{alert} = 1;
-		$sane                                 = 0;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::hostname::alert" => $an->data->{cgi}{hostname}{alert} }});
+		$sane = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
+	
+	# The user name
 	if ((not defined $an->data->{cgi}{striker_user}{value}) or (not $an->data->{cgi}{striker_user}{value}))
 	{
 		$an->data->{cgi}{striker_user}{alert} = 1;
 		$sane                                 = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_user::alert" => $an->data->{cgi}{striker_user}{alert} }});
 	}
-	if ((not defined $an->data->{cgi}{striker_password}{value}) or (not $an->data->{cgi}{striker_password}{value}))
+	
+	# The password
+	if ((not defined $an->data->{cgi}{striker_password}{value}) or (not $an->data->{cgi}{striker_password}{value}) or (length($an->data->{cgi}{striker_password}{value}) < 6))
 	{
 		$an->data->{cgi}{striker_password}{alert} = 1;
-		$sane                                 = 0;
+		$sane                                     = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_password::alert" => $an->data->{cgi}{striker_password}{alert} }});
 	}
 	
-	# Now it gets a bit tricker as we'll need to loop through the BCNs and IFNs.
-	my $bcn_count = $an->data->{cgi}{bcn_count}{value} ? $an->data->{cgi}{bcn_count}{value} : 1;
-	foreach my $bcn (1..$bcn_count)
+	# The gateway
+	if (not $an->Validate->form_field({name => "gateway", type => "ipv4"}))
 	{
-		my $this_bcn_key      =  "bcn".$bcn;
-		my $this_ip_key       =  "bcn".$bcn."_ip";
-		my $this_subnet_key   =  "bcn".$bcn."_subnet";
-		my $this_iface1_key   =  "bcn".$bcn."_iface1_mac";
-		my $this_iface2_key   =  "bcn".$bcn."_iface2_mac";
-		
-		# If I only have the iface1, we'll create a non-bonded interface (even if the option for a 
-		# bond was presented to the user). So to be sane, we need a valid IP, subnet
-		
+		$sane = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
-	my $ifn_count = $an->data->{cgi}{ifn_count}{value} ? $an->data->{cgi}{ifn_count}{value} : 1;
-	foreach my $ifn (1..$ifn_count)
+	
+	# DNS can be multiple entries, comma-separated.
+	if ((not defined $an->data->{cgi}{dns}{value}) or (not $an->data->{cgi}{dns}{value}))
 	{
-		my $this_ifn_key      =  "ifn".$ifn;
-		my $this_ip_key       =  "ifn".$ifn."_ip";
-		my $this_subnet_key   =  "ifn".$ifn."_subnet";
-		my $this_iface1_key   =  "ifn".$ifn."_iface1_mac";
-		my $this_iface2_key   =  "ifn".$ifn."_iface2_mac";
+		$an->data->{cgi}{dns}{alert} = 1;
+		$sane                        = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::dns::alert" => $an->data->{cgi}{dns}{alert} }});
+	}
+	else
+	{
+		foreach my $ip (split/,/, $an->data->{cgi}{dns}{value})
+		{
+			$ip =~ s/^\s+//;
+			$ip =~ s/\s+$//;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip => $ip }});
+			if (not $an->Validate->is_ipv4({ip => $ip}))
+			{
+				$an->data->{cgi}{dns}{alert} = 1;
+				$sane                        = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::dns::alert" => $an->data->{cgi}{dns}{alert} }});
+			}
+		}
+	}
+	
+	# Look for interfaces and sanity check them.
+	my $links = [];
+	foreach my $network ("bcn", "ifn")
+	{
+		my $count_key     = $network."_count";
+		my $network_count = $an->data->{cgi}{$count_key}{value} ? $an->data->{cgi}{$count_key}{value} : 1;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			network       => $network,
+			count_key     => $count_key, 
+			network_count => $network_count, 
+		}});
+		foreach my $count (1..$network_count)
+		{
+			push @{$links}, $network."_link".$count;
+			my $this_ip_key     = $network.$count."_ip";
+			my $this_subnet_key = $network.$count."_subnet";
+			my $this_iface1_key = $network.$count."_iface1_mac";
+			my $this_iface2_key = $network.$count."_iface2_mac";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				count                            => $count,
+				this_ip_key                      => $this_ip_key, 
+				this_subnet_key                  => $this_subnet_key, 
+				this_iface1_key                  => $this_iface1_key,
+				this_iface2_key                  => $this_iface2_key,
+				"cgi::${this_ip_key}::value"     => $an->data->{cgi}{$this_ip_key}{value}, 
+				"cgi::${this_subnet_key}::value" => $an->data->{cgi}{$this_subnet_key}{value}, 
+				"cgi::${this_iface1_key}::value" => $an->data->{cgi}{$this_iface1_key}{value},
+				"cgi::${this_iface2_key}::value" => $an->data->{cgi}{$this_iface2_key}{value},
+			}});
+			
+			# Is the IP sane?
+			if (not $an->Validate->form_field({name => $this_ip_key, type => "ipv4"}))
+			{
+				# Nope
+				$sane = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+			}
+			
+			# What about the subnet?
+			if (not $an->Validate->form_field({name => $this_subnet_key, type => "subnet"}))
+			{
+				$sane = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+			}
+			
+			# Interface 1 must be set
+			if (not $an->Validate->form_field({name => $this_iface1_key, type => "mac"}))
+			{
+				$sane = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+			}
+			else
+			{
+				# Valid MAC. Has it been assigned elsewhere?
+				my $mac = $an->data->{cgi}{$this_iface1_key}{value};
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac => $mac }});
+				if ((not exists $an->data->{network}{$mac}{set_as}) or (not $an->data->{network}{$mac}{set_as}))
+				{
+					$an->data->{network}{$mac}{set_as} = $this_iface1_key;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::${mac}::set_as" => $an->data->{network}{$mac}{set_as} }});
+				}
+				else
+				{
+					# Conflict! Set the alert for this interface and the conflicting one.
+					my $conflict_key                             = $an->data->{network}{$mac}{set_as};
+					   $an->data->{cgi}{$conflict_key}{alert}    = 1;
+					   $an->data->{cgi}{$this_iface1_key}{alert} = 1;
+					   $sane                                     = 0;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						sane                             => $sane, 
+						"cgi::${conflict_key}::alert"    => $an->data->{cgi}{$conflict_key}{alert},
+						"cgi::${this_iface1_key}::alert" => $an->data->{cgi}{$this_iface1_key}{alert},
+					}});
+				}
+			}
+			
+			# Interface 2 doesn't have to be set.
+			if ((defined $an->data->{cgi}{$this_iface2_key}{value}) && ($an->data->{cgi}{$this_iface2_key}{value}))
+			{
+				if (not $an->Validate->form_field({name => $this_iface2_key, type => "mac"}))
+				{
+					$sane = 0;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+				}
+				else
+				{
+					# Valid MAC. Has it been assigned elsewhere?
+					my $mac = $an->data->{cgi}{$this_iface2_key}{value};
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac => $mac }});
+					if ((not exists $an->data->{network}{$mac}{set_as}) or (not $an->data->{network}{$mac}{set_as}))
+					{
+						$an->data->{network}{$mac}{set_as} = $this_iface2_key;
+					}
+					else
+					{
+						# Conflict! Set the alert for this interface and the conflicting one.
+						my $conflict_key                             = $an->data->{network}{$mac}{set_as};
+						$an->data->{cgi}{$conflict_key}{alert}    = 1;
+						$an->data->{cgi}{$this_iface2_key}{alert} = 1;
+						$sane                                     = 0;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+							sane                             => $sane, 
+							"cgi::${conflict_key}::alert"    => $an->data->{cgi}{$conflict_key}{alert},
+							"cgi::${this_iface2_key}::alert" => $an->data->{cgi}{$this_iface2_key}{alert},
+						}});
+					}
+				}
+			}
+		}
 	}
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
 	return($sane);
 }
 
-
 # This sanity-checks step 1 and returns '1' if there was a problem.
 sub sanity_check_step1
 {
 	my ($an) = @_;
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0131", variables => { function => "sanity_check_step1()" }});
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0131", variables => { function => "sanity_check_step1()" }});
 	
 	# This will flip if we run into a problem.
 	my $sane = 1;
@@ -535,7 +744,7 @@ sub sanity_check_step1
 	get_network_details($an);
 	my $required_interfaces_for_single = 1 + $an->data->{cgi}{ifn_count}{value};
 	my $interface_count                = keys %{$an->data->{interfaces}};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		required_interfaces_for_single => $required_interfaces_for_single,
 		interface_count                => $interface_count,
 	}});
@@ -557,7 +766,7 @@ sub sanity_check_step1
 	}
 	else
 	{
-		# Record the answer.
+		# Sane, Record the answers.
 		$an->Database->insert_or_update_variables({
 			variable_name         => "form::config_step1::ifn_count::value", 
 			variable_value        => $an->data->{cgi}{ifn_count}{value}, 
@@ -607,7 +816,7 @@ sub config_step1
 			variable_source_uuid  => $an->Get->host_uuid, 
 			variable_source_table => "hosts", 
 		});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			organization => $organization, 
 			prefix       => $prefix, 
 			domain       => $domain, 
@@ -620,7 +829,7 @@ sub config_step1
 		$an->data->{cgi}{domain}{value}       = $domain       ne "" ? $domain       : "";
 		$an->data->{cgi}{sequence}{value}     = $sequence     ne "" ? $sequence     : 1;
 		$an->data->{cgi}{ifn_count}{value}    = $ifn_count    ne "" ? $ifn_count    : 1;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			'cgi::organization::value' => $an->data->{cgi}{organization}{value}, 
 			'cgi::prefix::value'       => $an->data->{cgi}{prefix}{value}, 
 			'cgi::domain::value'       => $an->data->{cgi}{domain}{value}, 
@@ -711,7 +920,7 @@ sub get_network_details
 	
 	# Now read the network.xml
 	my $file = $an->data->{path}{directories}{html}."/status/network.xml";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	# Parse...
 	my $xml     = XML::Simple->new();
@@ -743,7 +952,7 @@ sub get_network_details
 				speed   => $data->{interface}{$interface}{speed},
 				'state' => $data->{interface}{$interface}{'state'},
 			};
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"interfaces::${interface}::bond"   => $an->data->{interfaces}{$interface}{bond}, 
 				"interfaces::${interface}::bridge" => $an->data->{interfaces}{$interface}{bridge}, 
 				"interfaces::${interface}::duplex" => $an->data->{interfaces}{$interface}{duplex}, 
@@ -788,15 +997,12 @@ sub get_network_details_form
 		{
 			$interface_list .= "$interface,";
 			$network .= $an->Template->get({file => "main.html", name => "network_entry", variables => {
-				#mac     => $data->{interface}{$interface}{mac},
 				mac      => "",
 				mac_id   => $interface."_mac",
 				name     => $interface,
 				name_id  => $interface."_name",
-				#speed   => $data->{interface}{$interface}{speed},
 				speed    => "",
 				speed_id => $interface."_speed",
-				#'link'  => $data->{interface}{$interface}{'link'},
 				'link'   => "",
 				link_id  => $interface."_link",
 				order    => "",
@@ -815,7 +1021,7 @@ sub get_network_details_form
 sub generate_ip
 {
 	my ($an, $network, $network_sequence, $device_sequence) = @_;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		network          => $network,
 		network_sequence => $network_sequence, 
 		device_sequence  => $device_sequence, 
@@ -827,7 +1033,7 @@ sub generate_ip
 	# The subnet's second octet will be '+X' where 'X' is the sequence.
 	my $default_ip      = $an->data->{'default'}{$network}{subnet};
 	my $default_netmark = $an->data->{'default'}{$network}{netmask};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		default_ip      => $default_ip,
 		default_netmark => $default_netmark, 
 	}});
@@ -836,7 +1042,7 @@ sub generate_ip
 	{
 		# Valid values.
 		my ($ip_octet1, $ip_octet2, $ip_octet3, $ip_octet4) = (split/\./, $default_ip);
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			ip_octet1 => $ip_octet1,
 			ip_octet2 => $ip_octet2,
 			ip_octet3 => $ip_octet3,
@@ -850,7 +1056,7 @@ sub generate_ip
 			$ip_octet3 =  $an->data->{'default'}{bcn}{striker_octet3};
 			$ip_octet4 =  $device_sequence;
 			$ip        =  $ip_octet1.".".$ip_octet2.".".$ip_octet3.".".$ip_octet4;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:ip_octet2" => $ip_octet2,
 				"s2:ip_octet3" => $ip_octet3,
 				"s3:ip_octet4" => $ip_octet4,
@@ -864,6 +1070,6 @@ sub generate_ip
 		$ip = "#!error!#";
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip => $ip }});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip => $ip }});
 	return($ip);
 }

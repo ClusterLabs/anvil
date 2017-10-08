@@ -25,7 +25,7 @@ input[type=text].input_clear, input[type=number].input_clear, select.input_clear
 }
 
 input[type=text].input_alert, input[type=number].input_alert, select.input_alert {
-	border: 2px solid red;
+	border: 1px solid #ff3f3f;
 }
 
 input[type=text], input[type=number] {
