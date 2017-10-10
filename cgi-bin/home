@@ -9,6 +9,7 @@ use strict;
 use warnings;
 use AN::Tools;
 use Data::Dumper;
+use NetAddr::IP;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -474,6 +475,20 @@ sub sanity_check_step2
 		$sane = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
+	else
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step2::hostname::value", 
+			variable_value        => $an->data->{cgi}{hostname}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0017", 
+			variable_section      => "config_step2", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
+	}
 	
 	# The user name
 	if ((not defined $an->data->{cgi}{striker_user}{value}) or (not $an->data->{cgi}{striker_user}{value}))
@@ -481,6 +496,20 @@ sub sanity_check_step2
 		$an->data->{cgi}{striker_user}{alert} = 1;
 		$sane                                 = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_user::alert" => $an->data->{cgi}{striker_user}{alert} }});
+	}
+	else
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step2::striker_user::value", 
+			variable_value        => $an->data->{cgi}{striker_user}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0032", 
+			variable_section      => "config_step2", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
 	}
 	
 	# The password
@@ -490,12 +519,19 @@ sub sanity_check_step2
 		$sane                                     = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_password::alert" => $an->data->{cgi}{striker_password}{alert} }});
 	}
-	
-	# The gateway
-	if (not $an->Validate->form_field({name => "gateway", type => "ipv4"}))
+	else
 	{
-		$sane = 0;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step2::striker_password::value", 
+			variable_value        => $an->data->{cgi}{striker_password}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0034", 
+			variable_section      => "config_step2", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
 	}
 	
 	# DNS can be multiple entries, comma-separated.
@@ -507,6 +543,7 @@ sub sanity_check_step2
 	}
 	else
 	{
+		my $dns_ok = 1;
 		foreach my $ip (split/,/, $an->data->{cgi}{dns}{value})
 		{
 			$ip =~ s/^\s+//;
@@ -516,13 +553,28 @@ sub sanity_check_step2
 			{
 				$an->data->{cgi}{dns}{alert} = 1;
 				$sane                        = 0;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::dns::alert" => $an->data->{cgi}{dns}{alert} }});
+				$dns_ok                      = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, dns_ok => $dns_ok, "cgi::dns::alert" => $an->data->{cgi}{dns}{alert} }});
 			}
+		}
+		if ($dns_ok)
+		{
+			# Record the answer.
+			$an->Database->insert_or_update_variables({
+				variable_name         => "form::config_step2::dns::value", 
+				variable_value        => $an->data->{cgi}{dns}{value}, 
+				variable_default      => "", 
+				variable_description  => "striker_0038", 
+				variable_section      => "config_step2", 
+				variable_source_uuid  => $an->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
 		}
 	}
 	
 	# Look for interfaces and sanity check them.
-	my $links = [];
+	my $networks = {};
 	foreach my $network ("bcn", "ifn")
 	{
 		my $count_key     = $network."_count";
@@ -534,11 +586,11 @@ sub sanity_check_step2
 		}});
 		foreach my $count (1..$network_count)
 		{
-			push @{$links}, $network."_link".$count;
-			my $this_ip_key     = $network.$count."_ip";
-			my $this_subnet_key = $network.$count."_subnet";
-			my $this_iface1_key = $network.$count."_iface1_mac";
-			my $this_iface2_key = $network.$count."_iface2_mac";
+			my $this_network    = $network.$count;
+			my $this_ip_key     = $this_network."_ip";
+			my $this_subnet_key = $this_network."_subnet";
+			my $this_iface1_key = $this_network."_iface1_mac";
+			my $this_iface2_key = $this_network."_iface2_mac";
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				count                            => $count,
 				this_ip_key                      => $this_ip_key, 
@@ -552,11 +604,13 @@ sub sanity_check_step2
 			}});
 			
 			# Is the IP sane?
+			my $ip_ok = 1;
 			if (not $an->Validate->form_field({name => $this_ip_key, type => "ipv4"}))
 			{
 				# Nope
-				$sane = 0;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+				$sane  = 0;
+				$ip_ok = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, ip_ok => $ip_ok }});
 			}
 			
 			# What about the subnet?
@@ -564,6 +618,15 @@ sub sanity_check_step2
 			{
 				$sane = 0;
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+			}
+			elsif ($ip_ok)
+			{
+				# We'll use the dotted-decimal subnet. If it already is, great. If not, convert it.
+				my $say_subnet = $an->data->{cgi}{$this_subnet_key}{value} =~ /^\d{1,2}$/ ? $an->Convert->cide({cidr => $an->data->{cgi}{$this_subnet_key}{value}}) : $an->data->{cgi}{$this_subnet_key}{value};
+				my $full_ip    = $an->data->{cgi}{$this_ip_key}{value}."/".$an->data->{cgi}{$this_subnet_key}{value};
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_subnet => $say_subnet, full_ip => $full_ip }});
+				
+				$networks->{$this_network} = $full_ip;
 			}
 			
 			# Interface 1 must be set
@@ -581,6 +644,18 @@ sub sanity_check_step2
 				{
 					$an->data->{network}{$mac}{set_as} = $this_iface1_key;
 					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::${mac}::set_as" => $an->data->{network}{$mac}{set_as} }});
+					
+					# Record the answer.
+					$an->Database->insert_or_update_variables({
+						variable_name         => "form::config_step2::${this_iface1_key}::value", 
+						variable_value        => $an->data->{cgi}{$this_iface1_key}{value}, 
+						variable_default      => "", 
+						variable_description  => "striker_0029", 
+						variable_section      => "config_step2", 
+						variable_source_uuid  => $an->Get->host_uuid, 
+						variable_source_table => "hosts", 
+						update_value_only     => 1, 
+					});
 				}
 				else
 				{
@@ -613,6 +688,19 @@ sub sanity_check_step2
 					if ((not exists $an->data->{network}{$mac}{set_as}) or (not $an->data->{network}{$mac}{set_as}))
 					{
 						$an->data->{network}{$mac}{set_as} = $this_iface2_key;
+						$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::${mac}::set_as" => $an->data->{network}{$mac}{set_as} }});
+						
+						# Record the answer.
+						$an->Database->insert_or_update_variables({
+							variable_name         => "form::config_step2::${this_iface2_key}::value", 
+							variable_value        => $an->data->{cgi}{$this_iface2_key}{value}, 
+							variable_default      => "", 
+							variable_description  => "striker_0030", 
+							variable_section      => "config_step2", 
+							variable_source_uuid  => $an->Get->host_uuid, 
+							variable_source_table => "hosts", 
+							update_value_only     => 1, 
+						});
 					}
 					else
 					{
@@ -629,6 +717,75 @@ sub sanity_check_step2
 					}
 				}
 			}
+		}
+	}
+	
+	# The gateway, this has to be after the interfaces so that we can match it to an interface (and error
+	# if not)
+	if (not $an->Validate->form_field({name => "gateway", type => "ipv4"}))
+	{
+		$sane = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
+	}
+	else
+	{
+		# Convert the gateway strings to binary.
+		my $gateway = $an->data->{cgi}{gateway}{value};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway => $gateway }});
+	
+		# Match this gateway to one of the interfaces.
+		my $gateway_interface = "";
+		foreach my $this_network (sort {$a cmp $b} keys %{$networks})
+		{
+			my ($this_ip, $this_subnet) = ($networks->{$this_network} =~ /^(.*?)\/(.*)$/);
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:this_network"            => $this_network,
+				"s2:networks->$this_network" => $networks->{$this_network}, 
+				"s3:this_ip"                 => $this_ip, 
+				"s4:this_subnet"             => $this_subnet,
+			}});
+			
+			my $first  = NetAddr::IP->new("$this_ip/$this_subnet");
+			my $second = NetAddr::IP->new("$gateway/$this_subnet");
+
+			if ($second->within($first))
+			{
+				$gateway_interface = $this_network;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_interface => $gateway_interface }});
+			} 
+		}
+		
+		if (not $gateway_interface)
+		{
+			$an->data->{cgi}{gateway}{alert} = 1;
+			$sane                            = 0;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::gateway::alert" => $an->data->{cgi}{gateway}{alert} }});
+		}
+		else
+		{
+			# Record the answer.
+			$an->Database->insert_or_update_variables({
+				variable_name         => "form::config_step2::gateway::value", 
+				variable_value        => $an->data->{cgi}{gateway}{value}, 
+				variable_default      => "", 
+				variable_description  => "striker_0036", 
+				variable_section      => "config_step2", 
+				variable_source_uuid  => $an->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
+			
+			# Record the gateway interface
+			$an->Database->insert_or_update_variables({
+				variable_name         => "form::config_step2::gateway_interface::value", 
+				variable_value        => $gateway_interface, 
+				variable_default      => "", 
+				variable_description  => "", 
+				variable_section      => "config_step2", 
+				variable_source_uuid  => $an->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
 		}
 	}
 	
@@ -690,11 +847,10 @@ sub sanity_check_step1
 	}
 	
 	# We can use Validate to check the domain.
-	if (not $an->Validate->is_domain_name({name => $an->data->{cgi}{domain}{value}}))
+	if (not $an->Validate->form_field({name => "domain", type => "domain_name"}))
 	{
-		$an->data->{cgi}{domain}{alert} = 1;
-		$sane                           = 0;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::domain::alert" => $an->data->{cgi}{domain}{alert} }});
+		$sane = 0;
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
 	else
 	{
