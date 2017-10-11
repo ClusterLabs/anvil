@@ -35,3 +35,10 @@ $(function() {
 		//$("#bar").text('B');
 	}
 });
+
+$( window ).on( "load", function()
+{
+	// NOTE: Disabled for now. Clears the URL to remove everything off after '?'.
+	//var newURL = location.href.split("?")[0];
+	//window.history.pushState('object', document.title, newURL);
+})

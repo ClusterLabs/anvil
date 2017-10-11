@@ -146,10 +146,127 @@ $an->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This shows the user what is about to be done and asks the user to confirm.
+sub config_step3
+{
+	my ($an) = @_;
+	
+	# Read in all the variables from the database. We don't care what was passed, the data in the 
+	# database has been tested and is more valid than, say, a manipulated URL.
+	my $cgi   = "";
+	my $query = "
+SELECT 
+    variable_name, 
+    variable_value 
+FROM 
+    variables 
+WHERE 
+    (variable_section = 'config_step1' OR variable_section = 'config_step2') 
+AND 
+    variable_source_table = 'hosts' 
+AND 
+    variable_source_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->Get->host_uuid)." 
+ORDER BY 
+    variable_name ASC;";
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	
+	my $results = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $variable_name  =         $row->[0];
+		my $variable_value = defined $row->[1] ? $row->[1] : "";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			variable_name  => $variable_name, 
+			variable_value => $variable_value, 
+		}});
+	
+		if ($variable_name =~ /form::config_step2::(.*?)::value/)
+		{
+			my $variable                          =  $1;
+			   $cgi                               .= $variable.",";
+			   $an->data->{cgi}{$variable}{value} =  $variable_value;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${variable}::value" => $an->data->{cgi}{$variable}{value} }});
+		}
+	}
+	
+	# We'll need ot show how networks will be configured. This depends on;
+	# 1. Is it a bonded or single interface?
+	# 2. Is it the interface with the gateway?
+	# 3. If no gateway or DNS was specified, alert that there will be no outside access.
+	foreach my $variable (sort {$a cmp $b} keys %{$an->data->{cgi}})
+	{
+	}
+	
+	# 
+	my $step3_body = $an->Template->get({file => "main.html", name => "config_step3", variables => {
+		step1_welcome_title_id   => "",
+		step1_welcome_message_id => "",
+		organization             => $an->data->{cgi}{organization}{value},
+		prefix                   => $an->data->{cgi}{prefix}{value},
+		domain                   => $an->data->{cgi}{domain}{value},
+		striker_user             => $an->data->{cgi}{striker_user}{value},
+		striker_password         => $an->data->{cgi}{striker_password}{value},
+		cgi_list                 => $cgi."step",
+	}});
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step3_body => $step3_body }});
+	
+	return($step3_body);
+}
+
 # This is step2 where the user maps their network.
 sub config_step2
 {
 	my ($an) = @_;
+	
+	# If I am coming from stage 1, load any values from the database, if they exist.
+	if ($an->data->{cgi}{step}{value} eq "step1")
+	{
+		# First load. See if we can read old data. We don't know for sure what variables will have
+		# been set, so we'll load anything from the group 'config_step2'.
+		my $query = "
+SELECT 
+    variable_name, 
+    variable_value 
+FROM 
+    variables 
+WHERE 
+    variable_section = 'config_step2' 
+AND 
+    variable_source_table = 'hosts' 
+AND 
+    variable_source_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->Get->host_uuid)." 
+ORDER BY 
+    variable_name ASC;";
+		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+		
+		my $results = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $variable_name  =         $row->[0];
+			my $variable_value = defined $row->[1] ? $row->[1] : "";
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				variable_name  => $variable_name, 
+				variable_value => $variable_value, 
+			}});
+		
+			if ($variable_name =~ /form::config_step2::(.*?)::value/)
+			{
+				my $variable                          = $1;
+				   $an->data->{cgi}{$variable}{value} = $variable_value;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cgi::${variable}::value" => $an->data->{cgi}{$variable}{value} }});
+			}
+		}
+	}
 	
 	# We need to decide how many IFNs there is, decide if we have enough NICs and then build the form 
 	# either complaining about insufficient NICs or a list of interfaces (single or bond, depending on
@@ -159,7 +276,7 @@ sub config_step2
 	my $required_interfaces_for_single = 1 + $an->data->{cgi}{ifn_count}{value};
 	my $required_interfaces_for_bonds  = 2 * $required_interfaces_for_single;
 	my $interface_count                = keys %{$an->data->{interfaces}};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		required_interfaces_for_single => $required_interfaces_for_single,
 		required_interfaces_for_bonds  => $required_interfaces_for_bonds,
 		interface_count                => $interface_count,
@@ -534,16 +651,10 @@ sub sanity_check_step2
 		});
 	}
 	
-	# DNS can be multiple entries, comma-separated.
-	if ((not defined $an->data->{cgi}{dns}{value}) or (not $an->data->{cgi}{dns}{value}))
+	# DNS can be multiple entries, comma-separated. It can also be blank, if the user doesn't need Internet access.
+	my $dns_ok = 1;
+	if ((defined $an->data->{cgi}{dns}{value}) and ($an->data->{cgi}{dns}{value}))
 	{
-		$an->data->{cgi}{dns}{alert} = 1;
-		$sane                        = 0;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::dns::alert" => $an->data->{cgi}{dns}{alert} }});
-	}
-	else
-	{
-		my $dns_ok = 1;
 		foreach my $ip (split/,/, $an->data->{cgi}{dns}{value})
 		{
 			$ip =~ s/^\s+//;
@@ -557,20 +668,20 @@ sub sanity_check_step2
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, dns_ok => $dns_ok, "cgi::dns::alert" => $an->data->{cgi}{dns}{alert} }});
 			}
 		}
-		if ($dns_ok)
-		{
-			# Record the answer.
-			$an->Database->insert_or_update_variables({
-				variable_name         => "form::config_step2::dns::value", 
-				variable_value        => $an->data->{cgi}{dns}{value}, 
-				variable_default      => "", 
-				variable_description  => "striker_0038", 
-				variable_section      => "config_step2", 
-				variable_source_uuid  => $an->Get->host_uuid, 
-				variable_source_table => "hosts", 
-				update_value_only     => 1, 
-			});
-		}
+	}
+	if ($dns_ok)
+	{
+		# Record the answer.
+		$an->Database->insert_or_update_variables({
+			variable_name         => "form::config_step2::dns::value", 
+			variable_value        => $an->data->{cgi}{dns}{value}, 
+			variable_default      => "", 
+			variable_description  => "striker_0038", 
+			variable_section      => "config_step2", 
+			variable_source_uuid  => $an->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			update_value_only     => 1, 
+		});
 	}
 	
 	# Look for interfaces and sanity check them.
@@ -612,6 +723,20 @@ sub sanity_check_step2
 				$ip_ok = 0;
 				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, ip_ok => $ip_ok }});
 			}
+			else
+			{
+				# Save the IP
+				$an->Database->insert_or_update_variables({
+					variable_name         => "form::config_step2::${this_ip_key}::value", 
+					variable_value        => $an->data->{cgi}{$this_ip_key}{value}, 
+					variable_default      => "", 
+					variable_description  => "striker_0024", 
+					variable_section      => "config_step2", 
+					variable_source_uuid  => $an->Get->host_uuid, 
+					variable_source_table => "hosts", 
+					update_value_only     => 1, 
+				});
+			}
 			
 			# What about the subnet?
 			if (not $an->Validate->form_field({name => $this_subnet_key, type => "subnet"}))
@@ -624,9 +749,21 @@ sub sanity_check_step2
 				# We'll use the dotted-decimal subnet. If it already is, great. If not, convert it.
 				my $say_subnet = $an->data->{cgi}{$this_subnet_key}{value} =~ /^\d{1,2}$/ ? $an->Convert->cide({cidr => $an->data->{cgi}{$this_subnet_key}{value}}) : $an->data->{cgi}{$this_subnet_key}{value};
 				my $full_ip    = $an->data->{cgi}{$this_ip_key}{value}."/".$an->data->{cgi}{$this_subnet_key}{value};
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_subnet => $say_subnet, full_ip => $full_ip }});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_subnet => $say_subnet, full_ip => $full_ip }});
 				
 				$networks->{$this_network} = $full_ip;
+				
+				# Save the subnet
+				$an->Database->insert_or_update_variables({
+					variable_name         => "form::config_step2::${this_subnet_key}::value", 
+					variable_value        => $an->data->{cgi}{$this_subnet_key}{value}, 
+					variable_default      => "", 
+					variable_description  => "striker_0025", 
+					variable_section      => "config_step2", 
+					variable_source_uuid  => $an->Get->host_uuid, 
+					variable_source_table => "hosts", 
+					update_value_only     => 1, 
+				});
 			}
 			
 			# Interface 1 must be set
@@ -722,7 +859,7 @@ sub sanity_check_step2
 	
 	# The gateway, this has to be after the interfaces so that we can match it to an interface (and error
 	# if not)
-	if (not $an->Validate->form_field({name => "gateway", type => "ipv4"}))
+	if (not $an->Validate->form_field({name => "gateway", type => "ipv4", empty_ok => 1}))
 	{
 		$sane = 0;
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
@@ -730,38 +867,46 @@ sub sanity_check_step2
 	else
 	{
 		# Convert the gateway strings to binary.
-		my $gateway = $an->data->{cgi}{gateway}{value};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway => $gateway }});
-	
-		# Match this gateway to one of the interfaces.
+		my $gateway = defined $an->data->{cgi}{gateway}{value} ? $an->data->{cgi}{gateway}{value} : "";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { gateway => $gateway }});
+		
+		# If there is no gateway, that's OK, there just won't be any Internet access.
 		my $gateway_interface = "";
-		foreach my $this_network (sort {$a cmp $b} keys %{$networks})
+		if ($gateway)
 		{
-			my ($this_ip, $this_subnet) = ($networks->{$this_network} =~ /^(.*?)\/(.*)$/);
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s1:this_network"            => $this_network,
-				"s2:networks->$this_network" => $networks->{$this_network}, 
-				"s3:this_ip"                 => $this_ip, 
-				"s4:this_subnet"             => $this_subnet,
-			}});
-			
-			my $first  = NetAddr::IP->new("$this_ip/$this_subnet");
-			my $second = NetAddr::IP->new("$gateway/$this_subnet");
-
-			if ($second->within($first))
+			# Match this gateway to one of the interfaces.
+			foreach my $this_network (sort {$a cmp $b} keys %{$networks})
 			{
-				$gateway_interface = $this_network;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_interface => $gateway_interface }});
-			} 
+				my ($this_ip, $this_subnet) = ($networks->{$this_network} =~ /^(.*?)\/(.*)$/);
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					"s1:this_network"            => $this_network,
+					"s2:networks->$this_network" => $networks->{$this_network}, 
+					"s3:this_ip"                 => $this_ip, 
+					"s4:this_subnet"             => $this_subnet,
+				}});
+				
+				my $first  = NetAddr::IP->new("$this_ip/$this_subnet");
+				my $second = NetAddr::IP->new("$gateway/$this_subnet");
+
+				if ($second->within($first))
+				{
+					$gateway_interface = $this_network;
+					$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { gateway_interface => $gateway_interface }});
+				} 
+			}
+			if (not $gateway_interface)
+			{
+				$an->data->{cgi}{gateway}{alert} = 1;
+				$sane                            = 0;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::gateway::alert" => $an->data->{cgi}{gateway}{alert} }});
+				
+				# Explain the problem
+				$an->data->{form}{error_massage} = $an->Template->get({file => "main.html", name => "error_message", variables => { error_message => $an->Words->string({key => "striker_error_0004"}) }});
+			}
 		}
 		
-		if (not $gateway_interface)
-		{
-			$an->data->{cgi}{gateway}{alert} = 1;
-			$sane                            = 0;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::gateway::alert" => $an->data->{cgi}{gateway}{alert} }});
-		}
-		else
+		# If no alert was raised, record the values.
+		if (not $an->data->{cgi}{gateway}{alert})
 		{
 			# Record the answer.
 			$an->Database->insert_or_update_variables({

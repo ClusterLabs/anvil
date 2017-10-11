@@ -207,6 +207,89 @@
 			</table>
 <!-- end config_step2 -->
 
+<!-- start config_step3 -->
+			<table>
+				<div id="config_step3_div">
+				<form name="config_step3" action="">
+				<tr>
+					<td>
+						<span name="#!variable!step1_welcome_title_id!#" id="#!variable!step1_welcome_title_id!#" class="config_header1">#!string!striker_0001!#</span><br />
+						<span name="#!variable!step1_welcome_message_id!#" id="#!variable!step1_welcome_message_id!#" class="config_header2">#!string!striker_0002!#</span>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<hr>
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td>
+						#!string!striker_0041!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<table class="data_table">
+							<tr>
+								<td class="column_header" colspan="2">
+									#!string!striker_0042!#
+								</td>
+							</tr>
+							<!-- Organization -->
+							<tr class="data_row">
+								<td class="column_row_name">
+									#!string!striker_0003!#:
+								</td>
+								<td class="column_row_value">
+									#!variable!organization!#
+								</td>
+							</tr>
+							<!-- Domain name -->
+							<tr>
+								<td class="column_row_name">
+									#!string!striker_0007!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!domain!#
+								</td>
+							</tr>
+							<!-- User -->
+							<tr>
+								<td class="column_row_name">
+									#!string!striker_0031!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!striker_user!#
+								</td>
+							</tr>
+							<!-- Password -->
+							<tr>
+								<td class="column_row_name">
+									#!string!striker_0033!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!striker_password!#
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<br />
+						<hr>
+						<input type="submit" name="next" id="next" value="#!string!striker_0013!#">
+					</td>
+				</tr>
+				<!-- NOTE: For now, we support only one BCN in the web UI, but the system will be ready for N-number later. -->
+				<input type="hidden" name="step"     id="step"     value="step3">
+				<input type="hidden" name="cgi_list" id="cgi_list" value="next,step,#!variable!cgi_list!#">
+				</form>
+				</div>
+			</table>
+<!-- end config_step3 -->
+
 <!-- start error_message -->
 <div class="error_message"><span style="color: #ff3f7f;">*</span> #!variable!error_message!# </div>
 <!-- end error_message -->
@@ -376,7 +459,7 @@
 <!-- end network_footer -->
 
 <!-- start footer -->
-<div onload="show_status()" class="footer">
+<div class="footer">
 	#!string!brand_0005!#
 </div>
 <!-- end footer -->

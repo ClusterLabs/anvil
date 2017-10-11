@@ -126,7 +126,7 @@ sub form_field
 	my $an        = $self->parent;
 	
 	my $valid    = 1;
-	my $debug    = 2;
+	my $debug    = 3;
 	my $name     = defined $parameter->{name}     ? $parameter->{name}     : "";
 	my $type     = defined $parameter->{type}     ? $parameter->{type}     : "";
 	my $empty_ok = defined $parameter->{empty_ok} ? $parameter->{empty_ok} : 0;
