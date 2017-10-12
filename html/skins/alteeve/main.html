@@ -230,6 +230,12 @@
 				</tr>
 				<tr>
 					<td>
+						<hr>
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td>
 						<table class="data_table">
 							<tr>
 								<td class="column_header" colspan="2">
@@ -272,6 +278,8 @@
 									#!variable!striker_password!#
 								</td>
 							</tr>
+							<!-- Networks -->
+#!variable!networks!#
 						</table>
 					</td>
 				</tr>
@@ -279,7 +287,7 @@
 					<td>
 						<br />
 						<hr>
-						<input type="submit" name="next" id="next" value="#!string!striker_0013!#">
+						<input type="submit" name="next" id="next" value="#!string!striker_0043!#">
 					</td>
 				</tr>
 				<!-- NOTE: For now, we support only one BCN in the web UI, but the system will be ready for N-number later. -->
@@ -289,6 +297,158 @@
 				</div>
 			</table>
 <!-- end config_step3 -->
+
+<!-- start step3_bonded_interface -->
+							<tr>
+								<td class="column_row_name">
+									#!variable!column!#:
+								</td>
+								<td>
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0024!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!ip_address!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0029!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!primary!#
+								</td>
+								<td>
+									#!string!striker_0030!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!backup!#
+								</td>
+							</tr>
+<!-- end step3_bonded_interface -->
+
+<!-- start step3_bonded_interface_with_gateway -->
+							<tr>
+								<td class="column_row_name">
+									#!variable!column!#:
+								</td>
+								<td>
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0024!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!ip_address!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0026!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!gateway!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0027!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!dns!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0029!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!primary!#
+								</td>
+								<td>
+									#!string!striker_0030!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!backup!#
+								</td>
+							</tr>
+<!-- end step3_bonded_interface_with_gateway -->
+
+<!-- start step3_single_interface -->
+							<tr>
+								<td class="column_row_name">
+									#!variable!column!#:
+								</td>
+								<td>
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td class="column_subrow_name">
+									#!string!striker_0024!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!ip_address!#
+								</td>
+							</tr>
+							<tr>
+								<td class="column_subrow_name">
+									#!string!striker_0028!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!primary!#
+								</td>
+							</tr>
+<!-- end step3_single_interface -->
+
+<!-- start step3_single_interface_with_gateway -->
+							<tr>
+								<td class="column_row_name">
+									#!variable!column!#:
+								</td>
+								<td>
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td class="column_subrow_name">
+									#!string!striker_0024!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!ip_address!#
+								</td>
+							</tr>
+							<tr>
+								<td class="column_subrow_name">
+									#!string!striker_0026!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!gateway!#
+								</td>
+							</tr>
+							<tr>
+								<td class="column_subrow_name">
+									#!string!striker_0027!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!dns!#
+								</td>
+							</tr>
+							<tr>
+								<td class="column_subrow_name">
+									#!string!striker_0028!#:
+								</td>
+								<td class="column_row_value_fixed">
+									#!variable!primary!#
+								</td>
+							</tr>
+<!-- end step3_single_interface_with_gateway -->
 
 <!-- start error_message -->
 <div class="error_message"><span style="color: #ff3f7f;">*</span> #!variable!error_message!# </div>
@@ -313,7 +473,7 @@
 						<table>
 							<tr>
 								<td colspan="5" class="form_group_header1">
-									#!variable!field!#
+									#!variable!field!#:
 								</td>
 							</tr>
 							<tr>

@@ -40,7 +40,7 @@ sub report_network
 	my ($an) = @_;
 	
 	# Write out the data in json format.
-	my $directory    = $an->data->{path}{sysfs}{network_interfaces};
+	my $directory = $an->data->{path}{sysfs}{network_interfaces};
 	local(*DIRECTORY);
 	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
@@ -106,6 +106,11 @@ sub report_network
 		}
 	}
 	closedir(DIRECTORY);
+	
+	### TODO: Create an "ip" table and record IPs on this system, linking back to an interface, bond or 
+	###       bridge.
+	# Run 'ip addr' to see what IPs are in use.
+	$an->System->get_ips;
 	
 	# Write out the XML file and JSON file.
 	my $order        = 1;

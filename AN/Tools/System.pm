@@ -18,6 +18,7 @@ my $THIS_FILE = "System.pm";
 # check_memory
 # determine_host_type
 # enable_daemon
+# get_ips
 # is_local
 # manage_firewall
 # ping
@@ -329,6 +330,66 @@ sub enable_daemon
 	
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 	return($return);
+}
+
+=head2 get_ips
+
+This method checks the local system for interfaces with IP addresses and stores them in C<< sys::network::interface::<iface_name>::ip >> and C<< sys::network::interface::<iface_name>::subnet >>
+
+=cut
+sub get_ips
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $an        = $self->parent;
+	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "System->get_ips()" }});
+	
+	my $debug    = 3;
+	my $in_iface = "";
+	my $ip_addr  = $an->System->call({shell_call => $an->data->{path}{exe}{ip}." addr list"});
+	foreach my $line (split/\n/, $ip_addr)
+	{
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^\d+: (.*?): /)
+		{
+			$in_iface = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_iface => $in_iface }});
+			
+			$an->data->{sys}{networks}{$in_iface}{ip}     = "" if not defined $an->data->{sys}{networks}{$in_iface}{ip};
+			$an->data->{sys}{networks}{$in_iface}{subnet} = "" if not defined $an->data->{sys}{networks}{$in_iface}{subnet};
+			$an->data->{sys}{networks}{$in_iface}{mac}    = "" if not defined $an->data->{sys}{networks}{$in_iface}{mac};
+		}
+		next if not $in_iface;
+		next if $in_iface eq "lo";
+		if ($line =~ /inet (.*?)\/(.*?) /)
+		{
+			my $ip   = $1;
+			my $cidr = $2;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip, cidr => $cidr }});
+			
+			my $subnet = $cidr;
+			if (($cidr =~ /^\d{1,2}$/) && ($cidr >= 0) && ($cidr <= 32))
+			{
+				# Convert to subnet
+				$subnet = $an->Convert->cidr({cidr => $cidr});
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet => $subnet }});
+			}
+			
+			$an->data->{sys}{networks}{$in_iface}{ip}     = $ip;
+			$an->data->{sys}{networks}{$in_iface}{subnet} = $subnet;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:sys::networks::${in_iface}::ip"     => $an->data->{sys}{networks}{$in_iface}{ip},
+				"s2:sys::networks::${in_iface}::subnet" => $an->data->{sys}{networks}{$in_iface}{subnet},
+			}});
+		}
+		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
+		{
+			$an->data->{sys}{networks}{$in_iface}{mac} = $1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::networks::${in_iface}::mac" => $an->data->{sys}{networks}{$in_iface}{mac} }});
+		}
+	}
+
+	return(0);
 }
 
 =head2 is_local

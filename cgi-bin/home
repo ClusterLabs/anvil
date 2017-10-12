@@ -154,6 +154,7 @@ sub config_step3
 	# Read in all the variables from the database. We don't care what was passed, the data in the 
 	# database has been tested and is more valid than, say, a manipulated URL.
 	my $cgi   = "";
+	my $nets  = {};
 	my $query = "
 SELECT 
     variable_name, 
@@ -191,15 +192,85 @@ ORDER BY
 			   $cgi                               .= $variable.",";
 			   $an->data->{cgi}{$variable}{value} =  $variable_value;
 			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${variable}::value" => $an->data->{cgi}{$variable}{value} }});
+			
+			if (($variable =~ /^(bcn\d+)_/) or ($variable =~ /^(ifn\d+)_/))
+			{
+				my $this_net          = $1;
+				   $nets->{$this_net} = 1;
+				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "nets->this_net" => $nets->{$this_net} }});
+			}
 		}
 	}
+	
+	#foreach my $key (sort {$a cmp $b} keys %ENV) { $an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "ENV{$key}" => $ENV{$key} }}); }
+	
+	# Get the list of current IPs so that we can warn the user if committing the changes will require 
+	# reconnecting.
+	$an->System->get_ips;
+	my $matched_ip = 0;
+	my $server_ip  = $ENV{SERVER_ADDR};
+	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_ip => $server_ip }});
 	
 	# We'll need ot show how networks will be configured. This depends on;
 	# 1. Is it a bonded or single interface?
 	# 2. Is it the interface with the gateway?
 	# 3. If no gateway or DNS was specified, alert that there will be no outside access.
-	foreach my $variable (sort {$a cmp $b} keys %{$an->data->{cgi}})
+	get_network_details($an);
+	my $networks = "";
+	foreach my $this_net (sort {$a cmp $b} keys %{$nets})
 	{
+		my $ip_key      = $this_net."_ip";
+		my $subnet_key  = $this_net."_subnet";
+		my $iface1_key  = $this_net."_iface1_mac";
+		my $iface2_key  = $this_net."_iface2_mac";
+		my $ip          = $an->data->{cgi}{$ip_key}{value};
+		my $subnet      = $an->data->{cgi}{$subnet_key}{value};
+		my $iface1_mac  = $an->data->{cgi}{$iface1_key}{value};
+		my $iface2_mac  = ((defined $an->data->{cgi}{$iface2_key}{value}) && ($an->data->{cgi}{$iface2_key}{value})) ? $an->data->{cgi}{$iface2_key}{value} : "";
+		my $template    = $iface2_mac ? "step3_bonded_interface" : "step3_single_interface";
+		my $gateway     = $an->data->{cgi}{gateway_interface}{value} eq $this_net ? 1 : 0;
+		my $link_number = ($this_net =~ /n(\d+)$/)[0];
+		my $column      = $this_net =~ /^bcn/ ? "striker_0018" : "striker_0022";
+		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:nets->this_net" => $nets->{$this_net},
+			"s2:ip"             => $ip,
+			"s3:subnet"         => $subnet,
+			"s4:iface1_mac"     => $iface1_mac,
+			"s5:iface2_mac"     => $iface2_mac,
+			"s6:template"       => $template,
+			"s7:gateway"        => $gateway,
+			"s8:link_number"    => $link_number, 
+		}});
+		
+		# Add to the networks template.
+		my $say_ip = $ip."/".$subnet;
+		if (($gateway) && ($an->data->{cgi}{gateway}{value}))
+		{
+			$template                    .= "_with_gateway";
+			$an->data->{cgi}{dns}{value} =  "--" if not $an->data->{cgi}{dns}{value};
+		}
+		$networks .= $an->Template->get({file => "main.html", name => $template, variables => {
+			column     => $an->Words->string({key => $column, variables => { number => $link_number }}),
+			ip_address => $say_ip,
+			primary    => $iface1_mac,
+			backup     => $iface2_mac,
+			gateway    => $an->data->{cgi}{gateway}{value}, 
+			dns        => $an->data->{cgi}{dns}{value}, 
+		}})."\n";
+		
+		# Does this interface's IP match the active one?
+		if ($server_ip eq $ip)
+		{
+			# Yup! No need to warn the user
+			$matched_ip = 1;
+			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matched_ip => $matched_ip }});
+		}
+	}
+	
+	# If the IP is going to change, warn the user.
+	if (not $matched_ip)
+	{
+		$an->data->{form}{error_massage} = $an->Template->get({file => "main.html", name => "error_message", variables => { error_message => $an->Words->string({key => "striker_warning_0001"}) }});
 	}
 	
 	# 
@@ -211,6 +282,7 @@ ORDER BY
 		domain                   => $an->data->{cgi}{domain}{value},
 		striker_user             => $an->data->{cgi}{striker_user}{value},
 		striker_password         => $an->data->{cgi}{striker_password}{value},
+		networks                 => $networks,
 		cgi_list                 => $cgi."step",
 	}});
 	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step3_body => $step3_body }});

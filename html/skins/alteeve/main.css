@@ -82,9 +82,17 @@ td.column_header {
 }
 
 td.column_row_name {
-	text-align: left;
-	color:      #f7f7f7;
-	padding:    0.2em;
+	text-align:     left;
+	vertical-align: top;
+	color:          #f7f7f7;
+	padding:        0.2em;
+}
+
+td.column_subrow_name {
+	text-align:     right;
+	vertical-align: top;
+	color:          #c7c7c7;
+	padding:        0.1em;
 }
 
 td.column_row_value {

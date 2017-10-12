@@ -45,11 +45,11 @@ This is the AN::Tools master 'words' file.
 		<key name="striker_0015">IFN Count</key>
 		<key name="striker_0016">Host name</key>
 		<key name="striker_0017">This is the hostname for this Striker dashboard. Generally it is a good idea to stick with the default.</key>
-		<key name="striker_0018">Back-Channel Network link #!variable!number!#:</key>
+		<key name="striker_0018">Back-Channel Network link #!variable!number!#</key>
 		<key name="striker_0019">This is where you configure the network to enable access this Back-Channel Network.</key>
-		<key name="striker_0020">Storage Network link #!variable!number!#:</key>
+		<key name="striker_0020">Storage Network link #!variable!number!#</key>
 		<key name="striker_0021">This is where you configure the network to enable access this Storage Network.</key>
-		<key name="striker_0022">Internet-Facing Network link #!variable!number!#:</key>
+		<key name="striker_0022">Internet-Facing Network link #!variable!number!#</key>
 		<key name="striker_0023">This is where you configure the network to enable access this Internet-Facing Network.</key>
 		<key name="striker_0024">IP Address</key>
 		<key name="striker_0025">Subnet</key>
@@ -69,7 +69,11 @@ This is the AN::Tools master 'words' file.
 		<key name="striker_0039">Gateway Interface</key>
 		<key name="striker_0040">This is the interface with the internet access. Usually this is "ifn_link1".</key>	<!-- Translation note; leave 'ifn_link1' as it is, it is the device name. -->
 		<key name="striker_0041">We're almost ready! Does this look right? If so, we'll setup this Striker dashboard.</key>
-		<key name="striker_0042">Summary of answers.</key>
+		<key name="striker_0042">What we are planning to do...</key>
+		<key name="striker_0043">Apply New Configuration</key>
+		
+		<!-- Warnings --> 
+		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
 		
 		<!-- Errors -->
 		<key name="striker_error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
