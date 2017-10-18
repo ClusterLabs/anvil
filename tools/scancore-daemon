@@ -34,12 +34,12 @@ run_once($an);
 # These are the things we always want running.
 while(1)
 {
-	update_state_file($an);
-	
+	# Loop and sleep for 2s.
+	keep_running($an);
 	sleep 2;
 }
 
-exit(0);
+$an->nice_exit({code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
@@ -56,6 +56,17 @@ sub run_once
 	{
 		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_output => $database_output }});
 	}
+	
+	return(0);
+}
+
+# These are tools that need to keep running.
+sub keep_running
+{
+	my ($an) = @_;
+	
+	# Update hardware state files.
+	update_state_file($an);
 	
 	return(0);
 }
