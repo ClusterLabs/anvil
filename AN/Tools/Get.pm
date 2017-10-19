@@ -368,6 +368,7 @@ sub host_uuid
 				# This should never be hit...
 				chomp;
 				$uuid = lc($_);
+				#print $THIS_FILE." ".__LINE__."; [ Debug ] - UUID: [$uuid]\n";
 			}
 			close $file_handle;
 		}
@@ -378,6 +379,7 @@ sub host_uuid
 			if (not -e $an->data->{path}{data}{host_uuid})
 			{
 				# We're done.
+				die $THIS_FILE." ".__LINE__."; UUID cache file: [".$an->data->{path}{data}{host_uuid}."] doesn't exists and we're not running as root. Unable to proceed.\n";
 			}
 			else
 			{
@@ -388,6 +390,21 @@ sub host_uuid
 		if ($an->Validate->is_uuid({uuid => $uuid}))
 		{
 			$an->data->{HOST}{UUID} = $uuid;
+			if (not -e $an->data->{path}{data}{host_uuid})
+			{
+				### TODO: This will need to set the proper SELinux context.
+				# Apache run scripts can't call the system UUID, so we'll write it to a text
+				# file.
+				$an->Storage->write_file({
+					file      => $an->data->{path}{data}{host_uuid}, 
+					body      => $uuid,
+					user      => "apache", 
+					group     => "apache",
+					mode      => "0666",
+					overwrite => 0,
+				});
+				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0011", variables => { file => $an->data->{path}{configs}{'postgresql.conf'} }});
+			}
 		}
 		else
 		{
