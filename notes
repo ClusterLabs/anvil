@@ -1,0 +1,36 @@
+All systems have a UUID, even VMs. Use that for system UUID in the future.
+
+
+
+
+### Setup - Striker
+
+# Packages
+depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib Perl-CGI Perl-NetAddr-IP
+
+# Paths
+mkdir /usr/sbin/striker
+
+# virsh
+virsh net-destroy default
+virsh net-autostart default --disable
+virsh net-undefine default
+
+# Web - TODO: Setup to auto-use "Let's Encrypt", but make sure we have an offline fall-back
+systemctl enable httpd.service
+systemctl start httpd.service
+
+# Post install
+systemctl daemon-reload
+
+# Firewall
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=postgresql
+firewall-cmd --reload
+
+# SELinux
+restorecon -rv /var/www
+
+=============================================================
+[root@striker-m3 ~]# cat watch_logs 
+clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t an-tools
