@@ -6,7 +6,7 @@ All systems have a UUID, even VMs. Use that for system UUID in the future.
 ### Setup - Striker
 
 # Packages
-depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib Perl-CGI Perl-NetAddr-IP
+depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP
 
 # Paths
 mkdir /usr/sbin/striker
