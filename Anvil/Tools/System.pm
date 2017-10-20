@@ -120,7 +120,7 @@ sub call
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	
-	my $debug      = 2;
+	my $debug      = 3;
 	my $line       = defined $parameter->{line}       ? $parameter->{line}       : __LINE__;
 	my $shell_call = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
 	my $secure     = defined $parameter->{secure}     ? $parameter->{secure}     : 0;

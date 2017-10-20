@@ -53,13 +53,13 @@ sub report_network
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
-			# Pull out the data I want.
+			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
 			my $interface   = $file;
-			my $mac_address = $anvil->Storage->read_file({file => $full_path."/address"});
-			my $link_state  = $anvil->Storage->read_file({file => $full_path."/carrier"});
-			my $mtu         = $anvil->Storage->read_file({file => $full_path."/mtu"});
-			my $duplex      = $anvil->Storage->read_file({file => $full_path."/duplex"});	# full or half?
-			my $operational = $anvil->Storage->read_file({file => $full_path."/operstate"});	# up or down
+			my $mac_address = -e $full_path."/address"   ? $anvil->Storage->read_file({file => $full_path."/address"})   : "";
+			my $link_state  = -e $full_path."/carrier"   ? $anvil->Storage->read_file({file => $full_path."/carrier"})   : 0;
+			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
+			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
+			my $operational = -e $full_path."/operstate" ? $anvil->Storage->read_file({file => $full_path."/operstate"}) : "unknown";	# up or down
 			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
 			if ($speed > 100000)
 			{
@@ -69,19 +69,23 @@ sub report_network
 			}
 			
 			# Find the media, if possible.
-			my $media   = "unknown";
-			my $ethtool = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}});
+			my $media      = "unknown";
+			my $shell_call = $anvil->data->{path}{exe}{ethtool}." $interface";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			my $ethtool    = $anvil->System->call({shell_call => $shell_call});
 			foreach my $line (split/\n/, $ethtool)
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 				if ($line =~ /Supported ports: \[ (.*?) \]/i)
 				{
 					$media = lc($1);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { media => $media }});
 					last;
 				}
 			}
 			
 			# Log
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
 				mac_address => $mac_address, 
 				link_state  => $link_state, 
