@@ -18,7 +18,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = AN::Tools->new();
+my $anvil = Anvil::Tools->new();
 
 # Print the html headers, with a new line to break the header from the body.
 print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
@@ -378,7 +378,7 @@ ORDER BY
 			my $this_iface1_key   =  "bcn".$bcn."_iface1_mac";
 			my $this_iface2_key   =  "bcn".$bcn."_iface2_mac";
 			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
-			my $this_ip           =  generate_ip($an, "bcn", $bcn, $anvil->data->{cgi}{sequence}{value});
+			my $this_ip           =  generate_ip($anvil, "bcn", $bcn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
 			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
@@ -425,7 +425,7 @@ ORDER BY
 			my $this_iface1_key   =  "ifn".$ifn."_iface1_mac";
 			my $this_iface2_key   =  "ifn".$ifn."_iface2_mac";
 			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
-			my $this_ip           =  generate_ip($an, "ifn", $ifn, $anvil->data->{cgi}{sequence}{value});
+			my $this_ip           =  generate_ip($anvil, "ifn", $ifn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
 			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
@@ -474,7 +474,7 @@ ORDER BY
 			my $this_subnet_key   =  "bcn".$bcn."_subnet";
 			my $this_iface1_key   =  "bcn".$bcn."_iface1_mac";
 			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",";
-			my $this_ip           =  generate_ip($an, "bcn", $bcn, $anvil->data->{cgi}{sequence}{value});
+			my $this_ip           =  generate_ip($anvil, "bcn", $bcn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
 			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
@@ -511,7 +511,7 @@ ORDER BY
 			my $this_subnet_key   =  "ifn".$ifn."_subnet";
 			my $this_iface1_key   =  "ifn".$ifn."_iface1_mac";
 			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",";
-			my $this_ip           =  generate_ip($an, "ifn", $ifn, $anvil->data->{cgi}{sequence}{value});
+			my $this_ip           =  generate_ip($anvil, "ifn", $ifn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
 			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
@@ -1393,7 +1393,7 @@ sub get_network_details_form
 # This is a rudimentary function for generating default Striker IPs.
 sub generate_ip
 {
-	my ($an, $network, $network_sequence, $device_sequence) = @_;
+	my ($anvil, $network, $network_sequence, $device_sequence) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		network          => $network,
 		network_sequence => $network_sequence, 
