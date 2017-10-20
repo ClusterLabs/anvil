@@ -22,6 +22,14 @@ my $connections = $anvil->Database->connect({
 	sql_file   => $anvil->data->{sys}{database}{schema},
 	test_table => "network_interfaces", 
 });
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132", variables => { connections => $connections }});
+if (not $connections)
+{
+	# No databases, exit.
+	print $anvil->Words->string({key => "striker_error_0003"});
+	$anvil->nice_exit({exit_code => 2});
+}
+
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
