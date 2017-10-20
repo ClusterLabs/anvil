@@ -4,14 +4,12 @@
 Company: Alteeve's Niche, Inc.
 License: GPL v2+
 Author:  Madison Kelly <mkelly@alteeve.ca>
-
-This is the AN::Tools master 'words' file.
 -->
 
 <words>
 	<meta version="3.0.0" languages="en_CA,jp"/>
 	<!-- Canadian English -->
-	<language name="en_CA" long_name="Canadian English" description="Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules">
+	<language name="en_CA" long_name="Canadian English" description="Striker/ScanCore language file.">
 		
 		<!-- Alert titles -->
 		<key name="alert_title_0001">Debug</key>
@@ -77,7 +75,7 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0031"><![CDATA[[ Warning ] - Storage->search_directories() was passed the array: [#!variable!array!#], but it wasn't actually an array. Using @INC + path::directories::tools + \$ENV{'PATH'} for the list of directories to search instead.]]></key>
 		<key name="log_0032"><![CDATA[[ Warning ] - Words->read()' called without a file name to read.]]></key>
 		<key name="log_0033"><![CDATA[[ Warning ] - Words->read()' asked to read: [#!variable!file!#] which was not found.]]></key>
-		<key name="log_0034"><![CDATA[[ Warning ] - AN::Tools::Words->read()' asked to read: [#!variable!file!#] which was not readable by: [#!variable!user!#] (uid/euid: [#!variable!uid!#]).]]></key>
+		<key name="log_0034"><![CDATA[[ Warning ] - Anvil::Tools::Words->read()' asked to read: [#!variable!file!#] which was not readable by: [#!variable!user!#] (uid/euid: [#!variable!uid!#]).]]></key>
 		<key name="log_0035"><![CDATA[[ Warning ] - The config file: [#!variable!file!#] appears to have a malformed line: [#!variable!count!#:#!variable!line!#].]]></key>
 		<key name="log_0036"><![CDATA[[ Error ] - The method Database->read_variable() was called but both the 'variable_name' and 'variable_uuid' parameters were not passed or both were empty.]]></key>
 		<key name="log_0037"><![CDATA[[ Error ] - The method Database->insert_or_update_variables() method was called but both the 'variable_name' and 'variable_uuid' parameters were not passed or both were empty.]]></key>
@@ -91,8 +89,8 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0045">The host: [#!variable!host!#] is requesting a database lock.</key>
 		<key name="log_0046"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source!#] to: [#!variable!target!#], but the target already exists and 'overwrite' wasn't specified, skipping.]]></key>
 		<key name="log_0047"><![CDATA[[ Error ] - The method Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
-		<key name="log_0048"><![CDATA[[ Warning ] - Testing of AN::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
-		<key name="log_0049"><![CDATA[[ Warning ] - Testing of AN::Tools is complete.]]></key>
+		<key name="log_0048"><![CDATA[[ Warning ] - Testing of Anvil::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
+		<key name="log_0049"><![CDATA[[ Warning ] - Testing of Anvil::Tools is complete.]]></key>
 		<key name="log_0050">[ Error ] - There is a local database defined, but it does not appear to exist and we could not initialize the database server. Is 'postgresql-server' installed?</key>
 		<key name="log_0051"><![CDATA[[ Error ] - The method Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
 		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->copy_file() was called but the source file: [#!variable!source!#] doesn't exist.]]></key>
@@ -137,8 +135,8 @@ The database connection error was:
 		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
 		<key name="log_0073"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0074">About to query: [#!variable!id!#]:[#!variable!query!#]</key>
-		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$an->Log->secure' is not set.]]></key>
-		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$an->Log->secure' is not set.]]></key>
+		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
+		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0077"><![CDATA[[ Error ] - The method Database->initialize() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
 		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!id!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
@@ -152,7 +150,7 @@ The database connection error was:
 		<key name="log_0087">Testing access to the the database: [#!variable!server!#] prior to query or write. Program will exit if it fails.</key>
 		<key name="log_0088">Access confirmed.</key>
 		<key name="log_0089"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
-		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$an->Log->secure' is not set.]]></key>
+		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0091">Failed to connect to any database.</key>
 		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!id!#]).]]></key>
 		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'modified_date' parameter was not passed and/or 'sys::db_timestamp' is not set. Did the program fail to connect to any databases?]]></key>
@@ -225,9 +223,82 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		</key>
 		<key name="t_0006">This string embeds 't_0001': [#!string!t_0001!#]</key>
 		
+		<key name="brand_0001">Alteeve</key>
+		<key name="brand_0002">Anvil!</key>
+		<key name="brand_0003">Striker</key>
+		<key name="brand_0004">ScanCore</key>
+		<key name="brand_0005"><![CDATA[&copy; 2017 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
+		
+		<key name="header_0001">Current Network Interfaces and States</key>
+		<key name="header_0002">MAC Address</key>
+		<key name="header_0003">Name</key>
+		<key name="header_0004">State</key>
+		<key name="header_0005">Speed</key>
+		<key name="header_0006">Up Order</key>
+		
+		<!-- General strings shown in Striker -->
+		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
+		<key name="striker_0002">We're going to ask you a few questions so that we can set things up for your environment. If you need help at any time, just click on the "[?]" icon in the top-right. Let's get started!</key>
+		<key name="striker_0003">Organization name</key>
+		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
+		<key name="striker_0005">Prefix</key>
+		<key name="striker_0006">This is a two to five character prefix used to identify this organization. It is used as the prefix for host names for dashboards, nodes and foundation pack equipment. You can use letters and numbers and set whatever makes sense to you.</key>
+		<key name="striker_0007">Domain Name</key>
+		<key name="striker_0008">This is the domain name you would like to use for this dashboard. This will also be used as the default domain used when creating new install manifests.</key>
+		<key name="striker_0009">Sequence Number</key>
+		<key name="striker_0010">If this is your first Striker, set this to '1'. If it is the second one, set '2'. If it is the third, '3' and so on.</key>
+		<key name="striker_0011">Internet-Facing Network Count</key>
+		<key name="striker_0012"><![CDATA[How many internal networks will this dashboard have access to? In most cases, this is just '1'.<br /><b>NOTE</b>: You must have a network interface for the back-channel network, plus one for each internal network. If you have two interfaces for each network, we will setup bonds for redundancy automatically.]]></key>
+		<key name="striker_0013">Next</key>
+		<key name="striker_0014">Step 1</key>
+		<key name="striker_0015">IFN Count</key>
+		<key name="striker_0016">Host name</key>
+		<key name="striker_0017">This is the hostname for this Striker dashboard. Generally it is a good idea to stick with the default.</key>
+		<key name="striker_0018">Back-Channel Network link #!variable!number!#</key>
+		<key name="striker_0019">This is where you configure the network to enable access this Back-Channel Network.</key>
+		<key name="striker_0020">Storage Network link #!variable!number!#</key>
+		<key name="striker_0021">This is where you configure the network to enable access this Storage Network.</key>
+		<key name="striker_0022">Internet-Facing Network link #!variable!number!#</key>
+		<key name="striker_0023">This is where you configure the network to enable access this Internet-Facing Network.</key>
+		<key name="striker_0024">IP Address</key>
+		<key name="striker_0025">Subnet</key>
+		<key name="striker_0026">Gateway</key>
+		<key name="striker_0027">DNS Server</key>
+		<key name="striker_0028">Network Interface</key>
+		<key name="striker_0029">Primary Interface</key>
+		<key name="striker_0030">Backup Interface</key>
+		<key name="striker_0031">Striker user name</key>
+		<key name="striker_0032">This is the user name that you will log into Striker as and the name of the user that owns the database.</key>
+		<key name="striker_0033">Striker password</key>
+		<key name="striker_0034"><![CDATA[This will be the password used to log into this Striker and connect to its database. It must be 6+ characters long.<br /><b>NOTE</b>: This password needs to be stored in plain text. Do not use a password you use elsewhere.]]></key>
+		<key name="striker_0035">Gateway</key>
+		<key name="striker_0036">This is the network gateway used to access the outside world.</key>
+		<key name="striker_0037">DNS</key>
+		<key name="striker_0038">This is the domain name server(s) to use when resolving domain names. You can specify 2 or more, separated by commas.</key>
+		<key name="striker_0039">Gateway Interface</key>
+		<key name="striker_0040">This is the interface with the internet access. Usually this is "ifn_link1".</key>	<!-- Translation note; leave 'ifn_link1' as it is, it is the device name. -->
+		<key name="striker_0041">We're almost ready! Does this look right? If so, we'll setup this Striker dashboard.</key>
+		<key name="striker_0042">What we are planning to do...</key>
+		<key name="striker_0043">Apply New Configuration</key>
+		
+		<!-- Warnings --> 
+		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
+		
+		<!-- Errors -->
+		<key name="striker_error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
+		<key name="striker_error_0002">The local system UUID can't be read yet. This might be because the system is brand new and/or ScanCore hasn't run yet. Please try again in a minute.</key>
+		<key name="striker_error_0003">None of the databases are accessible, unable to proceed.</key>
+		<key name="striker_error_0004">The gateway address doesn't match any of your networks.</key>
+		
+		<!-- These are works and strings used by javascript/jqery -->
+		<key name="js_0001">Up</key>
+		<key name="js_0002">Down</key>
+		<key name="js_0003">Mbps</key>
+		
 	</language>
 	<!-- 日本語 -->
-	<language name="jp" long_name="日本語" description=">Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules.">
+	<language name="jp" long_name="日本語" description="Striker/ScanCore language file.">
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">テスト</key>
@@ -246,5 +317,12 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 ここでは変数 「#!string!t_0006!#」を持つ 「t_0001」を注入する 「t_0006」を注入します。
 		</key>
 		<key name="t_0006">この文字列には「t_0001」が埋め込まれています：「#!string!t_0001!#」</key>
+		
+		<key name="brand_0001">アルティーブ</key>
+		<key name="brand_0002">Anvil!</key>
+		<key name="brand_0003">ストライカ</key>
+		<key name="brand_0004">スカンコア</key>
+		<key name="brand_0005"><![CDATA[&copy; 2017 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, トロント、オンタリオ、カナダ]]></key>
+		
 	</language>
 </words>

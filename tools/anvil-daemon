@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+# 
+# This is the master daemon that manages all periodically run processes on Striker dashboards and Anvil! 
+# nodes.
+#
+# TODO: At somepoint, we'll need to have a mechanism to fire off processes that might take a long time.
+# 
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$$anvil->Log->level({set => 2});
+
+# Paths
+$$anvil->data->{path}{tools}{'an-prep-database'}       = "/usr/sbin/striker/an-prep-database";
+$$anvil->data->{path}{tools}{'scancore-update-states'} = "/usr/sbin/striker/scancore-update-states";
+$$anvil->data->{path}{config}{'striker.conf'}          = "/etc/striker/striker.conf";
+
+# Read our config.
+$$anvil->Storage->read_config({file => $$anvil->data->{path}{config}{'striker.conf'}});
+
+# There are some things we only want to run on (re)start and don't need to always run.
+run_once($anvil);
+
+# These are the things we always want running.
+while(1)
+{
+	# Loop and sleep for 2s.
+	keep_running($anvil);
+	
+	
+	# Exit if called with '--run-once'
+	if ($$anvil->data->{switches}{'run-once'})
+	{
+		$$anvil->nice_exit({code => 0});
+	}
+	sleep 2;
+}
+
+$$anvil->nice_exit({code => 0});
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# These are tools that don't need to constantly run.
+sub run_once
+{
+	my ($anvil) = @_;
+	
+	# Check that the database is ready.
+	my $shell_call = $$anvil->data->{path}{tools}{'an-prep-database'};
+	$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my $database_output = $$anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	if ($database_output)
+	{
+		$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_output => $database_output }});
+	}
+	
+	return(0);
+}
+
+# These are tools that need to keep running.
+sub keep_running
+{
+	my ($anvil) = @_;
+	
+	# Update hardware state files.
+	update_state_file($anvil);
+	
+	return(0);
+}
+
+# This calls 'scancore-update-states' which will scan the local machine's state (hardware and software) and
+# record write it out to an HTML file 
+sub update_state_file
+{
+	my ($anvil) = @_;
+	
+	my $shell_call = $$anvil->data->{path}{tools}{'scancore-update-states'};
+	$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my $states_output = $$anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	if ($states_output)
+	{
+		$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { states_output => $states_output }});
+	}
+	
+	return(0);
+}

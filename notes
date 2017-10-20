@@ -6,10 +6,10 @@ All systems have a UUID, even VMs. Use that for system UUID in the future.
 ### Setup - Striker
 
 # Packages
-depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg
+depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg rsync perl-Log-Journald perl-Net-SSH2
 
 # Paths
-mkdir /usr/sbin/striker
+mkdir /usr/sbin/anvil
 
 # virsh
 virsh net-destroy default
@@ -33,4 +33,4 @@ restorecon -rv /var/www
 
 =============================================================
 [root@striker-m3 ~]# cat watch_logs 
-clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t an-tools
+clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil

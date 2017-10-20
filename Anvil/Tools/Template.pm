@@ -1,4 +1,4 @@
-package AN::Tools::Template;
+package Anvil::Tools::Template;
 # 
 # This module contains methods used to handle templates.
 # 
@@ -22,18 +22,18 @@ my $THIS_FILE = "Template.pm";
 
 =head1 NAME
 
-AN::Tools::Template
+Anvil::Tools::Template
 
 Provides all methods related to template handling.
 
 =head1 SYNOPSIS
 
- use AN::Tools;
+ use Anvil::Tools;
 
- # Template a common object handle on all AN::Tools modules.
- my $an = AN::Tools->new();
+ # Template a common object handle on all Anvil::Tools modules.
+ my $anvil = Anvil::Tools->new();
  
- # Access to methods using '$an->Template->X'. 
+ # Access to methods using '$anvil->Template->X'. 
  # 
  # Example using '()';
  
@@ -57,7 +57,7 @@ sub new
 	return ($self);
 }
 
-# Get a handle on the AN::Tools object. I know that technically that is a sibling module, but it makes more 
+# Get a handle on the Anvil::Tools object. I know that technically that is a sibling module, but it makes more 
 # sense in this case to think of it as a parent.
 sub parent
 {
@@ -84,7 +84,7 @@ sub parent
 
 This method takes a template file name and a template section name and returns that body template.
 
- my $body = $an->Template->get({file => "foo.html", name => "bar"}))
+ my $body = $anvil->Template->get({file => "foo.html", name => "bar"}))
 
 =head2 Parameters;
 
@@ -99,6 +99,10 @@ This is the language (iso code) to use when inserting strings into the template.
 =head3 name (required)
 
 This is the name of the template section, bounded by 'C<< <!-- start foo --> >>' and 'C<< <!-- end food --> >>' to read in from the file.
+
+=head3 show_name (optional)
+
+If set the C<< 1 >>, the HTML will have comments shows which parts came from what file. By default, this is disabled.
 
 =head3 skin (optional)
 
@@ -115,30 +119,33 @@ sub get
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $debug     = 3;
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Words->language;
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
-	my $skin      = defined $parameter->{skin}      ? $parameter->{skin}      : $an->Template->skin;
+	my $show_name = defined $parameter->{show_name} ? $parameter->{show_name} : 0;
+	my $skin      = defined $parameter->{skin}      ? $parameter->{skin}      : $anvil->Template->skin;
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
-	   $skin      = $an->data->{path}{directories}{skins}."/".$skin;
+	   $skin      = $anvil->data->{path}{directories}{skins}."/".$skin;
 	my $template  = "";
 	my $source    = "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		file     => $file,
 		language => $language,
 		name     => $name, 
 		skin     => $skin, 
 	}});
-	my $show_name = $name eq "http_headers" ? 0 : 1;
+	
+	# The 'http_headers' template can never show the name
+	$show_name = 0 if $name eq "http_headers";
 	
 	my $error = 0;
 	if (not $file)
 	{
 		# No file passed.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0024"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0024"});
 		$error = 1;
 	}
 	else
@@ -148,19 +155,19 @@ sub get
 		{
 			# Fully defined path, don't alter it.
 			$source = $file;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
 		}
 		else
 		{
 			# Just a file name, prepend the skin path.
 			$source = $skin."/".$file;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
 		}
 		
 		if (not -e $source)
 		{
 			# Source doesn't exist
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0025", variables => { source => $source }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0025", variables => { source => $source }});
 			$error = 1;
 		}
 		elsif (not -r $source)
@@ -168,29 +175,29 @@ sub get
 			# Source isn't readable.
 			my $user_name = getpwuid($<);
 			   $user_name = $< if not $user_name;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0026", variables => { source => $source, user_name => $user_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0026", variables => { source => $source, user_name => $user_name }});
 			$error = 1;
 		}
 	}
 	if (not $name)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0027"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0027"});
 		$error = 1;
 	}
 	
 	if (not $error)
 	{
 		my $in_template   = 0;
-		my $template_file = $an->Storage->read_file({file => $source});
+		my $template_file = $anvil->Storage->read_file({file => $source});
 		foreach my $line (split/\n/, $template_file)
 		{
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
 			if ($line =~ /^<!-- start $name -->/)
 			{
 				$in_template = 1;
 				if ($show_name)
 				{
-					$template .= $line."\n";
+					$template .= "<!-- start: [$source] -> [$name] -->\n";
 				}
 				next;
 			}
@@ -201,7 +208,7 @@ sub get
 					$in_template = 0;
 					if ($show_name)
 					{
-						$template .= $line."\n";
+						$template .= "<!-- end: [$source] -> [$name] -->\n";
 					}
 					last;
 				}
@@ -211,14 +218,14 @@ sub get
 				}
 			}
 		}
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
 		
 		# Now that I have the skin, inject my variables. We'll use Words->string() to do this for us.
-		$template = $an->Words->string({
+		$template = $anvil->Words->string({
 			string    => $template,
 			variables => $variables,
 		});
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
 	}
 	
 	return($template);
@@ -279,7 +286,7 @@ sub select_form
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $debug     = 3;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
@@ -290,7 +297,7 @@ sub select_form
 	my $blank     = defined $parameter->{blank}     ? $parameter->{blank}     : 0;	# Add a blank/null entry?
 	my $say_blank = defined $parameter->{say_blank} ? $parameter->{say_blank} : "";	# An optional, grayed-out string in the place of the "blank" option
 	my $selected  = defined $parameter->{selected}  ? $parameter->{selected}  : "";	# Pre-select an option?
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		name      => $name, 
 		options   => $options, 
 		'sort'    => $sort, 
@@ -306,7 +313,7 @@ sub select_form
 	{
 		$select = "<select name=\"$name\" id=\"$id\" class=\"$class\">\n";
 	}
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 	
 	# Insert a blank line.
 	if ($blank)
@@ -323,12 +330,12 @@ sub select_form
 		{
 			$selected =  "";
 			$select   .= "<option value=\"\" $blank_class selected>$blank_string</option>\n";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 		}
 		else
 		{
 			$select .= "<option value=\"\" $blank_class>$blank_string</option>\n";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 		}
 	}
 	
@@ -343,12 +350,12 @@ sub select_form
 				my $value       =  $1;
 				my $description =  $2;
 				   $select      .= "<option value=\"$value\">$description</option>\n";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 			}
 			else
 			{
 				$select .= "<option value=\"$entry\">$entry</option>\n";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 			}
 		}
 	}
@@ -362,12 +369,12 @@ sub select_form
 				my $value       =  $1;
 				my $description =  $2;
 				   $select      .= "<option value=\"$value\">$description</option>\n";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 			}
 			else
 			{
 				$select .= "<option value=\"$entry\">$entry</option>\n";
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 			}
 		}
 	}
@@ -376,13 +383,13 @@ sub select_form
 	if ($selected)
 	{
 		$select =~ s/value=\"$selected\">/value=\"$selected\" selected>/m;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 	}
 	
 	# Done!
 	$select .= "</select>\n";
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 	return($select);
 }
 
@@ -394,11 +401,11 @@ The default skin is set via 'C<< defaults::template::html >>' and it must be the
 
 Get the active skin directory;
 
- my $skin = $an->Template->skin;
+ my $skin = $anvil->Template->skin;
  
 Set the active skin to 'C<< foo >>'. Only pass the skin name, not the full path.
 
- $an->Template->skin({set => "foo"});
+ $anvil->Template->skin({set => "foo"});
 
 Parameters;
 
@@ -415,36 +422,36 @@ sub skin
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $debug = 3;
 	my $fatal = defined $parameter->{fatal} ? $parameter->{fatal} : 1;
 	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fatal => $fatal, set => $set }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fatal => $fatal, set => $set }});
 	
 	if ($set)
 	{
-		my $skin_directory = $an->data->{path}{directories}{skins}."/".$set;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { skin_directory => $skin_directory }});
+		my $skin_directory = $anvil->data->{path}{directories}{skins}."/".$set;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { skin_directory => $skin_directory }});
 		if ((-d $skin_directory) or (not $fatal))
 		{
 			$self->{SKIN}{HTML} = $set;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 		}
 		else
 		{
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0031", variables => { set => $set, skin_directory => $skin_directory }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0031", variables => { set => $set, skin_directory => $skin_directory }});
 		}
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 	if (not $self->{SKIN}{HTML})
 	{
-		$self->{SKIN}{HTML} = $an->data->{defaults}{template}{html};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML}, 'defaults::template::html' => $an->data->{defaults}{template}{html} }});
+		$self->{SKIN}{HTML} = $anvil->data->{defaults}{template}{html};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML}, 'defaults::template::html' => $anvil->data->{defaults}{template}{html} }});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'SKIN::HTML' => $self->{SKIN}{HTML} }});
 	return($self->{SKIN}{HTML});
 }
 

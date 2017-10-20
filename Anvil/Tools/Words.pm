@@ -1,4 +1,4 @@
-package AN::Tools::Words;
+package Anvil::Tools::Words;
 # 
 # This module contains methods used to handle storage related tasks
 # 
@@ -29,21 +29,21 @@ my $THIS_FILE = "Words.pm";
 
 =head1 NAME
 
-AN::Tools::Words
+Anvil::Tools::Words
 
 Provides all methods related to generating translated strings for users.
 
 =head1 SYNOPSIS
 
- use AN::Tools;
+ use Anvil::Tools;
 
- # Get a common object handle on all AN::Tools modules.
- my $an = AN::Tools->new();
+ # Get a common object handle on all Anvil::Tools modules.
+ my $anvil = Anvil::Tools->new();
  
- # Access to methods using '$an->Words->X'. 
+ # Access to methods using '$anvil->Words->X'. 
  # 
  # Example using 'read()';
- my $foo_path = $an->Words->read({file => $an->data->{path}{words}{'an-tools.xml'}});
+ my $foo_path = $anvil->Words->read({file => $anvil->data->{path}{words}{'anvil.xml'}});
 
 =head1 METHODS
 
@@ -64,7 +64,7 @@ sub new
 	return ($self);
 }
 
-# Get a handle on the AN::Tools object. I know that technically that is a sibling module, but it makes more 
+# Get a handle on the Anvil::Tools object. I know that technically that is a sibling module, but it makes more 
 # sense in this case to think of it as a parent.
 sub parent
 {
@@ -91,7 +91,7 @@ sub parent
 
 This methid takes a string via a 'C<< line >>' parameter and strips leading and trailing spaces, plus compresses multiple spaces into single spaces. It is designed primarily for use by code parsing text coming in from a shell command.
 
- my $line = $an->Words->clean_spaces({ string => $_ });
+ my $line = $anvil->Words->clean_spaces({ string => $_ });
 
 Parameters;
 
@@ -104,7 +104,7 @@ sub clean_spaces
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	# Setup default values
 	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
@@ -117,7 +117,7 @@ sub clean_spaces
 
 =head2 key
 
-NOTE: This is likely not the method you want. This method does no parsing at all. It returns the raw string from the 'words' file. You probably want C<< $an->Words->string() >> if you want to inject variables and get a string back ready to display to the user.
+NOTE: This is likely not the method you want. This method does no parsing at all. It returns the raw string from the 'words' file. You probably want C<< $anvil->Words->string() >> if you want to inject variables and get a string back ready to display to the user.
 
 This returns a string by its key name. Optionally, a language and/or a source file can be specified. When no file is specified, loaded files will be search in alphabetical order (including path) and the first match is returned. 
 
@@ -125,21 +125,21 @@ If the requested string is not found, 'C<< #!not_found!# >>' is returned.
 
 Example to retrieve 'C<< t_0001 >>';
 
- my $string = $an->Words->key({key => 't_0001'});
+ my $string = $anvil->Words->key({key => 't_0001'});
 
 Same, but specifying the key from Canadian english;
 
- my $string = $an->Words->key({
+ my $string = $anvil->Words->key({
  	key      => 't_0001',
  	language => 'en_CA',
  });
 
 Same, but specifying a source file.
 
- my $string = $an->Words->key({
+ my $string = $anvil->Words->key({
  	key      => 't_0001',
  	language => 'en_CA',
- 	file     => 'an-tools.xml',
+ 	file     => 'anvil.xml',
  });
 
 Parameters;
@@ -148,7 +148,7 @@ Parameters;
 
 This is the specific file to read the string from. It should generally not be needed as string keys should not be reused. However, if it happens, this is a way to specify which file's version you want.
 
-The file can be the file name, or a path. The specified file is search for by matching the the passed in string against the end of the file path. For example, 'C<< file => 'AN/an-tools.xml' >> will match the file 'c<< /usr/share/perl5/AN/an-tools.xml >>'.
+The file can be the file name, or a path. The specified file is search for by matching the the passed in string against the end of the file path. For example, 'C<< file => 'AN/anvil.xml' >> will match the file 'c<< /usr/share/perl5/AN/anvil.xml >>'.
 
 =head3 key (required)
 
@@ -165,11 +165,11 @@ sub key
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	# Setup default values
 	my $key      = defined $parameter->{key}      ? $parameter->{key}      : "";
-	my $language = defined $parameter->{language} ? $parameter->{language} : $an->Words->language;
+	my $language = defined $parameter->{language} ? $parameter->{language} : $anvil->Words->language;
 	my $file     = defined $parameter->{file}     ? $parameter->{file}     : "";
 	my $string   = "#!not_found!#";
 	my $error    = 0;
@@ -177,25 +177,25 @@ sub key
 
 	if (not $key)
 	{
-		#print $THIS_FILE." ".__LINE__."; AN::Tools::Words->key()' called without a key name to read.\n";
+		#print $THIS_FILE." ".__LINE__."; Anvil::Tools::Words->key()' called without a key name to read.\n";
 		$error = 1;
 	}
 	if (not $language)
 	{
-		#print $THIS_FILE." ".__LINE__."; AN::Tools::Words->key()' called without a language, and 'defaults::languages::output' is not set.\n";
+		#print $THIS_FILE." ".__LINE__."; Anvil::Tools::Words->key()' called without a language, and 'defaults::languages::output' is not set.\n";
 		$error = 2;
 	}
 	
 	if (not $error)
 	{
-		foreach my $this_file (sort {$a cmp $b} keys %{$an->data->{words}})
+		foreach my $this_file (sort {$a cmp $b} keys %{$anvil->data->{words}})
 		{
 			#print $THIS_FILE." ".__LINE__."; [ Debug ] - this_file: [$this_file], file: [$file]\n";
 			# If they've specified a file and this doesn't match, skip it.
 			next if (($file) && ($this_file !~ /$file$/));
-			if (exists $an->data->{words}{$this_file}{language}{$language}{key}{$key}{content})
+			if (exists $anvil->data->{words}{$this_file}{language}{$language}{key}{$key}{content})
 			{
-				$string = $an->data->{words}{$this_file}{language}{$language}{key}{$key}{content};
+				$string = $anvil->data->{words}{$this_file}{language}{$language}{key}{$key}{content};
 				#print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n";
 				last;
 			}
@@ -212,18 +212,18 @@ This sets or returns the output language ISO code.
 
 Get the current log language;
 
- my $language = $an->Words->language;
+ my $language = $anvil->Words->language;
  
 Set the output langauge to Japanese;
 
- $an->Words->language({set => "jp"});
+ $anvil->Words->language({set => "jp"});
 
 =cut
 sub language
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	
@@ -234,7 +234,7 @@ sub language
 	
 	if (not $self->{WORDS}{LANGUAGE})
 	{
-		$self->{WORDS}{LANGUAGE} = $an->data->{defaults}{language}{output};
+		$self->{WORDS}{LANGUAGE} = $anvil->data->{defaults}{language}{output};
 	}
 	
 	return($self->{WORDS}{LANGUAGE});
@@ -244,10 +244,10 @@ sub language
 
 This reads in a words file containing translated strings used to generated output for the user. 
 
-Example to read 'C<< an-tools.xml >>';
+Example to read 'C<< anvil.xml >>';
 
- my $words_file = $an->data->{path}{words}{'an-words.xml'};
- my $an->Words->read({file => $words_file}) or die "Failed to read: [$words_file]. Does the file exist?\n";
+ my $words_file = $anvil->data->{path}{words}{'an-words.xml'};
+ my $anvil->Words->read({file => $words_file}) or die "Failed to read: [$words_file]. Does the file exist?\n";
 
 Successful read will return '0'. Non-0 is an error;
 0 = OK
@@ -256,7 +256,7 @@ Successful read will return '0'. Non-0 is an error;
 3 = File not readable
 4 = File found, failed to read for another reason. The error details will be printed.
 
-NOTE: Read works are stored in 'C<< $an->data->{words}{<file_name>}{language}{<language>}{string}{content} >>'. Metadata, like what languages are provided, are stored under 'C<< $an->data->{words}{<file_name>}{meta}{...} >>'.
+NOTE: Read works are stored in 'C<< $anvil->data->{words}{<file_name>}{language}{<language>}{string}{content} >>'. Metadata, like what languages are provided, are stored under 'C<< $anvil->data->{words}{<file_name>}{meta}{...} >>'.
 
 Parameters;
 
@@ -269,36 +269,36 @@ sub read
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	# Setup default values
 	my $return_code = 0;
 	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	if (not $file)
 	{
 		# NOTE: Log the problem, do not translate.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' called without a file name to read."});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' called without a file name to read."});
 		$return_code = 1;
 	}
 	elsif (not -e $file)
 	{
 		# NOTE: Log the problem, do not translate.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not found."});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not found."});
 		$return_code = 2;
 	}
 	elsif (not -r $file)
 	{
 		# NOTE: Log the problem, do not translate.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not readable by: [".getpwuid($<)."] (uid/euid: [".$<."])."});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Words->read()' asked to read: [$file] which was not readable by: [".getpwuid($<)."] (uid/euid: [".$<."])."});
 		$return_code = 3;
 	}
 	else
 	{
 		# Read the file with XML::Simple
 		my $xml  = XML::Simple->new();
-		eval { $an->data->{words}{$file} = $xml->XMLin($file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'language', 'key' ]) };
+		eval { $anvil->data->{words}{$file} = $xml->XMLin($file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'language', 'key' ]) };
 		if ($@)
 		{
 			chomp $@;
@@ -306,12 +306,12 @@ sub read
 			   $error .= "===========================================================\n";
 			   $error .= $@."\n";
 			   $error .= "===========================================================\n";
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
 			$return_code = 4;
 		}
 		else
 		{
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0028", variables => { file => $file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0028", variables => { file => $file }});
 		}
 	}
 	
@@ -326,7 +326,7 @@ If the requested string is not found, 'C<< #!not_found!# >>' is returned.
 
 Example to retrieve 'C<< t_0001 >>';
 
- my $string = $an->Words->string({key => 't_0001'});
+ my $string = $anvil->Words->string({key => 't_0001'});
 
 This time, requesting 'C<< t_0002 >>' and passing in two variables. Note that 'C<< t_0002 >>' in Canadian English is;
 
@@ -334,7 +334,7 @@ This time, requesting 'C<< t_0002 >>' and passing in two variables. Note that 'C
 
 So to request this string in Canadian English is the two variables inserted, we would call:
 
- my $string = $an->Words->string({	
+ my $string = $anvil->Words->string({	
  	language  => 'en_CA',
  	key       => 't_0002',
  	variables => {
@@ -349,9 +349,9 @@ This would return;
 
 Normally, there should never be a key collision. However, just in case you find yourself needing to request the string from a specific file, you can do the same call with a file specified.
 
- my $string = $an->Words->string({
+ my $string = $anvil->Words->string({
  	language  => 'en_CA',
- 	file      => 'an-tools.xml',
+ 	file      => 'anvil.xml',
  	key       => 't_0002',
  	variables => {
 		first  => "foo",
@@ -392,11 +392,11 @@ sub string
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	# Setup default values
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Words->language;
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language;
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $string    = defined $parameter->{string}    ? $parameter->{string}    : "";
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
@@ -406,7 +406,7 @@ sub string
 	# we'll exit.
 	if (not $string)
 	{
-		$string = $an->Words->key({
+		$string = $anvil->Words->key({
 			key      => $key,
 			language => $language,
 			file     => $file,
@@ -417,7 +417,7 @@ sub string
 	{
 		# We've got a string and variables from the caller, so inject them as needed.
 		my $loops = 0;
-		my $limit = $an->data->{defaults}{limits}{string_loops} =~ /^\d+$/ ? $an->data->{defaults}{limits}{string_loops} : 1000;
+		my $limit = $anvil->data->{defaults}{limits}{string_loops} =~ /^\d+$/ ? $anvil->data->{defaults}{limits}{string_loops} : 1000;
 		
 		# If the user didn't pass in any variables, then we're in trouble.
 		if (($string =~ /#!variable!(.+?)!#/s) && ((not $variables) or (ref($variables) ne "HASH")))
@@ -431,7 +431,7 @@ sub string
 				$loops++;
 				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
 			}
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0042", variables => { string => $string }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0042", variables => { string => $string }});
 			return("#!error!#");
 		}
 		
@@ -463,7 +463,7 @@ sub string
 			while ($string =~ /#!string!(.+?)!#/)
 			{
 				my $key         = $1;
-				my $this_string = $an->Words->key({
+				my $this_string = $anvil->Words->key({
 					key      => $key,
 					language => $language,
 					file     => $file,
@@ -519,14 +519,14 @@ sub string
 				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
 			}
 			
-			# Next, convert '#!data!x!#' to the value in '$an->data->{x}'.
+			# Next, convert '#!data!x!#' to the value in '$anvil->data->{x}'.
 			while ($string =~ /#!data!(.+?)!#/)
 			{
 				my $id = $1;
 				if ($id =~ /::/)
 				{
 					# Multi-dimensional hash.
-					my $value = $an->_get_hash_reference({ key => $id });
+					my $value = $anvil->_get_hash_reference({ key => $id });
 					if (not defined $value)
 					{
 						$string =~ s/#!data!$id!#/!!a[$id]!!/;
@@ -539,13 +539,13 @@ sub string
 				else
 				{
 					# One dimension
-					if (not defined $an->data->{$id})
+					if (not defined $anvil->data->{$id})
 					{
 						$string =~ s/#!data!$id!#/!!b[$id]!!/;
 					}
 					else
 					{
-						my $value  =  $an->data->{$id};
+						my $value  =  $anvil->data->{$id};
 						   $string =~ s/#!data!$id!#/$value/;
 					}
 				}

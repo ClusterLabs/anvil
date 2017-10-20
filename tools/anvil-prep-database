@@ -1,0 +1,370 @@
+#!/usr/bin/perl
+# 
+# This checks the state of the postgresql database server and, if necessary, configures it for external 
+# access, initializes it and gets it running.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Failed to initialize postgres
+# 2 = Failed to start postgres
+# 3 = ScanCore user not set in the local ID in striker.conf
+# 4 = Failed to create the database user.
+# 5 = 
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+# Paths
+$anvil->data->{path}{config}{'striker.conf'} = "/etc/anvil/anvil.conf";
+$anvil->Storage->read_config({file => $anvil->data->{path}{config}{'striker.conf'}});
+
+my $local_id = $anvil->Database->get_local_id;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_id => $local_id }});
+if ($local_id)
+{
+	# Start checks
+	my $running = $anvil->System->check_daemon({daemon => "postgresql"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+	if (not $running)
+	{
+		# Do we need to initialize the databae?
+		if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
+		{
+			# Initialize.
+			my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			
+			# Did it succeed?
+			if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
+			{
+				# Failed... 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0001"});
+				exit(1);
+			}
+			else
+			{
+				# Initialized!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0001"});
+			}
+			
+			# Setup postgresql.conf
+			my $postgresql_backup = $anvil->data->{path}{directories}{backups}."/pgsql/postgresql.conf";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { postgresql_backup => $postgresql_backup }});
+			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'postgresql.conf'}, target => $postgresql_backup});
+			
+			my $postgresql_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'postgresql.conf'}});
+			my $update_file         = 1;
+			my $new_postgresql_conf = "";
+			foreach my $line (split/\n/, $postgresql_conf)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				if ($line =~ /^listen_addresses = '\*'/)
+				{
+					# No need to update.
+					$update_file = 0;
+					last;
+				}
+				elsif ($line =~ /^#listen_addresses = 'localhost'/)
+				{
+					# Inject the new listen_addresses
+					$new_postgresql_conf .= "listen_addresses = '*'\n";
+				}
+				$new_postgresql_conf .= $line."\n";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
+			if ($update_file)
+			{
+				$anvil->Storage->write_file({
+					file      => $anvil->data->{path}{configs}{'postgresql.conf'}, 
+					body      => $new_postgresql_conf,
+					user      => "postgres", 
+					group     => "postgres",
+					mode      => "0600",
+					overwrite => 1,
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0002", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
+			}
+			
+			# Setup pg_hba.conf now
+			my $pg_hba_backup = $anvil->data->{path}{directories}{backups}."/pgsql/pg_hba.conf";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pg_hba_backup => $pg_hba_backup }});
+			
+			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'pg_hba.conf'}, target => $pg_hba_backup});
+			my $pg_hba_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'pg_hba.conf'}});
+			   $update_file     = 1;
+			my $new_pg_hba_conf = "";
+			foreach my $line (split/\n/, $pg_hba_conf)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				if ($line =~ /^host\s+all\s+all\s+\all\s+md5$/)
+				{
+					# No need to update.
+					$update_file = 0;
+					last;
+				}
+				elsif ($line =~ /^# TYPE\s+DATABASE/)
+				{
+					# Inject the new listen_addresses
+					$new_pg_hba_conf .= $line."\n";
+					$new_pg_hba_conf .= "host\tall\t\tall\t\t*\t\t\tmd5\n";
+				}
+				else
+				{
+					$new_pg_hba_conf .= $line."\n";
+				}
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
+			if ($update_file)
+			{
+				$anvil->Storage->write_file({
+					file      => $anvil->data->{path}{configs}{'pg_hba.conf'}, 
+					body      => $new_pg_hba_conf,
+					user      => "postgres", 
+					group     => "postgres",
+					mode      => "0600",
+					overwrite => 1,
+				});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0003", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
+			}
+		}
+		
+		# Start the daemon. It might fail if it has never been initialized.
+		my $started = $anvil->System->start_daemon({daemon => "postgresql"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { started => $started }});
+		if ($started)
+		{
+			# Started the daemon.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0004"});
+		}
+		else
+		{
+			# Failed to start
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0002"});
+			exit(2);
+		}
+	}
+	
+	# Create the .pgpass file, if needed.
+	my $created_pgpass = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
+		'path::secure::postgres_pgpass'   => $anvil->data->{path}{secure}{postgres_pgpass},
+		"database::${local_id}::password" => $anvil->data->{database}{$local_id}{password}, 
+	}});
+	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$local_id}{password}))
+	{
+		my $body = "*:*:*:postgres:".$anvil->data->{database}{$local_id}{password}."\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { body => $body }});
+		$anvil->Storage->write_file({
+			file      => $anvil->data->{path}{secure}{postgres_pgpass},  
+			body      => $body,
+			user      => "postgres", 
+			group     => "postgres",
+			mode      => "0600",
+			overwrite => 1,
+			secure    => 1,
+		});
+		if (-e $anvil->data->{path}{secure}{postgres_pgpass})
+		{
+			$created_pgpass = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { created_pgpass => $created_pgpass }});
+		}
+	}
+	
+	# Does the database user exist?
+	my $create_user   = 1;
+	my $scancore_user = $anvil->data->{database}{$local_id}{user};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scancore_user => $scancore_user }});
+	if (not $scancore_user)
+	{
+		# No database user defined
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0003", variables => { id => $local_id }});
+		exit(3);
+	}
+	my $user_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_list => $user_list }});
+	foreach my $line (split/\n/, $user_list)
+	{
+		if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
+		{
+			# User exists already
+			my $id = $1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0005", variables => { user => $scancore_user, id => $id }});
+			$create_user = 0;
+			last;
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_user => $create_user }});
+	if ($create_user)
+	{
+		# Create the user
+		my $create_output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $scancore_user\"", source => $THIS_FILE, line => __LINE__});
+		my $user_list     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+		my $user_exists   = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output, user_list => $user_list }});
+		foreach my $line (split/\n/, $user_list)
+		{
+			if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
+			{
+				# Success!
+				my $id = $1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0006", variables => { user => $scancore_user, id => $id }});
+				$user_exists = 1;
+				last;
+			}
+		}
+		if (not $user_exists)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0004", variables => { user => $scancore_user }});
+			exit(4);
+		}
+		
+		# Update/set the passwords.
+		if ($anvil->data->{database}{$local_id}{password})
+		{
+			foreach my $user ("postgres", $scancore_user)
+			{
+				my $update_output = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$local_id}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { update_output => $update_output }});
+				foreach my $line (split/\n/, $user_list)
+				{
+					if ($line =~ /ALTER ROLE/)
+					{
+						# Password set
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0007", variables => { user => $user }});
+					}
+				}
+			}
+		}
+	}
+	
+	# Create the database, if needed.
+	my $create_database   = 1;
+	my $scancore_database = $anvil->data->{database}{$local_id}{name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "database::${local_id}::name" => $anvil->data->{database}{$local_id}{name} }});
+	
+	my $database_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+	foreach my $line (split/\n/, $database_list)
+	{
+		if ($line =~ /^ $scancore_database$/)
+		{
+			# Database already exists.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0008", variables => { database => $scancore_database }});
+			$create_database = 0;
+			last;
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_database => $create_database }});
+	if ($create_database)
+	{
+		my $create_output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}."  --owner $scancore_user $scancore_database\"", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output }});
+		
+		my $database_exists = 0;
+		my $database_list   = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+		foreach my $line (split/\n/, $database_list)
+		{
+			if ($line =~ /^ $scancore_database$/)
+			{
+				# Database created
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0008", variables => { database => $scancore_database }});
+				$database_exists = 1;
+				last;
+			}
+		}
+		if (not $database_exists)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0005", variables => { database => $scancore_database }});
+			exit(5);
+		}
+	}
+	
+	# Remove the temporary password file.
+	if (($created_pgpass) && (-e $anvil->data->{path}{secure}{postgres_pgpass}))
+	{
+		unlink $anvil->data->{path}{secure}{postgres_pgpass};
+		if (-e $anvil->data->{path}{secure}{postgres_pgpass})
+		{
+			# Failed to unlink the file.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0001"});
+		}
+	}
+	
+	#####################################################################################################
+	# NOTE: Below here is stuff that is for general setup. If it grows, we'll have to rename this tool. #
+	#####################################################################################################
+	
+	### TODO: This will need to set the proper SELinux context.
+	# Apache run scripts can't call the system UUID, so we'll write it to a text file.
+	if (not -e $anvil->data->{path}{data}{host_uuid})
+	{
+		$anvil->Storage->write_file({
+			file      => $anvil->data->{path}{data}{host_uuid}, 
+			body      => $anvil->Get->host_uuid,
+			user      => "apache", 
+			group     => "apache",
+			mode      => "0666",
+			overwrite => 0,
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0011", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
+	}
+	
+	# Log level 3 creates so much logging that it hits journald's rate limiting (1000 logs per 30 
+	# seconds). So we need to disable it.
+	if (not -e $anvil->data->{path}{configs}{'journald_an'})
+	{
+		# Write the file to disable journald rate limiting.
+		my $body = "# This disables the rate limiting so that when log level is set to 3, log 
+# entries aren't lost. If you want to override this, don't delete the file, 
+# just comment out the lines below.
+
+[Journal]
+RateLimitInterval=0
+RateLimitBurst=0
+";
+		$anvil->Storage->write_file({
+			file      => $anvil->data->{path}{configs}{'journald_an'}, 
+			body      => $body,
+			user      => "root", 
+			group     => "root",
+			mode      => "0644",
+			overwrite => 0,
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0012", variables => { file => $anvil->data->{path}{configs}{'journald_an'} }});
+		
+		my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart systemd-journald.service";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my $output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	}
+}
+else
+{
+	# Didn't find an entry for this machine.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0010"});
+}
+
+exit(0);
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################

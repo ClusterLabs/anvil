@@ -1,4 +1,4 @@
-package AN::Tools::Log;
+package Anvil::Tools::Log;
 # 
 # This module contains methods used to handle logging related tasks
 # 
@@ -28,21 +28,21 @@ my $THIS_FILE = "Log.pm";
 
 =head1 NAME
 
-AN::Tools::Log
+Anvil::Tools::Log
 
 Provides all methods related to logging.
 
 =head1 SYNOPSIS
 
- use AN::Tools;
+ use Anvil::Tools;
 
- # Get a common object handle on all AN::Tools modules.
- my $an = AN::Tools->new();
+ # Get a common object handle on all Anvil::Tools modules.
+ my $anvil = Anvil::Tools->new();
  
- # Access to methods using '$an->Log->X'. 
+ # Access to methods using '$anvil->Log->X'. 
  # 
  # Example using 'entry()';
- my $foo_path = $an->Log->entry({...});
+ my $foo_path = $anvil->Log->entry({...});
 
 =head1 METHODS
 
@@ -63,7 +63,7 @@ sub new
 	return ($self);
 }
 
-# Get a handle on the AN::Tools object. I know that technically that is a sibling module, but it makes more 
+# Get a handle on the Anvil::Tools object. I know that technically that is a sibling module, but it makes more 
 # sense in this case to think of it as a parent.
 sub parent
 {
@@ -92,13 +92,13 @@ This method writes an entry to the journald logs, provided the log entry's level
 
 Here is a simple example of writing a simple log entry at log log level 1.
 
- $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0001"});
+ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0001"});
 
 In the example above, the string will be written to the log file if the active log level is 'C<< 1 >>' or higher and it will use the 'C<< log::language >>' language to translate the string key.
 
 Now a more complex example;
 
- $an->Log->entry({
+ $anvil->Log->entry({
  	source    => $THIS_FILE, 
  	line      => __LINE__, 
  	level     => 2,
@@ -114,7 +114,7 @@ In the above example, the log level is set to 'C<< 2 >>' and the 'C<< secure >>'
 
 Finally, it is possible to log pre-processed strings (as is done in 'Alert->warning()' and 'Alert->error()'). In this case, the 'C<< raw >>' parameter is used and it contains the processed string. Note that the source file and line number are still pre-pended to the raw message.
 
- $an->Log->entry({
+ $anvil->Log->entry({
  	source    => $THIS_FILE, 
  	line      => __LINE__, 
  	level     => 2,
@@ -212,7 +212,7 @@ When set, the string is pre-pended to the log entry. This is generally set to 'C
 
 =head3 tag (optional)
 
-This is the tag given to the log entry. By default, it will be 'C<< an-tools >>'.
+This is the tag given to the log entry. By default, it will be 'C<< anvil >>'.
 
 =head3 variables (optional)
 
@@ -223,28 +223,28 @@ sub entry
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil        = $self->parent;
 	
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->Log->language;
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Log->language;
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
-	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $an->data->{defaults}{'log'}{facility};
+	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $anvil->data->{defaults}{'log'}{facility};
 	my $priority  = defined $parameter->{priority}  ? $parameter->{priority}  : "";
 	my $raw       = defined $parameter->{raw}       ? $parameter->{raw}       : "";
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : 0;
-	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $an->data->{defaults}{'log'}{server};
+	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $anvil->data->{defaults}{'log'}{server};
 	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
-	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $an->data->{defaults}{'log'}{tag};
+	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $anvil->data->{defaults}{'log'}{tag};
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
-	#print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [$level], defaults::log::level: [".$an->Log->{defaults}{'log'}{level}."], logging secure? [".$an->Log->secure."]\n";
+	#print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [$level], defaults::log::level: [".$anvil->Log->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."]\n";
 	
 	# Exit immediately if this isn't going to be logged
-	if ($level > $an->Log->level)
+	if ($level > $anvil->Log->level)
 	{
 		return(1);
 	}
-	if (($secure) && (not $an->Log->secure))
+	if (($secure) && (not $anvil->Log->secure))
 	{
 		return(2);
 	}
@@ -291,7 +291,7 @@ sub entry
 	elsif ($key)
 	{
 		# Build the string from the key/variables.
-		my $message .= $an->Words->string({	
+		my $message .= $anvil->Words->string({	
 			language  => $language,
 			key       => $key,
 			variables => $variables,
@@ -319,18 +319,18 @@ This sets or returns the log language ISO code.
 
 Get the current log language;
 
- my $language = $an->Log->language;
+ my $language = $anvil->Log->language;
  
 Set the log langauge to Japanese;
 
- $an->Log->language({set => "jp"});
+ $anvil->Log->language({set => "jp"});
 
 =cut
 sub language
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil        = $self->parent;
 	
 	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
 	my $debug = 0;
@@ -342,10 +342,10 @@ sub language
 		print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."]\n" if $debug;
 	}
 	
-	print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."], defaults::log::language: [".$an->data->{defaults}{'log'}{language}."]\n" if $debug;
+	print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."], defaults::log::language: [".$anvil->data->{defaults}{'log'}{language}."]\n" if $debug;
 	if (not $self->{LOG}{LANGUAGE})
 	{
-		$self->{LOG}{LANGUAGE} = $an->data->{defaults}{'log'}{language};
+		$self->{LOG}{LANGUAGE} = $anvil->data->{defaults}{'log'}{language};
 		print $THIS_FILE." ".__LINE__."; LOG::LANGUAGE: [".$self->{LOG}{LANGUAGE}."]\n" if $debug;
 	}
 	
@@ -359,18 +359,18 @@ This sets or returns the active log level. Valid values are 0 to 4. See the 'ent
 
 Check the current log level:
 
- print "Current log level: [".$an->Log->level."]\n";
+ print "Current log level: [".$anvil->Log->level."]\n";
  
 Change the current log level to 'C<< 2 >>';
 
- $an->Log->level({set => 2});
+ $anvil->Log->level({set => 2});
 
 =cut
 sub level
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil        = $self->parent;
 	
 	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
 	my $debug = 0;
@@ -380,44 +380,44 @@ sub level
 	{
 		if ($set == 0)
 		{
-			$an->data->{defaults}{'log'}{level} = 0;
-			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
+			$anvil->data->{defaults}{'log'}{level} = 0;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
 		elsif ($set == 1)
 		{
-			$an->data->{defaults}{'log'}{level} = 1;
-			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
+			$anvil->data->{defaults}{'log'}{level} = 1;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
 		elsif ($set == 2)
 		{
-			$an->data->{defaults}{'log'}{level} = 2;
-			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
+			$anvil->data->{defaults}{'log'}{level} = 2;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
 		elsif ($set == 3)
 		{
-			$an->data->{defaults}{'log'}{level} = 3;
-			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
+			$anvil->data->{defaults}{'log'}{level} = 3;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
 		elsif ($set == 4)
 		{
-			$an->data->{defaults}{'log'}{level} = 4;
-			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
+			$anvil->data->{defaults}{'log'}{level} = 4;
+			print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."]\n" if $debug;
 		}
 	}
 	elsif ($set ne "")
 	{
 		# Invalid value passed.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0047", variables => { set => $set }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0047", variables => { set => $set }});
 	}
 
-	if ((not defined $an->data->{defaults}{'log'}{level}) or ($an->data->{defaults}{'log'}{level} !~ /^\d$/) or ($an->data->{defaults}{'log'}{level} < 0) or ($an->data->{defaults}{'log'}{level} > 4))
+	if ((not defined $anvil->data->{defaults}{'log'}{level}) or ($anvil->data->{defaults}{'log'}{level} !~ /^\d$/) or ($anvil->data->{defaults}{'log'}{level} < 0) or ($anvil->data->{defaults}{'log'}{level} > 4))
 	{
-		$an->data->{defaults}{'log'}{level} = 1;
-		print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
+		$anvil->data->{defaults}{'log'}{level} = 1;
+		print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."]\n" if $debug;
 	}
 	
-	print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$an->data->{defaults}{'log'}{level}."]\n" if $debug;
-	return($an->data->{defaults}{'log'}{level});
+	print $THIS_FILE." ".__LINE__."; defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."]\n" if $debug;
+	return($anvil->data->{defaults}{'log'}{level});
 }
 
 =head2 secure
@@ -430,23 +430,23 @@ Passing 'C<< 0 >>' disables recording sensitive logs. Passing 'C<< 1 >>' enables
  
 Enable logging of secure data;
 
- $an->Log->secure({set => 1});
+ $anvil->Log->secure({set => 1});
  
- if ($an->Log->secure)
+ if ($anvil->Log->secure)
  {
 	# Sensitive data logging is enabled.
  }
  
 Disable sensitive log entry recording.
 
- $an->Log->secure({set => 0});
+ $anvil->Log->secure({set => 0});
 
 =cut
 sub secure
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil        = $self->parent;
 	
 	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
 	my $debug = 0;
@@ -455,15 +455,15 @@ sub secure
 	{
 		if ($set eq "0")
 		{
-			$an->data->{defaults}{'log'}{secure} = 0;
+			$anvil->data->{defaults}{'log'}{secure} = 0;
 		}
 		elsif ($set eq "1")
 		{
-			$an->data->{defaults}{'log'}{secure} = 1;
+			$anvil->data->{defaults}{'log'}{secure} = 1;
 		}
 	}
 	
-	return($an->data->{defaults}{'log'}{secure});
+	return($anvil->data->{defaults}{'log'}{secure});
 }
 
 =head2 variables
@@ -482,7 +482,7 @@ If the passed in number of entries is 5 or less, the output will all be on one l
 
 To allow for sorting, if the key starts with 's#:', that part of the key will be removed in the log. For example;
 
- $an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
  	"s1:i"            => $i,
  	"s2:column_name"  => $column_name, 
  	"s3:column_value" => $column_value,
@@ -492,12 +492,12 @@ To allow for sorting, if the key starts with 's#:', that part of the key will be
  
 Would generate a sorted log entry that looks like:
  
- Aug 20 13:10:28 m3-striker01.alteeve.com an-tools[9445]: Database.pm:2604; Variables:
-                                                          |- i: [0]
-                                                          |- column_name: [host_name]
-                                                          |- column_value: [m3-striker01.alteeve.com]
-                                                          |- not_null: [1]
-                                                          \- data_type: [text]
+ Aug 20 13:10:28 m3-striker01.alteeve.com anvil[9445]: Database.pm:2604; Variables:
+                                                       |- i: [0]
+                                                       |- column_name: [host_name]
+                                                       |- column_value: [m3-striker01.alteeve.com]
+                                                       |- not_null: [1]
+                                                       \- data_type: [text]
 
 All other key names are left alone and output is sorted alphabetically.
 
@@ -506,33 +506,33 @@ sub variables
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil        = $self->parent;
 	
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $an->data->{defaults}{'log'}{language};
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->data->{defaults}{'log'}{language};
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $list      = defined $parameter->{list}      ? $parameter->{list}      : {};
-	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $an->data->{defaults}{'log'}{facility};
+	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $anvil->data->{defaults}{'log'}{facility};
 	my $priority  = defined $parameter->{priority}  ? $parameter->{priority}  : "";
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : 0;
-	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $an->data->{defaults}{'log'}{server};
+	my $server    = defined $parameter->{server}    ? $parameter->{server}    : $anvil->data->{defaults}{'log'}{server};
 	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
-	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $an->data->{defaults}{'log'}{tag};
+	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $anvil->data->{defaults}{'log'}{tag};
 	
 	# Exit immediately if this isn't going to be logged
 	if (not defined $level)
 	{
 		die $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] defined from: [$source : $line]\n";
 	}
-	elsif (not defined $an->Log->level)
+	elsif (not defined $anvil->Log->level)
 	{
-		die $THIS_FILE." ".__LINE__."; Log->variables() called without Log->level: [".$an->Log->level."] defined from: [$source : $line]\n";
+		die $THIS_FILE." ".__LINE__."; Log->variables() called without Log->level: [".$anvil->Log->level."] defined from: [$source : $line]\n";
 	}
-	if ($level > $an->Log->level)
+	if ($level > $anvil->Log->level)
 	{
 		return(1);
 	}
-	if (($secure) && (not $an->Log->secure))
+	if (($secure) && (not $anvil->Log->secure))
 	{
 		return(2);
 	}
@@ -552,7 +552,8 @@ sub variables
 			}
 		}
 		my $raw = "";
-		if ($entries <= 5)
+		# NOTE: If you change this, be sure to update Tools.t
+		if ($entries <= 4)
 		{
 			# Put all the entries on one line.
 			foreach my $key (sort {$a cmp $b} keys %{$list})
@@ -567,7 +568,7 @@ sub variables
 		else
 		{
 			# Put all the entries on their own line.
-			$raw .= $an->Words->string({key => "log_0019"})."\n";
+			$raw .= $anvil->Words->string({key => "log_0019"})."\n";
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
 				# Strip a leading 'sX:' in case the user is sorting the output.
@@ -586,7 +587,7 @@ sub variables
 		}
 		
 		# Do the raw log entry.
-		$an->Log->entry({
+		$anvil->Log->entry({
 			language => $language,
 			level    => $level,
 			line     => $line,
@@ -616,34 +617,34 @@ sub variables
 
 =head2 _adjust_log_level
 
-This is a private method used by 'C<< $an->Get->switches >>' that automatically adjusts the active log level to 0 ~ 4. See 'C<< perldoc AN::Tools::Get >>' for more information.
+This is a private method used by 'C<< $anvil->Get->switches >>' that automatically adjusts the active log level to 0 ~ 4. See 'C<< perldoc Anvil::Tools::Get >>' for more information.
 
 =cut 
 sub _adjust_log_level
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil        = $self->parent;
 	
-	if ($an->data->{switches}{V})
+	if ($anvil->data->{switches}{V})
 	{
-		$an->Log->level({set => 0});
+		$anvil->Log->level({set => 0});
 	}
-	elsif ($an->data->{switches}{v})
+	elsif ($anvil->data->{switches}{v})
 	{
-		$an->Log->level({set => 1});
+		$anvil->Log->level({set => 1});
 	}
-	elsif ($an->data->{switches}{vv})
+	elsif ($anvil->data->{switches}{vv})
 	{
-		$an->Log->level({set => 2});
+		$anvil->Log->level({set => 2});
 	}
-	elsif ($an->data->{switches}{vvv})
+	elsif ($anvil->data->{switches}{vvv})
 	{
-		$an->Log->level({set => 3});
+		$anvil->Log->level({set => 3});
 	}
-	elsif ($an->data->{switches}{vvvv})
+	elsif ($anvil->data->{switches}{vvvv})
 	{
-		$an->Log->level({set => 4});
+		$anvil->Log->level({set => 4});
 	}
 	
 	return(0);

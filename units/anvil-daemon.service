@@ -1,10 +1,10 @@
 [Unit]
-Description=ScanCore - Anvil! IA Suite
+Description=Anvil! Intelligent Availability Platform - main service daemon
 Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/striker/scancore-daemon
+ExecStart=/usr/sbin/anvil/anvil-daemon
 ExecStop=/bin/kill -WINCH ${MAINPID}
 Restart=always
 

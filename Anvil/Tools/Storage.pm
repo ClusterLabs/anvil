@@ -1,4 +1,4 @@
-package AN::Tools::Storage;
+package Anvil::Tools::Storage;
 # 
 # This module contains methods used to handle storage related tasks
 # 
@@ -29,21 +29,21 @@ my $THIS_FILE = "Storage.pm";
 
 =head1 NAME
 
-AN::Tools::Storage
+Anvil::Tools::Storage
 
 Provides all methods related to storage on a system.
 
 =head1 SYNOPSIS
 
- use AN::Tools;
+ use Anvil::Tools;
 
- # Get a common object handle on all AN::Tools modules.
- my $an = AN::Tools->new();
+ # Get a common object handle on all Anvil::Tools modules.
+ my $anvil = Anvil::Tools->new();
  
- # Access to methods using '$an->Storage->X'. 
+ # Access to methods using '$anvil->Storage->X'. 
  # 
  # Example using 'find()';
- my $foo_path = $an->Storage->find({file => "foo"});
+ my $foo_path = $anvil->Storage->find({file => "foo"});
 
 =head1 METHODS
 
@@ -62,7 +62,7 @@ sub new
 	return ($self);
 }
 
-# Get a handle on the AN::Tools object. I know that technically that is a sibling module, but it makes more 
+# Get a handle on the Anvil::Tools object. I know that technically that is a sibling module, but it makes more 
 # sense in this case to think of it as a parent.
 sub parent
 {
@@ -89,7 +89,7 @@ sub parent
 
 This changes the mode of a file or directory.
 
- $an->Storage->change_mode({target => "/tmp/foo", mode => "0644"});
+ $anvil->Storage->change_mode({target => "/tmp/foo", mode => "0644"});
 
 If it fails to write the file, an alert will be logged.
 
@@ -108,11 +108,11 @@ sub change_mode
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	my $mode   = defined $parameter->{mode}   ? $parameter->{mode}   : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		target => $target,
 		mode   => $mode,
 	}});
@@ -121,32 +121,32 @@ sub change_mode
 	if (not $target)
 	{
 		# No target...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "target" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "target" }});
 		$error = 1;
 	}
 	if (not $mode)
 	{
 		# No mode...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "mode" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "mode" }});
 		$error = 1;
 	}
 	elsif (($mode !~ /^\d\d\d$/) && ($mode !~ /^\d\d\d\d$/))
 	{
 		# Invalid mode
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0038", variables => { mode => $mode }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0038", variables => { mode => $mode }});
 		$error = 1;
 	}
 	
 	if (not $error)
 	{
-		my $shell_call = $an->data->{path}{exe}{'chmod'}." $mode $target";
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
-		open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+		my $shell_call = $anvil->data->{path}{exe}{'chmod'}." $mode $target";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
+		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
 		}
 		close $file_handle;
 	}
@@ -158,7 +158,7 @@ sub change_mode
 
 This changes the owner and/or group of a file or directory.
 
- $an->Storage->change_owner({target => "/tmp/foo", mode => "0644"});
+ $anvil->Storage->change_owner({target => "/tmp/foo", mode => "0644"});
 
 If it fails to write the file, an alert will be logged and 'C<< 1 >>' will be returned. Otherwise, 'C<< 0 >>' will be returned.
 
@@ -181,13 +181,13 @@ sub change_owner
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	my $group  = defined $parameter->{group}  ? $parameter->{group}  : "";
 	my $user   = defined $parameter->{user}   ? $parameter->{user}   : "";
 	my $debug  = 3;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target => $target,
 		group  => $group,
 		user   => $user,
@@ -196,7 +196,7 @@ sub change_owner
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		group => $group, 
 		user  => $user,
 	}});
@@ -206,40 +206,40 @@ sub change_owner
 	if (not $target)
 	{
 		# No target...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_owner()", parameter => "target" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_owner()", parameter => "target" }});
 		$error = 1;
 	}
 	if (not -e $target)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0051", variables => {target => $target }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0051", variables => {target => $target }});
 		$error = 1;
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	if ($user ne "")
 	{
 		$string = $user;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { group => $group }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { group => $group }});
 	if ($group ne "")
 	{
 		$string .= ":".$group;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error, string => $string }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error, string => $string }});
 	if ((not $error) && ($string ne ""))
 	{
-		my $shell_call = $an->data->{path}{exe}{'chown'}." $string $target";
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
-		open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+		my $shell_call = $anvil->data->{path}{exe}{'chown'}." $string $target";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
+		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0017", variables => { line => $line }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0017", variables => { line => $line }});
 		}
 		close $file_handle;
 	}
@@ -252,7 +252,7 @@ sub change_owner
 This copies a file, with a few additional checks like creating the target directory if it doesn't exist, aborting if the file has already been backed up before, etc.
 
  # Example
- $an->Storage->copy_file({source => "/some/file", target => "/another/directory/file"});
+ $anvil->Storage->copy_file({source => "/some/file", target => "/another/directory/file"});
 
 Parameters;
 
@@ -277,12 +277,12 @@ sub copy_file
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
 	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
 	my $target    = defined $parameter->{target}    ? $parameter->{target}    : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		overwrite => $overwrite,
 		source    => $source, 
 		target    => $target,
@@ -291,18 +291,18 @@ sub copy_file
 	if (not $source)
 	{
 		# No source passed.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "source" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "source" }});
 		return(1);
 	}
 	elsif (not -e $source)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { source => $source }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { source => $source }});
 		return(4);
 	}
 	if (not $target)
 	{
 		# No target passed.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "target" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "target" }});
 		return(2);
 	}
 	
@@ -310,7 +310,7 @@ sub copy_file
 	if ((-e $target) && (not $overwrite))
 	{
 		# This isn't an error.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
 			source => $source,
 			target => $target,
 		}});
@@ -319,13 +319,13 @@ sub copy_file
 	
 	# Make sure the target directory exists and create it, if not.
 	my ($directory, $file) = ($target =~ /^(.*)\/(.*)$/);
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		directory => $directory, 
 		file      => $file,
 	}});
 	if (not -e $directory)
 	{
-		$an->Storage->make_directory({
+		$anvil->Storage->make_directory({
 			directory => $directory,
 			group     => $(,	# Real UID
 			user      => $<,	# Real GID
@@ -334,23 +334,23 @@ sub copy_file
 	}
 	
 	# Now backup the file.
-	my $output = $an->System->call({shell_call => $an->data->{path}{exe}{'cp'}." -af $source $target"});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'cp'}." -af $source $target"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	
 	return(0);
 }
 
 =head2 find
 
-This searches for the given file on the system. It will search in the directories returned by C<< $an->Storage->search_directories() >>.
+This searches for the given file on the system. It will search in the directories returned by C<< $anvil->Storage->search_directories() >>.
 
 Example to search for 'C<< foo >>';
 
- $an->Storage->find({file => "foo"});
+ $anvil->Storage->find({file => "foo"});
 
 Same, but error out if the file isn't found.
 
- $an->Storage->find({
+ $anvil->Storage->find({
  	file  => "foo",
  	fatal => 1,
  });
@@ -368,7 +368,7 @@ sub find
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	# WARNING: Don't call Log from here! It causes it to abort
 	my $debug = 0;
@@ -379,7 +379,7 @@ sub find
 	my $full_path = "#!not_found!#";
 	if ($file)
 	{
-		foreach my $directory (@{$an->Storage->search_directories()})
+		foreach my $directory (@{$anvil->Storage->search_directories()})
 		{
 			# If "directory" is ".", expand it.
 			print $THIS_FILE." ".__LINE__."; [ Debug] - >> directory: [$directory]\n" if $debug;
@@ -416,7 +416,7 @@ sub find
 
 This creates a directory (and any parent directories).
 
- $an->Storage->make_directory({directory => "/foo/bar/baz", owner => "me", grou[ => "me", group => 755});
+ $anvil->Storage->make_directory({directory => "/foo/bar/baz", owner => "me", grou[ => "me", group => 755});
 
 If it fails to create the directory, an alert will be logged.
 
@@ -443,13 +443,13 @@ sub make_directory
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $directory = defined $parameter->{directory} ? $parameter->{directory} : "";
 	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
 	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
 	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		directory => $directory,
 		group     => $group, 
 		mode      => $mode,
@@ -459,7 +459,7 @@ sub make_directory
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		group     => $group, 
 		user      => $user,
 	}});
@@ -471,28 +471,28 @@ sub make_directory
 		next if not $this_directory;
 		$working_directory .= "/$this_directory";
 		$working_directory =~ s/\/\//\//g;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { working_directory => $working_directory }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { working_directory => $working_directory }});
 		if (not -e $working_directory)
 		{
 			# Directory doesn't exist, so create it.
-			my $shell_call = $an->data->{path}{exe}{'mkdir'}." ".$working_directory;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
-			open (my $file_handle, $shell_call." 2>&1 |") or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+			my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." ".$working_directory;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
+			open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 			while(<$file_handle>)
 			{
 				chomp;
 				my $line = $_;
-				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
 			}
 			close $file_handle;
 			
 			if ($mode)
 			{
-				$an->Storage->change_mode({target => $working_directory, mode => $mode});
+				$anvil->Storage->change_mode({target => $working_directory, mode => $mode});
 			}
 			if (($user) or ($group))
 			{
-				$an->Storage->change_owner({target => $working_directory, user => $user, group => $group});
+				$anvil->Storage->change_owner({target => $working_directory, user => $user, group => $group});
 			}
 		}
 	}
@@ -502,16 +502,16 @@ sub make_directory
 
 =head2 read_config
 
-This method is used to read 'AN::Tools' style configuration files. These configuration files are in the format:
+This method is used to read 'Anvil::Tools' style configuration files. These configuration files are in the format:
 
  # This is a comment for the 'a::b::c' variable
  a::b::c = x
 
 A configuration file can be read in like this;
 
- $an->Storage->read_config({file => "test.conf"});
+ $anvil->Storage->read_config({file => "test.conf"});
 
-In this example, the file 'C<< test.conf >>' will be searched for in the directories returned by 'C<< $an->Storage->search_directories >>'. 
+In this example, the file 'C<< test.conf >>' will be searched for in the directories returned by 'C<< $anvil->Storage->search_directories >>'. 
 
 Any line starting with '#' is a comment and is ignored. Preceding white spaces are allowed and also ignored.
 
@@ -529,36 +529,36 @@ Parameters;
 
 This is the configuration file to read. 
 
-If the 'C<< file >>' parameter starts with 'C<< / >>', the exact path to the file is used. Otherwise, this method will search for the file in the list of directories returned by 'C<< $an->Storage->search_directories >>'. The first match is read in.
+If the 'C<< file >>' parameter starts with 'C<< / >>', the exact path to the file is used. Otherwise, this method will search for the file in the list of directories returned by 'C<< $anvil->Storage->search_directories >>'. The first match is read in.
 
-All variables are stored in the root of 'C<< $an->data >>', allowing for configuration files to override internally set variables.
+All variables are stored in the root of 'C<< $anvil->data >>', allowing for configuration files to override internally set variables.
 
 For example, if you set:
  
- $an->data->{a}{b}{c} = "1";
+ $anvil->data->{a}{b}{c} = "1";
 
 Then you read in a config file with:
 
  a::b::c = x
 
-Then 'C<< $an->data->{a}{b}{c} >>' will now contain 'C<< x >>'.
+Then 'C<< $anvil->data->{a}{b}{c} >>' will now contain 'C<< x >>'.
 
 =cut
 sub read_config
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	# Setup default values
 	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
 	my $return_code = 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	if (not $file)
 	{
 		# No file to read
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0032"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0032"});
 		$return_code = 1;
 	}
 	
@@ -567,13 +567,13 @@ sub read_config
 	{
 		# Find the file, if possible. If not found, we'll not alter what the user passed in and hope
 		# it is relative to where we are.
-		my $path = $an->Storage->find({ file => $file });
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { path => $path }});
+		my $path = $anvil->Storage->find({ file => $file });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { path => $path }});
 		if ($path ne "#!not_found!#")
 		{
 			# Update the file
 			$file = $path;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 		}
 	}
 	
@@ -582,13 +582,13 @@ sub read_config
 		if (not -e $file)
 		{
 			# The file doesn't exist
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0033", variables => { file => $file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0033", variables => { file => $file }});
 			$return_code = 2;
 		}
 		elsif (not -r $file)
 		{
 			# The file can't be read
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0034", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0034", variables => { 
 				file => $file,
 				user => getpwuid($<),
 				uid  => $<,
@@ -614,14 +614,14 @@ sub read_config
 				$value    =~ s/^\s+//;
 				if (not $variable)
 				{
-					$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0035", variables => { 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0035", variables => { 
 						file  => $file,
 						count => $count,
 						line  => $line,
 					}});
 				}
 				
-				$an->_make_hash_reference($an->data, $variable, $value);
+				$anvil->_make_hash_reference($anvil->data, $variable, $value);
 			}
 			close $file_handle;
 		}
@@ -634,7 +634,7 @@ sub read_config
 
 This reads in a file and returns the contents of the file as a single string variable.
 
- my $body = $an->Storage->read_file({file => "/tmp/foo"});
+ my $body = $anvil->Storage->read_file({file => "/tmp/foo"});
 
 If it fails to find the file, or the file is not readable, 'C<< !!error!! >>' is returned.
 
@@ -657,13 +657,13 @@ sub read_file
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $body       = "";
 	my $cache      = defined $parameter->{cache}      ? $parameter->{cache}      : 1;
 	my $file       = defined $parameter->{file}       ? $parameter->{file}       : "";
 	my $force_read = defined $parameter->{force_read} ? $parameter->{force_read} : 0;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		cache      => $cache, 
 		file       => $file,
 		force_read => $force_read, 
@@ -671,38 +671,38 @@ sub read_file
 	
 	if (not $file)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_file()", parameter => "file" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_file()", parameter => "file" }});
 		return("!!error!!");
 	}
 	elsif (not -e $file)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0021", variables => { file => $file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0021", variables => { file => $file }});
 		return("!!error!!");
 	}
 	elsif (not -r $file)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0022", variables => { file => $file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0022", variables => { file => $file }});
 		return("!!error!!");
 	}
 	
 	# If I've read this before, don't read it again.
-	if ((exists $an->data->{cache}{file}{$file}) && (not $force_read))
+	if ((exists $anvil->data->{cache}{file}{$file}) && (not $force_read))
 	{
 		# Use the cache
-		$body = $an->data->{cache}{file}{$file};
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
+		$body = $anvil->data->{cache}{file}{$file};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
 	}
 	else
 	{
 		# Read from disk.
 		my $shell_call = $file;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
-		open (my $file_handle, "<", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
+		open (my $file_handle, "<", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
 			$body .= $line."\n";
 		}
 		close $file_handle;
@@ -710,12 +710,12 @@ sub read_file
 		
 		if ($cache)
 		{
-			$an->data->{cache}{file}{$file} = $body;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::file::$file" => $an->data->{cache}{file}{$file} }});
+			$anvil->data->{cache}{file}{$file} = $body;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::file::$file" => $anvil->data->{cache}{file}{$file} }});
 		}
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
 	return($body);
 }
 
@@ -723,7 +723,7 @@ sub read_file
 
 This reads a file or directory's mode (sticky-bit and ownership) and returns the mode as a four-digit string (ie: 'c<< 0644 >>', 'C<< 4755 >>', etc.
 
- my $mode = $an->Storage->read_mode({file => "/tmp/foo"});
+ my $mode = $anvil->Storage->read_mode({file => "/tmp/foo"});
 
 If it fails to find the file, or the file is not readable, 'C<< 0 >>' is returned.
 
@@ -738,21 +738,21 @@ sub read_mode
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $debug  = 1;
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
 	
 	if (not $target)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_mode()", parameter => "target" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_mode()", parameter => "target" }});
 		return(1);
 	}
 	
 	# Read the mode and convert it to digits.
 	my $mode = (stat($target))[2];
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode }});
 	
 	# Return the full mode, unless it is a directory or file. In those cases, return the last four digits.
 	my $say_mode = $mode;
@@ -761,17 +761,17 @@ sub read_mode
 		# Directory - five digits
 		$say_mode =  sprintf("%04o", $mode);
 		$say_mode =~ s/^\d(\d\d\d\d)$/$1/;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_mode => $say_mode }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_mode => $say_mode }});
 	}
 	elsif (-f $target)
 	{
 		# File - six digits
 		$say_mode =  sprintf("%04o", $mode);
 		$say_mode =~ s/^\d\d(\d\d\d\d)$/$1/;
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_mode => $say_mode }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_mode => $say_mode }});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode, say_mode => $say_mode }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode, say_mode => $say_mode }});
 	return($say_mode);
 }
 
@@ -791,14 +791,14 @@ By default, it is set to all directories in C<< @INC >>, 'C<< path::directories:
 
 If this is set, the list of directories to search will be set to 'C<< @INC >>' + 'C<< $ENV{'PATH'} >>' + 'C<< path::directories::tools >>'.
 
-NOTE: You don't need to call this manually unless you want to reset the list. Invoking AN::Tools->new() causes this to be called automatically.
+NOTE: You don't need to call this manually unless you want to reset the list. Invoking Anvil::Tools->new() causes this to be called automatically.
 
 =cut 
 sub search_directories
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	# Set a default if nothing was passed.
 	my $array      = defined $parameter->{directories} ? $parameter->{directories} : "";
@@ -816,7 +816,7 @@ sub search_directories
 		if (not $initialize)
 		{
 			# Not initializing and an array was passed that isn't.
-			$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0031", variables => { array => $array }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0031", variables => { array => $array }});
 		}
 		
 		# Create a new array containing the '$ENV{'PATH'}' directories and the @INC directories.
@@ -827,7 +827,7 @@ sub search_directories
 		}
 		
 		# Add the tools directory
-		push @new_array, $an->data->{path}{directories}{tools};
+		push @new_array, $anvil->data->{path}{directories}{tools};
 		$array = \@new_array;
 	}
 	
@@ -865,7 +865,7 @@ sub search_directories
 	# Debug
 	foreach my $directory (@{$self->{SEARCH_DIRECTORIES}})
 	{
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
 	}
 	
 	return ($self->{SEARCH_DIRECTORIES});
@@ -875,7 +875,7 @@ sub search_directories
 
 This writes out a file on the local system. It can optionally set the mode as well.
 
- $an->Storage->write_file({file => "/tmp/foo", body => "some data", mode => 0644});
+ $anvil->Storage->write_file({file => "/tmp/foo", body => "some data", mode => 0644});
 
 If it fails to write the file, an alert will be logged.
 
@@ -916,7 +916,7 @@ sub write_file
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $body      = defined $parameter->{body}      ? $parameter->{body}      : "";
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
@@ -925,7 +925,7 @@ sub write_file
 	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : "";
 	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, list => { 
 		body      => $body,
 		file      => $file,
 		group     => $group, 
@@ -938,7 +938,7 @@ sub write_file
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		group     => $group, 
 		user      => $user,
 	}});
@@ -947,14 +947,14 @@ sub write_file
 	if ((-e $file) && (not $overwrite))
 	{
 		# Nope.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
 		$error = 1;
 	}
 	
 	if ($file !~ /^\/\w/)
 	{
 		# Not a fully defined path, abort.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0041", variables => { file => $file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0041", variables => { file => $file }});
 		$error = 1;
 	}
 	
@@ -962,7 +962,7 @@ sub write_file
 	{
 		# Break the directory off the file.
 		my ($directory, $file_name) = ($file =~ /^(\/.*)\/(.*)$/);
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			directory => $directory,
 			file_name => $file_name,
 		}});
@@ -970,7 +970,7 @@ sub write_file
 		if (not -e $directory)
 		{
 			# Don't pass the mode as the file's mode is likely not executable.
-			$an->Storage->make_directory({
+			$anvil->Storage->make_directory({
 				directory => $directory,
 				group     => $group, 
 				user      => $user,
@@ -981,27 +981,27 @@ sub write_file
 		# the mode before writing it.
 		if ($secure)
 		{
-			my $shell_call = $an->data->{path}{exe}{touch}." ".$file;
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			my $shell_call = $anvil->data->{path}{exe}{touch}." ".$file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
-			$an->System->call({shell_call => $shell_call});
-			$an->Storage->change_mode({target => $file, mode => $mode});
+			$anvil->System->call({shell_call => $shell_call});
+			$anvil->Storage->change_mode({target => $file, mode => $mode});
 		}
 		
 		# Now write the file.
 		my $shell_call = $file;
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
-		open (my $file_handle, ">", $shell_call) or $an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
+		open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
 		print $file_handle $body;
 		close $file_handle;
 		
 		if ($mode)
 		{
-			$an->Storage->change_mode({target => $file, mode => $mode});
+			$anvil->Storage->change_mode({target => $file, mode => $mode});
 		}
 		if (($user) or ($group))
 		{
-			$an->Storage->change_owner({target => $file, user => $user, group => $group});
+			$anvil->Storage->change_owner({target => $file, user => $user, group => $group});
 		}
 	}
 	

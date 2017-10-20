@@ -1,4 +1,4 @@
-package AN::Tools::Alert;
+package Anvil::Tools::Alert;
 # 
 # This module contains methods used to handle alerts and errors.
 # 
@@ -21,19 +21,19 @@ my $THIS_FILE = "Alert.pm";
 
 =head1 NAME
 
-AN::Tools::Alert
+Anvil::Tools::Alert
 
 Provides all methods related warnings and alerts.
 
 =head1 SYNOPSIS
 
- use AN::Tools;
+ use Anvil::Tools;
 
- # Get a common object handle on all AN::Tools modules.
- my $an = AN::Tools->new();
+ # Get a common object handle on all Anvil::Tools modules.
+ my $anvil = Anvil::Tools->new();
  
- # Access to methods using '$an->Alert->X'. Example using 'find';
- my $foo_path = $an->Storage->find({file => "foo"});
+ # Access to methods using '$anvil->Alert->X'. Example using 'find';
+ my $foo_path = $anvil->Storage->find({file => "foo"});
 
 =head1 METHODS
 
@@ -51,7 +51,7 @@ sub new
 	return ($self);
 }
 
-# Get a handle on the AN::Tools object. I know that technically that is a sibling module, but it makes more
+# Get a handle on the Anvil::Tools object. I know that technically that is a sibling module, but it makes more
 # sense in this case to think of it as a parent.
 sub parent
 {
@@ -112,14 +112,14 @@ sub check_alert_sent
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
-	my $modified_date  = $parameter->{modified_date}  ? $parameter->{modified_date}  : $an->data->{sys}{db_timestamp};
+	my $modified_date  = $parameter->{modified_date}  ? $parameter->{modified_date}  : $anvil->data->{sys}{db_timestamp};
 	my $name           = $parameter->{name}           ? $parameter->{name}           : "";
 	my $record_locator = $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = $parameter->{set_by}         ? $parameter->{set_by}         : "";
 	my $type           = $parameter->{type}           ? $parameter->{type}           : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		modified_date  => $modified_date, 
 		name           => $name, 
 		record_locator => $record_locator, 
@@ -131,7 +131,7 @@ sub check_alert_sent
 	if (not $modified_date)
 	{
 		# Nope
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0093"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0093"});
 		return("!!error!!");
 	}
 	
@@ -139,7 +139,7 @@ sub check_alert_sent
 	if (not $name)
 	{
 		# Nope
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "name" }});
 		return("!!error!!");
 	}
 	
@@ -147,7 +147,7 @@ sub check_alert_sent
 	if (not $record_locator)
 	{
 		# Nope
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "record_locator" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "record_locator" }});
 		return("!!error!!");
 	}
 	
@@ -155,7 +155,7 @@ sub check_alert_sent
 	if (not $set_by)
 	{
 		# Nope
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "set_by" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "set_by" }});
 		return("!!error!!");
 	}
 	
@@ -163,7 +163,7 @@ sub check_alert_sent
 	if (not $type)
 	{
 		# Neither...
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0097"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0097"});
 		return("!!error!!");
 	}
 	
@@ -176,20 +176,20 @@ SELECT
 FROM 
     alert_sent 
 WHERE 
-    alert_sent_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})." 
+    alert_sent_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid})." 
 AND 
-    alert_set_by         = ".$an->data->{sys}{use_db_fh}->quote($set_by)." 
+    alert_set_by         = ".$anvil->data->{sys}{use_db_fh}->quote($set_by)." 
 AND 
-    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($record_locator)." 
+    alert_record_locator = ".$anvil->data->{sys}{use_db_fh}->quote($record_locator)." 
 AND 
-    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($name)."
+    alert_name           = ".$anvil->data->{sys}{use_db_fh}->quote($name)."
 ;";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	# Now, if this is type=set, register the alert if it doesn't exist. If it is type=clear, remove the 
 	# alert if it exists.
-	my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		type  => $type,
 		count => $count,
 	}});
@@ -199,7 +199,7 @@ AND
 		# Make sure this host is in the database... It might not be on the very first run of ScanCore
 		# before the peer exists (tried to connect to the peer, fails, tries to send an alert, but
 		# this host hasn't been added because it is the very first attempt to connect...)
-		if (not $an->data->{sys}{host_is_in_db})
+		if (not $anvil->data->{sys}{host_is_in_db})
 		{
 			my $query = "
 SELECT 
@@ -207,17 +207,17 @@ SELECT
 FROM 
     hosts 
 WHERE 
-    host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})."
+    host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid})."
 ;";
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 
-			my $count = $an->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+			my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 			
 			if (not $count)
 			{
 				# Too early, we can't set an alert.
-				$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0098", variables => {
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0098", variables => {
 					type           => $type, 
 					set_by         => $set_by, 
 					record_locator => $record_locator, 
@@ -228,8 +228,8 @@ WHERE
 			}
 			else
 			{
-				$an->data->{sys}{host_is_in_db} = 1;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'sys::host_is_in_db' => $an->data->{sys}{host_is_in_db} }});
+				$anvil->data->{sys}{host_is_in_db} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'sys::host_is_in_db' => $anvil->data->{sys}{host_is_in_db} }});
 			}
 		}
 		
@@ -244,18 +244,18 @@ INSERT INTO
     alert_name, 
     modified_date
 ) VALUES (
-    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", 
-    ".$an->data->{sys}{use_db_fh}->quote($set_by).", 
-    ".$an->data->{sys}{use_db_fh}->quote($record_locator).", 
-    ".$an->data->{sys}{use_db_fh}->quote($name).", 
-    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($set_by).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($record_locator).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($name).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			query => $query,
 			set   => $set, 
 		}});
-		$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	elsif (($type eq "clear") && ($count))
 	{
@@ -265,22 +265,22 @@ INSERT INTO
 DELETE FROM 
     alert_sent 
 WHERE 
-    alert_sent_host_uuid = ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid})." 
+    alert_sent_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid})." 
 AND 
-    alert_set_by        = ".$an->data->{sys}{use_db_fh}->quote($set_by)." 
+    alert_set_by        = ".$anvil->data->{sys}{use_db_fh}->quote($set_by)." 
 AND 
-    alert_record_locator = ".$an->data->{sys}{use_db_fh}->quote($record_locator)." 
+    alert_record_locator = ".$anvil->data->{sys}{use_db_fh}->quote($record_locator)." 
 AND 
-    alert_name           = ".$an->data->{sys}{use_db_fh}->quote($name)."
+    alert_name           = ".$anvil->data->{sys}{use_db_fh}->quote($name)."
 ;";
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			query => $query,
 			set   => $set, 
 		}});
-		$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { set => $set }});
 	return($set);
 }
 
@@ -295,7 +295,7 @@ sub register_alert
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
+	my $anvil     = $self->parent;
 	
 	my $header            = defined $parameter->{header}            ? $parameter->{header}            : 1;
 	my $level             = defined $parameter->{level}             ? $parameter->{level}             : "warning";
@@ -305,7 +305,7 @@ sub register_alert
 	my $sort              = defined $parameter->{'sort'}            ? $parameter->{'sort'}            : 9999;
 	my $title_key         = defined $parameter->{title_key}         ? $parameter->{title_key}         : "title_0003";
 	my $title_variables   = defined $parameter->{title_variables}   ? $parameter->{title_variables}   : "";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		header            => $header,
 		level             => $level, 
 		message_key       => $message_key, 
@@ -318,23 +318,23 @@ sub register_alert
 	
 	if (not $set_by)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "set_by" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "set_by" }});
 		return("!!error!!");
 	}
 	if (not $message_key)
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "message_key" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "message_key" }});
 		return("!!error!!");
 	}
 	if (($header) && (not $title_key))
 	{
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0101"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0101"});
 		return("!!error!!");
 	}
 	
 	# zero-pad sort numbers so that they sort properly.
 	$sort = sprintf("%04d", $sort);
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sort => $sort }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sort => $sort }});
 	
 	# Convert the hash of title variables and message variables into '!!x!y!!,!!a!b!!,...' strings.
 	if (ref($title_variables) eq "HASH")
@@ -361,43 +361,43 @@ sub register_alert
 	# 5 == debug
 	# 1 == critical
 	my $lowest_log_level = 5;
-	foreach my $integer (sort {$a cmp $b} keys %{$an->data->{alerts}{recipient}})
+	foreach my $integer (sort {$a cmp $b} keys %{$anvil->data->{alerts}{recipient}})
 	{
 		# We want to know the alert level, regardless of whether the recipient is an email of file 
 		# target.
 		my $this_level;
-		if ($an->data->{alerts}{recipient}{$integer}{email})
+		if ($anvil->data->{alerts}{recipient}{$integer}{email})
 		{
 			# Email recipient
-			$this_level = ($an->data->{alerts}{recipient}{$integer}{email} =~ /level="(.*?)"/)[0];
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+			$this_level = ($anvil->data->{alerts}{recipient}{$integer}{email} =~ /level="(.*?)"/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
 		}
-		elsif ($an->data->{alerts}{recipient}{$integer}{file})
+		elsif ($anvil->data->{alerts}{recipient}{$integer}{file})
 		{
 			# File target
-			$this_level = ($an->data->{alerts}{recipient}{$integer}{file} =~ /level="(.*?)"/)[0];
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+			$this_level = ($anvil->data->{alerts}{recipient}{$integer}{file} =~ /level="(.*?)"/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
 		}
 		
-		$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
 		if ($this_level)
 		{
-			$this_level = $an->Alert->convert_level_name_to_number({level => $this_level});
-			$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$this_level = $anvil->Alert->convert_level_name_to_number({level => $this_level});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				this_level       => $this_level,
 				lowest_log_level => $lowest_log_level,
 			}});
 			if ($this_level < $lowest_log_level)
 			{
 				$lowest_log_level = $this_level;
-				$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lowest_log_level => $lowest_log_level }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lowest_log_level => $lowest_log_level }});
 			}
 		}
 	}
 	
 	# Now get the numeric value of this alert and return if it is higher.
-	my $this_level = $an->Alert->convert_level_name_to_number({level => $level});
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	my $this_level = $anvil->Alert->convert_level_name_to_number({level => $level});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		alert_level      => $level,
 		this_level       => $this_level,
 		lowest_log_level => $lowest_log_level,
@@ -405,7 +405,7 @@ sub register_alert
 	if ($this_level > $lowest_log_level)
 	{
 		# Return.
-		$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0102", variables => { message_key => $message_key }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0102", variables => { message_key => $message_key }});
 		return(0);
 	}
 	
@@ -426,21 +426,21 @@ INSERT INTO
     alert_header, 
     modified_date
 ) VALUES (
-    ".$an->data->{sys}{use_db_fh}->quote($an->Get->uuid()).", 
-    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{host_uuid}).", 
-    ".$an->data->{sys}{use_db_fh}->quote($set_by).", 
-    ".$an->data->{sys}{use_db_fh}->quote($level).", 
-    ".$an->data->{sys}{use_db_fh}->quote($title_key).", 
-    ".$an->data->{sys}{use_db_fh}->quote($title_variables).", 
-    ".$an->data->{sys}{use_db_fh}->quote($message_key).", 
-    ".$an->data->{sys}{use_db_fh}->quote($message_variables).",
-    ".$an->data->{sys}{use_db_fh}->quote($sort).", 
-    ".$an->data->{sys}{use_db_fh}->quote($header).", 
-    ".$an->data->{sys}{use_db_fh}->quote($an->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->uuid()).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($set_by).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($level).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($title_key).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($title_variables).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($message_key).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($message_variables).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($sort).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($header).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	$an->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	
 	return(0);
 }
@@ -454,23 +454,23 @@ sub error
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self->parent;
-# 	$an->Log->entry({log_level => 2, title_key => "tools_log_0001", title_variables => { function => "error" }, message_key => "tools_log_0002", file => $THIS_FILE, line => __LINE__});
+	my $anvil     = $self->parent;
+# 	$anvil->Log->entry({log_level => 2, title_key => "tools_log_0001", title_variables => { function => "error" }, message_key => "tools_log_0002", file => $THIS_FILE, line => __LINE__});
 # 	
 # 	# Setup default values
-# 	my $title_key         = $parameter->{title_key}         ? $parameter->{title_key}         : $an->String->get({key => "an_0004"});
+# 	my $title_key         = $parameter->{title_key}         ? $parameter->{title_key}         : $anvil->String->get({key => "an_0004"});
 # 	my $title_variables   = $parameter->{title_variables}   ? $parameter->{title_variables}   : "";
-# 	my $message_key       = $parameter->{message_key}       ? $parameter->{message_key}       : $an->String->get({key => "an_0005"});
+# 	my $message_key       = $parameter->{message_key}       ? $parameter->{message_key}       : $anvil->String->get({key => "an_0005"});
 # 	my $message_variables = $parameter->{message_variables} ? $parameter->{message_variables} : "";
 # 	my $code              = $parameter->{code}              ? $parameter->{code}              : 1;
-# 	my $file              = $parameter->{file}              ? $parameter->{file}              : $an->String->get({key => "an_0006"});
+# 	my $file              = $parameter->{file}              ? $parameter->{file}              : $anvil->String->get({key => "an_0006"});
 # 	my $line              = $parameter->{line}              ? $parameter->{line}              : "";
 # 	#print "$THIS_FILE ".__LINE__."; title_key: [$title_key], title_variables: [$title_variables], message_key: [$message_key], message_variables: [$message_variables], code: [$code], file: [$file], line: [$line]\n";
 # 	
 # 	# It is possible for this to become a run-away call, so this helps
 # 	# catch when that happens.
-# 	$an->_error_count($an->_error_count + 1);
-# 	if ($an->_error_count > $an->_error_limit)
+# 	$anvil->_error_count($anvil->_error_count + 1);
+# 	if ($anvil->_error_count > $anvil->_error_limit)
 # 	{
 # 		print "Infinite loop detected while trying to print an error:\n";
 # 		print "- title_key:         [$title_key]\n";
@@ -496,7 +496,7 @@ sub error
 # 	#print "$THIS_FILE ".__LINE__."; title_key: [$title_key]\n";
 # 	if ($title_key =~ /\w+_\d+$/)
 # 	{
-# 		$title_key = $an->String->get({
+# 		$title_key = $anvil->String->get({
 # 			key		=>	$title_key,
 # 			variables	=>	$title_variables,
 # 		});
@@ -507,7 +507,7 @@ sub error
 # 	#print "$THIS_FILE ".__LINE__."; message_key: [$message_key]\n";
 # 	if ($message_key =~ /\w+_\d+$/)
 # 	{
-# 		$message_key = $an->String->get({
+# 		$message_key = $anvil->String->get({
 # 			key		=>	$message_key,
 # 			variables	=>	$message_variables,
 # 		});
@@ -515,15 +515,15 @@ sub error
 # 	}
 # 	
 # 	# Set my error string
-# 	my $fatal_heading = $an->String->get({key => "an_0002"});
+# 	my $fatal_heading = $anvil->String->get({key => "an_0002"});
 # 	#print "$THIS_FILE ".__LINE__."; fatal_heading: [$fatal_heading]\n";
 # 	
-# 	my $readable_line = $an->Readable->comma($line);
+# 	my $readable_line = $anvil->Readable->comma($line);
 # 	#print "$THIS_FILE ".__LINE__."; readable_line: [$readable_line]\n";
 # 	
 # 	### TODO: Copy this to 'warning'.
 # 	# At this point, the title and message keys are the actual messages.
-# 	my $error = "\n".$an->String->get({
+# 	my $error = "\n".$anvil->String->get({
 # 		key		=>	"an_0007",
 # 		variables	=>	{
 # 			code		=>	$code,
@@ -537,37 +537,37 @@ sub error
 # 	#print "$THIS_FILE ".__LINE__."; error: [$error]\n";
 # 	
 # 	# Set the internal error flags
-# 	$an->Alert->_set_error($error);
-# 	$an->Alert->_set_error_code($code);
+# 	$anvil->Alert->_set_error($error);
+# 	$anvil->Alert->_set_error_code($code);
 # 	
 # 	# Append "exiting" to the error string if it is fatal.
-# 	$error .= $an->String->get({key => "an_0008"})."\n";
+# 	$error .= $anvil->String->get({key => "an_0008"})."\n";
 # 	
 # 	# Write a copy of the error to the log.
-# 	$an->Log->entry({file => $THIS_FILE, level => 0, raw => $error});
+# 	$anvil->Log->entry({file => $THIS_FILE, level => 0, raw => $error});
 # 	
 # 	# If this is a browser calling us, print the footer so that the loading pinwheel goes away.
 # 	if ($ENV{'HTTP_REFERER'})
 # 	{
-# 		$an->Striker->_footer();
+# 		$anvil->Striker->_footer();
 # 	}
 # 	
 # 	# Don't actually die, but do print the error, if fatal errors have been globally disabled (as is done
 # 	# in the tests).
-# 	if (not $an->Alert->no_fatal_errors)
+# 	if (not $anvil->Alert->no_fatal_errors)
 # 	{
 # 		if ($ENV{'HTTP_REFERER'})
 # 		{
 # 			print "<pre>\n";
-# 			print "$error\n" if not $an->Alert->no_fatal_errors;
+# 			print "$error\n" if not $anvil->Alert->no_fatal_errors;
 # 			print "</pre>\n";
 # 		}
 # 		else
 # 		{
-# 			print "$error\n" if not $an->Alert->no_fatal_errors;
+# 			print "$error\n" if not $anvil->Alert->no_fatal_errors;
 # 		}
-# 		$an->data->{sys}{footer_printed} = 1;
-# 		$an->nice_exit({exit_code => $code});
+# 		$anvil->data->{sys}{footer_printed} = 1;
+# 		$anvil->nice_exit({exit_code => $code});
 # 	}
 # 	
 # 	return ($code);

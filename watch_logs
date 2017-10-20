@@ -1,0 +1,1 @@
+clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil

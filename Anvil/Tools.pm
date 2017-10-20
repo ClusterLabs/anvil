@@ -1,4 +1,4 @@
-package AN::Tools;
+package Anvil::Tools;
 # 
 # This is the "root" package that manages the sub modules and controls access to their methods.
 # 
@@ -35,17 +35,17 @@ binmode(STDOUT, ':encoding(utf-8)');
 
 # I intentionally don't use EXPORT, @ISA and the like because I want my "subclass"es to be accessed in a
 # somewhat more OO style. I know some may wish to strike me down for this, but I like the idea of accessing
-# methods via their containing module's name. (A La: C<< $an->Module->method >> rather than C<< $an->method >>).
-use AN::Tools::Alert;
-use AN::Tools::Database;
-use AN::Tools::Convert;
-use AN::Tools::Get;
-use AN::Tools::Log;
-use AN::Tools::Storage;
-use AN::Tools::System;
-use AN::Tools::Template;
-use AN::Tools::Words;
-use AN::Tools::Validate;
+# methods via their containing module's name. (A La: C<< $anvil->Module->method >> rather than C<< $anvil->method >>).
+use Anvil::Tools::Alert;
+use Anvil::Tools::Database;
+use Anvil::Tools::Convert;
+use Anvil::Tools::Get;
+use Anvil::Tools::Log;
+use Anvil::Tools::Storage;
+use Anvil::Tools::System;
+use Anvil::Tools::Template;
+use Anvil::Tools::Words;
+use Anvil::Tools::Validate;
 
 =pod
 
@@ -53,19 +53,19 @@ use AN::Tools::Validate;
 
 =head1 NAME
 
-AN::Tools
+Anvil::Tools
 
-Provides a common oject handle to all AN::Tools::* module methods and handles invocation configuration. 
+Provides a common oject handle to all Anvil::Tools::* module methods and handles invocation configuration. 
 
 =head1 SYNOPSIS
 
- use AN::Tools;
+ use Anvil::Tools;
 
- # Get a common object handle on all AN::Tools::* modules.
- my $an = AN::Tools->new();
+ # Get a common object handle on all Anvil::Tools::* modules.
+ my $anvil = Anvil::Tools->new();
  
- # Again, but this time sets some initial values in the '$an->data' hash.
- my $an = AN::Tools->new(
+ # Again, but this time sets some initial values in the '$anvil->data' hash.
+ my $anvil = Anvil::Tools->new(
  {
  	data		=>	{
  		foo		=>	"",
@@ -77,7 +77,7 @@ Provides a common oject handle to all AN::Tools::* module methods and handles in
  # This example gets the handle and also sets the default user and log 
  # languages as Japanese, sets a custom log file and sets the log level to 
  # '2'.
- my $an = AN::Tools->new(
+ my $anvil = Anvil::Tools->new(
  {
  	'Log'		=>	{
  		user_language	=>	"jp",
@@ -88,7 +88,7 @@ Provides a common oject handle to all AN::Tools::* module methods and handles in
 
 =head1 DESCRIPTION
 
-The AN::Tools module and all sub-modules are designed for use by Alteeve-based applications. It can be used as a general framework by anyone interested.
+The Anvil::Tools module and all sub-modules are designed for use by Alteeve-based applications. It can be used as a general framework by anyone interested.
 
 Core features are;
 
@@ -110,16 +110,16 @@ sub new
 	my $parameter = shift;
 	my $self      = {
 		HANDLE				=>	{
-			ALERT				=>	AN::Tools::Alert->new(),
-			DATABASE			=>	AN::Tools::Database->new(),
-			CONVERT				=>	AN::Tools::Convert->new(),
-			GET				=>	AN::Tools::Get->new(),
-			LOG				=>	AN::Tools::Log->new(),
-			STORAGE				=>	AN::Tools::Storage->new(),
-			SYSTEM				=>	AN::Tools::System->new(),
-			TEMPLATE			=>	AN::Tools::Template->new(),
-			WORDS				=>	AN::Tools::Words->new(),
-			VALIDATE			=>	AN::Tools::Validate->new(),
+			ALERT				=>	Anvil::Tools::Alert->new(),
+			DATABASE			=>	Anvil::Tools::Database->new(),
+			CONVERT				=>	Anvil::Tools::Convert->new(),
+			GET				=>	Anvil::Tools::Get->new(),
+			LOG				=>	Anvil::Tools::Log->new(),
+			STORAGE				=>	Anvil::Tools::Storage->new(),
+			SYSTEM				=>	Anvil::Tools::System->new(),
+			TEMPLATE			=>	Anvil::Tools::Template->new(),
+			WORDS				=>	Anvil::Tools::Words->new(),
+			VALIDATE			=>	Anvil::Tools::Validate->new(),
 		},
 		DATA				=>	{},
 		ENV_VALUES			=>	{
@@ -135,62 +135,62 @@ sub new
 	bless $self, $class;
 	
 	# This isn't needed, but it makes the code below more consistent with and portable to other modules.
-	my $an = $self; 
-	weaken($an);	# Helps avoid memory leaks. See Scalar::Utils
+	my $anvil = $self; 
+	weaken($anvil);	# Helps avoid memory leaks. See Scalar::Utils
 	
 	# Record the start time.
-	$an->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
+	$anvil->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
 	
 	# Get a handle on the various submodules
-	$an->Alert->parent($an);
-	$an->Database->parent($an);
-	$an->Convert->parent($an);
-	$an->Get->parent($an);
-	$an->Log->parent($an);
-	$an->Storage->parent($an);
-	$an->System->parent($an);
-	$an->Template->parent($an);
-	$an->Words->parent($an);
-	$an->Validate->parent($an);
+	$anvil->Alert->parent($anvil);
+	$anvil->Database->parent($anvil);
+	$anvil->Convert->parent($anvil);
+	$anvil->Get->parent($anvil);
+	$anvil->Log->parent($anvil);
+	$anvil->Storage->parent($anvil);
+	$anvil->System->parent($anvil);
+	$anvil->Template->parent($anvil);
+	$anvil->Words->parent($anvil);
+	$anvil->Validate->parent($anvil);
 	
 	# Set some system paths and system default variables
-	$an->_set_paths;
-	$an->_set_defaults;
+	$anvil->_set_paths;
+	$anvil->_set_defaults;
 	
 	# This will help clean up if we catch a signal.
-	$SIG{INT}  = sub { $an->catch_sig({signal => "INT"});  };
-	$SIG{TERM} = sub { $an->catch_sig({signal => "TERM"}); };
+	$SIG{INT}  = sub { $anvil->catch_sig({signal => "INT"});  };
+	$SIG{TERM} = sub { $anvil->catch_sig({signal => "TERM"}); };
 	
 	# This sets the environment this program is running in.
 	if ($ENV{SERVER_NAME})
 	{
-		$an->environment("html");
+		$anvil->environment("html");
 		
 		# There is no PWD environment variable, so we'll use 'DOCUMENT_ROOT' as 'PWD'
 		$ENV{PWD} = $ENV{DOCUMENT_ROOT};
 	}
 	else
 	{
-		$an->environment("cli");
+		$anvil->environment("cli");
 	}
 	
-	# Setup my '$an->data' hash right away so that I have a place to store the strings hash.
-	$an->data($parameter->{data}) if $parameter->{data};
+	# Setup my '$anvil->data' hash right away so that I have a place to store the strings hash.
+	$anvil->data($parameter->{data}) if $parameter->{data};
 	
 	# Initialize the list of directories to seach.
-	$an->Storage->search_directories({initialize => 1});
+	$anvil->Storage->search_directories({initialize => 1});
 	
 	# I need to read the initial words early.
-	$an->Words->read({file  => $an->data->{path}{words}{'an-tools.xml'}});
+	$anvil->Words->read({file  => $anvil->data->{path}{words}{'words.xml'}});
 	
 	# If the local './tools.conf' file exists, read it in.
-	if (-r "./tools.conf")
+	if (-r $anvil->data->{path}{configs}{'anvil.conf'})
 	{
-		$an->Storage->read_config({file => "./tools.conf"});
+		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	}
 	
 	# Read in any command line switches.
-	$an->Get->switches;
+	$anvil->Get->switches;
 	
 	# Set passed parameters if needed.
 	if (ref($parameter) eq "HASH")
@@ -201,7 +201,7 @@ sub new
 	elsif($parameter)
 	{
 		# Um...
-		print $THIS_FILE." ".__LINE__."; AN::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
+		print $THIS_FILE." ".__LINE__."; Anvil::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
 		exit(1);
 	}
 	
@@ -217,18 +217,18 @@ sub new
 
 This is the method used to access the main hash reference that all user-accessible values are stored in. This includes words, configuration file variables and so forth.
 
-When called without an argument, it returns the existing '$an->data' hash reference.
+When called without an argument, it returns the existing '$anvil->data' hash reference.
 
- my $an = $an->data();
+ my $anvil = $anvil->data();
 
-When called with a hash reference as the argument, it sets '$an->data' to the new hash.
+When called with a hash reference as the argument, it sets '$anvil->data' to the new hash.
 
  my $some_hash = {};
- my $an        = $an->data($some_hash);
+ my $anvil        = $anvil->data($some_hash);
 
-Data can be entered into or access by treating '$an->data' as a normal hash reference.
+Data can be entered into or access by treating '$anvil->data' as a normal hash reference.
 
- my $an = AN::Tools->new(
+ my $anvil = Anvil::Tools->new(
  {
  	data		=>	{
  		foo		=>	"",
@@ -241,22 +241,22 @@ Data can be entered into or access by treating '$an->data' as a normal hash refe
  });
  
  # Copy the 'Cat' value into the $animal variable.
- my $animal = $an->data->{baz}{animal};
+ my $animal = $anvil->data->{baz}{animal};
  
  # Set 'A thing' in 'foo'.
- $an->data->{foo} = "A thing";
+ $anvil->data->{foo} = "A thing";
 
-The C<$an> variable is set inside all modules and acts as shared storage for variables, values and references in all modules. It acts as the core storage for most applications using AN::Tools.
+The C<$an> variable is set inside all modules and acts as shared storage for variables, values and references in all modules. It acts as the core storage for most applications using Anvil::Tools.
 
 =cut
 sub data
 {
-	my ($an) = shift;
+	my ($anvil) = shift;
 	
 	# Pick up the passed in hash, if any.
-	$an->{DATA} = shift if $_[0];
+	$anvil->{DATA} = shift if $_[0];
 	
-	return ($an->{DATA});
+	return ($anvil->{DATA});
 }
 
 =head2 environment
@@ -265,32 +265,32 @@ This is the method used to check or set whether the program is outputting to com
 
 When called without an argument, it returns the current environment.
 
- if ($an->environment() eq "cli")
+ if ($anvil->environment() eq "cli")
  {
  	# format for STDOUT
  }
- elsif ($an->environment() eq "html")
+ elsif ($anvil->environment() eq "html")
  {
  	# Use the template system to output HTML
  }
 
 When called with a string as the argument, that string will be set as the environment string.
 
- $an->environment("cli");
+ $anvil->environment("cli");
 
 Technically, any string can be used, however only 'cli' or 'html' are used by convention.
 
 =cut
 sub environment
 {
-	my ($an) = shift; 
-	weaken($an);
+	my ($anvil) = shift; 
+	weaken($anvil);
 	
 	# Pick up the passed in delimiter, if any.
 	if ($_[0])
 	{
-		$an->{ENV_VALUES}{ENVIRONMENT} = shift;
-		if ($an->{ENV_VALUES}{ENVIRONMENT} eq "html")
+		$anvil->{ENV_VALUES}{ENVIRONMENT} = shift;
+		if ($anvil->{ENV_VALUES}{ENVIRONMENT} eq "html")
 		{
 			# Load the CGI stuff if we're in a browser
 			use CGI;
@@ -298,7 +298,7 @@ sub environment
 		}
 	}
 	
-	return ($an->{ENV_VALUES}{ENVIRONMENT});
+	return ($anvil->{ENV_VALUES}{ENVIRONMENT});
 }
 
 =head2 nice_exit
@@ -316,22 +316,22 @@ sub nice_exit
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self;
+	my $anvil        = $self;
 	
 	my $exit_code = defined $parameter->{exit_code} ? $parameter->{exit_code} : 0;
 	
 	# Close database connections (if any).
-	$an->Database->disconnect();
+	$anvil->Database->disconnect();
 	
 	# Report the runtime.
 	my $end_time = Time::HiRes::time;
-	my $run_time = $end_time - $an->data->{ENV_VALUES}{START_TIME};
-	$an->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:ENV_VALUES::START_TIME' => $an->data->{ENV_VALUES}{START_TIME}, 
+	my $run_time = $end_time - $anvil->data->{ENV_VALUES}{START_TIME};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:ENV_VALUES::START_TIME' => $anvil->data->{ENV_VALUES}{START_TIME}, 
 		's2:end_time'               => $end_time, 
 		's3:run_time'               => $run_time, 
 	}});
-	$an->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { runtime => $run_time }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { runtime => $run_time }});
 	
 	exit($exit_code);
 }
@@ -343,13 +343,13 @@ sub nice_exit
 
 =head1 Submodule Access Methods
 
-The methods below are used to access methods of submodules using 'C<< $an->Module->method() >>'.
+The methods below are used to access methods of submodules using 'C<< $anvil->Module->method() >>'.
 
 =cut
 
 =head2 Alert
 
-Access the C<Alert.pm> methods via 'C<< $an->Alert->method >>'.
+Access the C<Alert.pm> methods via 'C<< $anvil->Alert->method >>'.
 
 =cut
 sub Alert
@@ -361,7 +361,7 @@ sub Alert
 
 =head2 Database
 
-Access the C<Database.pm> methods via 'C<< $an->Database->method >>'.
+Access the C<Database.pm> methods via 'C<< $anvil->Database->method >>'.
 
 =cut
 sub Database
@@ -373,7 +373,7 @@ sub Database
 
 =head2 Convert
 
-Access the C<Convert.pm> methods via 'C<< $an->Convert->method >>'.
+Access the C<Convert.pm> methods via 'C<< $anvil->Convert->method >>'.
 
 =cut
 sub Convert
@@ -385,7 +385,7 @@ sub Convert
 
 =head2 Get
 
-Access the C<Get.pm> methods via 'C<< $an->Get->method >>'.
+Access the C<Get.pm> methods via 'C<< $anvil->Get->method >>'.
 
 =cut
 sub Get
@@ -397,7 +397,7 @@ sub Get
 
 =head2 Log
 
-Access the C<Log.pm> methods via 'C<< $an->Log->method >>'.
+Access the C<Log.pm> methods via 'C<< $anvil->Log->method >>'.
 
 =cut
 sub Log
@@ -409,7 +409,7 @@ sub Log
 
 =head2 Storage
 
-Access the C<Storage.pm> methods via 'C<< $an->Storage->method >>'.
+Access the C<Storage.pm> methods via 'C<< $anvil->Storage->method >>'.
 
 =cut
 sub Storage
@@ -421,7 +421,7 @@ sub Storage
 
 =head2 System
 
-Access the C<System.pm> methods via 'C<< $an->System->method >>'.
+Access the C<System.pm> methods via 'C<< $anvil->System->method >>'.
 
 =cut
 sub System
@@ -433,7 +433,7 @@ sub System
 
 =head2 Template
 
-Access the C<Template.pm> methods via 'C<< $an->Template->method >>'.
+Access the C<Template.pm> methods via 'C<< $anvil->Template->method >>'.
 
 =cut
 sub Template
@@ -445,7 +445,7 @@ sub Template
 
 =head2 Words
 
-Access the C<Words.pm> methods via 'C<< $an->Words->method >>'.
+Access the C<Words.pm> methods via 'C<< $anvil->Words->method >>'.
 
 =cut
 sub Words
@@ -457,7 +457,7 @@ sub Words
 
 =head2 Validate
 
-Access the C<Validate.pm> methods via 'C<< $an->Validate->method >>'.
+Access the C<Validate.pm> methods via 'C<< $anvil->Validate->method >>'.
 
 =cut
 sub Validate
@@ -470,7 +470,7 @@ sub Validate
 
 =head1 Private Functions;
 
-These methods generally should never be called from a program using AN::Tools. However, we are not your boss.
+These methods generally should never be called from a program using Anvil::Tools. However, we are not your boss.
 
 =cut
 
@@ -480,7 +480,7 @@ These methods generally should never be called from a program using AN::Tools. H
 
 =head2 _add_hash_reference
 
-This is a helper to the '$an->_make_hash_reference' method. It is called each time a new string is to be created as a new hash key in the passed hash reference.
+This is a helper to the '$anvil->_make_hash_reference' method. It is called each time a new string is to be created as a new hash key in the passed hash reference.
 
 NOTE: Contributed by Shaun Fryer and Viktor Pavlenko by way of Toronto Perl Mongers.
 
@@ -512,7 +512,7 @@ This returns the (full) hostname for the machine this is running on.
 sub _hostname
 {
 	my $self = shift;
-	my $an   = $self;
+	my $anvil   = $self;
 	
 	my $hostname = "";
 	if ($ENV{HOSTNAME})
@@ -523,7 +523,7 @@ sub _hostname
 	else
 	{
 		# The environment variable isn't set. Call 'hostname' on the command line.
-		$hostname = $an->System->call({shell_call => $an->data->{path}{exe}{hostname}});
+		$hostname = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
 	}
 	
 	return($hostname);
@@ -531,12 +531,12 @@ sub _hostname
 
 =head2 _get_hash_reference
 
-This is called when we need to parse a double-colon separated string into two or more elements which represent keys in the 'C<< $an->data >>' hash. Once suitably split up, the value is read and returned.
+This is called when we need to parse a double-colon separated string into two or more elements which represent keys in the 'C<< $anvil->data >>' hash. Once suitably split up, the value is read and returned.
 
 For example;
 
- $an->data->{foo}{bar} = "baz";
- my $value = $an->_get_hash_reference({ key => "foo::bar" });
+ $anvil->data->{foo}{bar} = "baz";
+ my $value = $anvil->_get_hash_reference({ key => "foo::bar" });
 
 The 'C<< $value >>' now contains "C<< baz >>".
 
@@ -554,7 +554,7 @@ sub _get_hash_reference
 	# 'href' is the hash reference I am working on.
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self;
+	my $anvil        = $self;
 	
 	#print "$THIS_FILE ".__LINE__."; hash: [".$an."], key: [$parameter->{key}]\n";
 	die "$THIS_FILE ".__LINE__."; The hash key string: [$parameter->{key}] doesn't seem to be valid. It should be a string in the format 'foo::bar::baz'.\n" if $parameter->{key} !~ /::/;
@@ -568,7 +568,7 @@ sub _get_hash_reference
 		my $last_key = pop @keys;
 		
 		# Re-order the array.
-		my $current_hash_ref = $an->data;
+		my $current_hash_ref = $anvil->data;
 		foreach my $key (@keys)
 		{
 			$current_hash_ref = $current_hash_ref->{$key};
@@ -614,9 +614,9 @@ This sets default variable values for the program.
 =cut
 sub _set_defaults
 {
-	my ($an) = shift;
+	my ($anvil) = shift;
 	
-	$an->data->{sys}      = {
+	$anvil->data->{sys}      = {
 		daemons				=>	{
 			restart_firewalld		=>	1,
 		},
@@ -624,18 +624,22 @@ sub _set_defaults
 			archive				=>	{
 				compress			=>	1,
 				count				=>	50000,
-				directory			=>	"/usr/local/an-tools/archives/",
+				directory			=>	"/usr/local/anvil/archives/",
 				division			=>	6000,
 				trigger				=>	100000,
 			},
+			# grep 'CREATE TABLE' tools/anvil.sql | grep -v history. | awk '{print $3}' | sort
 			core_tables			=>	[
-									"hosts", 
-									"host_variable",
 									"alerts",
-									"variables",
 									"alert_sent",
+									"bonds",
+									"bridges",
+									"hosts",
+									"host_variable",
+									"network_interfaces",
 									"states",
 									"updated",
+									"variables",
 								],
 			local_lock_active		=>	0,
 			locking_reap_age		=>	300,
@@ -645,7 +649,7 @@ sub _set_defaults
 		host_type			=>	"",
 		use_base2			=>	1,
 	};
-	$an->data->{defaults} = {
+	$anvil->data->{defaults} = {
 		database	=>	{
 			locking		=>	{
 				reap_age	=>	300,
@@ -657,7 +661,7 @@ sub _set_defaults
 		},
 		limits		=>	{
 			# This is the maximum number of times we're allow to loop when injecting variables 
-			# into a string being processed in AN::Tools::Words->string();
+			# into a string being processed in Anvil::Tools::Words->string();
 			string_loops	=>	1000,
 		},
 		'log'		=>	{
@@ -667,7 +671,7 @@ sub _set_defaults
 			level		=>	1,
 			secure		=>	0,
 			server		=>	"",
-			tag		=>	"an-tools",
+			tag		=>	"anvil",
 		},
 		sql		=>	{
 			test_table	=>	"hosts",
@@ -687,17 +691,17 @@ This sets default paths to many system commands, checking to make sure the binar
 =cut
 sub _set_paths
 {
-	my ($an) = shift;
+	my ($anvil) = shift;
 	
 	# Executables
-	$an->data->{path} = {
+	$anvil->data->{path} = {
 			configs			=>	{
 				'firewalld.conf'	=>	"/etc/firewalld/firewalld.conf",
 				'journald_an'		=>	"/etc/systemd/journald.conf.d/an.conf",
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
 				ssh_config		=>	"/etc/ssh/ssh_config",
-				'striker.conf'		=>	"/etc/striker/striker.conf",
+				'anvil.conf'		=>	"/etc/anvil/anvil.conf",
 			},
 			data			=>	{
 				group			=>	"/etc/group",
@@ -705,17 +709,18 @@ sub _set_paths
 				passwd			=>	"/etc/passwd",
 			},
 			directories		=>	{
-				backups			=>	"/usr/sbin/striker/backups",
+				backups			=>	"/usr/sbin/anvil/backups",
 				'cgi-bin'		=>	"/var/www/cgi-bin",
 				firewalld_services	=>	"/usr/lib/firewalld/services",
 				firewalld_zones		=>	"/etc/firewalld/zones",
 				html			=>	"/var/www/html",
 				skins			=>	"/var/www/html/skins",
-				tools			=>	"/usr/sbin/striker",
+				tools			=>	"/usr/sbin/anvil",
 				units			=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
-				'an-report-memory'	=>	"/usr/sbin/an-report-memory",
+				'anvil-update-states'	=>	"/sbin/anvil/anvil-update-states",
+				'anvil-report-memory'	=>	"/usr/sbin/anvil-report-memory",
 				'chmod'			=>	"/usr/bin/chmod",
 				'chown'			=>	"/usr/bin/chown",
 				cp			=>	"/usr/bin/cp",
@@ -736,7 +741,6 @@ sub _set_paths
 				pgrep			=>	"/usr/bin/pgrep",
 				psql			=>	"/usr/bin/psql",
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
-				'scancore-update-states' =>	"/sbin/striker/scancore-update-states",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
 				touch			=>	"/usr/bin/touch",
@@ -744,7 +748,7 @@ sub _set_paths
 				uuidgen			=>	"/usr/bin/uuidgen",
 			},
 			'lock'			=>	{
-				database		=>	"/tmp/an-tools.database.lock",
+				database		=>	"/tmp/anvil-tools.database.lock",
 			},
 			secure			=>	{
 				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",
@@ -753,29 +757,29 @@ sub _set_paths
 				network_interfaces	=>	"/sys/class/net",
 			},
 			sql			=>	{
-				'Tools.sql'		=>	"/usr/share/perl5/AN/Tools.sql",
+				'anvil.sql'		=>	"/usr/sbin/anvil/anvil.sql",
 			},
 			urls		=>	{
 				skins			=>	"/skins",
 			},
 			words		=>	{
-				'an-tools.xml'		=>	"/usr/share/perl5/AN/an-tools.xml",
+				'words.xml'		=>	"/usr/sbin/anvil/words.xml",
 			},
 	};
 	
 	# Make sure we actually have the requested files.
-	foreach my $type (sort {$a cmp $b} keys %{$an->data->{path}})
+	foreach my $type (sort {$a cmp $b} keys %{$anvil->data->{path}})
 	{
 		# We don't look for urls because they're relative to the domain.
 		next if $type eq "urls";
-		foreach my $file (sort {$a cmp $b} keys %{$an->data->{path}{$type}})
+		foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{path}{$type}})
 		{
-			if (not -e $an->data->{path}{$type}{$file})
+			if (not -e $anvil->data->{path}{$type}{$file})
 			{
-				my $full_path = $an->Storage->find({file => $file});
+				my $full_path = $anvil->Storage->find({file => $file});
 				if (($full_path) && ($full_path ne "#!not_found!#"))
 				{
-					$an->data->{path}{$type}{$file} = $full_path;
+					$anvil->data->{path}{$type}{$file} = $full_path;
 				}
 			}
 		}
@@ -791,10 +795,10 @@ This returns the short hostname for the machine this is running on. That is to s
 =cut
 sub _short_hostname
 {
-	my $self = shift;
-	my $an   =  $self;
+	my $self  = shift;
+	my $anvil =  $self;
 	
-	my $short_host_name =  $an->_hostname;
+	my $short_host_name =  $anvil->_hostname;
 	   $short_host_name =~ s/\..*$//;
 	
 	return($short_host_name);
@@ -804,11 +808,11 @@ sub _short_hostname
 
 =head2 C<1>
 
-AN::Tools->new() passed something other than a hash reference.
+Anvil::Tools->new() passed something other than a hash reference.
 
 =head2 C<2>
 
-Failed to find the requested file in C<< AN::Tools::Storage->find >> and 'fatal' was set.
+Failed to find the requested file in C<< Anvil::Tools::Storage->find >> and 'fatal' was set.
 
 =head1 Requirements
 
@@ -837,14 +841,14 @@ sub catch_sig
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $an        = $self;
+	my $anvil        = $self;
 	my $signal    = $parameter->{signal} ? $parameter->{signal} : "";
 	
 	if ($signal)
 	{
 		print "Process with PID: [$$] exiting on SIG".$signal.".\n";
 	}
-	$an->nice_exit({code => 255});
+	$anvil->nice_exit({code => 255});
 }
 
 

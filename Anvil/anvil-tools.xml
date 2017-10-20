@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+This is the AN::Tools master 'words' file.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules">
+		
+		
+	</language>
+	<!-- 日本語 -->
+	<language name="jp" long_name="日本語" description=">Created by Madison Kelly (mkelly@alteeve.ca) for the AN::Tools suite of perl modules.">
+		
+	</language>
+</words>
