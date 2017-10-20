@@ -120,11 +120,12 @@ sub call
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	
+	my $debug      = 2;
 	my $line       = defined $parameter->{line}       ? $parameter->{line}       : __LINE__;
 	my $shell_call = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
 	my $secure     = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : $THIS_FILE;
-	$anvil->Log->variables({source => $source, line => $line, level => 3, secure => $secure, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $source, line => $line, level => $debug, secure => $secure, list => { shell_call => $shell_call }});
 	
 	my $output = "#!error!#";
 	if (not $shell_call)
@@ -136,7 +137,7 @@ sub call
 	{
 		# Make the system call
 		$output = "";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, key => "log_0011", variables => { shell_call => $shell_call }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0011", variables => { shell_call => $shell_call }});
 		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
@@ -144,7 +145,7 @@ sub call
 			my $line = $_;
 			   $line =~ s/\n$//;
 			   $line =~ s/\r$//;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, key => "log_0017", variables => { line => $line }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0017", variables => { line => $line }});
 			$output .= $line."\n";
 		}
 		close $file_handle;
@@ -152,7 +153,7 @@ sub call
 		$output =~ s/\n$//s;
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { output => $output }});
 	return($output);
 }
 

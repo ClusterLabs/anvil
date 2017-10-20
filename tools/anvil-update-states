@@ -14,12 +14,12 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $$anvil = Anvil::Tools->new();
-$$anvil->Log->level({set => 2});
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
 
-$$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
-my $connections = $$anvil->Database->connect({
-	sql_file   => $$anvil->data->{sys}{database}{schema},
+$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
+my $connections = $anvil->Database->connect({
+	sql_file   => $anvil->data->{sys}{database}{schema},
 	test_table => "network_interfaces", 
 });
 
@@ -40,9 +40,9 @@ sub report_network
 	my ($anvil) = @_;
 	
 	# Write out the data in json format.
-	my $directory = $$anvil->data->{path}{sysfs}{network_interfaces};
+	my $directory = $anvil->data->{path}{sysfs}{network_interfaces};
 	local(*DIRECTORY);
-	$$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
 	while(my $file = readdir(DIRECTORY))
 	{
@@ -50,17 +50,17 @@ sub report_network
 		next if $file eq "..";
 		next if $file eq "lo";
 		my $full_path = "$directory/$file";
-		$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
 			# Pull out the data I want.
 			my $interface   = $file;
-			my $mac_address = $$anvil->Storage->read_file({file => $full_path."/address"});
-			my $link_state  = $$anvil->Storage->read_file({file => $full_path."/carrier"});
-			my $mtu         = $$anvil->Storage->read_file({file => $full_path."/mtu"});
-			my $duplex      = $$anvil->Storage->read_file({file => $full_path."/duplex"});	# full or half?
-			my $operational = $$anvil->Storage->read_file({file => $full_path."/operstate"});	# up or down
-			my $speed       = $link_state ? $$anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			my $mac_address = $anvil->Storage->read_file({file => $full_path."/address"});
+			my $link_state  = $anvil->Storage->read_file({file => $full_path."/carrier"});
+			my $mtu         = $anvil->Storage->read_file({file => $full_path."/mtu"});
+			my $duplex      = $anvil->Storage->read_file({file => $full_path."/duplex"});	# full or half?
+			my $operational = $anvil->Storage->read_file({file => $full_path."/operstate"});	# up or down
+			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
 			if ($speed > 100000)
 			{
 				# NOTE: This is probably 0 now... Though someday >100 Gbps will be reasonable
@@ -70,7 +70,7 @@ sub report_network
 			
 			# Find the media, if possible.
 			my $media   = "unknown";
-			my $ethtool = $$anvil->System->call({shell_call => $$anvil->data->{path}{exe}{ethtool}});
+			my $ethtool = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}});
 			foreach my $line (split/\n/, $ethtool)
 			{
 				if ($line =~ /Supported ports: \[ (.*?) \]/i)
@@ -81,7 +81,7 @@ sub report_network
 			}
 			
 			# Log
-			$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				interface   => $interface, 
 				mac_address => $mac_address, 
 				link_state  => $link_state, 
@@ -92,7 +92,7 @@ sub report_network
 				media       => $media, 
 			}});
 			
-			$$anvil->Database->insert_or_update_network_interfaces({
+			$anvil->Database->insert_or_update_network_interfaces({
 				network_interface_name        => $interface,
 				network_interface_duplex      => $duplex, 
 				network_interface_link_state  => $link_state, 
@@ -110,7 +110,7 @@ sub report_network
 	### TODO: Create $anvil "ip" table and record IPs on this system, linking back to $anvil interface, bond or 
 	###       bridge.
 	# Run 'ip addr' to see what IPs are in use.
-	$$anvil->System->get_ips;
+	$anvil->System->get_ips;
 	
 	# Write out the XML file and JSON file.
 	my $order        = 1;
@@ -132,14 +132,14 @@ SELECT
 FROM 
     network_interfaces 
 WHERE 
-    network_interface_host_uuid = ".$$anvil->data->{sys}{use_db_fh}->quote($$anvil->Get->host_uuid)." 
+    network_interface_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)." 
 ORDER BY 
     modified_date DESC
 ;";
-	$$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
-	my $results = $$anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -155,7 +155,7 @@ ORDER BY
 		my $network_interface_medium      = defined $row->[7] ? $row->[7] : "";
 		my $network_interface_bond_uuid   = defined $row->[8] ? $row->[8] : "";
 		my $network_interface_bridge_uuid = defined $row->[9] ? $row->[9] : "";
-		$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			network_interface_mac_address => $network_interface_mac_address,
 			network_interface_name        => $network_interface_name,
 			network_interface_speed       => $network_interface_speed,
@@ -175,16 +175,16 @@ ORDER BY
 	
 	$network_json =~ s/,$//s;
 	$network_json .= "]}\n";
-	$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_json => $network_json }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_json => $network_json }});
 	
 	$network_xml .= "</network>\n";
-	$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_xml => $network_xml }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_xml => $network_xml }});
 	
 	### TODO: Set the 'status/network.json' name into 'striker.conf'
 	# Write the JSON file.
-	my $output_json = $$anvil->data->{path}{directories}{html}."/status/network.json";
-	$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_json }});
-	$$anvil->Storage->write_file({
+	my $output_json = $anvil->data->{path}{directories}{html}."/status/network.json";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_json }});
+	$anvil->Storage->write_file({
 		file      => $output_json, 
 		body      => $network_json, 
 		overwrite => 1,
@@ -194,9 +194,9 @@ ORDER BY
 	});
 	
 	# Write the XML file.
-	my $output_xml = $$anvil->data->{path}{directories}{html}."/status/network.xml";
-	$$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_xml }});
-	$$anvil->Storage->write_file({
+	my $output_xml = $anvil->data->{path}{directories}{html}."/status/network.xml";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_xml }});
+	$anvil->Storage->write_file({
 		file      => $output_xml, 
 		body      => $network_xml, 
 		overwrite => 1,

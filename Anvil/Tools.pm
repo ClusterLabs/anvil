@@ -719,7 +719,8 @@ sub _set_paths
 				units			=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
-				'anvil-update-states'	=>	"/sbin/anvil/anvil-update-states",
+				'anvil-prep-database'	=>	"/usr/sbin/anvil/anvil-prep-database",
+				'anvil-update-states'	=>	"/usr/sbin/anvil/anvil-update-states",
 				'anvil-report-memory'	=>	"/usr/sbin/anvil-report-memory",
 				'chmod'			=>	"/usr/bin/chmod",
 				'chown'			=>	"/usr/bin/chown",
