@@ -7,6 +7,9 @@ use strict;
 use warnings;
 use Anvil::Tools;
 
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 if (($running_directory =~ /^\./) && ($ENV{PWD}))
@@ -29,10 +32,6 @@ if (not $connections)
 	print $anvil->Words->string({key => "striker_error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
-
-
-# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
-$| = 1;
 
 report_network($anvil);
 
