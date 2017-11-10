@@ -131,7 +131,7 @@ anvil_start () {
 # Function calls (main program sequence)
 check_root
 install_firewalld
-download_anvil
+#download_anvil
 create_dirs
 copy_anvil
 al-repo_definitions
