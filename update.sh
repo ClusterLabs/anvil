@@ -24,6 +24,12 @@ check_root () {
 	fi
 }
 
+stop_services () {
+	systemctl stop anvil-daemon
+	systemctl stop httpd
+	systemctl stop postgresql
+}
+
 update_anvil () {
 	cd $gitLocal
 	git pull
@@ -75,6 +81,12 @@ selinux_permissive () {
 	setenforce 0
 }
 
+# Initialize database
+db_initialize () {
+	postgresql-setup initdb
+	$gitLocal/test.pl
+}
+
 # Reload and restart services
 service_restart () {
 	systemctl daemon-reload
@@ -94,4 +106,5 @@ required_packages
 sysadmin_tools
 dbaddress_config
 selinux_permissive
+db_initialize
 service_restart
