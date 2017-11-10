@@ -555,10 +555,11 @@ ALTER TABLE bcn_scan_results OWNER TO #!variable!user!#;
 
 CREATE TABLE history.bcn_scan_results (
 	history_id						bigserial,
+	bcn_scan_results_uuid			uuid 			not null,
 	bcn_scan_result_mac				macaddr			not null,
 	bcn_scan_result_ip				inet 			not null,
 	bcn_scan_result_vendor			text,
-	modified_date 						timestamp with time zone not null,
+	modified_date 						timestamp with time zone not null
 );
 ALTER TABLE history.bcn_scan_results OWNER TO #!variable!user!#;
 
