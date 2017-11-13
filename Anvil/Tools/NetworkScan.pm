@@ -75,7 +75,7 @@ sub scan
 
 	# Create the directory where the child processes will write their output to.
 	print "Scanning for devices on $anvil->data->{scan}{sys}{network}.0.0/16 now:\n" if not $anvil->data->{scan}{sys}{quiet};
-	print "# Network scan started at: [".$anvil->NetworkScan->get_date({$use_time => time})."], expected finish: [".$anvil->NetworkScan->get_date({$use_time => time + 300})."]\n" if not $anvil->data->{scan}{sys}{quiet};
+	print "# Network scan started at: [".$anvil->NetworkScan->get_date({use_time => time})."], expected finish: [".$anvil->NetworkScan->get_date({use_time => time + 300})."]\n" if not $anvil->data->{scan}{sys}{quiet};
 	if (not -d $anvil->data->{scan}{path}{child_output})
 	{
 		mkdir $anvil->data->{scan}{path}{child_output} or die "Failed to create the temporary output directory: [$anvil->data->{scan}{path}{child_output}]\n";
@@ -229,7 +229,7 @@ sub scan
 
 	# Clean up!
 	$anvil->NetworkScan->cleanup_temp();
-	print "Network scan finished at: [".$anvil->NetworkScan->get_date({$use_time => time})."]\n" if not $anvil->data->{scan}{sys}{quiet};
+	print "Network scan finished at: [".$anvil->NetworkScan->get_date({use_time => time})."]\n" if not $anvil->data->{scan}{sys}{quiet};
 
 	return \@results;
 }
@@ -260,9 +260,9 @@ INSERT INTO
 		modified_date
 ) VALUES (
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->uuid()).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($result{mac}).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($result{ip}).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($result{oem}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($result->{mac}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($result->{ip}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($result->{oem}).",
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
@@ -273,7 +273,7 @@ INSERT INTO
 	}
 	else
 	{
-		print "No results provided to add to the database." if not $anvil->data{scan}{sys}{quiet};
+		print "No results provided to add to the database." if not $anvil->data->{scan}{sys}{quiet};
 	}
 }
 
@@ -327,7 +327,8 @@ sub get_date
 	return($date);
 }
 
-sub find_nmap {
+sub find_nmap
+{
 	my $self      = shift;
 	my $anvil     = $self->parent;
 
