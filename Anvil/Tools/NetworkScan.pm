@@ -74,12 +74,12 @@ sub scan
 	Anvil::Tools::Vendors::load($anvil->data->{scan});
 
 	# Create the directory where the child processes will write their output to.
-	print "Scanning for devices on $anvil->data->{scan}{sys}{network}.0.0/16 now:\n" if not $anvil->data->{scan}{sys}{quiet};
+	print "Scanning for devices on " . $anvil->data->{scan}{sys}{network} . ".0.0/16 now:\n" if not $anvil->data->{scan}{sys}{quiet};
 	print "# Network scan started at: [".$anvil->NetworkScan->get_date({use_time => time})."], expected finish: [".$anvil->NetworkScan->get_date({use_time => time + 300})."]\n" if not $anvil->data->{scan}{sys}{quiet};
 	if (not -d $anvil->data->{scan}{path}{child_output})
 	{
-		mkdir $anvil->data->{scan}{path}{child_output} or die "Failed to create the temporary output directory: [$anvil->data->{scan}{path}{child_output}]\n";
-		print "- Created the directory: [$anvil->data->{scan}{path}{child_output}] where child processes will record their output.\n" if not $anvil->data->{scan}{sys}{quiet};
+		mkdir $anvil->data->{scan}{path}{child_output} or die "Failed to create the temporary output directory: [" . $anvil->data->{scan}{path}{child_output} . "]\n";
+		print "- Created the directory: [" . $anvil->data->{scan}{path}{child_output} . "] where child processes will record their output.\n" if not $anvil->data->{scan}{sys}{quiet};
 	}
 	else
 	{
@@ -112,9 +112,9 @@ sub scan
 			# Note that, without the 'die', we could end
 			# up here if the fork() failed.
 			sleep $i;
-			my $output_file = "$anvil->data->{scan}{path}{child_output}/segment.$i.out";
-			my $scan_range  = "$anvil->data->{scan}{sys}{network}.$i.0/24";
-			my $shell_call  = "$anvil->data->{scan}{path}{nmap} $anvil->data->{scan}{sys}{nmap_switches} $scan_range > $output_file";
+			my $output_file = $anvil->data->{scan}{path}{child_output} . "/segment.$i.out";
+			my $scan_range  = $anvil->data->{scan}{sys}{network} . ".$i.0/24";
+			my $shell_call  = $anvil->data->{scan}{path}{nmap} . $anvil->data->{scan}{sys}{nmap_switches} . "$scan_range > $output_file";
 			print "Child process with PID: [$$] scanning segment: [$scan_range] now...\n" if not $anvil->data->{scan}{sys}{quiet};
 			#print "Calling: [$shell_call]\n";
 			open (my $file_handle, "$shell_call 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
@@ -177,7 +177,7 @@ sub scan
 	{
 		next if $file eq ".";
 		next if $file eq "..";
-		my $path       = "$anvil->data->{scan}{path}{child_output}/$file";
+		my $path       = $anvil->data->{scan}{path}{child_output} . "/$file";
 		my $shell_call = "<$path";
 		open (my $file_handle, "$shell_call") or die "Failed to read: [$shell_call], error was: $!\n";
 		while(<$file_handle>)
@@ -224,7 +224,7 @@ sub scan
 			oem => $anvil->data->{scan}{ip}{$this_ip}{oem}
 		};
 
-		print "- IP: [$this_ip]\t-> [$anvil->data->{scan}{ip}{$this_ip}{mac}] ($anvil->data->{scan}{ip}{$this_ip}{oem})\n" if not $anvil->data->{scan}{sys}{quiet};
+		print "- IP: [$this_ip]\t-> [" . $anvil->data->{scan}{ip}{$this_ip}{mac} . "] (" . $anvil->data->{scan}{ip}{$this_ip}{oem}) . "\n" if not $anvil->data->{scan}{sys}{quiet};
 	}
 
 	# Clean up!
@@ -284,7 +284,7 @@ sub cleanup_temp
 	my $anvil     = $self->parent;
 
 	print "- Purging old scan files.\n" if not $anvil->data->{scan}{sys}{quiet};
-	my $shell_call = "$anvil->data->{scan}{path}{rm} -f $anvil->data->{scan}{path}{child_output}/segment.*";
+	my $shell_call = $anvil->data->{scan}{path}{rm} . " -f " . $anvil->data->{scan}{path}{child_output} . "/segment.*";
 	print "- Calling: [$shell_call]\n" if not $anvil->data->{scan}{sys}{quiet};
 	open (my $file_handle, "$shell_call 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
 	while(<$file_handle>)
