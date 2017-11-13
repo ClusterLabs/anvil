@@ -114,7 +114,7 @@ sub scan
 			sleep $i;
 			my $output_file = $anvil->data->{scan}{path}{child_output} . "/segment.$i.out";
 			my $scan_range  = $anvil->data->{scan}{sys}{network} . ".$i.0/24";
-			my $shell_call  = $anvil->data->{scan}{path}{nmap} . $anvil->data->{scan}{sys}{nmap_switches} . "$scan_range > $output_file";
+			my $shell_call  = $anvil->data->{scan}{path}{nmap} . " " . $anvil->data->{scan}{sys}{nmap_switches} . "$scan_range > $output_file";
 			print "Child process with PID: [$$] scanning segment: [$scan_range] now...\n" if not $anvil->data->{scan}{sys}{quiet};
 			#print "Calling: [$shell_call]\n";
 			open (my $file_handle, "$shell_call 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
