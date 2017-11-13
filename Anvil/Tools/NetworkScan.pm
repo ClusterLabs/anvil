@@ -224,7 +224,7 @@ sub scan
 			oem => $anvil->data->{scan}{ip}{$this_ip}{oem}
 		};
 
-		print "- IP: [$this_ip]\t-> [" . $anvil->data->{scan}{ip}{$this_ip}{mac} . "] (" . $anvil->data->{scan}{ip}{$this_ip}{oem}) . "\n" if not $anvil->data->{scan}{sys}{quiet};
+		print "- IP: [$this_ip]\t-> [" . $anvil->data->{scan}{ip}{$this_ip}{mac} . "] (" . $anvil->data->{scan}{ip}{$this_ip}{oem} . ")\n" if not $anvil->data->{scan}{sys}{quiet};
 	}
 
 	# Clean up!
