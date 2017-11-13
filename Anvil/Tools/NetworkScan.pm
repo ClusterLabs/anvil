@@ -54,7 +54,7 @@ sub scan
 
 	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "172.16";
 
-	my $conf = {
+	$anvil->data->{scan} = {
 		ip		=>	{},
 		path		=>	{
 			child_output	=>	"/tmp/anvil-scan-network",
@@ -68,27 +68,23 @@ sub scan
 			nmap_switches	=>	"-sn -n -PR",
 			quiet		=>	1,
 			network		=>	$subnet,
-		},
+		}
 	};
 
-	# Find location of nmap
-	#find_nmap($conf);
-	#print $conf->{path}{nmap};
-
-	Anvil::Tools::Vendors::load($conf);
+	Anvil::Tools::Vendors::load($anvil->data->{scan});
 
 	# Create the directory where the child processes will write their output to.
-	#print "Scanning for devices on $conf->{sys}{network}.0.0/16 now:\n" if not $conf->{sys}{quiet};
-	print "# Network scan started at: [".get_date($conf, time)."], expected finish: [".get_date($conf, (time + 300))."]\n" if not $conf->{sys}{quiet};
-	if (not -d $conf->{path}{child_output})
+	print "Scanning for devices on $anvil->data->{scan}{sys}{network}.0.0/16 now:\n" if not $anvil->data->{scan}{sys}{quiet};
+	print "# Network scan started at: [".$anvil->NetworkScan->get_date({$use_time => time})."], expected finish: [".$anvil->NetworkScan->get_date({$use_time => time + 300})."]\n" if not $anvil->data->{scan}{sys}{quiet};
+	if (not -d $anvil->data->{scan}{path}{child_output})
 	{
-		mkdir $conf->{path}{child_output} or die "Failed to create the temporary output directory: [$conf->{path}{child_output}]\n";
-		print "- Created the directory: [$conf->{path}{child_output}] where child processes will record their output.\n" if not $conf->{sys}{quiet};
+		mkdir $anvil->data->{scan}{path}{child_output} or die "Failed to create the temporary output directory: [$anvil->data->{scan}{path}{child_output}]\n";
+		print "- Created the directory: [$anvil->data->{scan}{path}{child_output}] where child processes will record their output.\n" if not $anvil->data->{scan}{sys}{quiet};
 	}
 	else
 	{
 		# Clear out any files from the previous run
-		cleanup_temp($conf);
+		$anvil->NetworkScan->cleanup_temp();
 	}
 
 	### WARNING: Some switches might thing this is a flood and get angry with us!
@@ -116,17 +112,17 @@ sub scan
 			# Note that, without the 'die', we could end
 			# up here if the fork() failed.
 			sleep $i;
-			my $output_file = "$conf->{path}{child_output}/segment.$i.out";
-			my $scan_range  = "$conf->{sys}{network}.$i.0/24";
-			my $shell_call  = "$conf->{path}{nmap} $conf->{sys}{nmap_switches} $scan_range > $output_file";
-			print "Child process with PID: [$$] scanning segment: [$scan_range] now...\n" if not $conf->{sys}{quiet};
+			my $output_file = "$anvil->data->{scan}{path}{child_output}/segment.$i.out";
+			my $scan_range  = "$anvil->data->{scan}{sys}{network}.$i.0/24";
+			my $shell_call  = "$anvil->data->{scan}{path}{nmap} $anvil->data->{scan}{sys}{nmap_switches} $scan_range > $output_file";
+			print "Child process with PID: [$$] scanning segment: [$scan_range] now...\n" if not $anvil->data->{scan}{sys}{quiet};
 			#print "Calling: [$shell_call]\n";
 			open (my $file_handle, "$shell_call 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
 			while(<$file_handle>)
 			{
 				chomp;
 				my $line = $_;
-				print "PID: [$$], line: [$line]\n" if not $conf->{sys}{quiet};
+				print "PID: [$$], line: [$line]\n" if not $anvil->data->{scan}{sys}{quiet};
 			}
 			close $file_handle;
 
@@ -154,11 +150,11 @@ sub scan
 			$pid = wait;
 			if ($pid < 1)
 			{
-				print "Parent process thinks all children are gone now as wait returned: [$pid]. Exiting loop.\n" if not $conf->{sys}{quiet};
+				print "Parent process thinks all children are gone now as wait returned: [$pid]. Exiting loop.\n" if not $anvil->data->{scan}{sys}{quiet};
 			}
 			else
 			{
-				print "Parent process told that child with PID: [$pid] has exited.\n" if not $conf->{sys}{quiet};
+				print "Parent process told that child with PID: [$pid] has exited.\n" if not $anvil->data->{scan}{sys}{quiet};
 			}
 
 			# This deletes the just-exited child process' PID from the
@@ -169,26 +165,26 @@ sub scan
 				# long as the PID returned by wait()
 				# was >0.
 	}
-	print "Done, compiling results...\n" if not $conf->{sys}{quiet};
+	print "Done, compiling results...\n" if not $anvil->data->{scan}{sys}{quiet};
 
 	my $this_ip  = "";
 	my $this_mac = "";
 	my $this_oem = "";
 	my @results;
 	local(*DIRECTORY);
-	opendir(DIRECTORY, $conf->{path}{child_output});
+	opendir(DIRECTORY, $anvil->data->{scan}{path}{child_output});
 	while(my $file = readdir(DIRECTORY))
 	{
 		next if $file eq ".";
 		next if $file eq "..";
-		my $path       = "$conf->{path}{child_output}/$file";
+		my $path       = "$anvil->data->{scan}{path}{child_output}/$file";
 		my $shell_call = "<$path";
 		open (my $file_handle, "$shell_call") or die "Failed to read: [$shell_call], error was: $!\n";
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			print "line: [$line]\n" if not $conf->{sys}{quiet};
+			print "line: [$line]\n" if not $anvil->data->{scan}{sys}{quiet};
 			if ($line =~ /Nmap scan report for (\d+\.\d+\.\d+\.\d+)/)
 			{
 				$this_ip = $1;
@@ -205,53 +201,97 @@ sub scan
 			}
 			if (($this_ip) && ($this_mac) && ($this_oem))
 			{
-				$conf->{ip}{$this_ip}{mac} = $this_mac;
-				$conf->{ip}{$this_ip}{oem} = $this_oem;
+				$anvil->data->{scan}{ip}{$this_ip}{mac} = $this_mac;
+				$anvil->data->{scan}{ip}{$this_ip}{oem} = $this_oem;
 			}
 		}
 		close $file_handle;
 	}
-	print "Done.\n\n" if not $conf->{sys}{quiet};
+	print "Done.\n\n" if not $anvil->data->{scan}{sys}{quiet};
 
-	print "Discovered IPs:\n" if not $conf->{sys}{quiet};
-	foreach my $this_ip (sort {$a cmp $b} keys %{$conf->{ip}})
+	print "Discovered IPs:\n" if not $anvil->data->{scan}{sys}{quiet};
+	foreach my $this_ip (sort {$a cmp $b} keys %{$anvil->data->{scan}{ip}})
 	{
-		if ($conf->{ip}{$this_ip}{oem} =~ /Unknown/i)
+		if ($anvil->data->{scan}{ip}{$this_ip}{oem} =~ /Unknown/i)
 		{
-			my $short_mac = lc(($conf->{ip}{$this_ip}{mac} =~ /^([0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2})/)[0]);
-			$conf->{ip}{$this_ip}{oem} = $conf->{vendors}{$short_mac} ? $conf->{vendors}{$short_mac} : "--";
+			my $short_mac = lc(($anvil->data->{scan}{ip}{$this_ip}{mac} =~ /^([0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2})/)[0]);
+			$anvil->data->{scan}{ip}{$this_ip}{oem} = $anvil->data->{scan}{vendors}{$short_mac} ? $anvil->data->{scan}{vendors}{$short_mac} : "--";
 		}
 
 		push @results, {
 			ip => $this_ip,
-			mac => $conf->{ip}{$this_ip}{mac},
-			oem => $conf->{ip}{$this_ip}{oem}
+			mac => $anvil->data->{scan}{ip}{$this_ip}{mac},
+			oem => $anvil->data->{scan}{ip}{$this_ip}{oem}
 		};
 
-		print "- IP: [$this_ip]\t-> [$conf->{ip}{$this_ip}{mac}] ($conf->{ip}{$this_ip}{oem})\n" if not $conf->{sys}{quiet};
+		print "- IP: [$this_ip]\t-> [$anvil->data->{scan}{ip}{$this_ip}{mac}] ($anvil->data->{scan}{ip}{$this_ip}{oem})\n" if not $anvil->data->{scan}{sys}{quiet};
 	}
 
 	# Clean up!
-	cleanup_temp($conf);
-	print "Network scan finished at: [".get_date($conf, time)."]\n" if not $conf->{sys}{quiet};
+	$anvil->NetworkScan->cleanup_temp();
+	print "Network scan finished at: [".$anvil->NetworkScan->get_date({$use_time => time})."]\n" if not $anvil->data->{scan}{sys}{quiet};
 
 	return \@results;
+}
+
+# Save a list of scan results to the database.
+sub save_scan_to_db
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $results = $parameter->{results};
+
+	if (defined $results)
+	{
+
+		$anvil->Database->connect();
+
+		foreach my $result (@{$results})
+		{
+			my $query = "
+INSERT INTO
+    bcn_scan_results
+(
+		bcn_scan_result_uuid,
+		bcn_scan_result_mac,
+		bcn_scan_result_ip,
+		bcn_scan_result_vendor,
+		modified_date
+) VALUES (
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->uuid()).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($result{mac}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($result{ip}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($result{oem}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+);
+";
+			$anvil->Database->write({query => $query});
+		}
+
+		$anvil->Database->disconnect();
+	}
+	else
+	{
+		print "No results provided to add to the database." if not $anvil->data{scan}{sys}{quiet};
+	}
 }
 
 # This clears out the /tmp/ files our child processes created.
 sub cleanup_temp
 {
-	my ($conf) = @_;
+	my $self      = shift;
+	my $anvil     = $self->parent;
 
-	print "- Purging old scan files.\n" if not $conf->{sys}{quiet};
-	my $shell_call = "$conf->{path}{rm} -f $conf->{path}{child_output}/segment.*";
-	print "- Calling: [$shell_call]\n" if not $conf->{sys}{quiet};
+	print "- Purging old scan files.\n" if not $anvil->data->{scan}{sys}{quiet};
+	my $shell_call = "$anvil->data->{scan}{path}{rm} -f $anvil->data->{scan}{path}{child_output}/segment.*";
+	print "- Calling: [$shell_call]\n" if not $anvil->data->{scan}{sys}{quiet};
 	open (my $file_handle, "$shell_call 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
 	while(<$file_handle>)
 	{
 		chomp;
 		my $line = $_;
-		print "- Output: [$line]\n" if not $conf->{sys}{quiet};
+		print "- Output: [$line]\n" if not $anvil->data->{scan}{sys}{quiet};
 	}
 	close $file_handle;
 }
@@ -260,8 +300,10 @@ sub cleanup_temp
 # always uses 24-hour time and it zero-pads single digits.
 sub get_date
 {
-	my ($conf, $use_time) = @_;
-	   $use_time = time if not $use_time;
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $use_time = defined $parameter->{use_time} ? $parameter->{use_time} : time;
 	my $date     = "";
 
 	# This doesn't support offsets or other advanced features.
@@ -286,9 +328,11 @@ sub get_date
 }
 
 sub find_nmap {
-	my ($conf) = @_;
+	my $self      = shift;
+	my $anvil     = $self->parent;
+
 	open(FINDIT, "which nmap |");
-	$conf->{path}{nmap} = <FINDIT>;
+	$anvil->data->{scan}{path}{nmap} = <FINDIT>;
 	close(FINDIT);
 }
 
