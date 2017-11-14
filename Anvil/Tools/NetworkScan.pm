@@ -249,7 +249,30 @@ sub save_scan_to_db
 
 		foreach my $result (@{$results})
 		{
+			$scan_uuid = "";
+
+			# Check if an entry already exists at that IP address.
 			my $query = "
+SELECT
+    bcn_scan_result_uuid
+FROM
+    bcn_scan_results
+WHERE
+    bcn_scan_result_ip = ".$anvil->data->{sys}{use_db_fh}->quote($result->{ip})."
+;";
+
+			my $query_results = $anvil->Database->query({query => $query});
+			foreach my $row (@{$query_results})
+			{
+				$scan_uuid = $row->[0];
+			}
+
+			if (not $scan_uuid)
+			{
+				$scan_uuid = $anvil->Get->uuid();
+
+				# If an entry does not exist, insert the scan result to the database.
+				my $query = "
 INSERT INTO
     bcn_scan_results
 (
@@ -259,14 +282,29 @@ INSERT INTO
 		bcn_scan_result_vendor,
 		modified_date
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->uuid()).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid).",
     ".$anvil->data->{sys}{use_db_fh}->quote($result->{mac}).",
     ".$anvil->data->{sys}{use_db_fh}->quote($result->{ip}).",
     ".$anvil->data->{sys}{use_db_fh}->quote($result->{oem}).",
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
-);
+);";
+				$anvil->Database->write({query => $query});
+			}
+			else
+			{
+				# If an entry with that IP does exist in the database, update it to the current device/time from this scan result.
+				my $query = "
+UPDATE
+    bcn_scan_results
+SET
+    bcn_scan_result_mac     = ".$anvil->data->{sys}{use_db_fh}->quote($result->{mac}).",
+    bcn_scan_result_vendor  = ".$anvil->data->{sys}{use_db_fh}->quote($result->{oem}).",
+    modified_date           = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+WHERE
+    scan_uuid               = ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid)."
 ";
-			$anvil->Database->write({query => $query});
+				$anvil->Database->write({query => $query});
+			}
 		}
 
 		$anvil->Database->disconnect();
