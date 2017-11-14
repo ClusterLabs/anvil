@@ -249,7 +249,7 @@ sub save_scan_to_db
 
 		foreach my $result (@{$results})
 		{
-			$scan_uuid = "";
+			my $scan_uuid = "";
 
 			# Check if an entry already exists at that IP address.
 			my $query = "
