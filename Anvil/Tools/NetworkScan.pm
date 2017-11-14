@@ -301,7 +301,7 @@ SET
     bcn_scan_result_vendor  = ".$anvil->data->{sys}{use_db_fh}->quote($result->{oem}).",
     modified_date           = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 WHERE
-    scan_uuid               = ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid)."
+    bcn_scan_result_uuid    = ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid)."
 ";
 				$anvil->Database->write({query => $query});
 			}
