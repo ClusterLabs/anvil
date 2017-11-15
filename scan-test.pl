@@ -6,19 +6,22 @@ use Anvil::Tools;
 
 my $anvil = Anvil::Tools->new();
 
-print "Scanning... this may take 5+ minutes.\n\n";
+print "Scanning devices...\n\n";
 
-my $results = $anvil->NetworkScan->scan({subnet => "10.20"});
+$anvil->NetworkScan->scan({subnet => "10.20"});
 
 print "IP,MAC,OEM\n";
 
-foreach my $result (@{$results}) {
-  print "$result->{ip},$result->{mac},$result->{oem}\n";
+foreach my $this_ip (sort {$a cmp $b} keys %{$anvil->data->{scan}{ip}})
+{
+  my $mac = $anvil->data->{scan}{ip}{$this_ip}{mac};
+  my $oem = $anvil->data->{scan}{ip}{$this_ip}{oem};
+  print "$this_ip,$mac,$oem\n";
 }
 
 print "Saving Scan Results to the Database.\n";
 
-$anvil->NetworkScan->save_scan_to_db({results => $results});
+$anvil->NetworkScan->save_scan_to_db();
 
 print "Scan Completed.\n";
 

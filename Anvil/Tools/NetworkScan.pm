@@ -52,7 +52,7 @@ sub scan
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 
-	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "172.16";
+	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
 
 	$anvil->data->{scan} = {
 		ip		=>	{},
@@ -62,16 +62,25 @@ sub scan
 			rm		=>	"/bin/rm",
 		},
 		sys		=>	{
-			# -sn            == Ping scan, no port scan
-			# -n             == No DNS lookup
-			# -PR            == ARP ping scan
-			nmap_switches	=>	"-sn -n -PR",
+			nmap_switches	=>	"-sP -PR --host-timeout 7s -T4",
+			time_per_nmap_fork => 50, # In milliseconds
 			quiet		=>	1,
 			network		=>	$subnet,
 		}
 	};
 
+	$anvil->NetworkScan->get_ips();
 	Anvil::Tools::Vendors::load($anvil->data->{scan});
+	$anvil->NetworkScan->_scan_nmap_with_forks();
+	$anvil->NetworkScan->_compile_nmap_results();
+	$anvil->NetworkScan->cleanup_temp();
+	print "Network scan finished at: [".$anvil->NetworkScan->get_date({use_time => time})."]\n" if not $anvil->data->{scan}{sys}{quiet};
+}
+
+sub _scan_nmap_with_forks
+{
+	my $self      = shift;
+	my $anvil     = $self->parent;
 
 	# Create the directory where the child processes will write their output to.
 	print "Scanning for devices on " . $anvil->data->{scan}{sys}{network} . ".0.0/16 now:\n" if not $anvil->data->{scan}{sys}{quiet};
@@ -111,7 +120,7 @@ sub scan
 			# This is the child thread, so do the call.
 			# Note that, without the 'die', we could end
 			# up here if the fork() failed.
-			sleep $i;
+			sleep(($i * $anvil->data->{scan}{sys}{time_per_nmap_fork}) / 1000);
 			my $output_file = $anvil->data->{scan}{path}{child_output} . "/segment.$i.out";
 			my $scan_range  = $anvil->data->{scan}{sys}{network} . ".$i.0/24";
 			my $shell_call  = $anvil->data->{scan}{path}{nmap} . " " . $anvil->data->{scan}{sys}{nmap_switches} . " $scan_range > $output_file";
@@ -166,11 +175,16 @@ sub scan
 				# was >0.
 	}
 	print "Done, compiling results...\n" if not $anvil->data->{scan}{sys}{quiet};
+}
+
+sub _compile_nmap_results
+{
+	my $self      = shift;
+	my $anvil     = $self->parent;
 
 	my $this_ip  = "";
 	my $this_mac = "";
 	my $this_oem = "";
-	my @results;
 	local(*DIRECTORY);
 	opendir(DIRECTORY, $anvil->data->{scan}{path}{child_output});
 	while(my $file = readdir(DIRECTORY))
@@ -218,20 +232,8 @@ sub scan
 			$anvil->data->{scan}{ip}{$this_ip}{oem} = $anvil->data->{scan}{vendors}{$short_mac} ? $anvil->data->{scan}{vendors}{$short_mac} : "--";
 		}
 
-		push @results, {
-			ip => $this_ip,
-			mac => $anvil->data->{scan}{ip}{$this_ip}{mac},
-			oem => $anvil->data->{scan}{ip}{$this_ip}{oem}
-		};
-
 		print "- IP: [$this_ip]\t-> [" . $anvil->data->{scan}{ip}{$this_ip}{mac} . "] (" . $anvil->data->{scan}{ip}{$this_ip}{oem} . ")\n" if not $anvil->data->{scan}{sys}{quiet};
 	}
-
-	# Clean up!
-	$anvil->NetworkScan->cleanup_temp();
-	print "Network scan finished at: [".$anvil->NetworkScan->get_date({use_time => time})."]\n" if not $anvil->data->{scan}{sys}{quiet};
-
-	return \@results;
 }
 
 # Save a list of scan results to the database.
@@ -240,39 +242,35 @@ sub save_scan_to_db
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $results = $parameter->{results};
 
-	if (defined $results)
+	$anvil->Database->connect();
+
+	foreach my $this_ip (sort {$a cmp $b} keys %{$anvil->data->{scan}{ip}})
 	{
+		my $scan_uuid = "";
 
-		$anvil->Database->connect();
-
-		foreach my $result (@{$results})
-		{
-			my $scan_uuid = "";
-
-			# Check if an entry already exists at that IP address.
-			my $query = "
+		# Check if an entry already exists at that IP address.
+		my $query = "
 SELECT
     bcn_scan_result_uuid
 FROM
     bcn_scan_results
 WHERE
-    bcn_scan_result_ip = ".$anvil->data->{sys}{use_db_fh}->quote($result->{ip})."
+    bcn_scan_result_ip = ".$anvil->data->{sys}{use_db_fh}->quote($this_ip)."
 ;";
 
-			my $query_results = $anvil->Database->query({query => $query});
-			foreach my $row (@{$query_results})
-			{
-				$scan_uuid = $row->[0];
-			}
+		my $query_results = $anvil->Database->query({query => $query});
+		foreach my $row (@{$query_results})
+		{
+			$scan_uuid = $row->[0];
+		}
 
-			if (not $scan_uuid)
-			{
-				$scan_uuid = $anvil->Get->uuid();
+		if (not $scan_uuid)
+		{
+			$scan_uuid = $anvil->Get->uuid();
 
-				# If an entry does not exist, insert the scan result to the database.
-				my $query = "
+			# If an entry does not exist, insert the scan result to the database.
+			my $query = "
 INSERT INTO
     bcn_scan_results
 (
@@ -283,36 +281,31 @@ INSERT INTO
 		modified_date
 ) VALUES (
     ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($result->{mac}).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($result->{ip}).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($result->{oem}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{mac}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($this_ip).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{oem}).",
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );";
-				$anvil->Database->write({query => $query});
-			}
-			else
-			{
-				# If an entry with that IP does exist in the database, update it to the current device/time from this scan result.
-				my $query = "
+			$anvil->Database->write({query => $query});
+		}
+		else
+		{
+			# If an entry with that IP does exist in the database, update it to the current device/time from this scan result.
+			my $query = "
 UPDATE
     bcn_scan_results
 SET
-    bcn_scan_result_mac     = ".$anvil->data->{sys}{use_db_fh}->quote($result->{mac}).",
-    bcn_scan_result_vendor  = ".$anvil->data->{sys}{use_db_fh}->quote($result->{oem}).",
+    bcn_scan_result_mac     = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{mac}).",
+    bcn_scan_result_vendor  = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{oem}).",
     modified_date           = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 WHERE
     bcn_scan_result_uuid    = ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid)."
 ";
-				$anvil->Database->write({query => $query});
-			}
+			$anvil->Database->write({query => $query});
 		}
+	}
 
-		$anvil->Database->disconnect();
-	}
-	else
-	{
-		print "No results provided to add to the database." if not $anvil->data->{scan}{sys}{quiet};
-	}
+	$anvil->Database->disconnect();
 }
 
 # This clears out the /tmp/ files our child processes created.
@@ -365,14 +358,22 @@ sub get_date
 	return($date);
 }
 
-sub find_nmap
+sub get_ips
 {
 	my $self      = shift;
 	my $anvil     = $self->parent;
 
-	open(FINDIT, "which nmap |");
-	$anvil->data->{scan}{path}{nmap} = <FINDIT>;
-	close(FINDIT);
+	$anvil->System->get_ips();
+	my @ips;
+	foreach my $interface (keys %{$anvil->data->{sys}{networks}})
+	{
+		if ($anvil->data->{sys}{networks}{$interface}{ip})
+		{
+			push @ips, $anvil->data->{sys}{networks}{$interface}{ip};
+		}
+	}
+	$anvil->data->{scan}{sys}{host_ips} = \@ips;
+	$anvil->data->{scan}{sys}{nmap_switches} .= " --exclude " . join(",", @ips);
 }
 
 1;
