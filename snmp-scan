@@ -1,0 +1,109 @@
+#!/usr/bin/perl
+
+use Getopt::Long;
+use SNMP;
+use Net::SNMP;
+
+sub scan_snmp_by_ip {
+  my $parameter = shift;
+  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+  my $port = defined $parameter->{port} ? $parameter->{port} : "";
+  my $baseOID = "1.3.6.1.2.1"; # mib-2
+  my $vendor = "";
+  my $model = "";
+  my $name = "";
+  my $type = "Unknown";
+
+  my $vendorOIDs = {
+    UPS => "$baseOID.33.1.1.1.0"
+  };
+
+  my $modelOIDs = {
+    UPS => "$baseOID.33.1.1.2.0"
+  };
+
+  my ($session, $error) = Net::SNMP->session(
+    Hostname => $ip,
+    Port => $port,
+    Version => "snmpv2c",
+    Community => "public"
+  );
+
+  my $system = get_snmp_table({session=> $session, oid => "$baseOID.1"});
+
+  foreach my $key (keys %{$vendorOIDs}) {
+    if (!$vendor) {
+      $vendor = get_snmp_var({session => $session, oid => $vendorOIDs->{$key}});
+      $type = $key if ($vendor);
+    }
+  }
+
+  foreach my $key (keys %{$modelOIDs}) {
+    if (!$model) {
+      $model = get_snmp_var({session => $session, oid => $modelOIDs->{$key}});
+      $type = $key if ($model);
+    }
+  }
+
+  my @desc = split(/\s+/, $system->{sysDescr}[0]);
+
+  if (!$vendor || $vendor eq "Unknown") {
+    $vendor = $desc[0];
+  }
+
+  $name = $system->{sysName}[0];
+
+  if (!$model || $model eq "Unknown") {
+    my $descFull = join(" ", @desc[1..$#desc]);
+    my @modelSplit = split(/(\(|-)/, $descFull);
+    $model = @modelSplit[0];
+  }
+
+  $session->close();
+
+  print("IP: $ip\nVendor: $vendor\nModel: $model\nName: $name\nType: $type\n");
+}
+
+sub get_snmp_table {
+  my $parameter = shift;
+  my $session = defined $parameter->{session} ? $parameter->{session} : ();
+  my $oid = defined $parameter->{oid} ? $parameter->{oid} : ();
+  my $systemTable = $session->get_table(Baseoid => $oid);
+  my %system;
+
+  foreach my $key (keys(%{$systemTable})) {
+    my $keyName = SNMP::translateObj($key);
+    my @keys = split(/\./, $keyName);
+    if (scalar(@keys) > 0) {
+      $keyName = $keys[0];
+    }
+    $system{$keyName} = $system{$keyName} || [];
+    push @{$system{$keyName}}, $systemTable->{$key};
+  }
+
+  return \%system;
+}
+
+sub get_snmp_var {
+  my $parameter = shift;
+  my $session = defined $parameter->{session} ? $parameter->{session} : ();
+  my $oid = defined $parameter->{oid} ? $parameter->{oid} : ();
+
+  $session->get_request(Varbindlist => [$oid]);
+
+  if (!defined($session->var_bind_list)) {
+    return "";
+  } else {
+    my $var = $session->var_bind_list->{$oid};
+    if ($var eq "noSuchObject" || $var eq "noSuchInstance") {
+      return "";
+    } else {
+      return $var;
+    }
+  }
+}
+
+my $ip = "localhost";
+my $port = 161;
+GetOptions("ip=s" => \$ip, "port=i" => \$port);
+scan_snmp_by_ip({ip => $ip, port => $port});
