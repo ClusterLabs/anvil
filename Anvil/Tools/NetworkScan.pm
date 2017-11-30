@@ -2,11 +2,6 @@
 #
 # This scans the BCN looking for devices we know about to help automate the
 # configuration of an Anvil!'s foundation pack.
-#
-# At this time, it is statically configured for 10.20.0.0/16. It will be made
-# more flexible later. This is basically a proof-of-concept program at this
-# stage.
-#
 
 package Anvil::Tools::NetworkScan;
 
@@ -16,8 +11,39 @@ use Scalar::Util qw(weaken isweak);
 use Anvil::Tools::Vendors;
 
 our $VERSION  = "3.0.0";
-my $THIS_FILE = "NetworkScan.pm";
+my $THIS_FILE = "Get.pm";
 
+### Methods;
+# scan
+# save_scan_to_db
+
+=pod
+
+=encoding utf8
+
+=head1 NAME
+
+Anvil::Tools::NetworkScan
+
+Provides all methods related to scanning the network with nmap.
+
+=head1 SYNOPSIS
+
+ use Anvil::Tools;
+
+ # Get a common object handle on all Anvil::Tools modules.
+ my $anvil = Anvil::Tools->new();
+
+ # Access to methods using '$anvil->Get->X'.
+ #
+ # Example using 'scan()';
+ $anvil->NetworkScan->scan({...});
+
+=head1 METHODS
+
+Methods in this module;
+
+=cut
 sub new
 {
 	my $class = shift;
@@ -46,6 +72,24 @@ sub parent
 	return ($self->{HANDLE}{TOOLS});
 }
 
+#############################################################################################################
+# Public methods                                                                                            #
+#############################################################################################################
+
+=head2 scan
+
+Scans a subnet using nmap. Uses the first two octets of an IP, and then does a
+/16 scan. 256 forks are made, and a /24 nmap scan is done on each.
+
+=head2 Parameters;
+
+=head3 subnet
+
+The first two octets of an IP address.
+
+Example: "10.20"
+
+=cut
 sub scan
 {
 	my $self      = shift;
@@ -69,14 +113,110 @@ sub scan
 		}
 	};
 
-	$anvil->NetworkScan->get_ips();
+	$anvil->NetworkScan->_get_ips();
 	Anvil::Tools::Vendors::load($anvil->data->{scan});
 	$anvil->NetworkScan->_scan_nmap_with_forks();
 	$anvil->NetworkScan->_compile_nmap_results();
-	$anvil->NetworkScan->cleanup_temp();
-	print "Network scan finished at: [".$anvil->NetworkScan->get_date({use_time => time})."]\n" if not $anvil->data->{scan}{sys}{quiet};
+	$anvil->NetworkScan->_cleanup_temp();
+	print "Network scan finished at: [".$anvil->NetworkScan->_get_date({use_time => time})."]\n" if not $anvil->data->{scan}{sys}{quiet};
 }
 
+=head2 save_scan_to_db
+
+Saves a list of scan results to the database.
+
+The IP, UUID, MAC Address, and Vendor information are
+saved into the table bcn_scan_results
+
+=cut
+sub save_scan_to_db
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+
+	$anvil->Database->connect();
+
+	foreach my $this_ip (sort {$a cmp $b} keys %{$anvil->data->{scan}{ip}})
+	{
+		my $scan_uuid = "";
+
+		# Check if an entry already exists at that IP address.
+		my $query = "
+SELECT
+    bcn_scan_result_uuid
+FROM
+    bcn_scan_results
+WHERE
+    bcn_scan_result_ip = ".$anvil->data->{sys}{use_db_fh}->quote($this_ip)."
+;";
+
+		my $query_results = $anvil->Database->query({query => $query});
+		foreach my $row (@{$query_results})
+		{
+			$scan_uuid = $row->[0];
+		}
+
+		if (not $scan_uuid)
+		{
+			$scan_uuid = $anvil->Get->uuid();
+
+			# If an entry does not exist, insert the scan result to the database.
+			my $query = "
+INSERT INTO
+    bcn_scan_results
+(
+		bcn_scan_result_uuid,
+		bcn_scan_result_mac,
+		bcn_scan_result_ip,
+		bcn_scan_result_vendor,
+		modified_date
+) VALUES (
+    ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{mac}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($this_ip).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{oem}).",
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+);";
+			$anvil->Database->write({query => $query});
+		}
+		else
+		{
+			# If an entry with that IP does exist in the database, update it to the current device/time from this scan result.
+			my $query = "
+UPDATE
+    bcn_scan_results
+SET
+    bcn_scan_result_mac     = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{mac}).",
+    bcn_scan_result_vendor  = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{oem}).",
+    modified_date           = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+WHERE
+    bcn_scan_result_uuid    = ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid)."
+";
+			$anvil->Database->write({query => $query});
+		}
+	}
+
+	$anvil->Database->disconnect();
+}
+
+# =head3
+#
+# Private Functions;
+#
+# =cut
+
+#############################################################################################################
+# Private functions                                                                                         #
+#############################################################################################################
+
+=head2 _scan_nmap_with_forks
+
+Splits a /16 IP using the first two octets of an IP address into 256 processes
+doing /24 nmap scans for speed. Stores each result into separate files to
+be compiled after everything is done.
+
+=cut
 sub _scan_nmap_with_forks
 {
 	my $self      = shift;
@@ -84,7 +224,7 @@ sub _scan_nmap_with_forks
 
 	# Create the directory where the child processes will write their output to.
 	print "Scanning for devices on " . $anvil->data->{scan}{sys}{network} . ".0.0/16 now:\n" if not $anvil->data->{scan}{sys}{quiet};
-	print "# Network scan started at: [".$anvil->NetworkScan->get_date({use_time => time})."], expected finish: [".$anvil->NetworkScan->get_date({use_time => time + 300})."]\n" if not $anvil->data->{scan}{sys}{quiet};
+	print "# Network scan started at: [".$anvil->NetworkScan->_get_date({use_time => time})."], expected finish: [".$anvil->NetworkScan->_get_date({use_time => time + 300})."]\n" if not $anvil->data->{scan}{sys}{quiet};
 	if (not -d $anvil->data->{scan}{path}{child_output})
 	{
 		mkdir $anvil->data->{scan}{path}{child_output} or die "Failed to create the temporary output directory: [" . $anvil->data->{scan}{path}{child_output} . "]\n";
@@ -93,13 +233,13 @@ sub _scan_nmap_with_forks
 	else
 	{
 		# Clear out any files from the previous run
-		$anvil->NetworkScan->cleanup_temp();
+		$anvil->NetworkScan->_cleanup_temp();
 	}
 
-	### WARNING: Some switches might thing this is a flood and get angry with us!
+	### WARNING: Some switches might think this is a flood and get angry with us!
 	# A straight nmap call of all 65,636 IPs on a /16 takes about 40+ minutes. So
 	# to speed things up, we break it into 256 jobs, each scanning 256 IPs. Each
-	# child process is told to wait $i seconds, where $i is equal to its segment
+	# child process is told to wait ($i * $anvil->data->{scan}{sys}{time_per_nmap_fork}) seconds, where $i is equal to its segment
 	# value. This is done to avoid running out of buffer, which causes output like:
 	# WARNING:  eth_send of ARP packet returned -1 rather than expected 42 (errno=105: No buffer space available)
 	# By staggering the child processes, we have early children exiting as new
@@ -177,6 +317,12 @@ sub _scan_nmap_with_forks
 	print "Done, compiling results...\n" if not $anvil->data->{scan}{sys}{quiet};
 }
 
+=head2 _compile_nmap_results
+
+Gets the data from the files created from each of the nmap calls and
+compiles it into a hash.
+
+=cut
 sub _compile_nmap_results
 {
 	my $self      = shift;
@@ -236,80 +382,13 @@ sub _compile_nmap_results
 	}
 }
 
-# Save a list of scan results to the database.
-sub save_scan_to_db
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
+=head2 _cleanup_temp
 
-	$anvil->Database->connect();
+Gets the data from the files created from each of the nmap calls and
+compiles it into a hash.
 
-	foreach my $this_ip (sort {$a cmp $b} keys %{$anvil->data->{scan}{ip}})
-	{
-		my $scan_uuid = "";
-
-		# Check if an entry already exists at that IP address.
-		my $query = "
-SELECT
-    bcn_scan_result_uuid
-FROM
-    bcn_scan_results
-WHERE
-    bcn_scan_result_ip = ".$anvil->data->{sys}{use_db_fh}->quote($this_ip)."
-;";
-
-		my $query_results = $anvil->Database->query({query => $query});
-		foreach my $row (@{$query_results})
-		{
-			$scan_uuid = $row->[0];
-		}
-
-		if (not $scan_uuid)
-		{
-			$scan_uuid = $anvil->Get->uuid();
-
-			# If an entry does not exist, insert the scan result to the database.
-			my $query = "
-INSERT INTO
-    bcn_scan_results
-(
-		bcn_scan_result_uuid,
-		bcn_scan_result_mac,
-		bcn_scan_result_ip,
-		bcn_scan_result_vendor,
-		modified_date
-) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{mac}).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($this_ip).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{oem}).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
-);";
-			$anvil->Database->write({query => $query});
-		}
-		else
-		{
-			# If an entry with that IP does exist in the database, update it to the current device/time from this scan result.
-			my $query = "
-UPDATE
-    bcn_scan_results
-SET
-    bcn_scan_result_mac     = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{mac}).",
-    bcn_scan_result_vendor  = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{scan}{ip}{$this_ip}{oem}).",
-    modified_date           = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
-WHERE
-    bcn_scan_result_uuid    = ".$anvil->data->{sys}{use_db_fh}->quote($scan_uuid)."
-";
-			$anvil->Database->write({query => $query});
-		}
-	}
-
-	$anvil->Database->disconnect();
-}
-
-# This clears out the /tmp/ files our child processes created.
-sub cleanup_temp
+=cut
+sub _cleanup_temp
 {
 	my $self      = shift;
 	my $anvil     = $self->parent;
@@ -327,9 +406,13 @@ sub cleanup_temp
 	close $file_handle;
 }
 
-# This returns the current date and time in 'YYYY/MM/DD HH:MM:SS' format. It
-# always uses 24-hour time and it zero-pads single digits.
-sub get_date
+=head2 _get_date
+
+This returns the current date and time in 'YYYY/MM/DD HH:MM:SS' format. It
+always uses 24-hour time and it zero-pads single digits.
+
+=cut
+sub _get_date
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -358,12 +441,17 @@ sub get_date
 	return($date);
 }
 
-sub get_ips
+=head2 _get_ips
+
+Get all local ips and exclude them from the nmap scan.
+
+=cut
+sub _get_ips
 {
 	my $self      = shift;
 	my $anvil     = $self->parent;
 
-	$anvil->System->get_ips();
+	$anvil->System->_get_ips();
 	my @ips;
 	foreach my $interface (keys %{$anvil->data->{sys}{networks}})
 	{
