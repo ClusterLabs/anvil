@@ -4,10 +4,27 @@ use Getopt::Long;
 use SNMP;
 use Net::SNMP;
 
+=head2 scan_snmp_by_ip
+
+Scans an IP address for SNMP information.
+
+Uses hashes of predefined OIDs to check for Vendor/Model information. If it
+does not find Vendor/Model information from those hashes, try to parse that
+information from sysDescr.
+
+=head2 Parameters;
+
+=head3 ip
+An IP address to scan.
+
+=head3 port (optional)
+The SNMP port to scan. Defaults to 161.
+
+=cut
 sub scan_snmp_by_ip {
   my $parameter = shift;
   my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
-  my $port = defined $parameter->{port} ? $parameter->{port} : "";
+  my $port = defined $parameter->{port} ? $parameter->{port} : 161;
   my $baseOID = "1.3.6.1.2.1"; # mib-2
   my $vendor = "";
   my $model = "";
@@ -29,8 +46,10 @@ sub scan_snmp_by_ip {
     Community => "public"
   );
 
+  # Get mib-2 system data.
   my $system = get_snmp_table({session=> $session, oid => "$baseOID.1"});
 
+  # Find the potential vendor from the predefined hash.
   foreach my $key (keys %{$vendorOIDs}) {
     if (!$vendor) {
       $vendor = get_snmp_var({session => $session, oid => $vendorOIDs->{$key}});
@@ -38,6 +57,7 @@ sub scan_snmp_by_ip {
     }
   }
 
+  # Find the potential model from the predefined hash.
   foreach my $key (keys %{$modelOIDs}) {
     if (!$model) {
       $model = get_snmp_var({session => $session, oid => $modelOIDs->{$key}});
@@ -45,14 +65,19 @@ sub scan_snmp_by_ip {
     }
   }
 
+  # Use the sysDescr if the vendor or model is blank or unknown.
   my @desc = split(/\s+/, $system->{sysDescr}[0]);
 
+  # The vendor is likely the first word in sysDescr, separated by white space.
   if (!$vendor || $vendor eq "Unknown") {
     $vendor = $desc[0];
   }
 
   $name = $system->{sysName}[0];
 
+  # If the model is not known, get the rest of sysDescr, cutting out anything
+  # after a parenthesis or dash. In more simple SNMP data, this will be the
+  # model information.
   if (!$model || $model eq "Unknown") {
     my $descFull = join(" ", @desc[1..$#desc]);
     my @modelSplit = split(/(\(|-)/, $descFull);
@@ -64,6 +89,21 @@ sub scan_snmp_by_ip {
   print("IP: $ip\nVendor: $vendor\nModel: $model\nName: $name\nType: $type\n");
 }
 
+=head2 get_snmp_table
+
+Gets an SNMP table using Net::SNMP. Gets the MIB human-readable name of each
+OID from the SNMP library. Puts instance data into an array, instead of leaving
+it as .0, .1, .2, and etc...
+
+=head2 Parameters;
+
+=head3 session
+A Net::SNMP session.
+
+=head3 oid
+The base OID to scan from.
+
+=cut
 sub get_snmp_table {
   my $parameter = shift;
   my $session = defined $parameter->{session} ? $parameter->{session} : ();
@@ -72,18 +112,31 @@ sub get_snmp_table {
   my %system;
 
   foreach my $key (keys(%{$systemTable})) {
-    my $keyName = SNMP::translateObj($key);
-    my @keys = split(/\./, $keyName);
+    my $keyName = SNMP::translateObj($key); # Translates the OID to human-readable format through an MIB.
+    my @keys = split(/\./, $keyName); # Extracts just the key name without the extra instance number.
     if (scalar(@keys) > 0) {
       $keyName = $keys[0];
     }
     $system{$keyName} = $system{$keyName} || [];
-    push @{$system{$keyName}}, $systemTable->{$key};
+    push @{$system{$keyName}}, $systemTable->{$key}; # adds each instance to an array instead.
   }
 
   return \%system;
 }
 
+=head2 get_snmp_var
+
+Gets a single variable from a full OID.
+
+=head2 Parameters;
+
+=head3 session
+A Net::SNMP session.
+
+=head3 oid
+The full OID to get a variable for.
+
+=cut
 sub get_snmp_var {
   my $parameter = shift;
   my $session = defined $parameter->{session} ? $parameter->{session} : ();
@@ -95,6 +148,7 @@ sub get_snmp_var {
     return "";
   } else {
     my $var = $session->var_bind_list->{$oid};
+    # If the OID is not full or does not exist, it will be one of these two errors.
     if ($var eq "noSuchObject" || $var eq "noSuchInstance") {
       return "";
     } else {
@@ -103,7 +157,11 @@ sub get_snmp_var {
   }
 }
 
-my $ip = "localhost";
+my $ip = "";
 my $port = 161;
 GetOptions("ip=s" => \$ip, "port=i" => \$port);
-scan_snmp_by_ip({ip => $ip, port => $port});
+if ($ip) {
+  scan_snmp_by_ip({ip => $ip, port => $port});
+} else {
+  print("Usage: ./snmp-scan --ip 127.0.0.1 --port 161");
+}
