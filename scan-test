@@ -42,7 +42,7 @@ sub network_scan {
 }
 
 $anvil->Get->switches();
-my $subnet = defined $an->data->{switches}{subnet} ? $an->data->{switches}{subnet} : "";
+my $subnet = defined $anvil->data->{switches}{subnet} ? $anvil->data->{switches}{subnet} : "";
 
 if ($subnet) {
   network_scan({subnet => $subnet});
