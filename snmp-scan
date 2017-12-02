@@ -27,7 +27,7 @@ sub scan_snmp_by_ip {
   my $parameter = shift;
   my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
   my $port = defined $parameter->{port} ? $parameter->{port} : 161;
-  my $vendors = defined $parameter->{vendors} ? $parameter->{vendors} : {};
+  my $vendors = defined $parameter->{vendors} ? $parameter->{vendors} : ();
   my $baseOID = "1.3.6.1.2.1"; # mib-2
   my $enterpriseOID = "1.3.6.1.4.1";
   my $vendor = "";
@@ -60,9 +60,10 @@ sub scan_snmp_by_ip {
   # Use the sysDescr if the vendor or model is blank or unknown.
   my @desc = split(/\s+/, $system->{sysDescr}[0]);
 
-  #if ($system->{sysObjectId}[0] =~ /$enterpriseOID/) {
-    print "sysObjectId: " . $system->{sysObjectId}[0] . "\n";
-  #}
+  if ($system->{sysObjectID}[0] =~ /$enterpriseOID/) {
+    my @parts = split(/\./, $system->{sysObjectID}[0]);
+    $vendor = $vendors->{$parts[6]}->{vendor} if ($parts[6]);
+  }
 
   # The vendor is likely the first word in sysDescr, separated by white space.
   if (!$vendor || $vendor eq "Unknown") {
@@ -154,17 +155,16 @@ sub get_snmp_var {
 }
 
 sub get_vendor_list {
-  my @vendors;
+  my %vendors;
 
   if (open(my $fh, '<:utf8', 'snmp-vendors.txt')) {
     while (my $row = <$fh>) {
       chomp $row;
       my @vendor = split(/\t\t/, $row);
-      print "$vendor[0]\t\t$vendor[1]\n";
-      push @vendors, {enterprise_id => $vendor[0], vendor => $vendor[1]};
+      $vendors{$vendor[0]} = {enterprise_id => $vendor[0], vendor => $vendor[1]};
     }
 
-    return \@vendors;
+    return \%vendors;
   } else {
     return update_vendor_list();
   }
@@ -177,25 +177,33 @@ sub update_vendor_list {
   my $content = (split(/\| \| \| \|/, $response->decoded_content))[-1];
   my @vendorsText = split(/\n/, $content);
   shift @vendorsText;
-  my @vendors;
+  my $vendors = {};
   my @categories = ('enterprise_id', 'vendor');
   my $category = 0;
+  my $currentId = 0;
   foreach my $i (0 .. scalar(@vendorsText)) {
     my $str = trim($vendorsText[$i]);
     if ($str =~ /^[0-9,.E]+$/) {
       $category = 0;
-      push @vendors, {};
+      $currentId = $str;
     } else {
       $category++;
     }
-    $vendors[-1]->{$categories[$category]} = $str if ($category < 2);
+    my $vendor = $vendors->{$currentId};
+    if (!$vendor) {
+      $vendor = {};
+      $vendors->{$currentId} = $vendor;
+    }
+    my $categoryName = $categories[$category];
+    $vendor->{$categoryName} = $str if ($category < scalar(@categories));
   }
   open(my $fh, '>:utf8', 'snmp-vendors.txt');
-  foreach my $vendor (@vendors) {
+  my @vendorValues = sort { $a->{enterprise_id} <=> $b->{enterprise_id} } values(%{$vendors});
+  foreach my $vendor (@vendorValues) {
     print $fh "$vendor->{enterprise_id}\t\t$vendor->{vendor}\n";
   }
   close $fh;
-  return \@vendors;
+  return $vendors;
 }
 
 sub trim {
@@ -216,5 +224,5 @@ if ($update_vendors) {
 } elsif ($proper_input) {
   $vendors = get_vendor_list();
 }
-scan_snmp_by_ip({ip => $ip, port => $port}) if ($ip);
+scan_snmp_by_ip({ip => $ip, port => $port, vendors => $vendors}) if ($ip);
 print("Usage: ./snmp-scan --ip 127.0.0.1 --port 161\n") unless ($proper_input);
