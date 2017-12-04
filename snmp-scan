@@ -4,6 +4,7 @@ use Getopt::Long;
 use LWP::UserAgent;
 use SNMP;
 use Net::SNMP;
+use JSON::XS;
 use Data::Dumper;
 
 =head2 scan_snmp_by_ip
@@ -35,9 +36,7 @@ sub scan_snmp_by_ip {
   my $name = "";
   my $type = "Unknown";
 
-  my $modelOIDs = {
-    UPS => "$baseOID.33.1.1.2.0"
-  };
+  my $model_list = get_model_list();
 
   my ($session, $error) = Net::SNMP->session(
     Hostname => $ip,
@@ -48,14 +47,6 @@ sub scan_snmp_by_ip {
 
   # Get mib-2 system data.
   my $system = get_snmp_table({session=> $session, oid => "$baseOID.1"});
-
-  # Find the potential model from the predefined hash.
-  foreach my $key (keys %{$modelOIDs}) {
-    if (!$model) {
-      $model = get_snmp_var({session => $session, oid => $modelOIDs->{$key}});
-      $type = $key if ($model);
-    }
-  }
 
   # Use the sysDescr if the vendor or model is blank or unknown.
   my @desc = split(/\s+/, $system->{sysDescr}[0]);
@@ -70,20 +61,43 @@ sub scan_snmp_by_ip {
     $vendor = $desc[0];
   }
 
+  foreach my $model_obj (@{$model_list}) {
+    my $check_id = exists($model_obj->{sysObjectID});
+    my $found_id = $check_id && ($system->{sysObjectID}[0] eq $enterpriseOID . "." . $model_obj->{sysObjectID});
+    my $all_match = 0;
+    if ($found_id || !$check_id) {
+      my $found_matches = 0;
+      my @matches = @{$model_obj->{matches}};
+      foreach my $match (@matches) {
+        my $var = get_snmp_var({session => $session, oid => $match->{oid}});
+	if ($var =~ /$match->{value}/) {
+          $found_matches++;
+	} else {
+          last;
+	}
+      }
+      $all_match = ($found_matches == scalar(@matches));
+    }
+    if ((!$check_id || ($check_id && $found_id)) && $all_match) {
+      $model = $model_obj->{name};
+      $type = $model_obj->{type} if $model_obj->{type};
+    }
+  }
+
   $name = $system->{sysName}[0];
 
   # If the model is not known, get the rest of sysDescr, cutting out anything
   # after a parenthesis or dash. In more simple SNMP data, this will be the
   # model information.
-  if (!$model || $model eq "Unknown") {
-    my $descFull = join(" ", @desc[1..$#desc]);
-    my @modelSplit = split(/(\(|-)/, $descFull);
-    $model = @modelSplit[0];
-  }
+  #if (!$model || $model eq "Unknown") {
+  # my $descFull = join(" ", @desc[1..$#desc]);
+  # my @modelSplit = split(/(\(|-)/, $descFull);
+  # $model = @modelSplit[0];
+  #}
 
   $session->close();
 
-  print("IP: $ip\nVendor: $vendor\nModel: $model\nName: $name\nType: $type\n");
+  print("IP: $ip\nVendor: $vendor\nModel: $model\nType: $type\n");
 }
 
 =head2 get_snmp_table
@@ -152,6 +166,20 @@ sub get_snmp_var {
       return $var;
     }
   }
+}
+
+sub get_model_list {
+  my $json_text = "";
+  open(my $fh, '<:utf8', 'snmp-models.json');
+  while (my $row = <$fh>) {
+    chomp $row;
+    $json_text .= $row;
+  }
+  my $model_list = decode_json($json_text);
+  if (!$model_list || !(exists($model_list->{models}))) {
+    $model_list = { models => [] };
+  }
+  return $model_list->{models};
 }
 
 sub get_vendor_list {
