@@ -147,7 +147,7 @@ sub get_serial_output
   sleep(2);
   my $output = $port->read($bytes_to_read);
   $port->close() if ($should_close);
-  print "Output: $output\n\n" if ($verbose);
+  print(($str =~ /^\s*$/) ? "Warning: Empty Output\n" : "Output: $output\n") if ($verbose);
   return $output;
 }
 
@@ -191,6 +191,7 @@ The baud rate to test with.
 =cut
 sub create_serial_port
 {
+  my $parameter = shift;
   my $device = defined $parameter->{device} ? $parameter->{device} : "";
   my $baud_rate = defined $parameter->{baud_rate} ? $parameter->{baud_rate} : "";
   my $port = new Device::SerialPort($device, 1) || return 0;
