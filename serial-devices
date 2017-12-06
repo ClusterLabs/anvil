@@ -37,12 +37,17 @@ sub find_serial_devices
     }
   }
 
-  if (!(scalar(@devices))) {
+  if (!(scalar(@devices)))
+  {
     print "No devices found.\n";
-  } elsif ($list_devices) {
+  }
+  elsif ($list_devices)
+  {
     print "Serial devices found\n$bar\n";
     print "$_\n" foreach (@devices);
-  } else {
+  }
+  else
+  {
     print "Testing serial devices...\n$bar\n";
     test_serial_devices({devices => \@devices});
   }
@@ -84,12 +89,13 @@ sub test_serial_devices
     }
   }
 
-  if (!(scalar(@successful_devices))) {
+  if (!(scalar(@successful_devices)))
+  {
     print "No successful serial device and baud rate combinations found.\n";
   }
 }
 
-=head2 get_serial_device_output
+=head2 get_serial_output
 
 Gets the output from a serial device after sending a carrage return.
 
@@ -126,10 +132,12 @@ sub get_serial_output
   my $bytes_to_read = defined $parameter->{bytes_to_read} ? $parameter->{bytes_to_read} : 256;
   my $should_close = 0;
 
-  if (!$port) {
+  if (!$port)
+  {
     $port = create_serial_port({device => $device, baud_rate => $baud_rate});
-    if (!$port) {
-      print "Could not connect to serial port.\n" if ($verbose);
+    if (!$port)
+    {
+      print "Could not connect to serial device.\n" if ($verbose);
       return 0;
     }
     $should_close = 1;
@@ -181,7 +189,8 @@ A serial device path name.
 The baud rate to test with.
 
 =cut
-sub create_serial_port {
+sub create_serial_port
+{
   my $device = defined $parameter->{device} ? $parameter->{device} : "";
   my $baud_rate = defined $parameter->{baud_rate} ? $parameter->{baud_rate} : "";
   my $port = new Device::SerialPort($device, 1) || return 0;
@@ -195,8 +204,11 @@ sub create_serial_port {
 my @devices;
 my $list_devices = 0;
 GetOptions('devices=s' => \@devices, 'list' => \$list_devices, 'verbose' => \$verbose);
-if (scalar(@devices)) {
+if (scalar(@devices))
+{
   test_serial_devices({devices => \@devices});
-} else {
+}
+else
+{
   find_serial_devices({list_devices => $list_devices});
 }
