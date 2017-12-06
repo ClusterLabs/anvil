@@ -79,7 +79,7 @@ sub test_serial_devices
       my $device_test = {device => $device, baud_rate => $baud_rate};
       print "Testing Device: " . $device_test->{device} . ", Baud Rate: " . $device_test->{baud_rate} . "\n" if ($verbose);
       $device_test->{output} = get_serial_output($device_test);
-      if (verify_serial_device($device_test->{output}))
+      if (verify_serial_device({output => $device_test->{output}}))
       {
         print "$device ($baud_rate)\n\n";
         push @successful_devices, $device_test;
@@ -147,7 +147,7 @@ sub get_serial_output
   sleep(2);
   my $output = $port->read($bytes_to_read);
   $port->close() if ($should_close);
-  print(($str =~ /^\s*$/) ? "Warning: Empty Output\n" : "Output: $output\n") if ($verbose);
+  print(($output =~ /^\s*$/) ? "Warning: Empty Output\n" : "Output: $output\n") if ($verbose);
   return $output;
 }
 
