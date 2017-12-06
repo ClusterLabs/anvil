@@ -119,7 +119,7 @@ The string to write to serial. Defaults to a "\r\r".
 
 =head3 bytes_to_read
 
-The amount of bytes to read. Defaults to 256 byets.
+The amount of bytes to read. Defaults to 256 bytes.
 
 =cut
 sub get_serial_output
