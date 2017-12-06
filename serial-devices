@@ -1,8 +1,10 @@
 #!/usr/bin/perl
 
 use Device::SerialPort;
+use Getopt::Long;
 
-my @baud_rates = (9600, 115200);
+my @baud_rates = (115200, 9600);
+my $verbose = 0;
 
 =head2 find_serial_devices
 
@@ -10,11 +12,20 @@ Find a list of serial devices from ttyUSB.* and
 then tests the baud speeds of each. Prints a result
 if a successful device/baud rate is found.
 
+=head2 Parameters;
+
+=head3 list_devices
+
+Prints a list of the devices found in ttyUSB.* instead of testing them.
 =cut
 sub find_serial_devices
 {
+  my $parameter = shift;
+  my $list_devices = defined $parameter->{list_devices} ? $parameter->{list_devices} : 0;
   my $dev_path = "/dev";
   my @devices;
+  my $bar = "--------------------------";
+
   local(*DIRECTORY);
   opendir(DIRECTORY, $dev_path);
   while(my $file = readdir(DIRECTORY))
@@ -23,11 +34,18 @@ sub find_serial_devices
     {
       my $path = $dev_path . "/$file";
       push @devices, $path;
-      #print "Device found: $path\n\n";
     }
   }
-  print "Testing Serial Devices...\n\n";
-  test_serial_devices({devices => \@devices});
+
+  if (!(scalar(@devices))) {
+    print "No devices found.\n";
+  } elsif ($list_devices) {
+    print "Serial devices found\n$bar\n";
+    print "$_\n" foreach (@devices);
+  } else {
+    print "Testing serial devices...\n$bar\n";
+    test_serial_devices({devices => \@devices});
+  }
 }
 
 =head2 test_serial_devices
@@ -54,20 +72,103 @@ sub test_serial_devices
     foreach my $baud_rate (@baud_rates)
     {
       my $device_test = {device => $device, baud_rate => $baud_rate};
-      if (test_serial_device($device_test))
+      print "Testing Device: " . $device_test->{device} . ", Baud Rate: " . $device_test->{baud_rate} . "\n" if ($verbose);
+      $device_test->{output} = get_serial_output($device_test);
+      if (verify_serial_device($device_test->{output}))
       {
-        print "Device Found: $device, Baud Rate: $baud_rate\n\n";
+        print "$device ($baud_rate)\n\n";
         push @successful_devices, $device_test;
         last;
       }
       sleep(2);
     }
   }
+
+  if (!(scalar(@successful_devices))) {
+    print "No successful serial device and baud rate combinations found.\n";
+  }
 }
 
-=head2 test_serial_device
+=head2 get_serial_device_output
 
-Tests if a device/baud rate combination has proper output, and can be connected to.
+Gets the output from a serial device after sending a carrage return.
+
+=head2 Parameters;
+
+=head3 device
+
+A serial device path name.
+
+=head3 baud_rate
+
+The baud rate to test with.
+
+=head3 port
+
+A Device::SerialPort instance.
+
+=head3 str_to_write
+
+The string to write to serial. Defaults to a "\r\r".
+
+=head3 bytes_to_read
+
+The amount of bytes to read. Defaults to 256 byets.
+
+=cut
+sub get_serial_output
+{
+  my $parameter = shift;
+  my $device = defined $parameter->{device} ? $parameter->{device} : "";
+  my $baud_rate = defined $parameter->{baud_rate} ? $parameter->{baud_rate} : "";
+  my $port = defined $parameter->{port} ? $parameter->{port} : "";
+  my $str_to_write = defined $parameter->{str_to_write} ? $parameter->{str_to_write} : "\r\r";
+  my $bytes_to_read = defined $parameter->{bytes_to_read} ? $parameter->{bytes_to_read} : 256;
+  my $should_close = 0;
+
+  if (!$port) {
+    $port = create_serial_port({device => $device, baud_rate => $baud_rate});
+    if (!$port) {
+      print "Could not connect to serial port.\n" if ($verbose);
+      return 0;
+    }
+    $should_close = 1;
+  }
+  $port->write($str_to_write);
+  $port->lookclear();
+  sleep(2);
+  my $output = $port->read($bytes_to_read);
+  $port->close() if ($should_close);
+  print "Output: $output\n\n" if ($verbose);
+  return $output;
+}
+
+=head2 verify_serial_device
+
+Tests if a device/baud rate combination has proper output.
+
+=head2 Parameters;
+
+=head3 output
+
+The output from test_serial_device().
+
+=head3 char_amount
+
+The amount of characters in a row that need to be an actual character.
+
+=cut
+sub verify_serial_device
+{
+  my $parameter = shift;
+  my $output = defined $parameter->{output} ? $parameter->{output} : "";
+  my $char_amount = defined $parameter->{char_amount} ? $parameter->{char_amount} : 5;
+  return ($output =~ /(?=.*[ -~])[ -~]{$char_amount,}.*$/);
+}
+
+=head2 create_serial_port
+
+Creates a serial device connection using Device::SerialPort.
 
 =head2 Parameters;
 
@@ -80,25 +181,22 @@ A serial device path name.
 The baud rate to test with.
 
 =cut
-sub test_serial_device
-{
-  my $parameter = shift;
+sub create_serial_port {
   my $device = defined $parameter->{device} ? $parameter->{device} : "";
   my $baud_rate = defined $parameter->{baud_rate} ? $parameter->{baud_rate} : "";
   my $port = new Device::SerialPort($device, 1) || return 0;
-
   $port->baudrate($baud_rate);
   $port->parity("none");
   $port->databits(8);
   $port->stopbits(1);
-  $port->write("\r");
-  $port->lookclear();
-  sleep(2);
-  my $output = $port->read(256);
-  $port->close();
-  #print "Testing Device: $device, Baud Rate: $baud_rate\nOutput: $output\n\n";
-  # If the output from has at least 5 printable characters in a row, the device/baud rate should be correct.
-  return ($output =~ /(?=.*[ -~])[ -~]{5,}.*$/);
+  return $port;
 }
 
-find_serial_devices();
+my @devices;
+my $list_devices = 0;
+GetOptions('devices=s' => \@devices, 'list' => \$list_devices, 'verbose' => \$verbose);
+if (scalar(@devices)) {
+  test_serial_devices({devices => \@devices});
+} else {
+  find_serial_devices({list_devices => $list_devices});
+}
