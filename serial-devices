@@ -93,6 +93,8 @@ sub test_serial_devices
   {
     print "No successful serial device and baud rate combinations found.\n";
   }
+
+  return \@successful_devices;
 }
 
 =head2 get_serial_output
@@ -134,12 +136,7 @@ sub get_serial_output
 
   if (!$port)
   {
-    $port = create_serial_port({device => $device, baud_rate => $baud_rate});
-    if (!$port)
-    {
-      print "Could not connect to serial device.\n" if ($verbose);
-      return 0;
-    }
+    $port = create_serial_port({device => $device, baud_rate => $baud_rate}) || return 0;
     $should_close = 1;
   }
   $port->write($str_to_write);
@@ -194,7 +191,12 @@ sub create_serial_port
   my $parameter = shift;
   my $device = defined $parameter->{device} ? $parameter->{device} : "";
   my $baud_rate = defined $parameter->{baud_rate} ? $parameter->{baud_rate} : "";
-  my $port = new Device::SerialPort($device, 1) || return 0;
+  my $port = new Device::SerialPort($device, 1);
+  if (!$port)
+  {
+    print "Could not connect to serial device.\n" if ($verbose);
+    return 0;
+  }
   $port->baudrate($baud_rate);
   $port->parity("none");
   $port->databits(8);
@@ -202,12 +204,109 @@ sub create_serial_port
   return $port;
 }
 
-my @devices;
-my $list_devices = 0;
-GetOptions('devices=s' => \@devices, 'list' => \$list_devices, 'verbose' => \$verbose);
-if (scalar(@devices))
+sub perform_serial_action
 {
-  test_serial_devices({devices => \@devices});
+  my $parameter = shift;
+  my $device = defined $parameter->{device} ? $parameter->{device} : {};
+  my $action = defined $parameter->{action} ? $parameter->{action} : {};
+  my @actions = (
+    { action => "configureIP", output => "User name :", sub => \&configure_ip_apc_pdu }
+  );
+
+  foreach my $action_type (@actions)
+  {
+    my $output_check = $action_type->{output};
+    if ($action eq $action_type->{action} && $device->{output} =~ /$output_check/)
+    {
+      $action_type->{sub}($parameter);
+    }
+  }
+}
+
+sub configure_ip_apc_pdu
+{
+  print "configure_ip_apc_pdu()\n";
+  my $parameter = shift;
+  my $device = defined $parameter->{device} ? $parameter->{device} : {};
+  my $action = defined $parameter->{action} ? $parameter->{action} : "";
+  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+  my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
+  my $gateway = defined $parameter->{gateway} ? $parameter->{gateway} : "";
+  my $port = create_serial_port({device => $device->{device}, baud_rate => $device->{baud_rate}}) || return 0;
+  my @to_check = (
+    { input => "apc\r", output => "Password :" },
+    { input => "apc\r", output => "Switched Rack PDU: Communication Established" },
+    { input => "2\r", output => "------- Network" },
+    { input => "1\r", output => "------- TCP/IP", skip => { goto => 6, output => "1- System IP" } },
+    { input => "1\r", output => "------- Boot Mode" },
+    { input => "4\r", output => "------- TCP/IP" },
+    { input => "1\r", output => "System IP :" },
+    { input => "$ip\r", output => "1- System IP      : $ip" },
+    { input => "2\r", output => "Subnet Mask :" },
+    { input => "$subnet\r", output => "2- Subnet Mask    : $subnet" },
+    { input => "3\r", output => "Default Gateway :" },
+    { input => "$gateway\r", output => "3- Default Gateway: $gateway" },
+    { input => "\e", output => "------- Network" },
+    { input => "\e", output => "------- Control Console" },
+    { input => "4/r", output => "Logging out." },
+  );
+
+  foreach my $i (0..$#to_check)
+  {
+    my $check = $to_check[$i];
+    my $output = get_serial_output({port => $port, str_to_write => $check->{input}});
+    my $expected = $check->{output};
+    print "Input: " . $check->{input} . "\n";
+    print "Expected: " . $expected . "\n";
+    print "Output: " . $output . "\n";
+    if ($output =~ /$expected/)
+    {
+      print "Correct output...\n";
+      if (exists($check->{skip}))
+      {
+        $i = $check->{skip}->{goto} if ($output =~ $check->{skip}->{output});
+        print "Skipping to $i in sequence...\n"
+      }
+    }
+    else
+    {
+      print "Warning: Incorrect output... Stopping.\n";
+      last;
+    }
+  }
+}
+
+my @devices;
+my $device;
+my $list_devices = 0;
+my $action;
+my $ip;
+my $subnet;
+my $gateway;
+
+GetOptions(
+  'device=s' => \$device,
+  'list' => \$list_devices,
+  'verbose' => \$verbose,
+  'action=s', \$action,
+  'ip=s', \$ip,
+  'subnet=s', \$subnet,
+  'gateway=s' \$gateway
+);
+
+if ($device)
+{
+  my @successful_devices = @{test_serial_devices({devices => [$device]})};
+  if ($action && scalar(@successful_devices))
+  {
+    perform_serial_action({
+      device => $successful_devices[0],
+      action => $action,
+      ip => $ip,
+      subnet => $subnet,
+      gateway => $gateway
+    });
+  }
 }
 else
 {
