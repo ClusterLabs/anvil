@@ -16,6 +16,7 @@ my $THIS_FILE = "Get.pm";
 # cgi
 # date_and_time
 # host_uuid
+# md5sum
 # network_details
 # switches
 # users_home
@@ -153,7 +154,7 @@ sub cgi
 				   $anvil->data->{cgi}{$variable}{filehandle} = $cgi->upload($variable);
 				my $file                                   = $anvil->data->{cgi}{$variable}{filehandle};
 				   $anvil->data->{cgi}{$variable}{mimetype}   = $cgi->uploadInfo($file)->{'Content-Type'};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					variable                       => $variable,
 					"cgi::${variable}::filehandle" => $anvil->data->{cgi}{$variable}{filehandle},
 					"cgi::${variable}::mimetype"   => $anvil->data->{cgi}{$variable}{mimetype},
@@ -232,7 +233,7 @@ sub cgi
 	
 	# Clear the last &
 	$anvil->data->{sys}{cgi_string} =~ s/&$//;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::cgi_string" => $anvil->data->{sys}{cgi_string} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::cgi_string" => $anvil->data->{sys}{cgi_string} }});
 	
 	return(0);
 }
@@ -417,6 +418,38 @@ sub host_uuid
 	return($anvil->data->{HOST}{UUID});
 }
 
+=head2 md5sum
+
+This returns the C<< md5sum >> of a given file.
+
+Parameters;
+
+=head3 file
+
+This is the full or relative path to the file. If the file doesn't exist, an empty string is returned.
+
+=cut
+sub md5sum
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	
+	my $sum = "";
+	my $file = defined $parameter->{file} ? $parameter->{file} : "";
+	
+	if (-e $file)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{md5sum}." ".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		
+		$sum = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sum => $sum }});
+	}
+	
+	return($sum);
+}
+
 =head2 network_details
 
 This method returns the local hostname and IP addresses.
@@ -582,20 +615,20 @@ sub users_home
 	my $home_directory = 0;
 	
 	my $user = $parameter->{user} ? $parameter->{user} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
 	
 	# Make sure the user is only one digit. Sometimes $< (and others) will return multiple IDs.
 	if ($user =~ /^\d+ \d$/)
 	{
 		$user =~ s/^(\d+)\s.*$/$1/;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
 	}
 	
 	# If the user is numerical, convert it to a name.
 	if ($user =~ /^\d+$/)
 	{
 		$user = getpwuid($user);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
 	}
 	
 	# Still don't have a name? fail...
@@ -607,14 +640,14 @@ sub users_home
 	}
 	
 	my $body = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{passwd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { body => $body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
 	foreach my $line (split /\n/, $body)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /^$user:/)
 		{
 			$home_directory = (split/:/, $line)[5];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { home_directory => $home_directory }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { home_directory => $home_directory }});
 			last;
 		}
 	}
@@ -625,7 +658,7 @@ sub users_home
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0061", variables => { user => $user }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { home_directory => $home_directory }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { home_directory => $home_directory }});
 	return($home_directory);
 }
 

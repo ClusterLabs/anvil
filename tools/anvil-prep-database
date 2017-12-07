@@ -35,12 +35,12 @@ $anvil->data->{path}{config}{'striker.conf'} = "/etc/anvil/anvil.conf";
 $anvil->Storage->read_config({file => $anvil->data->{path}{config}{'striker.conf'}});
 
 my $local_id = $anvil->Database->get_local_id;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_id => $local_id }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { local_id => $local_id }});
 if ($local_id)
 {
 	# Start checks
 	my $running = $anvil->System->check_daemon({daemon => "postgresql"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { running => $running }});
 	if (not $running)
 	{
 		# Do we need to initialize the databae?
@@ -48,7 +48,7 @@ if ($local_id)
 		{
 			# Initialize.
 			my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 			
 			# Did it succeed?
 			if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
@@ -65,7 +65,7 @@ if ($local_id)
 			
 			# Setup postgresql.conf
 			my $postgresql_backup = $anvil->data->{path}{directories}{backups}."/pgsql/postgresql.conf";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { postgresql_backup => $postgresql_backup }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { postgresql_backup => $postgresql_backup }});
 			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'postgresql.conf'}, target => $postgresql_backup});
 			
 			my $postgresql_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'postgresql.conf'}});
@@ -87,7 +87,7 @@ if ($local_id)
 				}
 				$new_postgresql_conf .= $line."\n";
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_file => $update_file }});
 			if ($update_file)
 			{
 				$anvil->Storage->write_file({
@@ -103,7 +103,7 @@ if ($local_id)
 			
 			# Setup pg_hba.conf now
 			my $pg_hba_backup = $anvil->data->{path}{directories}{backups}."/pgsql/pg_hba.conf";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pg_hba_backup => $pg_hba_backup }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pg_hba_backup => $pg_hba_backup }});
 			
 			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'pg_hba.conf'}, target => $pg_hba_backup});
 			my $pg_hba_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'pg_hba.conf'}});
@@ -129,7 +129,7 @@ if ($local_id)
 					$new_pg_hba_conf .= $line."\n";
 				}
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_file => $update_file }});
 			if ($update_file)
 			{
 				$anvil->Storage->write_file({
@@ -146,7 +146,7 @@ if ($local_id)
 		
 		# Start the daemon. It might fail if it has never been initialized.
 		my $started = $anvil->System->start_daemon({daemon => "postgresql"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { started => $started }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { started => $started }});
 		if ($started)
 		{
 			# Started the daemon.
@@ -162,14 +162,14 @@ if ($local_id)
 	
 	# Create the .pgpass file, if needed.
 	my $created_pgpass = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { 
 		'path::secure::postgres_pgpass'   => $anvil->data->{path}{secure}{postgres_pgpass},
 		"database::${local_id}::password" => $anvil->data->{database}{$local_id}{password}, 
 	}});
 	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$local_id}{password}))
 	{
 		my $body = "*:*:*:postgres:".$anvil->data->{database}{$local_id}{password}."\n";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { body => $body }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { body => $body }});
 		$anvil->Storage->write_file({
 			file      => $anvil->data->{path}{secure}{postgres_pgpass},  
 			body      => $body,
@@ -182,14 +182,14 @@ if ($local_id)
 		if (-e $anvil->data->{path}{secure}{postgres_pgpass})
 		{
 			$created_pgpass = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { created_pgpass => $created_pgpass }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { created_pgpass => $created_pgpass }});
 		}
 	}
 	
 	# Does the database user exist?
 	my $create_user   = 1;
 	my $scancore_user = $anvil->data->{database}{$local_id}{user};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scancore_user => $scancore_user }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { scancore_user => $scancore_user }});
 	if (not $scancore_user)
 	{
 		# No database user defined
@@ -197,33 +197,33 @@ if ($local_id)
 		exit(3);
 	}
 	my $user_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_list => $user_list }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user_list => $user_list }});
 	foreach my $line (split/\n/, $user_list)
 	{
 		if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
 		{
 			# User exists already
 			my $id = $1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0005", variables => { user => $scancore_user, id => $id }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0005", variables => { user => $scancore_user, id => $id }});
 			$create_user = 0;
 			last;
 		}
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_user => $create_user }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_user => $create_user }});
 	if ($create_user)
 	{
 		# Create the user
 		my $create_output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $scancore_user\"", source => $THIS_FILE, line => __LINE__});
 		my $user_list     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
 		my $user_exists   = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output, user_list => $user_list }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_output => $create_output, user_list => $user_list }});
 		foreach my $line (split/\n/, $user_list)
 		{
 			if ($line =~ /^ $scancore_user\s+\|\s+(\d+)/)
 			{
 				# Success!
 				my $id = $1;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0006", variables => { user => $scancore_user, id => $id }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0006", variables => { user => $scancore_user, id => $id }});
 				$user_exists = 1;
 				last;
 			}
@@ -240,13 +240,13 @@ if ($local_id)
 			foreach my $user ("postgres", $scancore_user)
 			{
 				my $update_output = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$local_id}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { update_output => $update_output }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { update_output => $update_output }});
 				foreach my $line (split/\n/, $user_list)
 				{
 					if ($line =~ /ALTER ROLE/)
 					{
 						# Password set
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0007", variables => { user => $user }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0007", variables => { user => $user }});
 					}
 				}
 			}
@@ -256,35 +256,35 @@ if ($local_id)
 	# Create the database, if needed.
 	my $create_database   = 1;
 	my $scancore_database = $anvil->data->{database}{$local_id}{name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "database::${local_id}::name" => $anvil->data->{database}{$local_id}{name} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "database::${local_id}::name" => $anvil->data->{database}{$local_id}{name} }});
 	
 	my $database_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_list => $database_list }});
 	foreach my $line (split/\n/, $database_list)
 	{
 		if ($line =~ /^ $scancore_database$/)
 		{
 			# Database already exists.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0008", variables => { database => $scancore_database }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0008", variables => { database => $scancore_database }});
 			$create_database = 0;
 			last;
 		}
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_database => $create_database }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_database => $create_database }});
 	if ($create_database)
 	{
 		my $create_output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}."  --owner $scancore_user $scancore_database\"", source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_output => $create_output }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_output => $create_output }});
 		
 		my $database_exists = 0;
 		my $database_list   = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_list => $database_list }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_list => $database_list }});
 		foreach my $line (split/\n/, $database_list)
 		{
 			if ($line =~ /^ $scancore_database$/)
 			{
 				# Database created
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0008", variables => { database => $scancore_database }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0008", variables => { database => $scancore_database }});
 				$database_exists = 1;
 				last;
 			}
@@ -350,16 +350,16 @@ RateLimitBurst=0
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0012", variables => { file => $anvil->data->{path}{configs}{'journald_an'} }});
 		
 		my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart systemd-journald.service";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 		
 		my $output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	}
 }
 else
 {
 	# Didn't find an entry for this machine.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0010"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0010"});
 }
 
 exit(0);

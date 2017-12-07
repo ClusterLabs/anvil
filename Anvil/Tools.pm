@@ -737,6 +737,7 @@ sub _set_paths
 				'iptables-save'		=>	"/usr/sbin/iptables-save",
 				journalctl		=>	"/usr/bin/journalctl",
 				logger			=>	"/usr/bin/logger",
+				md5sum			=>	"/usr/bin/md5sum",
 				'mkdir'			=>	"/usr/bin/mkdir",
 				ping			=>	"/usr/bin/ping",
 				pgrep			=>	"/usr/bin/pgrep",

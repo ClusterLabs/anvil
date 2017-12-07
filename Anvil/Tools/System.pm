@@ -218,7 +218,7 @@ sub check_memory
 	my $anvil     = $self->parent;
 	
 	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { program_name => $program_name }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { program_name => $program_name }});
 	if (not $program_name)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0086"});
@@ -230,15 +230,15 @@ sub check_memory
 	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{''}." --program $program_name"});
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /= (\d+) /)
 		{
 			$used_ram = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { used_ram => $used_ram }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { used_ram => $used_ram }});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { used_ram => $used_ram }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { used_ram => $used_ram }});
 	return($used_ram);
 }
 
@@ -378,7 +378,7 @@ sub get_ips
 			
 			$anvil->data->{sys}{networks}{$in_iface}{ip}     = $ip;
 			$anvil->data->{sys}{networks}{$in_iface}{subnet} = $subnet;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:sys::networks::${in_iface}::ip"     => $anvil->data->{sys}{networks}{$in_iface}{ip},
 				"s2:sys::networks::${in_iface}::subnet" => $anvil->data->{sys}{networks}{$in_iface}{subnet},
 			}});
@@ -386,7 +386,7 @@ sub get_ips
 		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
 		{
 			$anvil->data->{sys}{networks}{$in_iface}{mac} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::networks::${in_iface}::mac" => $anvil->data->{sys}{networks}{$in_iface}{mac} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::networks::${in_iface}::mac" => $anvil->data->{sys}{networks}{$in_iface}{mac} }});
 		}
 	}
 
@@ -998,7 +998,11 @@ Parameters;
 
 If set, the connection to the target will be closed at the end of the call.
 
-=head3 no_cache (optional, default '0')
+=head3 log_level (optional, default C<< 3 >>)
+
+If set, the method will use the given log level. Valid values are integers between C<< 0 >> and C<< 4 >>.
+
+=head3 no_cache (optional, default C<< 0 >>)
 
 If set, and if an existing cached connection is open, it will be closed and a new connection to the target will be established.
 
@@ -1008,13 +1012,13 @@ This is the password used to connect to the remote target as the given user.
 
 B<NOTE>: Passwordless SSH is supported. If you can ssh to the target as the given user without a password, then no password needs to be given here.
 
-=head3 port (optional, default '22')
+=head3 port (optional, default C<< 22 >>)
 
 This is the TCP port to use when connecting to the C<< target >>. The default is port 22.
 
 B<NOTE>: See C<< target >> for optional port definition.
 
-=head3 secure (optional, default '0')
+=head3 secure (optional, default C<< 0 >>)
 
 If set, the C<< shell_call >> is treated as containing sensitive data and will not be logged unless C<< $anvil->Log->secure >> is enabled.
 
@@ -1042,17 +1046,24 @@ sub remote_call
 	my $anvil     = $self->parent;
 	
 	# Get the target and port so that we can create the ssh_fh key
-	my $port       = defined $parameter->{port}     ? $parameter->{port}     : 22;
-	my $target     = defined $parameter->{target}   ? $parameter->{target}   : "";
+	my $log_level  = defined $parameter->{log_level} ? $parameter->{log_level} : 3;
+	if (($log_level !~ /^\d$/) or ($log_level < 0) or ($log_level > 4))
+	{
+		# Invalid log level, set 2.
+		$log_level = 3;
+	}
+	
+	my $port       = defined $parameter->{port}   ? $parameter->{port}   : 22;
+	my $target     = defined $parameter->{target} ? $parameter->{target} : "";
 	my $ssh_fh_key = $target.":".$port;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 		port   => $port, 
 		target => $target,
 	}});
 	
 	# This will store the SSH file handle for the given target after the initial connection.
 	$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = defined $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} ? $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	
 	# Now pick up the rest of the variables.
 	my $close      = defined $parameter->{'close'}    ? $parameter->{'close'}    : 0;
@@ -1064,7 +1075,7 @@ sub remote_call
 	my $start_time = time;
 	my $ssh_fh     = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 		'close'    => $close, 
 		password   => $anvil->Log->secure ? $password : "--", 
 		secure     => $secure, 
@@ -1105,7 +1116,7 @@ sub remote_call
 	{
 		$target = $1;
 		$port   = $2;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 			port   => $port, 
 			target => $target,
 		}});
@@ -1114,7 +1125,7 @@ sub remote_call
 		if ($parameter->{port} =~ /^\d+$/)
 		{
 			$port = $parameter->{port};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
 		}
 	}
 	else
@@ -1123,11 +1134,11 @@ sub remote_call
 		$anvil->System->read_ssh_config();
 		
 		$anvil->data->{hosts}{$target}{port} = "" if not defined $anvil->data->{hosts}{$target}{port};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "hosts::${target}::port" => $anvil->data->{hosts}{$target}{port} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "hosts::${target}::port" => $anvil->data->{hosts}{$target}{port} }});
 		if ($anvil->data->{hosts}{$target}{port} =~ /^\d+$/)
 		{
 			$port = $anvil->data->{hosts}{$target}{port};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
 		}
 	}
 	
@@ -1142,11 +1153,11 @@ sub remote_call
 	if (not $anvil->Validate->is_ipv4({ip => $target}))
 	{
 		my $new_target = $anvil->Convert->hostname_to_ip({host_name => $target});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_target => $new_target }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { new_target => $new_target }});
 		if ($new_target)
 		{
 			$target = $new_target;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { target => $target }});
 		}
 	}
 	
@@ -1155,7 +1166,7 @@ sub remote_call
 	{
 		# Close the connection.
 		$ssh_fh->disconnect();
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0010", variables => { target => $target }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "message_0010", variables => { target => $target }});
 		
 		# For good measure, blank both variables.
 		$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = "";
@@ -1167,7 +1178,7 @@ sub remote_call
 	my $stderr_output = [];
 	
 	# If I don't already have an active SSH file handle, connect now.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ssh_fh => $ssh_fh }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { ssh_fh => $ssh_fh }});
 	if ($ssh_fh !~ /^Net::SSH2/)
 	{
 		$ssh_fh = Net::SSH2->new();
@@ -1209,10 +1220,10 @@ sub remote_call
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => { $variables }});
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error => $error, ssh_fh => $ssh_fh }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { error => $error, ssh_fh => $ssh_fh }});
 		if (not $error)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 				user     => $user,
 				password => $anvil->Log->secure ? $password : "--", 
 			}});
@@ -1223,7 +1234,7 @@ sub remote_call
 				my $home_directory = $anvil->Get->users_home({user => $user});
 				my $public_key     = $home_directory."/.ssh/id_rsa.pub";
 				my $private_key    = $home_directory."/.ssh/id_rsa";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 					user           => $user,
 					home_directory => $home_directory, 
 					public_key     => $public_key, 
@@ -1234,10 +1245,10 @@ sub remote_call
 				{
 					# We're in! Record the file handle for this target.
 					$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = $ssh_fh;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 					
 					# Log that we got in without a password.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0062", variables => { target => $target }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "log_0062", variables => { target => $target }});
 				}
 				else
 				{
@@ -1250,10 +1261,10 @@ sub remote_call
 			{
 				# We're in! Record the file handle for this target.
 				$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = $ssh_fh;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 				
 				# Record our success
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0007", variables => { target => $target }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "message_0007", variables => { target => $target }});
 			}
 		}
 	}
@@ -1262,7 +1273,7 @@ sub remote_call
 	### sort out the polling and data collection in this section.
 	#
 	# Open a channel and make the call.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 		error  => $error, 
 		ssh_fh => $ssh_fh, 
 	}});
@@ -1285,7 +1296,7 @@ sub remote_call
 		else
 		{
 			### TODO: Timeout if the call doesn't respond in X seconds, closing the filehandle if hit.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { 
 				channel    => $channel, 
 				shell_call => $shell_call, 
 			}});
@@ -1316,7 +1327,7 @@ sub remote_call
 				{
 					my $line = $1;
 					   $line =~ s/\r//g;	# Remove \r from things like output of daemon start/stops.
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { "STDOUT:line" => $line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { "STDOUT:line" => $line }});
 					push @{$stdout_output}, $line;
 				}
 				
@@ -1328,7 +1339,7 @@ sub remote_call
 				while ($stderr =~ s/^(.*)\n//)
 				{
 					my $line = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { "STDERR:line" => $line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { "STDERR:line" => $line }});
 					push @{$stderr_output}, $line;
 				}
 				
@@ -1337,12 +1348,12 @@ sub remote_call
 			}
 			if ($stdout)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { stdout => $stdout }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { stdout => $stdout }});
 				push @{$stdout_output}, $stdout;
 			}
 			if ($stderr)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { stderr => $stderr }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { stderr => $stderr }});
 				push @{$stderr_output}, $stderr;
 			}
 		}
@@ -1353,7 +1364,7 @@ sub remote_call
 	
 	foreach my $line (@{$stderr_output}, @{$stdout_output})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { line => $line }});
 		push @{$output}, $line;
 	}
 	
@@ -1364,17 +1375,17 @@ sub remote_call
 		{
 			# Close it.
 			$ssh_fh->disconnect();
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0009", variables => { target => $target }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "message_0009", variables => { target => $target }});
 		}
 		
 		# For good measure, blank both variables.
 		$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = "";
 		$ssh_fh                                  = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	}
 	
 	$error = "" if not defined $error;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { 
 		error  => $error,
 		ssh_fh => $ssh_fh, 
 		output => $output, 
@@ -1404,13 +1415,13 @@ sub reload_daemon
 	my $return     = undef;
 	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon, say_daemon => $say_daemon }});
 	
 	my $shell_call = $anvil->data->{path}{exe}{systemctl}." reload ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	
 	my $output = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
 		if ($line =~ /return_code:(\d+)/)
@@ -1420,7 +1431,7 @@ sub reload_daemon
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 	return($return);
 }
 
@@ -1528,7 +1539,7 @@ sub _load_firewalld_zones
 	my $anvil     = $self->parent;
 	
 	my $directory = $anvil->data->{path}{directories}{firewalld_services};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0018", variables => { directory => $directory }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
 	if (not -d $directory)
 	{
 		# Missing directory...
