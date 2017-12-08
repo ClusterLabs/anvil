@@ -297,7 +297,7 @@ sub read
 	else
 	{
 		# Read the file with XML::Simple
-		my $xml  = XML::Simple->new();
+		my $xml = XML::Simple->new();
 		eval { $anvil->data->{words}{$file} = $xml->XMLin($file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'language', 'key' ]) };
 		if ($@)
 		{

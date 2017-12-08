@@ -443,7 +443,11 @@ sub md5sum
 		my $shell_call = $anvil->data->{path}{exe}{md5sum}." ".$file;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 		
-		$sum = $anvil->System->call({shell_call => $shell_call});
+		my $return = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		
+		# split the sum off.
+		$sum = ($return =~ /^(.*?)\s+$file$/)[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sum => $sum }});
 	}
 	

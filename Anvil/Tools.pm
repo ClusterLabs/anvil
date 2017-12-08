@@ -16,6 +16,7 @@ use warnings;
 use Scalar::Util qw(weaken isweak);
 use Time::HiRes;
 use Data::Dumper;
+use CGI;
 my $THIS_FILE = "Tools.pm";
 
 ### Methods;
@@ -290,11 +291,11 @@ sub environment
 	if ($_[0])
 	{
 		$anvil->{ENV_VALUES}{ENVIRONMENT} = shift;
+		
+		# Load the CGI stuff if we're in a browser
 		if ($anvil->{ENV_VALUES}{ENVIRONMENT} eq "html")
 		{
-			# Load the CGI stuff if we're in a browser
-			use CGI;
-			use CGI::Carp qw(fatalsToBrowser);
+			CGI::Carp->import(qw(fatalsToBrowser));
 		}
 	}
 	
@@ -326,7 +327,7 @@ sub nice_exit
 	# Report the runtime.
 	my $end_time = Time::HiRes::time;
 	my $run_time = $end_time - $anvil->data->{ENV_VALUES}{START_TIME};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		's1:ENV_VALUES::START_TIME' => $anvil->data->{ENV_VALUES}{START_TIME}, 
 		's2:end_time'               => $end_time, 
 		's3:run_time'               => $run_time, 
@@ -743,6 +744,7 @@ sub _set_paths
 				pgrep			=>	"/usr/bin/pgrep",
 				psql			=>	"/usr/bin/psql",
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
+				pwd			=>	"/usr/bin/pwd",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
 				touch			=>	"/usr/bin/touch",

@@ -7,8 +7,9 @@
 # 0 = Normal exit
 # 1 = md5sum of this program changed. Exited to reload.
 # 
-# TODO: At some point, we'll need to have a mechanism to fire off processes that might take a long time.
+# TODO: 
 # 
+
 use strict;
 use warnings;
 use Anvil::Tools;
@@ -30,8 +31,7 @@ $anvil->Log->level({set => 2});
 run_once($anvil);
 
 # Calculate my sum so that we can exit if it changes later.
-$anvil->data->{md5sum}{$THIS_FILE}{start_time} = $anvil->Get->md5sum({file => $0});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "md5sum::${THIS_FILE}::start_time" => $anvil->data->{md5sum}{$THIS_FILE}{start_time} }});
+$anvil->Storage->record_md5sums;
 
 # These are the things we always want running.
 while(1)
@@ -39,12 +39,20 @@ while(1)
 	# Loop and sleep for 2s.
 	keep_running($anvil);
 	
-	
 	# Exit if called with '--run-once'
 	if ($anvil->data->{switches}{'run-once'})
 	{
 		$anvil->nice_exit({code => 0});
 	}
+	
+	# Has the file on disk changed?
+	if ($anvil->Storage->check_md5sums)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "message_0014"});
+		$anvil->nice_exit({code => 1});
+	}
+	
+	# Sleep now.
 	sleep 2;
 }
 
@@ -61,11 +69,11 @@ sub run_once
 	
 	# Check that the database is ready.
 	my $shell_call = $anvil->data->{path}{exe}{'anvil-prep-database'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	my $database_output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	if ($database_output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_output => $database_output }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_output => $database_output }});
 	}
 	
 	return(0);
@@ -79,19 +87,6 @@ sub keep_running
 	# Update hardware state files.
 	update_state_file($anvil);
 	
-	# Has the file on disk changed?
-	$anvil->data->{md5sum}{$THIS_FILE}{now} = $anvil->Get->md5sum({file => $0});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"md5sum::${THIS_FILE}::start_time" => $anvil->data->{md5sum}{$THIS_FILE}{start_time},
-		"md5sum::${THIS_FILE}::now"        => $anvil->data->{md5sum}{$THIS_FILE}{now},
-	}});
-	if ($anvil->data->{md5sum}{$THIS_FILE}{now} ne $anvil->data->{md5sum}{$THIS_FILE}{start_time})
-	{
-		# Exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "message_0013", variables => { file => $THIS_FILE }});
-		$anvil->nice_exit({code => 1});
-	}
-	
 	return(0);
 }
 
@@ -102,12 +97,12 @@ sub update_state_file
 	my ($anvil) = @_;
 	
 	my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	
 	my $states_output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	if ($states_output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { states_output => $states_output }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { states_output => $states_output }});
 	}
 	
 	return(0);
