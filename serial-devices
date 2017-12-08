@@ -204,38 +204,75 @@ sub create_serial_port
   return $port;
 }
 
+=head2 perform_serial_action
+
+Matches a serial action+output from a list, and calls a specific subroutine based on that.
+
+Creates a serial connection with the baud rate found for a device, and closes it
+when all interactions are finished.
+
+=head2 Parameters;
+
+=head3 device
+
+A serial device path name.
+
+=head3 action
+
+An action that matches one on the list of actions.
+
+=cut
 sub perform_serial_action
 {
   my $parameter = shift;
   my $device = defined $parameter->{device} ? $parameter->{device} : {};
   my $action = defined $parameter->{action} ? $parameter->{action} : {};
   my @actions = (
-    { action => "configureIP", output => "User name :", sub => \&configure_ip_apc_pdu }
+    { action => "configureIP", output => "User Name :", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
   );
+
+  $parameter->{port} = create_serial_port({device => $device->{device}, baud_rate => $device->{baud_rate}}) || return 0;
 
   foreach my $action_type (@actions)
   {
     my $output_check = $action_type->{output};
     if ($action eq $action_type->{action} && $device->{output} =~ /$output_check/)
     {
-      $action_type->{sub}($parameter);
+      my $proper_params = 1;
+      # If the command line did not have all required arguments, do not perform this action.
+      foreach my $param (@{$action_type->{required_params}}) {
+        $proper_params = 0 if (!exists($parameter->{$param}));
+      }
+      $proper_params ? $action_type->{sub}($parameter) : print "Improper parameters for serial interaction.\n";
+      last;
     }
   }
+
+  $parameter->{port}->close();
 }
 
+=head2 configure_ip_apc_pdu
+
+A serial action that sets the ip, gateway, and subnet for an APC RackPDU.
+
+=head2 Parameters;
+
+=head3 ip
+
+=head3 subnet
+
+=head3 gateway
+
+=cut
 sub configure_ip_apc_pdu
 {
-  print "configure_ip_apc_pdu()\n";
   my $parameter = shift;
-  my $device = defined $parameter->{device} ? $parameter->{device} : {};
-  my $action = defined $parameter->{action} ? $parameter->{action} : "";
   my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
   my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
   my $gateway = defined $parameter->{gateway} ? $parameter->{gateway} : "";
-  my $port = create_serial_port({device => $device->{device}, baud_rate => $device->{baud_rate}}) || return 0;
-  my @to_check = (
-    { input => "apc\r", output => "Password :" },
-    { input => "apc\r", output => "Switched Rack PDU: Communication Established" },
+  $parameter->{to_check} = [
+    { input => "apc\r", output => "Password  :" },
+    { input => "apc\r", output => "------- Control Console" },
     { input => "2\r", output => "------- Network" },
     { input => "1\r", output => "------- TCP/IP", skip => { goto => 6, output => "1- System IP" } },
     { input => "1\r", output => "------- Boot Mode" },
@@ -248,29 +285,52 @@ sub configure_ip_apc_pdu
     { input => "$gateway\r", output => "3- Default Gateway: $gateway" },
     { input => "\e", output => "------- Network" },
     { input => "\e", output => "------- Control Console" },
-    { input => "4/r", output => "Logging out." },
-  );
+    { input => "4\r", output => "Logging out." },
+  ];
+  serial_interaction($parameter);
+}
 
-  foreach my $i (0..$#to_check)
+
+=head2 serial_interaction
+
+Interacts through a serial connection with a list of inputs and expected outputs.
+Stops if any incorrect output was found.
+
+=head2 Parameters;
+
+=head3 port
+
+A connected instance of Device::SerialPort.
+
+=cut
+sub serial_interaction
+{
+  my $parameter = shift;
+  my @to_check = @{$parameter->{to_check}};
+  my $port = defined $parameter->{port} ? $parameter->{port} : return 0;
+
+  for (my $i = 0; $i < scalar(@to_check); $i++)
   {
     my $check = $to_check[$i];
-    my $output = get_serial_output({port => $port, str_to_write => $check->{input}});
+    my $output = get_serial_output({port => $port, str_to_write => $check->{input}, bytes_to_read => 1024});
     my $expected = $check->{output};
-    print "Input: " . $check->{input} . "\n";
-    print "Expected: " . $expected . "\n";
-    print "Output: " . $output . "\n";
+    print "Input: " . $check->{input} . "\n" if ($verbose);
+    print "Expected: " . $expected . "\n" if ($verbose);
+    print "Output: " . $output . "\n" if ($verbose);
+    # Only continue if the output matches the expected one.
     if ($output =~ /$expected/)
     {
-      print "Correct output...\n";
+      print "Correct output...\n" if ($verbose);
       if (exists($check->{skip}))
       {
-        $i = $check->{skip}->{goto} if ($output =~ $check->{skip}->{output});
-        print "Skipping to $i in sequence...\n"
+        # If there's a skip check, see if the output matches it. If so, goto that index on the list.
+        $i = ($check->{skip}->{goto} - 1) if ($output =~ $check->{skip}->{output});
+        print "Skipping to $i in sequence...\n" if ($verbose);
       }
     }
     else
     {
-      print "Warning: Incorrect output... Stopping.\n";
+      print "Warning: Incorrect output... Stopping.\n" if ($verbose);
       last;
     }
   }
@@ -288,10 +348,10 @@ GetOptions(
   'device=s' => \$device,
   'list' => \$list_devices,
   'verbose' => \$verbose,
-  'action=s', \$action,
-  'ip=s', \$ip,
-  'subnet=s', \$subnet,
-  'gateway=s' \$gateway
+  'action=s' => \$action,
+  'ip=s' => \$ip,
+  'subnet=s' => \$subnet,
+  'gateway=s' => \$gateway
 );
 
 if ($device)
