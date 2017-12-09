@@ -3,7 +3,7 @@
 use Device::SerialPort;
 use Getopt::Long;
 
-my @baud_rates = (115200, 9600);
+my @baud_rates = (9600, 115200);
 my $verbose = 0;
 
 =head2 find_serial_devices
@@ -123,6 +123,10 @@ The string to write to serial. Defaults to a "\r\r".
 
 The amount of bytes to read. Defaults to 256 bytes.
 
+=head3 wait_time
+
+The amount of time to wait before getting output, in seconds.
+
 =cut
 sub get_serial_output
 {
@@ -132,6 +136,7 @@ sub get_serial_output
   my $port = defined $parameter->{port} ? $parameter->{port} : "";
   my $str_to_write = defined $parameter->{str_to_write} ? $parameter->{str_to_write} : "\r\r";
   my $bytes_to_read = defined $parameter->{bytes_to_read} ? $parameter->{bytes_to_read} : 256;
+  my $wait_time = defined $parameter->{wait_time} ? $parameter->{wait_time} : 1;
   my $should_close = 0;
 
   if (!$port)
@@ -141,7 +146,7 @@ sub get_serial_output
   }
   $port->write($str_to_write);
   $port->lookclear();
-  sleep(2);
+  sleep($wait_time);
   my $output = $port->read($bytes_to_read);
   $port->close() if ($should_close);
   print(($output =~ /^\s*$/) ? "Warning: Empty Output\n" : "Output: $output\n") if ($verbose);
@@ -168,7 +173,7 @@ sub verify_serial_device
   my $parameter = shift;
   my $output = defined $parameter->{output} ? $parameter->{output} : "";
   my $char_amount = defined $parameter->{char_amount} ? $parameter->{char_amount} : 5;
-  return ($output =~ /(?=.*[ -~])[ -~]{$char_amount,}.*$/);
+  return ($output =~ /(?=.*[ -~])[ -~]{$char_amount,}[\s\S]*$/);
 }
 
 =head2 create_serial_port
@@ -206,7 +211,7 @@ sub create_serial_port
 
 =head2 perform_serial_action
 
-Matches a serial action+output from a list, and calls a specific subroutine based on that.
+Matches a serial action+profile+output from a list, and calls a specific subroutine based on that.
 
 Creates a serial connection with the baud rate found for a device, and closes it
 when all interactions are finished.
@@ -227,23 +232,41 @@ sub perform_serial_action
   my $parameter = shift;
   my $device = defined $parameter->{device} ? $parameter->{device} : {};
   my $action = defined $parameter->{action} ? $parameter->{action} : {};
-  my @actions = (
-    { action => "configureIP", output => "User Name :", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
-  );
+  my $profile = defined $parameter->{profile} ? $parameter->{profile} : {};
+  my $actions = {
+    brocadeSwitch => [
+      { action => "factoryReset", output => "", sub => \&factory_reset_brocade_switch, required_params => [] },
+      { action => "setupVLAN", output => "", sub => \&setup_vlan_brocade_switch, required_params => [] },
+      { action => "setupStack", output => "", sub => \&setup_stack_brocade_switch, required_params => [] }
+    ],
+
+    apcPDU => [
+      { action => "configureIP", output => "", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
+    ]
+  };
 
   $parameter->{port} = create_serial_port({device => $device->{device}, baud_rate => $device->{baud_rate}}) || return 0;
 
-  foreach my $action_type (@actions)
+  foreach my $action_type (@{$actions->{$profile}})
   {
     my $output_check = $action_type->{output};
     if ($action eq $action_type->{action} && $device->{output} =~ /$output_check/)
     {
       my $proper_params = 1;
       # If the command line did not have all required arguments, do not perform this action.
-      foreach my $param (@{$action_type->{required_params}}) {
+      foreach my $param (@{$action_type->{required_params}})
+      {
         $proper_params = 0 if (!exists($parameter->{$param}));
       }
-      $proper_params ? $action_type->{sub}($parameter) : print "Improper parameters for serial interaction.\n";
+      if ($proper_params)
+      {
+        print "Performing serial action: $action ($profile)\n";
+        $action_type->{sub}($parameter);
+      }
+      else
+      {
+        print "Improper parameters for serial interaction.\n";
+      }
       last;
     }
   }
@@ -255,14 +278,6 @@ sub perform_serial_action
 
 A serial action that sets the ip, gateway, and subnet for an APC RackPDU.
 
-=head2 Parameters;
-
-=head3 ip
-
-=head3 subnet
-
-=head3 gateway
-
 =cut
 sub configure_ip_apc_pdu
 {
@@ -271,10 +286,15 @@ sub configure_ip_apc_pdu
   my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
   my $gateway = defined $parameter->{gateway} ? $parameter->{gateway} : "";
   $parameter->{to_check} = [
-    { input => "apc\r", output => "Password  :" },
+    { input => "\e", output => "" },
+    { input => "\e", output => "" },
+    { input => "\e", output => "" },
+    { input => "4\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", wait_time => 2 },
+    { input => "apc\r", output => "Password  :", wait_time => 2 },
     { input => "apc\r", output => "------- Control Console" },
     { input => "2\r", output => "------- Network" },
-    { input => "1\r", output => "------- TCP/IP", skip => { goto => 6, output => "1- System IP" } },
+    { input => "1\r", output => "------- TCP/IP", skip => { goto => 11, output => "1- System IP" } },
     { input => "1\r", output => "------- Boot Mode" },
     { input => "4\r", output => "------- TCP/IP" },
     { input => "1\r", output => "System IP :" },
@@ -290,6 +310,115 @@ sub configure_ip_apc_pdu
   serial_interaction($parameter);
 }
 
+=head2 factory_reset_brocade_switch
+
+A serial action that factory resets a brocade switch.
+
+=cut
+sub factory_reset_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "" },
+    { input => "\r\r", output => "Router>" },
+    { input => "enable\r", output => "Router\#" },
+    { input => "erase startup-config\r", output => "Erase startup-config Done.|config empty." },
+    { input => "reload\r", output => "Are you sure?" },
+    { input => "y\r", output => "Do you want to continue the reload anyway?" },
+    { input => "y\r", output => "Rebooting|Reload request sent" }
+  ];
+  serial_interaction($parameter);
+}
+
+=head2 setup_vlan_brocade_switch
+
+A serial action that sets up vlan for a brocade switch.
+
+=cut
+sub setup_vlan_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "" },
+    { input => "\r\r", output => "Router>" },
+    { input => "enable\r", output => "Router\#" },
+    { input => "configure terminal\r", output => "\QRouter(config)" },
+    { input => "show vlan\r\03\r\r", output => "Total PORT-VLAN entries" },
+    { input => "vlan 100 name bcn\r", output => "\QRouter(config-vlan-100)" },
+    { input => "untag ethernet 1/3/1 ethernet 1/3/5 ethernet 2/3/1 ethernet 2/3/5 ethernet 1/1/1 to 1/1/12 ethernet 2/1/1 to 2/1/12\r\r", output => "\Qethe 1/1/1 to 1/1/12 ethe 1/3/1 ethe 1/3/5 ethe 2/1/1 to 2/1/12 ethe 2/3/1 ethe 2/3/5" },
+    { input => "vlan 200 name sn\r", output => "\QRouter(config-vlan-200)" },
+    { input => "untag ethernet 1/3/2 ethernet 1/3/6 ethernet 2/3/2 ethernet 2/3/6 ethernet 1/1/13 to 1/1/16 ethernet 2/1/13 to 2/1/16\r", output => "\Qethe 1/1/13 to 1/1/16 ethe 1/3/2 ethe 1/3/6 ethe 2/1/13 to 2/1/16 ethe 2/3/2 ethe 2/3/6" },
+    { input => "vlan 300 name ifn\r", output => "\QRouter(config-vlan-300)" },
+    { input => "untag ethernet 1/3/3 to 1/3/4 ethernet 1/3/7 to 1/3/8 ethernet 2/3/3 to 2/3/4 ethernet 2/3/7 to 2/3/8 ethernet 1/1/17 to 1/1/24 ethernet 2/1/17 to 2/1/24\r", output => "\Qethe 1/1/17 to 1/1/24 ethe 1/3/3 to 1/3/4 ethe 1/3/7 to 1/3/8 ethe 2/1/17 to 2/1/24 ethe 2/3/3 to 2/3/4 ethe 2/3/7 to 2/3/8" },
+    { input => "exit\r", output => "\QRouter(config)" },
+    { input => "show vlan\r\03\r\r", output => "\QTotal PORT-VLAN entries: 4" },
+    { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192 },
+    { input => "exit\r", output => "Router\#" },
+    { input => "exit\r", output => "Router>" }
+  ];
+  serial_interaction($parameter);
+}
+
+=head2 setup_vlan_brocade_switch
+
+A serial action that sets up the stack for a brocade switch.
+
+=cut
+sub setup_stack_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "" },
+    { input => "\r\r", output => "Router>" },
+    { input => "enable\r", output => "Router\#" },
+    { input => "configure terminal\r", output => "\QRouter(config)" },
+    { input => "stack enable\r", output => "" },
+    { input => "exit\r", output => "Router\#" },
+    { input => "stack secure-setup\r", output => "Discovering the stack topology", wait_time => 10, bytes_to_read => 8192, skip => { goto => 8, output => "No new units found" } },
+    { input => "y\r", output => "Do you accept the unit id", wait_time => 5, bytes_to_read => 8192 },
+    { input => "y\r", output => "Election|Router\#" },
+    { input => "write memory\r", output => "Write startup-config done|Router\#" },
+    { input => "reload\r", output => "Are you sure" },
+    { input => "y\r", output => "Rebooting|Reload request sent" },
+    { input => "\r\r", output => "console going online", wait_time => 240, bytes_to_read => 16384 },
+    { input => "show stack\r", output => "\Qalone: standalone", bytes_to_read => 8192 },
+  ];
+  my $output = serial_interaction($parameter);
+
+  if ($output)
+  {
+    my @lines = split(/\n/, $output);
+    my $local_mac = "";
+
+    foreach my $line (@lines)
+    {
+      if (!($line =~ /^\s+$/))
+      {
+        my @columns = split(/\s+/, trim($line));
+        if ($columns[0] =~ /^\d.*$/ && $columns[6] eq "local")
+        {
+          $local_mac = $columns[4];
+          last;
+        }
+      }
+    }
+  }
+
+  $parameter->{to_check} = [
+    { input => "exit\renable\r", output => "Router\#" },
+    { input => "configure terminal\r", output => "\QRouter(config)" },
+    { input => "hitless-failover enable\r", output => "\QRouter(config)" },
+    { input => "stack mac $local_mac\r", output => "\QRouter(config)" },
+    { input => "stack unit 2\r", output => "\QRouter(config-unit-2)" },
+    { input => "priority 128\r", output => "\QPriority change needs 120 seconds to take effect.\E|is complete", wait_time => 125 },
+    { input => "exit\r", output => "\QRouter(config)" },
+    { input => "write memory\r", output => "Write startup-config done", wait_time => 60 },
+    { input => "show stack\r", output => "\QCurrent stack management MAC is $local_mac", bytes_to_read => 8192 },
+    { input => "exit\r", output => "\QRouter\#" },
+    { input => "exit\r", output => "\QRouter>" }
+  ];
+  serial_interaction($parameter);
+}
 
 =head2 serial_interaction
 
@@ -308,15 +437,23 @@ sub serial_interaction
   my $parameter = shift;
   my @to_check = @{$parameter->{to_check}};
   my $port = defined $parameter->{port} ? $parameter->{port} : return 0;
+  my $i = 0;
+  my $length = scalar(@to_check);
+  my $output = "";
 
-  for (my $i = 0; $i < scalar(@to_check); $i++)
+  for ($i = 0; $i < $length; $i++)
   {
     my $check = $to_check[$i];
-    my $output = get_serial_output({port => $port, str_to_write => $check->{input}, bytes_to_read => 1024});
     my $expected = $check->{output};
     print "Input: " . $check->{input} . "\n" if ($verbose);
     print "Expected: " . $expected . "\n" if ($verbose);
-    print "Output: " . $output . "\n" if ($verbose);
+    print "Please wait " . $check->{wait_time} . " seconds...\n" if ($check->{wait_time} && $check->{wait_time} >= 5);
+    $output = get_serial_output({
+      port => $port,
+      str_to_write => $check->{input},
+      bytes_to_read => ($check->{bytes_to_read} || 1024),
+      wait_time => ($check->{wait_time} || 1)
+    });
     # Only continue if the output matches the expected one.
     if ($output =~ /$expected/)
     {
@@ -324,15 +461,27 @@ sub serial_interaction
       if (exists($check->{skip}))
       {
         # If there's a skip check, see if the output matches it. If so, goto that index on the list.
-        $i = ($check->{skip}->{goto} - 1) if ($output =~ $check->{skip}->{output});
         print "Skipping to $i in sequence...\n" if ($verbose);
+        $i = ($check->{skip}->{goto} - 1) if ($output =~ $check->{skip}->{output});
       }
     }
     else
     {
-      print "Warning: Incorrect output... Stopping.\n" if ($verbose);
+      if (!$verbose) {
+        print "Input: " . $check->{input} . "\n";
+        print "Expected: " . $expected . "\n";
+        print "Output: " . $output . "\n";
+      }
       last;
     }
+  }
+
+  if ($i >= $length) {
+    print "Finished serial interaction successfully.\n";
+    return $output;
+  } else {
+    print "Serial interaction finished with incorrect output.\n";
+    return "";
   }
 }
 
@@ -340,6 +489,7 @@ my @devices;
 my $device;
 my $list_devices = 0;
 my $action;
+my $profile;
 my $ip;
 my $subnet;
 my $gateway;
@@ -349,6 +499,7 @@ GetOptions(
   'list' => \$list_devices,
   'verbose' => \$verbose,
   'action=s' => \$action,
+  'profile=s' => \$profile,
   'ip=s' => \$ip,
   'subnet=s' => \$subnet,
   'gateway=s' => \$gateway
@@ -357,11 +508,12 @@ GetOptions(
 if ($device)
 {
   my @successful_devices = @{test_serial_devices({devices => [$device]})};
-  if ($action && scalar(@successful_devices))
+  if ($action && $profile && scalar(@successful_devices))
   {
     perform_serial_action({
       device => $successful_devices[0],
       action => $action,
+      profile => $profile,
       ip => $ip,
       subnet => $subnet,
       gateway => $gateway
@@ -371,4 +523,11 @@ if ($device)
 else
 {
   find_serial_devices({list_devices => $list_devices});
+}
+
+sub trim
+{
+  my $str = $_[0];
+  $str =~ s/^\s+|\s+$//g;
+  return $str;
 }
