@@ -538,10 +538,10 @@ sub setup_stack_brocade_switch
     { input => "hitless-failover enable\r", output => "(Router|Switch)\Q(config)" },
     { input => "stack mac $mac_address\r", output => "(Router|Switch)\Q(config)" },
     { input => "stack unit 2\r", output => "(Router|Switch)\Q(config-unit-2)" },
-    { input => "priority 128\r", output => "\QPriority change needs 120 seconds to take effect.\E|is complete", wait_time => 125 },
+    { input => "priority 128\r", output => "", wait_time => 121 },
     { input => "exit\r", output => "(Router|Switch)\Q(config)" },
     { input => "write memory\r", output => "Write startup-config done|(Router|Switch)", timeout => 60 },
-    { input => "show stack\r", output => "\QCurrent stack management MAC is $mac_address", bytes_to_read => 8192 },
+    { input => "show stack\r", output => "\QCurrent stack management MAC is $mac_address", bytes_to_read => 8192, wait_time => 2 },
     { input => "exit\r", output => "(Router|Switch)\Q\#" },
     { input => "exit\r", output => "(Router|Switch)\Q>" }
   ];
