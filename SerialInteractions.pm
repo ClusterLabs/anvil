@@ -17,7 +17,7 @@ sub serial_actions
       { action => "setPassword", sub => \&set_password_brocade_switch, required_params => ["root_password", "alteeve_password"] },
       { action => "enableSNMP", sub => \&enable_snmp_brocade_switch, required_params => [] },
       { action => "unformStackAll", sub => \&unform_stack_all_brocade_switch, required_params => [] },
-      { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["brocade_switch_member_id"] }
+      { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["member_id"] }
     ],
 
     apcPDU => [
