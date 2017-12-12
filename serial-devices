@@ -304,7 +304,7 @@ sub perform_serial_action
 
   foreach my $action_type (@{$actions->{$profile}})
   {
-    my $output_check = $action_type->{output};
+    my $output_check = $action_type->{output} || "";
     if ($action eq $action_type->{action} && $device->{output} =~ /$output_check/)
     {
       my $proper_params = 1;
@@ -399,43 +399,33 @@ sub serial_interaction
 }
 
 my @devices;
-my $device;
-my $list_devices = 0;
-my $action;
-my $profile;
-my $ip;
-my $subnet;
-my $gateway;
 
-GetOptions(
-  'device=s' => \$device,
-  'list' => \$list_devices,
-  'verbose' => \$verbose,
-  'action=s' => \$action,
-  'profile=s' => \$profile,
-  'ip=s' => \$ip,
-  'subnet=s' => \$subnet,
-  'gateway=s' => \$gateway
+my $options = {};
+my @opt_define = (
+  'device=s',
+  'list',
+  'verbose',
+  'action=s',
+  'profile=s'
 );
+my $serial_opt_define = SerialInteractions::command_line_switches();
+push @opt_define, $_ foreach (@{$serial_opt_define});
+GetOptions($options, @opt_define);
 
-if ($device)
+$verbose = $options->{verbose};
+
+if ($options->{device})
 {
-  my @successful_devices = @{test_serial_devices({devices => [$device]})};
-  if ($action && $profile && scalar(@successful_devices))
+  my @successful_devices = @{test_serial_devices({devices => [$options->{device}]})};
+  if ($options->{action} && $options->{profile} && scalar(@successful_devices))
   {
-    perform_serial_action({
-      device => $successful_devices[0],
-      action => $action,
-      profile => $profile,
-      ip => $ip,
-      subnet => $subnet,
-      gateway => $gateway
-    });
+    $options->{device} = $successful_devices[0];
+    perform_serial_action($options);
   }
 }
 else
 {
-  find_serial_devices({list_devices => $list_devices});
+  find_serial_devices({list_devices => $options->{list}});
 }
 
 sub trim

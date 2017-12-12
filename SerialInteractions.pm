@@ -11,16 +11,38 @@ sub serial_actions
 {
   my $actions = {
     brocadeSwitch => [
-      { action => "factoryReset", output => "", sub => \&factory_reset_brocade_switch, required_params => [] },
-      { action => "setupVLAN", output => "", sub => \&setup_vlan_brocade_switch, required_params => [] },
-      { action => "setupStack", output => "", sub => \&setup_stack_brocade_switch, required_params => [] }
+      { action => "factoryReset", sub => \&factory_reset_brocade_switch, required_params => [] },
+      { action => "setupVLAN", sub => \&setup_vlan_brocade_switch, required_params => [] },
+      { action => "setupStack", sub => \&setup_stack_brocade_switch, required_params => [] },
+      { action => "setPassword", sub => \&set_password_brocade_switch, required_params => ["root_password", "alteeve_password"] },
+      { action => "enableSNMP", sub => \&enable_snmp_brocade_switch, required_params => [] },
+      { action => "unformStackAll", sub => \&unform_stack_all_brocade_switch, required_params => [] },
+      { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["brocade_switch_member_id"] }
     ],
 
     apcPDU => [
-      { action => "configureIP", output => "", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
+      { action => "configureIP", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
     ]
   };
   return $actions;
+}
+
+=head2 serial_command_line_switches
+
+Specifies a list of command line switches that will be used in serial actions.
+
+=cut
+sub command_line_switches
+{
+  my $switches = [
+    'ip=s',
+    'subnet=s',
+    'gateway=s',
+    'root_password=s',
+    'alteeve_password=s',
+    'member_id=s'
+  ];
+  return $switches;
 }
 
 =head2 configure_ip_apc_pdu
@@ -180,6 +202,97 @@ sub get_mac_address_from_stack_output
   }
 
   return $mac_address;
+}
+
+=head2 set_password_brocade_switch
+
+A serial action that sets passwords for a brocade switch.
+
+=cut
+sub set_password_brocade_switch
+{
+  my $parameter = shift;
+  my $root_password = defined $parameter->{root_password} ? $parameter->{root_password} : "";
+  my $alteeve_password = defined $parameter->{alteeve_password} ? $parameter->{alteeve_password} : "";
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "enable\r", output => "(Router|Switch)\#" },
+    { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
+    { input => "enable super-user-password $root_password\r", output => "(Router|Switch)\Q(config)"},
+    { input => "enable user disable-on-login-failure 10\r", output => "(Router|Switch)\Q(config)"},
+    { input => "user alteeve privilege 0 $alteeve_password\r", output => "(Router|Switch)\Q(config)"},
+    { input => "aaa authentication web-server default local\r", output => "(Router|Switch)\Q(config)"},
+    { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)>" }
+  ];
+  $parameter->{serial_interaction}($parameter);
+}
+
+=head2 enable_snmp_brocade_switch
+
+A serial action that enables SNMP Write for a brocade switch.
+
+=cut
+sub enable_snmp_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "enable\r", output => "(Router|Switch)\#" },
+    { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
+    { input => "snmp-server community public rw\r", output => "(Router|Switch)\Q(config)" },
+    { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)>" }
+  ];
+  $parameter->{serial_interaction}($parameter);
+}
+
+=head2 unform_stack_all_brocade_switch
+
+A serial action that removes stack configuration from all brocade switches.
+
+=cut
+sub unform_stack_all_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "enable\r", output => "(Router|Switch)\#" },
+    { input => "stack unconfigure all\r", output => "Will dismantle the entire stack and recover pre-stacking startup config. Are you sure? (enter 'y' or 'n'): "},
+    { input => "y", output=> "However, it can be turned into a member by an active unit running secure-setup"},
+    { input => "\r", output=> "(Router|Switch)\#"},
+    { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)>" }
+  ];
+  $parameter->{serial_interaction}($parameter);
+}
+
+=head2 unform_stack_member_brocade_switch
+
+A serial action that removes stack configuration from a specified Brocade member switch.
+
+=cut
+sub unform_stack_member_brocade_switch
+{
+  my $parameter = shift;
+  my $member_id = defined $parameter->{member_id} ? $parameter->{member_id} : "";
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "enable\r", output => "(Router|Switch)\#" },
+    { input => "stack unconfigure $member_id\r", output=> "Will recover pre-stacking startup config of this unit, and reset it. Are you sure? (enter 'y' or 'n'): "},
+    { input => "y", output=> "Stack 2 deletes stack bootup flash and recover startup-config.txt from .old"},
+    { input => "\r", output=> "(Router|Switch)\#"},
+    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)>" }
+  ];
+  $parameter->{serial_interaction}($parameter);
 }
 
 1;
