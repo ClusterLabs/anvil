@@ -22,6 +22,8 @@ my $THIS_FILE = "Database.pm";
 # get_local_id
 # initialize
 # insert_or_update_hosts
+# insert_or_update_jobs
+# insert_or_update_network_interfaces
 # insert_or_update_states
 # insert_or_update_variables
 # lock_file
@@ -1437,6 +1439,297 @@ WHERE
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
 	return(0);
+}
+
+
+=head2 insert_or_update_jobs
+
+This updates (or inserts) a record in the 'jobs' table. The C<< job_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 job_uuid (optional)
+
+This is the C<< job_uuid >> to update. If it is not specified but the C<< job_name >> is, a check will be made to see if an entry already exists. If so, that row will be UPDATEd. If not, a random UUID will be generated and a new entry will be INSERTed.
+
+* This or C<< job_name >> must be passed
+
+=head3 job_name (required*)
+
+This is the C<< job_name >> to INSERT or UPDATE. If a C<< job_uuid >> is passed, then the C<< job_name >> can be changed.
+
+* This or C<< job_uuid >> must be passed
+
+=head3 job_host_uuid (optional)
+
+This is the host's UUID that this job entry belongs to. If not passed, C<< sys::host_uuid >> will be used.
+
+=head3 job_progress (required)
+
+This is a numeric value between C<< 0 >> and C<< 100 >>. The job will update this as it runs, with C<< 100 >> indicating that the job is complete. A value of C<< 0 >> will indicate that the job needs to be started. When the daemon picks up the job, it will set this to C<< 1 >>. Any value in between is set by the job itself.
+
+=head3 job_title (required*)
+
+This is a string key to display in the title of the box showing that the job is running.
+
+Variables can not be passed to this title key.
+
+* This is not required when C<< update_progress_only >> is set
+
+=head3 job_description (required*)
+
+This is a string key to display in the body of the box showing that the job is running.
+
+Variables can not be passed to this title key.
+
+* This is not required when C<< update_progress_only >> is set
+
+=cut 
+sub insert_or_update_jobs
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->insert_or_update_jobs()" }});
+	
+	my $job_uuid             = defined $parameter->{job_uuid}             ? $parameter->{job_uuid}             : "";
+	my $job_host_uuid        = defined $parameter->{job_host_uuid}        ? $parameter->{job_host_uuid}        : $anvil->data->{sys}{host_uuid};
+	my $job_type             = defined $parameter->{job_type}             ? $parameter->{job_type}             : "";
+	my $job_name             = defined $parameter->{job_name}             ? $parameter->{job_name}             : "";
+	my $job_progress         = defined $parameter->{job_progress}         ? $parameter->{job_progress}         : "";
+	my $job_title            = defined $parameter->{job_title}            ? $parameter->{job_title}            : "";
+	my $job_description      = defined $parameter->{job_description}      ? $parameter->{job_description}      : "";
+	my $update_progress_only = defined $parameter->{update_progress_only} ? $parameter->{update_progress_only} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		job_uuid             => $job_uuid, 
+		job_host_uuid        => $job_host_uuid, 
+		job_type             => $job_type, 
+		job_name             => $job_name, 
+		job_progress         => $job_progress, 
+		job_title            => $job_title, 
+		job_description      => $job_description, 
+		update_progress_only => $update_progress_only, 
+	}});
+	
+	# If I have a job_uuid and update_progress_only is true, I only need the progress.
+	my $problem = 0;
+	
+	# Do I have a valid progress?
+	if (($job_progress !~ /^\d/) or ($job_progress < 0) or ($job_progress > 100))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0138", variables => { method => "Database->insert_or_update_jobs()", job_progress => $job_progress }});
+		$problem = 1;
+	}
+	
+	# Make sure I have the either a valid job UUID or a name
+	if ((not $anvil->Validate->is_uuid({uuid => $job_uuid})) && (not $job_name))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0136", variables => { 
+			method   => "Database->insert_or_update_jobs()", 
+			job_name => $job_name,
+			job_uuid => $job_uuid,
+		}});
+		$problem = 1;
+	}
+	
+	# Unless I am updating the progress, make sure everything is passed.
+	if (not $update_progress_only)
+	{
+		# Everything is required, except 'job_uuid'. So, job type?
+		if (not $job_type)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_jobs()", parameter => "job_type" }});
+			$problem = 1;
+		}
+		elsif (($job_type ne "normal") && ($job_type ne "slow"))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0137", variables => { 
+				method         => "Database->insert_or_update_jobs()", 
+				module         => "Database",
+				variable_name  => "job_type",
+				variable_value => $job_type, 
+			}});
+			$problem = 1;
+		}
+		
+		# Job name?
+		if (not $job_name)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_jobs()", parameter => "job_name" }});
+			$problem = 1;
+		}
+		
+		# Job name?
+		if (not $job_title)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_jobs()", parameter => "job_title" }});
+			$problem = 1;
+		}
+		
+		# Job description?
+		if (not $job_description)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_jobs()", parameter => "job_description" }});
+			$problem = 1;
+		}
+	}
+	
+	# We're done if there was a problem
+	if ($problem)
+	{
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given job server name.
+	if (not $job_uuid)
+	{
+		my $query = "
+SELECT 
+    job_uuid 
+FROM 
+    jobs 
+WHERE 
+    job_name      = ".$anvil->data->{sys}{use_db_fh}->quote($job_name)." 
+AND 
+    job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			$job_uuid = $row->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		}
+	}
+	
+	# If I still don't have an job_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+	if (not $job_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $anvil->Database->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		   $job_uuid = $anvil->Get->uuid();
+		my $query      = "
+INSERT INTO 
+    jobs 
+(
+    job_uuid, 
+    job_host_uuid, 
+    job_type, 
+    job_name,
+    job_progress, 
+    job_title, 
+    job_description, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_type).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_title).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_description).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    job_host_uuid, 
+    job_type, 
+    job_name,
+    job_progress, 
+    job_title, 
+    job_description 
+FROM 
+    jobs 
+WHERE 
+    job_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_job_host_uuid   = $row->[0];
+			my $old_job_type        = $row->[1];
+			my $old_job_name        = $row->[2];
+			my $old_job_progress    = $row->[3];
+			my $old_job_title       = $row->[4];
+			my $old_job_description = $row->[5];
+			my $old_job_note        = $row->[6];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				old_job_name      => $old_job_name, 
+				old_job_host_uuid => $old_job_host_uuid, 
+				old_job_note      => $old_job_note, 
+			}});
+			
+			# Anything change?
+			if (($old_job_name      ne $job_name)      or 
+			    ($old_job_host_uuid ne $job_host_uuid) or 
+			    ($old_job_note      ne $job_note))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    jobs 
+SET 
+    job_name       = ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
+    job_host_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid).",  
+    job_note       = ".$anvil->data->{sys}{use_db_fh}->quote($job_note).", 
+    modified_date    = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    job_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+";
+				$query =~ s/'NULL'/NULL/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+	return($job_uuid);
 }
 
 

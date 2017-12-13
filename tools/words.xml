@@ -206,6 +206,9 @@ The database connection error was:
 		<key name="log_0133">Failed to read the system UUID. Received a non-UUID string: [#!variable!uuid!#]. Is the user: [#!variable!user!#] in the 'kmem' group?</key>
 		<key name="log_0134">The read host UUID: [#!variable!uuid!#] does not appear to be a valid UUID.</key>
 		<key name="log_0135">Runtime was approximately: [#!variable!runtime!#] seconds.</key>
+		<key name="log_0136"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called with either 'job_uuid': [#!variable!job_uuid!#] not being passed (or was not a valid UUID), or 'job_name': [#!variable!job_name!#] not being passed.]]></key>
+		<key name="log_0137"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called with an invalid value for: [#!variable!variable_name!#]: -> [#!variable!variable_value!#]. See 'perldoc Anvil::Tools::#!variable!module!#' for valid options.]]></key>
+		<key name="log_0138"><![CDATA[[ Error ] - The method: [#!variable!method!#] was with an invalid 'job_progress': [#!variable!job_progress!#]. It needs to be a whole-number value between 0 and 100, inclusive.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

@@ -273,6 +273,69 @@ CREATE TRIGGER trigger_variables
 	FOR EACH ROW EXECUTE PROCEDURE history_variables();
 
 
+-- This holds jobs to be run.
+CREATE TABLE jobs (
+	job_uuid			uuid				not null	primary key,	-- 
+	job_host_uuid			uuid				not null,			-- This is the host that requested the job
+	job_type			text				not null,			-- This indicates which daemon should run this job ('normal' = anvil_daemon, 'slow' = anvil_jobs)
+	job_name			text				not null,			-- This is the 'x::y::z' style job name.
+	job_progress			numeric				not null,			-- An "approximate" percentage completed
+	job_title			text				not null,			-- This is a word key for the title of this job
+	job_description			text				not null,			-- This is a word key that describes this job.
+	modified_date			timestamp with time zone	not null,
+	
+	FOREIGN KEY(job_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE jobs OWNER TO #!job!user!#;
+
+CREATE TABLE history.jobs (
+	history_id			bigserial,
+	job_uuid			uuid,
+	job_host_uuid			uuid,
+	job_type			text,
+	job_name			text,
+	job_progress			numeric,
+	job_title			text,
+	job_description			text,
+	modified_date			timestamp with time zone	not null 
+);
+ALTER TABLE history.jobs OWNER TO #!job!user!#;
+
+CREATE FUNCTION history_jobs() RETURNS trigger
+AS $$
+DECLARE
+	history_jobs RECORD;
+BEGIN
+	SELECT INTO history_jobs * FROM jobs WHERE job_uuid = new.job_uuid;
+	INSERT INTO history.jobs
+		(job_uuid, 
+		 job_host_uuid, 
+		 job_type, 
+		 job_name, 
+		 job_progress, 
+		 job_title, 
+		 job_description, 
+		 modified_date)
+	VALUES
+		(history_jobs.job_uuid,
+		 history_jobs.job_host_uuid, 
+		 history_jobs.job_type, 
+		 history_jobs.job_name, 
+		 history_jobs.job_progress, 
+		 history_jobs.job_title, 
+		 history_jobs.job_description, 
+		 history_jobs.modified_date);
+	RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_jobs() OWNER TO #!job!user!#;
+
+CREATE TRIGGER trigger_jobs
+	AFTER INSERT OR UPDATE ON jobs
+	FOR EACH ROW EXECUTE PROCEDURE history_jobs();
+
+
 -- ------------------------------------------------------------------------------------------------------- --
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --
 -- ------------------------------------------------------------------------------------------------------- --
