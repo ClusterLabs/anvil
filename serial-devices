@@ -367,8 +367,10 @@ sub serial_interaction
       hide_output => !$expected,
       expected_output => ($check->{wait_for_output} ? $expected : "")
     });
+    my $error = ($check->{error_check} && $check->{error_check}->{output} && ($output =~ $check->{error_check}->{output}));
+    print $check->{error_check}->{message} . "\n" if ($error && $check->{error_check}->{message});
     # Only continue if the output matches the expected one.
-    if ($output =~ /$expected/)
+    if (!$error && $output =~ /$expected/)
     {
       #print "Correct output...\n" if ($verbose);
       if (exists($check->{skip}))

@@ -18,6 +18,7 @@ sub serial_actions
       { action => "enableSNMP", sub => \&enable_snmp_brocade_switch, required_params => [] },
       { action => "unformStackAll", sub => \&unform_stack_all_brocade_switch, required_params => [] },
       { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["member_id"] }
+      { action => "setIP", sub => \&set_ip_brocade_switch, required_params => ["switch_ip_address"] }
     ],
 
     apcPDU => [
@@ -40,7 +41,9 @@ sub command_line_switches
     'gateway=s',
     'root_password=s',
     'alteeve_password=s',
-    'member_id=s'
+    'member_id=s',
+    'switch_ip_address=s',
+    'switch_subnet_address=s'
   ];
   return $switches;
 }
@@ -223,7 +226,7 @@ sub set_password_brocade_switch
     { input => "enable user disable-on-login-failure 10\r", output => "(Router|Switch)\Q(config)"},
     { input => "user alteeve privilege 0 $alteeve_password\r", output => "(Router|Switch)\Q(config)"},
     { input => "aaa authentication web-server default local\r", output => "(Router|Switch)\Q(config)"},
-    { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "write memory\r\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
@@ -244,7 +247,7 @@ sub enable_snmp_brocade_switch
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
     { input => "snmp-server community public rw\r", output => "(Router|Switch)\Q(config)" },
-    { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "write memory\r\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
@@ -266,7 +269,7 @@ sub unform_stack_all_brocade_switch
     { input => "stack unconfigure all\r", output => "Will dismantle the entire stack and recover pre-stacking startup config. Are you sure? (enter 'y' or 'n'): "},
     { input => "y", output=> "However, it can be turned into a member by an active unit running secure-setup"},
     { input => "\r", output=> "(Router|Switch)\#"},
-    { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "write memory\r\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
@@ -291,6 +294,29 @@ sub unform_stack_member_brocade_switch
     { input => "\r", output=> "(Router|Switch)\#"},
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
+  ];
+  $parameter->{serial_interaction}($parameter);
+}
+
+=head2 set_ip_brocade_switch
+
+A serial action that sets the IP address and subnet for a brocade switch.
+
+=cut
+sub set_ip_brocade_switch
+{
+  my $parameter = shift;
+  my $switch_ip_address = defined $parameter->{switch_ip_address} ? $parameter->{switch_ip_address} : "";
+  my $switch_subnet_address = defined $parameter->{switch_subnet_address} ? $parameter->{switch_subnet_address} : "255.255.0.0";
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\r\r", output => "Switch>", error_check => { message => "Error: Brocade switch is not running the correct firmware type. Please flash to a current S version.", output => "Router"} },
+    { input => "enable\r", output => "Switch\#" },
+    { input => "configure terminal\r", output => "Switch\Q(config)" },
+    { input => "ip address $switch_ip_address $switch_subnet_address\r", output => "Switch\Q(config)" }
+    { input => "write memory\r\r", output => "Write startup-config done|Switch\Q(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "exit\r", output => "Switch\#" },
+    { input => "exit\r", output => "Switch>" }
   ];
   $parameter->{serial_interaction}($parameter);
 }
