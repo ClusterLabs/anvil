@@ -199,11 +199,19 @@ sub get_telnet_output
 {
   my $parameter = shift;
   my $telnet = defined $parameter->{telnet} ? $parameter->{telnet} : "";
-  my $str_to_write = defined $parameter->{str_to_write} ? $parameter->{str_to_write} : "\r\r";
+  my $str_to_write = defined $parameter->{str_to_write} ? $parameter->{str_to_write} : "\n\n";
+  $str_to_write =~ s/\r/\n/g;
+  my $wait_time = defined $parameter->{wait_time} ? $parameter->{wait_time} : 0;
+  my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 10;
   my $hide_output = defined $parameter->{hide_output} ? $parameter->{hide_output} : 0;
   my $expected_output = defined $parameter->{expected_output} ? $parameter->{expected_output} : "";
-  my @output_list = $telnet->cmd(String => $str_to_write);
-  my $output = join('\n', @output_list);
+
+  $telnet->put($str_to_write);
+  sleep_with_output($wait_time);
+  my ($prematch, $match) = $telnet->waitfor(Match => '/' . $expected_output . '/', Timeout => $timeout) if ($expected_output);
+  my $output = $prematch . $match . $telnet->get(Timeout => $timeout);
+  $telnet->buffer_empty();
+
   my $empty = (!$output || ($output =~ /^\s*$/));
   $empty = (!($output =~ /$expected_output/)) if (!$empty);
   print($empty ? "Warning - Improper Output: $output\n" : "Output: $output\n") if ($verbose && !$hide_output);
@@ -304,17 +312,21 @@ sub create_connection
   my $parameter = shift;
   my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
   my $device = defined $parameter->{device} ? $parameter->{device} : {};
+  my $connected = 0;
 
   if ($connection_type eq "serial")
   {
     $parameter->{port} = create_serial_port({device => $device->{device},
-      baud_rate => $device->{baud_rate}}) || return 0;
+      baud_rate => $device->{baud_rate}});
+    $connected = 1 if ($parameter->{port});
   }
   elsif ($connection_type eq "telnet")
   {
-    $parameter->{telnet} = new Net::Telnet();
-    $parameter->{telnet}->open($parameter->{telnet_host});
+    $parameter->{telnet} = new Net::Telnet(Errmode => "return");
+    $connected = 1 if ($parameter->{telnet}->open($parameter->{telnet_host}));
   }
+
+  return $connected;
 }
 
 sub close_connection
@@ -326,7 +338,7 @@ sub close_connection
 
 =head2 perform_device_action
 
-Matches a serial action+profile+output from a list, and calls a specific subroutine based on that.
+Matches a device action+profile+output from a list, and calls a specific subroutine based on that.
 
 Creates a serial connection with the baud rate found for a device, and closes it
 when all interactions are finished.
@@ -350,7 +362,13 @@ sub perform_device_action
   my $profile = defined $parameter->{profile} ? $parameter->{profile} : {};
   my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
   my $actions = DeviceInteractions::device_actions();
-  $connection_type ? create_connection($parameter) : return 0;
+  my $connected = ($connection_type ? create_connection($parameter) : 0);
+
+  if (!$connected)
+  {
+    print "Unable to connect to the device.\n";
+    return 0;
+  }
 
   foreach my $action_type (@{$actions->{$profile}})
   {
@@ -365,13 +383,13 @@ sub perform_device_action
       }
       if ($proper_params)
       {
-        print "Performing serial action: $action ($profile)\n";
+        print "Performing device action: $action ($profile)\n";
         $parameter->{device_interaction} = \&device_interaction;
         $action_type->{sub}($parameter);
       }
       else
       {
-        print "Improper parameters for serial interaction.\n";
+        print "Improper parameters for device interaction.\n";
       }
       last;
     }
@@ -419,7 +437,7 @@ sub device_interaction
       wait_time => (defined($check->{wait_time}) ? $check->{wait_time} : 1),
       timeout => ($check->{timeout} || 0),
       hide_output => !$expected,
-      expected_output => ($check->{wait_for_output} ? $expected : "")
+      expected_output => ($check->{wait_for_output} || $connection_type eq "telnet" ? $expected : "")
     });
     my $error = ($check->{error_check} && $check->{error_check}->{output} && ($output =~ $check->{error_check}->{output}));
     print $check->{error_check}->{message} . "\n" if ($error && $check->{error_check}->{message});
@@ -439,10 +457,11 @@ sub device_interaction
       if (!$verbose) {
         print "Input: " . $check->{input} . "\n";
         print "Expected: " . $expected . "\n";
-        print "Output: " . $output . "\n";
+        print "Output: " . $output . "\n\n";
       }
       last;
     }
+    print "\n" if ($output && $expected && $verbose);
   }
 
   if ($i >= $length) {

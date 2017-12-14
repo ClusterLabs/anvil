@@ -28,7 +28,8 @@ sub device_actions
 
     apcUPS => [
       { action => "setIP", sub => \&set_ip_apc_ups, required_params => ["ip", "subnet", "gateway", "striker_dash1_ip"] },
-      { action => "factoryReset", sub => \&factory_reset_apc_ups, required_params => [] }
+      { action => "factoryReset", sub => \&factory_reset_apc_ups, required_params => [] },
+      { action => "testing", sub => \&testing_apc_ups, required_params => [] }
     ]
   };
   return $actions;
@@ -57,7 +58,7 @@ sub command_line_switches
 
 =head2 configure_ip_apc_pdu
 
-A serial action that sets the ip, gateway, and subnet for an APC RackPDU.
+A device action that sets the ip, gateway, and subnet for an APC RackPDU.
 
 =cut
 sub configure_ip_apc_pdu
@@ -93,7 +94,7 @@ sub configure_ip_apc_pdu
 
 =head2 factory_reset_brocade_switch
 
-A serial action that factory resets a brocade switch.
+A device action that factory resets a brocade switch.
 
 =cut
 sub factory_reset_brocade_switch
@@ -115,7 +116,7 @@ sub factory_reset_brocade_switch
 
 =head2 setup_vlan_brocade_switch
 
-A serial action that sets up vlan for a brocade switch.
+A device action that sets up vlan for a brocade switch.
 
 =cut
 sub setup_vlan_brocade_switch
@@ -144,7 +145,7 @@ sub setup_vlan_brocade_switch
 
 =head2 setup_stack_brocade_switch
 
-A serial action that sets up the stack for a brocade switch.
+A device action that sets up the stack for a brocade switch.
 
 =cut
 sub setup_stack_brocade_switch
@@ -216,7 +217,7 @@ sub get_mac_address_from_stack_output
 
 =head2 set_password_brocade_switch
 
-A serial action that sets passwords for a brocade switch.
+A device action that sets passwords for a brocade switch.
 
 =cut
 sub set_password_brocade_switch
@@ -242,7 +243,7 @@ sub set_password_brocade_switch
 
 =head2 enable_snmp_brocade_switch
 
-A serial action that enables SNMP Write for a brocade switch.
+A device action that enables SNMP Write for a brocade switch.
 
 =cut
 sub enable_snmp_brocade_switch
@@ -263,7 +264,7 @@ sub enable_snmp_brocade_switch
 
 =head2 unform_stack_all_brocade_switch
 
-A serial action that removes stack configuration from all brocade switches.
+A device action that removes stack configuration from all brocade switches.
 
 =cut
 sub unform_stack_all_brocade_switch
@@ -285,7 +286,7 @@ sub unform_stack_all_brocade_switch
 
 =head2 unform_stack_member_brocade_switch
 
-A serial action that removes stack configuration from a specified Brocade member switch.
+A device action that removes stack configuration from a specified Brocade member switch.
 
 =cut
 sub unform_stack_member_brocade_switch
@@ -307,7 +308,7 @@ sub unform_stack_member_brocade_switch
 
 =head2 set_ip_brocade_switch
 
-A serial action that sets the IP address and subnet for a brocade switch.
+A device action that sets the IP address and subnet for a brocade switch.
 
 =cut
 sub set_ip_brocade_switch
@@ -330,7 +331,7 @@ sub set_ip_brocade_switch
 
 =head2 set_jumbo_frames_brocade_switch
 
-A serial action that enables jumbo frames for a brocade switch.
+A device action that enables jumbo frames for a brocade switch.
 
 =cut
 sub set_jumbo_frames_brocade_switch
@@ -353,7 +354,7 @@ sub set_jumbo_frames_brocade_switch
 
 =head2 configure_ip_apc_ups
 
-A serial action that sets the ip, gateway, and subnet for an APC UPS.
+A device action that sets the ip, gateway, and subnet for an APC UPS.
 
 =cut
 sub set_ip_apc_ups
@@ -366,26 +367,25 @@ sub set_ip_apc_ups
   $parameter->{to_check} = [
     { input => "\e", output => "", message => "Bringing it back to the beginning..." },
     { input => "\e", output => "" },
-    { input => "\e", output => "" },
-    { input => "4\r", output => "" },
-    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
-    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "\equit\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4 },
     { input => "apc\r", output => "apc>" },
     { input => "tcpip -i $ip -s $subnet -g $gateway\r", output => "E002: Success" },
     { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " },
     { input => "YES\r", output => "Rebooting..." },
-    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
-    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4 },
     { input => "apc\r", output => "apc>" },
     { input => "ping $striker_dash1_ip\r", output => "Reply from $striker_dash1_ip" },
-    { input => "quit\r", output => "Bye." },
+    { input => "quit\r", output => "Bye" },
   ];
   $parameter->{device_interaction}($parameter);
 }
 
 =head2 factory_reset_apc_ups
 
-A serial action that resets an APC UPS to factory defaults.
+A device action that resets an APC UPS to factory defaults.
 
 =cut
 sub factory_reset_apc_ups
@@ -394,19 +394,39 @@ sub factory_reset_apc_ups
   $parameter->{to_check} = [
     { input => "\e", output => "", message => "Bringing it back to the beginning..." },
     { input => "\e", output => "" },
-    { input => "\e", output => "" },
-    { input => "4\r", output => "" },
-    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
-    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "\equit\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4},
     { input => "apc\r", output => "apc>" },
     { input => "resetToDef -p all\r", output => "Enter 'YES' to continue or <ENTER> to cancel : "},
     { input => "YES\r", output => "Please wait..." },
     { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " },
     { input => "YES\r", output => "Rebooting..." },
-    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
-    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4 },
     { input => "apc\r", output => "apc>" },
-    { input => "quit\r", output => "Bye." },
+    { input => "quit\r", output => "Bye" },
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 testing_apc_ups
+
+A device action for testing if the connection worked.
+
+=cut
+sub testing_apc_ups
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "" },
+    { input => "\equit\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4 },
+    { input => "apc\r", output => "apc>" },
+    { input => "?\r", output => "Device Commands:" },
+    { input => "quit\r", output => "Bye" },
   ];
   $parameter->{device_interaction}($parameter);
 }
