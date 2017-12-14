@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 
-package SerialInteractions;
+package DeviceInteractions;
 
-=head2 serial_actions
+=head2 device_actions
 
 Returns a hash of serial actions, with a subroutine for each profile+action.
 
 =cut
-sub serial_actions
+sub device_actions
 {
   my $actions = {
     brocadeSwitch => [
@@ -88,7 +88,7 @@ sub configure_ip_apc_pdu
     { input => "\e", output => "------- Control Console" },
     { input => "4\r", output => "Logging out." },
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 factory_reset_brocade_switch
@@ -110,7 +110,7 @@ sub factory_reset_brocade_switch
     { input => "y\r", output => "Rebooting|Reload request sent" },
     { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 setup_vlan_brocade_switch
@@ -139,7 +139,7 @@ sub setup_vlan_brocade_switch
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 setup_stack_brocade_switch
@@ -167,7 +167,7 @@ sub setup_stack_brocade_switch
     { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 },
     { input => "show stack\r", output => "\Qalone: standalone", bytes_to_read => 8192 },
   ];
-  my $output = $parameter->{serial_interaction}($parameter);
+  my $output = $parameter->{device_interaction}($parameter);
   my $mac_address = get_mac_address_from_stack_output({output => $output});
 
   $parameter->{to_check} = [
@@ -183,7 +183,7 @@ sub setup_stack_brocade_switch
     { input => "exit\r", output => "(Router|Switch)\Q\#" },
     { input => "exit\r", output => "(Router|Switch)\Q>" }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 sub get_mac_address_from_stack_output
@@ -237,7 +237,7 @@ sub set_password_brocade_switch
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 enable_snmp_brocade_switch
@@ -258,7 +258,7 @@ sub enable_snmp_brocade_switch
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 unform_stack_all_brocade_switch
@@ -280,7 +280,7 @@ sub unform_stack_all_brocade_switch
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 unform_stack_member_brocade_switch
@@ -302,7 +302,7 @@ sub unform_stack_member_brocade_switch
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 set_ip_brocade_switch
@@ -320,12 +320,12 @@ sub set_ip_brocade_switch
     { input => "\r\r", output => "Switch>", error_check => { message => "Error: Brocade switch is not running the correct firmware type. Please flash to a current S version.", output => "Router"} },
     { input => "enable\r", output => "Switch\#" },
     { input => "configure terminal\r", output => "Switch\Q(config)" },
-    { input => "ip address $switch_ip_address $switch_subnet_address\r", output => "Switch\Q(config)" }
+    { input => "ip address $switch_ip_address $switch_subnet_address\r", output => "Switch\Q(config)" },
     { input => "write memory\r\r", output => "Write startup-config done|Switch\Q(config)", bytes_to_read => 8192, timeout => 60 },
     { input => "exit\r", output => "Switch\#" },
     { input => "exit\r", output => "Switch>" }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 set_jumbo_frames_brocade_switch
@@ -348,7 +348,7 @@ sub set_jumbo_frames_brocade_switch
     { input => "y\r", output => "Rebooting|Reload request sent" },
     { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 }
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 configure_ip_apc_ups
@@ -372,15 +372,15 @@ sub set_ip_apc_ups
     { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
     { input => "apc\r", output => "apc>" },
     { input => "tcpip -i $ip -s $subnet -g $gateway\r", output => "E002: Success" },
-    { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " }
-    { input => "YES\r", output => "Rebooting..." }
+    { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " },
+    { input => "YES\r", output => "Rebooting..." },
     { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
     { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
     { input => "apc\r", output => "apc>" },
-    { input => "ping $striker_dash1_ip\r", output => "Reply from $striker_dash1_ip" }
+    { input => "ping $striker_dash1_ip\r", output => "Reply from $striker_dash1_ip" },
     { input => "quit\r", output => "Bye." },
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 =head2 factory_reset_apc_ups
@@ -401,14 +401,14 @@ sub factory_reset_apc_ups
     { input => "apc\r", output => "apc>" },
     { input => "resetToDef -p all\r", output => "Enter 'YES' to continue or <ENTER> to cancel : "},
     { input => "YES\r", output => "Please wait..." },
-    { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " }
-    { input => "YES\r", output => "Rebooting..." }
+    { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " },
+    { input => "YES\r", output => "Rebooting..." },
     { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
     { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
     { input => "apc\r", output => "apc>" },
     { input => "quit\r", output => "Bye." },
   ];
-  $parameter->{serial_interaction}($parameter);
+  $parameter->{device_interaction}($parameter);
 }
 
 1;

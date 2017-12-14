@@ -1,8 +1,9 @@
 #!/usr/bin/perl
 
 use Device::SerialPort;
+use Net::Telnet ();
 use Getopt::Long;
-use SerialInteractions;
+use DeviceInteractions;
 
 my @baud_rates = (9600, 115200);
 my $verbose = 0;
@@ -168,7 +169,6 @@ sub get_serial_output
   $port->write($str_to_write);
   $port->lookclear();
 
-
   print "Please wait for a maximum of " . $timeout . " seconds." if ($show_timeout_output);
   $| = 1 if ($show_timeout_output);
 
@@ -191,8 +191,33 @@ sub get_serial_output
 
   $| = 0 if ($show_timeout_output);
   $port->close() if ($should_close);
-  print($empty ? "Warning: Empty Output\n" : "Output: $output\n") if ($verbose && !$hide_output);
+  print($empty ? "Warning - Improper Output: $output\n" : "Output: $output\n") if ($verbose && !$hide_output);
   return $output;
+}
+
+sub get_telnet_output
+{
+  my $parameter = shift;
+  my $telnet = defined $parameter->{telnet} ? $parameter->{telnet} : "";
+  my $str_to_write = defined $parameter->{str_to_write} ? $parameter->{str_to_write} : "\r\r";
+  my $hide_output = defined $parameter->{hide_output} ? $parameter->{hide_output} : 0;
+  my $expected_output = defined $parameter->{expected_output} ? $parameter->{expected_output} : "";
+  my @output_list = $telnet->cmd(String => $str_to_write);
+  my $output = join('\n', @output_list);
+  my $empty = (!$output || ($output =~ /^\s*$/));
+  $empty = (!($output =~ /$expected_output/)) if (!$empty);
+  print($empty ? "Warning - Improper Output: $output\n" : "Output: $output\n") if ($verbose && !$hide_output);
+  return $output;
+}
+
+sub get_output
+{
+  my $parameter = shift;
+  my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
+
+  return get_telnet_output($parameter) if ($connection_type eq "telnet");
+  return get_serial_output($parameter) if ($connection_type eq "serial");
+  return "";
 }
 
 =head2 sleep_with_output
@@ -274,7 +299,33 @@ sub create_serial_port
   return $port;
 }
 
-=head2 perform_serial_action
+sub create_connection
+{
+  my $parameter = shift;
+  my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
+  my $device = defined $parameter->{device} ? $parameter->{device} : {};
+
+  if ($connection_type eq "serial")
+  {
+    $parameter->{port} = create_serial_port({device => $device->{device},
+      baud_rate => $device->{baud_rate}}) || return 0;
+  }
+  elsif ($connection_type eq "telnet")
+  {
+    $parameter->{telnet} = new Net::Telnet();
+    $parameter->{telnet}->open($parameter->{telnet_host});
+    $parameter->{telnet}->login($parameter->{username}, $parameter->{password});
+  }
+}
+
+sub close_connection
+{
+  my $parameter = shift;
+  $parameter->{telnet}->close() if ($connection_type eq "telnet");
+  $parameter->{port}->close() if ($connection_type eq "serial");
+}
+
+=head2 perform_device_action
 
 Matches a serial action+profile+output from a list, and calls a specific subroutine based on that.
 
@@ -292,15 +343,15 @@ A serial device path name.
 An action that matches one on the list of actions.
 
 =cut
-sub perform_serial_action
+sub perform_device_action
 {
   my $parameter = shift;
   my $device = defined $parameter->{device} ? $parameter->{device} : {};
   my $action = defined $parameter->{action} ? $parameter->{action} : {};
   my $profile = defined $parameter->{profile} ? $parameter->{profile} : {};
-  my $actions = SerialInteractions::serial_actions();
-
-  $parameter->{port} = create_serial_port({device => $device->{device}, baud_rate => $device->{baud_rate}}) || return 0;
+  my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
+  my $actions = DeviceInteractions::device_actions();
+  $connection_type ? create_connection($parameter) : return 0;
 
   foreach my $action_type (@{$actions->{$profile}})
   {
@@ -316,7 +367,7 @@ sub perform_serial_action
       if ($proper_params)
       {
         print "Performing serial action: $action ($profile)\n";
-        $parameter->{serial_interaction} = \&serial_interaction;
+        $parameter->{device_interaction} = \&device_interaction;
         $action_type->{sub}($parameter);
       }
       else
@@ -327,10 +378,10 @@ sub perform_serial_action
     }
   }
 
-  $parameter->{port}->close();
+  close_connection($paramter);
 }
 
-=head2 serial_interaction
+=head2 device_interaction
 
 Interacts through a serial connection with a list of inputs and expected outputs.
 Stops if any incorrect output was found.
@@ -342,11 +393,13 @@ Stops if any incorrect output was found.
 A connected instance of Device::SerialPort.
 
 =cut
-sub serial_interaction
+sub device_interaction
 {
   my $parameter = shift;
+  my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
   my @to_check = @{$parameter->{to_check}};
-  my $port = defined $parameter->{port} ? $parameter->{port} : return 0;
+  my $port = (defined $parameter->{port} ? $parameter->{port} : return 0) if ($connection_type eq "serial");
+  my $telnet = (defined $parameter->{telnet} ? $parameter->{telnet} : return 0) if ($connection_type eq "telnet");
   my $i = 0;
   my $length = scalar(@to_check);
   my $output = "";
@@ -358,8 +411,10 @@ sub serial_interaction
     print $check->{message} . "\n" if ($verbose && $check->{message});
     print "Input: " . $check->{input} . "\n" if ($verbose && $expected);
     print "Expected: " . $expected . "\n" if ($verbose && $expected);
-    $output = get_serial_output({
+    $output = get_output({
+      connection_type => $connection_type,
       port => $port,
+      telnet => $telnet,
       str_to_write => $check->{input},
       bytes_to_read => ($check->{bytes_to_read} || 1024),
       wait_time => (defined($check->{wait_time}) ? $check->{wait_time} : 1),
@@ -392,10 +447,10 @@ sub serial_interaction
   }
 
   if ($i >= $length) {
-    print "Finished serial interaction successfully.\n";
+    print "Finished device interaction successfully.\n";
     return $output;
   } else {
-    print "Serial interaction finished with incorrect output.\n";
+    print "Device interaction finished with incorrect output.\n";
     return "";
   }
 }
@@ -404,30 +459,41 @@ my @devices;
 
 my $options = {};
 my @opt_define = (
-  'device=s',
-  'list',
+  'serial_device=s',
+  'list_serial_devices',
+  'show_serial_devices',
   'verbose',
   'action=s',
-  'profile=s'
+  'profile=s',
+  'telnet_host=s',
+  'username=s',
+  'password=s'
 );
-my $serial_opt_define = SerialInteractions::command_line_switches();
-push @opt_define, $_ foreach (@{$serial_opt_define});
+my $device_opt_define = DeviceInteractions::command_line_switches();
+push @opt_define, $_ foreach (@{$device_opt_define});
 GetOptions($options, @opt_define);
 
 $verbose = $options->{verbose};
 
-if ($options->{device})
+if ($options->{serial_device})
 {
-  my @successful_devices = @{test_serial_devices({devices => [$options->{device}]})};
+  $options->{connection_type} = "serial";
+  my @successful_devices = @{test_serial_devices({devices => [$options->{serial_device}]})};
   if ($options->{action} && $options->{profile} && scalar(@successful_devices))
   {
     $options->{device} = $successful_devices[0];
-    perform_serial_action($options);
+    perform_device_action($options);
   }
 }
-else
+elsif ($options->{list_serial_devices} || $options->{show_serial_devices})
 {
-  find_serial_devices({list_devices => $options->{list}});
+  $options->{connection_type} = "serial";
+  find_serial_devices({list_devices => $options->{list_serial_devices}});
+}
+elsif ($options->{telnet_host})
+{
+  $options->{connection_type} = "telnet";
+  perform_device_action($options);
 }
 
 sub trim
