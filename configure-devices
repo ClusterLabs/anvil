@@ -314,7 +314,6 @@ sub create_connection
   {
     $parameter->{telnet} = new Net::Telnet();
     $parameter->{telnet}->open($parameter->{telnet_host});
-    $parameter->{telnet}->login($parameter->{username}, $parameter->{password});
   }
 }
 
@@ -465,9 +464,7 @@ my @opt_define = (
   'verbose',
   'action=s',
   'profile=s',
-  'telnet_host=s',
-  'username=s',
-  'password=s'
+  'telnet_host=s'
 );
 my $device_opt_define = DeviceInteractions::command_line_switches();
 push @opt_define, $_ foreach (@{$device_opt_define});
