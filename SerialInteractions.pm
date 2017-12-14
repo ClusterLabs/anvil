@@ -17,12 +17,18 @@ sub serial_actions
       { action => "setPassword", sub => \&set_password_brocade_switch, required_params => ["root_password", "alteeve_password"] },
       { action => "enableSNMP", sub => \&enable_snmp_brocade_switch, required_params => [] },
       { action => "unformStackAll", sub => \&unform_stack_all_brocade_switch, required_params => [] },
-      { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["member_id"] }
-      { action => "setIP", sub => \&set_ip_brocade_switch, required_params => ["switch_ip_address"] }
+      { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["member_id"] },
+      { action => "setIP", sub => \&set_ip_brocade_switch, required_params => ["switch_ip_address"] },
+      { action => "setJumboFrames", sub => \&set_jumbo_frames_brocade_switch, required_params => [] }
     ],
 
     apcPDU => [
-      { action => "configureIP", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
+      { action => "setIP", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
+    ],
+
+    apcUPS => [
+      { action => "setIP", sub => \&set_ip_apc_ups, required_params => ["ip", "subnet", "gateway", "striker_dash1_ip"] },
+      { action => "factoryReset", sub => \&factory_reset_apc_ups, required_params => [] }
     ]
   };
   return $actions;
@@ -43,7 +49,8 @@ sub command_line_switches
     'alteeve_password=s',
     'member_id=s',
     'switch_ip_address=s',
-    'switch_subnet_address=s'
+    'switch_subnet_address=s',
+    'striker_dash1_ip=s'
   ];
   return $switches;
 }
@@ -317,6 +324,89 @@ sub set_ip_brocade_switch
     { input => "write memory\r\r", output => "Write startup-config done|Switch\Q(config)", bytes_to_read => 8192, timeout => 60 },
     { input => "exit\r", output => "Switch\#" },
     { input => "exit\r", output => "Switch>" }
+  ];
+  $parameter->{serial_interaction}($parameter);
+}
+
+=head2 set_jumbo_frames_brocade_switch
+
+A serial action that enables jumbo frames for a brocade switch.
+
+=cut
+sub set_jumbo_frames_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "enable\r", output => "(Router|Switch)\#" },
+    { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
+    { input => "jumbo\r", output => "Jumbo mode setting requires a reload to take effect!"},
+    { input => "write memory\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
+    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "reload\r", output => "Are you sure" },
+    { input => "y\r", output => "Rebooting|Reload request sent" },
+    { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 }
+  ];
+  $parameter->{serial_interaction}($parameter);
+}
+
+=head2 configure_ip_apc_ups
+
+A serial action that sets the ip, gateway, and subnet for an APC UPS.
+
+=cut
+sub set_ip_apc_ups
+{
+  my $parameter = shift;
+  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+  my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
+  my $gateway = defined $parameter->{gateway} ? $parameter->{gateway} : "";
+  my $striker_dash1_ip = defined $parameter->{striker_dash1_ip} ? $parameter->{striker_dash1_ip} : "";
+  $parameter->{to_check} = [
+    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "" },
+    { input => "\e", output => "" },
+    { input => "4\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "apc>" },
+    { input => "tcpip -i $ip -s $subnet -g $gateway\r", output => "E002: Success" },
+    { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " }
+    { input => "YES\r", output => "Rebooting..." }
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "apc>" },
+    { input => "ping $striker_dash1_ip\r", output => "Reply from $striker_dash1_ip" }
+    { input => "quit\r", output => "Bye." },
+  ];
+  $parameter->{serial_interaction}($parameter);
+}
+
+=head2 factory_reset_apc_ups
+
+A serial action that resets an APC UPS to factory defaults.
+
+=cut
+sub factory_reset_apc_ups
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "" },
+    { input => "\e", output => "" },
+    { input => "4\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "apc>" },
+    { input => "resetToDef -p all\r", output => "Enter 'YES' to continue or <ENTER> to cancel : "},
+    { input => "YES\r", output => "Please wait..." },
+    { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " }
+    { input => "YES\r", output => "Rebooting..." }
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "apc>" },
+    { input => "quit\r", output => "Bye." },
   ];
   $parameter->{serial_interaction}($parameter);
 }
