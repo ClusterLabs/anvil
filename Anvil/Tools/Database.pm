@@ -1697,33 +1697,63 @@ WHERE
 			my $old_job_progress    = $row->[3];
 			my $old_job_title       = $row->[4];
 			my $old_job_description = $row->[5];
-			my $old_job_note        = $row->[6];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				old_job_name      => $old_job_name, 
-				old_job_host_uuid => $old_job_host_uuid, 
-				old_job_note      => $old_job_note, 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_job_host_uuid   => $old_job_host_uuid,
+				old_job_type        => $old_job_type, 
+				old_job_name        => $old_job_name, 
+				old_job_progress    => $old_job_progress,
+				old_job_title       => $old_job_title, 
+				old_job_description => $old_job_description, 
 			}});
 			
 			# Anything change?
-			if (($old_job_name      ne $job_name)      or 
-			    ($old_job_host_uuid ne $job_host_uuid) or 
-			    ($old_job_note      ne $job_note))
+			if ($update_progress_only)
 			{
-				# Something changed, save.
-				my $query = "
+				if ($old_job_progress ne $job_progress)
+				{
+					# Something changed, save.
+					my $query = "
 UPDATE 
     jobs 
 SET 
-    job_name       = ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
-    job_host_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid).",  
-    job_note       = ".$anvil->data->{sys}{use_db_fh}->quote($job_note).", 
-    modified_date    = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    job_progress  = ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
+    modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
-    job_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+    job_uuid      = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
 ";
-				$query =~ s/'NULL'/NULL/g;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					$query =~ s/'NULL'/NULL/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+			}
+			else
+			{
+				if (($old_job_host_uuid   ne $job_host_uuid) or 
+				    ($old_job_type        ne $job_type)      or 
+				    ($old_job_name        ne $job_name)      or 
+				    ($old_job_progress    ne $job_progress)  or 
+				    ($old_job_title       ne $job_title)     or 
+				    ($old_job_description ne $job_description))
+				{
+					# Something changed, save.
+					my $query = "
+UPDATE 
+    jobs 
+SET 
+    job_host_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid).",  
+    job_type        = ".$anvil->data->{sys}{use_db_fh}->quote($job_type).", 
+    job_name        = ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
+    job_progress    = ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
+    job_title       = ".$anvil->data->{sys}{use_db_fh}->quote($job_title).", 
+    job_description = ".$anvil->data->{sys}{use_db_fh}->quote($job_description).", 
+    modified_date   = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    job_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+";
+					$query =~ s/'NULL'/NULL/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
 			}
 		}
 	}
