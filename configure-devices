@@ -444,6 +444,7 @@ sub device_interaction
     # Only continue if the output matches the expected one.
     if (!$error && $output =~ /$expected/)
     {
+      print $check->{success_message} . "\n" if ($check->{success_message});
       #print "Correct output...\n" if ($verbose);
       if (exists($check->{skip}))
       {
