@@ -637,6 +637,7 @@ sub _set_defaults
 									"bridges",
 									"hosts",
 									"host_variable",
+									"jobs",
 									"network_interfaces",
 									"states",
 									"updated",
