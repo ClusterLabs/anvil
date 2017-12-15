@@ -29,6 +29,7 @@ sub device_actions
     apcUPS => [
       { action => "setIP", sub => \&set_ip_apc_ups, required_params => ["ip", "subnet", "gateway", "striker_dash1_ip"] },
       { action => "factoryReset", sub => \&factory_reset_apc_ups, required_params => [] },
+      { action => "enableSNMP", sub => \&enable_snmp_apc_ups, required_params => [] },
       { action => "testing", sub => \&testing_apc_ups, required_params => [] }
     ]
   };
@@ -378,6 +379,32 @@ sub set_ip_apc_ups
     { input => "apc\r", output => "Password  :", timeout => 4 },
     { input => "apc\r", output => "apc>" },
     { input => "ping $striker_dash1_ip\r", output => "Reply from $striker_dash1_ip" },
+    { input => "quit\r", output => "Bye" },
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 enable_snmp_apc_ups
+
+A device action that enables SNMP for an APC UPS.
+
+=cut
+sub enable_snmp_apc_ups
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "" },
+    { input => "\equit\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4 },
+    { input => "apc\r", output => "apc>" },
+    { input => "snmp -S enable\r", output => "E002: Success" },
+    { input => "reboot\r", output => "Enter 'YES' to continue or <ENTER> to cancel : " },
+    { input => "YES\r", output => "Rebooting..." },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4 },
+    { input => "apc\r", output => "apc>" },
     { input => "quit\r", output => "Bye" },
   ];
   $parameter->{device_interaction}($parameter);
