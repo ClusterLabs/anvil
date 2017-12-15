@@ -23,7 +23,8 @@ sub device_actions
     ],
 
     apcPDU => [
-      { action => "setIP", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] }
+      { action => "setIP", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] },
+      { action => "checkSNMP", sub => \&check_snmp_apc_pdu, required_params => ["ip"] }
     ],
 
     apcUPS => [
@@ -89,6 +90,21 @@ sub configure_ip_apc_pdu
     { input => "\e", output => "------- Network" },
     { input => "\e", output => "------- Control Console" },
     { input => "4\r", output => "Logging out." },
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_snmp_apc_pdu
+
+A serial action that checks for SNMP on an APC PDU.
+
+=cut
+sub check_snmp_apc_pdu
+{
+  my $parameter = shift;
+  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+  $parameter->{to_check} = [
+    { input => "sysDescr.0", check_snmp => "$ip", output => "APC Web/SNMP Management Card", success_message => "SNMP is up on the APC PDU.\n" }
   ];
   $parameter->{device_interaction}($parameter);
 }

@@ -220,11 +220,25 @@ sub get_telnet_output
   return $output;
 }
 
+sub get_snmp_output
+{
+  my $parameter = shift;
+  my $check_snmp = defined $parameter->{check_snmp} ? $parameter->{check_snmp} : "";
+  my $expected_output = defined $parameter->{expected_output} ? $parameter->{expected_output} : "";
+  my $hide_output = defined $parameter->{hide_output} ? $parameter->{hide_output} : 0;
+  my $str_to_check = defined $parameter->{str_to_write} ? $parameter->{str_to_write} : "sysDescr.0";
+  my $output = `snmpget -v1 -c public $check_snmp $str_to_check`;
+  my $empty = (!$output || ($output =~ /^\s*$/));
+  print($empty ? "Warning - Empty Output\n" : "Output: $output\n") if ($verbose && !$hide_output);
+  return $output;
+}
+
 sub get_output
 {
   my $parameter = shift;
   my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
 
+  return get_snmp_output($parameter) if ($parameter->{check_snmp});
   return get_telnet_output($parameter) if ($connection_type eq "telnet");
   return get_serial_output($parameter) if ($connection_type eq "serial");
   return "";
@@ -437,7 +451,8 @@ sub device_interaction
       wait_time => (defined($check->{wait_time}) ? $check->{wait_time} : 1),
       timeout => ($check->{timeout} || 0),
       hide_output => !$expected,
-      expected_output => ($check->{wait_for_output} || $connection_type eq "telnet" ? $expected : "")
+      expected_output => ($check->{wait_for_output} || $connection_type eq "telnet" ? $expected : ""),
+      check_snmp => $check->{check_snmp}
     });
     my $error = ($check->{error_check} && $check->{error_check}->{output} && ($output =~ $check->{error_check}->{output}));
     print $check->{error_check}->{message} . "\n" if ($error && $check->{error_check}->{message});
