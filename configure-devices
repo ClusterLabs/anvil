@@ -35,7 +35,7 @@ sub find_serial_devices
     if ($file =~ /ttyUSB.*/)
     {
       my $path = $dev_path . "/$file";
-      push @devices, $path;
+      unshift @devices, $path;
     }
   }
 
@@ -158,6 +158,7 @@ sub get_serial_output
   my $time_spent = -1;
   my $output;
   my $empty = 1;
+  my $improper = 1;
   my $show_timeout_output = ($timeout && $timeout > 5);
 
   if (!$port)
@@ -172,12 +173,12 @@ sub get_serial_output
   print "Please wait for a maximum of " . $timeout . " seconds." if ($show_timeout_output);
   $| = 1 if ($show_timeout_output);
 
-  while ($empty && (!$timeout || $time_spent < $timeout))
+  while ($improper && (!$timeout || $time_spent < $timeout))
   {
     sleep_with_output($timeout ? 1 : $wait_time);
     $output = $port->read($timeout && $wait_time ? 256 : $bytes_to_read);
     $empty = (!$output || ($output =~ /^\s*$/));
-    $empty = (!($output =~ /$expected_output/)) if (!$empty);
+    $improper = $empty || (!($output =~ /$expected_output/));
     print "." if ($show_timeout_output && (($time_spent % 4) == 0));
     print ".\n" if ($show_timeout_output && !$empty);
     # If waiting for a read on a timeout, perform the wait time after the first successful read.
@@ -187,11 +188,12 @@ sub get_serial_output
       $output .= $port->read($bytes_to_read);
     }
     $time_spent++;
+    last if (!$timeout);
   }
 
   $| = 0 if ($show_timeout_output);
   $port->close() if ($should_close);
-  print($empty ? "Warning - Improper Output: $output\n" : "Output: $output\n") if ($verbose && !$hide_output);
+  print($improper ? ($empty ? "Warning - Empty Output\n" : "Warning - Improper Output: $output\n") : "Output: $output\n") if ($verbose && !$hide_output);
   return $output;
 }
 
