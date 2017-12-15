@@ -322,9 +322,11 @@ sub create_connection
   }
   elsif ($connection_type eq "telnet")
   {
-    $parameter->{telnet} = new Net::Telnet(Errmode => "return");
+    $parameter->{telnet} = new Net::Telnet(Timeout => ($parameter->{connection_timeout} || 10), Errmode => "return");
     $connected = 1 if ($parameter->{telnet}->open($parameter->{telnet_host}));
   }
+
+  print "Unable to connect to the device using $connection_type.\n" if (!$connected);
 
   return $connected;
 }
@@ -364,11 +366,7 @@ sub perform_device_action
   my $actions = DeviceInteractions::device_actions();
   my $connected = ($connection_type ? create_connection($parameter) : 0);
 
-  if (!$connected)
-  {
-    print "Unable to connect to the device.\n";
-    return 0;
-  }
+  return 0 if (!$connected);
 
   foreach my $action_type (@{$actions->{$profile}})
   {
@@ -395,7 +393,7 @@ sub perform_device_action
     }
   }
 
-  close_connection($paramter);
+  close_connection($parameter);
 }
 
 =head2 device_interaction
@@ -450,6 +448,15 @@ sub device_interaction
         # If there's a skip check, see if the output matches it. If so, goto that index on the list.
         print "Skipping to $i in sequence...\n" if ($verbose);
         $i = ($check->{skip}->{goto} - 1) if ($output =~ $check->{skip}->{output});
+      }
+      if ($check->{reconnect} && $telnet)
+      {
+        close_connection($parameter);
+	sleep($check->{reconnect_wait} || 5);
+	$parameter->{connection_timeout} = $check->{reconnect_timeout} || 10;
+	print "Please wait for a maximum of " . $parameter->{connection_timeout} . " seconds for the device to reconnect.\n";
+	create_connection($parameter);
+        $telnet = (defined $parameter->{telnet} ? $parameter->{telnet} : return 0) if ($connection_type eq "telnet");
       }
     }
     else
