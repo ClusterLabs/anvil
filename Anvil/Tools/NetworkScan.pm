@@ -451,7 +451,7 @@ sub _get_ips
 	my $self      = shift;
 	my $anvil     = $self->parent;
 
-	$anvil->System->_get_ips();
+	$anvil->System->get_ips();
 	my @ips;
 	foreach my $interface (keys %{$anvil->data->{sys}{networks}})
 	{
