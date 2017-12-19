@@ -470,10 +470,10 @@ sub device_interaction
       if ($check->{reconnect} && $telnet)
       {
         close_connection($parameter);
-	sleep($check->{reconnect_wait} || 5);
-	$parameter->{connection_timeout} = $check->{reconnect_timeout} || 10;
-	print "Please wait for a maximum of " . $parameter->{connection_timeout} . " seconds for the device to reconnect.\n";
-	create_connection($parameter);
+      	sleep($check->{reconnect_wait} || 5);
+      	$parameter->{connection_timeout} = $check->{reconnect_timeout} || 10;
+      	print "Please wait for a maximum of " . $parameter->{connection_timeout} . " seconds for the device to reconnect.\n";
+      	create_connection($parameter);
         $telnet = (defined $parameter->{telnet} ? $parameter->{telnet} : return 0) if ($connection_type eq "telnet");
       }
     }

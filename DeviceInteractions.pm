@@ -2,9 +2,11 @@
 
 package DeviceInteractions;
 
+my $beginning_message = "Bringing it back to the beginning...";
+
 =head2 device_actions
 
-Returns a hash of serial actions, with a subroutine for each profile+action.
+Returns a hash of device actions, with a subroutine for each profile+action.
 
 =cut
 sub device_actions
@@ -19,19 +21,25 @@ sub device_actions
       { action => "unformStackAll", sub => \&unform_stack_all_brocade_switch, required_params => [] },
       { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["member_id"] },
       { action => "setIP", sub => \&set_ip_brocade_switch, required_params => ["switch_ip_address"] },
-      { action => "setJumboFrames", sub => \&set_jumbo_frames_brocade_switch, required_params => [] }
+      { action => "setJumboFrames", sub => \&set_jumbo_frames_brocade_switch, required_params => [] },
+      { action => "checkIP", sub => \&check_ip_brocade_switch, required_params => ["ip", "subnet"] },
+      { action => "checkFirmware", sub => \&check_firmware_brocade_switch, required_params => [] },
+      { action => "checkStack", sub => \&check_stack_brocade_switch, required_params => [] },
+      { action => "checkVLAN", sub => \&check_vlan_brocade_switch, required_params => [] },
+      { action => "checkJumboFrames", sub => \&check_jumbo_frames_brocade_switch, required_params => [] }
     ],
 
     apcPDU => [
       { action => "setIP", sub => \&configure_ip_apc_pdu, required_params => ["ip", "subnet", "gateway"] },
-      { action => "checkSNMP", sub => \&check_snmp_apc_pdu, required_params => ["ip"] }
+      { action => "checkSNMP", sub => \&check_snmp_apc_pdu, required_params => ["ip"] },
+      { action => "checkIP", sub => \&check_ip_apc_pdu, required_params => ["ip", "subnet"] }
     ],
 
     apcUPS => [
       { action => "setIP", sub => \&set_ip_apc_ups, required_params => ["ip", "subnet", "gateway", "striker_dash1_ip"] },
       { action => "factoryReset", sub => \&factory_reset_apc_ups, required_params => [] },
       { action => "enableSNMP", sub => \&enable_snmp_apc_ups, required_params => [] },
-      { action => "testing", sub => \&testing_apc_ups, required_params => [] }
+      { action => "checkIP", sub => \&check_ip_apc_ups, required_params => ["ip", "subnet"] }
     ]
   };
   return $actions;
@@ -39,7 +47,7 @@ sub device_actions
 
 =head2 serial_command_line_switches
 
-Specifies a list of command line switches that will be used in serial actions.
+Specifies a list of command line switches that will be used in device actions.
 
 =cut
 sub command_line_switches
@@ -70,7 +78,7 @@ sub configure_ip_apc_pdu
   my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
   my $gateway = defined $parameter->{gateway} ? $parameter->{gateway} : "";
   $parameter->{to_check} = [
-    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "", message => "$beginning_message" },
     { input => "\e", output => "" },
     { input => "\e", output => "" },
     { input => "4\r", output => "" },
@@ -96,15 +104,50 @@ sub configure_ip_apc_pdu
 
 =head2 check_snmp_apc_pdu
 
-A serial action that checks for SNMP on an APC PDU.
+A device action that checks for SNMP on an APC PDU.
 
 =cut
 sub check_snmp_apc_pdu
 {
   my $parameter = shift;
-  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
   $parameter->{to_check} = [
     { input => "sysDescr.0", check_snmp => "$ip", output => "APC Web/SNMP Management Card", success_message => "SNMP is up on the APC PDU.\n" }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_ip_apc_pdu
+
+A device action that checks the IP settings on an APC PDU.
+
+=cut
+sub check_ip_apc_pdu
+{
+  my $parameter = shift;
+  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+  my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
+  $parameter->{to_check} = [
+    { input => "\e", output => "", message => "$beginning_message" },
+    { input => "\e", output => "" },
+    { input => "\e", output => "" },
+    { input => "4\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "Password  :", timeout => 4, wait_time => 0 },
+    { input => "apc\r", output => "------- Control Console" },
+    { input => "2\r", output => "------- Network" },
+    { input => "1\r", output => "\QTCP/IP" }
+  ];
+  my $output = $parameter->{device_interaction}($parameter);
+  my @matches = ($output =~ /\S.*?:\s*.+?(?=(\s{2}|\n|$))/g);
+  my %info = map { my ($key, $value) = split /\s+:\s+/; $key => $value } @matches;
+  print "$_: $info{$_}\n" foreach (keys(%info));
+  my $correct = ($info{"System IP"} =~ $ip) && ($info{"Subnet Mask"} =~ $subnet);
+  print "Networking: " . ($correct ? "Correct" : "Incorrect") . "\n";
+
+  $parameter->{to_check} = [
+    { input => "\e", output => "------- Network" },
+    { input => "\e", output => "------- Control Console" },
+    { input => "4\r", output => "Logging out." },
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -119,7 +162,7 @@ sub factory_reset_brocade_switch
   print "This action will require a reset. This will take at least 3 minutes.\n";
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "erase startup-config\r", output => "Erase startup-config Done.|config empty." },
@@ -140,7 +183,7 @@ sub setup_vlan_brocade_switch
 {
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
@@ -170,7 +213,7 @@ sub setup_stack_brocade_switch
   print "This action will require a reset. This will take at least 3 minutes.\n";
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
@@ -243,7 +286,7 @@ sub set_password_brocade_switch
   my $root_password = defined $parameter->{root_password} ? $parameter->{root_password} : "";
   my $alteeve_password = defined $parameter->{alteeve_password} ? $parameter->{alteeve_password} : "";
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
@@ -267,7 +310,7 @@ sub enable_snmp_brocade_switch
 {
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
@@ -288,7 +331,7 @@ sub unform_stack_all_brocade_switch
 {
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "stack unconfigure all\r", output => "Will dismantle the entire stack and recover pre-stacking startup config. Are you sure? (enter 'y' or 'n'): "},
@@ -311,7 +354,7 @@ sub unform_stack_member_brocade_switch
   my $parameter = shift;
   my $member_id = defined $parameter->{member_id} ? $parameter->{member_id} : "";
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "stack unconfigure $member_id\r", output=> "Will recover pre-stacking startup config of this unit, and reset it. Are you sure? (enter 'y' or 'n'): "},
@@ -334,7 +377,7 @@ sub set_ip_brocade_switch
   my $switch_ip_address = defined $parameter->{switch_ip_address} ? $parameter->{switch_ip_address} : "";
   my $switch_subnet_address = defined $parameter->{switch_subnet_address} ? $parameter->{switch_subnet_address} : "255.255.0.0";
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "Switch>", error_check => { message => "Error: Brocade switch is not running the correct firmware type. Please flash to a current S version.", output => "Router"} },
     { input => "enable\r", output => "Switch\#" },
     { input => "configure terminal\r", output => "Switch\Q(config)" },
@@ -355,7 +398,7 @@ sub set_jumbo_frames_brocade_switch
 {
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "n\rexit\rexit\rexit\r", output => "", message => "Bringing it back to the beginning..." },
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
@@ -365,6 +408,107 @@ sub set_jumbo_frames_brocade_switch
     { input => "reload\r", output => "Are you sure" },
     { input => "y\r", output => "Rebooting|Reload request sent" },
     { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_firmware_brocade_switch
+
+A device action that checks for the correct firmware on a Brocade switch.
+
+=cut
+sub check_firmware_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "show version\r", output => "labeled as FCXS", error_check => { message => "Error: Brocade switch is not running the correct firmware type. Please flash to a current S version.", output => "labeled as FCXR"}, success_message => "Firmware: Correct" },
+    { input => "Q", output => "(Router|Switch)>" },
+    { input => "exit\r", output => "Connection closed by foreign host." }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_firmware_brocade_switch
+
+A device action that checks for the correct firmware on a Brocade switch.
+
+=cut
+sub check_ip_brocade_switch
+{
+  my $parameter = shift;
+  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+  my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "show ip\r", output => ""}
+  ];
+  my $output = $parameter->{device_interaction}($parameter);
+  my @matches = ($output =~ /\S.*?:\s*.+?(?=(\s{2}|\n|$))/g);
+  my %info = map { my ($key, $value) = split /:\s+/; $key => $value } @matches;
+  print "$_: $info{$_}\n" foreach (keys(%info));
+  my $correct = ($info{"Switch IP address"} =~ $ip) && ($info{"Subnet mask"} =~ $subnet);
+  print "Networking: " . ($correct ? "Correct" : "Incorrect") . "\n";
+
+  $parameter->{to_check} = [
+    { input => "exit\r", output => "Connection closed by foreign host." }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_stack_brocade_switch
+
+A device action that checks stack configuration on a Brocade switch.
+
+=cut
+sub check_stack_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "show stack\r", output => "/(\Qactive\E)[\S\s]+(\Qstandby\E)/mg", success_message => "Stack: Correct" }
+    { input => "exit\r", output => "Connection closed by foreign host." }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_vlan_brocade_switch
+
+A device action that checks VLAN configuration on a Brocade switch.
+
+=cut
+sub check_vlan_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "show vlan b", output => "/(\QTotal Number of Vlan Configured :4\E)[\S\s]+(\Q100 200 300\E)/mg", success_message => "VLAN: Correct" }
+    { input => "exit\r", output => "Connection closed by foreign host." }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_jumbo_frames_brocade_switch
+
+A device action that checks jumbo frames status on a Brocade switch.
+
+=cut
+sub check_jumbo_frames_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "enable\r", output => "(Router|Switch)\#" },
+    { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
+    { input => "jumbo\r", output => "System already in Jumbo Mode!", success_message => "Jumbo Mode: Correct" }
+    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)>" }
+    { input => "exit\r", output => "Connection closed by foreign host."}
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -382,7 +526,7 @@ sub set_ip_apc_ups
   my $gateway = defined $parameter->{gateway} ? $parameter->{gateway} : "";
   my $striker_dash1_ip = defined $parameter->{striker_dash1_ip} ? $parameter->{striker_dash1_ip} : "";
   $parameter->{to_check} = [
-    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "", message => "$beginning_message" },
     { input => "\e", output => "" },
     { input => "\equit\r", output => "" },
     { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
@@ -409,7 +553,7 @@ sub enable_snmp_apc_ups
 {
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "", message => "$beginning_message" },
     { input => "\e", output => "" },
     { input => "\equit\r", output => "" },
     { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
@@ -435,7 +579,7 @@ sub factory_reset_apc_ups
 {
   my $parameter = shift;
   $parameter->{to_check} = [
-    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "", message => "$beginning_message" },
     { input => "\e", output => "" },
     { input => "\equit\r", output => "" },
     { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
@@ -453,23 +597,35 @@ sub factory_reset_apc_ups
   $parameter->{device_interaction}($parameter);
 }
 
-=head2 testing_apc_ups
 
-A device action for testing if the connection worked.
+=head2 check_ip_apc_ups
+
+A device action that checks the IP settings on an APC UPS.
 
 =cut
-sub testing_apc_ups
+sub check_ip_apc_ups
 {
   my $parameter = shift;
+  my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+  my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
   $parameter->{to_check} = [
-    { input => "\e", output => "", message => "Bringing it back to the beginning..." },
+    { input => "\e", output => "", message => "$beginning_message" },
     { input => "\e", output => "" },
     { input => "\equit\r", output => "" },
     { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
-    { input => "apc\r", output => "Password  :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4},
     { input => "apc\r", output => "apc>" },
-    { input => "?\r", output => "Device Commands:" },
-    { input => "quit\r", output => "Bye" },
+    { input => "tcpip\r", output => "E000: Success" }
+  ];
+  my $output = $parameter->{device_interaction}($parameter);
+  my @matches = ($output =~ /\S.*?:\s*.+?(?=(\s{2}|\n|$))/g);
+  my %info = map { my ($key, $value) = split /:\s+/; $key => $value } @matches;
+  print "$_: $info{$_}\n" foreach (keys(%info));
+  my $correct = ($info{"Active IPv4 Address"} =~ $ip) && ($info{"Subnet Mask"} =~ $subnet);
+  print "Networking: " . ($correct ? "Correct" : "Incorrect") . "\n";
+
+  $parameter->{to_check} = [
+    { input => "quit\r", output => "Bye" }
   ];
   $parameter->{device_interaction}($parameter);
 }
