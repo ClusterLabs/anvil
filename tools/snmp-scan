@@ -170,7 +170,7 @@ sub get_snmp_var {
 
 sub get_model_list {
   my $json_text = "";
-  open(my $fh, '<:utf8', 'snmp-models.json');
+  open(my $fh, '<:utf8', '/usr/sbin/anvil/snmp-models.json');
   while (my $row = <$fh>) {
     chomp $row;
     $json_text .= $row;
