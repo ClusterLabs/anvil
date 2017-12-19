@@ -20,7 +20,7 @@ sub device_actions
       { action => "enableSNMP", sub => \&enable_snmp_brocade_switch, required_params => [] },
       { action => "unformStackAll", sub => \&unform_stack_all_brocade_switch, required_params => [] },
       { action => "unformStackMember", sub => \&unform_stack_member_brocade_switch, required_params => ["member_id"] },
-      { action => "setIP", sub => \&set_ip_brocade_switch, required_params => ["switch_ip_address"] },
+      { action => "setIP", sub => \&set_ip_brocade_switch, required_params => ["ip", "subnet"] },
       { action => "setJumboFrames", sub => \&set_jumbo_frames_brocade_switch, required_params => [] },
       { action => "checkIP", sub => \&check_ip_brocade_switch, required_params => ["ip", "subnet"] },
       { action => "checkFirmware", sub => \&check_firmware_brocade_switch, required_params => [] },
@@ -59,8 +59,6 @@ sub command_line_switches
     'root_password=s',
     'alteeve_password=s',
     'member_id=s',
-    'switch_ip_address=s',
-    'switch_subnet_address=s',
     'striker_dash1_ip=s'
   ];
   return $switches;
@@ -191,7 +189,7 @@ sub setup_vlan_brocade_switch
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
     { input => "show vlan\r\03\r\r", output => "Total PORT-VLAN entries" },
-    { input => "vlan 100 name bcn\r", output => "(Router|Switch)\Q-(config-vlan-100)" },
+    { input => "vlan 100 name bcn\r", output => "(Router|Switch)\Q(config-vlan-100)" },
     { input => "untag ethernet 1/3/1 ethernet 1/3/5 ethernet 2/3/1 ethernet 2/3/5 ethernet 1/1/1 to 1/1/12 ethernet 2/1/1 to 2/1/12\r\r", output => "\Qethe 1/1/1 to 1/1/12 ethe 1/3/1 ethe 1/3/5 ethe 2/1/1 to 2/1/12 ethe 2/3/1 ethe 2/3/5" },
     { input => "vlan 200 name sn\r", output => "(Router|Switch)\Q(config-vlan-200)" },
     { input => "untag ethernet 1/3/2 ethernet 1/3/6 ethernet 2/3/2 ethernet 2/3/6 ethernet 1/1/13 to 1/1/16 ethernet 2/1/13 to 2/1/16\r", output => "\Qethe 1/1/13 to 1/1/16 ethe 1/3/2 ethe 1/3/6 ethe 2/1/13 to 2/1/16 ethe 2/3/2 ethe 2/3/6" },
@@ -200,7 +198,7 @@ sub setup_vlan_brocade_switch
     { input => "exit\r", output => "(Router|Switch)\Q(config)" },
     { input => "show vlan\r\03\r\r", output => "\QTotal PORT-VLAN entries: 4" },
     { input => "write memory\r\r", output => "Write startup-config done|\QRouter(config)", bytes_to_read => 8192, timeout => 60 },
-    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)\#|>" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
   $parameter->{device_interaction}($parameter);
@@ -222,32 +220,36 @@ sub setup_stack_brocade_switch
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
     { input => "stack enable\r", output => "" },
     { input => "exit\r", output => "(Router|Switch)\#" },
-    { input => "stack secure-setup\r", output => "Discovering the stack topology", wait_time => 10, bytes_to_read => 8192, skip => { goto => 8, output => "No new units found" } },
+    { input => "stack secure-setup\r", output => "Discovering the stack topology", wait_time => 10, bytes_to_read => 8192, skip => { goto => 8, output => "No.*units.*found|discovered" } },
     { input => "y\r", output => "Do you accept the unit id", wait_time => 5, bytes_to_read => 8192 },
     { input => "y\r", output => "Election|(Router|Switch)\#" },
-    { input => "write memory\r", output => "Write startup-config done|(Router|Switch)\#", timeout => 60 },
-    { input => "reload\r", output => "Are you sure" },
-    { input => "y\r", output => "Rebooting|Reload request sent" },
-    { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 },
+    { input => "write memory\r", output => "Write startup-config done|(Router|Switch)\#", wait_time => 5, timeout => 60 },
+    { input => "reload\r", output => "Are you sure|(Router|Switch)\#" },
+    { input => "y\ry\r", output => "Rebooting|Reload request sent|Do you want to continue the reload" },
+    { input => "\r\r", output => "(Router|Switch)>", timeout => 400, wait_for_output => 1, bytes_to_read => 16384 },
     { input => "show stack\r", output => "\Qalone: standalone", bytes_to_read => 8192 },
   ];
   my $output = $parameter->{device_interaction}($parameter);
-  my $mac_address = get_mac_address_from_stack_output({output => $output});
 
-  $parameter->{to_check} = [
-    { input => "exit\renable\r", output => "(Router|Switch)\#" },
-    { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
-    { input => "hitless-failover enable\r", output => "(Router|Switch)\Q(config)" },
-    { input => "stack mac $mac_address\r", output => "(Router|Switch)\Q(config)" },
-    { input => "stack unit 2\r", output => "(Router|Switch)\Q(config-unit-2)" },
-    { input => "priority 128\r", output => "", wait_time => 121 },
-    { input => "exit\r", output => "(Router|Switch)\Q(config)" },
-    { input => "write memory\r", output => "Write startup-config done|(Router|Switch)", timeout => 60 },
-    { input => "show stack\r", output => "\QCurrent stack management MAC is $mac_address", bytes_to_read => 8192, wait_time => 2 },
-    { input => "exit\r", output => "(Router|Switch)\Q\#" },
-    { input => "exit\r", output => "(Router|Switch)\Q>" }
-  ];
-  $parameter->{device_interaction}($parameter);
+  if ($output)
+  {
+    my $mac_address = get_mac_address_from_stack_output({output => $output});
+
+    $parameter->{to_check} = [
+      { input => "exit\renable\r", output => "(Router|Switch)\#" },
+      { input => "configure terminal\r", wait_time => 3, output => "(Router|Switch)\Q(config)" },
+      { input => "hitless-failover enable\r", output => "(Router|Switch)\Q(config)" },
+      { input => "stack mac $mac_address\r", wait_time => 3, output => "(Router|Switch)\Q(config)" },
+      { input => "stack unit 2\r", output => "(Router|Switch)\Q(config-unit-2)" },
+      { input => "priority 128\r", output => "", wait_time => 121 },
+      { input => "exit\r", output => "(Router|Switch)\Q(config)" },
+      { input => "write memory\r", output => "Write startup-config done|(Router|Switch)", timeout => 60 },
+      { input => "show stack\r", output => "\QCurrent stack management MAC is $mac_address", bytes_to_read => 8192, wait_time => 2 },
+      { input => "exit\r", output => "(Router|Switch)\#|>" },
+      { input => "exit\r", output => "(Router|Switch)\Q>" }
+    ];
+    $parameter->{device_interaction}($parameter);
+  }
 }
 
 sub get_mac_address_from_stack_output
@@ -298,7 +300,7 @@ sub set_password_brocade_switch
     { input => "user alteeve privilege 0 $alteeve_password\r", output => "(Router|Switch)\Q(config)"},
     { input => "aaa authentication web-server default local\r", output => "(Router|Switch)\Q(config)"},
     { input => "write memory\r\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
-    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)\#|>" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
   $parameter->{device_interaction}($parameter);
@@ -319,7 +321,7 @@ sub enable_snmp_brocade_switch
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
     { input => "snmp-server community public rw\r", output => "(Router|Switch)\Q(config)" },
     { input => "write memory\r\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
-    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)\#|>" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
   $parameter->{device_interaction}($parameter);
@@ -337,11 +339,11 @@ sub unform_stack_all_brocade_switch
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
-    { input => "stack unconfigure all\r", output => "Will dismantle the entire stack and recover pre-stacking startup config. Are you sure? (enter 'y' or 'n'): "},
-    { input => "y", output=> "However, it can be turned into a member by an active unit running secure-setup"},
+    { input => "stack unconfigure all\r", output => "Will dismantle the entire stack and recover pre-stacking startup config"},
+    { input => "y", output=> "Removed \"stack enable\" from startup-config"},
     { input => "\r", output=> "(Router|Switch)\#"},
     { input => "write memory\r\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
-    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)\#|>" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
   $parameter->{device_interaction}($parameter);
@@ -360,10 +362,10 @@ sub unform_stack_member_brocade_switch
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
-    { input => "stack unconfigure $member_id\r", output=> "Will recover pre-stacking startup config of this unit, and reset it. Are you sure? (enter 'y' or 'n'): "},
+    { input => "stack unconfigure $member_id\r", output=> "Will recover pre-stacking startup config of this unit, and reset it."},
     { input => "y", output=> "Stack 2 deletes stack bootup flash and recover startup-config.txt from .old"},
     { input => "\r", output=> "(Router|Switch)\#"},
-    { input => "exit\r", output => "(Router|Switch)\#" },
+    { input => "exit\r", output => "(Router|Switch)\#|>" },
     { input => "exit\r", output => "(Router|Switch)>" }
   ];
   $parameter->{device_interaction}($parameter);
@@ -377,8 +379,8 @@ A device action that sets the IP address and subnet for a brocade switch.
 sub set_ip_brocade_switch
 {
   my $parameter = shift;
-  my $switch_ip_address = defined $parameter->{switch_ip_address} ? $parameter->{switch_ip_address} : "";
-  my $switch_subnet_address = defined $parameter->{switch_subnet_address} ? $parameter->{switch_subnet_address} : "255.255.0.0";
+  my $switch_ip_address = defined $parameter->{ip} ? $parameter->{ip} : "";
+  my $switch_subnet_address = defined $parameter->{subnet} ? $parameter->{subnet} : "255.255.0.0";
   $parameter->{to_check} = [
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "Switch>", error_check => { message => "Error: Brocade switch is not running the correct firmware type. Please flash to a current S version.", output => "Router"} },
@@ -405,12 +407,13 @@ sub set_jumbo_frames_brocade_switch
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
-    { input => "jumbo\r", output => "Jumbo mode setting requires a reload to take effect!"},
+    { input => "jumbo\r", output => "Jumbo", skip => { goto => 10, output => "System already in Jumbo Mode!" } },
     { input => "write memory\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "reload\r", output => "Are you sure" },
     { input => "y\r", output => "Rebooting|Reload request sent" },
-    { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 }
+    { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 },
+    { input => "\r\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -472,7 +475,7 @@ sub check_stack_brocade_switch
   $parameter->{to_check} = [
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
-    { input => "show stack\r", output => "/(\Qactive\E)[\S\s]+(\Qstandby\E)/mg", success_message => "Stack: Correct" },
+    { input => "show stack\r", output => "active.*\n.*standby|member", success_message => "Stack: Correct" },
     { input => "exit\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
@@ -489,7 +492,7 @@ sub check_vlan_brocade_switch
   $parameter->{to_check} = [
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
-    { input => "show vlan b", output => "/(\QTotal Number of Vlan Configured :4\E)[\S\s]+(\Q100 200 300\E)/mg", success_message => "VLAN: Correct" },
+    { input => "show vlan b\r", output => "Total Number of Vlan Configured :4.*\n.*100 200 300", success_message => "VLAN: Correct" },
     { input => "exit\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
@@ -636,6 +639,13 @@ sub check_ip_apc_ups
     { input => "quit\r", output => "Logging out|Bye" }
   ];
   $parameter->{device_interaction}($parameter);
+}
+
+sub trim
+{
+  my $str = $_[0];
+  $str =~ s/^\s+|\s+$//g;
+  return $str;
 }
 
 1;
