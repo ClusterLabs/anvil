@@ -469,7 +469,7 @@ sub check_stack_brocade_switch
   $parameter->{to_check} = [
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
-    { input => "show stack\r", output => "/(\Qactive\E)[\S\s]+(\Qstandby\E)/mg", success_message => "Stack: Correct" }
+    { input => "show stack\r", output => "/(\Qactive\E)[\S\s]+(\Qstandby\E)/mg", success_message => "Stack: Correct" },
     { input => "exit\r", output => "Connection closed by foreign host." }
   ];
   $parameter->{device_interaction}($parameter);
@@ -486,7 +486,7 @@ sub check_vlan_brocade_switch
   $parameter->{to_check} = [
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
-    { input => "show vlan b", output => "/(\QTotal Number of Vlan Configured :4\E)[\S\s]+(\Q100 200 300\E)/mg", success_message => "VLAN: Correct" }
+    { input => "show vlan b", output => "/(\QTotal Number of Vlan Configured :4\E)[\S\s]+(\Q100 200 300\E)/mg", success_message => "VLAN: Correct" },
     { input => "exit\r", output => "Connection closed by foreign host." }
   ];
   $parameter->{device_interaction}($parameter);
@@ -505,9 +505,9 @@ sub check_jumbo_frames_brocade_switch
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
-    { input => "jumbo\r", output => "System already in Jumbo Mode!", success_message => "Jumbo Mode: Correct" }
+    { input => "jumbo\r", output => "System already in Jumbo Mode!", success_message => "Jumbo Mode: Correct" },
     { input => "exit\r", output => "(Router|Switch)\#" },
-    { input => "exit\r", output => "(Router|Switch)>" }
+    { input => "exit\r", output => "(Router|Switch)>" },
     { input => "exit\r", output => "Connection closed by foreign host."}
   ];
   $parameter->{device_interaction}($parameter);
