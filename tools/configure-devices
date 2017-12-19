@@ -432,6 +432,7 @@ sub device_interaction
   my $port = (defined $parameter->{port} ? $parameter->{port} : return 0) if ($connection_type eq "serial");
   my $telnet = (defined $parameter->{telnet} ? $parameter->{telnet} : return 0) if ($connection_type eq "telnet");
   my $i = 0;
+  my $incorrect = 0;
   my $length = scalar(@to_check);
   my $output = "";
 
@@ -457,7 +458,7 @@ sub device_interaction
     my $error = ($check->{error_check} && $check->{error_check}->{output} && ($output =~ $check->{error_check}->{output}));
     print $check->{error_check}->{message} . "\n" if ($error && $check->{error_check}->{message});
     # Only continue if the output matches the expected one.
-    if (!$error && $output =~ /$expected/)
+    if (!$error && (!$expected || $output =~ /$expected/))
     {
       print $check->{success_message} . "\n" if ($check->{success_message});
       #print "Correct output...\n" if ($verbose);
@@ -479,6 +480,7 @@ sub device_interaction
     }
     else
     {
+      $incorrect = 1;
       if (!$verbose) {
         print "Input: " . $check->{input} . "\n";
         print "Expected: " . $expected . "\n";
@@ -489,7 +491,7 @@ sub device_interaction
     print "\n" if ($output && $expected && $verbose);
   }
 
-  if ($i >= $length) {
+  if (!$incorrect) {
     print "Finished device interaction successfully.\n";
     return $output;
   } else {

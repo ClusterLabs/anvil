@@ -97,7 +97,7 @@ sub configure_ip_apc_pdu
     { input => "$gateway\r", output => "3- Default Gateway: $gateway" },
     { input => "\e", output => "------- Network" },
     { input => "\e", output => "------- Control Console" },
-    { input => "4\r", output => "Logging out." },
+    { input => "4\r", output => "Logging out|Bye" },
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -138,16 +138,19 @@ sub check_ip_apc_pdu
     { input => "1\r", output => "\QTCP/IP" }
   ];
   my $output = $parameter->{device_interaction}($parameter);
-  my @matches = ($output =~ /\S.*?:\s*.+?(?=(\s{2}|\n|$))/g);
+  my @matches = ($output =~ /(\S.*?:\s*.+?(?=(?:\s{2}|\n|$)))/g);
   my %info = map { my ($key, $value) = split /\s+:\s+/; $key => $value } @matches;
-  print "$_: $info{$_}\n" foreach (keys(%info));
+  foreach my $key (sort keys(%info))
+  {
+    print "$key: $info{$key}\n" if ($key !~ /\d-/);
+  }
   my $correct = ($info{"System IP"} =~ $ip) && ($info{"Subnet Mask"} =~ $subnet);
   print "Networking: " . ($correct ? "Correct" : "Incorrect") . "\n";
 
   $parameter->{to_check} = [
     { input => "\e", output => "------- Network" },
     { input => "\e", output => "------- Control Console" },
-    { input => "4\r", output => "Logging out." },
+    { input => "4\r", output => "Logging out|Bye" },
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -425,7 +428,7 @@ sub check_firmware_brocade_switch
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "show version\r", output => "labeled as FCXS", error_check => { message => "Error: Brocade switch is not running the correct firmware type. Please flash to a current S version.", output => "labeled as FCXR"}, success_message => "Firmware: Correct" },
     { input => "Q", output => "(Router|Switch)>" },
-    { input => "exit\r", output => "Connection closed by foreign host." }
+    { input => "exit\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -446,14 +449,14 @@ sub check_ip_brocade_switch
     { input => "show ip\r", output => ""}
   ];
   my $output = $parameter->{device_interaction}($parameter);
-  my @matches = ($output =~ /\S.*?:\s*.+?(?=(\s{2}|\n|$))/g);
+  my @matches = ($output =~ /(\S.*?:\s*.+?(?=(?:\s{2}|\n|$)))/g);
   my %info = map { my ($key, $value) = split /:\s+/; $key => $value } @matches;
-  print "$_: $info{$_}\n" foreach (keys(%info));
+  print "$_: $info{$_}\n" foreach (sort keys(%info));
   my $correct = ($info{"Switch IP address"} =~ $ip) && ($info{"Subnet mask"} =~ $subnet);
   print "Networking: " . ($correct ? "Correct" : "Incorrect") . "\n";
 
   $parameter->{to_check} = [
-    { input => "exit\r", output => "Connection closed by foreign host." }
+    { input => "exit\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -470,7 +473,7 @@ sub check_stack_brocade_switch
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "show stack\r", output => "/(\Qactive\E)[\S\s]+(\Qstandby\E)/mg", success_message => "Stack: Correct" },
-    { input => "exit\r", output => "Connection closed by foreign host." }
+    { input => "exit\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -487,7 +490,7 @@ sub check_vlan_brocade_switch
     { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "show vlan b", output => "/(\QTotal Number of Vlan Configured :4\E)[\S\s]+(\Q100 200 300\E)/mg", success_message => "VLAN: Correct" },
-    { input => "exit\r", output => "Connection closed by foreign host." }
+    { input => "exit\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -508,7 +511,7 @@ sub check_jumbo_frames_brocade_switch
     { input => "jumbo\r", output => "System already in Jumbo Mode!", success_message => "Jumbo Mode: Correct" },
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "exit\r", output => "(Router|Switch)>" },
-    { input => "exit\r", output => "Connection closed by foreign host."}
+    { input => "exit\r", output => ""}
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -539,7 +542,7 @@ sub set_ip_apc_ups
     { input => "apc\r", output => "Password  :", timeout => 4 },
     { input => "apc\r", output => "apc>" },
     { input => "ping $striker_dash1_ip\r", output => "Reply from $striker_dash1_ip" },
-    { input => "quit\r", output => "Bye" },
+    { input => "quit\r", output => "Logging out|Bye" },
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -565,7 +568,7 @@ sub enable_snmp_apc_ups
     { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
     { input => "apc\r", output => "Password  :", timeout => 4 },
     { input => "apc\r", output => "apc>" },
-    { input => "quit\r", output => "Bye" },
+    { input => "quit\r", output => "Logging out|Bye" },
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -592,11 +595,13 @@ sub factory_reset_apc_ups
     { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
     { input => "apc\r", output => "Password  :", timeout => 4 },
     { input => "apc\r", output => "apc>" },
-    { input => "quit\r", output => "Bye" },
+    { input => "quit\r", output => "Logging out|Bye" },
   ];
   $parameter->{device_interaction}($parameter);
 }
 
+
+use Data::Dumper;
 
 =head2 check_ip_apc_ups
 
@@ -618,14 +623,17 @@ sub check_ip_apc_ups
     { input => "tcpip\r", output => "E000: Success" }
   ];
   my $output = $parameter->{device_interaction}($parameter);
-  my @matches = ($output =~ /\S.*?:\s*.+?(?=(\s{2}|\n|$))/g);
+  my @matches = ($output =~ /(\S.*?:\s*.+?(?=(?:\s{2}|\n|$)))/g);
   my %info = map { my ($key, $value) = split /:\s+/; $key => $value } @matches;
-  print "$_: $info{$_}\n" foreach (keys(%info));
-  my $correct = ($info{"Active IPv4 Address"} =~ $ip) && ($info{"Subnet Mask"} =~ $subnet);
+  foreach my $key (sort keys(%info))
+  {
+    print "$key: $info{$key}\n" if ($key !~ /^E\d+$/);
+  }
+  my $correct = ($info{"Active IPv4 Address"} =~ $ip) && ($info{"Active IPv4 Subnet Mask"} =~ $subnet);
   print "Networking: " . ($correct ? "Correct" : "Incorrect") . "\n";
 
   $parameter->{to_check} = [
-    { input => "quit\r", output => "Bye" }
+    { input => "quit\r", output => "Logging out|Bye" }
   ];
   $parameter->{device_interaction}($parameter);
 }
