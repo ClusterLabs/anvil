@@ -69,9 +69,14 @@ al-repo_packages () {
 	yum -y repo-pkgs alteeve-el7-repo install
 }
 
+# Enable epel-release repo
+epel_repo_enable () {
+	yum -y install epel-release
+}
+
 # Install additional required packages
 required_packages () {
-	yum -y install perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg rsync perl-Log-Journald perl-Net-SSH2 httpd nmap
+	yum -y install perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg rsync perl-Log-Journald perl-Net-SSH2 httpd nmap 'perl(SNMP)' 'perl(Net::SNMP)'
 }
 
 # Install useful sysadmin/troubleshooting utilities
@@ -136,6 +141,7 @@ create_dirs
 copy_anvil
 al-repo_definitions
 al-repo_packages
+epel_repo_enable
 required_packages
 sysadmin_tools
 firewall_start
