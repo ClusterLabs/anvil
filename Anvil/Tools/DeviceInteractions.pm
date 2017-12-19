@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-package DeviceInteractions;
+package Anvil::Tools::DeviceInteractions;
 
 my $beginning_message = "Bringing it back to the beginning...";
 
