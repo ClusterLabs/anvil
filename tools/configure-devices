@@ -379,7 +379,7 @@ sub perform_device_action
   my $action = defined $parameter->{action} ? $parameter->{action} : {};
   my $profile = defined $parameter->{profile} ? $parameter->{profile} : {};
   my $connection_type = defined $parameter->{connection_type} ? $parameter->{connection_type} : "";
-  my $actions = DeviceInteractions::device_actions();
+  my $actions = Anvil::Tools::DeviceInteractions::device_actions();
   my $connected = ($connection_type ? create_connection($parameter) : 0);
 
   return 0 if (!$connected);
@@ -510,7 +510,7 @@ my @opt_define = (
   'profile=s',
   'telnet_host=s'
 );
-my $device_opt_define = DeviceInteractions::command_line_switches();
+my $device_opt_define = Anvil::Tools::DeviceInteractions::command_line_switches();
 push @opt_define, $_ foreach (@{$device_opt_define});
 GetOptions($options, @opt_define);
 
