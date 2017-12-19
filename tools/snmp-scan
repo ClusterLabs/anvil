@@ -185,7 +185,7 @@ sub get_model_list {
 sub get_vendor_list {
   my %vendors;
 
-  if (open(my $fh, '<:utf8', 'snmp-vendors.txt')) {
+  if (open(my $fh, '<:utf8', '/usr/sbin/anvil/snmp-vendors.txt')) {
     while (my $row = <$fh>) {
       chomp $row;
       my @vendor = split(/\t\t/, $row);
