@@ -26,7 +26,8 @@ sub device_actions
       { action => "checkFirmware", sub => \&check_firmware_brocade_switch, required_params => [] },
       { action => "checkStack", sub => \&check_stack_brocade_switch, required_params => [] },
       { action => "checkVLAN", sub => \&check_vlan_brocade_switch, required_params => [] },
-      { action => "checkJumboFrames", sub => \&check_jumbo_frames_brocade_switch, required_params => [] }
+      { action => "checkJumboFrames", sub => \&check_jumbo_frames_brocade_switch, required_params => [] },
+      { action => "checkSNMP", sub => \&check_snmp_brocade_switch, required_params => [] }
     ],
 
     apcPDU => [
@@ -39,7 +40,8 @@ sub device_actions
       { action => "setIP", sub => \&set_ip_apc_ups, required_params => ["ip", "subnet", "gateway", "striker_dash1_ip"] },
       { action => "factoryReset", sub => \&factory_reset_apc_ups, required_params => [] },
       { action => "enableSNMP", sub => \&enable_snmp_apc_ups, required_params => [] },
-      { action => "checkIP", sub => \&check_ip_apc_ups, required_params => ["ip", "subnet"] }
+      { action => "checkIP", sub => \&check_ip_apc_ups, required_params => ["ip", "subnet"] },
+      { action => "checkSNMP", sub => \&check_snmp_apc_ups, required_params => [] }
     ]
   };
   return $actions;
@@ -519,6 +521,26 @@ sub check_jumbo_frames_brocade_switch
   $parameter->{device_interaction}($parameter);
 }
 
+=head2 check_snmp_brocade_switch
+
+A device action that checks the SNMP status of a Brocade switch.
+
+=cut
+sub check_snmp_brocade_switch
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "n\rexit\rexit\rexit\r", output => "", message => "$beginning_message" },
+    { input => "\r\r", output => "(Router|Switch)>" },
+    { input => "enable\r", output => "(Router|Switch)#" },
+    { input => "show snmp server\r", output => "Status: Enabled", error_check => { message => "SNMP: Disabled", output => "Status: Disabled"}, success_message => "SNMP: Correct" },
+    { input => "Q", output => "(Router|Switch)#" },
+    { input => "exit\r", output=> "(Router|Switch)>" },
+    { input => "exit\r", output => "Connection closed by foreign host." }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
 =head2 configure_ip_apc_ups
 
 A device action that sets the ip, gateway, and subnet for an APC UPS.
@@ -603,9 +625,6 @@ sub factory_reset_apc_ups
   $parameter->{device_interaction}($parameter);
 }
 
-
-use Data::Dumper;
-
 =head2 check_ip_apc_ups
 
 A device action that checks the IP settings on an APC UPS.
@@ -637,6 +656,27 @@ sub check_ip_apc_ups
 
   $parameter->{to_check} = [
     { input => "quit\r", output => "Logging out|Bye" }
+  ];
+  $parameter->{device_interaction}($parameter);
+}
+
+=head2 check_snmp_apc_ups
+
+A device action that checks the SNMP status of an APC UPS.
+
+=cut
+sub check_snmp_apc_ups
+{
+  my $parameter = shift;
+  $parameter->{to_check} = [
+    { input => "\e", output => "", message => "$beginning_message" },
+    { input => "\e", output => "" },
+    { input => "\equit\r", output => "" },
+    { input => "\r\r\r\r", output => "User Name :", timeout => 4 },
+    { input => "apc\r", output => "Password  :", timeout => 4},
+    { input => "apc\r", output => "apc>" },
+    { input => "snmp\r", output => "SNMPv1:     enabled", success_message => "SNMP: Correct" },
+    { input => "quit\r", output => "Bye" }
   ];
   $parameter->{device_interaction}($parameter);
 }
