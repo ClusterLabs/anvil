@@ -172,7 +172,8 @@ sub factory_reset_brocade_switch
     { input => "reload\r", output => "Are you sure?" },
     { input => "y\r", output => "Do you want to continue the reload anyway?" },
     { input => "y\r", output => "Rebooting|Reload request sent" },
-    { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 }
+    { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 },
+    { input => "\r\r", output => "", wait_time => 30 }
   ];
   $parameter->{device_interaction}($parameter);
 }
@@ -238,10 +239,10 @@ sub setup_stack_brocade_switch
     my $mac_address = get_mac_address_from_stack_output({output => $output});
 
     $parameter->{to_check} = [
-      { input => "exit\renable\r", output => "(Router|Switch)\#" },
-      { input => "configure terminal\r", wait_time => 3, output => "(Router|Switch)\Q(config)" },
+      { input => "exit\renable\r", wait_time => 30, output => "(Router|Switch)\#" },
+      { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
       { input => "hitless-failover enable\r", output => "(Router|Switch)\Q(config)" },
-      { input => "stack mac $mac_address\r", wait_time => 3, output => "(Router|Switch)\Q(config)" },
+      { input => "stack mac $mac_address\r", output => "(Router|Switch)\Q(config)" },
       { input => "stack unit 2\r", output => "(Router|Switch)\Q(config-unit-2)" },
       { input => "priority 128\r", output => "", wait_time => 121 },
       { input => "exit\r", output => "(Router|Switch)\Q(config)" },
@@ -409,12 +410,13 @@ sub set_jumbo_frames_brocade_switch
     { input => "\r\r", output => "(Router|Switch)>" },
     { input => "enable\r", output => "(Router|Switch)\#" },
     { input => "configure terminal\r", output => "(Router|Switch)\Q(config)" },
-    { input => "jumbo\r", output => "Jumbo", skip => { goto => 10, output => "System already in Jumbo Mode!" } },
+    { input => "jumbo\r", output => "Jumbo", skip => { goto => 11, output => "System already in Jumbo Mode!" } },
     { input => "write memory\r", output => "Write startup-config done|(Router|Switch)\Q(config)", bytes_to_read => 8192, timeout => 60 },
     { input => "exit\r", output => "(Router|Switch)\#" },
     { input => "reload\r", output => "Are you sure" },
     { input => "y\r", output => "Rebooting|Reload request sent" },
     { input => "\r\r", output => "(Router|Switch)>", timeout => 300, wait_for_output => 1, bytes_to_read => 16384 },
+    { input => "\r\r", output => "", wait_time => 30 },
     { input => "\r\r", output => "" }
   ];
   $parameter->{device_interaction}($parameter);
