@@ -783,6 +783,10 @@ Parameters;
 
 This tells the method how many time to try to ping the target. The method will return as soon as any ping attemp succeeds (unlike pinging from the command line, which always pings the requested count times).
 
+=head3 debug (optional, default '3')
+
+This is an optional way to alter to level at which this method is logged. Useful when the caller is trying to debug a problem. Generally this can be ignored.
+
 =head3 fragment (optional, default '1')
 
 When set to C<< 0 >>, the ping will fail if the packet has to be fragmented. This is meant to be used along side C<< payload >> for testing MTU sizes.
@@ -816,13 +820,14 @@ sub ping
 	
 	# If we were passed a target, try pinging from it instead of locally
 	my $count    = $parameter->{count}    ? $parameter->{count}    : 1;	# How many times to try to ping it? Will exit as soon as one succeeds
+	my $debug    = $parameter->{debug}    ? $parameter->{deug}     : 3;
 	my $fragment = $parameter->{fragment} ? $parameter->{fragment} : 1;	# Allow fragmented packets? Set to '0' to check MTU.
 	my $password = $parameter->{password} ? $parameter->{password} : "";
 	my $payload  = $parameter->{payload}  ? $parameter->{payload}  : 0;	# The size of the ping payload. Use when checking MTU.
 	my $ping     = $parameter->{ping}     ? $parameter->{ping}     : "";
 	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
 	my $target   = $parameter->{target}   ? $parameter->{target}   : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		count    => $count, 
 		fragment => $fragment, 
 		payload  => $payload, 
@@ -836,22 +841,22 @@ sub ping
 	if ($payload)
 	{
 		$payload -= 28;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { payload => $payload }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { payload => $payload }});
 	}
 	
 	# Build the call. Note that we use 'timeout' because if there is no connection and the hostname is 
 	# used to ping and DNS is not available, it could take upwards of 30 seconds time timeout otherwise.
 	my $shell_call = $anvil->data->{path}{exe}{timeout}." 2 ".$anvil->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	if (not $fragment)
 	{
 		$shell_call .= " -M do";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	}
 	if ($payload)
 	{
 		$shell_call .= " -s $payload";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	}
 	$shell_call .= " || ".$anvil->data->{path}{exe}{echo}." timeout";
 	
@@ -859,7 +864,7 @@ sub ping
 	my $average_ping_time = 0;
 	foreach my $try (1..$count)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count, try => $try }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count, try => $try }});
 		last if $pinged;
 		
 		my $output = "";
@@ -874,24 +879,24 @@ sub ping
 				port       => $port, 
 				password   => $password,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 		}
 		else
 		{
 			### Local calls
 			$output = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 		}
 		
 		foreach my $line (split/\n/, $output)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 			if ($line =~ /(\d+) packets transmitted, (\d+) received/)
 			{
 				# This isn't really needed, but might help folks watching the logs.
 				my $pings_sent     = $1;
 				my $pings_received = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					pings_sent     => $pings_sent,
 					pings_received => $pings_received, 
 				}});
@@ -900,7 +905,7 @@ sub ping
 				{
 					# Contact!
 					$pinged = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pinged => $pinged }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pinged => $pinged }});
 				}
 				else
 				{
@@ -912,14 +917,14 @@ sub ping
 			if ($line =~ /min\/avg\/max\/mdev = .*?\/(.*?)\//)
 			{
 				$average_ping_time = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { average_ping_time => $average_ping_time }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { average_ping_time => $average_ping_time }});
 			}
 		}
 	}
 	
 	# 0 == Ping failed
 	# 1 == Ping success
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		pinged            => $pinged,
 		average_ping_time => $average_ping_time,
 	}});

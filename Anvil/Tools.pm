@@ -707,7 +707,7 @@ sub _set_paths
 			},
 			data			=>	{
 				group			=>	"/etc/group",
-				host_uuid		=>	"/etc/an/host.uuid",
+				host_uuid		=>	"/etc/anvil/host.uuid",
 				passwd			=>	"/etc/passwd",
 			},
 			directories		=>	{

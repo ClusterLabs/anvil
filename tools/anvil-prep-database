@@ -54,13 +54,13 @@ if ($local_id)
 			if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 			{
 				# Failed... 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0001"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
 				exit(1);
 			}
 			else
 			{
 				# Initialized!
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0001"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
 			}
 			
 			# Setup postgresql.conf
@@ -98,7 +98,7 @@ if ($local_id)
 					mode      => "0600",
 					overwrite => 1,
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0002", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0056", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
 			}
 			
 			# Setup pg_hba.conf now
@@ -140,7 +140,7 @@ if ($local_id)
 					mode      => "0600",
 					overwrite => 1,
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0003", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0057", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
 			}
 		}
 		
@@ -150,7 +150,7 @@ if ($local_id)
 		if ($started)
 		{
 			# Started the daemon.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0004"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
 		}
 		else
 		{
@@ -204,7 +204,7 @@ if ($local_id)
 		{
 			# User exists already
 			my $id = $1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0005", variables => { user => $scancore_user, id => $id }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0060", variables => { user => $scancore_user, id => $id }});
 			$create_user = 0;
 			last;
 		}
@@ -223,14 +223,14 @@ if ($local_id)
 			{
 				# Success!
 				my $id = $1;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0006", variables => { user => $scancore_user, id => $id }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0095", variables => { user => $scancore_user, id => $id }});
 				$user_exists = 1;
 				last;
 			}
 		}
 		if (not $user_exists)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0004", variables => { user => $scancore_user }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $scancore_user }});
 			exit(4);
 		}
 		
@@ -246,7 +246,7 @@ if ($local_id)
 					if ($line =~ /ALTER ROLE/)
 					{
 						# Password set
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0007", variables => { user => $user }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0100", variables => { user => $user }});
 					}
 				}
 			}

@@ -18,6 +18,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
+print $THIS_FILE." ".__LINE__."; anvil: [".$anvil."]\n";
 $anvil->Log->level({set => 2});
 
 $anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
@@ -25,6 +26,7 @@ my $connections = $anvil->Database->connect({
 	sql_file   => $anvil->data->{sys}{database}{schema},
 	test_table => "network_interfaces", 
 });
+print $THIS_FILE." ".__LINE__."; connections: [".$connections."]\n";
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132", variables => { connections => $connections }});
 if (not $connections)
 {
@@ -48,6 +50,7 @@ sub report_network
 	
 	# Write out the data in json format.
 	my $directory = $anvil->data->{path}{sysfs}{network_interfaces};
+	print $THIS_FILE." ".__LINE__."; directory: [".$directory."]\n";
 	local(*DIRECTORY);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
@@ -57,6 +60,7 @@ sub report_network
 		next if $file eq "..";
 		next if $file eq "lo";
 		my $full_path = "$directory/$file";
+		print $THIS_FILE." ".__LINE__."; full_path: [".$full_path."]\n";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{

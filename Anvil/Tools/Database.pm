@@ -3843,7 +3843,7 @@ sub _archive_table
 		column_count => $column_count 
 	}});
 	
-	print Dumper $columns;
+	#print Dumper $columns;
 	
 	# See m2's DB->archive_if_needed() for old version of this.
 	
