@@ -30,6 +30,11 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
+# Read switches
+$anvil->Get->switches;
+
+die $THIS_FILE." ".__LINE__."; log level: [".$anvil->Log->level."]\n";
+
 # Paths
 $anvil->data->{path}{config}{'striker.conf'} = "/etc/anvil/anvil.conf";
 $anvil->Storage->read_config({file => $anvil->data->{path}{config}{'striker.conf'}});
@@ -328,7 +333,7 @@ if ($local_id)
 	
 	# Log level 3 creates so much logging that it hits journald's rate limiting (1000 logs per 30 
 	# seconds). So we need to disable it.
-	if (not -e $anvil->data->{path}{configs}{'journald_an'})
+	if (not -e $anvil->data->{path}{configs}{'journald_anvil'})
 	{
 		# Write the file to disable journald rate limiting.
 		my $body = "# This disables the rate limiting so that when log level is set to 3, log 
@@ -340,14 +345,14 @@ RateLimitInterval=0
 RateLimitBurst=0
 ";
 		$anvil->Storage->write_file({
-			file      => $anvil->data->{path}{configs}{'journald_an'}, 
+			file      => $anvil->data->{path}{configs}{'journald_anvil'}, 
 			body      => $body,
 			user      => "root", 
 			group     => "root",
 			mode      => "0644",
 			overwrite => 0,
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0012", variables => { file => $anvil->data->{path}{configs}{'journald_an'} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0012", variables => { file => $anvil->data->{path}{configs}{'journald_anvil'} }});
 		
 		my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart systemd-journald.service";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});

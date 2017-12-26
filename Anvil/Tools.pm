@@ -699,7 +699,7 @@ sub _set_paths
 	$anvil->data->{path} = {
 			configs			=>	{
 				'firewalld.conf'	=>	"/etc/firewalld/firewalld.conf",
-				'journald_an'		=>	"/etc/systemd/journald.conf.d/an.conf",
+				'journald_anvil'	=>	"/etc/systemd/journald.conf.d/anvil.conf",
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
 				ssh_config		=>	"/etc/ssh/ssh_config",
@@ -711,18 +711,18 @@ sub _set_paths
 				passwd			=>	"/etc/passwd",
 			},
 			directories		=>	{
-				backups			=>	"/usr/sbin/anvil/backups",
+				backups			=>	"/root/anvil-backups",
 				'cgi-bin'		=>	"/var/www/cgi-bin",
 				firewalld_services	=>	"/usr/lib/firewalld/services",
 				firewalld_zones		=>	"/etc/firewalld/zones",
 				html			=>	"/var/www/html",
 				skins			=>	"/var/www/html/skins",
-				tools			=>	"/usr/sbin/anvil",
+				tools			=>	"/usr/sbin",
 				units			=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
-				'anvil-prep-database'	=>	"/usr/sbin/anvil/anvil-prep-database",
-				'anvil-update-states'	=>	"/usr/sbin/anvil/anvil-update-states",
+				'anvil-prep-database'	=>	"/usr/sbin/anvil-prep-database",
+				'anvil-update-states'	=>	"/usr/sbin/anvil-update-states",
 				'anvil-report-memory'	=>	"/usr/sbin/anvil-report-memory",
 				'chmod'			=>	"/usr/bin/chmod",
 				'chown'			=>	"/usr/bin/chown",
@@ -762,13 +762,13 @@ sub _set_paths
 				network_interfaces	=>	"/sys/class/net",
 			},
 			sql			=>	{
-				'anvil.sql'		=>	"/usr/sbin/anvil/anvil.sql",
+				'anvil.sql'		=>	"/usr/sbin/anvil.sql",
 			},
 			urls		=>	{
 				skins			=>	"/skins",
 			},
 			words		=>	{
-				'words.xml'		=>	"/usr/sbin/anvil/words.xml",
+				'words.xml'		=>	"/usr/share/anvil/words.xml",
 			},
 	};
 	
