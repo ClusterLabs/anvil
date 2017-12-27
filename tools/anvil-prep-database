@@ -87,7 +87,7 @@ if ($local_id)
 			
 			# Setup postgresql.conf
 			my $postgresql_backup = $anvil->data->{path}{directories}{backups}."/pgsql/postgresql.conf";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { postgresql_backup => $postgresql_backup }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { postgresql_backup => $postgresql_backup }});
 			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'postgresql.conf'}, target => $postgresql_backup});
 			
 			my $postgresql_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'postgresql.conf'}});
@@ -95,7 +95,7 @@ if ($local_id)
 			my $new_postgresql_conf = "";
 			foreach my $line (split/\n/, $postgresql_conf)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				if ($line =~ /^listen_addresses = '\*'/)
 				{
 					# No need to update.
@@ -109,7 +109,7 @@ if ($local_id)
 				}
 				$new_postgresql_conf .= $line."\n";
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_file => $update_file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
 			if ($update_file)
 			{
 				$anvil->Storage->write_file({
@@ -125,7 +125,7 @@ if ($local_id)
 			
 			# Setup pg_hba.conf now
 			my $pg_hba_backup = $anvil->data->{path}{directories}{backups}."/pgsql/pg_hba.conf";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pg_hba_backup => $pg_hba_backup }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pg_hba_backup => $pg_hba_backup }});
 			
 			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'pg_hba.conf'}, target => $pg_hba_backup});
 			my $pg_hba_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'pg_hba.conf'}});
@@ -133,25 +133,26 @@ if ($local_id)
 			my $new_pg_hba_conf = "";
 			foreach my $line (split/\n/, $pg_hba_conf)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				if ($line =~ /^host\s+all\s+all\s+\all\s+md5$/)
 				{
 					# No need to update.
 					$update_file = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
 					last;
 				}
 				elsif ($line =~ /^# TYPE\s+DATABASE/)
 				{
 					# Inject the new listen_addresses
 					$new_pg_hba_conf .= $line."\n";
-					$new_pg_hba_conf .= "host\tall\t\tall\t\t*\t\t\tmd5\n";
+					$new_pg_hba_conf .= "host\tall\t\tall\t\tall\t\t\tmd5\n";
 				}
 				else
 				{
 					$new_pg_hba_conf .= $line."\n";
 				}
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_file => $update_file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
 			if ($update_file)
 			{
 				$anvil->Storage->write_file({
@@ -162,7 +163,7 @@ if ($local_id)
 					mode      => "0600",
 					overwrite => 1,
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0057", variables => { file => $anvil->data->{path}{configs}{'postgresql.conf'} }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0057", variables => { file => $anvil->data->{path}{configs}{'pg_hba.conf'} }});
 			}
 		}
 		
