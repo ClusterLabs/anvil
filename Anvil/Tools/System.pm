@@ -120,7 +120,7 @@ sub call
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	
-	my $debug      = 3;
+	my $debug      = defined $parameter->{debug}      ? $parameter->{debug}      : 3;
 	my $line       = defined $parameter->{line}       ? $parameter->{line}       : __LINE__;
 	my $shell_call = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
 	my $secure     = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
@@ -135,22 +135,49 @@ sub call
 	}
 	else
 	{
-		# Make the system call
-		$output = "";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0011", variables => { shell_call => $shell_call }});
-		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
-		while(<$file_handle>)
+		# If this is an executable, make sure the program exists.
+		my $found = 1;
+		if (($shell_call =~ /^(\/.*?) /) or ($shell_call =~ /^(\/.*)/))
 		{
-			chomp;
-			my $line = $_;
-			   $line =~ s/\n$//;
-			   $line =~ s/\r$//;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0017", variables => { line => $line }});
-			$output .= $line."\n";
+			my $program = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { program => $program }});
+			if (not -e $program)
+			{
+				$found = 0;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0141", variable => {
+					program    => $program,
+					shell_call => $shell_call,
+				}});
+			}
+			elsif (not -x $program)
+			{
+				$found = 0;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0142", variable => {
+					program    => $program,
+					shell_call => $shell_call,
+				}});
+			}
 		}
-		close $file_handle;
-		chomp($output);
-		$output =~ s/\n$//s;
+		
+		if ($found)
+		{
+			# Make the system call
+			$output = "";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0011", variables => { shell_call => $shell_call }});
+			open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+			while(<$file_handle>)
+			{
+				chomp;
+				my $line = $_;
+				$line =~ s/\n$//;
+				$line =~ s/\r$//;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0017", variables => { line => $line }});
+				$output .= $line."\n";
+			}
+			close $file_handle;
+			chomp($output);
+			$output =~ s/\n$//s;
+		}
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { output => $output }});
@@ -1460,23 +1487,24 @@ sub start_daemon
 	my $anvil     = $self->parent;
 	
 	my $return     = undef;
+	my $debug      = defined $parameter->{debug}  ? $parameter->{debug}  : 3;
 	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
 	
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?", debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line =~ /return_code:(\d+)/)
 		{
 			$return = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
 	return($return);
 }
 

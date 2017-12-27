@@ -1192,33 +1192,51 @@ sub get_local_id
 	my $anvil     = $self->parent;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->get_local_id()" }});
 	
+	my $debug           = 3;
 	my $local_id        = "";
 	my $network_details = $anvil->Get->network_details;
 	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network_details->hostname" => $network_details->{hostname},
+			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
+		}});
 		if ($network_details->{hostname} eq $anvil->data->{database}{$id}{host})
 		{
 			$local_id = $id;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
 			last;
 		}
 	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
 	if (not $local_id)
 	{
 		foreach my $interface (sort {$a cmp $b} keys %{$network_details->{interface}})
 		{
 			my $ip_address  = $network_details->{interface}{$interface}{ip};
 			my $subnet_mask = $network_details->{interface}{$interface}{netmask};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				ip_address  => $ip_address,
+				subnet_mask => $subnet_mask,
+			}});
 			foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					ip_address              => $ip_address,
+					"database::${id}::host" => $anvil->data->{database}{$id}{host},
+				}});
 				if ($ip_address eq $anvil->data->{database}{$id}{host})
 				{
 					$local_id = $id;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
 					last;
 				}
 			}
 		}
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
 	return($local_id);
 }
 

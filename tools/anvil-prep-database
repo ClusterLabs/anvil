@@ -9,7 +9,7 @@
 # 2 = Failed to start postgres
 # 3 = ScanCore user not set in the local ID in striker.conf
 # 4 = Failed to create the database user.
-# 5 = 
+# 5 = PostgreSQL not installed.
 
 use strict;
 use warnings;
@@ -33,8 +33,6 @@ $anvil->Log->secure({set => 1});
 # Read switches
 $anvil->Get->switches;
 
-die $THIS_FILE." ".__LINE__."; log level: [".$anvil->Log->level."]\n";
-
 # Paths
 $anvil->data->{path}{config}{'striker.conf'} = "/etc/anvil/anvil.conf";
 $anvil->Storage->read_config({file => $anvil->data->{path}{config}{'striker.conf'}});
@@ -46,20 +44,39 @@ if ($local_id)
 	# Start checks
 	my $running = $anvil->System->check_daemon({daemon => "postgresql"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { running => $running }});
-	if (not $running)
+	if ($running eq "2")
+	{
+		# Not installed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0144"});
+		exit(5);
+	}
+	elsif (not $running)
 	{
 		# Do we need to initialize the databae?
 		if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 		{
 			# Initialize.
 			my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
 			
 			# Did it succeed?
 			if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 			{
 				# Failed... 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+				if ($output =~ /cannot create directory ‘(.*?)’: File exists/s)
+				{
+					my $file = $1;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0139", variables => { file => $file }});
+				}
+				elsif ($output =~ /Initializing database ... failed, see (\/var\/.*?\.log)/s)
+				{
+					my $file = $1;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0140", variables => { file => $file }});
+				}
+				else
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+				}
 				exit(1);
 			}
 			else
@@ -149,10 +166,10 @@ if ($local_id)
 			}
 		}
 		
-		# Start the daemon. It might fail if it has never been initialized.
-		my $started = $anvil->System->start_daemon({daemon => "postgresql"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { started => $started }});
-		if ($started)
+		# Start the daemon. '0' = started, anything else is a problem.
+		my $return_code = $anvil->System->start_daemon({daemon => "postgresql"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		if ($return_code eq "0")
 		{
 			# Started the daemon.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0059"});
@@ -160,7 +177,7 @@ if ($local_id)
 		else
 		{
 			# Failed to start
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0002"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
 			exit(2);
 		}
 	}
@@ -198,7 +215,7 @@ if ($local_id)
 	if (not $scancore_user)
 	{
 		# No database user defined
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0003", variables => { id => $local_id }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { id => $local_id }});
 		exit(3);
 	}
 	my $user_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
@@ -270,7 +287,7 @@ if ($local_id)
 		if ($line =~ /^ $scancore_database$/)
 		{
 			# Database already exists.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0008", variables => { database => $scancore_database }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0105", variables => { database => $scancore_database }});
 			$create_database = 0;
 			last;
 		}
@@ -289,14 +306,14 @@ if ($local_id)
 			if ($line =~ /^ $scancore_database$/)
 			{
 				# Database created
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0008", variables => { database => $scancore_database }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0110", variables => { database => $scancore_database }});
 				$database_exists = 1;
 				last;
 			}
 		}
 		if (not $database_exists)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0005", variables => { database => $scancore_database }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $scancore_database }});
 			exit(5);
 		}
 	}
@@ -308,7 +325,7 @@ if ($local_id)
 		if (-e $anvil->data->{path}{secure}{postgres_pgpass})
 		{
 			# Failed to unlink the file.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0001"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0107"});
 		}
 	}
 	
@@ -363,8 +380,8 @@ RateLimitBurst=0
 }
 else
 {
-	# Didn't find an entry for this machine.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "message_0010"});
+	# Didn't find an entry for this machine. This is normal on nodes.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0143"});
 }
 
 exit(0);
