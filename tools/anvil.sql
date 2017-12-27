@@ -286,7 +286,7 @@ CREATE TABLE jobs (
     
     FOREIGN KEY(job_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE jobs OWNER TO #!job!user!#;
+ALTER TABLE jobs OWNER TO #!variable!user!#;
 
 CREATE TABLE history.jobs (
     history_id         bigserial,
@@ -299,7 +299,7 @@ CREATE TABLE history.jobs (
     job_description    text,
     modified_date      timestamp with time zone    not null 
 );
-ALTER TABLE history.jobs OWNER TO #!job!user!#;
+ALTER TABLE history.jobs OWNER TO #!variable!user!#;
 
 CREATE FUNCTION history_jobs() RETURNS trigger
 AS $$
@@ -329,7 +329,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_jobs() OWNER TO #!job!user!#;
+ALTER FUNCTION history_jobs() OWNER TO #!variable!user!#;
 
 CREATE TRIGGER trigger_jobs
     AFTER INSERT OR UPDATE ON jobs

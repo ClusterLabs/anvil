@@ -223,7 +223,7 @@ sub configure_pgsql
 	{
 		# This is a minor error as it will be hit by every unpriviledged program that connects to the
 		# database(s).
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "log_0113"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, priority => "alert", key => "log_0113"});
 		return("!!error!!");
 	}
 	
@@ -590,7 +590,7 @@ If this is not set, no attempt to resync the database will be made.
 
 =head3 sql_file (optional)
 
-This is the SQL schema file that will be used to initialize the database, if the C<< test_table >> isn't found in a given database that is connected to. By default, this is C<< path::sql::Tools.sql >> (C<< /usr/share/perl/AN/Tools.sql >> by default). 
+This is the SQL schema file that will be used to initialize the database, if the C<< test_table >> isn't found in a given database that is connected to. By default, this is C<< path::sql::anvil.sql >> (C<< /usr/share/perl/AN/Tools.sql >> by default). 
 
 =head3 tables (optional)
 
@@ -846,15 +846,15 @@ sub connect
 			if ($test_table ne $anvil->data->{defaults}{sql}{test_table})
 			{
 				my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{defaults}{sql}{test_table})." AND schemaname='public';";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				
 				my $count = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 				if ($count < 1)
 				{
 					# Need to load the database.
-					$anvil->Database->initialize({id => $id, sql_file => $anvil->data->{path}{sql}{'Tools.sql'}});
+					$anvil->Database->initialize({id => $id, sql_file => $anvil->data->{path}{sql}{'anvil.sql'}});
 				}
 			}
 			
@@ -1252,16 +1252,18 @@ sub initialize
 	my $anvil     = $self->parent;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->initialize()" }});
 	
+	my $debug    = $parameter->{debug}    ? $parameter->{debug}    : 3;
 	my $id       = $parameter->{id}       ? $parameter->{id}       : $anvil->data->{sys}{read_db_id};
-	my $sql_file = $parameter->{sql_file} ? $parameter->{sql_file} : $anvil->data->{path}{sql}{'Tools.sql'};
+	my $sql_file = $parameter->{sql_file} ? $parameter->{sql_file} : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $success  = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		id       => $id, 
 		sql_file => $sql_file, 
 	}});
 	
 	# This just makes some logging cleaner below.
 	my $say_server = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$anvil->data->{database}{$id}{name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_server => $say_server }});
 	
 	if (not $id)
 	{
@@ -1311,22 +1313,25 @@ sub initialize
 	
 	# Read in the SQL file and replace #!variable!name!# with the database owner name.
 	my $user = $anvil->data->{database}{$id}{user};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	
 	my $sql = $anvil->Storage->read_file({file => $sql_file});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ">> sql" => $sql }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> sql" => $sql }});
 	
 	$sql =~ s/#!variable!user!#/$user/sg;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< sql" => $sql }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sql" => $sql }});
 	
 	# Now that I am ready, disable autocommit, write and commit.
 	$anvil->Database->write({id => $id, query => $sql, source => $THIS_FILE, line => __LINE__});
 	
 	$anvil->data->{sys}{db_initialized}{$id} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_initialized::${id}" => $anvil->data->{sys}{db_initialized}{$id} }});
 	
 	# Mark that we need to update the DB.
 	$anvil->data->{sys}{database}{resync_needed} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 	return($success);
 };
 
@@ -3571,12 +3576,13 @@ sub write
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0125", variables => { method => "Database->write()" }});
 	
 	my $id      = $parameter->{id}      ? $parameter->{id}     : "";
+	my $debug   = $parameter->{debug}   ? $parameter->{debug}  : 3;
 	my $line    = $parameter->{line}    ? $parameter->{line}   : __LINE__;
 	my $query   = $parameter->{query}   ? $parameter->{query}  : "";
 	my $secure  = $parameter->{secure}  ? $parameter->{secure} : 0;
 	my $source  = $parameter->{source}  ? $parameter->{source} : $THIS_FILE;
 	my $reenter = $parameter->{reenter} ? $parameter->{reenter} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		id                    => $id, 
 		"cache::db_fh::${id}" => $anvil->data->{cache}{db_fh}{$id}, 
 		line                  => $line, 
@@ -3605,14 +3611,14 @@ sub write
 	my @db_ids;
 	if ($id)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
 		push @db_ids, $id;
 	}
 	else
 	{
 		foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
 			push @db_ids, $id;
 		}
 	}
@@ -3621,19 +3627,19 @@ sub write
 	my $limit     = 25000;
 	my $count     = 0;
 	my $query_set = [];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::maximum_batch_size" => $anvil->data->{sys}{database}{maximum_batch_size} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::maximum_batch_size" => $anvil->data->{sys}{database}{maximum_batch_size} }});
 	if ($anvil->data->{sys}{database}{maximum_batch_size})
 	{
 		if ($anvil->data->{sys}{database}{maximum_batch_size} =~ /\D/)
 		{
 			# Bad value.
 			$anvil->data->{sys}{database}{maximum_batch_size} = 25000;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::database::maximum_batch_size" => $anvil->data->{sys}{database}{maximum_batch_size} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::maximum_batch_size" => $anvil->data->{sys}{database}{maximum_batch_size} }});
 		}
 		
 		# Use the set value now.
 		$limit = $anvil->data->{sys}{database}{maximum_batch_size};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { limit => $limit }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { limit => $limit }});
 	}
 	if (ref($query) eq "ARRAY")
 	{
@@ -3642,7 +3648,7 @@ sub write
 		
 		# If I am re-entering, then we'll proceed normally. If not, and if we have more than 10k 
 		# queries, we'll split up the queries into 10k chunks and re-enter.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			count   => $count, 
 			limit   => $limit, 
 			reenter => $reenter, 
@@ -3651,7 +3657,7 @@ sub write
 		{
 			my $i    = 0;
 			my $next = $limit;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { i => $i, 'next' => $next }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, 'next' => $next }});
 			foreach my $this_query (@{$query})
 			{
 				push @{$query_set}, $this_query;
@@ -3696,11 +3702,11 @@ sub write
 	foreach my $id (@db_ids)
 	{
 		# Test access to the DB before we do the actual query
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { id => $id }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
 		$anvil->Database->_test_access({id => $id});
 		
 		# Do the actual query(ies)
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			id    => $id, 
 			count => $count, 
 		}});
@@ -3734,7 +3740,7 @@ sub write
 				}});
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 		if ($count)
 		{
 			# Commit the changes.
@@ -3742,7 +3748,7 @@ sub write
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 	if ($count)
 	{
 		# Free up some memory.

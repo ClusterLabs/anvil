@@ -349,9 +349,10 @@ sub host_uuid
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	
-	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	my $debug = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { set => $set }});
 	if ($set)
 	{
 		$anvil->data->{HOST}{UUID} = $set;
@@ -360,11 +361,11 @@ sub host_uuid
 	{
 		# Read dmidecode if I am root, and the cache if not.
 		my $uuid = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { '$<' => $<, '$>' => $> }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { '$<' => $<, '$>' => $> }});
 		if (($< == 0) or ($> == 0))
 		{
 			my $shell_call = $anvil->data->{path}{exe}{dmidecode}." --string system-uuid";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
 			while(<$file_handle>)
 			{
@@ -379,7 +380,7 @@ sub host_uuid
 		{
 			# Not running as root, so I have to rely on the cache file, or die if it doesn't 
 			# exist.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'path::data::host_uuid' => $anvil->data->{path}{data}{host_uuid} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'path::data::host_uuid' => $anvil->data->{path}{data}{host_uuid} }});
 			if (not -e $anvil->data->{path}{data}{host_uuid})
 			{
 				# We're done.
@@ -388,7 +389,7 @@ sub host_uuid
 			else
 			{
 				$uuid = $anvil->Storage->read_file({ file => $anvil->data->{path}{data}{host_uuid} });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 			}
 		}
 		
@@ -419,6 +420,7 @@ sub host_uuid
 		}
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
 	return($anvil->data->{HOST}{UUID});
 }
 
@@ -680,6 +682,7 @@ sub uuid
 	my $self = shift;
 	my $anvil   = $self->parent;
 	
+	### TODO: System calls are slow, find a pure-perl UUID generator
 	my $uuid = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uuidgen}." --random"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { uuid => $uuid }});
 	
