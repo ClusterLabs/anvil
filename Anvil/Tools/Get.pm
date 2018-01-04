@@ -13,6 +13,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
 
 ### Methods;
+# anvil_version
 # cgi
 # date_and_time
 # host_uuid
@@ -85,6 +86,80 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 anvil_version
+
+This reads to C<< VERSION >> file of a local or remote machine. If the version file isn't found, C<< 0 >> is returned. 
+
+Parameters;
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
+
+=cut
+sub anvil_version
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	
+	my $debug    = $parameter->{debug}    ? $parameter->{debug}    : 2;
+	my $password = $parameter->{password} ? $parameter->{password} : "";
+	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
+	my $target   = $parameter->{target}   ? $parameter->{target}   : "";
+	my $version  = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password => $anvil->Log->secure ? $password : "--",
+		port     => $port, 
+		target   => $target, 
+	}});
+	
+	# Is this a local call or a remote call?
+	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	{
+		# Remote call.
+		my $shell_call = "
+if [ -e ".$anvil->data->{path}{exe}{'anvil.version'}." ];
+then
+    cat ".$anvil->data->{path}{exe}{'anvil.version'}.";
+else
+   echo 0;
+fi;
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		$version = $anvil->System->remote_call({
+			shell_call => $shell_call, 
+			target     => $target,
+			port       => $port, 
+			password   => $password,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+	}
+	else
+	{
+		# Local.
+		$version = $anvil->Storage->read_file({file => $anvil->data->{path}{exe}{'anvil.version'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+		
+		# Did we actually read a version?
+		if ($version eq "!!error!!")
+		{
+			$version = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { version => $version }});
+		}
+	}
+	
+	return($version);
+}
 
 =head2 cgi
 

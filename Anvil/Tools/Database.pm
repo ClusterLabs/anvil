@@ -751,6 +751,31 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::read_db_id" => $anvil->data->{sys}{read_db_id} }});
 		}
 		
+		# If this isn't a local database, read the target's Anvil! version (if available) and make 
+		# sure it matches ours. If it doesn't, skip this database.
+		if (not $is_local)
+		{
+			my $remote_version = $anvil->Get->anvil_version({
+				target   => $host,
+				password => $password,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				remote_version          => $remote_version, 
+				"anvil->_anvil_version" => $anvil->_anvil_version,
+			}});
+			
+			if ($remote_version ne $anvil->_anvil_version)
+			{
+				# Version doesn't match, 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0145", variables => { 
+					host           => $host,
+					local_version  => $anvil->_anvil_version, 
+					target_version => $remote_version,
+				}});
+				next;
+			}
+		}
+		
 		# Connect!
 		my $dbh = "";
 		### NOTE: The Database->write() method, when passed an array, will automatically disable 
@@ -853,6 +878,8 @@ sub connect
 				
 				if ($count < 1)
 				{
+					### TODO: Create a version file/flag and don't sync with peers unless
+					###       they are the same version. Back-port this to v2.
 					# Need to load the database.
 					$anvil->Database->initialize({id => $id, sql_file => $anvil->data->{path}{sql}{'anvil.sql'}});
 				}

@@ -24,6 +24,7 @@ my $THIS_FILE = "Tools.pm";
 # environment
 # nice_exit
 # _add_hash_reference
+# _anvil_version
 # _hostname
 # _make_hash_reference
 # _set_defaults
@@ -129,6 +130,7 @@ sub new
 		HOST				=>	{
 			# This is the host's UUID. It should never be manually set.
 			UUID			=>	"",
+			ANVIL_VERSION		=>	"",
 		},
 	};
 	
@@ -192,6 +194,9 @@ sub new
 	
 	# Read in any command line switches.
 	$anvil->Get->switches;
+	
+	# Read in the local Anvil! version.
+
 	
 	# Set passed parameters if needed.
 	if (ref($parameter) eq "HASH")
@@ -505,6 +510,23 @@ sub _add_hash_reference
 	}
 }
 
+=head2 _anvil_version
+
+=cut
+sub _anvil_version
+{
+	my $self  = shift;
+	my $anvil = $self;
+	
+	if ($anvil->{HOST}{ANVIL_VERSION} eq "")
+	{
+		# Try to read the local Anvil! version.
+		$anvil->{HOST}{ANVIL_VERSION} = $anvil->Get->anvil_version();
+	}
+	
+	return($anvil->{HOST}{ANVIL_VERSION});
+}
+
 =head2 _hostname
 
 This returns the (full) hostname for the machine this is running on.
@@ -512,8 +534,8 @@ This returns the (full) hostname for the machine this is running on.
 =cut
 sub _hostname
 {
-	my $self = shift;
-	my $anvil   = $self;
+	my $self  = shift;
+	my $anvil = $self;
 	
 	my $hostname = "";
 	if ($ENV{HOSTNAME})
@@ -698,12 +720,13 @@ sub _set_paths
 	# Executables
 	$anvil->data->{path} = {
 			configs			=>	{
+				'anvil.conf'		=>	"/etc/anvil/anvil.conf",
+				'anvil.version'		=>	"/etc/anvil/anvil.version",
 				'firewalld.conf'	=>	"/etc/firewalld/firewalld.conf",
 				'journald_anvil'	=>	"/etc/systemd/journald.conf.d/anvil.conf",
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
 				ssh_config		=>	"/etc/ssh/ssh_config",
-				'anvil.conf'		=>	"/etc/anvil/anvil.conf",
 			},
 			data			=>	{
 				group			=>	"/etc/group",
