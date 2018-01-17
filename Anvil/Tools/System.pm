@@ -8,6 +8,7 @@ use warnings;
 use Data::Dumper;
 use Net::SSH2;
 use Scalar::Util qw(weaken isweak);
+use Time::HiRes qw(gettimeofday tv_interval);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
@@ -846,6 +847,12 @@ sub ping
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	
+# 	my $start_time = [gettimeofday];
+# 	print "Start time: [".$start_time->[0].".".$start_time->[1]."]\n";
+# 	
+# 	my $ping_time = tv_interval ($start_time, [gettimeofday]);
+# 	print "[".$ping_time."] - Pinged: [$host]\n";
+	
 	# If we were passed a target, try pinging from it instead of locally
 	my $count    = $parameter->{count}    ? $parameter->{count}    : 1;	# How many times to try to ping it? Will exit as soon as one succeeds
 	my $debug    = $parameter->{debug}    ? $parameter->{deug}     : 3;
@@ -874,7 +881,7 @@ sub ping
 	
 	# Build the call. Note that we use 'timeout' because if there is no connection and the hostname is 
 	# used to ping and DNS is not available, it could take upwards of 30 seconds time timeout otherwise.
-	my $shell_call = $anvil->data->{path}{exe}{timeout}." 2 ".$anvil->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
+	my $shell_call = $anvil->data->{path}{exe}{timeout}." 1 ".$anvil->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	if (not $fragment)
 	{
@@ -1176,7 +1183,17 @@ sub remote_call
 	}
 	
 	# Make sure the port is valid.
-	if (($port !~ /^\d+$/) or ($port < 0) or ($port > 65536))
+	if ($port eq "")
+	{
+		$port = 22;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
+	}
+	elsif ($port !~ /^\d+$/)
+	{
+		$port = getservbyname($port, 'tcp');
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
+	}
+	if ((not defined $port) or (($port !~ /^\d+$/) or ($port < 0) or ($port > 65536)))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0058", variables => { port => $port }});
 		return("!!error!!");
@@ -1212,11 +1229,20 @@ sub remote_call
 	
 	# If I don't already have an active SSH file handle, connect now.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { ssh_fh => $ssh_fh }});
+	
 	if ($ssh_fh !~ /^Net::SSH2/)
 	{
-		$ssh_fh = Net::SSH2->new();
-		if (not $ssh_fh->connect($target, $port, Timeout => 10))
+		### NOTE: Nevermind, timeout isn't supported... >_< Find a newer version if IO::Socket::IP?
+		### TODO: Make the timeout user-configurable to handle slow connections. Make it 
+		###       'sys::timeout::{all|host} = x'
+		my $start_time = [gettimeofday];
+		$ssh_fh = Net::SSH2->new(timeout => 1000);
+		if (not $ssh_fh->connect($target, $port))
 		{
+			
+			my $connect_time = tv_interval ($start_time, [gettimeofday]);
+			print "[".$connect_time."] - Connection failed time to: [$target:$port]\n";
+			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", list => { 
 				user       => $user,
 				target     => $target, 
@@ -1249,9 +1275,12 @@ sub remote_call
 			{
 				$message_key = "message_0004";
 			}
-			$error = $anvil->Words->string({key => $message_key, variables => { $variables }});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => { $variables }});
+			$error = $anvil->Words->string({key => $message_key, variables => $variables});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables});
 		}
+		
+		my $connect_time = tv_interval ($start_time, [gettimeofday]);
+		print "[".$connect_time."] - Connect time to: [$target:$port]\n";
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { error => $error, ssh_fh => $ssh_fh }});
 		if (not $error)

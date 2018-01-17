@@ -8,6 +8,7 @@ use warnings;
 use DBI;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
+use Time::HiRes qw(gettimeofday tv_interval);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
@@ -637,6 +638,9 @@ sub connect
 		test_table => $test_table, 
 	}});
 	
+	my $start_time = [gettimeofday];
+	print "Start time: [".$start_time->[0].".".$start_time->[1]."]\n";
+	
 	$anvil->data->{sys}{db_timestamp} = "" if not defined $anvil->data->{sys}{db_timestamp};
 	
 	# We need the host_uuid before we connect.
@@ -715,10 +719,15 @@ sub connect
 			db_connect_string                      => $db_connect_string, 
 			"database::${id}::ping_before_connect" => $anvil->data->{database}{$id}{ping_before_connect},
 		}});
-		if ($anvil->data->{database}{$id}{ping_before_connect})
+		#if ($anvil->data->{database}{$id}{ping_before_connect})
+		if (0)
 		{
 			# Can I ping?
 			my ($pinged) = $anvil->System->ping({ping => $host, count => 1});
+			
+			my $ping_time = tv_interval ($start_time, [gettimeofday]);
+			print "[".$ping_time."] - Pinged: [$host:$port:$name:$user]\n";
+			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pinged => $pinged }});
 			if (not $pinged)
 			{
@@ -944,6 +953,9 @@ sub connect
 			}});
 		}
 	}
+	
+	my $total = tv_interval ($start_time, [gettimeofday]);
+	print "Total runtime: [".$total."]\n";
 	
 	# Do I have any connections? Don't die, if not, just return.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { connections => $connections }});
