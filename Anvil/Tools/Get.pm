@@ -115,7 +115,7 @@ sub anvil_version
 	my $debug    = $parameter->{debug}    ? $parameter->{debug}    : 2;
 	my $password = $parameter->{password} ? $parameter->{password} : "";
 	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
-	my $target   = $parameter->{target}   ? $parameter->{target}   : "";
+	my $target   = $parameter->{target}   ? $parameter->{target}   : "local";
 	my $version  = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password => $anvil->Log->secure ? $password : "--",
@@ -128,9 +128,9 @@ sub anvil_version
 	{
 		# Remote call.
 		my $shell_call = "
-if [ -e ".$anvil->data->{path}{exe}{'anvil.version'}." ];
+if [ -e ".$anvil->data->{path}{configs}{'anvil.version'}." ];
 then
-    cat ".$anvil->data->{path}{exe}{'anvil.version'}.";
+    cat ".$anvil->data->{path}{configs}{'anvil.version'}.";
 else
    echo 0;
 fi;
@@ -147,7 +147,7 @@ fi;
 	else
 	{
 		# Local.
-		$version = $anvil->Storage->read_file({file => $anvil->data->{path}{exe}{'anvil.version'}});
+		$version = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.version'}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
 		
 		# Did we actually read a version?
