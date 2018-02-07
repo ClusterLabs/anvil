@@ -1,12 +1,85 @@
 All systems have a UUID, even VMs. Use that for system UUID in the future.
 
+https://access.redhat.com/solutions/2841131 - How to write a NetworkManager dispatcher script to apply ethtool commands?
+
+
+Setup nodes to log to striker?
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec-configuring_netconsole
+
+* Pacemaker can be monitored via SNMP; https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-snmpandpacemaker-HAAR
+* corosync.conf; https://access.redhat.com/articles/3185291
+
+Changes made using tools such as nmcli do not require a reload but do require the associated interface to be put down and then up again. That can be done by using commands in the following format:
+* nmcli dev disconnect interface-name
+Followed by:
+* nmcli con up interface-name
+
+NOTE: RHEL doesn't support direct-cabled bonds - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/ch-configure_network_bonding
+
+ifcfg-X config Notes - /usr/share/doc/initscripts-*/sysconfig.txt (Look for the sections describing files /etc/sysconfig/network and /etc/sysconfig/network-scripts/ifcfg-<interface-name>);
+                     - man 5 nm-settings-ifcfg-rh
+                     - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec-Using_Channel_Bonding#s3-modules-bonding-directives
+                     - /usr/share/doc/kernel-doc-*/Documentation/networking/bonding.txt
+iface
+* PREFIXx overrules NETMASKx. Use PREFIXx, not NETMASKx.
+* The 'x' suffice for PREFIX, NETMASK, etc start at 0 and must count up by 1 at a time.
+* ZONE will be useful for the firewall stuff later.
+* ETHTOOL_OPTS is deprecated, replaced by using udev rules
+* initscripts interpret PEERDNS=no to mean "never touch resolv.conf". NetworkManager interprets it to say "never add automatic (DHCP, PPP, VPN, etc.) nameservers to resolv.conf".
+Bond
+* resend_igmp & num_unsol_na={1~255} may help if a switch is slow to notice traffic has moved to the new interface. default is 1. Each update is send 200ms apart.
+* Bridged interfaces should use BRIDGE_UUID="", _not_ BRIDGE="". The former causes the later to be ignored and the later is only used for possible compatibility reasons.
+Bridge
+* STP=no is default, we'll test 'yes'.
+* DOMAIN="<client_domain>"
+
+
+Example Link config:
+====
+HWADDR="52:54:00:D4:54:4F"                      # The MAC address of the interface that this file configures
+UUID="e054949f-5e47-34de-ad75-9c5b61cc24df"     # Unique identifier for this interface
+DEVICE="bcn1_link1"                             # The interface device name. This sets a consistent name for the HWADDR device.
+NAME="BCN 1 - Link 1"                           # The name is used in some network config tools. It doesn't effect anything functional
+ONBOOT="yes"                                    # Start the interface on boot
+USERCTL="no"                                    # Disable user control
+BOOTPROTO="none"                                # Set no IP
+MTU="1500"                                      # MTU size in bytes
+DEFROUTE="no"                                   # Do not route through this interface
+NM_CONTROLLED="yes"                             # Let Network Manager control this interface
+SLAVE="yes"                                     # Sets this interface as a bonding slave
+MASTER="bcn1_bond1"                             # This is the device name of the bond we're slaved to
+TYPE="Ethernet"                                 # Set this as an ethernet device
+IPV6INIT="no"                                   # Disable IPv6
+====
+
+Example Bonding config:
+====
+# Back-Channel Network - Bond 1
+UUID="954e6b64-534c-4eeb-ba42-d7fd6adab8c6"
+DEVICE="bcn1_bond1"
+NAME="BCN 1 - Bond 1"
+BONDING_OPTS="mode=active-backup primary=bcn1_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better"
+TYPE="Bond"
+BONDING_MASTER="yes"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+IPADDR="10.1.10.1"
+PREFIX="16"
+DEFROUTE="no"
+====
+
+Example Bridge config:
+=====
+
+=====
 
 
 
 ### Setup - Striker
 
 # Packages
-depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg rsync perl-Log-Journald perl-Net-SSH2
+depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg rsync perl-Log-Journald perl-Net-SSH2 
 
 # Paths
 mkdir /usr/sbin/anvil
@@ -34,3 +107,280 @@ restorecon -rv /var/www
 =============================================================
 [root@striker-m3 ~]# cat watch_logs 
 clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil
+
+
+### Setup - Nodes
+
+# OS Install
+* Set TZ to etc/GMT
+* Disable kdump
+* Storage;
+** 1 = /BIOS Boot (1 MiB)
+** 2 = /boot      (1 GiB)
+** 3 = LVM PV     (all remaining space)
+*** VG = <short-name>_vg0
+**** <swap>       (8 GiB)
+**** /            (50 GiB)
+**** /mnt/anvil   (20 GiB)
+* 'root' and 'admin' use 'Initial1' (with sudo)
+
+# OS config
+* Register if RHEL proper;
+** subscription-manager register --username alteeve_admin --password stone1983 --auto-attach --force
+** subscription-manager repos --enable=rhel-ha-for-rhel-7-server-rpms
+** subscription-manager repos --enable=rhel-7-server-optional-rpms
+* Packages to install;
+** bash-completion bridge-utils fence-agents-all fence-agents-virsh gpm kernel-doc libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper qemu-kvm qemu-kvm-common qemu-kvm-tools rsync vim virt-install
+* Packages to remove;
+** biosdevname 
+* For now only;
+** rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
+** rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+* Service management;
+** systemctl start gpm.service
+* Network;
+** {bc,if,s}nX_{link,bond,bridge}Y naming
+** firewall; - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-firewalls-haar
+*** firewall-cmd --permanent --add-service=high-availability
+*** firewall-cmd --add-service=high-availability
+* Cluster Config;
+==== Both nodes
+echo Initial1 | passwd hacluster --stdin 
+systemctl start pcsd.service
+systemctl enable pcsd.service
+systemctl disable libvirtd.service
+systemctl stop libvirtd.service
+==== One node
+pcs cluster auth m3-a01n01 m3-a01n02
+# Username: hacluster
+# Password: 
+
+pcs cluster setup --name m3-anvil-01 m3-a01n01 m3-a01n02
+pcs cluster start --all
+pcs stonith create virsh_node1 fence_virsh pcmk_host_list="m3-a01n01" ipaddr="192.168.122.1" passwd="secret" login="root" delay="15" port="m3-a01n01" op monitor interval="60"
+pcs stonith create virsh_node2 fence_virsh pcmk_host_list="m3-a01n02" ipaddr="192.168.122.1" passwd="secret" login="root" port="m3-a01n02" op monitor interval="60"
+
+pcs resource create hypervisor systemd:libvirtd op monitor interval=60
+pcs resource create drbd systemd:drbd op monitor interval=60
+
+pcs resource clone hypervisor clone-max=2 notify="false" 
+pcs resource clone drbd clone-max=2 notify="false"
+
+
+
+stonith_admin --fence m3-a01n02 --verbose; crm_error $?
+
+==== (configured via https)
+
+Ports we care about
+
+Porto	Number		Used by		Nets		Description
+TCP	2224		pcsd 		bcn		It is crucial to open port 2224 in such a way that pcs from any node can talk to all nodes in the cluster, including itself.
+UDP	5404		corosync	bcn		Required on corosync nodes if corosync is configured for multicast UDP
+UDP	5405		corosync	bcn		Required on all corosync nodes (needed by corosync)
+TCP	7788+		drbd		sn		1 port per resource
+TCP	49152-49215	virsh		bcn		live migration - migration_port_min and migration_port_max attributes in the /etc/libvirt/qemu.conf
+
+* After all changes;
+firewall-cmd --zone=public --add-port=49152-49215/tcp --permanent
+firewall-cmd --reload
+
+==== DRBD notes
+
+* resources can contain an US-ASCII character, except for spaces
+* A resource is a single replication stream for 1 or more resources, max 65.535 vols per resource
+* DRBD does, however, ship with an LVM integration facility that automates the creation of LVM snapshots immediately before synchronization. This ensures that a consistent copy of the data is always available on the peer, even while synchronization is running. See Using automated LVM snapshots during DRBD synchronization for details on using this facility.
+** https://docs.linbit.com/docs/users-guide-9.0/#s-lvm-snapshots
+* Checksum-based synchronization computes a block's hash on source and target and skips if matching, possibly making resync much faster for blocks rewritten with the same data, but at the cost of CPU. Make this a user-configurable option under the advanced tab.
+* Suspended replication allows congested replication links to suspend replication, leaving the peer in a consistent state, but allowing the primary to "pull ahead". When the congestion passes, the delta resyncs. Make this a user-configurable option with scary warnings.
+* Online verification can (should?) be run periodically on the server host (verification source will overwrite deltas on the verification target). Perhaps schedule to run once/month? Do resource sequentially as this places a CPU load on the nodes.
+* Replication traffic integrity checking uses a given available kernel crypto to verify data integrity on transmission to the peer. If the replicated block can not be verified against the digest, the connection is dropped and immediately re-established; because of the bitmap the typical result is a retransmission.
+** Make an option in the advanced tab. Test to see overhead this adds. Choose the lowest overhead algo (within reason)
+* Support for disk flushes might be something we want to disable, as it seems to force write-through even with a function FBWC/BBU. Need to test.
+* Note; "Inconsistent" is almost always useless. "Consistent" and "Outdated" are able to be used safely, just without whatever happened on the peer after.
+* Truck based replication, also known as disk shipping, is a means of preseeding a remote site with data to be replicated, by physically shipping storage media to the remote site.
+* Make sure that selinux doesn't block DRBD comms over the SN
+* See "5.15.1. Growing on-line" for growing a DRBD resource
+** Shrinking online is ONLY possible if the metadata is external. Worth creating *_md LVs? Offline requires backing up and restoring the MD
+
+Provisioning a server will need to:
+* Open up a DRBD port (or more, if multiple resources are created).
+* Create the DRBD resource(s); Find the lowest free rX.res, create it locally and on the peer (if up), 
+** firewall-cmd --zone=public --permanent --add-port=7788/tcp
+* Provision the server via virt-install
+* push the new XML to striker such that the peer's anvil daemon picks it up and writes it out.
+
+[root@m3-a01n01 drbd.d]# drbdsetup status r0 --verbose --statistics
+r0 node-id:1 role:Primary suspended:no
+    write-ordering:flush
+  volume:0 minor:0 disk:UpToDate quorum:yes
+      size:10485404 read:9682852 written:0 al-writes:0 bm-writes:0 upper-pending:0 lower-pending:0 al-suspended:no blocked:no
+  m3-a01n02.alteeve.com node-id:0 connection:Connected role:Secondary congested:no
+    volume:0 replication:SyncSource peer-disk:Inconsistent done:92.29 resync-suspended:no
+        received:0 sent:9679140 out-of-sync:808144 pending:6 unacked:3
+
+[root@m3-a01n02 ~]# cat /sys/kernel/debug/drbd/resources/r0/connections/m3-a01n01.alteeve.com/0/proc_drbd 
+ 0: cs:SyncSource ro:Primary/Secondary ds:UpToDate/Inconsistent C r-----
+    ns:24360 nr:10485404 dw:10485404 dr:25420 al:0 bm:0 lo:0 pe:[0;0] ua:0 ap:[0;0] ep:1 wo:2 oos:10461044
+	[>....................] sync'ed:  0.3% (10212/10236)M
+	finish: 0:50:01 speed: 3,480 (5,020 -- 3,480) K/sec
+	 99% sector pos: 20970808/20970808
+	resync: used:0/61 hits:557 misses:2 starving:0 locked:0 changed:1
+	act_log: used:0/1237 hits:0 misses:0 starving:0 locked:0 changed:0
+	blocked on activity log: 0
+
+[root@m3-a01n02 ~]# drbdadm primary r0
+r0: State change failed: (-1) Multiple primaries not allowed by config
+Command 'drbdsetup primary r0' terminated with exit code 11
+[root@m3-a01n02 ~]# drbdadm net-options --allow-two-primaries=yes r0
+[root@m3-a01n02 ~]# drbdadm primary r0
+[root@m3-a01n02 ~]# drbdadm net-options --allow-two-primaries=no r0
+
+[root@m3-a01n01 drbd.d]# drbdsetup show all
+resource r0 {
+    _this_host {
+        node-id			1;
+        volume 0 {
+            device			minor 0;
+            disk			"/dev/new-node1_vg0/test";
+            meta-disk			internal;
+            disk {
+                disk-flushes    	no;
+                md-flushes      	no;
+            }
+        }
+    }
+    connection {
+        _peer_node_id 0;
+        path {
+            _this_host ipv4 10.41.10.1:7788;
+            _remote_host ipv4 10.41.10.2:7788;
+        }
+        net {
+            after-sb-0pri   	discard-zero-changes;
+            after-sb-1pri   	discard-secondary;
+            data-integrity-alg	"md5";
+            csums-alg       	"md5";
+            _name           	"m3-a01n02.alteeve.com";
+        }
+    }
+}
+
+[root@m3-a01n01 drbd.d]# drbdsetup show all --show-defaults
+resource r0 {
+    options {
+        cpu-mask        	""; # default
+        on-no-data-accessible	io-error; # default
+        auto-promote    	yes; # default
+        peer-ack-window 	4096s; # bytes, default
+        peer-ack-delay  	100; # milliseconds, default
+        twopc-timeout   	300; # 1/10 seconds, default
+        twopc-retry-timeout	1; # 1/10 seconds, default
+        auto-promote-timeout	20; # 1/10 seconds, default
+        max-io-depth    	8000; # default
+        quorum          	off; # default
+        on-no-quorum    	suspend-io; # default
+        quorum-minimum-redundancy	off; # default
+    }
+    _this_host {
+        node-id			1;
+        volume 0 {
+            device			minor 0;
+            disk			"/dev/new-node1_vg0/test";
+            meta-disk			internal;
+            disk {
+                size            	0s; # bytes, default
+                on-io-error     	detach; # default
+                disk-barrier    	no; # default
+                disk-flushes    	no;
+                disk-drain      	yes; # default
+                md-flushes      	no;
+                resync-after    	-1; # default
+                al-extents      	1237; # default
+                al-updates      	yes; # default
+                discard-zeroes-if-aligned	yes; # default
+                disable-write-same	no; # default
+                disk-timeout    	0; # 1/10 seconds, default
+                read-balancing  	prefer-local; # default
+                rs-discard-granularity	0; # bytes, default
+            }
+        }
+    }
+    connection {
+        _peer_node_id 0;
+        path {
+            _this_host ipv4 10.41.10.1:7788;
+            _remote_host ipv4 10.41.10.2:7788;
+        }
+        net {
+            transport       	""; # default
+            protocol        	C; # default
+            timeout         	60; # 1/10 seconds, default
+            max-epoch-size  	2048; # default
+            connect-int     	10; # seconds, default
+            ping-int        	10; # seconds, default
+            sndbuf-size     	0; # bytes, default
+            rcvbuf-size     	0; # bytes, default
+            ko-count        	7; # default
+            allow-two-primaries	no; # default
+            cram-hmac-alg   	""; # default
+            shared-secret   	""; # default
+            after-sb-0pri   	discard-zero-changes;
+            after-sb-1pri   	discard-secondary;
+            after-sb-2pri   	disconnect; # default
+            always-asbp     	no; # default
+            rr-conflict     	disconnect; # default
+            ping-timeout    	5; # 1/10 seconds, default
+            data-integrity-alg	"md5";
+            tcp-cork        	yes; # default
+            on-congestion   	block; # default
+            congestion-fill 	0s; # bytes, default
+            congestion-extents	1237; # default
+            csums-alg       	"md5";
+            csums-after-crash-only	no; # default
+            verify-alg      	""; # default
+            use-rle         	yes; # default
+            socket-check-timeout	0; # default
+            fencing         	dont-care; # default
+            max-buffers     	2048; # default
+            _name           	"m3-a01n02.alteeve.com";
+        }
+        volume 0 {
+            disk {
+                resync-rate     	250k; # bytes/second, default
+                c-plan-ahead    	20; # 1/10 seconds, default
+                c-delay-target  	10; # 1/10 seconds, default
+                c-fill-target   	100s; # bytes, default
+                c-max-rate      	102400k; # bytes/second, default
+                c-min-rate      	250k; # bytes/second, default
+                bitmap          	yes; # default
+            }
+        }
+    }
+}
+
+== virt-install stuff
+* Get a list of --os-variants: 'osinfo-query os'
+* virt-install --print-xml (or --transient) 
+* Migate;
+# For all resources under the server;
+drbdadm net-options r0 --allow-two-primaries=yes
+# Migrate:
+virsh migrate --unsafe --undefinesource --live srv01-c7 qemu+ssh://m3-a01n02.alteeve.com/system
+# Again for all resource under the server;
+drbdadm net-options r0 --allow-two-primaries=no
+
+Set to 90% of BCN bandwidth
+       migrate-setspeed domain bandwidth
+           Set the maximum migration bandwidth (in MiB/s) for a domain which is being migrated to another host. bandwidth is interpreted as an
+           unsigned long long value. Specifying a negative value results in an essentially unlimited value being provided to the hypervisor. The
+           hypervisor can choose whether to reject the value or convert it to the maximum value allowed.
+
+       migrate-getspeed domain
+           Get the maximum migration bandwidth (in MiB/s) for a domain.
+
+== Resource Agent; https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
+
+* A resource agent receives all configuration information about the resource it manages via environment variables. The names of these environment variables are always the name of the resource parameter, prefixed with OCF_RESKEY_. For example, if the resource has an ip parameter set to 192.168.1.1, then the resource agent will have access to an environment variable OCF_RESKEY_ip holding that value.
+* 
+
