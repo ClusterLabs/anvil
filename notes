@@ -138,7 +138,7 @@ clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil
 ** subscription-manager repos --enable=rhel-ha-for-rhel-7-server-rpms
 ** subscription-manager repos --enable=rhel-7-server-optional-rpms
 * Packages to install;
-** bash-completion bridge-utils fence-agents-all fence-agents-virsh gpm kernel-doc libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper qemu-kvm qemu-kvm-common qemu-kvm-tools rsync vim virt-install
+** bash-completion bind-utils bridge-utils fence-agents-all fence-agents-virsh gpm kernel-doc libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper perl-XML-Simple qemu-kvm qemu-kvm-common qemu-kvm-tools rsync vim virt-install
 * Packages to remove;
 ** biosdevname 
 * For now only;
@@ -214,7 +214,10 @@ firewall-cmd --reload
 Provisioning a server will need to:
 * Open up a DRBD port (or more, if multiple resources are created).
 * Create the DRBD resource(s); Find the lowest free rX.res, create it locally and on the peer (if up), 
-** firewall-cmd --zone=public --permanent --add-port=7788/tcp
+
+firewall-cmd --zone=public --permanent --add-port=7788/tcp
+firewall-cmd --reload
+
 * Provision the server via virt-install
 * push the new XML to striker such that the peer's anvil daemon picks it up and writes it out.
 

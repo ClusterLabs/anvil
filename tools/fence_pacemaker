@@ -7,6 +7,9 @@
 #
 # This program ties LINBIT's DRBD fencing into pacemaker's stonith. It provides a power-fence alternative to
 # the default 'crm-{un,}fence-peer.sh' {un,}fence-handler.
+# 
+# WARNING: This fence handler is probably not safe to use outside of an Anvil! IA platform. It makes a lot of
+#          operational assumptions about the system and desired goals.
 #
 # Exit Codes (as per; http://lists.linbit.com/pipermail/drbd-dev/2006-November/000538.html)
 # - 3 -> peer is inconsistent
@@ -49,6 +52,7 @@
 
 use strict;
 use warnings;
+use XML::Simple;
 use Data::Dumper;
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
@@ -65,25 +69,21 @@ my $conf = {
 	'log'		=>	{
 		facility	=>	"local0",
 		level		=>	2,
-		line_numbers	=>	0,
+		line_numbers	=>	1,
 		tag		=>	$THIS_FILE,
 	},
 	# If a program isn't at the defined path, $ENV{PATH} will be searched.
 	path		=>	{
 		exe		=>	{
+			cibadmin	=>	"/usr/sbin/cibadmin",
+			drbdadm		=>	"/usr/sbin/drbdadm",
+			getent		=>	"/usr/bin/getent",
 			logger		=>	"/usr/bin/logger",
 			stonith_admin	=>	"/usr/sbin/stonith_admin",
 		},
 	},
-	# General settings.
-	sys		=>	{
-		# Local host name.
-		host_name		=>	$ENV{HOSTNAME},
-		target_name		=>	"",
-	},
 	# The script will set this.
 	cluster		=>	{
-		this_node		=>	"",
 		target_node		=>	"",
 	},
 	# These are the environment variables set by DRBD. See 'man drbd.conf'
@@ -93,19 +93,47 @@ my $conf = {
 		'DRBD_RESOURCE'		=>	defined $ENV{DRBD_RESOURCE}     ? $ENV{DRBD_RESOURCE}     : "",
 		# The resource minor number, or, in the case of volumes, numbers.
 		'DRBD_MINOR'		=>	defined $ENV{DRBD_MINOR}        ? $ENV{DRBD_MINOR}        : "",
-		# The peer(s) hostname(s), space separated. 
-		# DRBD_PEER_AF, DRBD_PEER_ADDRESS , DRBD_PEERS are the address family (e.g.  ipv6), the peer's address and hostnames.
+		# This is the address format (ipv4, ipv6, etc)
 		'DRBD_PEER_AF'		=>	defined $ENV{DRBD_PEER_AF}      ? $ENV{DRBD_PEER_AF}      : "",
+		# This is the IP address of the target node.
 		'DRBD_PEER_ADDRESS'	=>	defined $ENV{DRBD_PEER_ADDRESS} ? $ENV{DRBD_PEER_ADDRESS} : "",
+		# This isn't set
 		'DRBD_PEERS'		=>	defined $ENV{DRBD_PEERS}        ? $ENV{DRBD_PEERS}        : "",
+		### NOTE: Below here are undocumented variables. Don't expect them to always be useful.
+		# My node ID
+		'DRBD_MY_NODE_ID'	=>	defined $ENV{DRBD_MY_NODE_ID}   ? $ENV{DRBD_MY_NODE_ID}   : "",
+		# The target's ID
+		'DRBD_PEER_NODE_ID'	=>	defined $ENV{DRBD_PEER_NODE_ID} ? $ENV{DRBD_PEER_NODE_ID} : "",
 	},
 };
+
+# These are the full host names of the nodes given their IDs.
+foreach my $i (0..31)
+{
+	my $key = "DRBD_NODE_ID_".$i;
+	if ((exists $ENV{$key}) && (defined $ENV{$key}))
+	{
+		$conf->{environment}{$key} = $ENV{$key};
+		to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => 2});
+	}
+}
 
 # Find executables.
 find_executables($conf);
 
 # Something for the logs
 to_log($conf, {message => "Attempting to fence the peer via pacemaker's stonith...", 'line' => __LINE__});
+
+### TESTING - Simulate a call from node 1 against node 2
+$conf->{environment}{DRBD_NODE_ID_0}    = "m3-a01n02.alteeve.com";
+$conf->{environment}{DRBD_NODE_ID_1}    = "m3-a01n01.alteeve.com";
+$conf->{environment}{DRBD_MINOR}        = "0";
+$conf->{environment}{DRBD_MY_NODE_ID}   = "1";
+$conf->{environment}{DRBD_PEER_ADDRESS} = "10.41.10.2";
+$conf->{environment}{DRBD_PEER_AF}      = "ipv4";
+$conf->{environment}{DRBD_PEER_NODE_ID} = "0";
+$conf->{environment}{DRBD_RESOURCE}     = "r0";
+### TESTING
 
 # Record the environment variables
 foreach my $key (sort {$a cmp $b} keys %{$conf->{environment}})
@@ -118,21 +146,25 @@ foreach my $key (sort {$a cmp $b} keys %ENV)
 	to_log($conf, {message => "System Environment variable: [$key] -> [".$ENV{$key}."]", 'line' => __LINE__, level => 3});
 }
 
+# Make sure we at least have the target's IP.
+if (not $conf->{environment}{DRBD_PEER_ADDRESS})
+{
+	to_log($conf, {message => "Target's IP not set via the DRBD_PEER_ADDRESS environment variable. Unable to proceed.", 'line' => __LINE__, level => 0, priority => "err"});
+	exit(1);
+}
 
-exit(255);
+# This also checks that we're quorate and not in maintenance mode.
+identify_peer($conf);
+
+# Is the peer already gone? If so, return a success.
 
 
-# Who am I?
-get_local_node_name($conf);
+# If we're still alive, we now need to check the DRBD resource disk state locally.
+get_drbd_status($conf);
 
-# Am I up to date?
-get_local_resource_state($conf);
+to_log($conf, {message => "Ready to fence: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
+exit(7);
 
-# Who else is here?
-get_info_on_other_nodes($conf);
-
-# Who shall I kill?
-get_target($conf);
 
 # Eject the target, if I can.
 eject_target($conf);
@@ -151,6 +183,247 @@ exit(255);
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This reads the status of all resources. If we're not all UpToDate, check if the peer is. If the peer is, 
+# abort. If not, proceed (someone is gouig to have a bad day, but maybe some servers will live)
+sub get_drbd_status
+{
+	my ($conf) = @_;
+
+	my $resource           = "";
+	my $peer               = "";
+	my $local_all_uptodate = 1;
+	my $peer_all_uptodate  = 1;
+	my $shell_call         = $conf->{path}{exe}{drbdadm}." status all";
+	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line = $_;
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
+		
+		if (not $line)
+		{
+			$resource = "";
+			$peer     = "";
+			to_log($conf, {message => "resource: [$resource], peer: [$peer]", 'line' => __LINE__, level => 2});
+			next;
+		}
+		if ($line ~= /^(\S+)\s+role/)
+		{
+			$resource = $1;
+			to_log($conf, {message => "resource: [$resource]", 'line' => __LINE__, level => 2});
+			next;
+		}
+		if ($line =~ /^\s+(.*?) role:/)
+		{
+			$peer = $1;
+			to_log($conf, {message => "peer: [$peer]", 'line' => __LINE__, level => 2});
+			next;
+		}
+		if ($resource)
+		{
+			if ($line =~ /disk:(.*)$/)
+			{
+				my $local_dstate = $1;
+				to_log($conf, {message => "local_dstate: [$local_dstate]", 'line' => __LINE__, level => 2});
+				if (lc($local_dstate) ne "uptodate")
+				{
+					$local_all_uptodate = 0;
+					to_log($conf, {message => "local_all_uptodate: [$local_all_uptodate]", 'line' => __LINE__, level => 2});
+				}
+				next;
+			}
+			if ($line =~ /peer-disk:(.*)$/)
+			{
+				my $peer_dstate = $1;
+				to_log($conf, {message => "peer_dstate: [$peer_dstate]", 'line' => __LINE__, level => 2});
+				if (lc($peer_dstate) ne "uptodate")
+				{
+					$peer_all_uptodate = 0;
+					to_log($conf, {message => "peer: [$peer], peer_all_uptodate: [$peer_all_uptodate]", 'line' => __LINE__, level => 2});
+				}
+				next;
+			}
+		}
+		
+	}
+	close $file_handle;
+	my $return_code = $?;
+	to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 2});
+	
+	# If we're not all UpToDate, but the peer is, abort
+	if ((not $local_all_uptodate) && ($peer_all_uptodate))
+	{
+		# We're not good
+		to_log($conf, {message => "This node has DRBD resources that are not UpToDate, but the peer is fully UpToDate. Aborting.", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+
+	return(0);
+}
+
+# This identifies the pacemaker name of the target node. If it can't find 
+sub identify_peer
+{
+	my ($conf) = @_;
+	
+	# I know the target's (SN) IP, map it to a node.
+	my $target_host = "";
+	my $target_ip   = $conf->{environment}{DRBD_PEER_ADDRESS};
+	
+	# First, can we translate the IP to a hostname?
+	my $shell_call = $conf->{path}{exe}{getent}." hosts ".$target_ip;
+	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line = $_;
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
+		if ($line =~ /^$target_ip\s+(.*)$/)
+		{
+			$target_host = $1;
+			to_log($conf, {message => ">> target_host: [$target_host]", 'line' => __LINE__, level => 2});
+			
+			# Strip off any suffix, we only want the short name.
+			$target_host =~ s/\..*//;
+			to_log($conf, {message => "<< target_host: [$target_host]", 'line' => __LINE__, level => 2});
+			last;
+		}
+	}
+	close $file_handle;
+	my $return_code = $?;
+	to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 2});
+	
+	# If I got the host name, try to match it to a pacemaker node name.
+	if ($target_host)
+	{
+		# Get the current CIB
+		my $xml_opened  = 0;
+		my $xml_closed  = 0;
+		my $cib         = '<?xml version="1.0" encoding="UTF-8"?>';
+		my $shell_call  = $conf->{path}{exe}{cibadmin}." --local --query";
+		to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
+		open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+		while(<$file_handle>)
+		{
+			# This should not generate output.
+			chomp;
+			my $line =  $_;
+			to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 3});
+			
+			$cib  .= "\n".$line;
+			if ($line =~ /Signon to CIB failed/i)
+			{
+				# Failed to connect, we're probably not in the cluster.
+				to_log($conf, {message => "This node does not appear to be in the cluster. Unable to get the CIB status.", 'line' => __LINE__, level => 0, priority => "err"});
+				exit(1);
+			}
+			if ($line =~ /^<cib .*?>$/)
+			{
+				$xml_opened = 1;
+				to_log($conf, {message => "xml_opened: [$xml_opened].", 'line' => __LINE__, level => 2});
+			}
+			if ($line =~ /^<\/cib>$/)
+			{
+				$xml_closed = 1;
+				to_log($conf, {message => "xml_closed: [$xml_closed].", 'line' => __LINE__, level => 2});
+			}
+		}
+		close $file_handle;
+		my $return_code = $?;
+		to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 2});
+		
+		# Now parse the CIB XML if I read it OK.
+		to_log($conf, {message => "xml_opened: [$xml_opened], xml_closed: [$xml_closed].", 'line' => __LINE__, level => 2});
+		if (($xml_opened) && ($xml_closed))
+		{
+			# We're good
+			my $xml  = XML::Simple->new();
+			my $body = "";
+			eval { $body = $xml->XMLin($cib, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'id' ]) };
+			if ($@)
+			{
+				chomp $@;
+				my $error =  "[ Error ] - The was a problem parsing: [$cib]. The error was:\n";
+					$error .= "===========================================================\n";
+					$error .= $@."\n";
+					$error .= "===========================================================\n";
+				to_log($conf, {message => $error, 'line' => __LINE__, level => 0, priority => "err"});
+				exit(1);
+			}
+			else
+			{
+				# Parse the XML.
+				my $host_name       =  $ENV{HOSTNAME};
+				my $short_host_name =  $ENV{HOSTNAME};
+					$short_host_name =~ s/\..*$//;
+				
+				#print "XML body: [$body]\n";
+				foreach my $key (sort {$a cmp $b} keys %{$body})
+				{
+					#print "Key: [$key] -> [".$body->{$key}."]\n";
+				}
+				
+				foreach my $hash_ref (sort {$a cmp $b} @{$body->{configuration}{nodes}{node}})
+				{
+					my $node = $hash_ref->{uname};
+					my $id   = $hash_ref->{id};
+					if ($node =~ /^$target_host/)
+					{
+						$conf->{cluster}{target_node} = $node;
+						to_log($conf, {message => "Found the pacemaker name of the target node: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
+					}
+					elsif ($node =~ /^$short_host_name/)
+					{
+						# THis is me. Am I in maintenance mode?
+						if (exists $hash_ref->{instance_attributes})
+						{
+							# We've got some data...
+							my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
+							my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
+							to_log($conf, {message => "node: [$node] instance attribyte name: [$name], value: [$value]", 'line' => __LINE__, level => 1});
+							if (($name eq "maintenance") and ($value eq "on"))
+							{
+								# We're in maintenance mode, abort.
+								to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
+								exit(1);
+							}
+						}
+						#print Dumper $hash_ref;
+					}
+				}
+				
+				my $quorate = $body->{'have-quorum'};
+				to_log($conf, {message => "quorate: [$quorate]", 'line' => __LINE__, level => 1});
+				if (not $quorate)
+				{
+					to_log($conf, {message => "This not is not quorate. Refusing to fence the peer!", 'line' => __LINE__, level => 0, priority => "err"});
+					exit(1);
+				}
+			}
+		}
+		else
+		{
+			# Failed to read the CIB XML.
+			to_log($conf, {message => "This node does not appear to be in the cluster. Unable to read the CIB XML properly.", 'line' => __LINE__, level => 2, priority => "err"});
+			exit(1);
+		}
+	}
+	
+	# Did I find the target?
+	if (not $conf->{cluster}{target_node})
+	{
+		to_log($conf, {message => "Failed to find the pacemaker name of the target node. Unable to proceed!", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	return(0);
+}
+
 # This checks the given paths and, if something isn't found, it searches PATH trying to find it.
 sub find_executables
 {
@@ -165,43 +438,41 @@ sub find_executables
 	my @dirs = split/:/, $ENV{PATH};
 	foreach my $exe (sort {$b cmp $a} keys %{$conf->{path}{exe}})
 	{
-		to_log($conf, {message => "Checking if: [$exe] is at: [".$conf->{path}{exe}{$exe}."]", 'line' => __LINE__, level => 3});
 		if ( not -e $conf->{path}{exe}{$exe} )
 		{
-			to_log($conf, {message => "It is not!", 'line' => __LINE__, level => 3});
+			to_log($conf, {message => "The program: [$exe] is not at: [".$conf->{path}{exe}{$exe}."]. Looking for it now...", 'line' => __LINE__, level => 1});
 			foreach my $path (@dirs)
 			{
 				$check =  "$path/$exe";
 				$check =~ s/\/\//\//g;
-				to_log($conf, {message => "Checking: [$check]", 'line' => __LINE__, level => 3});
+				to_log($conf, {message => "Checking: [$check]", 'line' => __LINE__, level => 2});
 				if ( -e $check )
 				{
-					to_log($conf, {message => "Found!", 'line' => __LINE__, level => 3});
 					if (-e $conf->{path}{exe}{logger})
 					{
-						to_log($conf, {message => "Changed path for: [$exe] from: [".$conf->{path}{exe}{$exe}."] to: [$check]", 'line' => __LINE__, level => 1});
+						to_log($conf, {message => "Found it! Changed path for: [$exe] from: [".$conf->{path}{exe}{$exe}."] to: [$check]", 'line' => __LINE__, level => 1});
 					}
 					else
 					{
-						warn "DEBUG: Changed path for: [$exe] from: [".$conf->{path}{exe}{$exe}."] to: [$check]\n";
+						warn "DEBUG: Found it! Changed path for: [$exe] from: [".$conf->{path}{exe}{$exe}."] to: [$check]\n";
 					}
 					$conf->{path}{exe}{$exe} = $check;
 				}
 				else
 				{
-					to_log($conf, {message => "Not found.", 'line' => __LINE__, level => 3});
+					to_log($conf, {message => "Not found.", 'line' => __LINE__, level => 2});
 				}
 			}
 		}
 		else
 		{
-			to_log($conf, {message => "Found!", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "Found!", 'line' => __LINE__, level => 3});
 			next;
 		}
 
 		# Make sure it exists now.
 		to_log($conf, {message => "Checking again if: [$exe] is at: [".$conf->{path}{exe}{$exe}."].", 'line' => __LINE__, level => 3});
-		if ( not -e $conf->{path}{exe}{$exe} )
+		if (not -e $conf->{path}{exe}{$exe})
 		{
 			$bad = 1;
 			if (-e $conf->{path}{exe}{logger})
@@ -231,18 +502,16 @@ sub kill_target
 	# Variables
 	my $remote_node = $conf->{environment}{DRBD_PEERS};
 	my $sc          = "";
-	my $shell_call  = "";
 	my $line        = "";
 	my $sc_exit     = "";
 
 	# Hug it and squeeze it and call it George.
 	to_log(LOG_DEBUG(), $conf, __LINE__, "Fencing target: [$remote_node]...");
 
-	$sc         = IO::Handle->new();
-	$shell_call = "$conf->{path}{exe}{fence_node} -v $remote_node";
+	my $shell_call = $conf->{path}{exe}{fence_node}." -v ".$remote_node;
 	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: shell call: [$shell_call]");
-	open ($sc, "$shell_call 2>&1 |") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: [$sc], error was: $!");
-	while(<$sc>)
+	open (my $file_handle, "$shell_call 2>&1 |") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: [$shell_call], error was: $!");
+	while(<$file_handle>)
 	{
 		chomp;
 		$line = $_;
@@ -257,12 +526,12 @@ sub kill_target
 			to_log(LOG_DEBUG(), $conf, __LINE__, "Read: [$line]");
 		}
 	}
-	$sc->close();
-	$sc_exit = $?;
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Attempt to fence node: [$remote_node] exited with: [$sc_exit]");
+	close $file_handle;
+	my $return_code = $?;
+	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Attempt to fence node: [$remote_node] exited with: [$return_code]");
 
 	# Exit.
-	if ($sc_exit)
+	if ($return_code)
 	{
 		to_log(LOG_DEBUG(), $conf, __LINE__, "Attempt to fence: [$remote_node] failed!");
 		exit(1);
@@ -320,179 +589,6 @@ sub eject_target
 
 		return 0;
 	}
-}
-
-# This identifies the remote node.
-sub get_target
-{
-	my ($conf) = @_;
-
-	# Variables
-	my $remote_node = $conf->{environment}{DRBD_PEERS};
-
-	# Make sure I know my target.
-	if ( not exists $conf->{nodes}{$remote_node} )
-	{
-		# Try the short name.
-		$remote_node =~ s/^(.*?)\..*$//;
-		if ( not exists $conf->{nodes}{$remote_node} )
-		{
-			to_log(LOG_DEBUG(), $conf, __LINE__, "I didn't see the other node: [$conf->{environment}{DRBD_PEERS} ($remote_node)] in cman's node list. I can't fence this node.");
-			print "I didn't see the other node: [$conf->{environment}{DRBD_PEERS} ($remote_node)] in cman's node list. I can't fence this node.\n";
-			print "Does the hostname in cluster.conf match the host names used in the DRBD resource files?\n";
-			exit(1);
-		}
-		# Update the peer.
-		$conf->{environment}{DRBD_PEERS} = $remote_node;
-	}
-	to_log(LOG_DEBUG(), $conf, __LINE__, "I have identified my target: [$remote_node]");
-
-	return(0);
-}
-
-# This uses 'cman_tool' to get the information on the other node(s) in the
-# cluster.
-sub get_info_on_other_nodes
-{
-	my ($conf) = @_;
-
-	# Variables
-	my $node_count = 0;
-	my $sc         = "";
-	my $shell_call = "";
-	my $sc_exit    = "";
-	my $line       = "";
-	my $node_id    = "";
-	my $node_name  = "";
-	my $member     = "";
-	my $address    = "";
-
-	$sc         = IO::Handle->new();
-	$shell_call = "$conf->{path}{exe}{cman_tool} -a -F id,name,type,addr nodes";
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: shell call: [$shell_call]");
-	open ($sc, "$shell_call 2>&1 |") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: [$sc], error was: $!");
-	while(<$sc>)
-	{
-		chomp;
-		$line = $_;
-		($node_id, $node_name, $member, $address) = (split/ /, $line);
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: id: [$node_id], name: [$node_name], member: [$member], address: [$address]");
-
-		$conf->{nodes}{$node_name}{member}  = $member;
-		$conf->{nodes}{$node_name}{id}      = $node_id;
-		$conf->{nodes}{$node_name}{address} = $address;
-		$node_count++;
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: output: $line");
-	}
-	$sc->close();
-	$sc_exit=$?;
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Attempt to gather cluster member information exited with: [$sc_exit]");
-
-	return(0);
-}
-
-# This reads /proc/drbd and pulls out the state of the defined resource
-sub get_local_resource_state
-{
-	my ($conf) = @_;
-
-	# Variables
-	my $minor      = $conf->{environment}{DRBD_MINOR};
-	my $sc         = "";
-	my $shell_call = "";
-	my $sc_exit    = "";
-	my $line       = "";
-	my $state      = "";
-
-	# Minor may well be '0', so I need to check for an empty string here.
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Checking the state of resource with minor number: [$conf->{environment}{DRBD_MINOR}]");
-	if ($conf->{environment}{DRBD_MINOR} eq "")
-	{
-		to_log(LOG_ERR(), $conf, __LINE__, "Resource minor number not defined! Unable to proceed.");
-	}
-
-	# minor can be a space delimited list. Assume it is always a list and iterate over it
-	my @minor = split / /, $minor;
-
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: minor: [$minor]");
-	$sc         = IO::Handle->new();
-	$shell_call = "</proc/drbd";
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: shell call: [$shell_call]");
-	open ($sc, "$shell_call") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: [$sc], error was: $!");
-	while(<$sc>)
-	{
-		chomp;
-		$line = $_;
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: line: [$line]");
-		$line =~ s/^\s+//;
-		foreach $minor (@minor)
-		{
-			if ($line =~ /^$minor: .*? ds:(.*?)\//)
-			{
-				$state = $1;
-				if ($conf->{sys}{debug})
-				{
-					to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: read state of minor: [$minor] as: [$state]");
-				}
-				$conf->{sys}{local_res_uptodate} = $state eq "UpToDate" ? 1 : 0;
-				to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: sys::local_res_uptodate: [$conf->{sys}{local_res_uptodate}]");
-			}
-		}
-		# If one or more minors out not UpToDate bail
-		last if ($conf->{sys}{local_res_uptodate} eq 0);
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: read state of minor: [$minor] as: [$state]");
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: sys::local_res_uptodate: [$conf->{sys}{local_res_uptodate}]");
-	}
-	$sc->close();
-	$sc_exit = $?;
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Attempt to collect UpToDate information device with minor: [@minor] exited with: [$sc_exit]");
-
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: UpToDate: [$conf->{sys}{local_res_uptodate}]");
-	if (not $conf->{sys}{local_res_uptodate})
-	{
-		to_log(LOG_ERR(), $conf, __LINE__, "Local resource: [$conf->{environment}{DRBD_RESOURCE}], minor: [@minor] is NOT 'UpToDate', will not fence peer.");
-	}
-
-	return(0);
-}
-
-# This reads in and sets the local node's name.
-sub get_local_node_name
-{
-	my ($conf) = @_;
-
-	# Variables
-	my $sc         = "";
-	my $shell_call = "";
-	my $sc_exit    = "";
-	my $line       = "";
-
-	$sc         = IO::Handle->new();
-	$shell_call = "$conf->{path}{exe}{cman_tool} status";
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: shell call: [$shell_call]");
-	open ($sc, "$shell_call 2>&1 |") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: [$sc], error was: $!");
-	while(<$sc>)
-	{
-		chomp;
-		$line = $_;
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: line: [$line]");
-		if ($line =~ /Node name: (.*)/)
-		{
-			$conf->{sys}{this_node} = $1;
-			last;
-		}
-	}
-	$sc->close();
-	$sc_exit = $?;
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Attempt to get local node name via 'cman_tool status' exited with: [$sc_exit]");
-
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: I am: [$conf->{sys}{this_node}]");
-	if (not $conf->{sys}{this_node})
-	{
-		to_log(LOG_ERR(), $conf, __LINE__, "Unable to find local node name.");
-	}
-
-	return(0);
 }
 
 # Log file entries
