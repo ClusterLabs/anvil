@@ -107,6 +107,12 @@ my $conf = {
 	},
 };
 
+# Find executables.
+find_executables($conf);
+
+# Something for the logs
+to_log($conf, {message => "Attempting to fence the peer via pacemaker's stonith...", 'line' => __LINE__});
+
 # These are the full host names of the nodes given their IDs.
 foreach my $i (0..31)
 {
@@ -118,21 +124,16 @@ foreach my $i (0..31)
 	}
 }
 
-# Find executables.
-find_executables($conf);
-
-# Something for the logs
-to_log($conf, {message => "Attempting to fence the peer via pacemaker's stonith...", 'line' => __LINE__});
-
 ### TESTING - Simulate a call from node 1 against node 2
-$conf->{environment}{DRBD_NODE_ID_0}    = "m3-a01n02.alteeve.com";
-$conf->{environment}{DRBD_NODE_ID_1}    = "m3-a01n01.alteeve.com";
-$conf->{environment}{DRBD_MINOR}        = "0";
-$conf->{environment}{DRBD_MY_NODE_ID}   = "1";
-$conf->{environment}{DRBD_PEER_ADDRESS} = "10.41.10.2";
-$conf->{environment}{DRBD_PEER_AF}      = "ipv4";
-$conf->{environment}{DRBD_PEER_NODE_ID} = "0";
-$conf->{environment}{DRBD_RESOURCE}     = "r0";
+# $conf->{environment}{DRBD_NODE_ID_0}    = "m3-a02n01.alteeve.com";
+# $conf->{environment}{DRBD_NODE_ID_1}    = "m3-a02n02.alteeve.com";
+# $conf->{environment}{DRBD_NODE_ID_2}    = "m3-a02dr01.alteeve.com";
+# $conf->{environment}{DRBD_MINOR}        = "0";
+# $conf->{environment}{DRBD_MY_NODE_ID}   = "0";
+# $conf->{environment}{DRBD_PEER_NODE_ID} = "1";
+# $conf->{environment}{DRBD_PEER_ADDRESS} = "10.41.20.2";
+# $conf->{environment}{DRBD_PEER_AF}      = "ipv4";
+# $conf->{environment}{DRBD_RESOURCE}     = "srv01-c7_0";
 ### TESTING
 
 # Record the environment variables
@@ -210,7 +211,7 @@ sub get_drbd_status
 			to_log($conf, {message => "resource: [$resource], peer: [$peer]", 'line' => __LINE__, level => 2});
 			next;
 		}
-		if ($line ~= /^(\S+)\s+role/)
+		if ($line =~ /^(\S+)\s+role/)
 		{
 			$resource = $1;
 			to_log($conf, {message => "resource: [$resource]", 'line' => __LINE__, level => 2});
@@ -226,7 +227,8 @@ sub get_drbd_status
 		{
 			if ($line =~ /disk:(.*)$/)
 			{
-				my $local_dstate = $1;
+				my $local_dstate =  $1;
+				   $local_dstate =~ s/\s.*$//;
 				to_log($conf, {message => "local_dstate: [$local_dstate]", 'line' => __LINE__, level => 2});
 				if (lc($local_dstate) ne "uptodate")
 				{
@@ -237,7 +239,8 @@ sub get_drbd_status
 			}
 			if ($line =~ /peer-disk:(.*)$/)
 			{
-				my $peer_dstate = $1;
+				my $peer_dstate =  $1;
+				   $peer_dstate =~ s/\s.*$//;
 				to_log($conf, {message => "peer_dstate: [$peer_dstate]", 'line' => __LINE__, level => 2});
 				if (lc($peer_dstate) ne "uptodate")
 				{
@@ -254,6 +257,7 @@ sub get_drbd_status
 	to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 2});
 	
 	# If we're not all UpToDate, but the peer is, abort
+	to_log($conf, {message => "local_all_uptodate: [$local_all_uptodate], peer_all_uptodate: [$peer_all_uptodate]", 'line' => __LINE__, level => 2});
 	if ((not $local_all_uptodate) && ($peer_all_uptodate))
 	{
 		# We're not good
@@ -335,7 +339,8 @@ sub identify_peer
 		}
 		close $file_handle;
 		my $return_code = $?;
-		to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 3});
+		to_log($conf, {message => "cib: ==========\n$cib\n==========", 'line' => __LINE__, level => 3});
 		
 		# Now parse the CIB XML if I read it OK.
 		to_log($conf, {message => "xml_opened: [$xml_opened], xml_closed: [$xml_closed].", 'line' => __LINE__, level => 2});
@@ -349,9 +354,9 @@ sub identify_peer
 			{
 				chomp $@;
 				my $error =  "[ Error ] - The was a problem parsing: [$cib]. The error was:\n";
-					$error .= "===========================================================\n";
-					$error .= $@."\n";
-					$error .= "===========================================================\n";
+				   $error .= "===========================================================\n";
+				   $error .= $@."\n";
+				   $error .= "===========================================================\n";
 				to_log($conf, {message => $error, 'line' => __LINE__, level => 0, priority => "err"});
 				exit(1);
 			}
@@ -360,7 +365,7 @@ sub identify_peer
 				# Parse the XML.
 				my $host_name       =  $ENV{HOSTNAME};
 				my $short_host_name =  $ENV{HOSTNAME};
-					$short_host_name =~ s/\..*$//;
+				   $short_host_name =~ s/\..*$//;
 				
 				#print "XML body: [$body]\n";
 				foreach my $key (sort {$a cmp $b} keys %{$body})
@@ -393,7 +398,6 @@ sub identify_peer
 								exit(1);
 							}
 						}
-						#print Dumper $hash_ref;
 					}
 				}
 				
@@ -403,6 +407,32 @@ sub identify_peer
 				{
 					to_log($conf, {message => "This not is not quorate. Refusing to fence the peer!", 'line' => __LINE__, level => 0, priority => "err"});
 					exit(1);
+				}
+				
+				# If I have a target node, see if it is already out of the cluster.
+				if ($conf->{cluster}{target_node})
+				{
+					foreach my $hash_ref (@{$body->{status}{node_state}})
+					{
+						my $node     = $hash_ref->{uname};
+						my $join     = $hash_ref->{'join'};
+						my $expected = $hash_ref->{expected};
+						to_log($conf, {message => "node: [$node] join: [$join], expected: [$expected]", 'line' => __LINE__, level => 2});
+						if ($node eq $conf->{cluster}{target_node})
+						{
+							to_log($conf, {message => "Checking the status of target node: [$node].", 'line' => __LINE__, level => 1});
+							if (($join eq "down") && ($expected eq "down"))
+							{
+								# The node is out.
+								to_log($conf, {message => "The node: [$node] is already down. No actual fence needed.", 'line' => __LINE__, level => 1});
+								exit(7);
+							}
+							else
+							{
+								to_log($conf, {message => "The node: [$node] is: [$join/$expected] (join/expected). Proceeding with the fence action.", 'line' => __LINE__, level => 1});
+							}
+						}
+					}
 				}
 			}
 		}
@@ -632,7 +662,7 @@ sub to_log
 	
 	# Clean up the string for bash
 	$message =~ s/"/\\\"/gs;
-	$message =~ s/\(/\\\(/gs;
+	#$message =~ s/\(/\\\(/gs;
 	
 	my $shell_call = $conf->{path}{exe}{logger}." --priority ".$priority_string." --tag ".$conf->{'log'}{tag}." -- \"".$message."\"";
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";

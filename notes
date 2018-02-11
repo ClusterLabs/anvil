@@ -33,46 +33,39 @@ Bridge
 * STP=no is default, we'll test 'yes'.
 * DOMAIN="<client_domain>"
 
+# Network Setup
+hostnamectl set-hostname m3-a02n01.alteeve.com --static
+hostnamectl set-hostname --pretty "Alteeve's Niche! - Anvil! 02, Node 01"
+hostname m3-a02n01.alteeve.com
+ssh-keygen -t rsa -N "" -b 8191 -f ~/.ssh/id_rsa
+
+hosts:
+====
+10.1.20.1	m3-a02n01.bcn m3-a02n01 m3-a02n01.alteeve.com
+10.41.20.1	m3-a02n01.sn
+10.255.20.1	m3-a02n01.ifn
+
+10.1.20.2	m3-a02n02.bcn m3-a02n02 m3-a02n02.alteeve.com
+10.41.20.2	m3-a02n02.sn
+10.255.20.2	m3-a02n02.ifn
+
+10.1.20.3	m3-a02dr01.bcn m3-a02dr01 m3-a02dr01.alteeve.com
+10.41.20.3	m3-a02dr01.sn
+10.255.20.3	m3-a02dr01.ifn
+====
 
 Example Link config:
 ====
-HWADDR="52:54:00:D4:54:4F"                      # The MAC address of the interface that this file configures
-UUID="e054949f-5e47-34de-ad75-9c5b61cc24df"     # Unique identifier for this interface
-DEVICE="bcn1_link1"                             # The interface device name. This sets a consistent name for the HWADDR device.
-NAME="BCN 1 - Link 1"                           # The name is used in some network config tools. It doesn't effect anything functional
-ONBOOT="yes"                                    # Start the interface on boot
-USERCTL="no"                                    # Disable user control
-BOOTPROTO="none"                                # Set no IP
-MTU="1500"                                      # MTU size in bytes
-DEFROUTE="no"                                   # Do not route through this interface
-NM_CONTROLLED="yes"                             # Let Network Manager control this interface
-SLAVE="yes"                                     # Sets this interface as a bonding slave
-MASTER="bcn1_bond1"                             # This is the device name of the bond we're slaved to
-TYPE="Ethernet"                                 # Set this as an ethernet device
-IPV6INIT="no"                                   # Disable IPv6
 ====
 
 Example Bonding config:
 ====
-# Back-Channel Network - Bond 1
-UUID="954e6b64-534c-4eeb-ba42-d7fd6adab8c6"
-DEVICE="bcn1_bond1"
-NAME="BCN 1 - Bond 1"
-BONDING_OPTS="mode=active-backup primary=bcn1_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better"
-TYPE="Bond"
-BONDING_MASTER="yes"
-BOOTPROTO="none"
-IPV6INIT="no"
-ONBOOT="yes"
-IPADDR="10.1.10.1"
-PREFIX="16"
-DEFROUTE="no"
 ====
 
 Example Bridge config:
 =====
-
 =====
+
 =======
 virt-manager stores information in dconf-editor -> /org/virt-manager/virt-manager/connections ($HOME/.config/dconf/user)
 
@@ -81,7 +74,6 @@ virt-manager stores information in dconf-editor -> /org/virt-manager/virt-manage
 ==== dconf read /org/virt-manager/virt-manager/connections/autoconnect 
 ['qemu+ssh://root@localhost/system']
 ====
-
 
 
 ### Setup - Striker
@@ -138,19 +130,23 @@ clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil
 ** subscription-manager repos --enable=rhel-ha-for-rhel-7-server-rpms
 ** subscription-manager repos --enable=rhel-7-server-optional-rpms
 * Packages to install;
-** bash-completion bind-utils bridge-utils fence-agents-all fence-agents-virsh gpm kernel-doc libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper perl-XML-Simple qemu-kvm qemu-kvm-common qemu-kvm-tools rsync vim virt-install
+
+rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
+yum install bash-completion bind-utils bridge-utils drbd drbd-bash-completion drbd-kernel drbd-utils fence-agents-all fence-agents-virsh gpm kernel-doc kmod-drbd libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper perl-XML-Simple qemu-kvm qemu-kvm-common qemu-kvm-tools rsync vim virt-install
+
 * Packages to remove;
-** biosdevname 
-* For now only;
-** rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
-** rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+yum remove biosdevname 
+
 * Service management;
-** systemctl start gpm.service
+systemctl start gpm.service
+
 * Network;
 ** {bc,if,s}nX_{link,bond,bridge}Y naming
 ** firewall; - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-firewalls-haar
-*** firewall-cmd --permanent --add-service=high-availability
-*** firewall-cmd --add-service=high-availability
+firewall-cmd --permanent --add-service=high-availability
+firewall-cmd --add-service=high-availability
+firewall-cmd --reload
+
 * Cluster Config;
 ==== Both nodes
 echo Initial1 | passwd hacluster --stdin 
@@ -169,12 +165,10 @@ pcs stonith create virsh_node1 fence_virsh pcmk_host_list="m3-a01n01" ipaddr="19
 pcs stonith create virsh_node2 fence_virsh pcmk_host_list="m3-a01n02" ipaddr="192.168.122.1" passwd="secret" login="root" port="m3-a01n02" op monitor interval="60"
 
 pcs resource create hypervisor systemd:libvirtd op monitor interval=60
-pcs resource create drbd systemd:drbd op monitor interval=60
-
 pcs resource clone hypervisor clone-max=2 notify="false" 
+
+pcs resource create drbd systemd:drbd op monitor interval=60
 pcs resource clone drbd clone-max=2 notify="false"
-
-
 
 stonith_admin --fence m3-a01n02 --verbose; crm_error $?
 
@@ -215,7 +209,7 @@ Provisioning a server will need to:
 * Open up a DRBD port (or more, if multiple resources are created).
 * Create the DRBD resource(s); Find the lowest free rX.res, create it locally and on the peer (if up), 
 
-firewall-cmd --zone=public --permanent --add-port=7788/tcp
+firewall-cmd --zone=public --permanent --add-port=7788-7790/tcp
 firewall-cmd --reload
 
 * Provision the server via virt-install
@@ -243,143 +237,31 @@ r0 node-id:1 role:Primary suspended:no
 [root@m3-a01n02 ~]# drbdadm primary r0
 r0: State change failed: (-1) Multiple primaries not allowed by config
 Command 'drbdsetup primary r0' terminated with exit code 11
+
 [root@m3-a01n02 ~]# drbdadm net-options --allow-two-primaries=yes r0
-[root@m3-a01n02 ~]# drbdadm primary r0
 [root@m3-a01n02 ~]# drbdadm net-options --allow-two-primaries=no r0
 
-[root@m3-a01n01 drbd.d]# drbdsetup show all
-resource r0 {
-    _this_host {
-        node-id			1;
-        volume 0 {
-            device			minor 0;
-            disk			"/dev/new-node1_vg0/test";
-            meta-disk			internal;
-            disk {
-                disk-flushes    	no;
-                md-flushes      	no;
-            }
-        }
-    }
-    connection {
-        _peer_node_id 0;
-        path {
-            _this_host ipv4 10.41.10.1:7788;
-            _remote_host ipv4 10.41.10.2:7788;
-        }
-        net {
-            after-sb-0pri   	discard-zero-changes;
-            after-sb-1pri   	discard-secondary;
-            data-integrity-alg	"md5";
-            csums-alg       	"md5";
-            _name           	"m3-a01n02.alteeve.com";
-        }
-    }
-}
-
-[root@m3-a01n01 drbd.d]# drbdsetup show all --show-defaults
-resource r0 {
-    options {
-        cpu-mask        	""; # default
-        on-no-data-accessible	io-error; # default
-        auto-promote    	yes; # default
-        peer-ack-window 	4096s; # bytes, default
-        peer-ack-delay  	100; # milliseconds, default
-        twopc-timeout   	300; # 1/10 seconds, default
-        twopc-retry-timeout	1; # 1/10 seconds, default
-        auto-promote-timeout	20; # 1/10 seconds, default
-        max-io-depth    	8000; # default
-        quorum          	off; # default
-        on-no-quorum    	suspend-io; # default
-        quorum-minimum-redundancy	off; # default
-    }
-    _this_host {
-        node-id			1;
-        volume 0 {
-            device			minor 0;
-            disk			"/dev/new-node1_vg0/test";
-            meta-disk			internal;
-            disk {
-                size            	0s; # bytes, default
-                on-io-error     	detach; # default
-                disk-barrier    	no; # default
-                disk-flushes    	no;
-                disk-drain      	yes; # default
-                md-flushes      	no;
-                resync-after    	-1; # default
-                al-extents      	1237; # default
-                al-updates      	yes; # default
-                discard-zeroes-if-aligned	yes; # default
-                disable-write-same	no; # default
-                disk-timeout    	0; # 1/10 seconds, default
-                read-balancing  	prefer-local; # default
-                rs-discard-granularity	0; # bytes, default
-            }
-        }
-    }
-    connection {
-        _peer_node_id 0;
-        path {
-            _this_host ipv4 10.41.10.1:7788;
-            _remote_host ipv4 10.41.10.2:7788;
-        }
-        net {
-            transport       	""; # default
-            protocol        	C; # default
-            timeout         	60; # 1/10 seconds, default
-            max-epoch-size  	2048; # default
-            connect-int     	10; # seconds, default
-            ping-int        	10; # seconds, default
-            sndbuf-size     	0; # bytes, default
-            rcvbuf-size     	0; # bytes, default
-            ko-count        	7; # default
-            allow-two-primaries	no; # default
-            cram-hmac-alg   	""; # default
-            shared-secret   	""; # default
-            after-sb-0pri   	discard-zero-changes;
-            after-sb-1pri   	discard-secondary;
-            after-sb-2pri   	disconnect; # default
-            always-asbp     	no; # default
-            rr-conflict     	disconnect; # default
-            ping-timeout    	5; # 1/10 seconds, default
-            data-integrity-alg	"md5";
-            tcp-cork        	yes; # default
-            on-congestion   	block; # default
-            congestion-fill 	0s; # bytes, default
-            congestion-extents	1237; # default
-            csums-alg       	"md5";
-            csums-after-crash-only	no; # default
-            verify-alg      	""; # default
-            use-rle         	yes; # default
-            socket-check-timeout	0; # default
-            fencing         	dont-care; # default
-            max-buffers     	2048; # default
-            _name           	"m3-a01n02.alteeve.com";
-        }
-        volume 0 {
-            disk {
-                resync-rate     	250k; # bytes/second, default
-                c-plan-ahead    	20; # 1/10 seconds, default
-                c-delay-target  	10; # 1/10 seconds, default
-                c-fill-target   	100s; # bytes, default
-                c-max-rate      	102400k; # bytes/second, default
-                c-min-rate      	250k; # bytes/second, default
-                bitmap          	yes; # default
-            }
-        }
-    }
-}
+drbdsetup show all
+drbdsetup show all --show-defaults
 
 == virt-install stuff
 * Get a list of --os-variants: 'osinfo-query os'
 * virt-install --print-xml (or --transient) 
 * Migate;
 # For all resources under the server;
-drbdadm net-options r0 --allow-two-primaries=yes
+#drbdadm net-options r0 --allow-two-primaries=yes
+drbdsetup net-options srv01-c7_0 2 --_name=m3-a02n01.alteeve.com --csums-alg=md5 --data-integrity-alg=md5 --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --protocol=C --fencing=resource-and-stonith --allow-two-primaries=yes
+drbdsetup net-options srv01-c7_0 2 --_name=m3-a02n01.alteeve.com --csums-alg=md5 --data-integrity-alg=md5 --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --protocol=C --fencing=resource-and-stonith --allow-two-primaries=yes
 # Migrate:
 virsh migrate --unsafe --undefinesource --live srv01-c7 qemu+ssh://m3-a01n02.alteeve.com/system
 # Again for all resource under the server;
 drbdadm net-options r0 --allow-two-primaries=no
+
+drbdsetup net-options <resource> <target_node_id> --_name=<target_node_name> --allow-two-primaries=yes
+virsh migrate --undefinesource --live <server> qemu+ssh://<target_node>/system
+drbdsetup net-options <resource> <target_node_id> --_name=<target_node_name> --allow-two-primaries=no
+
+
 
 Set to 90% of BCN bandwidth
        migrate-setspeed domain bandwidth
@@ -390,8 +272,147 @@ Set to 90% of BCN bandwidth
        migrate-getspeed domain
            Get the maximum migration bandwidth (in MiB/s) for a domain.
 
+
+==== /etc/drbd.d/global_common.conf 
+# DRBD is the result of over a decade of development by LINBIT.
+# In case you need professional services for DRBD or have
+# feature requests visit http://www.linbit.com
+
+global {
+	usage-count yes;
+
+	# Decide what kind of udev symlinks you want for "implicit" volumes
+	# (those without explicit volume <vnr> {} block, implied vnr=0):
+	# /dev/drbd/by-resource/<resource>/<vnr>   (explicit volumes)
+	# /dev/drbd/by-resource/<resource>         (default for implict)
+	udev-always-use-vnr; # treat implicit the same as explicit volumes
+
+	# minor-count dialog-refresh disable-ip-verification
+	# cmd-timeout-short 5; cmd-timeout-medium 121; cmd-timeout-long 600;
+}
+
+common {
+	handlers {
+		# These are EXAMPLE handlers only.
+		# They may have severe implications,
+		# like hard resetting the node under certain circumstances.
+		# Be careful when choosing your poison.
+
+		# pri-on-incon-degr "/usr/lib/drbd/notify-pri-on-incon-degr.sh; /usr/lib/drbd/notify-emergency-reboot.sh; echo b > /proc/sysrq-trigger ; reboot -f";
+		# pri-lost-after-sb "/usr/lib/drbd/notify-pri-lost-after-sb.sh; /usr/lib/drbd/notify-emergency-reboot.sh; echo b > /proc/sysrq-trigger ; reboot -f";
+		# local-io-error "/usr/lib/drbd/notify-io-error.sh; /usr/lib/drbd/notify-emergency-shutdown.sh; echo o > /proc/sysrq-trigger ; halt -f";
+		# fence-peer "/usr/lib/drbd/crm-fence-peer.sh";
+		# split-brain "/usr/lib/drbd/notify-split-brain.sh root";
+		# out-of-sync "/usr/lib/drbd/notify-out-of-sync.sh root";
+		# before-resync-target "/usr/lib/drbd/snapshot-resync-target-lvm.sh -p 15 -- -c 16k";
+		# after-resync-target /usr/lib/drbd/unsnapshot-resync-target-lvm.sh;
+		# quorum-lost "/usr/lib/drbd/notify-quorum-lost.sh root";
+		fence-peer "/usr/sbin/fence_pacemaker";
+	}
+
+	startup {
+		# wfc-timeout degr-wfc-timeout outdated-wfc-timeout wait-after-sb
+	}
+
+	options {
+		# cpu-mask on-no-data-accessible
+
+		# RECOMMENDED for three or more storage nodes with DRBD 9:
+		# quorum majority;
+		# on-no-quorum suspend-io | io-error;
+                auto-promote         yes;
+	}
+
+	disk {
+		# size on-io-error fencing disk-barrier disk-flushes
+		# disk-drain md-flushes resync-rate resync-after al-extents
+                # c-plan-ahead c-delay-target c-fill-target c-max-rate
+                # c-min-rate disk-timeout
+                disk-flushes         no;
+                md-flushes           no;
+	}
+
+	net {
+		# protocol timeout max-epoch-size max-buffers
+		# connect-int ping-int sndbuf-size rcvbuf-size ko-count
+		# allow-two-primaries cram-hmac-alg shared-secret after-sb-0pri
+		# after-sb-1pri after-sb-2pri always-asbp rr-conflict
+		# ping-timeout data-integrity-alg tcp-cork on-congestion
+		# congestion-fill congestion-extents csums-alg verify-alg
+		# use-rle
+		
+                # This computes an md5 sum of the block before replicating/synchronizing and skips if it matches already.
+                # This can help with increasing replication/sync speed in some cases, but at the cost of CPU time. We may
+                # disable this (or make it user-changable).
+                csums-alg            md5;
+
+                # Use md5 sums to verify replicated data. More CPU overhead, but safer.
+                data-integrity-alg   md5;
+
+                # We'll override this just before a migration as needed.
+                allow-two-primaries  no;
+
+                # Traditional split-brain handling.
+                after-sb-0pri        discard-zero-changes;
+                after-sb-1pri        discard-secondary;
+                after-sb-2pri        disconnect;
+	}
+}
+====
+
+==== cat /etc/drbd.d/srv01-c7_0.res 
+# Server srv01-c7 Disk 0
+resource srv01-c7_0 {
+	device    /dev/drbd0;
+	meta-disk internal;
+	
+	on m3-a02n01.alteeve.com {
+		node-id   0;
+		disk      /dev/node01_vg0/srv01-c7;
+	}
+	on m3-a02n02.alteeve.com {
+		node-id   1;
+		disk      /dev/node02_vg0/srv01-c7;
+	}
+	on m3-a02dr01.alteeve.com {
+		node-id   2;
+		disk      /dev/dr01_vg0/srv01-c7;
+	}
+	
+	connection {
+		host  m3-a02n01.alteeve.com  address  10.41.20.1:7788;
+		host  m3-a02n02.alteeve.com  address  10.41.20.2:7788;
+		net {
+			protocol  C;
+                	fencing resource-and-stonith;
+		}
+	}
+	connection {
+		host  m3-a02n01.alteeve.com   address  10.41.20.1:7789;
+		host  m3-a02dr01.alteeve.com  address  10.41.20.3:7789;
+		net {
+			protocol  A;
+                	fencing dont-care;
+		}
+	}
+	connection {
+		host  m3-a02n02.alteeve.com   address  10.41.20.2:7790;
+		host  m3-a02dr01.alteeve.com  address  10.41.20.3:7790;
+		net {
+			protocol  A;
+                	fencing dont-care;
+		}
+	}
+} 
+
+====
+
+# Provision servers
+mkdir /mnt/anvil/{provision,files,archive,definitions}
+pcs resource create srv01-c7 ocf:heartbeat:VirtualDomain hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10"
+
+
 == Resource Agent; https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 
 * A resource agent receives all configuration information about the resource it manages via environment variables. The names of these environment variables are always the name of the resource parameter, prefixed with OCF_RESKEY_. For example, if the resource has an ip parameter set to 192.168.1.1, then the resource agent will have access to an environment variable OCF_RESKEY_ip holding that value.
 * 
-
