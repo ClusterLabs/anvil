@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+# 
+# This is the resource agent used to manage servers on the Anvil! Intelligent Availability platform.
+# 
+# Based on: https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
+# 
+
+use strict;
+use warnings;
+
+
+exit(0);
