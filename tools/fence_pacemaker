@@ -76,7 +76,9 @@ my $conf = {
 	path		=>	{
 		exe		=>	{
 			cibadmin	=>	"/usr/sbin/cibadmin",
+			crm_error	=>	"/usr/sbin/crm_error",
 			drbdadm		=>	"/usr/sbin/drbdadm",
+			echo		=>	"/usr/bin/echo",
 			getent		=>	"/usr/bin/getent",
 			logger		=>	"/usr/bin/logger",
 			stonith_admin	=>	"/usr/sbin/stonith_admin",
@@ -157,28 +159,17 @@ if (not $conf->{environment}{DRBD_PEER_ADDRESS})
 # This also checks that we're quorate and not in maintenance mode.
 identify_peer($conf);
 
-# Is the peer already gone? If so, return a success.
-
-
 # If we're still alive, we now need to check the DRBD resource disk state locally.
 get_drbd_status($conf);
 
 to_log($conf, {message => "Ready to fence: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
-exit(7);
 
-
-# Eject the target, if I can.
-eject_target($conf);
-
-# In case cman decided by itself to fence the node...
-eventually_wait_for_fenced($conf); # May exit with exit code 7
-
-# Only kill the target if gracefull eject did not work. This is
-# important because fence_node does not want to be invoked
-# in multiple instances in parallel.
+# Do the deed
 kill_target($conf);
 
+# If we hit here, something very wrong happened.
 exit(255);
+
 
 #############################################################################################################
 # Functions                                                                                                 #
@@ -202,25 +193,25 @@ sub get_drbd_status
 		# This should not generate output.
 		chomp;
 		my $line = $_;
-		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 3});
 		
 		if (not $line)
 		{
 			$resource = "";
 			$peer     = "";
-			to_log($conf, {message => "resource: [$resource], peer: [$peer]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "resource: [$resource], peer: [$peer]", 'line' => __LINE__, level => 3});
 			next;
 		}
 		if ($line =~ /^(\S+)\s+role/)
 		{
 			$resource = $1;
-			to_log($conf, {message => "resource: [$resource]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "resource: [$resource]", 'line' => __LINE__, level => 3});
 			next;
 		}
 		if ($line =~ /^\s+(.*?) role:/)
 		{
 			$peer = $1;
-			to_log($conf, {message => "peer: [$peer]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "peer: [$peer]", 'line' => __LINE__, level => 3});
 			next;
 		}
 		if ($resource)
@@ -241,11 +232,11 @@ sub get_drbd_status
 			{
 				my $peer_dstate =  $1;
 				   $peer_dstate =~ s/\s.*$//;
-				to_log($conf, {message => "peer_dstate: [$peer_dstate]", 'line' => __LINE__, level => 2});
+				to_log($conf, {message => "peer: [$peer], peer_dstate: [$peer_dstate]", 'line' => __LINE__, level => 2});
 				if (lc($peer_dstate) ne "uptodate")
 				{
 					$peer_all_uptodate = 0;
-					to_log($conf, {message => "peer: [$peer], peer_all_uptodate: [$peer_all_uptodate]", 'line' => __LINE__, level => 2});
+					to_log($conf, {message => "peer_all_uptodate: [$peer_all_uptodate]", 'line' => __LINE__, level => 2});
 				}
 				next;
 			}
@@ -305,142 +296,72 @@ sub identify_peer
 	# If I got the host name, try to match it to a pacemaker node name.
 	if ($target_host)
 	{
-		# Get the current CIB
-		my $xml_opened  = 0;
-		my $xml_closed  = 0;
-		my $cib         = '<?xml version="1.0" encoding="UTF-8"?>';
-		my $shell_call  = $conf->{path}{exe}{cibadmin}." --local --query";
-		to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
-		open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
-		while(<$file_handle>)
-		{
-			# This should not generate output.
-			chomp;
-			my $line =  $_;
-			to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 3});
-			
-			$cib  .= "\n".$line;
-			if ($line =~ /Signon to CIB failed/i)
-			{
-				# Failed to connect, we're probably not in the cluster.
-				to_log($conf, {message => "This node does not appear to be in the cluster. Unable to get the CIB status.", 'line' => __LINE__, level => 0, priority => "err"});
-				exit(1);
-			}
-			if ($line =~ /^<cib .*?>$/)
-			{
-				$xml_opened = 1;
-				to_log($conf, {message => "xml_opened: [$xml_opened].", 'line' => __LINE__, level => 2});
-			}
-			if ($line =~ /^<\/cib>$/)
-			{
-				$xml_closed = 1;
-				to_log($conf, {message => "xml_closed: [$xml_closed].", 'line' => __LINE__, level => 2});
-			}
-		}
-		close $file_handle;
-		my $return_code = $?;
-		to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 3});
-		to_log($conf, {message => "cib: ==========\n$cib\n==========", 'line' => __LINE__, level => 3});
+		# Get the current CIB (in an XML::Simple hash). This will exit if it fails to read the XML 
+		# and convert it to an XML::Simple hash.
+		my $body = read_cib($conf);
 		
-		# Now parse the CIB XML if I read it OK.
-		to_log($conf, {message => "xml_opened: [$xml_opened], xml_closed: [$xml_closed].", 'line' => __LINE__, level => 2});
-		if (($xml_opened) && ($xml_closed))
+		# Parse the XML.
+		my $host_name       =  $ENV{HOSTNAME};
+		my $short_host_name =  $ENV{HOSTNAME};
+		   $short_host_name =~ s/\..*$//;
+		
+		foreach my $hash_ref (sort {$a cmp $b} @{$body->{configuration}{nodes}{node}})
 		{
-			# We're good
-			my $xml  = XML::Simple->new();
-			my $body = "";
-			eval { $body = $xml->XMLin($cib, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'id' ]) };
-			if ($@)
+			my $node = $hash_ref->{uname};
+			my $id   = $hash_ref->{id};
+			if ($node =~ /^$target_host/)
 			{
-				chomp $@;
-				my $error =  "[ Error ] - The was a problem parsing: [$cib]. The error was:\n";
-				   $error .= "===========================================================\n";
-				   $error .= $@."\n";
-				   $error .= "===========================================================\n";
-				to_log($conf, {message => $error, 'line' => __LINE__, level => 0, priority => "err"});
-				exit(1);
+				$conf->{cluster}{target_node} = $node;
+				to_log($conf, {message => "Found the pacemaker name of the target node: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
 			}
-			else
+			elsif ($node =~ /^$short_host_name/)
 			{
-				# Parse the XML.
-				my $host_name       =  $ENV{HOSTNAME};
-				my $short_host_name =  $ENV{HOSTNAME};
-				   $short_host_name =~ s/\..*$//;
-				
-				#print "XML body: [$body]\n";
-				foreach my $key (sort {$a cmp $b} keys %{$body})
+				# THis is me. Am I in maintenance mode?
+				if (exists $hash_ref->{instance_attributes})
 				{
-					#print "Key: [$key] -> [".$body->{$key}."]\n";
-				}
-				
-				foreach my $hash_ref (sort {$a cmp $b} @{$body->{configuration}{nodes}{node}})
-				{
-					my $node = $hash_ref->{uname};
-					my $id   = $hash_ref->{id};
-					if ($node =~ /^$target_host/)
+					# We've got some data...
+					my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
+					my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
+					to_log($conf, {message => "node: [$node] instance attribyte name: [$name], value: [$value]", 'line' => __LINE__, level => 1});
+					if (($name eq "maintenance") and ($value eq "on"))
 					{
-						$conf->{cluster}{target_node} = $node;
-						to_log($conf, {message => "Found the pacemaker name of the target node: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 1});
-					}
-					elsif ($node =~ /^$short_host_name/)
-					{
-						# THis is me. Am I in maintenance mode?
-						if (exists $hash_ref->{instance_attributes})
-						{
-							# We've got some data...
-							my $name  = defined $hash_ref->{instance_attributes}{nvpair}{name}  ? $hash_ref->{instance_attributes}{nvpair}{name}  : "";
-							my $value = defined $hash_ref->{instance_attributes}{nvpair}{value} ? $hash_ref->{instance_attributes}{nvpair}{value} : "";
-							to_log($conf, {message => "node: [$node] instance attribyte name: [$name], value: [$value]", 'line' => __LINE__, level => 1});
-							if (($name eq "maintenance") and ($value eq "on"))
-							{
-								# We're in maintenance mode, abort.
-								to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
-								exit(1);
-							}
-						}
-					}
-				}
-				
-				my $quorate = $body->{'have-quorum'};
-				to_log($conf, {message => "quorate: [$quorate]", 'line' => __LINE__, level => 1});
-				if (not $quorate)
-				{
-					to_log($conf, {message => "This not is not quorate. Refusing to fence the peer!", 'line' => __LINE__, level => 0, priority => "err"});
-					exit(1);
-				}
-				
-				# If I have a target node, see if it is already out of the cluster.
-				if ($conf->{cluster}{target_node})
-				{
-					foreach my $hash_ref (@{$body->{status}{node_state}})
-					{
-						my $node     = $hash_ref->{uname};
-						my $join     = $hash_ref->{'join'};
-						my $expected = $hash_ref->{expected};
-						to_log($conf, {message => "node: [$node] join: [$join], expected: [$expected]", 'line' => __LINE__, level => 2});
-						if ($node eq $conf->{cluster}{target_node})
-						{
-							to_log($conf, {message => "Checking the status of target node: [$node].", 'line' => __LINE__, level => 1});
-							if (($join eq "down") && ($expected eq "down"))
-							{
-								# The node is out.
-								to_log($conf, {message => "The node: [$node] is already down. No actual fence needed.", 'line' => __LINE__, level => 1});
-								exit(7);
-							}
-							else
-							{
-								to_log($conf, {message => "The node: [$node] is: [$join/$expected] (join/expected). Proceeding with the fence action.", 'line' => __LINE__, level => 1});
-							}
-						}
+						# We're in maintenance mode, abort.
+						to_log($conf, {message => "This node is in maintenance mode. Not able to fence!", 'line' => __LINE__, level => 0, priority => "err"});
+						exit(1);
 					}
 				}
 			}
 		}
-		else
+		
+		my $quorate = $body->{'have-quorum'};
+		to_log($conf, {message => "quorate: [$quorate]", 'line' => __LINE__, level => 1});
+		if (not $quorate)
 		{
-			# Failed to read the CIB XML.
-			to_log($conf, {message => "This node does not appear to be in the cluster. Unable to read the CIB XML properly.", 'line' => __LINE__, level => 2, priority => "err"});
+			to_log($conf, {message => "This not is not quorate. Refusing to fence the peer!", 'line' => __LINE__, level => 0, priority => "err"});
 			exit(1);
+		}
+		
+		# See if the target node is already out of the cluster.
+		foreach my $hash_ref (@{$body->{status}{node_state}})
+		{
+			my $node     = $hash_ref->{uname};
+			my $join     = $hash_ref->{'join'};
+			my $expected = $hash_ref->{expected};
+			to_log($conf, {message => "node: [$node] join: [$join], expected: [$expected]", 'line' => __LINE__, level => 3});
+			if ($node eq $conf->{cluster}{target_node})
+			{
+				to_log($conf, {message => "Checking the status of target node: [$node].", 'line' => __LINE__, level => 1});
+				if (($join eq "down") && ($expected eq "down"))
+				{
+					# The node is out.
+					to_log($conf, {message => "The node: [$node] is already down. No actual fence needed.", 'line' => __LINE__, level => 1});
+					exit(7);
+				}
+				else
+				{
+					to_log($conf, {message => "The node: [$node] is: [$join/$expected] (join/expected). Proceeding with the fence action.", 'line' => __LINE__, level => 1});
+				}
+			}
 		}
 	}
 	
@@ -452,6 +373,76 @@ sub identify_peer
 	}
 	
 	return(0);
+}
+
+# This reads in the CIB XML and returns it as a single multi-line string.
+sub read_cib
+{
+	my ($conf) = @_;
+	
+	my $xml_opened  = 0;
+	my $xml_closed  = 0;
+	my $body        = "";
+	my $cib         = '<?xml version="1.0" encoding="UTF-8"?>';
+	my $shell_call  = $conf->{path}{exe}{cibadmin}." --local --query";
+	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 3});
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line =  $_;
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 3});
+		
+		$cib  .= "\n".$line;
+		if ($line =~ /Signon to CIB failed/i)
+		{
+			# Failed to connect, we're probably not in the cluster.
+			to_log($conf, {message => "This node does not appear to be in the cluster. Unable to get the CIB status.", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
+		}
+		if ($line =~ /^<cib .*?>$/)
+		{
+			$xml_opened = 1;
+			to_log($conf, {message => "xml_opened: [$xml_opened].", 'line' => __LINE__, level => 3});
+		}
+		if ($line =~ /^<\/cib>$/)
+		{
+			$xml_closed = 1;
+			to_log($conf, {message => "xml_closed: [$xml_closed].", 'line' => __LINE__, level => 3});
+		}
+	}
+	close $file_handle;
+	my $return_code = $?;
+	to_log($conf, {message => "Return code: [$return_code]", 'line' => __LINE__, level => 3});
+	to_log($conf, {message => "cib: ==========\n$cib\n==========", 'line' => __LINE__, level => 3});
+	
+	# Now parse the CIB XML if I read it OK.
+	to_log($conf, {message => "xml_opened: [$xml_opened], xml_closed: [$xml_closed].", 'line' => __LINE__, level => 3});
+	if (($xml_opened) && ($xml_closed))
+	{
+		# We're good
+		my $xml = XML::Simple->new();
+		eval { $body = $xml->XMLin($cib, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'id' ]) };
+		if ($@)
+		{
+			chomp $@;
+			my $error =  "[ Error ] - The was a problem parsing: [$cib]. The error was:\n";
+			   $error .= "===========================================================\n";
+			   $error .= $@."\n";
+			   $error .= "===========================================================\n";
+			to_log($conf, {message => $error, 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
+		}
+	}
+	else
+	{
+		# Failed to read the CIB XML.
+		to_log($conf, {message => "This node does not appear to be in the cluster. Unable to read the CIB XML properly.", 'line' => __LINE__, level => 2, priority => "err"});
+		exit(1);
+	}
+	
+	return($body);
 }
 
 # This checks the given paths and, if something isn't found, it searches PATH trying to find it.
@@ -508,7 +499,6 @@ sub find_executables
 			if (-e $conf->{path}{exe}{logger})
 			{
 				to_log($conf, {message => "Failed to find executable: [$exe]. Unable to proceed.", 'line' => __LINE__, level => 0});
-				to_log(LOG_DEBUG(), $conf, __LINE__, "");
 			}
 			else
 			{
@@ -524,101 +514,80 @@ sub find_executables
 	return(0);
 }
 
+# This checks to see if 'cluster::target_node' is out of the pacemaker cluster.
+sub check_peer_is_fenced
+{
+	my ($conf) = @_;
+	
+	my $fenced = 0;
+	my $body   = read_cib($conf);
+	foreach my $hash_ref (@{$body->{status}{node_state}})
+	{
+		my $node     = $hash_ref->{uname};
+		my $join     = $hash_ref->{'join'};
+		my $expected = $hash_ref->{expected};
+		to_log($conf, {message => "node: [$node] join: [$join], expected: [$expected]", 'line' => __LINE__, level => 3});
+		if ($node eq $conf->{cluster}{target_node})
+		{
+			to_log($conf, {message => "Checking the status of target node: [$node].", 'line' => __LINE__, level => 1});
+			if (($join eq "down") && ($expected eq "down"))
+			{
+				# The node is out.
+				to_log($conf, {message => "The node: [$node] has been fenced successfully.", 'line' => __LINE__, level => 1});
+				exit(7);
+			}
+			else
+			{
+				to_log($conf, {message => "The node: [$node] is: [$join/$expected] (join/expected). It has not yet been fenced.", 'line' => __LINE__, level => 1});
+			}
+		}
+	}
+	
+	return(0);
+}
+
 # This kills remote node.
 sub kill_target
 {
 	my ($conf) = @_;
 
 	# Variables
-	my $remote_node = $conf->{environment}{DRBD_PEERS};
-	my $sc          = "";
-	my $line        = "";
-	my $sc_exit     = "";
-
-	# Hug it and squeeze it and call it George.
-	to_log(LOG_DEBUG(), $conf, __LINE__, "Fencing target: [$remote_node]...");
-
-	my $shell_call = $conf->{path}{exe}{fence_node}." -v ".$remote_node;
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: shell call: [$shell_call]");
-	open (my $file_handle, "$shell_call 2>&1 |") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: [$shell_call], error was: $!");
+	my $shell_call = $conf->{path}{exe}{stonith_admin}." --fence ".$conf->{cluster}{target_node}." --verbose; RC=\$?; ".$conf->{path}{exe}{crm_error}." \$RC; ".$conf->{path}{exe}{echo}." rc:\$RC";
+	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
 	{
+		# This should not generate output.
 		chomp;
-		$line = $_;
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: $line");
-		if ($line=~/fence .*? success/)
+		my $line = $_;
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
+	}
+	close $file_handle;
+	
+	### NOTE: Should we just wait forever?
+	# Now loop and wait for it to be stonithed. We'll wait up to five minutes.
+	my $start_time = time;
+	my $end_time   = $start_time + 300;
+	my $fenced     = 0;
+	to_log($conf, {message => "start_time: [$start_time], end_time: [$return_code]", 'line' => __LINE__, level => 2});
+	until ($fenced)
+	{
+		# This will exit 
+		check_peer_is_fenced($conf);
+		if (time > $end_time)
 		{
-			to_log(LOG_DEBUG(), $conf, __LINE__, "'fence_node $remote_node' appears to have succeeded!");
+			# Done waiting, failed.
+			to_log($conf, {message => "The node has not been fenced after five minutes. Giving up..", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
 		}
 		else
 		{
-			to_log(LOG_DEBUG(), $conf, __LINE__, "'fence_node $remote_node' appears to have failed!");
-			to_log(LOG_DEBUG(), $conf, __LINE__, "Read: [$line]");
+			sleep 5;
 		}
-	}
-	close $file_handle;
-	my $return_code = $?;
-	to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Attempt to fence node: [$remote_node] exited with: [$return_code]");
-
-	# Exit.
-	if ($return_code)
-	{
-		to_log(LOG_DEBUG(), $conf, __LINE__, "Attempt to fence: [$remote_node] failed!");
-		exit(1);
-	}
-	else
-	{
-		to_log(LOG_DEBUG(), $conf, __LINE__, "Fencing of: [$remote_node] succeeded!");
-		exit(7);
 	}
 
 	# This should not be reachable.
 	return(0);
-}
-
-# This ejects the remote node from the cluster, if cluster comms are still up.
-sub eject_target
-{
-	my ($conf) = @_;
-
-	# Variables;
-	my $remote_node = "";
-	my $sc          = "";
-	my $sc_exit     = "";
-	my $shell_call  = "";
-	my $line        = "";
-
-	### I don't know if I really want to use/keep this.
-	# If the node is still a cluster member, kick it out.
-	$remote_node = $conf->{environment}{DRBD_PEERS};
-	if ($conf->{nodes}{$remote_node}{member} eq "M")
-	{
-		# It is, kick it out. If cluster comms are up, this will
-		# trigger a fence in a few moment, regardless of what we do
-		# next.
-		to_log(LOG_DEBUG(), $conf, __LINE__, "Target node: [$remote_node] is a cluster member, attempting to eject.");
-		$sc         = IO::Handle->new();
-		$shell_call = "$conf->{path}{exe}{cman_tool} kill -n $remote_node";
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: shell call: [$shell_call]");
-		open ($sc, "$shell_call 2>&1 |") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: [$sc], error was: $!");
-		while(<$sc>)
-		{
-			chomp;
-			$line = $_;
-			to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: line: [$line]");
-		}
-		$sc->close();
-		$sc_exit = $?;
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Attempt to force-remove node: [$remote_node] exited with: [$sc_exit]");
-
-		return 1;
-	}
-	else
-	{
-		to_log(LOG_DEBUG(), $conf, __LINE__, "Target node: [$remote_node] is *not* a cluster member (state: [$conf->{nodes}{$remote_node}{member}]). Not ejecting.");
-
-		return 0;
-	}
 }
 
 # Log file entries
@@ -676,74 +645,5 @@ sub to_log
 	close $file_handle;
 
 	return(0);
-}
-
-sub get_fenced_state
-{
-	my ($conf) = @_;
-
-	my $sc = IO::Handle->new();
-	open($sc, "fence_tool -n ls |") or to_log(LOG_ERR(), $conf, __LINE__, "Failed to call: fence_tools  error was $!\n");
-	
-	my %fence_state;
-	<$sc> =~ /fence domain/;
-	$fence_state{member_count}  = $1 if (<$sc> =~ /member count\s+([0-9]+)/);
-	$fence_state{victim_count}  = $1 if (<$sc> =~ /victim count\s+([0-9]+)/);
-	$fence_state{victim_now}    = $1 if (<$sc> =~ /victim now\s+([0-9]+)/);
-	$fence_state{master_nodeid} = $1 if (<$sc> =~ /master nodeid\s+([0-9]+)/);
-	$fence_state{wait_state}    = $1 if (<$sc> =~ /wait state\s+(\w+)$/);
-	$sc->close();
-
-	return \%fence_state;
-}
-
-sub wait_for_fenced_status
-{
-	my ($conf, $target_state, $time_seconds)=@_;
-	my $fenced_state;
-
-	while ($time_seconds)
-	{
-		$fenced_state = get_fenced_state($conf);
-		if ($fenced_state->{wait_state} eq $target_state)
-		{
-			return $fenced_state;
-		}
-		sleep(1);
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Waiting for $target_state. Now $fenced_state->{wait_state}\n");
-		$time_seconds--;
-	}
-
-	return $fenced_state;
-}
-
-sub eventually_wait_for_fenced
-{
-	my ($conf) = @_;
-
-	my $fenced_state1 = wait_for_fenced_status($conf, "fencing", 30);
-
-	if ($fenced_state1->{wait_state} ne "fencing") 
-	{
-		to_log(LOG_DEBUG(), $conf, __LINE__, "DEBUG: Expected fencd to do a fence action, got $fenced_state1->{wait_state}\n");
-		return;
-	}
-
-	my $to_fence_node_id = $conf->{nodes}{$conf->{environment}{DRBD_PEERS}}{id};
-	if ($fenced_state1->{victim_now} != $to_fence_node_id)
-	{
-		to_log(LOG_ERR(), $conf, __LINE__, "Fenced is shooting at $fenced_state1->{victim_now}; Should shoot at $to_fence_node_id\n");
-	}
-
-	my $fenced_state2 = wait_for_fenced_status($conf, "none", 240);
-	if ($fenced_state2->{wait_state} eq "none")
-	{
-		to_log(LOG_INFO(), $conf, __LINE__, "Seems fenced was successfull\n");
-		exit 7;
-	}
-	else
-	{
-		to_log(LOG_ERR(), $conf, __LINE__, "Fenced failed" . Dumper($fenced_state1) . Dumper($fenced_state2));
-	}
 }
 
