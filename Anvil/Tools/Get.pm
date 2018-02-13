@@ -663,8 +663,8 @@ sub switches
 			}
 			else
 			{
-				# Got a value without an argument.
-				$anvil->data->{switches}{error} = 1;
+				# Got a value without an argument, so just record it as '#!SET!#'.
+				$anvil->data->{switches}{$argument} = "#!SET!#";
 			}
 		}
 	}

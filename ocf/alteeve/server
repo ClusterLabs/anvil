@@ -1,12 +1,360 @@
 #!/usr/bin/perl
 # 
-# This is the resource agent used to manage servers on the Anvil! Intelligent Availability platform.
+#   This is the resource agent used to manage servers on the Anvil! Intelligent Availability platform.
+#
+#   License: GNU General Public License (GPL) v2+
+#            (c) 1997-2018 - Alteeve's Niche! Inc.
+# 
+# WARNING: This is a pretty purpose-specific resource agent. No effort was made to test this on an rgmanager
+#          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
+#          another purpose, let us know and we'll try to help.
 # 
 # Based on: https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 # 
+# Error types from pacemaker's perspective;
+# 
+# - Soft Error -  Unless specifically configured otherwise, pacemaker will attempt to recover a resource 
+#                 in-place - usually by restarting the resource on the same node.
+# - Hard Error -  Unless specifically configured otherwise, pacemaker will attempt to recover a resource 
+#                 which failed with this error by restarting the resource on a different node.
+# - Fatal Error - This is a cluster-wide error, it would make no sense to recover such a resource on a 
+#                 different node, let alone in-place. When a resource fails with this error, Pacemaker will 
+#                 attempt to shut down the resource, and wait for administrator intervention.
+# 
+# Exit codes;
+# 0 - OCF_SUCCESS 
+#   - The action completed successfully. This is the expected return code for any successful start, stop, 
+#     migrate_to, meta_data, help, and usage action.
+#   - For monitor, however, a modified convention applies:
+#     - If the server is running we return, OCF_SUCCESS.  If not running and gracefully stopped or migrated 
+#       off, return OCF_NOT_RUNNING.
+#       
+# 1 - OCF_ERR_GENERIC
+#   - The action returned a generic error. This is used only when none of the more specific error codes, 
+#     defined below, accurately describes the problem.
+#   - Pacemaker interprets this exit code as a soft error. 
+#     
+# 2 - OCF_ERR_ARGS
+#   - The resource’s configuration is not valid on this machine. This can happen if the serve fails to boot
+#     because of a missing bridge, for example.
+#    
+# 3 - OCF_ERR_UNIMPLEMENTED
+#   - The resource agent was instructed to execute an action that we do not implement.
+#   - Not all resource agent actions are mandatory. We don't implement 'promote' or 'demote'. We do implement
+#     'migrate_to', 'migrate_from', and 'notify'. If we're misconfigured as a master/slave resource, for 
+#     example, then will alert the user about this misconfiguration by returning OCF_ERR_UNIMPLEMENTED.
+#     
+# 4 - OCF_ERR_PERM 
+#   - The action failed due to insufficient permissions. This may be due to a node not being able to open a
+#     definition file or resource config. 
+#   - Pacemaker interprets this exit code as a hard error. 
+#     
+# 5 - OCF_ERR_INSTALLED
+#   - The action failed because a required component is missing on the node where the action was executed. 
+#     This may be due to a required binary not being executable, or a the DRBD resource config file not 
+#     existing.
+#   - Pacemaker interprets this exit code as a hard error.
+#     
+# 6 - OCF_ERR_CONFIGURED
+#   - The action failed because the user misconfigured the resource in pacemaker. For example, the user may 
+#     have configured an alphanumeric string for a parameter that really should be an integer.
+#   - Pacemaker interprets this exit code as a fatal error.
+#     
+# 7 - OCF_NOT_RUNNING
+#   - The resource was found not to be running. This is an exit code that may be returned by the monitor 
+#     action exclusively. Note that this implies that the resource has either gracefully shut down, or has 
+#     never been started.
+#     
+# 8 - OCF_RUNNING_MASTER
+# 9 - OCF_FAILED_MASTER
+#   - These OCF exit codes are not used here.
+#     
 
+# NOTE: We don't use Anvil::Tools to keep overhead low and to keep this agent independent as possible.
 use strict;
 use warnings;
+use XML::Simple;
+use Data::Dumper;
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $conf = {
+	'log'		=>	{
+		facility	=>	"local0",
+		level		=>	2,
+		line_numbers	=>	1,
+		tag		=>	$THIS_FILE,
+	},
+	# If a program isn't at the defined path, $ENV{PATH} will be searched.
+	path		=>	{
+		exe		=>	{
+			cibadmin	=>	"/usr/sbin/cibadmin",
+			crm_error	=>	"/usr/sbin/crm_error",
+			drbdadm		=>	"/usr/sbin/drbdadm",
+			echo		=>	"/usr/bin/echo",
+			getent		=>	"/usr/bin/getent",
+			logger		=>	"/usr/bin/logger",
+			stonith_admin	=>	"/usr/sbin/stonith_admin",
+		},
+	},
+	environment	=>	{
+		# The name of the server we care about.
+		OCF_RESKEY_name		=>	"",
+	},
+};
+
+# Find executables.
+find_executables($conf);
+
+# Get any command line switches.
+get_switches($conf);
+
+if (($conf->{switches}{metadaata}) or ($conf->{switches}{'meta-data'}))
+{
+	show_metadata($conf);
+}
+
+# Something for the logs
+to_log($conf, {message => "ocf:alteeve:server invoked.", 'line' => __LINE__});
 
 
-exit(0);
+# If we hit here, something very wrong happened.
+exit(255);
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This prints out the metadata and exits.
+sub show_metadata
+{
+	my ($conf) = @_;
+	
+	# This is a pretty simple agent, by design. We only take a server name for now.
+	print '<?xml version="1.0"?>
+<!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
+<resource-agent name="ocs:alteeve:server">
+  <version>0.1</version>
+  <longdesc lang="en">
+This resource agent manages KVM+qemu virtual servers on an Anvil! m3 Intelligent Availability™ system. 
+It manages underlying components like DRBD 9 storage resources, brodge connections and so forth.
+  </longdesc>
+  <shortdesc lang="en">Anvil! m3 server resource agent</shortdesc>
+  <parameters>
+    <parameter name="name" unique="1" required="1">
+      <longdesc lang="en">
+        This is the name of the server as reported by virsh.
+      </longdesc>
+      <shortdesc lang="en">Server name</shortdesc>
+      <content type="string"/>
+    </parameter>
+  </parameters>
+  <actions>
+    <action name="start"        timeout="30" />
+    <action name="stop"         timeout="600" />
+    <action name="monitor"      timeout="10" interval="10" depth="0" />
+    <action name="notify"       timeout="20" />
+    <action name="migrate_to"   timeout="600" />
+    <action name="migrate_from" timeout="600" />
+    <action name="meta-data"    timeout="5" />
+    <action name="validate-all" timeout="20" />
+  </actions>
+</resource-agent>
+';
+	
+	exit(0);
+}
+
+# This gathers command line switches and stores them in 'swithes::<foo>'.
+sub get_switches
+{
+	my ($conf) = @_;
+	
+	my $last_argument = "";
+	foreach my $argument (@ARGV)
+	{
+		if ($last_argument eq "raw")
+		{
+			# Don't process anything.
+			$conf->{switches}{raw} .= " $argument";
+		}
+		elsif ($argument =~ /^-/)
+		{
+			# If the argument is just '--', appeand everything after it to 'raw'.
+			if ($argument eq "--")
+			{
+				$last_argument         = "raw";
+				$conf->{switches}{raw} = "";
+			}
+			else
+			{
+				($last_argument) = ($argument =~ /^-{1,2}(.*)/)[0];
+				if ($last_argument =~ /=/)
+				{
+					# Break up the variable/value.
+					($last_argument, my $value) = (split /=/, $last_argument, 2);
+					$conf->{switches}{$last_argument} = $value;
+				}
+				else
+				{
+					$conf->{switches}{$last_argument} = "#!SET!#";
+				}
+			}
+		}
+		else
+		{
+			if ($last_argument)
+			{
+				$conf->{switches}{$last_argument} = $argument;
+				$last_argument                    = "";
+			}
+			else
+			{
+				# Got a value without an argument. That's OK.
+				$conf->{switches}{$argument} = "#!SET!#";
+			}
+		}
+	}
+	# Clean up the initial space added to 'raw'.
+	if ($conf->{switches}{raw})
+	{
+		$conf->{switches}{raw} =~ s/^ //;
+	}
+	
+	return(0);
+}
+
+# Log file entries
+sub to_log
+{
+	my ($conf, $parameters) = @_;
+	
+	my $facility = defined $parameters->{facility} ? $parameters->{facility} : $conf->{'log'}{facility};
+	my $level    = defined $parameters->{level}    ? $parameters->{level}    : 1;
+	my $line     = defined $parameters->{'line'}   ? $parameters->{'line'}   : 0;
+	my $message  = defined $parameters->{message}  ? $parameters->{message}  : "";
+	my $priority = defined $parameters->{priority} ? $parameters->{priority} : "";
+	
+	# Leave if we don't care about this message
+	return if $level > $conf->{'log'}{level};
+	return if not $message;
+	
+	# Build the message. We log the line
+	if (($conf->{'log'}{line_numbers}) && ($line))
+	{
+		$message = $line."; ".$message;
+	}
+	
+	my $priority_string = $facility;
+	if ($priority)
+	{
+		$priority_string .= ".".$priority;
+	}
+	elsif ($level eq "0")
+	{
+		$priority_string .= ".notice";
+	}
+	elsif (($level eq "1") or ($level eq "2"))
+	{
+		$priority_string .= ".info";
+	}
+	else
+	{
+		$priority_string .= ".debug";
+	}
+	
+	# Clean up the string for bash
+	$message =~ s/"/\\\"/gs;
+	#$message =~ s/\(/\\\(/gs;
+	
+	my $shell_call = $conf->{path}{exe}{logger}." --priority ".$priority_string." --tag ".$conf->{'log'}{tag}." -- \"".$message."\"";
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line = $_;
+		print "Unexpected logging output: [".$line."]\n";
+	}
+	close $file_handle;
+
+	return(0);
+}
+
+# This checks the given paths and, if something isn't found, it searches PATH trying to find it.
+sub find_executables
+{
+	my ($conf) = @_;
+
+	# Variables.
+	my $check = "";
+	my $bad   = 0;
+
+	# Log entries can only happen if I've found 'logger', so an extra check will be made on 'to_log' 
+	# calls.
+	my @dirs = split/:/, $ENV{PATH};
+	foreach my $exe (sort {$b cmp $a} keys %{$conf->{path}{exe}})
+	{
+		if ( not -e $conf->{path}{exe}{$exe} )
+		{
+			to_log($conf, {message => "The program: [$exe] is not at: [".$conf->{path}{exe}{$exe}."]. Looking for it now...", 'line' => __LINE__, level => 1});
+			foreach my $path (@dirs)
+			{
+				$check =  "$path/$exe";
+				$check =~ s/\/\//\//g;
+				to_log($conf, {message => "Checking: [$check]", 'line' => __LINE__, level => 2});
+				if ( -e $check )
+				{
+					if (-e $conf->{path}{exe}{logger})
+					{
+						to_log($conf, {message => "Found it! Changed path for: [$exe] from: [".$conf->{path}{exe}{$exe}."] to: [$check]", 'line' => __LINE__, level => 1});
+					}
+					else
+					{
+						warn "DEBUG: Found it! Changed path for: [$exe] from: [".$conf->{path}{exe}{$exe}."] to: [$check]\n";
+					}
+					$conf->{path}{exe}{$exe} = $check;
+				}
+				else
+				{
+					to_log($conf, {message => "Not found.", 'line' => __LINE__, level => 2});
+				}
+			}
+		}
+		else
+		{
+			to_log($conf, {message => "Found!", 'line' => __LINE__, level => 3});
+			next;
+		}
+
+		# Make sure it exists now.
+		to_log($conf, {message => "Checking again if: [$exe] is at: [".$conf->{path}{exe}{$exe}."].", 'line' => __LINE__, level => 3});
+		if (not -e $conf->{path}{exe}{$exe})
+		{
+			$bad = 1;
+			if (-e $conf->{path}{exe}{logger})
+			{
+				to_log($conf, {message => "Failed to find executable: [$exe]. Unable to proceed.", 'line' => __LINE__, level => 0});
+			}
+			else
+			{
+				warn "Failed to find executable: [$exe]. Unable to proceed.\n";
+			}
+		}
+	}
+	if ($bad)
+	{
+		exit(1);
+	}
+
+	return(0);
+}
