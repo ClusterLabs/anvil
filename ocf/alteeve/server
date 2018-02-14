@@ -74,6 +74,7 @@
 use strict;
 use warnings;
 use XML::Simple;
+use Math::BigInt;
 use Data::Dumper;
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
@@ -95,11 +96,15 @@ my $conf = {
 	},
 	# If a program isn't at the defined path, $ENV{PATH} will be searched.
 	path		=>	{
+		config		=>	{
+			definition	=>	"/mnt/anvil/definitions/#!NAME!#.xml",
+		},
 		exe		=>	{
 			cibadmin	=>	"/usr/sbin/cibadmin",
 			crm_error	=>	"/usr/sbin/crm_error",
 			drbdadm		=>	"/usr/sbin/drbdadm",
 			echo		=>	"/usr/bin/echo",
+			free		=>	"/usr/bin/free",
 			getent		=>	"/usr/bin/getent",
 			logger		=>	"/usr/bin/logger",
 			stonith_admin	=>	"/usr/sbin/stonith_admin",
@@ -148,7 +153,7 @@ if ($conf->{switches}{test})
 }
 
 # Something for the logs
-to_log($conf, {message => "ocf:alteeve:server invoked.", 'line' => __LINE__});
+to_log($conf, {message => "ocf:alteeve:server invoked.", 'line' => __LINE__, level => 2});
 
 # This is for debugging.
 show_environment($conf, 2);
@@ -241,6 +246,153 @@ sub start_server
 {
 	my ($conf) = @_;
 	
+	# Start procedure;
+	# 1. Read the XML definition file and find the backing storage and bridges. Soft error if read fails.
+	# 2. Make sure the name matches.
+	# 3. Make sure we have enough free RAM.
+	# 4. Make sure the emulator exists (can be an issue after migrating from an different gen Anvil!).
+	# 5.1. Make sure optical drives with mounted data have the disk present. Soft error if not.
+	# 5.2. Find any backing DRBD devices
+	# 6. For each DRBD device;
+	# 6.1. Make sure the backing LV is ACTIVE. Soft error if not.
+	# 6.2. Check if the drbd resource is up. If not, up it.
+	# 6.3. Make sure the backing disk is UpToDate. Soft error if not.
+	# 6.4. Make sure the backing device is 'Connected' or 'Connecting'. Call a connect if not.
+	# 7. Make sure all bridges exist and soft error if not.
+	# 8. Start the server.
+	
+	my $server                         = $conf->{environment}{OCF_RESKEY_name};
+	my ($server_xml, $definition_file) = read_server_definition($conf);
+	#print Dumper $server_xml->{devices};
+	
+	# Does the internal server name match?
+	if ($server ne $server_xml->{name}->[0])
+	{
+		to_log($conf, {message => "The configured server name: [$server] does not match the name of the server in the definition file: [".$server_xml->{name}."]!", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	### Check that we have enough RAM.
+	# How mcuh RAM does the server need?
+	my $server_ram_value = $server_xml->{memory}->[0]->{content};
+	my $server_ram_units = $server_xml->{memory}->[0]->{unit};
+	to_log($conf, {message => "server_ram_value: [$server_ram_value], server_ram_units: [$server_ram_units].", 'line' => __LINE__, level => 2});
+	
+	# Convert to bytes
+	my $server_ram_bytes = $server_ram_value;
+	if    ($server_ram_units =~ /^k/i) { $server_ram_bytes = ($server_ram_value * (2 ** 10));  }
+	elsif ($server_ram_units =~ /^m/i) { $server_ram_bytes = ($server_ram_value * (2 ** 20));  }
+	elsif ($server_ram_units =~ /^g/i) { $server_ram_bytes = ($server_ram_value * (2 ** 30));  }
+	elsif ($server_ram_units =~ /^t/i) { $server_ram_bytes = ($server_ram_value * (2 ** 40)); }
+	elsif ($server_ram_units =~ /^p/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('50')->bmul($server_ram_value); }
+	elsif ($server_ram_units =~ /^e/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('60')->bmul($server_ram_value); }
+	elsif ($server_ram_units =~ /^z/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('70')->bmul($server_ram_value); }
+	elsif ($server_ram_units =~ /^y/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('80')->bmul($server_ram_value); }
+	to_log($conf, {message => "server_ram_bytes: [$server_ram_bytes].", 'line' => __LINE__, level => 3});
+	
+	# How much RAM do we have available?
+	my $available = 0;
+	my ($free_rc, $free_output) = shell_call($conf, $conf->{path}{exe}{free}." --bytes");
+	foreach my $line (split/\n/, $free_output)
+	{
+		to_log($conf, {message => "line: [$line].", 'line' => __LINE__, level => 3});
+		if ($line =~ /Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
+		{
+			my $total     = $1;
+			my $used      = $2;
+			my $free      = $3;
+			my $shared    = $4;
+			my $cache     = $5;
+			   $available = $6;
+			to_log($conf, {message => "total: [$total], used: [$used], free: [$free], shared: [$shared], cache: [$cache], available: [$available]", 'line' => __LINE__, level => 3});
+		}
+	}
+	
+	to_log($conf, {message => "server_ram_bytes: [".comma($conf, $server_ram_bytes)." bytes].", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "available: ...... [".comma($conf, $available)." bytes].", 'line' => __LINE__, level => 2});
+	if ($server_ram_bytes > $available)
+	{
+		# Not enough free memory.
+		to_log($conf, {message => "The configured server name: [$server] needs: [".comma($conf, $server_ram_bytes)." bytes] of RAM, but only: [".comma($conf, $available)." bytes] are available!", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	# What emulator is this using?
+	my $emulator = $server_xml->{devices}->[0]->{emulator}->[0];
+	to_log($conf, {message => "emulator: [$emulator]", 'line' => __LINE__, level => 2});
+	if (not -e $emulator)
+	{
+		# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
+		to_log($conf, {message => "The server wants to use the emulator: [$emulator] which doesn't exist on this node. Was this server migrated from a different generation Anvil! system? Please update '<emulator>...</emulator>' in the server's definition file: [$definition_file].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(5);
+	}
+	if (not -x $emulator)
+	{
+		# We can't execute it. Exit with OCF_ERR_PERM (4).
+		to_log($conf, {message => "The server wants to use the emulator: [$emulator] which exists, but we can't run. Please check permissions and for SELinux denials.", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(4);
+	}
+
+	# Find the Optical drives and DRBD devices.
+	foreach my $device_ref (@{$server_xml->{devices}})
+	{
+		foreach my $interface_ref (@{$device_ref->{interface}})
+		{
+			foreach my $source_ref (@{$interface_ref->{source}})
+			{
+				my $bridge                   = $source_ref->{bridge};
+				   $conf->{bridges}{$bridge} = 1;
+				to_log($conf, {message => "bridges::${bridge}: [".$conf->{bridges}{$bridge}."].", 'line' => __LINE__, level => 2});
+			}
+		}
+	}
+	
+	# Find the bridge(s) this server uses.
+	foreach my $device_ref (@{$server_xml->{devices}})
+	{
+		foreach my $disk_ref (@{$device_ref->{disk}})
+		{
+			my $type = $disk_ref->{device};
+			to_log($conf, {message => "type: [$type].", 'line' => __LINE__, level => 2});
+			if ($type eq "disk")
+			{
+				foreach my $source_ref (@{$disk_ref->{source}})
+				{
+					my $disk                 = $source_ref->{dev};
+					   $conf->{disks}{$disk} = 1;
+					to_log($conf, {message => "disks::${disk}: [".$conf->{disks}{$disk}."].", 'line' => __LINE__, level => 2});
+				}
+			}
+			elsif ($type eq "cdrom")
+			{
+				foreach my $source_ref (@{$disk_ref->{source}})
+				{
+					my $file                   = $source_ref->{file};
+					   $conf->{optical}{$file} = 1;
+					to_log($conf, {message => "optical::${file}: [".$conf->{optical}{$file}."].", 'line' => __LINE__, level => 2});
+				}
+			}
+		}
+	}
+	
+	# Verify DRBD devices now
+	foreach my $disk (sort {$a cmp $b} keys %{$conf->{disks}})
+	{
+		to_log($conf, {message => "Checking that the DRBD device: [$disk] is ready.", 'line' => __LINE__, level => 2});
+	}
+	
+	# Verify optical disks now
+	foreach my $file (sort {$a cmp $b} keys %{$conf->{optical}})
+	{
+		to_log($conf, {message => "Checking that the optical disc image: [$file] exists.", 'line' => __LINE__, level => 2});
+	}
+	
+	# Verify bridges now
+	foreach my $bridge (sort {$a cmp $b} keys %{$conf->{bridges}})
+	{
+		to_log($conf, {message => "Checking that we have a bridge called: [$bridge].", 'line' => __LINE__, level => 2});
+	}
+	
 	exit(0);
 }
 
@@ -271,7 +423,7 @@ sub server_status
 		to_log($conf, {message => "The environment variable 'OCF_RESKEY_CRM_meta_timeout' was not set, so setting it to: [".$conf->{environment}{OCF_RESKEY_CRM_meta_timeout}."].", 'line' => __LINE__, level => 1, priority => "warn"});
 	}
 	my $return_code  = undef;
-	my $output       = [];
+	my $output       = "";
 	my $current_time = time;
 	my $timeout      = $current_time + int(($conf->{environment}{OCF_RESKEY_CRM_meta_timeout} /= 1000) / 2);
 	my $waiting      = 1;
@@ -304,19 +456,16 @@ sub server_status
 	if ($return_code)
 	{
 		to_log($conf, {message => "It would appear that libvirtd is not operating (or not operating correctly). Expected the return code '0' but got: [$return_code].", 'line' => __LINE__, level => 0, priority => "err"});
-		if (@{$output} > 0)
+		if ($output)
 		{
 			to_log($conf, {message => "Output of: [".$conf->{path}{exe}{virsh}." list] follows;", 'line' => __LINE__, level => 0, priority => "err"});
-			foreach my $line (@{$output})
-			{
-				to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 0, priority => "err"});
-			}
+			to_log($conf, {message => "Output: [$output]", 'line' => __LINE__, level => 0, priority => "err"});
 		}
 		exit(1);
 	}
 	
 	# If we're still alive, process the output
-	foreach my $line (@{$output})
+	foreach my $line (split/\n/, $output)
 	{
 		$line =~ s/^\s+//;
 		$line =~ s/\s+$//;
@@ -367,13 +516,13 @@ sub server_status
 		}
 		elsif (($state eq "idle") or ($state eq "crashed"))
 		{
-			to_log($conf, {message => "The server: [$server] is in a bad state: [$state]!", 'line' => __LINE__, level => 0}, priority => "err");
+			to_log($conf, {message => "The server: [$server] is in a bad state: [$state]!", 'line' => __LINE__, level => 0, priority => "err"});
 			exit(1);
 		}
 		else
 		{
 			# WTF?
-			to_log($conf, {message => "The server: [$server] is in an unexpected state: [$state]!", 'line' => __LINE__, level => 0}, priority => "err");
+			to_log($conf, {message => "The server: [$server] is in an unexpected state: [$state]!", 'line' => __LINE__, level => 0, priority => "err"});
 			exit(1);
 		}
 	}
@@ -413,33 +562,100 @@ sub validate
 	exit(0);
 }
 
-# This makes a system call and returns the return code and the output as an array reference of lines.
+# This reads the XML definition data into an XML data hash.
+sub read_server_definition
+{
+	my ($conf) = @_;
+	
+	my $server          =  $conf->{environment}{OCF_RESKEY_name};
+	my $definition_file =  $conf->{path}{config}{definition};
+	   $definition_file =~ s/#!NAME!#/$server/;
+	my $server_xml      =  "";
+	to_log($conf, {message => "server: [$server], definition_file: [$definition_file]", 'line' => __LINE__, level => 3});
+	
+	# If the file doesn't exist, return OCF_ERR_INSTALLED (5). If the file exists but we can't read it, 
+	# return OCF_ERR_PERM (4).
+	if (not -e $definition_file)
+	{
+		to_log($conf, {message => "The definition file: [$definition_file] for the server: [$server] does not exist here!", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(5);
+	}
+	elsif (not -r $definition_file)
+	{
+		to_log($conf, {message => "The definition file: [$definition_file] for the server: [$server] can not be read!", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(4);
+	}
+	
+	# Still alive? Read it in.
+	my ($definition_xml) = read_file($conf, $definition_file);
+	to_log($conf, {message => "definition_xml: [$definition_xml]", 'line' => __LINE__, level => 3});
+	
+	my $xml = XML::Simple->new();
+	eval { $server_xml = $xml->XMLin($definition_xml, KeyAttr => {}, ForceArray => 1) };
+	if ($@)
+	{
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem parsing: [$definition_file]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		to_log($conf, {message => $error, 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	return($server_xml, $definition_file);
+}
+
+# This reads in a file and returns the contents as a single string variable.
+sub read_file
+{
+	my ($conf, $file) = @_;
+	
+	my $body = "";
+	open (my $file_handle, "<".$file) or to_log($conf, {message => "Failed to read: [$file]. The error was: $!", 'line' => __LINE__, level => 0, priority => "err", exit_code => 1});
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line =  $_;
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 3});
+		
+		$body .= $line."\n";
+	}
+	close $file_handle;
+	
+	to_log($conf, {message => "body: [$body]", 'line' => __LINE__, level => 3});
+	return($body);
+}
+
+# This makes a system call and returns the return code and the output as string variable.
 sub shell_call
 {
 	my ($conf, $shell_call) = @_;
 	
 	   $shell_call  .= " 2>&1; ".$conf->{path}{exe}{echo}." return_code:\$?";
 	my $return_code =  9999;
-	my $output      =  [];
+	my $output      =  "";
 	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
-	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	open (my $file_handle, $shell_call." 2>&1 |") or to_log($conf, {message => "Failed to call: [".$shell_call."]. The error was: $!", 'line' => __LINE__, level => 0, priority => "err", exit_code => 1});
 	while(<$file_handle>)
 	{
 		# This should not generate output.
 		chomp;
 		my $line =  $_;
-		to_log($conf, {message => "line: [$line]", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "line: [$line]", 'line' => __LINE__, level => 3});
 		if ($line =~ /^return_code:(\d+)$/)
 		{
 			$return_code = $1;
-			to_log($conf, {message => "return_code: [$return_code]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "return_code: [$return_code]", 'line' => __LINE__, level => 3});
 			next;
 		}
-		push @{$output}, $line;
-		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
+		$output .= $line."\n";
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 3});
 	}
 	close $file_handle;
 	
+	to_log($conf, {message => "return_code: [$return_code], output: [$output]", 'line' => __LINE__, level => 3});
 	return($return_code, $output);
 }
 
@@ -591,16 +807,66 @@ sub get_switches
 	return(0);
 }
 
+# This adds commas to long numbers.
+sub comma
+{
+	my ($conf, $number) = @_;
+
+	return undef if not defined $number;
+	
+	# Strip out any existing commas.
+	$number =~ s/,//g;
+	
+	# Record and remove the sign, if present.
+	my $sign = "";
+	if ($number =~ /^\+/)
+	{
+		$number =~ s/^\+//g;
+		$sign   =  "+";
+	}
+	elsif ($number =~ /^\-/)
+	{
+		$number =~ s/^\-//g;
+		$sign   =  "-";
+	}
+	
+	# Split on the left-most period.
+	my ($whole, $decimal) = split/\./, $number, 2;
+	   $whole             = "" if not defined $whole;
+	   $decimal           = "" if not defined $decimal;
+	
+	# Now die if either number has a non-digit character in it.
+	if (($whole =~ /\D/) or ($decimal =~ /\D/))
+	{
+		to_log($conf, {message => "We were asked to insert commas into a dumber that is not actually a number: [$number]. This is likely a symptom of a larger problem.", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	local($_) = $whole ? $whole : "";
+	
+	1 while s/^(-?\d+)(\d{3})/$1,$2/;
+	$whole = $_;
+	
+	my $return = $decimal ? $whole.".".$decimal : $whole;
+	if ($sign)
+	{
+		$return = $sign.$return;
+	}
+	
+	return ($return);
+}
+
 # Log file entries
 sub to_log
 {
 	my ($conf, $parameters) = @_;
 	
-	my $facility = defined $parameters->{facility} ? $parameters->{facility} : $conf->{'log'}{facility};
-	my $level    = defined $parameters->{level}    ? $parameters->{level}    : 1;
-	my $line     = defined $parameters->{'line'}   ? $parameters->{'line'}   : 0;
-	my $message  = defined $parameters->{message}  ? $parameters->{message}  : "";
-	my $priority = defined $parameters->{priority} ? $parameters->{priority} : "";
+	my $facility  = defined $parameters->{facility}  ? $parameters->{facility}  : $conf->{'log'}{facility};
+	my $level     = defined $parameters->{level}     ? $parameters->{level}     : 1;
+	my $line      = defined $parameters->{'line'}    ? $parameters->{'line'}    : 0;
+	my $message   = defined $parameters->{message}   ? $parameters->{message}   : "";
+	my $priority  = defined $parameters->{priority}  ? $parameters->{priority}  : "";
+	my $exit_code = defined $parameters->{exit_code} ? $parameters->{exit_code} : "";
 	
 	# Leave if we don't care about this message
 	return if $level > $conf->{'log'}{level};
@@ -644,7 +910,12 @@ sub to_log
 		print "Unexpected logging output: [".$line."]\n";
 	}
 	close $file_handle;
-
+	
+	if ($exit_code =~ /^\d+$/)
+	{
+		exit($exit_code);
+	}
+	
 	return(0);
 }
 
