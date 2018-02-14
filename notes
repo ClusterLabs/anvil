@@ -416,3 +416,6 @@ pcs resource create srv01-c7 ocf:heartbeat:VirtualDomain hypervisor="qemu:///sys
 
 * A resource agent receives all configuration information about the resource it manages via environment variables. The names of these environment variables are always the name of the resource parameter, prefixed with OCF_RESKEY_. For example, if the resource has an ip parameter set to 192.168.1.1, then the resource agent will have access to an environment variable OCF_RESKEY_ip holding that value.
 * 
+
+
+

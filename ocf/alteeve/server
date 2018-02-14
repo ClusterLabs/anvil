@@ -91,7 +91,7 @@ my $conf = {
 		facility	=>	"local0",
 		level		=>	2,
 		line_numbers	=>	1,
-		tag		=>	$THIS_FILE,
+		tag		=>	"ocf:alteeve:".$THIS_FILE,
 	},
 	# If a program isn't at the defined path, $ENV{PATH} will be searched.
 	path		=>	{
@@ -103,13 +103,37 @@ my $conf = {
 			getent		=>	"/usr/bin/getent",
 			logger		=>	"/usr/bin/logger",
 			stonith_admin	=>	"/usr/sbin/stonith_admin",
+			virsh		=>	"/usr/bin/virsh",
 		},
 	},
 	environment	=>	{
-		# The name of the server we care about.
-		OCF_RESKEY_name		=>	"",
+		# This is the name of the server we're managing.										      # Example values:
+		OCF_RESKEY_name			=>	defined $ENV{OCF_RESKEY_name}                  ? $ENV{OCF_RESKEY_name}                  : "", # srv01-c7	
+		# This is our node name
+		OCF_RESKEY_CRM_meta_on_node	=>	defined $ENV{OCF_RESKEY_CRM_meta_on_node}      ? $ENV{OCF_RESKEY_CRM_meta_on_node}      : "", # m3-a02n01.alteeve.com
+		# This says "UUID", but it's the node ID.
+		OCF_RESKEY_CRM_meta_on_node_uuid =>	defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid} ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid} : "", # 1
+		# This is the timeout for the called action in millisecond.
+		OCF_RESKEY_CRM_meta_timeout	=>	defined $ENV{OCF_RESKEY_CRM_meta_timeout}      ? $ENV{OCF_RESKEY_CRM_meta_timeout}      : "", # 20000
+		# If this is set, we'll bump our log level as well.
+		PCMK_debug			=>	defined $ENV{PCMK_debug}                       ? $ENV{PCMK_debug}                       : "", # 0
+		# These are other variables that are set, but we don't currently care about them
+		OCF_EXIT_REASON_PREFIX		=>	defined $ENV{OCF_EXIT_REASON_PREFIX}           ? $ENV{OCF_EXIT_REASON_PREFIX}           : "", # ocf-exit-reason:
+		OCF_RA_VERSION_MAJOR		=>	defined $ENV{OCF_RA_VERSION_MAJOR}             ? $ENV{OCF_RA_VERSION_MAJOR}             : "", # 1
+		OCF_RA_VERSION_MINOR		=>	defined $ENV{OCF_RA_VERSION_MINOR}             ? $ENV{OCF_RA_VERSION_MINOR}             : "", # 0
+		OCF_RESKEY_crm_feature_set	=>	defined $ENV{OCF_RESKEY_crm_feature_set}       ? $ENV{OCF_RESKEY_crm_feature_set}       : "", # 3.0.12
+		OCF_RESOURCE_INSTANCE		=>	defined $ENV{OCF_RESOURCE_INSTANCE}            ? $ENV{OCF_RESOURCE_INSTANCE}            : "", # srv01-c7
+		OCF_RESOURCE_PROVIDER		=>	defined $ENV{OCF_RESOURCE_PROVIDER}            ? $ENV{OCF_RESOURCE_PROVIDER}            : "", # alteeve
+		OCF_RESOURCE_TYPE		=>	defined $ENV{OCF_RESOURCE_TYPE}                ? $ENV{OCF_RESOURCE_TYPE}                : "", # server
+		OCF_ROOT			=>	defined $ENV{OCF_ROOT}                         ? $ENV{OCF_ROOT}                         : "", # /usr/lib/ocf
 	},
 };
+
+# If pacemaker is in debug, so are we,
+if ($conf->{environment}{PCMK_debug})
+{
+	$conf->{'log'}{level} = 3;
+}
 
 # Find executables.
 find_executables($conf);
@@ -117,14 +141,92 @@ find_executables($conf);
 # Get any command line switches.
 get_switches($conf);
 
-if (($conf->{switches}{metadaata}) or ($conf->{switches}{'meta-data'}))
+### TEST: to be removed later
+if ($conf->{switches}{test})
 {
-	show_metadata($conf);
+	$conf->{environment}{OCF_RESKEY_name} = "srv01-c7";
 }
 
 # Something for the logs
 to_log($conf, {message => "ocf:alteeve:server invoked.", 'line' => __LINE__});
 
+# This is for debugging.
+show_environment($conf, 2);
+
+### What are we being asked to do?
+# start        - Starts the resource.
+# stop         - Shuts down the resource.
+# monitor      - (status aliases here) Queries the resource for its state.
+# meta-data    - Dumps the resource agent metadata.
+# promote      - Turns a resource into the Master role (Master/Slave resources only).
+# demote       - Turns a resource into the Slave role (Master/Slave resources only).
+# migrate_to   - migration target
+# migrate_from - Implement live migration of resources.
+# validate-all - Validates a resource’s configuration.
+# help         - (usage maps here) Displays a usage message when the resource agent is invoked from the command line, rather than by the cluster manager.
+# notify       - Inform resource about changes in state of other clones.
+
+if ($conf->{switches}{start})
+{
+	# Start the server
+	start_server($conf);
+}
+elsif ($conf->{switches}{stop})
+{
+	# Stop the server
+	stop_server($conf);
+}
+elsif (($conf->{switches}{monitor}) or ($conf->{switches}{status}))
+{
+	# Report the status of the server.
+	server_status($conf);
+}
+elsif (($conf->{switches}{metadaata}) or ($conf->{switches}{'meta-data'}))
+{
+	show_metadata($conf);
+}
+elsif ($conf->{switches}{promote})
+{
+	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
+	to_log($conf, {message => "We were asked to promote: [".$conf->{environment}{OCF_RESKEY_name}."], which makes no sense and is not supported. Ignoreing.", 'line' => __LINE__, level => 0, priority => "err"});
+	exit(3);
+}
+elsif ($conf->{switches}{demote})
+{
+	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
+	to_log($conf, {message => "We were asked to demote: [".$conf->{environment}{OCF_RESKEY_name}."], which makes no sense and is not supported. Ignoreing.", 'line' => __LINE__, level => 0, priority => "err"});
+	exit(3);
+}
+elsif (($conf->{switches}{migrate_to}) && ($conf->{switches}{migrate_from}))
+{
+	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
+	migrate_server($conf);
+}
+elsif ($conf->{switches}{'validate-all'})
+{
+	# Validate our local config and setup.
+	validate($conf);
+	exit(0);
+}
+elsif (($conf->{switches}{help}) && ($conf->{switches}{usage}))
+{
+	# Show the usage information
+	show_usage($conf);
+	exit(0);
+}
+elsif ($conf->{switches}{notify})
+{
+	# We don't implement this
+	to_log($conf, {message => "We were asked to notify, but this is not a promotable (we're stateless) agent. Ignoring.", 'line' => __LINE__, level => 0, priority => "warn"});
+	exit(3);
+}
+else
+{
+	# We were called in some unexpected way. Log an error, show usage and exit.
+	to_log($conf, {message => "We were invoked with an unexpected (or no) command. Environment variables and arguments below.", 'line' => __LINE__, level => 0, priority => "warn"});
+	show_environment($conf, 0);
+	exit(1);
+}
 
 # If we hit here, something very wrong happened.
 exit(255);
@@ -133,6 +235,248 @@ exit(255);
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This boots the server if possible.
+sub start_server
+{
+	my ($conf) = @_;
+	
+	exit(0);
+}
+
+# This shuts down the server if possible.
+sub stop_server
+{
+	my ($conf) = @_;
+	
+	exit(0);
+}
+
+# This checks the status of the server.
+sub server_status
+{
+	my ($conf) = @_;
+	
+	# If the named server is running, return OCF_SUCCESS (0), otherwise OCF_NOT_RUNNING (7). If the 
+	# server is failed, return OCF_ERR_GENERIC (1).
+	my $state  = "";
+	my $server = $conf->{environment}{OCF_RESKEY_name};
+	
+	### NOTE: When pacemaker is first starting, virsh won't be up right away. So if we get a return code 
+	###       of '1', we'll try again up to 50% of 'environment::OCF_RESKEY_CRM_meta_timeout'.
+	if (not $conf->{environment}{OCF_RESKEY_CRM_meta_timeout})
+	{
+		# Set a sane default of 20 seconds.
+		$conf->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
+		to_log($conf, {message => "The environment variable 'OCF_RESKEY_CRM_meta_timeout' was not set, so setting it to: [".$conf->{environment}{OCF_RESKEY_CRM_meta_timeout}."].", 'line' => __LINE__, level => 1, priority => "warn"});
+	}
+	my $return_code  = undef;
+	my $output       = [];
+	my $current_time = time;
+	my $timeout      = $current_time + int(($conf->{environment}{OCF_RESKEY_CRM_meta_timeout} /= 1000) / 2);
+	my $waiting      = 1;
+	to_log($conf, {message => "current_time: [$current_time], timeout: [$timeout].", 'line' => __LINE__, level => 2});
+	
+	while($waiting)
+	{
+		# Make the call
+		($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." list");
+		to_log($conf, {message => "return_code: [$return_code].", 'line' => __LINE__, level => 2});
+		if (not $return_code)
+		{
+			$waiting = 0;
+			to_log($conf, {message => "waiting: [$waiting].", 'line' => __LINE__, level => 2});
+		}
+		elsif (time > $timeout)
+		{
+			# We've waited long enough.
+			$waiting = 0;
+			to_log($conf, {message => "The 'virsh' call exited with the return code: [$return_code]. The 'libvirtd' may have failed to start. We won't wait any longer.", 'line' => __LINE__, level => 1, priority => "warn"});
+		}
+		else
+		{
+			to_log($conf, {message => "The 'virsh' call exited with the return code: [$return_code]. The 'libvirtd' service might be starting, so we will check again shortly.", 'line' => __LINE__, level => 2});
+			sleep 2;
+		}
+	}
+	
+	# If I got a non-zero return code, something went wrong with the virsh call.
+	if ($return_code)
+	{
+		to_log($conf, {message => "It would appear that libvirtd is not operating (or not operating correctly). Expected the return code '0' but got: [$return_code].", 'line' => __LINE__, level => 0, priority => "err"});
+		if (@{$output} > 0)
+		{
+			to_log($conf, {message => "Output of: [".$conf->{path}{exe}{virsh}." list] follows;", 'line' => __LINE__, level => 0, priority => "err"});
+			foreach my $line (@{$output})
+			{
+				to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 0, priority => "err"});
+			}
+		}
+		exit(1);
+	}
+	
+	# If we're still alive, process the output
+	foreach my $line (@{$output})
+	{
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		$line =~ s/\s+/ /g;
+		
+		if ($line =~ /^(\d+) $server (.*)$/)
+		{
+			$state = $2;
+			to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 2});
+			
+			last;
+		}
+	}
+	
+	# If there is a state, see what the state is.
+	if ($state)
+	{
+		### What is the state?
+		## States we return OCF_SUCCESS (0).
+		# running     - The domain is currently running on a CPU
+		# paused      - The domain has been paused, usually occurring through the administrator 
+		#               running virsh suspend. When in a paused state the domain will still consume 
+		#               allocated resources like memory, but will not be eligible for scheduling by 
+		#               the hypervisor.
+		# pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3
+		#               state.
+		# in shutdown - The domain is in the process of shutting down, i.e. the guest operating 
+		#               system has been notified and should be in the process of stopping its 
+		#               operations gracefully.
+		## States we'll return OCF_NOT_RUNNING (7).
+		# shut off    - The domain is not running. Usually this indicates the domain has been shut 
+		#               down completely, or has not been started.
+		## States we'll return OCF_ERR_GENERIC (1).
+		# idle        - The domain is idle, and not running or runnable. This can be caused because 
+		#               the domain is waiting on IO (a traditional wait state) or has gone to sleep 
+		#               because there was nothing else for it to do.
+		# crashed     - The domain has crashed, which is always a violent ending. Usually this state
+		#               can only occur if the domain has been configured not to restart on crash.
+		if (($state eq "running") or ($state eq "paused") or ($state eq "pmsuspended") or ($state eq "in shutdown"))
+		{
+			to_log($conf, {message => "The server: [$server] is: [$state], which is OK.", 'line' => __LINE__, level => 1});
+			exit(0);
+		}
+		elsif ($state eq "shut off")
+		{
+			to_log($conf, {message => "The server: [$server] is: [$state].", 'line' => __LINE__, level => 1});
+			exit(7);
+		}
+		elsif (($state eq "idle") or ($state eq "crashed"))
+		{
+			to_log($conf, {message => "The server: [$server] is in a bad state: [$state]!", 'line' => __LINE__, level => 0}, priority => "err");
+			exit(1);
+		}
+		else
+		{
+			# WTF?
+			to_log($conf, {message => "The server: [$server] is in an unexpected state: [$state]!", 'line' => __LINE__, level => 0}, priority => "err");
+			exit(1);
+		}
+	}
+	else
+	{
+		# Not running. Exit with OCF_NOT_RUNNING
+		to_log($conf, {message => "The server: [$server] is not running on this node.", 'line' => __LINE__, level => 1});
+		exit(7);
+	}
+	
+	exit(0);
+}
+
+# Migrate the server
+sub migrate_server
+{
+	my ($conf) = @_;
+	
+	# If we were given 'migrate_to', then just verify that the node name makes sense. If we were given 
+	# 'migrate_from', we need to find the peer.
+	
+	# Return failed until this is actually implemented.
+	exit(1);
+}
+
+# Validation checks that we have the definition XML, resource config and that needed apps are installed.
+sub validate
+{
+	my ($conf) = @_;
+	
+	### Exit options;
+	# OCF_SUCCESS        (0) - all is well.
+	# OCF_ERR_CONFIGURED (6) - the user has misconfigured the resource (the server name doesn't exist).
+	# OCF_ERR_INSTALLED  (5) - The resource has possibly been configured correctly, but a vital component is missing on the node where validate-all is being executed.
+	# OCF_ERR_PERM       (4) - the resource is configured correctly and is not missing any required components, but is suffering from a permission issue (such as not being able to create a necessary file).
+	
+	exit(0);
+}
+
+# This makes a system call and returns the return code and the output as an array reference of lines.
+sub shell_call
+{
+	my ($conf, $shell_call) = @_;
+	
+	   $shell_call  .= " 2>&1; ".$conf->{path}{exe}{echo}." return_code:\$?";
+	my $return_code =  9999;
+	my $output      =  [];
+	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line =  $_;
+		to_log($conf, {message => "line: [$line]", 'line' => __LINE__, level => 2});
+		if ($line =~ /^return_code:(\d+)$/)
+		{
+			$return_code = $1;
+			to_log($conf, {message => "return_code: [$return_code]", 'line' => __LINE__, level => 2});
+			next;
+		}
+		push @{$output}, $line;
+		to_log($conf, {message => "Output: [$line]", 'line' => __LINE__, level => 2});
+	}
+	close $file_handle;
+	
+	return($return_code, $output);
+}
+
+# This logs the details of this call.
+sub show_environment
+{
+	my ($conf, $level) = @_;
+	
+	foreach my $key (sort {$a cmp $b} keys %{$conf->{switches}})
+	{
+		next if $key eq "raw";
+		next if $conf->{switches}{$key} eq "";
+		to_log($conf, {message => "Command line switch: [$key] -> [".$conf->{switches}{$key}."]", 'line' => __LINE__, level => $level});
+	}
+	foreach my $key (sort {$a cmp $b} keys %{$conf->{environment}})
+	{
+		next if $conf->{environment}{$key} eq "";
+		to_log($conf, {message => "OCF Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
+	}
+	foreach my $key (sort {$a cmp $b} keys %ENV)
+	{
+		next if exists $conf->{environment}{$key};
+		to_log($conf, {message => "System Environment variable: [$key] -> [".$ENV{$key}."]", 'line' => __LINE__, level => ($level + 1)});
+	}
+	
+	return(0);
+}
+
+# This just prints a quick usage message for now.
+sub show_usage
+{
+	my ($conf) = @_;
+	
+	print "TODO: How to use this...\n";
+	
+	exit(0);
+}
 
 # This prints out the metadata and exits.
 sub show_metadata
@@ -145,7 +489,7 @@ sub show_metadata
 <resource-agent name="ocs:alteeve:server">
   <version>0.1</version>
   <longdesc lang="en">
-This resource agent manages KVM+qemu virtual servers on an Anvil! m3 Intelligent Availability™ system. 
+This resource agent manages KVM+qemu virtual servers on an Anvil! m3 Intelligent Availability(tm) system. 
 It manages underlying components like DRBD 9 storage resources, brodge connections and so forth.
   </longdesc>
   <shortdesc lang="en">Anvil! m3 server resource agent</shortdesc>
@@ -179,13 +523,16 @@ sub get_switches
 {
 	my ($conf) = @_;
 	
-	my $last_argument = "";
+	my $last_argument         = "";
+	   $conf->{switches}{raw} = "";
 	foreach my $argument (@ARGV)
 	{
+		to_log($conf, {message => "argument: [$argument]", 'line' => __LINE__, level => 3});
 		if ($last_argument eq "raw")
 		{
 			# Don't process anything.
-			$conf->{switches}{raw} .= " $argument";
+			$conf->{switches}{raw} .= " ".$argument;
+			to_log($conf, {message => "switches::raw: [".$conf->{switches}{raw}."]", 'line' => __LINE__, level => 3});
 		}
 		elsif ($argument =~ /^-/)
 		{
@@ -194,19 +541,23 @@ sub get_switches
 			{
 				$last_argument         = "raw";
 				$conf->{switches}{raw} = "";
+				to_log($conf, {message => "switches::raw: [".$conf->{switches}{raw}."]", 'line' => __LINE__, level => 3});
 			}
 			else
 			{
 				($last_argument) = ($argument =~ /^-{1,2}(.*)/)[0];
+				to_log($conf, {message => "last_argument: [$last_argument]", 'line' => __LINE__, level => 3});
 				if ($last_argument =~ /=/)
 				{
 					# Break up the variable/value.
-					($last_argument, my $value) = (split /=/, $last_argument, 2);
+					($last_argument, my $value)       = (split /=/, $last_argument, 2);
 					$conf->{switches}{$last_argument} = $value;
+					to_log($conf, {message => "switches::${last_argument}: [".$conf->{switches}{$last_argument}."]", 'line' => __LINE__, level => 3});
 				}
 				else
 				{
 					$conf->{switches}{$last_argument} = "#!SET!#";
+					to_log($conf, {message => "switches::${last_argument}: [".$conf->{switches}{$last_argument}."]", 'line' => __LINE__, level => 3});
 				}
 			}
 		}
@@ -215,19 +566,26 @@ sub get_switches
 			if ($last_argument)
 			{
 				$conf->{switches}{$last_argument} = $argument;
-				$last_argument                    = "";
+				to_log($conf, {message => "switches::${last_argument}: [".$conf->{switches}{$last_argument}."]", 'line' => __LINE__, level => 3});
+				
+				$last_argument = "";
+				to_log($conf, {message => "last_argument: [$last_argument]", 'line' => __LINE__, level => 3});
 			}
 			else
 			{
 				# Got a value without an argument. That's OK.
 				$conf->{switches}{$argument} = "#!SET!#";
+				to_log($conf, {message => "switches::${argument}: [".$conf->{switches}{$argument}."]", 'line' => __LINE__, level => 3});
 			}
 		}
 	}
+	
 	# Clean up the initial space added to 'raw'.
+	to_log($conf, {message => "switches::raw: [".$conf->{switches}{raw}."]", 'line' => __LINE__, level => 3});
 	if ($conf->{switches}{raw})
 	{
 		$conf->{switches}{raw} =~ s/^ //;
+		to_log($conf, {message => "switches::raw: [".$conf->{switches}{raw}."]", 'line' => __LINE__, level => 3});
 	}
 	
 	return(0);

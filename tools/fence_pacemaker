@@ -126,18 +126,6 @@ foreach my $i (0..31)
 	}
 }
 
-### TESTING - Simulate a call from node 1 against node 2
-# $conf->{environment}{DRBD_NODE_ID_0}    = "m3-a02n01.alteeve.com";
-# $conf->{environment}{DRBD_NODE_ID_1}    = "m3-a02n02.alteeve.com";
-# $conf->{environment}{DRBD_NODE_ID_2}    = "m3-a02dr01.alteeve.com";
-# $conf->{environment}{DRBD_MINOR}        = "0";
-# $conf->{environment}{DRBD_MY_NODE_ID}   = "0";
-# $conf->{environment}{DRBD_PEER_NODE_ID} = "1";
-# $conf->{environment}{DRBD_PEER_ADDRESS} = "10.41.20.2";
-# $conf->{environment}{DRBD_PEER_AF}      = "ipv4";
-# $conf->{environment}{DRBD_RESOURCE}     = "srv01-c7_0";
-### TESTING
-
 # Record the environment variables
 foreach my $key (sort {$a cmp $b} keys %{$conf->{environment}})
 {
