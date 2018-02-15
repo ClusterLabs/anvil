@@ -150,7 +150,9 @@ get_switches($conf);
 ### TEST: to be removed later
 if ($conf->{switches}{test})
 {
-	$conf->{environment}{OCF_RESKEY_name} = "srv01-c7";
+	$conf->{environment}{OCF_RESKEY_name}             = "srv01-c7";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_on_node} = "m3-a02n01.alteeve.com";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
 }
 
 # Something for the logs
@@ -548,12 +550,213 @@ sub validate_storage
 	}
 	
 	# Verify DRBD devices now
+	validate_storage_drbd($conf);
+	
+	# Verify optical disks now
+	validate_storage_optical($conf);
+	
+	return(0);
+}
+
+# THis makes sure that the needed backing DRBD devices are on this node. If so, and if they are not up, they 
+# will be brought up. If that fails, it errors out.
+sub validate_storage_drbd
+{
+	my ($conf) = @_;
+	
+	# Read in the DRBD configuration XML.
+	my ($return_code, $drbd_body) = shell_call($conf, $conf->{path}{exe}{drbdadm}." dump-xml");
+	if ($return_code)
+	{
+		# Something went wrong.
+		to_log($conf, {message => "The attempt to read the DRBD configuration returned a non-zero code: [$return_code]. The returned output (if any) was: [$drbd_body].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	# Parse the XML
+	my $drbd_xml = "";
+	my $xml      = XML::Simple->new();
+	eval { $drbd_xml = $xml->XMLin($drbd_body, KeyAttr => ["name", "vnr"], ForceArray => 1) };
+	if ($@)
+	{
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem parsing: [$drbd_body]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		to_log($conf, {message => $error, 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	else
+	{
+		#print Dumper $drbd_xml;
+	}
+	
+	foreach my $resource (sort {$a cmp $b} keys %{$drbd_xml->{resource}})
+	{
+		to_log($conf, {message => "resource: [$resource].", 'line' => __LINE__, level => 3});
+		
+		foreach my $connection_ref (@{$drbd_xml->{resource}->{$resource}->{connection}})
+		{
+			my $protocol = $connection_ref->{section}->{net}->{option}->{protocol}->{value};
+			my $fencing  = $connection_ref->{section}->{net}->{option}->{fencing}->{value};
+			to_log($conf, {message => "protocol: [$resource], fencing: [$fencing].", 'line' => __LINE__, level => 3});
+			
+			# If this isn't set to 'resource-and-stonith', it's a DR connection and we'll ignore 
+			# it.
+			next if $fencing ne "resource-and-stonith";
+			
+			# Look at the hosts
+			foreach my $host (sort {$a cmp $b} keys %{$connection_ref->{host}})
+			{
+				my $address        =  $connection_ref->{host}->{$host}->{address}->[0]->{content};
+				my $port           =  $connection_ref->{host}->{$host}->{address}->[0]->{port};
+				my $short_hostname =  $host;
+				   $short_hostname =~ s/\..*$//;
+				my $local_hostname = $conf->{environment}{OCF_RESKEY_CRM_meta_on_node};
+				to_log($conf, {message => "host: [$host ($short_hostname)], address: [$address:$port], local_hostname: [$local_hostname].", 'line' => __LINE__, level => 2});
+				
+				# Is this me or the peer?
+				if (($local_hostname eq $short_hostname) or ($local_hostname =~ /^$short_hostname\./))
+				{
+					# This is us.
+					to_log($conf, {message => "Recording the local connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
+				}
+				else
+				{
+					# This is our peer
+					to_log($conf, {message => "Recording the peer's connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
+				}
+			}
+		}
+	}
+=cut
+$VAR1 = {
+          'resource' => {
+                        'srv01-c7_0' => {
+                                        'host' => {
+                                                  'm3-a02n02.alteeve.com' => {
+                                                                             'volume' => {
+                                                                                         '0' => {
+                                                                                                'meta-disk' => [
+                                                                                                               'internal'
+                                                                                                             ],
+                                                                                                'disk' => [
+                                                                                                          '/dev/node02_vg0/srv01-c7'
+                                                                                                        ],
+                                                                                                'device' => [
+                                                                                                            {
+                                                                                                              'content' => '/dev/drbd0',
+                                                                                                              'minor' => '0'
+                                                                                                            }
+                                                                                                          ]
+                                                                                              }
+                                                                                       },
+                                                                             'address' => [
+                                                                                          {
+                                                                                            'content' => '(null)',
+                                                                                            'port' => '(null)',
+                                                                                            'family' => '(null)'
+                                                                                          }
+                                                                                        ]
+                                                                           },
+                                                  'm3-a02n01.alteeve.com' => {
+                                                                             'volume' => {
+                                                                                         '0' => {
+                                                                                                'meta-disk' => [
+                                                                                                               'internal'
+                                                                                                             ],
+                                                                                                'disk' => [
+                                                                                                          '/dev/node01_vg0/srv01-c7'
+                                                                                                        ],
+                                                                                                'device' => [
+                                                                                                            {
+                                                                                                              'content' => '/dev/drbd0',
+                                                                                                              'minor' => '0'
+                                                                                                            }
+                                                                                                          ]
+                                                                                              }
+                                                                                       },
+                                                                             'address' => [
+                                                                                          {
+                                                                                            'content' => '(null)',
+                                                                                            'port' => '(null)',
+                                                                                            'family' => '(null)'
+                                                                                          }
+                                                                                        ]
+                                                                           }
+                                                }
+                                      }
+                      },
+          'file' => '/etc/drbd.conf',
+          'common' => [
+                      {
+                        'section' => {
+                                     'disk' => {
+                                               'option' => {
+                                                           'md-flushes' => {
+                                                                           'value' => 'no'
+                                                                         },
+                                                           'disk-flushes' => {
+                                                                             'value' => 'no'
+                                                                           }
+                                                         }
+                                             },
+                                     'options' => {
+                                                  'option' => {
+                                                              'auto-promote' => {
+                                                                                'value' => 'yes'
+                                                                              }
+                                                            }
+                                                },
+                                     'handlers' => {
+                                                   'option' => {
+                                                               'fence-peer' => {
+                                                                               'value' => '/usr/sbin/fence_pacemaker'
+                                                                             }
+                                                             }
+                                                 },
+                                     'net' => {
+                                              'option' => {
+                                                          'after-sb-2pri' => {
+                                                                             'value' => 'disconnect'
+                                                                           },
+                                                          'allow-two-primaries' => {
+                                                                                   'value' => 'no'
+                                                                                 },
+                                                          'after-sb-1pri' => {
+                                                                             'value' => 'discard-secondary'
+                                                                           },
+                                                          'after-sb-0pri' => {
+                                                                             'value' => 'discard-zero-changes'
+                                                                           },
+                                                          'data-integrity-alg' => {
+                                                                                  'value' => 'md5'
+                                                                                },
+                                                          'csums-alg' => {
+                                                                         'value' => 'md5'
+                                                                       }
+                                                        }
+                                            }
+                                   }
+                      }
+                    ]
+        };
+=cut
+	
 	foreach my $disk (sort {$a cmp $b} keys %{$conf->{server}{disks}})
 	{
 		to_log($conf, {message => "Checking that the DRBD device: [$disk] is ready.", 'line' => __LINE__, level => 2});
 	}
 	
-	# Verify optical disks now
+	return(0);
+}
+
+# This makes sure that any media in the server's optical drive exists here and is readable.
+sub validate_storage_optical
+{
+	my ($conf) = @_;
+	
 	foreach my $file (sort {$a cmp $b} keys %{$conf->{server}{optical}})
 	{
 		to_log($conf, {message => "Checking that the optical disc image: [$file] exists.", 'line' => __LINE__, level => 2});
@@ -562,13 +765,20 @@ sub validate_storage
 		# OCF_ERR_PERM (4).
 		if (not -e $file)
 		{
+			# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
+			to_log($conf, {message => "The server has the ISO: [$file] mounted in its optical drive, but that file doesn't exist on this system.", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(5);
 		}
 		elsif (not -r $file)
 		{
+			# We can't read it. Exit with OCF_ERR_PERM (4).
+			to_log($conf, {message => "The server has the ISO: [$file] mounted in its optical drive, which we have, but we can't read it. Check permissions and for SELinux denials.", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(4);
 		}
 		else
 		{
 			# We're OK.
+			to_log($conf, {message => "The server has the ISO: [$file] mounted in its optical drive, which we have.", 'line' => __LINE__, level => 2});
 		}
 	}
 	
