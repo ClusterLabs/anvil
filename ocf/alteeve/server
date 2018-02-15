@@ -100,6 +100,7 @@ my $conf = {
 			definition	=>	"/mnt/anvil/definitions/#!NAME!#.xml",
 		},
 		exe		=>	{
+			brctl		=>	"/usr/sbin/brctl",
 			cibadmin	=>	"/usr/sbin/cibadmin",
 			crm_error	=>	"/usr/sbin/crm_error",
 			drbdadm		=>	"/usr/sbin/drbdadm",
@@ -261,137 +262,8 @@ sub start_server
 	# 7. Make sure all bridges exist and soft error if not.
 	# 8. Start the server.
 	
-	my $server                         = $conf->{environment}{OCF_RESKEY_name};
-	my ($server_xml, $definition_file) = read_server_definition($conf);
-	#print Dumper $server_xml->{devices};
-	
-	# Does the internal server name match?
-	if ($server ne $server_xml->{name}->[0])
-	{
-		to_log($conf, {message => "The configured server name: [$server] does not match the name of the server in the definition file: [".$server_xml->{name}."]!", 'line' => __LINE__, level => 0, priority => "err"});
-		exit(1);
-	}
-	
-	### Check that we have enough RAM.
-	# How mcuh RAM does the server need?
-	my $server_ram_value = $server_xml->{memory}->[0]->{content};
-	my $server_ram_units = $server_xml->{memory}->[0]->{unit};
-	to_log($conf, {message => "server_ram_value: [$server_ram_value], server_ram_units: [$server_ram_units].", 'line' => __LINE__, level => 2});
-	
-	# Convert to bytes
-	my $server_ram_bytes = $server_ram_value;
-	if    ($server_ram_units =~ /^k/i) { $server_ram_bytes = ($server_ram_value * (2 ** 10));  }
-	elsif ($server_ram_units =~ /^m/i) { $server_ram_bytes = ($server_ram_value * (2 ** 20));  }
-	elsif ($server_ram_units =~ /^g/i) { $server_ram_bytes = ($server_ram_value * (2 ** 30));  }
-	elsif ($server_ram_units =~ /^t/i) { $server_ram_bytes = ($server_ram_value * (2 ** 40)); }
-	elsif ($server_ram_units =~ /^p/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('50')->bmul($server_ram_value); }
-	elsif ($server_ram_units =~ /^e/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('60')->bmul($server_ram_value); }
-	elsif ($server_ram_units =~ /^z/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('70')->bmul($server_ram_value); }
-	elsif ($server_ram_units =~ /^y/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('80')->bmul($server_ram_value); }
-	to_log($conf, {message => "server_ram_bytes: [$server_ram_bytes].", 'line' => __LINE__, level => 3});
-	
-	# How much RAM do we have available?
-	my $available = 0;
-	my ($free_rc, $free_output) = shell_call($conf, $conf->{path}{exe}{free}." --bytes");
-	foreach my $line (split/\n/, $free_output)
-	{
-		to_log($conf, {message => "line: [$line].", 'line' => __LINE__, level => 3});
-		if ($line =~ /Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
-		{
-			my $total     = $1;
-			my $used      = $2;
-			my $free      = $3;
-			my $shared    = $4;
-			my $cache     = $5;
-			   $available = $6;
-			to_log($conf, {message => "total: [$total], used: [$used], free: [$free], shared: [$shared], cache: [$cache], available: [$available]", 'line' => __LINE__, level => 3});
-		}
-	}
-	
-	to_log($conf, {message => "server_ram_bytes: [".comma($conf, $server_ram_bytes)." bytes].", 'line' => __LINE__, level => 2});
-	to_log($conf, {message => "available: ...... [".comma($conf, $available)." bytes].", 'line' => __LINE__, level => 2});
-	if ($server_ram_bytes > $available)
-	{
-		# Not enough free memory.
-		to_log($conf, {message => "The configured server name: [$server] needs: [".comma($conf, $server_ram_bytes)." bytes] of RAM, but only: [".comma($conf, $available)." bytes] are available!", 'line' => __LINE__, level => 0, priority => "err"});
-		exit(1);
-	}
-	
-	# What emulator is this using?
-	my $emulator = $server_xml->{devices}->[0]->{emulator}->[0];
-	to_log($conf, {message => "emulator: [$emulator]", 'line' => __LINE__, level => 2});
-	if (not -e $emulator)
-	{
-		# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
-		to_log($conf, {message => "The server wants to use the emulator: [$emulator] which doesn't exist on this node. Was this server migrated from a different generation Anvil! system? Please update '<emulator>...</emulator>' in the server's definition file: [$definition_file].", 'line' => __LINE__, level => 0, priority => "err"});
-		exit(5);
-	}
-	if (not -x $emulator)
-	{
-		# We can't execute it. Exit with OCF_ERR_PERM (4).
-		to_log($conf, {message => "The server wants to use the emulator: [$emulator] which exists, but we can't run. Please check permissions and for SELinux denials.", 'line' => __LINE__, level => 0, priority => "err"});
-		exit(4);
-	}
-
-	# Find the Optical drives and DRBD devices.
-	foreach my $device_ref (@{$server_xml->{devices}})
-	{
-		foreach my $interface_ref (@{$device_ref->{interface}})
-		{
-			foreach my $source_ref (@{$interface_ref->{source}})
-			{
-				my $bridge                   = $source_ref->{bridge};
-				   $conf->{bridges}{$bridge} = 1;
-				to_log($conf, {message => "bridges::${bridge}: [".$conf->{bridges}{$bridge}."].", 'line' => __LINE__, level => 2});
-			}
-		}
-	}
-	
-	# Find the bridge(s) this server uses.
-	foreach my $device_ref (@{$server_xml->{devices}})
-	{
-		foreach my $disk_ref (@{$device_ref->{disk}})
-		{
-			my $type = $disk_ref->{device};
-			to_log($conf, {message => "type: [$type].", 'line' => __LINE__, level => 2});
-			if ($type eq "disk")
-			{
-				foreach my $source_ref (@{$disk_ref->{source}})
-				{
-					my $disk                 = $source_ref->{dev};
-					   $conf->{disks}{$disk} = 1;
-					to_log($conf, {message => "disks::${disk}: [".$conf->{disks}{$disk}."].", 'line' => __LINE__, level => 2});
-				}
-			}
-			elsif ($type eq "cdrom")
-			{
-				foreach my $source_ref (@{$disk_ref->{source}})
-				{
-					my $file                   = $source_ref->{file};
-					   $conf->{optical}{$file} = 1;
-					to_log($conf, {message => "optical::${file}: [".$conf->{optical}{$file}."].", 'line' => __LINE__, level => 2});
-				}
-			}
-		}
-	}
-	
-	# Verify DRBD devices now
-	foreach my $disk (sort {$a cmp $b} keys %{$conf->{disks}})
-	{
-		to_log($conf, {message => "Checking that the DRBD device: [$disk] is ready.", 'line' => __LINE__, level => 2});
-	}
-	
-	# Verify optical disks now
-	foreach my $file (sort {$a cmp $b} keys %{$conf->{optical}})
-	{
-		to_log($conf, {message => "Checking that the optical disc image: [$file] exists.", 'line' => __LINE__, level => 2});
-	}
-	
-	# Verify bridges now
-	foreach my $bridge (sort {$a cmp $b} keys %{$conf->{bridges}})
-	{
-		to_log($conf, {message => "Checking that we have a bridge called: [$bridge].", 'line' => __LINE__, level => 2});
-	}
+	to_log($conf, {message => "We've been asked to start the server: [".$conf->{environment}{OCF_RESKEY_name}."]..", 'line' => __LINE__, level => 2});
+	validate_all($conf);
 	
 	exit(0);
 }
@@ -549,17 +421,249 @@ sub migrate_server
 }
 
 # Validation checks that we have the definition XML, resource config and that needed apps are installed.
-sub validate
+sub validate_all
+{
+	my ($conf) = @_;
+	to_log($conf, {message => "Running validation tests...", 'line' => __LINE__, level => 2});
+	
+	# Read in the server's definition file (if found and readable).
+	read_server_definition($conf);
+	to_log($conf, {message => "- Server definition was read.", 'line' => __LINE__, level => 2});
+	
+	# Does the internal server name match?
+	validate_name($conf);
+	to_log($conf, {message => "- Server name is valid.", 'line' => __LINE__, level => 2});
+	
+	# Make sure the emulator it wants is the one we have.
+	validate_emulator($conf);
+	to_log($conf, {message => "- Eumlator is valid.", 'line' => __LINE__, level => 2});
+	
+	# These tests are only needed if we're about to boot the server
+	if ($conf->{switches}{start})
+	{
+		# Check that we have enough RAM.
+		validate_ram($conf);
+		to_log($conf, {message => "- Sufficient RAM is available.", 'line' => __LINE__, level => 2});
+	}
+	
+	# Validate storage (Disks and optical media)
+	validate_storage($conf);
+	to_log($conf, {message => "- Storage is valid and ready.", 'line' => __LINE__, level => 2});
+	
+	# Validate bridges
+	validate_bridges($conf);
+	to_log($conf, {message => "- Network bridge(s) are available.", 'line' => __LINE__, level => 2});
+	
+	exit(0);
+}
+
+# This ensures that the bridges the server connects to exist on this node.
+sub validate_bridges
 {
 	my ($conf) = @_;
 	
-	### Exit options;
-	# OCF_SUCCESS        (0) - all is well.
-	# OCF_ERR_CONFIGURED (6) - the user has misconfigured the resource (the server name doesn't exist).
-	# OCF_ERR_INSTALLED  (5) - The resource has possibly been configured correctly, but a vital component is missing on the node where validate-all is being executed.
-	# OCF_ERR_PERM       (4) - the resource is configured correctly and is not missing any required components, but is suffering from a permission issue (such as not being able to create a necessary file).
+	# Find the Optical drives and DRBD devices.
+	foreach my $device_ref (@{$conf->{server}{definition_xml}->{devices}})
+	{
+		foreach my $interface_ref (@{$device_ref->{interface}})
+		{
+			foreach my $source_ref (@{$interface_ref->{source}})
+			{
+				my $bridge                           = $source_ref->{bridge};
+				   $conf->{server}{bridges}{$bridge} = 1;
+				to_log($conf, {message => "server::bridges::${bridge}: [".$conf->{server}{bridges}{$bridge}."].", 'line' => __LINE__, level => 3});
+			}
+		}
+	}
 	
-	exit(0);
+	# Get a list of available bridges.
+	my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{brctl}." show");
+	my $first_line             = 1;
+	foreach my $line (split/\n/, $output)
+	{
+		to_log($conf, {message => "line: [$line].", 'line' => __LINE__, level => 3});
+		if ($first_line)
+		{
+			# We skip the first line instead of parse the string to avoid getting caught by 
+			# translations.
+			$first_line = 0;
+		}
+		elsif ($line =~ /^(\S+)\s/)
+		{
+			my $bridge = $1;
+			   $conf->{'local'}{bridge}{$bridge} = 1;
+			to_log($conf, {message => "local::bridge::${bridge}: [$bridge].", 'line' => __LINE__, level => 3});
+		}
+	}
+	
+	# Verify bridges now
+	foreach my $bridge (sort {$a cmp $b} keys %{$conf->{server}{bridges}})
+	{
+		if ($conf->{'local'}{bridge}{$bridge})
+		{
+			to_log($conf, {message => "The bridge: [$bridge] is available for this server.", 'line' => __LINE__, level => 2});
+		}
+		else
+		{
+			# Missing bridge.
+			to_log($conf, {message => "The server wants to connect to the bridge: [$bridge] which we do not have on this node.", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(5);
+		}
+	}
+	
+	return(0);
+}
+
+# This looks up the disks and optical media connected to this server.
+sub validate_storage
+{
+	my ($conf) = @_;
+
+	# Find the bridge(s) this server uses.
+	foreach my $device_ref (@{$conf->{server}{definition_xml}->{devices}})
+	{
+		foreach my $disk_ref (@{$device_ref->{disk}})
+		{
+			my $type = $disk_ref->{device};
+			to_log($conf, {message => "type: [$type].", 'line' => __LINE__, level => 2});
+			if ($type eq "disk")
+			{
+				foreach my $source_ref (@{$disk_ref->{source}})
+				{
+					my $disk                         = $source_ref->{dev};
+					   $conf->{server}{disks}{$disk} = 1;
+					to_log($conf, {message => "server::disks::${disk}: [".$conf->{server}{disks}{$disk}."].", 'line' => __LINE__, level => 2});
+				}
+			}
+			elsif ($type eq "cdrom")
+			{
+				foreach my $source_ref (@{$disk_ref->{source}})
+				{
+					my $file                           = $source_ref->{file};
+					   $conf->{server}{optical}{$file} = 1;
+					to_log($conf, {message => "server::optical::${file}: [".$conf->{server}{optical}{$file}."].", 'line' => __LINE__, level => 2});
+				}
+			}
+		}
+	}
+	
+	# Verify DRBD devices now
+	foreach my $disk (sort {$a cmp $b} keys %{$conf->{server}{disks}})
+	{
+		to_log($conf, {message => "Checking that the DRBD device: [$disk] is ready.", 'line' => __LINE__, level => 2});
+	}
+	
+	# Verify optical disks now
+	foreach my $file (sort {$a cmp $b} keys %{$conf->{server}{optical}})
+	{
+		to_log($conf, {message => "Checking that the optical disc image: [$file] exists.", 'line' => __LINE__, level => 2});
+		
+		# If the file doesn't exist, exit with OCF_ERR_INSTALLED (5). If we can't read it, exit with 
+		# OCF_ERR_PERM (4).
+		if (not -e $file)
+		{
+		}
+		elsif (not -r $file)
+		{
+		}
+		else
+		{
+			# We're OK.
+		}
+	}
+	
+	return(0);
+}
+
+# This verifies that the requested emulator exists and can be used.
+sub validate_emulator
+{
+	my ($conf) = @_;
+	
+	# What emulator is this using?
+	my $emulator = $conf->{server}{definition_xml}->{devices}->[0]->{emulator}->[0];
+	to_log($conf, {message => "emulator: [$emulator]", 'line' => __LINE__, level => 2});
+	if (not -e $emulator)
+	{
+		# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
+		to_log($conf, {message => "The server wants to use the emulator: [$emulator] which doesn't exist on this node. Was this server migrated from a different generation Anvil! system? Please update '<emulator>...</emulator>' in the server's definition file: [".$conf->{server}{definition_file}."].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(5);
+	}
+	if (not -x $emulator)
+	{
+		# We can't execute it. Exit with OCF_ERR_PERM (4).
+		to_log($conf, {message => "The server wants to use the emulator: [$emulator] which exists, but we can't run. Please check permissions and for SELinux denials.", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(4);
+	}
+	
+	return(0);
+}
+
+# This makes sure the name we see in the definition file matches what we expect.
+sub validate_name
+{
+	my ($conf) = @_;
+	
+	my $server = $conf->{environment}{OCF_RESKEY_name};
+	if ($server ne $conf->{server}{definition_xml}->{name}->[0])
+	{
+		to_log($conf, {message => "The configured server name: [$server] does not match the name of the server in the definition file: [".$conf->{server}{definition_xml}->{name}."]!", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	return(0);
+}
+
+# This checks that there is enough RAM to run this server.
+sub validate_ram
+{
+	my ($conf) = @_;
+	
+	# How mcuh RAM does the server need?
+	my $server_ram_value = $conf->{server}{definition_xml}->{memory}->[0]->{content};
+	my $server_ram_units = $conf->{server}{definition_xml}->{memory}->[0]->{unit};
+	to_log($conf, {message => "server_ram_value: [$server_ram_value], server_ram_units: [$server_ram_units].", 'line' => __LINE__, level => 2});
+	
+	# Convert to bytes
+	my $server_ram_bytes = $server_ram_value;
+	if    ($server_ram_units =~ /^k/i) { $server_ram_bytes = ($server_ram_value * (2 ** 10));                             }
+	elsif ($server_ram_units =~ /^m/i) { $server_ram_bytes = ($server_ram_value * (2 ** 20));                             }
+	elsif ($server_ram_units =~ /^g/i) { $server_ram_bytes = ($server_ram_value * (2 ** 30));                             }
+	elsif ($server_ram_units =~ /^t/i) { $server_ram_bytes = ($server_ram_value * (2 ** 40));                             }
+	elsif ($server_ram_units =~ /^p/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('50')->bmul($server_ram_value); }
+	elsif ($server_ram_units =~ /^e/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('60')->bmul($server_ram_value); }
+	elsif ($server_ram_units =~ /^z/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('70')->bmul($server_ram_value); }
+	elsif ($server_ram_units =~ /^y/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('80')->bmul($server_ram_value); }
+	to_log($conf, {message => "server_ram_bytes: [$server_ram_bytes].", 'line' => __LINE__, level => 3});
+	
+	# How much RAM do we have available?
+	my $available               = 0;
+	my ($free_rc, $free_output) = shell_call($conf, $conf->{path}{exe}{free}." --bytes");
+	foreach my $line (split/\n/, $free_output)
+	{
+		to_log($conf, {message => "line: [$line].", 'line' => __LINE__, level => 3});
+		if ($line =~ /Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
+		{
+			my $total     = $1;
+			my $used      = $2;
+			my $free      = $3;
+			my $shared    = $4;
+			my $cache     = $5;
+			   $available = $6;
+			to_log($conf, {message => "total: [$total], used: [$used], free: [$free], shared: [$shared], cache: [$cache], available: [$available]", 'line' => __LINE__, level => 3});
+		}
+	}
+	
+	to_log($conf, {message => "server_ram_bytes: [".comma($conf, $server_ram_bytes)." bytes].", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "available: ...... [".comma($conf, $available)." bytes].", 'line' => __LINE__, level => 2});
+	if ($server_ram_bytes > $available)
+	{
+		# Not enough free memory.
+		to_log($conf, {message => "The configured server name: [".$conf->{environment}{OCF_RESKEY_name}."] needs: [".comma($conf, $server_ram_bytes)." bytes] of RAM, but only: [".comma($conf, $available)." bytes] are available!", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	return(0);
 }
 
 # This reads the XML definition data into an XML data hash.
@@ -603,7 +707,10 @@ sub read_server_definition
 		exit(1);
 	}
 	
-	return($server_xml, $definition_file);
+	$conf->{server}{definition_xml}  = $server_xml;
+	$conf->{server}{definition_file} = $definition_file;
+	
+	return(0);
 }
 
 # This reads in a file and returns the contents as a single string variable.
