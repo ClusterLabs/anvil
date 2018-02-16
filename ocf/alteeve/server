@@ -105,6 +105,7 @@ my $conf = {
 			cibadmin	=>	"/usr/sbin/cibadmin",
 			crm_error	=>	"/usr/sbin/crm_error",
 			drbdadm		=>	"/usr/sbin/drbdadm",
+			drbdsetup	=>	"/usr/sbin/drbdsetup",
 			echo		=>	"/usr/bin/echo",
 			free		=>	"/usr/bin/free",
 			getent		=>	"/usr/bin/getent",
@@ -232,8 +233,8 @@ elsif ($conf->{switches}{notify})
 else
 {
 	# We were called in some unexpected way. Log an error, show usage and exit.
-	to_log($conf, {message => "We were invoked with an unexpected (or no) command. Environment variables and arguments below.", 'line' => __LINE__, level => 0, priority => "warn"});
 	show_environment($conf, 0);
+	to_log($conf, {message => "We were invoked with an unexpected (or no) command. Environment variables and arguments below.", 'line' => __LINE__, level => 0, priority => "warn"});
 	exit(1);
 }
 
@@ -449,13 +450,13 @@ sub validate_all
 		to_log($conf, {message => "- Sufficient RAM is available.", 'line' => __LINE__, level => 2});
 	}
 	
-	# Validate storage (Disks and optical media)
-	validate_storage($conf);
-	to_log($conf, {message => "- Storage is valid and ready.", 'line' => __LINE__, level => 2});
-	
 	# Validate bridges
 	validate_bridges($conf);
 	to_log($conf, {message => "- Network bridge(s) are available.", 'line' => __LINE__, level => 2});
+	
+	# Validate storage (Disks and optical media)
+	validate_storage($conf);
+	to_log($conf, {message => "- Storage is valid and ready.", 'line' => __LINE__, level => 2});
 	
 	exit(0);
 }
@@ -550,11 +551,11 @@ sub validate_storage
 		}
 	}
 	
-	# Verify DRBD devices now
-	validate_storage_drbd($conf);
-	
 	# Verify optical disks now
 	validate_storage_optical($conf);
+	
+	# Verify DRBD devices now
+	validate_storage_drbd($conf);
 	
 	return(0);
 }
@@ -587,10 +588,6 @@ sub validate_storage_drbd
 		   $error .= "===========================================================\n";
 		to_log($conf, {message => $error, 'line' => __LINE__, level => 0, priority => "err"});
 		exit(1);
-	}
-	else
-	{
-		#print Dumper $drbd_xml;
 	}
 	
 	foreach my $resource (sort {$a cmp $b} keys %{$drbd_xml->{resource}})
@@ -625,24 +622,20 @@ sub validate_storage_drbd
 					# This is us.
 					$local = $host;
 					to_log($conf, {message => "Recording the local connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
-					$conf->{server}{drbd}{'local'} = {
-						hostname	=>	$host,
-						short_hostname	=>	$short_hostname,
-						address		=>	$address,
-						port		=>	$port,
-					};
+					$conf->{server}{drbd}{'local'}{hostname}       = $host,
+					$conf->{server}{drbd}{'local'}{short_hostname} = $short_hostname,
+					$conf->{server}{drbd}{'local'}{address}        = $address,
+					$conf->{server}{drbd}{'local'}{port}           = $port,
 				}
 				else
 				{
 					# This is our peer
 					$peer = $host;
 					to_log($conf, {message => "Recording the peer's connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
-					$conf->{server}{drbd}{peer} = {
-						hostname	=>	$host,
-						short_hostname	=>	$short_hostname,
-						address		=>	$address,
-						port		=>	$port,
-					};
+					$conf->{server}{drbd}{peer}{hostname}       = $host,
+					$conf->{server}{drbd}{peer}{short_hostname} = $short_hostname,
+					$conf->{server}{drbd}{peer}{address}        = $address,
+					$conf->{server}{drbd}{peer}{port}           = $port,
 				}
 			}
 		}
@@ -665,6 +658,7 @@ sub validate_storage_drbd
 	{
 		to_log($conf, {message => "Checking that the DRBD device: [$device_path] is ready.", 'line' => __LINE__, level => 2});
 		
+		to_log($conf, {message => "server::drbd::local::device::${device_path}::lv: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}."].", 'line' => __LINE__, level => 2});
 		if (not $conf->{server}{drbd}{'local'}{device}{$device_path}{lv})
 		{
 			# The backing LV doesn't exist.
@@ -682,6 +676,27 @@ sub validate_storage_drbd
 			to_log($conf, {message => "The server wants to use: [$device_path] as a hard drive, which is backed by the logical volume: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}."]. Checking that these are ready.", 'line' => __LINE__, level => 1});
 		}
 	}
+	
+	# Now read in the status of the drbd devices
+	$return_code = undef;
+	($return_code, my $status_json) = shell_call($conf, $conf->{path}{exe}{drbdsetup}." status --json");
+	if ($return_code)
+	{
+		# Something went wrong.
+		to_log($conf, {message => "The attempt to read the DRBD status returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	my $json        = JSON->new->allow_nonref;
+	my $drbd_status = $json->decode($status_json);
+	
+	# Pull out my data
+	#my $local_disk_state = 
+	
+	foreach my $connection_ref (@{$drbd_status->[0]->{connections}})
+	{
+	}
+	
+	print Dumper $drbd_status;
 	
 	return(0);
 }
