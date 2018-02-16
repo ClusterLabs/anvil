@@ -126,13 +126,13 @@ clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil
 
 # OS config
 * Register if RHEL proper;
-** subscription-manager register --username alteeve_admin --password stone1983 --auto-attach --force
-** subscription-manager repos --enable=rhel-ha-for-rhel-7-server-rpms
-** subscription-manager repos --enable=rhel-7-server-optional-rpms
+subscription-manager register --username <user> --password <secret> --auto-attach --force
+subscription-manager repos --enable=rhel-ha-for-rhel-7-server-rpms
+subscription-manager repos --enable=rhel-7-server-optional-rpms
 * Packages to install;
 
 rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
-yum install bash-completion bind-utils bridge-utils drbd drbd-bash-completion drbd-kernel drbd-utils fence-agents-all fence-agents-virsh gpm kernel-doc kmod-drbd libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper perl-XML-Simple qemu-kvm qemu-kvm-common qemu-kvm-tools rsync screen vim virt-install
+yum install bash-completion bind-utils bridge-utils drbd drbd-bash-completion drbd-kernel drbd-utils fence-agents-all fence-agents-virsh gpm kernel-doc kmod-drbd libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper perl-JSON perl-XML-Simple qemu-kvm qemu-kvm-common qemu-kvm-tools rsync screen vim virt-install
 
 * Packages to remove;
 yum remove biosdevname 

@@ -74,6 +74,7 @@
 use strict;
 use warnings;
 use XML::Simple;
+use JSON;
 use Math::BigInt;
 use Data::Dumper;
 
@@ -532,9 +533,9 @@ sub validate_storage
 			{
 				foreach my $source_ref (@{$disk_ref->{source}})
 				{
-					my $disk                         = $source_ref->{dev};
-					   $conf->{server}{disks}{$disk} = 1;
-					to_log($conf, {message => "server::disks::${disk}: [".$conf->{server}{disks}{$disk}."].", 'line' => __LINE__, level => 2});
+					my $device_path                         = $source_ref->{dev};
+					   $conf->{server}{disks}{$device_path} = 1;
+					to_log($conf, {message => "server::disks::${device_path}: [".$conf->{server}{disks}{$device_path}."].", 'line' => __LINE__, level => 2});
 				}
 			}
 			elsif ($type eq "cdrom")
@@ -594,8 +595,10 @@ sub validate_storage_drbd
 	
 	foreach my $resource (sort {$a cmp $b} keys %{$drbd_xml->{resource}})
 	{
-		to_log($conf, {message => "resource: [$resource].", 'line' => __LINE__, level => 3});
+		to_log($conf, {message => "resource: [$resource].", 'line' => __LINE__, level => 2});
 		
+		my $peer  = "";
+		my $local = "";
 		foreach my $connection_ref (@{$drbd_xml->{resource}->{$resource}->{connection}})
 		{
 			my $protocol = $connection_ref->{section}->{net}->{option}->{protocol}->{value};
@@ -620,133 +623,64 @@ sub validate_storage_drbd
 				if (($local_hostname eq $short_hostname) or ($local_hostname =~ /^$short_hostname\./))
 				{
 					# This is us.
+					$local = $host;
 					to_log($conf, {message => "Recording the local connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
+					$conf->{server}{drbd}{'local'} = {
+						hostname	=>	$host,
+						short_hostname	=>	$short_hostname,
+						address		=>	$address,
+						port		=>	$port,
+					};
 				}
 				else
 				{
 					# This is our peer
+					$peer = $host;
 					to_log($conf, {message => "Recording the peer's connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
+					$conf->{server}{drbd}{peer} = {
+						hostname	=>	$host,
+						short_hostname	=>	$short_hostname,
+						address		=>	$address,
+						port		=>	$port,
+					};
 				}
 			}
 		}
+		
+		to_log($conf, {message => "local: [$local], peer: [$peer].", 'line' => __LINE__, level => 2});
+		foreach my $volume (sort {$a cmp $b} keys %{$drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}})
+		{
+			my $backing_device = $drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}->{$volume}->{disk}->[0];
+			my $device_path    = $drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}->{$volume}->{device}->[0]->{content};
+			my $device_minor   = $drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}->{$volume}->{device}->[0]->{minor};
+			to_log($conf, {message => "volume: [$volume], backing_device: [$backing_device], device_path: [$device_path], device_minor: [$device_minor].", 'line' => __LINE__, level => 3});
+			
+			$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}    = $backing_device;
+			$conf->{server}{drbd}{'local'}{device}{$device_path}{minor} = $device_minor;
+			to_log($conf, {message => "server::drbd::local::device::${device_path}::lv: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}."], server::drbd::local::device::${device_path}::minor: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{minor}."].", 'line' => __LINE__, level => 2});
+		}
 	}
-=cut
-$VAR1 = {
-          'resource' => {
-                        'srv01-c7_0' => {
-                                        'host' => {
-                                                  'm3-a02n02.alteeve.com' => {
-                                                                             'volume' => {
-                                                                                         '0' => {
-                                                                                                'meta-disk' => [
-                                                                                                               'internal'
-                                                                                                             ],
-                                                                                                'disk' => [
-                                                                                                          '/dev/node02_vg0/srv01-c7'
-                                                                                                        ],
-                                                                                                'device' => [
-                                                                                                            {
-                                                                                                              'content' => '/dev/drbd0',
-                                                                                                              'minor' => '0'
-                                                                                                            }
-                                                                                                          ]
-                                                                                              }
-                                                                                       },
-                                                                             'address' => [
-                                                                                          {
-                                                                                            'content' => '(null)',
-                                                                                            'port' => '(null)',
-                                                                                            'family' => '(null)'
-                                                                                          }
-                                                                                        ]
-                                                                           },
-                                                  'm3-a02n01.alteeve.com' => {
-                                                                             'volume' => {
-                                                                                         '0' => {
-                                                                                                'meta-disk' => [
-                                                                                                               'internal'
-                                                                                                             ],
-                                                                                                'disk' => [
-                                                                                                          '/dev/node01_vg0/srv01-c7'
-                                                                                                        ],
-                                                                                                'device' => [
-                                                                                                            {
-                                                                                                              'content' => '/dev/drbd0',
-                                                                                                              'minor' => '0'
-                                                                                                            }
-                                                                                                          ]
-                                                                                              }
-                                                                                       },
-                                                                             'address' => [
-                                                                                          {
-                                                                                            'content' => '(null)',
-                                                                                            'port' => '(null)',
-                                                                                            'family' => '(null)'
-                                                                                          }
-                                                                                        ]
-                                                                           }
-                                                }
-                                      }
-                      },
-          'file' => '/etc/drbd.conf',
-          'common' => [
-                      {
-                        'section' => {
-                                     'disk' => {
-                                               'option' => {
-                                                           'md-flushes' => {
-                                                                           'value' => 'no'
-                                                                         },
-                                                           'disk-flushes' => {
-                                                                             'value' => 'no'
-                                                                           }
-                                                         }
-                                             },
-                                     'options' => {
-                                                  'option' => {
-                                                              'auto-promote' => {
-                                                                                'value' => 'yes'
-                                                                              }
-                                                            }
-                                                },
-                                     'handlers' => {
-                                                   'option' => {
-                                                               'fence-peer' => {
-                                                                               'value' => '/usr/sbin/fence_pacemaker'
-                                                                             }
-                                                             }
-                                                 },
-                                     'net' => {
-                                              'option' => {
-                                                          'after-sb-2pri' => {
-                                                                             'value' => 'disconnect'
-                                                                           },
-                                                          'allow-two-primaries' => {
-                                                                                   'value' => 'no'
-                                                                                 },
-                                                          'after-sb-1pri' => {
-                                                                             'value' => 'discard-secondary'
-                                                                           },
-                                                          'after-sb-0pri' => {
-                                                                             'value' => 'discard-zero-changes'
-                                                                           },
-                                                          'data-integrity-alg' => {
-                                                                                  'value' => 'md5'
-                                                                                },
-                                                          'csums-alg' => {
-                                                                         'value' => 'md5'
-                                                                       }
-                                                        }
-                                            }
-                                   }
-                      }
-                    ]
-        };
-=cut
 	
-	foreach my $disk (sort {$a cmp $b} keys %{$conf->{server}{disks}})
+	foreach my $device_path (sort {$a cmp $b} keys %{$conf->{server}{disks}})
 	{
-		to_log($conf, {message => "Checking that the DRBD device: [$disk] is ready.", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "Checking that the DRBD device: [$device_path] is ready.", 'line' => __LINE__, level => 2});
+		
+		if (not $conf->{server}{drbd}{'local'}{device}{$device_path}{lv})
+		{
+			# The backing LV doesn't exist.
+			to_log($conf, {message => "The server wants to use: [$device_path] as a hard drive, but we couldn't find the backing logical volume on this node.", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(5);
+		}
+		elsif (not -e $conf->{server}{drbd}{'local'}{device}{$device_path}{lv})
+		{
+			# The backing LV doesn't exist.
+			to_log($conf, {message => "The server wants to use: [$device_path] as a hard drive, but the backing logical volume: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}."] doesn't exist on this node.", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(5);
+		}
+		else
+		{
+			to_log($conf, {message => "The server wants to use: [$device_path] as a hard drive, which is backed by the logical volume: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}."]. Checking that these are ready.", 'line' => __LINE__, level => 1});
+		}
 	}
 	
 	return(0);
