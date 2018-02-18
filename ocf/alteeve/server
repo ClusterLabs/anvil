@@ -266,8 +266,11 @@ sub start_server
 	# 7. Make sure all bridges exist and soft error if not.
 	# 8. Start the server.
 	
-	to_log($conf, {message => "We've been asked to start the server: [".$conf->{environment}{OCF_RESKEY_name}."]..", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "We've been asked to start the server: [".$conf->{environment}{OCF_RESKEY_name}."].", 'line' => __LINE__, level => 2});
 	validate_all($conf);
+	
+	# If we're still alive, we're ready to boot.
+	to_log($conf, {message => "Sanity checks passed, ready to start: [".$conf->{environment}{OCF_RESKEY_name}."].", 'line' => __LINE__, level => 2});
 	
 	exit(0);
 }
@@ -535,7 +538,7 @@ sub validate_storage
 				foreach my $source_ref (@{$disk_ref->{source}})
 				{
 					my $device_path                         = $source_ref->{dev};
-					   $conf->{server}{disks}{$device_path} = 1;
+					   $conf->{server}{disks}{$device_path} = "check";
 					to_log($conf, {message => "server::disks::${device_path}: [".$conf->{server}{disks}{$device_path}."].", 'line' => __LINE__, level => 2});
 				}
 			}
@@ -651,6 +654,12 @@ sub validate_storage_drbd
 			$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}    = $backing_device;
 			$conf->{server}{drbd}{'local'}{device}{$device_path}{minor} = $device_minor;
 			to_log($conf, {message => "server::drbd::local::device::${device_path}::lv: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{lv}."], server::drbd::local::device::${device_path}::minor: [".$conf->{server}{drbd}{'local'}{device}{$device_path}{minor}."].", 'line' => __LINE__, level => 2});
+			
+			# Map the resource name to the local drbd device path.
+			$conf->{resource}{$resource}{lv}             = $backing_device;
+			$conf->{resource}{$resource}{path}           = $device_path;
+			$conf->{device_path}{$device_path}{resource} = $resource;
+			to_log($conf, {message => "resource::${resource}::path: [".$conf->{resource}{$resource}{path}."], resource::${resource}::lv: [".$conf->{resource}{$resource}{lv}."], device_path::${device_path}::resource: [".$conf->{device_path}{$device_path}{resource}."].", 'line' => __LINE__, level => 2});
 		}
 	}
 	
@@ -686,17 +695,169 @@ sub validate_storage_drbd
 		to_log($conf, {message => "The attempt to read the DRBD status returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
 		exit(1);
 	}
-	my $json        = JSON->new->allow_nonref;
-	my $drbd_status = $json->decode($status_json);
 	
-	# Pull out my data
-	#my $local_disk_state = 
-	
-	foreach my $connection_ref (@{$drbd_status->[0]->{connections}})
+	# If DRBD is not up, the returned JSON output will not actually exist.
+	if ($status_json =~ /No currently configured DRBD found/si)
 	{
+		to_log($conf, {message => "DRBD is not loaded. Bringing it up now.", 'line' => __LINE__, level => 2});
+		foreach my $device_path (sort {$a cmp $b} keys %{$conf->{server}{disks}})
+		{
+			my $resource = $conf->{device_path}{$device_path}{resource};
+			to_log($conf, {message => "Bringing up the resource: [$resource] for the server's: [".$device_path."] disk.", 'line' => __LINE__, level => 2});
+			
+			($return_code, my $drbdadm_output) = shell_call($conf, $conf->{path}{exe}{drbdadm}." up $resource");
+			if ($return_code)
+			{
+				# Something went wrong.
+				to_log($conf, {message => "The attempt to start the DRBD resource: [$resource] returned a non-zero code: [$return_code]. The returned output (if any) was: [$drbdadm_output].", 'line' => __LINE__, level => 0, priority => "err"});
+				exit(1);
+			}
+		}
+		
+		# Give them a few seconds to start.
+		sleep 3;
+		
+		# Check DRBD setup again
+		$return_code = undef;
+		$status_json = undef;
+		($return_code, $status_json) = shell_call($conf, $conf->{path}{exe}{drbdsetup}." status --json");
+		if ($return_code)
+		{
+			# Something went wrong.
+			to_log($conf, {message => "The attempt to read the DRBD status after bringing up the resource(s) for this server returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
+		}
+		
+		# If DRBD is still not up, we're done.
+		if ($status_json =~ /No currently configured DRBD found/si)
+		{
+			to_log($conf, {message => "The attempt to read the DRBD status after bringing up the resource(s) appears to have failed.", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
+		}
 	}
 	
-	print Dumper $drbd_status;
+	# Process the JSON data. If any disks are not seen, they won't be set to 'ok', which we'll catch next.
+	check_drbd_status($conf, $status_json);
+	
+	# Make sure I saw all disks.
+	my $check_again = 0;
+	foreach my $device_path (sort {$a cmp $b} keys %{$conf->{server}{disks}})
+	{
+		if ($conf->{server}{disks}{$device_path} eq "check")
+		{
+			# Failed to see it, see if we can bring it up. 
+			my $check_again = 1;
+			my $resource    = $conf->{device_path}{$device_path}{resource};
+			to_log($conf, {message => "The DRBD resource: [$resource] backing the device: [$device_path] was not seen in the 'drbdsetup' status data. Attempting to bringing it up now.", 'line' => __LINE__, level => 2});
+			
+			($return_code, my $drbdadm_output) = shell_call($conf, $conf->{path}{exe}{drbdadm}." up $resource");
+			if ($return_code)
+			{
+				# Something went wrong.
+				to_log($conf, {message => "The attempt to start the DRBD resource: [$resource] returned a non-zero code: [$return_code]. The returned output (if any) was: [$drbdadm_output].", 'line' => __LINE__, level => 0, priority => "err"});
+				exit(1);
+			}
+		}
+		
+		# Give the resource a few seconds to start.
+		sleep 3;
+		
+		# Check again.
+		$return_code = undef;
+		$status_json = undef;
+		($return_code, $status_json) = shell_call($conf, $conf->{path}{exe}{drbdsetup}." status --json");
+		if ($return_code)
+		{
+			# Something went wrong.
+			to_log($conf, {message => "The attempt to read the DRBD status after bringing up the resource(s) for this server returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
+		}
+		
+		# Check again.
+		check_drbd_status($conf, $status_json);
+	}
+	
+	# Do I need to check again?
+	if ($check_again)
+	{
+		foreach my $device_path (sort {$a cmp $b} keys %{$conf->{server}{disks}})
+		{
+			if ($conf->{server}{disks}{$device_path} eq "check")
+			{
+				# Failed.
+				my $resource = $conf->{device_path}{$device_path}{resource};
+				to_log($conf, {message => "The DRBD resource: [$resource] backing the device: [$device_path] was not able to start.", 'line' => __LINE__, level => 0, priority => "err"});
+				exit(1);
+			}
+		}
+	}
+	
+	return(0);
+}
+
+# This processes the DRBD setup JSON data
+sub check_drbd_status
+{
+	my ($conf, $status_json) = @_;
+	
+	my $json        = JSON->new->allow_nonref;
+	my $drbd_status = $json->decode($status_json);
+	foreach my $resource_ref (@{$drbd_status})
+	{
+		my $resource       = $resource_ref->{name};
+		my $device_path    = $conf->{resource}{$resource}{path};
+		my $logical_volume = $conf->{resource}{$resource}{lv};
+		to_log($conf, {message => "resource: [$resource], device_path: [$device_path], logical_volume: [$logical_volume].", 'line' => __LINE__, level => 2});
+		
+		if ((exists $conf->{server}{disks}{$device_path}) && ($conf->{server}{disks}{$device_path} eq "check"))
+		{
+			### This disk is in use by this server, check it.
+			to_log($conf, {message => "The local replicated disk: [$device_path] is used by this server. Checking it out now.", 'line' => __LINE__, level => 2});
+			
+			# First, are any of the local volumes not UpToDate?
+			foreach my $device_ref (@{$resource_ref->{devices}})
+			{
+				# Are we UpToDate (or SyncSource)?
+				if ((lc($device_ref->{'disk-state'}) ne "uptodate") && (lc($device_ref->{'disk-state'}) ne "syncsource"))
+				{
+					# If we've been asked to start, refuse.
+					if ($conf->{switches}{start})
+					{
+						to_log($conf, {message => "The DRBD resource: [$resource] volume: [".$device_ref->{volume}."] locat disk state is: [".$device_ref->{'disk-state'}."]. Unsafe to boot the server unless the disk state is UpToDate.", 'line' => __LINE__, level => 0, priority => "err"});
+						exit(1);
+					}
+				}
+				else
+				{
+					to_log($conf, {message => "The DRBD resource: [$resource] volume: [".$device_ref->{volume}."] locat disk state is: [".$device_ref->{'disk-state'}."], good.", 'line' => __LINE__, level => 2});
+				}
+			}
+			
+			# Is this a connection we care about?
+			foreach my $connection_ref (@{$resource_ref->{connections}})
+			{
+				# Is the peer's role Primary?
+				to_log($conf, {message => "Checking connection to: [".$connection_ref->{name}."].", 'line' => __LINE__, level => 2});
+				if (lc($connection_ref->{'peer-role'}) eq "primary")
+				{
+					# Don't boot here
+					if ($conf->{switches}{start})
+					{
+						to_log($conf, {message => "The DRBD resource: [$resource] on the peer: [".$connection_ref->{name}."] is 'Primary'. Refusing to boot.", 'line' => __LINE__, level => 0, priority => "err"});
+						exit(1);
+					}
+				}
+			}
+			
+			# If we're here, it's OK.
+			$conf->{server}{disks}{$device_path} = "ok";
+			to_log($conf, {message => "server::disks::${device_path}: [".$conf->{server}{disks}{$device_path}."].", 'line' => __LINE__, level => 2});
+		}
+		else
+		{
+			to_log($conf, {message => "Ignoring the local replicated disk: [$device_path], it is not used by this server.", 'line' => __LINE__, level => 2});
+		}
+	}
 	
 	return(0);
 }
@@ -1201,7 +1362,7 @@ sub find_executables
 	{
 		if ( not -e $conf->{path}{exe}{$exe} )
 		{
-			to_log($conf, {message => "The program: [$exe] is not at: [".$conf->{path}{exe}{$exe}."]. Looking for it now...", 'line' => __LINE__, level => 1});
+			to_log($conf, {message => "The program: [$exe] is not at: [".$conf->{path}{exe}{$exe}."]. Looking for it now..", 'line' => __LINE__, level => 1});
 			foreach my $path (@dirs)
 			{
 				$check =  "$path/$exe";
