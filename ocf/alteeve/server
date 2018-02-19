@@ -215,7 +215,7 @@ elsif (($conf->{switches}{migrate_to}) && ($conf->{switches}{migrate_from}))
 elsif ($conf->{switches}{'validate-all'})
 {
 	# Validate our local config and setup.
-	validate($conf);
+	validate_all($conf);
 	exit(0);
 }
 elsif (($conf->{switches}{help}) && ($conf->{switches}{usage}))
@@ -246,6 +246,29 @@ exit(255);
 # Functions                                                                                                 #
 #############################################################################################################
 
+=cut
+
+STATES
+
+The State field lists what state each domain is currently in. A domain can be in one of the following 
+possible states:
+
+running     - The domain is currently running on a CPU
+idle        - The domain is idle, and not running or runnable.  This can be caused because the domain is 
+              waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else 
+              for it to do.
+paused      - The domain has been paused, usually occurring through the administrator running virsh suspend.
+              When in a paused state the domain will still consume allocated resources like memory, but will
+              not be eligible for scheduling by the hypervisor.
+in shutdown - The domain is in the process of shutting down, i.e. the guest operating system has been 
+              notified and should be in the process of stopping its operations gracefully.
+shut off    - The domain is not running.  Usually this indicates the domain has been shut down completely, or
+              has not been started.
+crashed     - The domain has crashed, which is always a violent ending.  Usually this state can only occur if
+              the domain has been configured not to restart on crash.
+pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3 state.
+=cut
+
 # This boots the server if possible.
 sub start_server
 {
@@ -266,19 +289,228 @@ sub start_server
 	# 7. Make sure all bridges exist and soft error if not.
 	# 8. Start the server.
 	
-	to_log($conf, {message => "We've been asked to start the server: [".$conf->{environment}{OCF_RESKEY_name}."].", 'line' => __LINE__, level => 2});
+	my $server = $conf->{environment}{OCF_RESKEY_name};
+	to_log($conf, {message => "We've been asked to start the server: [$server].", 'line' => __LINE__, level => 2});
 	validate_all($conf);
 	
 	# If we're still alive, we're ready to boot.
-	to_log($conf, {message => "Sanity checks passed, ready to start: [".$conf->{environment}{OCF_RESKEY_name}."].", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "Sanity checks passed, ready to start: [$server].", 'line' => __LINE__, level => 2});
 	
-	exit(0);
+	my $definition_file =  $conf->{path}{config}{definition};
+	   $definition_file =~ s/#!NAME!#/$server/;
+	to_log($conf, {message => "definition_file: [$definition_file].", 'line' => __LINE__, level => 2});
+	
+	my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." create $definition_file");
+	if ($return_code)
+	{
+		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
+		# also start the server on another node, because we don't know the state of it here.
+		to_log($conf, {message => "All tests passed, yet the attempt to boot the server: [$server] exited with a non-zero return code: [$return_code]. The server is in an unknown state, so exiting with a fatal error. Human intervention is now required. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(6);
+	}
+	
+	# Verify that it started.
+	sleep 2;
+	$return_code = undef;
+	$output      = undef;
+	($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." list");
+	if ($return_code)
+	{
+		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
+		# also start the server on another node, because we don't know the state of it here.
+		to_log($conf, {message => "It appears that the call to boot the server: [$server] worked, but the call to list running servers exited with a non-zero return code: [$return_code]. The server is in an unknown state, so exiting with a fatal error. Human intervention is now required. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(6);
+	}
+	foreach my $line (split/\n/, $output)
+	{
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		$line =~ s/\s+/ /g;
+		
+		if ($line =~ /^(\d+) $server (.*)$/)
+		{
+			my $state = $2;
+			to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 2});
+			
+			if ($state eq "running")
+			{
+				# Success!
+				to_log($conf, {message => "The server: [$server] has started successfully.", 'line' => __LINE__, level => 2});
+				exit(0);
+			}
+			else
+			{
+				# WTF?
+				to_log($conf, {message => "The server: [$server] should have been started, but it's state is: [$state]. Human intervention is required!", 'line' => __LINE__, level => 1, priority => "err"});
+				exit(6);
+			}
+			
+			last;
+		}
+	}
+	
+	# If we're still alive, then we didn't see the server in the list of running servers, which is really weird.
+	to_log($conf, {message => "The server: [$server] should have been started, but it wasn't found in the list of running servers.", 'line' => __LINE__, level => 1, priority => "err"});
+	exit(1);
 }
 
 # This shuts down the server if possible.
 sub stop_server
 {
 	my ($conf) = @_;
+	
+	# Stopping the server is simply a question of "is the server running?" and, if so, stop it.
+	my $server                 = $conf->{environment}{OCF_RESKEY_name};
+	my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." list");
+	if ($return_code)
+	{
+		# Looks like virsh isn't running.
+		to_log($conf, {message => "The attempt to list the running servers returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	my $found = 0;
+	foreach my $line (split/\n/, $output)
+	{
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		$line =~ s/\s+/ /g;
+		
+		if ($line =~ /^(\d+) $server (.*)$/)
+		{
+			my $state = $2;
+			   $found = 1;
+			to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 2});
+			
+			if ($state eq "running")
+			{
+				# The server is running, shut it down.
+				to_log($conf, {message => "The server: [$server] is running. We will ask it to shut down now.", 'line' => __LINE__, level => 2});
+			}
+			elsif ($state eq "paused")
+			{
+				# The server is paused. Resume it, wait a few, then proceed with the shutdown.
+				to_log($conf, {message => "The server: [$server] is paused. Resuming it now so that it can react to the shutdown request.", 'line' => __LINE__, level => 2});
+				my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." resume $server");
+				if ($return_code)
+				{
+					# Looks like virsh isn't running.
+					to_log($conf, {message => "The attempt to resume the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+					exit(1);
+				}
+				to_log($conf, {message => "Pausing for a moment to give the server time to resume.", 'line' => __LINE__, level => 2});
+				sleep 3;
+			}
+			elsif ($state eq "pmsuspended")
+			{
+				# The server is paused. Resume it, wait a few, then proceed with the shutdown.
+				to_log($conf, {message => "The server: [$server] is asleep. Waking it now so that it can react to the shutdown request.", 'line' => __LINE__, level => 2});
+				my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." dompmwakeup $server");
+				if ($return_code)
+				{
+					# Looks like virsh isn't running.
+					to_log($conf, {message => "The attempt to wake the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+					exit(1);
+				}
+				to_log($conf, {message => "Pausing for half a minute to give the server time to wake up.", 'line' => __LINE__, level => 2});
+				sleep 30;
+			}
+			elsif (($state eq "in shutdown") or ($state eq "shut off"))
+			{
+				# The server is already shutting down
+				to_log($conf, {message => "The server: [$server] is already shutting down.", 'line' => __LINE__, level => 2});
+				exit(0);
+			}
+			elsif (($state eq "idle") or ($state eq "crashed"))
+			{
+				# The server needs to be destroyed.
+				to_log($conf, {message => "The server: [$server] is hung. Its state is: [$state]. We will force it off now.", 'line' => __LINE__, level => 2});
+				my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." destroy $server");
+				if ($return_code)
+				{
+					# Looks like virsh isn't running.
+					to_log($conf, {message => "The attempt to force-off the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+					exit(1);
+				}
+				
+				to_log($conf, {message => "The server: [$server] is now off.", 'line' => __LINE__, level => 2});
+				exit(0);
+			}
+			else
+			{
+				# WTF?
+				to_log($conf, {message => "The server: [$server] is running, but it is in an unexpected state: [$state]. Human intervention is required!", 'line' => __LINE__, level => 1, priority => "err"});
+				exit(6);
+			}
+			
+			last;
+		}
+	}
+	
+	# If we didn't see it, it's off and undefined.
+	if (not $found)
+	{
+		to_log($conf, {message => "The server: [$server] was not listed on this node, so it is not running here.", 'line' => __LINE__, level => 2});
+		exit(0);
+	}
+	
+	# If we're alive, it is time to stop the server
+	$return_code = undef;
+	$output      = undef;
+	($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." shutdown $server");
+	to_log($conf, {message => "Asking the server: [$server] to shut down now. Please be patient.", 'line' => __LINE__, level => 1});
+	if ($return_code)
+	{
+		# Looks like virsh isn't running.
+		to_log($conf, {message => "The attempt to shut down the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	
+	# Now loop until we see the server either vanish from virsh or enter "shut off" state. We wait 
+	# forever and let pacemaker kill us if we time out.
+	while (1)
+	{
+		my $found = 0;
+		my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." list");
+		if ($return_code)
+		{
+			# Looks like virsh isn't running.
+			to_log($conf, {message => "The attempt to list the running servers returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
+		}
+		foreach my $line (split/\n/, $output)
+		{
+			$line =~ s/^\s+//;
+			$line =~ s/\s+$//;
+			$line =~ s/\s+/ /g;
+			
+			if ($line =~ /^(\d+) $server (.*)$/)
+			{
+				my $state = $2;
+				   $found = 1;
+				to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 2});
+				
+				if ($state eq "shut off")
+				{
+					# We're down.
+					to_log($conf, {message => "The server: [$server] is now off.", 'line' => __LINE__, level => 2});
+					exit(0);
+				}
+				
+				last;
+			}
+		}
+		
+		# If we didn't find the server, it's off and undefined now.
+		if (not $found)
+		{
+			to_log($conf, {message => "The server: [$server] is no longer listed. It is now off.", 'line' => __LINE__, level => 2});
+			exit(0);
+		}
+		
+		to_log($conf, {message => "The server: [$server] is not off yet, waiting a few seconds and then we'll check again.", 'line' => __LINE__, level => 2});
+		sleep 5;
+	}
 	
 	exit(0);
 }
@@ -362,27 +594,8 @@ sub server_status
 	# If there is a state, see what the state is.
 	if ($state)
 	{
-		### What is the state?
-		## States we return OCF_SUCCESS (0).
-		# running     - The domain is currently running on a CPU
-		# paused      - The domain has been paused, usually occurring through the administrator 
-		#               running virsh suspend. When in a paused state the domain will still consume 
-		#               allocated resources like memory, but will not be eligible for scheduling by 
-		#               the hypervisor.
-		# pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3
-		#               state.
-		# in shutdown - The domain is in the process of shutting down, i.e. the guest operating 
-		#               system has been notified and should be in the process of stopping its 
-		#               operations gracefully.
-		## States we'll return OCF_NOT_RUNNING (7).
-		# shut off    - The domain is not running. Usually this indicates the domain has been shut 
-		#               down completely, or has not been started.
-		## States we'll return OCF_ERR_GENERIC (1).
-		# idle        - The domain is idle, and not running or runnable. This can be caused because 
-		#               the domain is waiting on IO (a traditional wait state) or has gone to sleep 
-		#               because there was nothing else for it to do.
-		# crashed     - The domain has crashed, which is always a violent ending. Usually this state
-		#               can only occur if the domain has been configured not to restart on crash.
+		# What is the state? 
+		# (See the comment below the 'FUNCTIONS' divider above the first function for a full list of states.)
 		if (($state eq "running") or ($state eq "paused") or ($state eq "pmsuspended") or ($state eq "in shutdown"))
 		{
 			to_log($conf, {message => "The server: [$server] is: [$state], which is OK.", 'line' => __LINE__, level => 1});
@@ -461,7 +674,7 @@ sub validate_all
 	validate_storage($conf);
 	to_log($conf, {message => "- Storage is valid and ready.", 'line' => __LINE__, level => 2});
 	
-	exit(0);
+	return(0);
 }
 
 # This ensures that the bridges the server connects to exist on this node.
@@ -715,11 +928,13 @@ sub validate_storage_drbd
 		}
 		
 		# Give them a few seconds to start.
+		to_log($conf, {message => "Pausing briefly to give the resources time to start.", 'line' => __LINE__, level => 0});
 		sleep 3;
 		
 		# Check DRBD setup again
 		$return_code = undef;
 		$status_json = undef;
+		to_log($conf, {message => "Checking the DRBD status again.", 'line' => __LINE__, level => 0});
 		($return_code, $status_json) = shell_call($conf, $conf->{path}{exe}{drbdsetup}." status --json");
 		if ($return_code)
 		{
@@ -746,7 +961,7 @@ sub validate_storage_drbd
 		if ($conf->{server}{disks}{$device_path} eq "check")
 		{
 			# Failed to see it, see if we can bring it up. 
-			my $check_again = 1;
+			   $check_again = 1;
 			my $resource    = $conf->{device_path}{$device_path}{resource};
 			to_log($conf, {message => "The DRBD resource: [$resource] backing the device: [$device_path] was not seen in the 'drbdsetup' status data. Attempting to bringing it up now.", 'line' => __LINE__, level => 2});
 			
@@ -759,22 +974,28 @@ sub validate_storage_drbd
 			}
 		}
 		
-		# Give the resource a few seconds to start.
-		sleep 3;
-		
-		# Check again.
-		$return_code = undef;
-		$status_json = undef;
-		($return_code, $status_json) = shell_call($conf, $conf->{path}{exe}{drbdsetup}." status --json");
-		if ($return_code)
+		to_log($conf, {message => "check_again: [$check_again].", 'line' => __LINE__, level => 2});
+		if ($check_again)
 		{
-			# Something went wrong.
-			to_log($conf, {message => "The attempt to read the DRBD status after bringing up the resource(s) for this server returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
-			exit(1);
+			# Give the resource a few seconds to start.
+			to_log($conf, {message => "Pausing briefly to give the resources time to start.", 'line' => __LINE__, level => 2});
+			sleep 3;
+			
+			# Check again.
+			$return_code = undef;
+			$status_json = undef;
+			to_log($conf, {message => "Checking the DRBD status again.", 'line' => __LINE__, level => 2});
+			($return_code, $status_json) = shell_call($conf, $conf->{path}{exe}{drbdsetup}." status --json");
+			if ($return_code)
+			{
+				# Something went wrong.
+				to_log($conf, {message => "The attempt to read the DRBD status after bringing up the resource(s) for this server returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
+				exit(1);
+			}
+			
+			# Check again.
+			check_drbd_status($conf, $status_json);
 		}
-		
-		# Check again.
-		check_drbd_status($conf, $status_json);
 	}
 	
 	# Do I need to check again?
@@ -1362,7 +1583,7 @@ sub find_executables
 	{
 		if ( not -e $conf->{path}{exe}{$exe} )
 		{
-			to_log($conf, {message => "The program: [$exe] is not at: [".$conf->{path}{exe}{$exe}."]. Looking for it now..", 'line' => __LINE__, level => 1});
+			to_log($conf, {message => "The program: [$exe] is not at: [".$conf->{path}{exe}{$exe}."]. Looking for it now.", 'line' => __LINE__, level => 1});
 			foreach my $path (@dirs)
 			{
 				$check =  "$path/$exe";
