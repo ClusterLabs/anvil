@@ -409,13 +409,34 @@ resource srv01-c7_0 {
 
 # Provision servers
 mkdir /mnt/anvil/{provision,files,archive,definitions}
-pcs resource create srv01-c7 ocf:heartbeat:VirtualDomain hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10"
 
+pcs resource create srv01-c7 ocf:alteeve:server hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10" op stop timeout="60" on-fail="block" meta allow-migrate="true" failure-timeout="75"
+pcs resource create srv01-c7 ocf:alteeve:server hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10" op on-fail="block" meta allow-migrate="true" failure-timeout="75"
+
+pcs resource create srv01-c7 ocf:alteeve:server name="srv01-c7" meta allow-migrate="true" op monitor interval="10" op stop on-fail="block" meta allow-migrate="true" failure-timeout="75"
 
 == Resource Agent; https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 
 * A resource agent receives all configuration information about the resource it manages via environment variables. The names of these environment variables are always the name of the resource parameter, prefixed with OCF_RESKEY_. For example, if the resource has an ip parameter set to 192.168.1.1, then the resource agent will have access to an environment variable OCF_RESKEY_ip holding that value.
-* 
 
 
+=== 
+
+When stopping a server;
+14:03 < lge> "on-fail: block"
+14:03 < lge> is per operation type.
+14:08 < lge> anyways, you can also "on-fail: retry"
+
+OK, set the stop timeout to 60, set 'on-fail: block" and set the failure-timeout to 60 and see how pacemaker reacts.
+failure-timeout
+
+===
+
+Migrate servers;
+
+- Let ScanCore set 'node-health' attribute (http://clusterlabs.org/pacemaker/doc/en-US/Pacemaker/1.1/html-single/Pacemaker_Explained/index.html#s-node-health)
+- Set 'migration-limit' to '1' to enforce serial live migration (http://clusterlabs.org/pacemaker/doc/en-US/Pacemaker/1.1/html-single/Pacemaker_Explained/index.html#s-cluster-options).
+
+Migrate a single server by setting a location constraint against the node we want the VM off of.
+- 
 

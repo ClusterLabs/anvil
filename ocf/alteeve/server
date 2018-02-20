@@ -116,24 +116,28 @@ my $conf = {
 	},
 	environment	=>	{
 		# This is the name of the server we're managing.										      # Example values:
-		OCF_RESKEY_name			=>	defined $ENV{OCF_RESKEY_name}                  ? $ENV{OCF_RESKEY_name}                  : "", # srv01-c7	
+		OCF_RESKEY_name			=>	defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : "", # srv01-c7	
 		# This is our node name
-		OCF_RESKEY_CRM_meta_on_node	=>	defined $ENV{OCF_RESKEY_CRM_meta_on_node}      ? $ENV{OCF_RESKEY_CRM_meta_on_node}      : "", # m3-a02n01.alteeve.com
+		OCF_RESKEY_CRM_meta_on_node	=>	defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : "", # m3-a02n01.alteeve.com
 		# This says "UUID", but it's the node ID.
-		OCF_RESKEY_CRM_meta_on_node_uuid =>	defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid} ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid} : "", # 1
+		OCF_RESKEY_CRM_meta_on_node_uuid =>	defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : "", # 1
 		# This is the timeout for the called action in millisecond.
-		OCF_RESKEY_CRM_meta_timeout	=>	defined $ENV{OCF_RESKEY_CRM_meta_timeout}      ? $ENV{OCF_RESKEY_CRM_meta_timeout}      : "", # 20000
+		OCF_RESKEY_CRM_meta_timeout	=>	defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : "", # 20000
 		# If this is set, we'll bump our log level as well.
-		PCMK_debug			=>	defined $ENV{PCMK_debug}                       ? $ENV{PCMK_debug}                       : "", # 0
+		PCMK_debug			=>	defined $ENV{PCMK_debug}                         ? $ENV{PCMK_debug}                         : "", # 0
 		# These are other variables that are set, but we don't currently care about them
-		OCF_EXIT_REASON_PREFIX		=>	defined $ENV{OCF_EXIT_REASON_PREFIX}           ? $ENV{OCF_EXIT_REASON_PREFIX}           : "", # ocf-exit-reason:
-		OCF_RA_VERSION_MAJOR		=>	defined $ENV{OCF_RA_VERSION_MAJOR}             ? $ENV{OCF_RA_VERSION_MAJOR}             : "", # 1
-		OCF_RA_VERSION_MINOR		=>	defined $ENV{OCF_RA_VERSION_MINOR}             ? $ENV{OCF_RA_VERSION_MINOR}             : "", # 0
-		OCF_RESKEY_crm_feature_set	=>	defined $ENV{OCF_RESKEY_crm_feature_set}       ? $ENV{OCF_RESKEY_crm_feature_set}       : "", # 3.0.12
-		OCF_RESOURCE_INSTANCE		=>	defined $ENV{OCF_RESOURCE_INSTANCE}            ? $ENV{OCF_RESOURCE_INSTANCE}            : "", # srv01-c7
-		OCF_RESOURCE_PROVIDER		=>	defined $ENV{OCF_RESOURCE_PROVIDER}            ? $ENV{OCF_RESOURCE_PROVIDER}            : "", # alteeve
-		OCF_RESOURCE_TYPE		=>	defined $ENV{OCF_RESOURCE_TYPE}                ? $ENV{OCF_RESOURCE_TYPE}                : "", # server
-		OCF_ROOT			=>	defined $ENV{OCF_ROOT}                         ? $ENV{OCF_ROOT}                         : "", # /usr/lib/ocf
+		OCF_EXIT_REASON_PREFIX		=>	defined $ENV{OCF_EXIT_REASON_PREFIX}             ? $ENV{OCF_EXIT_REASON_PREFIX}             : "", # ocf-exit-reason:
+		OCF_RA_VERSION_MAJOR		=>	defined $ENV{OCF_RA_VERSION_MAJOR}               ? $ENV{OCF_RA_VERSION_MAJOR}               : "", # 1
+		OCF_RA_VERSION_MINOR		=>	defined $ENV{OCF_RA_VERSION_MINOR}               ? $ENV{OCF_RA_VERSION_MINOR}               : "", # 0
+		OCF_RESKEY_crm_feature_set	=>	defined $ENV{OCF_RESKEY_crm_feature_set}         ? $ENV{OCF_RESKEY_crm_feature_set}         : "", # 3.0.12
+		OCF_RESOURCE_INSTANCE		=>	defined $ENV{OCF_RESOURCE_INSTANCE}              ? $ENV{OCF_RESOURCE_INSTANCE}              : "", # srv01-c7
+		OCF_RESOURCE_PROVIDER		=>	defined $ENV{OCF_RESOURCE_PROVIDER}              ? $ENV{OCF_RESOURCE_PROVIDER}              : "", # alteeve
+		OCF_RESOURCE_TYPE		=>	defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : "", # server
+		OCF_ROOT			=>	defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : "", # /usr/lib/ocf
+		# These are set during a migration
+		OCF_RESKEY_CRM_meta_migrate_source =>	defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : "", # m3-a02n01.alteeve.com
+		OCF_RESKEY_CRM_meta_migrate_target => 	defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : "", # m3-a02n02.alteeve.com
+		OCF_RESKEY_CRM_meta_record_pending =>	defined $ENV{OCF_RESKEY_CRM_meta_record_pending} ? $ENV{OCF_RESKEY_CRM_meta_record_pending} : "", # true
 	},
 };
 
@@ -152,16 +156,25 @@ get_switches($conf);
 ### TEST: to be removed later
 if ($conf->{switches}{test})
 {
-	$conf->{environment}{OCF_RESKEY_name}             = "srv01-c7";
-	$conf->{environment}{OCF_RESKEY_CRM_meta_on_node} = "m3-a02n01.alteeve.com";
-	$conf->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
+	$conf->{environment}{OCF_RESKEY_name}                    = "srv01-c7";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "m3-a02n01.alteeve.com";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_timeout}        = 20000;
+	$conf->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "m3-a02n01.alteeve.com";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "m3-a02n02.alteeve.com";
 }
 
 # Something for the logs
 to_log($conf, {message => "ocf:alteeve:server invoked.", 'line' => __LINE__, level => 2});
 
 # This is for debugging.
-show_environment($conf, 2);
+if (($conf->{switches}{monitor}) or ($conf->{switches}{status}))
+{
+	show_environment($conf, 3);
+}
+else
+{
+	show_environment($conf, 2);
+}
 
 ### What are we being asked to do?
 # start        - Starts the resource.
@@ -207,7 +220,7 @@ elsif ($conf->{switches}{demote})
 	to_log($conf, {message => "We were asked to demote: [".$conf->{environment}{OCF_RESKEY_name}."], which makes no sense and is not supported. Ignoreing.", 'line' => __LINE__, level => 0, priority => "err"});
 	exit(3);
 }
-elsif (($conf->{switches}{migrate_to}) && ($conf->{switches}{migrate_from}))
+elsif (($conf->{switches}{migrate_to}) or ($conf->{switches}{migrate_from}))
 {
 	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
 	migrate_server($conf);
@@ -218,7 +231,7 @@ elsif ($conf->{switches}{'validate-all'})
 	validate_all($conf);
 	exit(0);
 }
-elsif (($conf->{switches}{help}) && ($conf->{switches}{usage}))
+elsif (($conf->{switches}{help}) or ($conf->{switches}{usage}))
 {
 	# Show the usage information
 	show_usage($conf);
@@ -369,7 +382,8 @@ sub stop_server
 		exit(1);
 	}
 	
-	my $found = 0;
+	my $shutdown = 1;
+	my $found    = 0;
 	foreach my $line (split/\n/, $output)
 	{
 		$line =~ s/^\s+//;
@@ -415,10 +429,16 @@ sub stop_server
 				to_log($conf, {message => "Pausing for half a minute to give the server time to wake up.", 'line' => __LINE__, level => 2});
 				sleep 30;
 			}
-			elsif (($state eq "in shutdown") or ($state eq "shut off"))
+			elsif ($state eq "in shutdown")
 			{
 				# The server is already shutting down
-				to_log($conf, {message => "The server: [$server] is already shutting down.", 'line' => __LINE__, level => 2});
+				to_log($conf, {message => "The server: [$server] is already shutting down. We'll monitor it until it actually shuts off.", 'line' => __LINE__, level => 2});
+				$shutdown = 0;
+			}
+			elsif ($state eq "shut off")
+			{
+				# The server is already shutting down
+				to_log($conf, {message => "The server: [$server] is already off.", 'line' => __LINE__, level => 2});
 				exit(0);
 			}
 			elsif (($state eq "idle") or ($state eq "crashed"))
@@ -455,15 +475,16 @@ sub stop_server
 	}
 	
 	# If we're alive, it is time to stop the server
-	$return_code = undef;
-	$output      = undef;
-	($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." shutdown $server");
-	to_log($conf, {message => "Asking the server: [$server] to shut down now. Please be patient.", 'line' => __LINE__, level => 1});
-	if ($return_code)
+	if ($shutdown)
 	{
-		# Looks like virsh isn't running.
-		to_log($conf, {message => "The attempt to shut down the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
-		exit(1);
+		my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." shutdown $server");
+		to_log($conf, {message => "Asking the server: [$server] to shut down now. Please be patient.", 'line' => __LINE__, level => 1});
+		if ($return_code)
+		{
+			# Looks like virsh isn't running.
+			to_log($conf, {message => "The attempt to shut down the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+			exit(1);
+		}
 	}
 	
 	# Now loop until we see the server either vanish from virsh or enter "shut off" state. We wait 
@@ -538,17 +559,17 @@ sub server_status
 	my $current_time = time;
 	my $timeout      = $current_time + int(($conf->{environment}{OCF_RESKEY_CRM_meta_timeout} /= 1000) / 2);
 	my $waiting      = 1;
-	to_log($conf, {message => "current_time: [$current_time], timeout: [$timeout].", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "current_time: [$current_time], timeout: [$timeout].", 'line' => __LINE__, level => 3});
 	
 	while($waiting)
 	{
 		# Make the call
 		($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." list");
-		to_log($conf, {message => "return_code: [$return_code].", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "return_code: [$return_code].", 'line' => __LINE__, level => 3});
 		if (not $return_code)
 		{
 			$waiting = 0;
-			to_log($conf, {message => "waiting: [$waiting].", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "waiting: [$waiting].", 'line' => __LINE__, level => 3});
 		}
 		elsif (time > $timeout)
 		{
@@ -558,7 +579,7 @@ sub server_status
 		}
 		else
 		{
-			to_log($conf, {message => "The 'virsh' call exited with the return code: [$return_code]. The 'libvirtd' service might be starting, so we will check again shortly.", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "The 'virsh' call exited with the return code: [$return_code]. The 'libvirtd' service might be starting, so we will check again shortly.", 'line' => __LINE__, level => 3});
 			sleep 2;
 		}
 	}
@@ -585,7 +606,7 @@ sub server_status
 		if ($line =~ /^(\d+) $server (.*)$/)
 		{
 			$state = $2;
-			to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 3});
 			
 			last;
 		}
@@ -633,8 +654,28 @@ sub migrate_server
 {
 	my ($conf) = @_;
 	
-	# If we were given 'migrate_to', then just verify that the node name makes sense. If we were given 
-	# 'migrate_from', we need to find the peer.
+	# If we were given 'migrate_to', we need to make sure the storage is UpToDate on the peer for all 
+	# backing resources. We can't check the target's bridges, but the migation will fail if one is 
+	# missing. 
+	# If we're given 'migrate_from', we're pulling the server towards us, so we can check both brdiges
+	# and storage.
+	my $server = $conf->{environment}{OCF_RESKEY_name};
+	my $source = $conf->{environment}{OCF_RESKEY_CRM_meta_migrate_source};
+	my $target = $conf->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
+	to_log($conf, {message => "server: [$server], source: [$source], target: [$target].", 'line' => __LINE__, level => 1});
+	if ($conf->{switches}{migrate_to})
+	{
+		to_log($conf, {message => "We're pushing the: [$server] to: [$target].", 'line' => __LINE__, level => 1});
+		validate_all($conf);
+	}
+	elsif ($conf->{switches}{migrate_from})
+	{
+		to_log($conf, {message => "We're pulling the: [$server] from: [$target].", 'line' => __LINE__, level => 1});
+	}
+	else
+	{
+		# WTF?
+	}
 	
 	# Return failed until this is actually implemented.
 	exit(1);
@@ -1326,7 +1367,7 @@ sub show_environment
 	foreach my $key (sort {$a cmp $b} keys %ENV)
 	{
 		next if exists $conf->{environment}{$key};
-		to_log($conf, {message => "System Environment variable: [$key] -> [".$ENV{$key}."]", 'line' => __LINE__, level => ($level + 1)});
+		to_log($conf, {message => "System Environment variable: [$key] -> [".$ENV{$key}."]", 'line' => __LINE__, level => $level});
 	}
 	
 	return(0);
@@ -1368,7 +1409,7 @@ It manages underlying components like DRBD 9 storage resources, brodge connectio
   </parameters>
   <actions>
     <action name="start"        timeout="30" />
-    <action name="stop"         timeout="600" />
+    <action name="stop"         timeout="60" on-fail="block"/>
     <action name="monitor"      timeout="10" interval="10" depth="0" />
     <action name="notify"       timeout="20" />
     <action name="migrate_to"   timeout="600" />
