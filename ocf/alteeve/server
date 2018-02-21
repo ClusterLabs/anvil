@@ -154,13 +154,21 @@ find_executables($conf);
 get_switches($conf);
 
 ### TEST: to be removed later
-if ($conf->{switches}{test})
+if ($conf->{switches}{test1})
 {
 	$conf->{environment}{OCF_RESKEY_name}                    = "srv01-c7";
-	$conf->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "m3-a02n01.alteeve.com";
 	$conf->{environment}{OCF_RESKEY_CRM_meta_timeout}        = 20000;
+	$conf->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "m3-a02n01.alteeve.com";
 	$conf->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "m3-a02n01.alteeve.com";
 	$conf->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "m3-a02n02.alteeve.com";
+}
+if ($conf->{switches}{test2})
+{
+	$conf->{environment}{OCF_RESKEY_name}                    = "srv01-c7";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_timeout}        = 20000;
+	$conf->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "m3-a02n02.alteeve.com";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "m3-a02n02.alteeve.com";
+	$conf->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "m3-a02n01.alteeve.com";
 }
 
 # Something for the logs
@@ -801,19 +809,16 @@ sub migrate_server
 	}
 	
 	# Switch off dual-primary.
-	foreach my $resource (sort {$a cmp $b} keys %{$conf->{resource}})
+	my $shell_call = $conf->{path}{exe}{drbdadm}." adjust all";
+	to_log($conf, {message => "shell_call: [$shell_call].", 'line' => __LINE__, level => 1});
+	
+	to_log($conf, {message => "Re-disabling dual primary by restoring config file settings.", 'line' => __LINE__, level => 1});
+	my ($return_code, $output) = shell_call($conf, $shell_call);
+	if ($return_code)
 	{
-		next if not defined $conf->{resource}{$resource}{target_node_id};
-		my $shell_call = $conf->{path}{exe}{drbdsetup}." net-options ".$resource." ".$conf->{resource}{$resource}{target_node_id}." --allow-two-primaries=no";
-		to_log($conf, {message => "shell_call: [$shell_call].", 'line' => __LINE__, level => 1});
-		
-		to_log($conf, {message => "Re-disabling dual primary for the resource: [$resource] to the node: [".$conf->{resource}{$resource}{target_name}." (".$conf->{resource}{$resource}{target_node_id}."].", 'line' => __LINE__, level => 1});
-		my ($return_code, $output) = shell_call($conf, $shell_call);
-		if ($return_code)
-		{
-			# Something went wrong.
-			to_log($conf, {message => "The attempt to re-disable dual-primary for the resource: [$resource] to the node: [".$conf->{resource}{$resource}{target_name}." (".$conf->{resource}{$resource}{target_node_id}.")] returned a non-zero return code [$return_code]. The returned output (if any) was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
-		}
+		# Something went wrong.
+		to_log($conf, {message => "The attempt to reset DRBD to config file settings returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
 	}
 	
 	# Did something go wrong during the dual-primary enable or the actual migration call?
@@ -1032,6 +1037,11 @@ sub validate_storage_drbd
 					$conf->{server}{drbd}{'local'}{short_hostname} = $short_hostname,
 					$conf->{server}{drbd}{'local'}{address}        = $address,
 					$conf->{server}{drbd}{'local'}{port}           = $port,
+					
+					# Record my node name for this resource (to be paired with the node 
+					# ID when migrating)
+					$conf->{resource}{$resource}{local_node_name} = $host;
+					to_log($conf, {message => "resource::${resource}::local_node_name: [".$conf->{resource}{$resource}{local_node_name}."].", 'line' => __LINE__, level => 2});
 				}
 				else
 				{
@@ -1228,6 +1238,10 @@ sub check_drbd_status
 		my $device_path    = $conf->{resource}{$resource}{path};
 		my $logical_volume = $conf->{resource}{$resource}{lv};
 		to_log($conf, {message => "resource: [$resource], device_path: [$device_path], logical_volume: [$logical_volume].", 'line' => __LINE__, level => 2});
+		
+		# Record my node ID for this resource
+		$conf->{resource}{$resource}{local_node_id} = $resource_ref->{'node-id'};
+		to_log($conf, {message => "resource::${resource}::local_node_id: [".$conf->{resource}{$resource}{local_node_id}."].", 'line' => __LINE__, level => 2});
 		
 		if ((exists $conf->{server}{disks}{$device_path}) && ($conf->{server}{disks}{$device_path} eq "check"))
 		{
