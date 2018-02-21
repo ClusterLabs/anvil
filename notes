@@ -250,16 +250,29 @@ drbdsetup show all --show-defaults
 * Migate;
 # For all resources under the server;
 #drbdadm net-options r0 --allow-two-primaries=yes
+
 drbdsetup net-options srv01-c7_0 2 --_name=m3-a02n01.alteeve.com --csums-alg=md5 --data-integrity-alg=md5 --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --protocol=C --fencing=resource-and-stonith --allow-two-primaries=yes
 drbdsetup net-options srv01-c7_0 2 --_name=m3-a02n01.alteeve.com --csums-alg=md5 --data-integrity-alg=md5 --after-sb-0pri=discard-zero-changes --after-sb-1pri=discard-secondary --after-sb-2pri=disconnect --protocol=C --fencing=resource-and-stonith --allow-two-primaries=yes
+
 # Migrate:
-virsh migrate --unsafe --undefinesource --live srv01-c7 qemu+ssh://m3-a01n02.alteeve.com/system
+
+virsh -c qemu+ssh://root@m3-a02n02.alteeve.com/system list
+
+virsh migrate --unsafe --undefinesource --live srv01-c7 qemu+ssh://m3-a02n01.alteeve.com/system
+virsh -c qemu+ssh://root@m3-a02n02.alteeve.com/system  migrate --undefinesource --live srv01-c7 qemu+ssh://m3-a02n01.alteeve.com/system
+
 # Again for all resource under the server;
 drbdadm net-options r0 --allow-two-primaries=no
 
 drbdsetup net-options <resource> <target_node_id> --_name=<target_node_name> --allow-two-primaries=yes
 virsh migrate --undefinesource --live <server> qemu+ssh://<target_node>/system
 drbdsetup net-options <resource> <target_node_id> --_name=<target_node_name> --allow-two-primaries=no
+
+pcs constraint list --full
+Location Constraints:
+  Resource: srv01-c7
+    Enabled on: m3-a02n02.alteeve.com (score:50) (id:location-srv01-c7-m3-a02n02.alteeve.com-50)
+pcs constraint remove location-srv01-c7-m3-a02n02.alteeve.com-50
 
 
 
@@ -412,8 +425,10 @@ mkdir /mnt/anvil/{provision,files,archive,definitions}
 
 pcs resource create srv01-c7 ocf:alteeve:server hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10" op stop timeout="60" on-fail="block" meta allow-migrate="true" failure-timeout="75"
 pcs resource create srv01-c7 ocf:alteeve:server hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10" op on-fail="block" meta allow-migrate="true" failure-timeout="75"
-
 pcs resource create srv01-c7 ocf:alteeve:server name="srv01-c7" meta allow-migrate="true" op monitor interval="10" op stop on-fail="block" meta allow-migrate="true" failure-timeout="75"
+
+pcs resource create srv01-c7 ocf:alteeve:server name="srv01-c7" meta allow-migrate="true" op monitor interval="60" op stop on-fail="block" op migrate_to on-fail="block" op migrate_from on-fail="block" meta allow-migrate="true" failure-timeout="75"
+
 
 == Resource Agent; https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 
@@ -438,5 +453,29 @@ Migrate servers;
 - Set 'migration-limit' to '1' to enforce serial live migration (http://clusterlabs.org/pacemaker/doc/en-US/Pacemaker/1.1/html-single/Pacemaker_Explained/index.html#s-cluster-options).
 
 Migrate a single server by setting a location constraint against the node we want the VM off of.
-- 
+- If anything goes wrong, the server will enter a blocked state in pacemaker.
+- Recovery needs to be 'unmanage -> clean' to avoid a stop call.
+11:57 <@kgaillot> for your design, that sounds right. between cleanup and manage, i'd make sure there was a PE run without any pending actions blocked by the unmanaging -- you can either look at the logs on the DC, run "crm_simulate -SL", or just check the status for a bit
+11:58 <@kgaillot> you can play around with it by putting a higher preference on the to-be-cleaned node, to make sure it *does* move when you re-manage. that way you can see what logs/simulate/status look like
 
+12:07 <@kgaillot> i'm thinking if you do crm_resource --reprobe instead of cleanup in the above sequence, that should prevent anything unexpected
+12:07 <@kgaillot> unmanage -> adjust preferences if needed -> reprobe resource -> wait for probe results to come back in, and if status looks good -> re-manage
+12:08 <@kgaillot> the reprobe will wipe the entire resource history and fail counts for the resource, causing pacemaker to recheck the current status on all nodes. if the status then shows the resource running where you expect/want it, with no errors, then it's not going to do anything further
+12:09 <@kgaillot> (in 2.0, cleanup only erases the history where the resource has failed, while reprobe erases the history regardless)
+12:13 <@kgaillot> if there are no failures in the resource history, there should be no risk of a full stop. if there is no resource history at all, then after reprobe, there should be no risk of any actions (assuming you've set up location preferences and stickiness how you want them)
+
+Recover from a failed migration;
+
+reset location to prefer current host -> unmanage resource -> cleanup resource -> manage resource
+
+(running on node 2, so re-add location constraint - basically, make sure location constraint favours current host)
+
+pcs resource unmanage srv01-c7
+pcs constraint remove location-srv01-c7-m3-a02n02.alteeve.com-50
+crm_resource --reprobe
+pcs resource manage srv01-c7
+
+
+====
+
+Unrelated Notes;
