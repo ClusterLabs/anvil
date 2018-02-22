@@ -711,11 +711,12 @@ sub migrate_server
 	# virsh call will depend on if we're pushing or pulling. Once the migration completes, regardless of
 	# success or failure, dual primary will be disabled again.
 	my $migration_command = "";
+	my $verify_command    = "";
 
-	to_log($conf, {message => "server: [$server], source: [$source], target: [$target].", 'line' => __LINE__, level => 1});
+	to_log($conf, {message => "server: [$server], source: [$source], target: [$target].", 'line' => __LINE__, level => 2});
 	if ($conf->{switches}{migrate_to})
 	{
-		to_log($conf, {message => "We're pushing the: [$server] to: [$target].", 'line' => __LINE__, level => 1});
+		to_log($conf, {message => "We're pushing the: [$server] to: [$target].", 'line' => __LINE__, level => 2});
 		
 		# Is the server even here?
 		my $found = 0;
@@ -756,17 +757,59 @@ sub migrate_server
 		
 		# If we're alive, craft the migration command.
 		$migration_command = $conf->{path}{exe}{virsh}." migrate --undefinesource --live ".$server." qemu+ssh://".$target."/system";
-		to_log($conf, {message => "migration_command: [$migration_command].", 'line' => __LINE__, level => 1});
+		$verify_command    = $conf->{path}{exe}{virsh}." list";
+		to_log($conf, {message => "migration_command: [$migration_command].", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "verify_command: .. [$verify_command].", 'line' => __LINE__, level => 2});
 	}
 	elsif ($conf->{switches}{migrate_from})
 	{
+		# This is called after a migration. In case this is the case here, the target will be us. 
+		# Just make sure it is running and, if so, return '0'.
+		to_log($conf, {message => "environment::OCF_RESKEY_CRM_meta_on_node: [".$conf->{environment}{OCF_RESKEY_CRM_meta_on_node}."], target: [$target].", 'line' => __LINE__, level => 2});
+		if ($conf->{environment}{OCF_RESKEY_CRM_meta_on_node} eq $target)
+		{
+			# Yup. All we want to do if make sure it is running here.
+			to_log($conf, {message => "Verifying that the server: [$server] was successfully migrated here.", 'line' => __LINE__, level => 2});
+			my ($return_code, $output) = shell_call($conf, $conf->{path}{exe}{virsh}." list");
+			if ($return_code)
+			{
+				# This really shouldn't happen... The migration to here should have failed.
+				to_log($conf, {message => "While verifying that the server: [$server] migrated here, the attempt to list servers running here returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+				exit(1);
+			}
+			foreach my $line (split/\n/, $output)
+			{
+				$line =~ s/^\s+//;
+				$line =~ s/\s+$//;
+				$line =~ s/\s+/ /g;
+				
+				if ($line =~ /^(\d+) $server (.*)$/)
+				{
+					my $state = $2;
+					to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 2});
+					if ($state eq "running")
+					{
+						# Success!
+						to_log($conf, {message => "The migration of the server: [$server] to here was successful!", 'line' => __LINE__, level => 1});
+						exit(0);
+					}
+				}
+			}
+			
+			# If we're still alive, we'll proceed as if we're pulling the server to us, and maybe
+			# that will work.
+			to_log($conf, {message => "It looks like we were called to verify that the: [$server] migrated here, but it isn't here yet. We'll proceed with an attempt to pull the server over.", 'line' => __LINE__, level => 2});
+		}
+		
 		# Validate everything, as if we were about to boot
-		to_log($conf, {message => "We're pulling the: [$server] from: [$target].", 'line' => __LINE__, level => 1});
+		to_log($conf, {message => "We're pulling the: [$server] from: [$target].", 'line' => __LINE__, level => 2});
 		validate_all($conf);
 		
 		# If we're alive, craft the migration command.
-		$migration_command = $conf->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system  migrate --undefinesource --live ".$server." qemu+ssh://".$target."/system";
-		to_log($conf, {message => "migration_command: [$migration_command].", 'line' => __LINE__, level => 1});
+		$migration_command = $conf->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --live ".$server." qemu+ssh://".$target."/system";
+		$verify_command    = $conf->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system list";
+		to_log($conf, {message => "migration_command: [$migration_command].", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "verify_command: .. [$verify_command].", 'line' => __LINE__, level => 2});
 	}
 	
 	# Enable dual-primary. If this fails, we will disable (or try to) and then abort.
@@ -776,9 +819,9 @@ sub migrate_server
 		next if not defined $conf->{resource}{$resource}{target_node_id};
 		next if not $migrate;
 		my $shell_call = $conf->{path}{exe}{drbdsetup}." net-options ".$resource." ".$conf->{resource}{$resource}{target_node_id}." --allow-two-primaries=yes";
-		to_log($conf, {message => "shell_call: [$shell_call].", 'line' => __LINE__, level => 1});
+		to_log($conf, {message => "shell_call: [$shell_call].", 'line' => __LINE__, level => 2});
 		
-		to_log($conf, {message => "Temporarily enabling dual primary for the resource: [$resource] to the node: [".$conf->{resource}{$resource}{target_name}." (".$conf->{resource}{$resource}{target_node_id}."].", 'line' => __LINE__, level => 1});
+		to_log($conf, {message => "Temporarily enabling dual primary for the resource: [$resource] to the node: [".$conf->{resource}{$resource}{target_name}." (".$conf->{resource}{$resource}{target_node_id}."].", 'line' => __LINE__, level => 2});
 		my ($return_code, $output) = shell_call($conf, $shell_call);
 		if ($return_code)
 		{
@@ -787,7 +830,7 @@ sub migrate_server
 			
 			# Disable migration (and any further attempts to enable dual-primary).
 			$migrate = 0;
-			to_log($conf, {message => "migrate: [$migrate].", 'line' => __LINE__, level => 1});
+			to_log($conf, {message => "migrate: [$migrate].", 'line' => __LINE__, level => 2});
 		}
 	}
 	
@@ -795,24 +838,28 @@ sub migrate_server
 	if ($migrate)
 	{
 		# Call the migration.
-		to_log($conf, {message => "The migration of: [$server] to the node: [$target] will now begin.", 'line' => __LINE__, level => 1});
-		to_log($conf, {message => "migration_command: [$migration_command].", 'line' => __LINE__, level => 1});
+		to_log($conf, {message => "The migration of: [$server] to the node: [$target] will now begin.", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "migration_command: [$migration_command].", 'line' => __LINE__, level => 2});
 		my ($return_code, $output) = shell_call($conf, $migration_command);
 		if ($return_code)
 		{
 			# Something went wrong.
 			to_log($conf, {message => "The attempt to migrate the server: [$server] to the node: [$target] returned a non-zero return code [$return_code]. The returned output (if any) was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		}
+		else
+		{
+			to_log($conf, {message => "It looks like the migration was successful. Will verify in a moment.", 'line' => __LINE__, level => 2});
 			
-			$migrated = 0;
-			to_log($conf, {message => "migrated: [$migrated].", 'line' => __LINE__, level => 1});
+			$migrated = 1;
+			to_log($conf, {message => "migrated: [$migrated].", 'line' => __LINE__, level => 2});
 		}
 	}
 	
 	# Switch off dual-primary.
 	my $shell_call = $conf->{path}{exe}{drbdadm}." adjust all";
-	to_log($conf, {message => "shell_call: [$shell_call].", 'line' => __LINE__, level => 1});
+	to_log($conf, {message => "shell_call: [$shell_call].", 'line' => __LINE__, level => 2});
 	
-	to_log($conf, {message => "Re-disabling dual primary by restoring config file settings.", 'line' => __LINE__, level => 1});
+	to_log($conf, {message => "Re-disabling dual primary by restoring config file settings.", 'line' => __LINE__, level => 2});
 	my ($return_code, $output) = shell_call($conf, $shell_call);
 	if ($return_code)
 	{
@@ -822,13 +869,48 @@ sub migrate_server
 	}
 	
 	# Did something go wrong during the dual-primary enable or the actual migration call?
+	to_log($conf, {message => "migrate: [$migrate], migrated: [$migrated].", 'line' => __LINE__, level => 2});
 	if ((not $migrate) or (not $migrated))
 	{
 		# Exit
+		to_log($conf, {message => "Failure, exiting with '1'.", 'line' => __LINE__, level => 0, priority => "err"});
 		exit(1);
 	}
 	
+	# Last, verify that the server is now on the target.
+	to_log($conf, {message => "verify_command: [$verify_command].", 'line' => __LINE__, level => 2});
+	
+	$return_code = undef;
+	$output      = undef;
+	($return_code, $output) = shell_call($conf, $verify_command);
+	if ($return_code)
+	{
+		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
+		# also start the server on another node, because we don't know the state of it here.
+		to_log($conf, {message => "It appears that the list the running servers on the migration target: [$target] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		exit(1);
+	}
+	foreach my $line (split/\n/, $output)
+	{
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		$line =~ s/\s+/ /g;
+		
+		if ($line =~ /^(\d+) $server (.*)$/)
+		{
+			my $state = $2;
+			to_log($conf, {message => "server: [$server], state: [$state]", 'line' => __LINE__, level => 2});
+			if ($state eq "running")
+			{
+				# Success!
+				to_log($conf, {message => "The migration of the server: [$server] to: [$target] was a success!", 'line' => __LINE__, level => 0, priority => "err"});
+				exit(0);
+			}
+		}
+	}
+	
 	# If we made it here, we succeeded.
+	to_log($conf, {message => "Success, exiting with '0'.", 'line' => __LINE__, level => 1});
 	exit(0);
 }
 
@@ -1531,10 +1613,10 @@ sub shell_call
 {
 	my ($conf, $shell_call) = @_;
 	
-	   $shell_call  .= " 2>&1; ".$conf->{path}{exe}{echo}." return_code:\$?";
-	my $return_code =  9999;
-	my $output      =  "";
-	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
+	my $return_code = 9999;
+	my $output      = "";
+	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 3});
+	$shell_call .= " 2>&1; ".$conf->{path}{exe}{echo}." return_code:\$?";
 	open (my $file_handle, $shell_call." 2>&1 |") or to_log($conf, {message => "Failed to call: [".$shell_call."]. The error was: $!", 'line' => __LINE__, level => 0, priority => "err", exit_code => 1});
 	while(<$file_handle>)
 	{
