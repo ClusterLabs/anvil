@@ -114,7 +114,7 @@ Connecting to Database with configuration ID: [#!variable!id!#]
 		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!id!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
-		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the ID: [#!variable!id!#] did not respond to pings and 'database::#!variable!id!#::ping_before_connect' is not set to '0' in '#!data!path::configs::striker.conf!#', skipping it.</key>
+		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the ID: [#!variable!id!#] did not respond to pings and 'database::#!variable!id!#::ping' is not set to '0' in '#!data!path::configs::striker.conf!#', skipping it.</key>
 		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with ID: [#!variable!id!#] can not be used, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
