@@ -479,3 +479,9 @@ pcs resource manage srv01-c7
 ====
 
 Unrelated Notes;
+
+
+17:03 <@kgaillot> digimer: quick skim looks good. for metadata, <version> refers to OCF version, so 1.0; your RA version goes in <resource-agent ... version=...>. also on-fail/interval/depth are pacemaker properties, not part of the ocf 
+                  metadata
+17:05 <@kgaillot> digimer: also be aware that probes (monitor w/0 interval) can be done on nodes that aren't intended to run the resource, so it should return not running in that case (eg if necessary files don't exist). really this is 
+                  an issue that should be handled on the pacemaker side but it isn't currently

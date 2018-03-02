@@ -840,6 +840,10 @@ B<NOTE>: See C<< System->remote_call >> for additional information on specifying
 
 This is the host name or IP address of a remote machine that you want to run the ping on. This is used to test a remote machine's access to a given ping target.
 
+=head3 timeout (optional, default '1')
+
+This is how long we will wait for a ping to return, in seconds. Any real number is allowed (C<< 1 >> (one second), C<< 0.25 >> (1/4 second), etc). If set to C<< 0 >>, we will wait for the ping command to exit without limit.
+
 =cut
 sub ping
 {
@@ -862,6 +866,7 @@ sub ping
 	my $ping     = $parameter->{ping}     ? $parameter->{ping}     : "";
 	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
 	my $target   = $parameter->{target}   ? $parameter->{target}   : "";
+	my $timeout  = $parameter->{timeout}  ? $parameter->{timeout}  : 1;	# This sets the 'timeout' delay.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		count    => $count, 
 		fragment => $fragment, 
@@ -872,6 +877,14 @@ sub ping
 		target   => $target, 
 	}});
 	
+	# Was timeout specified as a simple integer?
+	if (($timeout !~ /^\d+$/) && ($timeout !~ /^\d+\.\d+$/))
+	{
+		# The timeout was invalid, switch it to 1
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
+		$timeout = 1;
+	}
+	
 	# If the payload was set, take 28 bytes off to account for ICMP overhead.
 	if ($payload)
 	{
@@ -881,7 +894,12 @@ sub ping
 	
 	# Build the call. Note that we use 'timeout' because if there is no connection and the hostname is 
 	# used to ping and DNS is not available, it could take upwards of 30 seconds time timeout otherwise.
-	my $shell_call = $anvil->data->{path}{exe}{timeout}." 1 ".$anvil->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
+	my $shell_call = "";
+	if ($timeout)
+	{
+		$shell_call = $anvil->data->{path}{exe}{timeout}." $timeout ";
+	}
+	$shell_call .= $anvil->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	if (not $fragment)
 	{

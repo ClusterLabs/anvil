@@ -551,20 +551,22 @@ sub configure_pgsql
 
 This method tries to connect to all databases it knows of. To define databases for a machine to connect to, load a configuration file with the following parameters;
 
- database::1::host			=	an-striker01.alteeve.com
- database::1::port			=	5432
- database::1::name			=	scancore
- database::1::user			=	admin
- database::1::password			=	Initial1
- database::1::ping_before_connect	=	1
+ database::1::host		=	an-striker01.alteeve.com
+ database::1::port		=	5432
+ database::1::name		=	scancore
+ database::1::user		=	admin
+ database::1::password		=	Initial1
+ database::1::ping		=	0.25
  
- database::2::host			=	an-striker02.alteeve.com
- database::2::port			=	5432
- database::2::name			=	scancore
- database::2::user			=	admin
- database::2::password			=	Initial1
- database::2::ping_before_connect	=	1
+ database::2::host		=	an-striker02.alteeve.com
+ database::2::port		=	5432
+ database::2::name		=	scancore
+ database::2::user		=	admin
+ database::2::password		=	Initial1
+ database::2::ping		=	0.25
 
+Please see the comments in /etc/anvil/anvil.conf for more information on how to use the above variables.
+ 
 The C<< 1 >> and C<< 2 >> are the IDs of the given databases. They can be any number and do not need to be sequential, they just need to be unique. 
 
 This module will return the number of databases that were successfully connected to. This makes it convenient to check and exit if no databases are available using a check like;
@@ -679,9 +681,9 @@ sub connect
 		}});
 		
 		# If not set, we will always ping before connecting.
-		if ((not exists $anvil->data->{database}{$id}{ping_before_connect}) or (not defined $anvil->data->{database}{$id}{ping_before_connect}))
+		if ((not exists $anvil->data->{database}{$id}{ping}) or (not defined $anvil->data->{database}{$id}{ping}))
 		{
-			$anvil->data->{database}{$id}{ping_before_connect} = 1;
+			$anvil->data->{database}{$id}{ping} = 1;
 		}
 		
 		# Make sure the user didn't specify the same target twice.
@@ -713,17 +715,22 @@ sub connect
 			password => $anvil->Log->secure ? $password : "--",
 		}});
 		
+		### TODO: Can we do a telnet port ping with a short timeout instead of a shell ping call?
+		
 		# Assemble my connection string
 		my $db_connect_string = "$driver:dbname=$name;host=$host;port=$port";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			db_connect_string                      => $db_connect_string, 
-			"database::${id}::ping_before_connect" => $anvil->data->{database}{$id}{ping_before_connect},
+			db_connect_string       => $db_connect_string, 
+			"database::${id}::ping" => $anvil->data->{database}{$id}{ping},
 		}});
-		#if ($anvil->data->{database}{$id}{ping_before_connect})
-		if (0)
+		if ($anvil->data->{database}{$id}{ping})
 		{
 			# Can I ping?
-			my ($pinged) = $anvil->System->ping({ping => $host, count => 1});
+			my ($pinged) = $anvil->System->ping({
+				ping    => $host, 
+				count   => 1,
+				timeout => $anvil->data->{database}{$id}{ping},
+			});
 			
 			my $ping_time = tv_interval ($start_time, [gettimeofday]);
 			print "[".$ping_time."] - Pinged: [$host:$port:$name:$user]\n";
@@ -731,7 +738,7 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pinged => $pinged }});
 			if (not $pinged)
 			{
-				# Didn't ping and 'database::<id>::ping_before_connect' not set. Record this 
+				# Didn't ping and 'database::<id>::ping' not set. Record this 
 				# in the failed connections array.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0063", variables => { 
 					host => $port ? $host.":".$port : $host,
