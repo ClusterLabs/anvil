@@ -120,8 +120,8 @@ sub get
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug     = 3;
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
@@ -287,8 +287,8 @@ sub select_form
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug     = 3;
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
 	my $options   = defined $parameter->{options}   ? $parameter->{options}   : "";
 	my $id        = defined $parameter->{id}        ? $parameter->{id}        : $name;
@@ -423,8 +423,8 @@ sub skin
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug = 3;
 	my $fatal = defined $parameter->{fatal} ? $parameter->{fatal} : 1;
 	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fatal => $fatal, set => $set }});

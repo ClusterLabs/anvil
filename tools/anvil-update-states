@@ -60,8 +60,7 @@ sub report_network
 		next if $file eq "..";
 		next if $file eq "lo";
 		my $full_path = "$directory/$file";
-		#print $THIS_FILE." ".__LINE__."; full_path: [".$full_path."]\n";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
@@ -72,11 +71,21 @@ sub report_network
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
 			my $operational = -e $full_path."/operstate" ? $anvil->Storage->read_file({file => $full_path."/operstate"}) : "unknown";	# up or down
 			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				interface   => $interface,
+				mac_address => $mac_address, 
+				link_state  => $link_state, 
+				mtu         => $mtu, 
+				duplex      => $duplex, 
+				operational => $operational, 
+				speed       => $speed, 
+			}});
 			if ($speed > 100000)
 			{
 				# NOTE: This is probably 0 now... Though someday >100 Gbps will be reasonable
 				#       and we'll need to change this.
 				$speed = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed => $speed }});
 			}
 			
 			# Find the media, if possible.

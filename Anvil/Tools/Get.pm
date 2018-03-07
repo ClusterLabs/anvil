@@ -111,8 +111,8 @@ sub anvil_version
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug    = $parameter->{debug}    ? $parameter->{debug}    : 2;
 	my $password = $parameter->{password} ? $parameter->{password} : "";
 	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
 	my $target   = $parameter->{target}   ? $parameter->{target}   : "local";
@@ -136,12 +136,15 @@ else
 fi;
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-		$version = $anvil->System->remote_call({
+		my ($error, $output) = $anvil->System->remote_call({
 			shell_call => $shell_call, 
 			target     => $target,
 			port       => $port, 
 			password   => $password,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+		
+		$version = defined $output->[0] ? $output->[0] : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
 	}
 	else
@@ -175,6 +178,7 @@ sub cgi
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# This will store all of the CGI variables.
 	$anvil->data->{sys}{cgi_string} = "?";
@@ -188,16 +192,16 @@ sub cgi
 	if (defined $cgi->param("cgi_list"))
 	{
 		my $cgi_list = $cgi->param("cgi_list");
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cgi_list => $cgi_list }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_list => $cgi_list }});
 		
 		foreach my $variable (split/,/, $cgi_list)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable => $variable }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
 			push @{$cgis}, $variable;
 		}
 		
 		$cgi_count = @{$cgis};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cgi_count => $cgi_count }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_count => $cgi_count }});
 	}
 	
 	# If we don't have at least one variable, we're done.
@@ -210,7 +214,7 @@ sub cgi
 	# Now read in the variables.
 	foreach my $variable (sort {$a cmp $b} @{$cgis})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable => $variable }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
 		
 		$anvil->data->{cgi}{$variable}{value}      = "";
 		$anvil->data->{cgi}{$variable}{mimetype}   = "string";
@@ -222,14 +226,14 @@ sub cgi
 			if (not $cgi->upload($variable))
 			{
 				# Empty file passed, looks like the user forgot to select a file to upload.
-				#$anvil->Log->entry({log_level => 3, message_key => "log_0016", file => $THIS_FILE, line => __LINE__});
+				#$anvil->Log->entry({log_level => $debug, message_key => "log_0016", file => $THIS_FILE, line => __LINE__});
 			}
 			else
 			{
 				   $anvil->data->{cgi}{$variable}{filehandle} = $cgi->upload($variable);
-				my $file                                   = $anvil->data->{cgi}{$variable}{filehandle};
+				my $file                                      = $anvil->data->{cgi}{$variable}{filehandle};
 				   $anvil->data->{cgi}{$variable}{mimetype}   = $cgi->uploadInfo($file)->{'Content-Type'};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					variable                       => $variable,
 					"cgi::${variable}::filehandle" => $anvil->data->{cgi}{$variable}{filehandle},
 					"cgi::${variable}::mimetype"   => $anvil->data->{cgi}{$variable}{mimetype},
@@ -243,12 +247,12 @@ sub cgi
 			if (Encode::is_utf8($cgi->param($variable)))
 			{
 				$anvil->data->{cgi}{$variable}{value} = $cgi->param($variable);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
 			}
 			else
 			{
 				$anvil->data->{cgi}{$variable}{value} = Encode::decode_utf8($cgi->param($variable));
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
 			}
 			
 			# Append to 'sys::cgi_string'
@@ -259,7 +263,6 @@ sub cgi
 	# This is a pretty way of displaying the passed-in CGI variables. It loops through all we've got and
 	# sorts out the longest variable name. Then it loops again, appending '.' to shorter ones so that 
 	# everything is lined up in the logs.
-	my $debug = 2;
 	if ($anvil->Log->level >= $debug)
 	{
 		my $longest_variable = 0;
@@ -308,7 +311,7 @@ sub cgi
 	
 	# Clear the last &
 	$anvil->data->{sys}{cgi_string} =~ s/&$//;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::cgi_string" => $anvil->data->{sys}{cgi_string} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::cgi_string" => $anvil->data->{sys}{cgi_string} }});
 	
 	return(0);
 }
@@ -347,6 +350,7 @@ sub date_and_time
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $offset    = defined $parameter->{offset}    ? $parameter->{offset}    : 0;
 	my $use_time  = defined $parameter->{use_time}  ? $parameter->{use_time}  : time;
@@ -423,8 +427,8 @@ sub host_uuid
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
@@ -515,6 +519,7 @@ sub md5sum
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $sum = "";
 	my $file = defined $parameter->{file} ? $parameter->{file} : "";
@@ -522,14 +527,14 @@ sub md5sum
 	if (-e $file)
 	{
 		my $shell_call = $anvil->data->{path}{exe}{md5sum}." ".$file;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		my $return = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
 		
 		# split the sum off.
 		$sum = ($return =~ /^(.*?)\s+$file$/)[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sum => $sum }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sum => $sum }});
 	}
 	
 	return($sum);
@@ -551,11 +556,12 @@ sub network_details
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $network      = {};
 	my $hostname     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
 	my $ip_addr_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." addr list"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		hostname     => $hostname, 
 		ip_addr_list => $ip_addr_list,
 	}});
@@ -566,13 +572,13 @@ sub network_details
 	my $subnet_mask  = "";
 	foreach my $line (split/\n/, $ip_addr_list)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line =~ /^\d+: (.*?):/)
 		{
 			$in_interface = $1;
 			$ip_address   = "";
 			$subnet_mask  = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { in_interface => $in_interface }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_interface => $in_interface }});
 			next if $in_interface eq "lo";
 			$network->{interface}{$in_interface}{ip}      = "--";
 			$network->{interface}{$in_interface}{netmask} = "--";
@@ -584,7 +590,7 @@ sub network_details
 			{
 				$ip_address   = $1;
 				$subnet_mask  = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					ip_address  => $ip_address,
 					subnet_mask => $subnet_mask, 
 				}});
@@ -592,7 +598,7 @@ sub network_details
 				if ((($subnet_mask =~ /^\d$/) or ($subnet_mask =~ /^\d\d$/)) && ($subnet_mask < 25))
 				{
 					$subnet_mask = $anvil->Convert->cidr({cidr => $subnet_mask});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { subnet_mask => $subnet_mask }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet_mask => $subnet_mask }});
 				}
 				$network->{interface}{$in_interface}{ip}      = $ip_address;
 				$network->{interface}{$in_interface}{netmask} = $subnet_mask;
@@ -620,8 +626,10 @@ Anything after 'C<< -- >>' is treated as a raw string and is not processed.
 =cut
 sub switches
 {
-	my $self = shift;
-	my $anvil   = $self->parent;
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $last_argument = "";
 	foreach my $argument (@ARGV)
@@ -696,24 +704,25 @@ sub users_home
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $home_directory = 0;
 	
 	my $user = $parameter->{user} ? $parameter->{user} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	
 	# Make sure the user is only one digit. Sometimes $< (and others) will return multiple IDs.
 	if ($user =~ /^\d+ \d$/)
 	{
 		$user =~ s/^(\d+)\s.*$/$1/;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	}
 	
 	# If the user is numerical, convert it to a name.
 	if ($user =~ /^\d+$/)
 	{
 		$user = getpwuid($user);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	}
 	
 	# Still don't have a name? fail...
@@ -725,14 +734,14 @@ sub users_home
 	}
 	
 	my $body = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{passwd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
 	foreach my $line (split /\n/, $body)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line =~ /^$user:/)
 		{
 			$home_directory = (split/:/, $line)[5];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { home_directory => $home_directory }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { home_directory => $home_directory }});
 			last;
 		}
 	}
@@ -743,7 +752,7 @@ sub users_home
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0061", variables => { user => $user }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { home_directory => $home_directory }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { home_directory => $home_directory }});
 	return($home_directory);
 }
 
@@ -754,12 +763,14 @@ This method returns a new UUID (using 'uuidgen' from the system). It takes no pa
 =cut
 sub uuid
 {
-	my $self = shift;
-	my $anvil   = $self->parent;
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	### TODO: System calls are slow, find a pure-perl UUID generator
 	my $uuid = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uuidgen}." --random"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { uuid => $uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
 	return($uuid);
 }

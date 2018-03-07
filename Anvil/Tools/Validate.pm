@@ -124,9 +124,9 @@ sub form_field
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $valid    = 1;
-	my $debug    = 3;
 	my $name     = defined $parameter->{name}     ? $parameter->{name}     : "";
 	my $type     = defined $parameter->{type}     ? $parameter->{type}     : "";
 	my $empty_ok = defined $parameter->{empty_ok} ? $parameter->{empty_ok} : 0;
@@ -234,9 +234,9 @@ sub is_alphanumeric
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $valid  = 1;
-	my $debug  = 3;
 	my $string = defined $parameter->{string} ? $parameter->{string} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
 	
@@ -278,9 +278,9 @@ sub is_domain_name
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $valid = 1;
-	my $debug = 3;
 	my $name  = $parameter->{name} ? $parameter->{name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
 	
@@ -322,9 +322,9 @@ sub is_ipv4
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug = 3;
-	my $ip    = defined $parameter->{ip} ? $parameter->{ip} : "";
+	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 	
 	my $valid = 1;
@@ -379,9 +379,9 @@ sub is_mac
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug = 3;
-	my $mac   = defined $parameter->{mac} ? $parameter->{mac} : "";
+	my $mac = defined $parameter->{mac} ? $parameter->{mac} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac => $mac }});
 	
 	my $valid = 0;
@@ -424,8 +424,8 @@ sub is_positive_integer
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $debug  = 3;
 	my $valid  = 1;
 	my $number = defined $parameter->{number} ? $parameter->{number} : "";
 	my $zero   = defined $parameter->{zero}   ? $parameter->{zero}   : 0;
@@ -470,9 +470,9 @@ sub is_subnet
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $valid  = 0;
-	my $debug  = 3;
 	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet => $subnet }});
 	
@@ -532,6 +532,7 @@ sub is_uuid
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $uuid  = defined $parameter->{uuid} ? $parameter->{uuid} : 0;
 	my $valid = 0;

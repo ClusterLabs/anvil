@@ -136,7 +136,7 @@ The database connection error was:
 		<key name="log_0071">Successfully Connected to the database: [#!variable!name!#] (id: [#!variable!id!#]) on host: [#!variable!host!#:#!variable!port!#].</key>
 		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
 		<key name="log_0073"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
-		<key name="log_0074">About to query: [#!variable!id!#]:[#!variable!query!#]</key>
+		<key name="log_0074">About to run: [#!variable!id!#]:[#!variable!query!#]</key>
 		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0077"><![CDATA[[ Error ] - The method Database->initialize() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
@@ -239,7 +239,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">Striker</key>
 		<key name="brand_0004">ScanCore</key>
-		<key name="brand_0005"><![CDATA[&copy; 2017 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 2018 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -334,7 +334,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">ストライカ</key>
 		<key name="brand_0004">スカンコア</key>
-		<key name="brand_0005"><![CDATA[&copy; 2017 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, トロント、オンタリオ、カナダ]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 2018 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, トロント、オンタリオ、カナダ]]></key>
 		
 	</language>
 </words>

@@ -98,15 +98,16 @@ sub add_commas
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Now see if the user passed the values in a hash reference or directly.
 	my $number = defined $parameter->{number} ? $parameter->{number} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { number => $number }});
 	
 	# Remove any existing commands or leading '+' signs.
 	$number =~ s/,//g;
 	$number =~ s/^\+//g;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { number => $number }});
 	
 	# Split on the left-most period.
 	my ($whole, $decimal) = split/\./, $number, 2;
@@ -116,7 +117,7 @@ sub add_commas
 	# Now die if either number has a non-digit character in it.
 	if (($whole =~ /\D/) or ($decimal =~ /\D/))
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { number => $number }});
 		return ($number);
 	}
 	
@@ -128,7 +129,7 @@ sub add_commas
 	# Put it together
 	$number = $decimal ? "$whole.$decimal" : $whole;
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { number => $number }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { number => $number }});
 	return ($number);
 }
 
@@ -184,12 +185,13 @@ sub bytes_to_human_readable
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Now see if the user passed the values in a hash reference or directly.
 	my $size  = defined $parameter->{'bytes'} ? $parameter->{'bytes'}  : 0;
 	my $unit  = defined $parameter->{unit}    ? uc($parameter->{unit}) : "";
 	my $base2 = defined $parameter->{base2}   ? $parameter->{base2}    : $anvil->data->{sys}{use_base2};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		size   => $size, 
 		unit   => $unit, 
 		base2  => $base2, 
@@ -511,11 +513,12 @@ sub cidr
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $cidr   = defined $parameter->{cidr}   ? $parameter->{cidr}   : "";
 	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
 	my $output = "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		cidr   => $cidr, 
 		subnet => $subnet, 
 	}});
@@ -594,7 +597,7 @@ sub cidr
 		elsif ($subnet eq "255.255.255.255" ) { $output = "32"; }
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	return($output);
 }
 
@@ -614,10 +617,11 @@ sub hostname_to_ip
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $hostname = defined $parameter->{hostname} ? $parameter->{hostname} : "";
 	my $ip       = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hostname => $hostname }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hostname => $hostname }});
 	
 	if (not $hostname)
 	{
@@ -629,14 +633,14 @@ sub hostname_to_ip
 	
 	# Try to resolve it using 'gethostip'.
 	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{gethostip}." -d $hostname"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($anvil->Validate->is_ipv4({ip => $line}))
 		{
 			$ip = $line;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip => $ip }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 		}
 	}
 	
@@ -677,12 +681,13 @@ sub human_readable_to_bytes
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $base2  =  defined $parameter->{base2}  ? $parameter->{base2}  : 0;
 	my $base10 =  defined $parameter->{base10} ? $parameter->{base10} : 0;
 	my $size   =  defined $parameter->{size}   ? $parameter->{size}   : 0;
 	my $type   =  defined $parameter->{type}   ? $parameter->{type}   : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		base2  => $base2,
 		base10 => $base10,
 		size   => $size,
@@ -693,7 +698,7 @@ sub human_readable_to_bytes
 	my $value  =  $size;
 	   $size   =~ s/ //g;
 	   $type   =~ s/ //g;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { size => $size, value => $value }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { size => $size, value => $value }});
 	
 	# Store and strip the sign, if passed
 	my $sign = "";
@@ -710,7 +715,7 @@ sub human_readable_to_bytes
 	
 	# Strip any commas
 	$size =~ s/,//g;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { size => $size, sign => $sign }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { size => $size, sign => $sign }});
 	
 	# If I don't have a passed type, see if there is a letter or letters after the size to hack off.
 	if ((not $type) && ($size =~ /[a-zA-Z]$/))
@@ -720,7 +725,7 @@ sub human_readable_to_bytes
 	}
 	# Make the type lower close for simplicity.
 	$type = lc($type);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { size => $size, type => $type }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { size => $size, type => $type }});
 	
 	# Make sure that 'size' is now an integer or float.
 	if ($size !~ /\d+[\.\d+]?/)
@@ -776,7 +781,7 @@ sub human_readable_to_bytes
 	
 	# Clear up the last characters now.
 	$type =~ s/^(\w).*/$1/;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
 	
 	# Check if we have a valid type.
 	if (($type ne "p") && 
@@ -799,7 +804,7 @@ sub human_readable_to_bytes
 	
 	# Now the magic... lame magic, true, but still.
 	my $bytes = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { base2 => $base2, base10 => $base10 }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base2 => $base2, base10 => $base10 }});
 	if ($base10)
 	{
 		if    ($type eq "y") { $bytes = Math::BigInt->new('10')->bpow('24')->bmul($size); }	# Yottabyte
@@ -810,7 +815,7 @@ sub human_readable_to_bytes
 		elsif ($type eq "g") { $bytes = ($size * (10 ** 9)) }					# Gigabyte
 		elsif ($type eq "m") { $bytes = ($size * (10 ** 6)) }					# Megabyte
 		elsif ($type eq "k") { $bytes = ($size * (10 ** 3)) }					# Kilobyte
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'bytes' => $bytes }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'bytes' => $bytes }});
 	}
 	else
 	{
@@ -822,7 +827,7 @@ sub human_readable_to_bytes
 		elsif ($type eq "g") { $bytes = ($size * (2 ** 30)) }					# Gibibyte
 		elsif ($type eq "m") { $bytes = ($size * (2 ** 20)) }					# Mebibyte
 		elsif ($type eq "k") { $bytes = ($size * (2 ** 10)) }					# Kibibyte
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'bytes' => $bytes }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'bytes' => $bytes }});
 	}
 	
 	# Last, round off the byte size if it is a float.
@@ -839,7 +844,7 @@ sub human_readable_to_bytes
 		$bytes = $sign.$bytes;
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'bytes' => $bytes }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'bytes' => $bytes }});
 	return ($bytes);
 }
 
@@ -865,11 +870,12 @@ sub round
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup my numbers.
 	my $number = $parameter->{number} ? $parameter->{number} : 0;
 	my $places = $parameter->{places} ? $parameter->{places} : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		number => $number,
 		places => $places,
 	}});

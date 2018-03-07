@@ -105,6 +105,7 @@ sub clean_spaces
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup default values
 	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
@@ -166,6 +167,7 @@ sub key
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup default values
 	my $key      = defined $parameter->{key}      ? $parameter->{key}      : "";
@@ -224,6 +226,7 @@ sub language
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	
@@ -270,11 +273,12 @@ sub read
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup default values
 	my $return_code = 0;
 	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
 	
 	if (not $file)
 	{
@@ -312,7 +316,7 @@ sub read
 		}
 		else
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0028", variables => { file => $file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0028", variables => { file => $file }});
 		}
 	}
 	
@@ -394,6 +398,7 @@ sub string
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup default values
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";

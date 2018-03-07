@@ -277,9 +277,13 @@ CREATE TRIGGER trigger_variables
 CREATE TABLE jobs (
     job_uuid           uuid                        not null    primary key,    -- 
     job_host_uuid      uuid                        not null,                   -- This is the host that requested the job
-    job_type           text                        not null,                   -- This indicates which daemon should run this job ('normal' = anvil_daemon, 'slow' = anvil_jobs)
+    job_command        text                        not null,                   -- This is the command to run (usually a shell call).
+    job_data           text,                                                   -- This is optional data to be used by anvil-data 
+    job_picked_up_by   numeric                     not null    default 0,      -- This is the PID of the 'anvil-jobs' script that picked up the job.
+    job_picked_up_at   numeric                     not null    default 0,      -- This is unix timestamp of when the job was picked up.
+    job_updated        numeric                     not null    default 0,      -- This is unix timestamp that is perdiodically updated for jobs that take a long time. It is used to help determine when a job is hung.
     job_name           text                        not null,                   -- This is the 'x::y::z' style job name.
-    job_progress       numeric                     not null,                   -- An "approximate" percentage completed
+    job_progress       numeric                     not null,                   -- An approximate percentage completed. Useful for jobs that that a while and are able to provide data for progress bars. When set to '100', the job is considered completed.
     job_title          text                        not null,                   -- This is a word key for the title of this job
     job_description    text                        not null,                   -- This is a word key that describes this job.
     modified_date      timestamp with time zone    not null,
@@ -292,7 +296,11 @@ CREATE TABLE history.jobs (
     history_id         bigserial,
     job_uuid           uuid,
     job_host_uuid      uuid,
-    job_type           text,
+    job_command        text,
+    job_data           text,
+    job_picked_up_by   numeric,
+    job_picked_up_at   numeric,
+    job_updated        numeric,
     job_name           text,
     job_progress       numeric,
     job_title          text,
@@ -310,7 +318,11 @@ BEGIN
     INSERT INTO history.jobs
         (job_uuid, 
          job_host_uuid, 
-         job_type, 
+         job_command, 
+         job_data, 
+         job_picked_up_by, 
+         job_picked_up_at, 
+         job_updated, 
          job_name, 
          job_progress, 
          job_title, 
@@ -319,7 +331,11 @@ BEGIN
     VALUES
         (history_jobs.job_uuid,
          history_jobs.job_host_uuid, 
-         history_jobs.job_type, 
+         history_jobs.job_command, 
+         history_jobs.job_data, 
+         history_jobs.job_picked_up_by, 
+         history_jobs.job_picked_up_at, 
+         history_jobs.job_updated, 
          history_jobs.job_name, 
          history_jobs.job_progress, 
          history_jobs.job_title, 

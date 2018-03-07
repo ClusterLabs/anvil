@@ -131,6 +131,11 @@ subscription-manager repos --enable=rhel-ha-for-rhel-7-server-rpms
 subscription-manager repos --enable=rhel-7-server-optional-rpms
 * Packages to install;
 
+*** DASHBOARDS
+rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
+yum install perl-CGI perl-DBD-Pg perl-DBI perl-Log-Journald perl-Net-SSH2 perl-NetAddr-IP perl-XML-Simple postgresql-contrib postgresql-plperl postgresql-server rsync 
+
+*** NODES
 rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
 yum install bash-completion bind-utils bridge-utils drbd drbd-bash-completion drbd-kernel drbd-utils fence-agents-all fence-agents-virsh gpm kernel-doc kmod-drbd libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper perl-JSON perl-XML-Simple qemu-kvm qemu-kvm-common qemu-kvm-tools rsync screen vim virt-install
 
@@ -477,11 +482,3 @@ pcs resource manage srv01-c7
 
 
 ====
-
-Unrelated Notes;
-
-
-17:03 <@kgaillot> digimer: quick skim looks good. for metadata, <version> refers to OCF version, so 1.0; your RA version goes in <resource-agent ... version=...>. also on-fail/interval/depth are pacemaker properties, not part of the ocf 
-                  metadata
-17:05 <@kgaillot> digimer: also be aware that probes (monitor w/0 interval) can be done on nodes that aren't intended to run the resource, so it should return not running in that case (eg if necessary files don't exist). really this is 
-                  an issue that should be handled on the pacemaker side but it isn't currently

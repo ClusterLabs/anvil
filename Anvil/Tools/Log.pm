@@ -223,7 +223,8 @@ sub entry
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self->parent;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Log->language;
@@ -330,10 +331,10 @@ sub language
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self->parent;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 0;
 	
 	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
-	my $debug = 0;
 	print $THIS_FILE." ".__LINE__."; set: [$set]\n" if $debug;
 	
 	if ($set)
@@ -370,10 +371,10 @@ sub level
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self->parent;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 0;
 	
 	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
-	my $debug = 0;
 	print $THIS_FILE." ".__LINE__."; set: [".$set."]\n" if $debug;
 	
 	if (($set =~ /^\d$/) && ($set >= 0) && ($set <= 4))
@@ -446,10 +447,10 @@ sub secure
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self->parent;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 0;
 	
-	my $set   = defined $parameter->{set} ? $parameter->{set} : "";
-	my $debug = 0;
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	
 	if (defined $set)
 	{
@@ -506,7 +507,8 @@ sub variables
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self->parent;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->data->{defaults}{'log'}{language};
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
@@ -624,7 +626,8 @@ sub _adjust_log_level
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self->parent;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	if ($anvil->data->{switches}{V})
 	{

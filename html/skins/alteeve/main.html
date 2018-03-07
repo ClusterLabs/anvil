@@ -251,6 +251,7 @@
 									#!variable!organization!#
 								</td>
 							</tr>
+							<input type="hidden" name="organization" id="organization" value="#!variable!organization!#">
 							<!-- Domain name -->
 							<tr>
 								<td class="column_row_name">
@@ -260,6 +261,7 @@
 									#!variable!domain!#
 								</td>
 							</tr>
+							<input type="hidden" name="domain" id="domain" value="#!variable!domain!#">
 							<!-- User -->
 							<tr>
 								<td class="column_row_name">
@@ -291,8 +293,13 @@
 					</td>
 				</tr>
 				<!-- NOTE: For now, we support only one BCN in the web UI, but the system will be ready for N-number later. -->
-				<input type="hidden" name="step"     id="step"     value="step3">
-				<input type="hidden" name="cgi_list" id="cgi_list" value="next,step,#!variable!cgi_list!#">
+				<input type="hidden" name="step"      id="step"      value="step3">
+				<input type="hidden" name="cgi_list"  id="cgi_list"  value="next,step,#!variable!cgi_list!#">
+				<input type="hidden" name="prefix"    id="prefix"    value="#!variable!prefix!#">
+				<input type="hidden" name="sequence"  id="sequence"  value="#!variable!sequence!#">
+				<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
+				<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
+				
 				</form>
 				</div>
 			</table>
@@ -315,6 +322,8 @@
 									#!variable!ip_address!#
 								</td>
 							</tr>
+							<input type="hidden" name="ip"     id="ip"     value="#!variable!ip!#">
+							<input type="hidden" name="subnet" id="subnet" value="#!variable!subnet!#">
 							<tr>
 								<td>
 									&nbsp; &bull; #!string!striker_0029!#:
@@ -394,7 +403,7 @@
 								</td>
 							</tr>
 							<tr>
-								<td class="column_subrow_name">
+								<td>
 									&nbsp; &bull; #!string!striker_0024!#:
 								</td>
 								<td class="column_row_value_fixed">
@@ -402,7 +411,7 @@
 								</td>
 							</tr>
 							<tr>
-								<td class="column_subrow_name">
+								<td>
 									&nbsp; &bull; #!string!striker_0028!#:
 								</td>
 								<td class="column_row_value_fixed">
@@ -421,7 +430,7 @@
 								</td>
 							</tr>
 							<tr>
-								<td class="column_subrow_name">
+								<td>
 									&nbsp; &bull; #!string!striker_0024!#:
 								</td>
 								<td class="column_row_value_fixed">
@@ -429,7 +438,7 @@
 								</td>
 							</tr>
 							<tr>
-								<td class="column_subrow_name">
+								<td>
 									&nbsp; &bull; #!string!striker_0026!#:
 								</td>
 								<td class="column_row_value_fixed">
@@ -437,7 +446,7 @@
 								</td>
 							</tr>
 							<tr>
-								<td class="column_subrow_name">
+								<td>
 									&nbsp; &bull; #!string!striker_0027!#:
 								</td>
 								<td class="column_row_value_fixed">
@@ -445,7 +454,7 @@
 								</td>
 							</tr>
 							<tr>
-								<td class="column_subrow_name">
+								<td>
 									&nbsp; &bull; #!string!striker_0028!#:
 								</td>
 								<td class="column_row_value_fixed">

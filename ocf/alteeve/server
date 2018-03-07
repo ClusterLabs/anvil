@@ -1682,8 +1682,8 @@ sub show_metadata
 	# This is a pretty simple agent, by design. We only take a server name for now.
 	print '<?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
-<resource-agent name="ocs:alteeve:server">
-  <version>0.1</version>
+<resource-agent name="ocs:alteeve:server" version="0.1">
+  <version>1.0</version>
   <longdesc lang="en">
 This resource agent manages KVM+qemu virtual servers on an Anvil! m3 Intelligent Availability(tm) system. 
 It manages underlying components like DRBD 9 storage resources, brodge connections and so forth.
@@ -1700,8 +1700,8 @@ It manages underlying components like DRBD 9 storage resources, brodge connectio
   </parameters>
   <actions>
     <action name="start"        timeout="30" />
-    <action name="stop"         timeout="60" on-fail="block"/>
-    <action name="monitor"      timeout="10" interval="10" depth="0" />
+    <action name="stop"         timeout="60" />
+    <action name="monitor"      timeout="10" />
     <action name="notify"       timeout="20" />
     <action name="migrate_to"   timeout="600" />
     <action name="migrate_from" timeout="600" />

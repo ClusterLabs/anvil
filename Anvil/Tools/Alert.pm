@@ -112,15 +112,15 @@ sub check_alert_sent
 {
 	my $self      = shift;
 	my $parameter = shift;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $anvil     = $self->parent;
 	
-	my $debug          = defined $parameter->{debug}          ? $parameter->{debug}          : 3;
 	my $modified_date  = defined $parameter->{modified_date}  ? $parameter->{modified_date}  : $anvil->data->{sys}{db_timestamp};
 	my $name           = defined $parameter->{name}           ? $parameter->{name}           : "";
 	my $record_locator = defined $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = defined $parameter->{set_by}         ? $parameter->{set_by}         : "";
 	my $type           = defined $parameter->{type}           ? $parameter->{type}           : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		modified_date  => $modified_date, 
 		name           => $name, 
 		record_locator => $record_locator, 
@@ -294,6 +294,7 @@ sub register_alert
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	
 	my $header            = defined $parameter->{header}            ? $parameter->{header}            : 1;
 	my $level             = defined $parameter->{level}             ? $parameter->{level}             : "warning";
@@ -303,7 +304,7 @@ sub register_alert
 	my $sort              = defined $parameter->{'sort'}            ? $parameter->{'sort'}            : 9999;
 	my $title_key         = defined $parameter->{title_key}         ? $parameter->{title_key}         : "title_0003";
 	my $title_variables   = defined $parameter->{title_variables}   ? $parameter->{title_variables}   : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		header            => $header,
 		level             => $level, 
 		message_key       => $message_key, 
@@ -332,7 +333,7 @@ sub register_alert
 	
 	# zero-pad sort numbers so that they sort properly.
 	$sort = sprintf("%04d", $sort);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_sort => $sort }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_sort => $sort }});
 	
 	# Convert the hash of title variables and message variables into '!!x!y!!,!!a!b!!,...' strings.
 	if (ref($title_variables) eq "HASH")
@@ -368,34 +369,34 @@ sub register_alert
 		{
 			# Email recipient
 			$this_level = ($anvil->data->{alerts}{recipient}{$integer}{email} =~ /level="(.*?)"/)[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_level => $this_level }});
 		}
 		elsif ($anvil->data->{alerts}{recipient}{$integer}{file})
 		{
 			# File target
 			$this_level = ($anvil->data->{alerts}{recipient}{$integer}{file} =~ /level="(.*?)"/)[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_level => $this_level }});
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_level => $this_level }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_level => $this_level }});
 		if ($this_level)
 		{
 			$this_level = $anvil->Alert->convert_level_name_to_number({level => $this_level});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				this_level       => $this_level,
 				lowest_log_level => $lowest_log_level,
 			}});
 			if ($this_level < $lowest_log_level)
 			{
 				$lowest_log_level = $this_level;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lowest_log_level => $lowest_log_level }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lowest_log_level => $lowest_log_level }});
 			}
 		}
 	}
 	
 	# Now get the numeric value of this alert and return if it is higher.
 	my $this_level = $anvil->Alert->convert_level_name_to_number({level => $level});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		alert_level      => $level,
 		this_level       => $this_level,
 		lowest_log_level => $lowest_log_level,
@@ -403,7 +404,7 @@ sub register_alert
 	if ($this_level > $lowest_log_level)
 	{
 		# Return.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0102", variables => { message_key => $message_key }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0102", variables => { message_key => $message_key }});
 		return(0);
 	}
 	
@@ -437,7 +438,7 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	
 	return(0);
@@ -453,7 +454,8 @@ sub error
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-# 	$anvil->Log->entry({log_level => 2, title_key => "tools_log_0001", title_variables => { function => "error" }, message_key => "tools_log_0002", file => $THIS_FILE, line => __LINE__});
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+# 	$anvil->Log->entry({log_level => $debug, title_key => "tools_log_0001", title_variables => { function => "error" }, message_key => "tools_log_0002", file => $THIS_FILE, line => __LINE__});
 # 	
 # 	# Setup default values
 # 	my $title_key         = $parameter->{title_key}         ? $parameter->{title_key}         : $anvil->String->get({key => "an_0004"});

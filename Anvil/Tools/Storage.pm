@@ -111,10 +111,11 @@ sub change_mode
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	my $mode   = defined $parameter->{mode}   ? $parameter->{mode}   : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target => $target,
 		mode   => $mode,
 	}});
@@ -142,13 +143,13 @@ sub change_mode
 	if (not $error)
 	{
 		my $shell_call = $anvil->data->{path}{exe}{'chmod'}." $mode $target";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
 		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0017", variables => { line => $line }});
 		}
 		close $file_handle;
 	}
@@ -184,11 +185,11 @@ sub change_owner
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	my $group  = defined $parameter->{group}  ? $parameter->{group}  : "";
 	my $user   = defined $parameter->{user}   ? $parameter->{user}   : "";
-	my $debug  = 3;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target => $target,
 		group  => $group,
@@ -261,6 +262,7 @@ sub check_md5sums
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# We'll set this if anything has changed.
 	my $exit   = 0;
@@ -268,7 +270,7 @@ sub check_md5sums
 	
 	# Have we changed?
 	$anvil->data->{md5sum}{$caller}{now} = $anvil->Get->md5sum({file => $0});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"md5sum::${caller}::start_time" => $anvil->data->{md5sum}{$caller}{start_time},
 		"md5sum::${caller}::now"        => $anvil->data->{md5sum}{$caller}{now},
 	}});
@@ -285,14 +287,14 @@ sub check_md5sums
 	{
 		my $module_file = $INC{$module};
 		my $module_sum  = $anvil->Get->md5sum({file => $module_file});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			module      => $module,
 			module_file => $module_file, 
 			module_sum  => $module_sum,
 		}});
 		
 		$anvil->data->{md5sum}{$module_file}{now} = $module_sum;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time},
 			"md5sum::${module_file}::now"        => $anvil->data->{md5sum}{$module_file}{now},
 		}});
@@ -308,13 +310,13 @@ sub check_md5sums
 	foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{words}})
 	{
 		my $words_sum = $anvil->Get->md5sum({file => $file});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			file      => $file,
 			words_sum => $words_sum, 
 		}});
 		
 		$anvil->data->{md5sum}{$file}{now} = $words_sum;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"md5sum::${file}::start_time" => $anvil->data->{md5sum}{$file}{start_time}, 
 			"md5sum::${file}::now"        => $anvil->data->{md5sum}{$file}{now}, 
 		}});
@@ -326,7 +328,7 @@ sub check_md5sums
 	}
 	
 	# Exit?
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'exit' => $exit }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'exit' => $exit }});
 	return($exit);
 }
 
@@ -361,11 +363,12 @@ sub copy_file
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
 	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
 	my $target    = defined $parameter->{target}    ? $parameter->{target}    : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		overwrite => $overwrite,
 		source    => $source, 
 		target    => $target,
@@ -402,7 +405,7 @@ sub copy_file
 	
 	# Make sure the target directory exists and create it, if not.
 	my ($directory, $file) = ($target =~ /^(.*)\/(.*)$/);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		directory => $directory, 
 		file      => $file,
 	}});
@@ -418,7 +421,7 @@ sub copy_file
 	
 	# Now backup the file.
 	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'cp'}." -af $source $target"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	
 	return(0);
 }
@@ -452,9 +455,9 @@ sub find
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 0;
 	
 	# WARNING: Don't call Log from here! It causes it to abort
-	my $debug = 0;
 	my $file  = defined $parameter->{file}  ? $parameter->{file}  : "";
 	print $THIS_FILE." ".__LINE__."; [ Debug] - file: [$file]\n" if $debug;
 	
@@ -527,12 +530,13 @@ sub make_directory
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $directory = defined $parameter->{directory} ? $parameter->{directory} : "";
 	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
 	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
 	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		directory => $directory,
 		group     => $group, 
 		mode      => $mode,
@@ -542,7 +546,7 @@ sub make_directory
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		group     => $group, 
 		user      => $user,
 	}});
@@ -554,18 +558,18 @@ sub make_directory
 		next if not $this_directory;
 		$working_directory .= "/$this_directory";
 		$working_directory =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { working_directory => $working_directory }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { working_directory => $working_directory }});
 		if (not -e $working_directory)
 		{
 			# Directory doesn't exist, so create it.
 			my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." ".$working_directory;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0011", variables => { shell_call => $shell_call }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
 			open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 			while(<$file_handle>)
 			{
 				chomp;
 				my $line = $_;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0017", variables => { line => $line }});
 			}
 			close $file_handle;
 			
@@ -632,11 +636,12 @@ sub read_config
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup default values
 	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
 	my $return_code = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
 	
 	if (not $file)
 	{
@@ -651,12 +656,12 @@ sub read_config
 		# Find the file, if possible. If not found, we'll not alter what the user passed in and hope
 		# it is relative to where we are.
 		my $path = $anvil->Storage->find({ file => $file });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { path => $path }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { path => $path }});
 		if ($path ne "#!not_found!#")
 		{
 			# Update the file
 			$file = $path;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
 		}
 	}
 	
@@ -741,12 +746,13 @@ sub read_file
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $body       = "";
 	my $cache      = defined $parameter->{cache}      ? $parameter->{cache}      : 1;
 	my $file       = defined $parameter->{file}       ? $parameter->{file}       : "";
 	my $force_read = defined $parameter->{force_read} ? $parameter->{force_read} : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		cache      => $cache, 
 		file       => $file,
 		force_read => $force_read, 
@@ -773,19 +779,19 @@ sub read_file
 	{
 		# Use the cache
 		$body = $anvil->data->{cache}{file}{$file};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
 	}
 	else
 	{
 		# Read from disk.
 		my $shell_call = $file;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0012", variables => { shell_call => $shell_call }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0012", variables => { shell_call => $shell_call }});
 		open (my $file_handle, "<", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
 		{
 			chomp;
 			my $line = $_;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0023", variables => { line => $line }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
 			$body .= $line."\n";
 		}
 		close $file_handle;
@@ -794,11 +800,11 @@ sub read_file
 		if ($cache)
 		{
 			$anvil->data->{cache}{file}{$file} = $body;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::file::$file" => $anvil->data->{cache}{file}{$file} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::file::$file" => $anvil->data->{cache}{file}{$file} }});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
 	return($body);
 }
 
@@ -822,8 +828,8 @@ sub read_mode
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 1;
 	
-	my $debug  = 1;
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
 	
@@ -870,35 +876,36 @@ sub record_md5sums
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $caller = $0;
 	$anvil->data->{md5sum}{$caller}{start_time} = $anvil->Get->md5sum({file => $0});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "md5sum::${caller}::start_time" => $anvil->data->{md5sum}{$caller}{start_time} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${caller}::start_time" => $anvil->data->{md5sum}{$caller}{start_time} }});
 	foreach my $module (sort {$a cmp $b} keys %INC)
 	{
 		my $module_file = $INC{$module};
 		my $module_sum  = $anvil->Get->md5sum({file => $module_file});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			module      => $module,
 			module_file => $module_file, 
 			module_sum  => $module_sum,
 		}});
 		
 		$anvil->data->{md5sum}{$module_file}{start_time} = $module_sum;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time} }});
 	}
 	
 	# Record sums for word files.
 	foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{words}})
 	{
 		my $words_sum = $anvil->Get->md5sum({file => $file});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			file      => $file,
 			words_sum => $words_sum, 
 		}});
 		
 		$anvil->data->{md5sum}{$file}{start_time} = $words_sum;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "md5sum::${file}::start_time" => $anvil->data->{md5sum}{$file}{start_time} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${file}::start_time" => $anvil->data->{md5sum}{$file}{start_time} }});
 	}
 	
 	return(0);
@@ -928,6 +935,7 @@ sub search_directories
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Set a default if nothing was passed.
 	my $array      = defined $parameter->{directories} ? $parameter->{directories} : "";
@@ -1003,7 +1011,7 @@ sub search_directories
 	# Debug
 	foreach my $directory (@{$self->{SEARCH_DIRECTORIES}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
 	}
 	
 	return ($self->{SEARCH_DIRECTORIES});
@@ -1055,6 +1063,7 @@ sub write_file
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $body      = defined $parameter->{body}      ? $parameter->{body}      : "";
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
@@ -1063,7 +1072,7 @@ sub write_file
 	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : "";
 	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
 		body      => $body,
 		file      => $file,
 		group     => $group, 
@@ -1076,7 +1085,7 @@ sub write_file
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		group     => $group, 
 		user      => $user,
 	}});
@@ -1100,7 +1109,7 @@ sub write_file
 	{
 		# Break the directory off the file.
 		my ($directory, $file_name) = ($file =~ /^(\/.*)\/(.*)$/);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			directory => $directory,
 			file_name => $file_name,
 		}});
@@ -1120,7 +1129,7 @@ sub write_file
 		if ($secure)
 		{
 			my $shell_call = $anvil->data->{path}{exe}{touch}." ".$file;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			
 			$anvil->System->call({shell_call => $shell_call});
 			$anvil->Storage->change_mode({target => $file, mode => $mode});
@@ -1128,7 +1137,7 @@ sub write_file
 		
 		# Now write the file.
 		my $shell_call = $file;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
 		open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
 		print $file_handle $body;
 		close $file_handle;
