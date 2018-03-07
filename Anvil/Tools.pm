@@ -122,6 +122,8 @@ sub new
 			TEMPLATE			=>	Anvil::Tools::Template->new(),
 			WORDS				=>	Anvil::Tools::Words->new(),
 			VALIDATE			=>	Anvil::Tools::Validate->new(),
+			# This is to be removed before development ends.
+			log_file			=>	"",
 		},
 		DATA				=>	{},
 		ENV_VALUES			=>	{
@@ -338,6 +340,13 @@ sub nice_exit
 		's3:run_time'               => $run_time, 
 	}});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { runtime => $run_time }});
+	
+	# Close the log file.
+	if ($anvil->{HANDLE}{log_file})
+	{
+		close $anvil->{HANDLE}{log_file};
+		$anvil->{HANDLE}{log_file} = "";
+	}
 	
 	exit($exit_code);
 }

@@ -302,14 +302,35 @@ sub entry
 	}
 	
 	# Log with Log::Journald
-	Log::Journald::send(
-		PRIORITY          => $priority, 
-		MESSAGE           => $string, 
-		CODE_FILE         => $source, 
-		CODE_LINE         => $line, 
-		SYSLOG_FACILITY   => $secure ? "authpriv" : $facility,
-		SYSLOG_IDENTIFIER => $tag,
-	);
+	if (0)
+	{
+		Log::Journald::send(
+			PRIORITY          => $priority, 
+			MESSAGE           => $string, 
+			CODE_FILE         => $source, 
+			CODE_LINE         => $line, 
+			SYSLOG_FACILITY   => $secure ? "authpriv" : $facility,
+			SYSLOG_IDENTIFIER => $tag,
+		);
+	}
+	else
+	{
+		# TODO: Switch back to journald later, using a file for testing for now
+		if ($string !~ /\n$/)
+		{
+			$string .= "\n";
+		}
+		
+		# Open the file?
+		if (not $anvil->{HANDLE}{log_file})
+		{
+			my $shell_call = "/var/log/anvil.log";
+			open (my $file_handle, ">>", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			$anvil->{HANDLE}{log_file} = $file_handle;
+		}
+		my $file_handle = $anvil->{HANDLE}{log_file};
+		print $file_handle $string;
+	}
 	
 	return(0);
 }

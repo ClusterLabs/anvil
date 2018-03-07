@@ -3665,6 +3665,8 @@ sub resync_databases
 	
 	# psql -E scancore <<-- LOVE <3
 	
+	die $THIS_FILE." ".__LINE__."; testing...\n";
+	
 	return(0);
 }
 
