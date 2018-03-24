@@ -396,7 +396,7 @@ AS $$
 DECLARE
     history_network_interfaces RECORD;
 BEGIN
-    SELECT INTO history_network_interfaces * FROM network_interfaces WHERE network_interface_host_uuid = new.network_interface_host_uuid;
+    SELECT INTO history_network_interfaces * FROM network_interfaces WHERE network_interface_uuid = new.network_interface_uuid;
     INSERT INTO history.network_interfaces
         (network_interface_uuid,
          network_interface_host_uuid, 
@@ -479,7 +479,7 @@ AS $$
 DECLARE
     history_bonds RECORD;
 BEGIN
-    SELECT INTO history_bonds * FROM bonds WHERE bond_uuid=new.bond_uuid;
+    SELECT INTO history_bonds * FROM bonds WHERE bond_uuid = new.bond_uuid;
     INSERT INTO history.bonds
         (bond_uuid,
          bond_host_uuid,
@@ -548,7 +548,7 @@ AS $$
 DECLARE
     history_bridges RECORD;
 BEGIN
-    SELECT INTO history_bridges * FROM bridges WHERE bridge_uuid=new.bridge_uuid;
+    SELECT INTO history_bridges * FROM bridges WHERE bridge_uuid = new.bridge_uuid;
     INSERT INTO history.bridges
         (bridge_uuid,
          bridge_host_uuid,

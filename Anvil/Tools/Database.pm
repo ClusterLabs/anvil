@@ -1229,7 +1229,7 @@ FROM
 
 =head2 get_local_id
 
-This returns the database ID from 'C<< striker.conf >>' based on matching the 'C<< database::<id>::host >>' to the local machine's host name or one of the active IP addresses on the host.
+This returns the database ID from 'C<< anvil.conf >>' based on matching the 'C<< database::<id>::host >>' to the local machine's host name or one of the active IP addresses on the host.
 
  # Get the local ID
  my $local_id = $anvil->Database->get_local_id;
@@ -1395,6 +1395,18 @@ If there is an error, an empty string is returned.
 
 Parameters;
 
+=head3 id (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
 =head3 host_name (required)
 
 This default value is the local hostname.
@@ -1407,10 +1419,6 @@ This default value is the value returned by C<< System->determine_host_type >>.
 
 The default value is the host's UUID (as returned by C<< Get->host_uuid >>.
 
-=head3 id (optional)
-
-If set, only the corresponding database will be written to.
-
 =cut
 sub insert_or_update_hosts
 {
@@ -1420,15 +1428,19 @@ sub insert_or_update_hosts
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_hosts()" }});
 	
-	my $host_name = $parameter->{host_name} ? $parameter->{host_name} : $anvil->_hostname;
-	my $host_type = $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->determine_host_type;
-	my $host_uuid = $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
-	my $id        = $parameter->{id}        ? $parameter->{id}        : "";
+	my $id        = defined $parameter->{id}        ? $parameter->{id}        : "";
+	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
+	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
+	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_hostname;
+	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->determine_host_type;
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		id        => $id, 
+		file      => $file, 
+		line      => $line, 
 		host_name => $host_name, 
 		host_type => $host_type, 
 		host_uuid => $host_uuid, 
-		id        => $id, 
 	}});
 	
 	if (not $host_name)
@@ -1458,7 +1470,7 @@ WHERE
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	my $results = $anvil->Database->query({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+	my $results = $anvil->Database->query({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
@@ -1493,7 +1505,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	elsif (($old_host_name ne $host_name) or ($old_host_type ne $host_type))
 	{
@@ -1510,7 +1522,7 @@ WHERE
 ;";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
@@ -1525,6 +1537,18 @@ This updates (or inserts) a record in the 'jobs' table. The C<< job_uuid >> refe
 If there is an error, an empty string is returned.
 
 Parameters;
+
+=head3 id (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
 =head3 job_command (required)
 
@@ -1587,6 +1611,9 @@ sub insert_or_update_jobs
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_jobs()" }});
 	
+	my $id                   = defined $parameter->{id}                   ? $parameter->{id}                   : "";
+	my $file                 = defined $parameter->{file}                 ? $parameter->{file}                 : "";
+	my $line                 = defined $parameter->{line}                 ? $parameter->{line}                 : "";
 	my $job_uuid             = defined $parameter->{job_uuid}             ? $parameter->{job_uuid}             : "";
 	my $job_host_uuid        = defined $parameter->{job_host_uuid}        ? $parameter->{job_host_uuid}        : $anvil->data->{sys}{host_uuid};
 	my $job_command          = defined $parameter->{job_command}          ? $parameter->{job_command}          : "";
@@ -1600,6 +1627,9 @@ sub insert_or_update_jobs
 	my $job_description      = defined $parameter->{job_description}      ? $parameter->{job_description}      : "";
 	my $update_progress_only = defined $parameter->{update_progress_only} ? $parameter->{update_progress_only} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		id                   => $id, 
+		file                 => $file, 
+		line                 => $line, 
 		job_uuid             => $job_uuid, 
 		job_host_uuid        => $job_host_uuid, 
 		job_command          => $job_command, 
@@ -1688,7 +1718,7 @@ AND
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -1762,7 +1792,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	else
 	{
@@ -1786,7 +1816,7 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -1834,7 +1864,7 @@ WHERE
 ";
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 				}
 			}
 			else
@@ -1871,7 +1901,7 @@ WHERE
 ";
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 				}
 			}
 		}
@@ -1893,6 +1923,14 @@ Parameters;
 =head3 id (optional)
 
 If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
 =head3 network_interface_bond_uuid (optional)
 
@@ -1952,6 +1990,8 @@ sub insert_or_update_network_interfaces
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_network_interfaces()" }});
 	
 	my $id                            = defined $parameter->{id}                            ? $parameter->{id}                            : "";
+	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
+	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
 	my $network_interface_bond_uuid   = defined $parameter->{network_interface_bond_uuid}   ? $parameter->{network_interface_bond_uuid}   : "--";
 	my $network_interface_bridge_uuid = defined $parameter->{network_interface_bridge_uuid} ? $parameter->{network_interface_bridge_uuid} : "--";
 	my $network_interface_duplex      = defined $parameter->{network_interface_duplex}      ? $parameter->{network_interface_duplex}      : "--";
@@ -1966,6 +2006,8 @@ sub insert_or_update_network_interfaces
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		id                            => $id, 
+		file                          => $file, 
+		line                          => $line, 
 		network_interface_bond_uuid   => $network_interface_bond_uuid, 
 		network_interface_bridge_uuid => $network_interface_bridge_uuid, 
 		network_interface_duplex      => $network_interface_duplex, 
@@ -1992,7 +2034,7 @@ sub insert_or_update_network_interfaces
 		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mac_address).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		$network_interface_uuid = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$network_interface_uuid = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__})->[0]->[0];
 		$network_interface_uuid = "" if not defined $network_interface_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
 	}
@@ -2021,7 +2063,7 @@ WHERE
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+		my $results = $anvil->Database->query({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -2123,7 +2165,7 @@ WHERE
 ;";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
 			else
 			{
@@ -2208,7 +2250,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, id => $id, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_network_interfaces()" }});
@@ -2223,6 +2265,18 @@ This updates (or inserts) a record in the 'states' table. The C<< state_uuid >> 
 If there is an error, an empty string is returned.
 
 Parameters;
+
+=head3 id (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
 =head3 state_uuid (optional)
 
@@ -2249,11 +2303,17 @@ sub insert_or_update_states
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
 	
-	my $state_uuid      = $parameter->{state_uuid}      ? $parameter->{state_uuid}      : "";
-	my $state_name      = $parameter->{state_name}      ? $parameter->{state_name}      : "";
-	my $state_host_uuid = $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
-	my $state_note      = $parameter->{state_note}      ? $parameter->{state_note}      : "NULL";
+	my $id              = defined $parameter->{id}              ? $parameter->{id}              : "";
+	my $file            = defined $parameter->{file}            ? $parameter->{file}            : "";
+	my $line            = defined $parameter->{line}            ? $parameter->{line}            : "";
+	my $state_uuid      = defined $parameter->{state_uuid}      ? $parameter->{state_uuid}      : "";
+	my $state_name      = defined $parameter->{state_name}      ? $parameter->{state_name}      : "";
+	my $state_host_uuid = defined $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
+	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "NULL";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		id              => $id, 
+		file            => $file, 
+		line            => $line, 
 		state_uuid      => $state_uuid, 
 		state_name      => $state_name, 
 		state_host_uuid => $state_host_uuid, 
@@ -2288,7 +2348,7 @@ AND
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -2348,7 +2408,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	else
 	{
@@ -2365,7 +2425,7 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -2401,7 +2461,7 @@ WHERE
 ";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
 		}
 	}
@@ -2419,6 +2479,18 @@ Unlike the other methods of this type, this method can be told to update the 'va
 If there is an error, C<< !!error!! >> is returned.
 
 Parameters;
+
+=head3 id (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
 =head3 variable_uuid (optional)
 
@@ -2467,6 +2539,9 @@ sub insert_or_update_variables
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
 	
+	my $id                    = defined $parameter->{id}                    ? $parameter->{id}                    : "";
+	my $file                  = defined $parameter->{file}                  ? $parameter->{file}                  : "";
+	my $line                  = defined $parameter->{line}                  ? $parameter->{line}                  : "";
 	my $variable_uuid         = defined $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = defined $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
 	my $variable_value        = defined $parameter->{variable_value}        ? $parameter->{variable_value}        : "NULL";
@@ -2478,6 +2553,9 @@ sub insert_or_update_variables
 	my $update_value_only     = defined $parameter->{update_value_only}     ? $parameter->{update_value_only}     : 1;
 	my $log_level             = defined $parameter->{log_level}             ? $parameter->{log_level}             : 3;	# Undocumented for now.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
+		id                    => $id, 
+		file                  => $file, 
+		line                  => $line, 
 		variable_uuid         => $variable_uuid, 
 		variable_name         => $variable_name, 
 		variable_value        => $variable_value, 
@@ -2511,7 +2589,7 @@ WHERE
     variable_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
-		$variable_name = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$variable_name = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__})->[0]->[0];
 		$variable_name = "" if not defined $variable_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_name => $variable_name }});
 	}
@@ -2537,7 +2615,7 @@ AND
 		$query .= ";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 			results => $results, 
@@ -2584,7 +2662,7 @@ INSERT INTO
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	else
 	{
@@ -2610,7 +2688,7 @@ AND
 			$query .= ";";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 			
-			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 				results => $results, 
@@ -2646,7 +2724,7 @@ AND
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 					
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 				}
 			}
 		}
@@ -2667,7 +2745,7 @@ WHERE
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 			
-			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 				results => $results, 
@@ -2712,7 +2790,7 @@ WHERE
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 					
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 				}
 			}
 		}
@@ -3307,6 +3385,7 @@ sub resync_databases
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->resync_databases()" }});
 	
 	# If a resync isn't needed, just return.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
 	if (not $anvil->data->{sys}{database}{resync_needed})
 	{
 		return(0);
@@ -3410,7 +3489,7 @@ sub resync_databases
 				$query .= " WHERE ".$host_column." = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid});
 			}
 			$query .= " ORDER BY modified_date DESC;";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0074", variables => { id => $id, query => $query }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { id => $id, query => $query }});
 			
 			my $results = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
@@ -3420,34 +3499,38 @@ sub resync_databases
 			}});
 			next if not $count;
 			
+			my $row_number = 0;
 			foreach my $row (@{$results})
 			{
+				   $row_number++;
 				my $modified_date = "";
 				my $row_uuid      = "";
-				for (my $i = 0; $i < @{$read_columns}; $i++)
+				for (my $column_number = 0; $column_number < @{$read_columns}; $column_number++)
 				{
-					my $column_name  = $read_columns->[$i];
-					my $column_value = defined $row->[$i] ? $row->[$i] : "NULL";
+					my $column_name  = $read_columns->[$column_number];
+					my $column_value = defined $row->[$column_number] ? $row->[$column_number] : "NULL";
 					my $not_null     = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{not_null};
 					my $data_type    = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{data_type};
-					$anvil->Log->variables({source => 2, line => __LINE__, level => 2, list => { 
-						"s1:i"            => $i,
-						"s2:column_name"  => $column_name, 
-						"s3:column_value" => $column_value,
-						"s4:not_null"     => $not_null,
-						"s5:data_type"    => $data_type, 
+					$anvil->Log->variables({source => 2, line => __LINE__, level => 3, list => { 
+						"s1:id"            => $id,
+						"s2:row_number"    => $row_number,
+						"s3:column_number" => $column_number,
+						"s4:column_name"   => $column_name, 
+						"s5:column_value"  => $column_value,
+						"s6:not_null"      => $not_null,
+						"s7:data_type"     => $data_type, 
 					}});
 					if (($not_null) && ($column_value eq "NULL"))
 					{
 						$column_value = "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { column_value => $column_value }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { column_value => $column_value }});
 					}
 					
 					# The modified_date should be the first row.
 					if ($column_name eq "modified_date")
 					{
 						$modified_date = $column_value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { modified_date => $modified_date }});
 						next;
 					}
 					
@@ -3455,7 +3538,7 @@ sub resync_databases
 					if ($column_name eq $uuid_column)
 					{
 						$row_uuid = $column_value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { row_uuid => $row_uuid }});
 						
 						# This is used to determine if a given entry needs to be 
 						# updated or inserted into the public schema
@@ -3468,6 +3551,7 @@ sub resync_databases
 						next;
 					}
 					
+					# TODO: Remove these or make them proper errors
 					die $THIS_FILE." ".__LINE__."; This row's modified_date wasn't the first column returned in query: [$query]\n" if not $modified_date;
 					die $THIS_FILE." ".__LINE__."; This row's UUID column: [$uuid_column] wasn't the second column returned in query: [$query]\n" if not $row_uuid;
 					
@@ -3664,8 +3748,6 @@ sub resync_databases
 	# SELECT table_catalog, table_schema, table_name, column_name, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'alerts';
 	
 	# psql -E scancore <<-- LOVE <3
-	
-	die $THIS_FILE." ".__LINE__."; testing...\n";
 	
 	return(0);
 }

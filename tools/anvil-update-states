@@ -59,8 +59,9 @@ sub report_network
 		next if $file eq ".";
 		next if $file eq "..";
 		next if $file eq "lo";
+		next if $file =~ /virbr\d/;
 		my $full_path = "$directory/$file";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
@@ -70,8 +71,15 @@ sub report_network
 			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
 			my $operational = -e $full_path."/operstate" ? $anvil->Storage->read_file({file => $full_path."/operstate"}) : "unknown";	# up or down
-			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed", debug => 2}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			if ($mac_address =~ /^52:54:00/)
+			{
+				### Set some fake values.
+				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
+				$speed  = 100000 if not $speed;
+				$duplex = "full" if not $duplex;
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface,
 				mac_address => $mac_address, 
 				link_state  => $link_state, 
@@ -80,12 +88,19 @@ sub report_network
 				operational => $operational, 
 				speed       => $speed, 
 			}});
+			
+			# If the MAC address starts with '52:54:00', we've got a virtio NIC.
+			
+			die $THIS_FILE." ".__LINE__."; No speed for: [".$full_path."/speed]\n" if ((not defined $speed) or ($speed eq ""));
+			die $THIS_FILE." ".__LINE__."; Speed: [$speed] isn't numeric for: [".$full_path."/speed]\n" if $speed =~ /\D/;
+			#            
+			#            100000
 			if ($speed > 100000)
 			{
 				# NOTE: This is probably 0 now... Though someday >100 Gbps will be reasonable
 				#       and we'll need to change this.
 				$speed = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed => $speed }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { speed => $speed }});
 			}
 			
 			# Find the media, if possible.
@@ -117,6 +132,9 @@ sub report_network
 			}});
 			
 			$anvil->Database->insert_or_update_network_interfaces({
+				debug                         => 2,
+				file                          => $THIS_FILE,
+				line                          => __LINE__,
 				network_interface_name        => $interface,
 				network_interface_duplex      => $duplex, 
 				network_interface_link_state  => $link_state, 
@@ -204,7 +222,7 @@ ORDER BY
 	$network_xml .= "</network>\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_xml => $network_xml }});
 	
-	### TODO: Set the 'status/network.json' name into 'striker.conf'
+	### TODO: Set the 'status/network.json' name into 'anvil.conf'
 	# Write the JSON file.
 	my $output_json = $anvil->data->{path}{directories}{html}."/status/network.json";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_json }});

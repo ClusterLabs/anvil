@@ -7,7 +7,7 @@
 # 0 = Normal exit.
 # 1 = Failed to initialize postgres
 # 2 = Failed to start postgres
-# 3 = ScanCore user not set in the local ID in striker.conf
+# 3 = ScanCore user not set in the local ID in anvil.conf
 # 4 = Failed to create the database user.
 # 5 = PostgreSQL not installed.
 
@@ -34,8 +34,8 @@ $anvil->Log->secure({set => 1});
 $anvil->Get->switches;
 
 # Paths
-$anvil->data->{path}{config}{'striker.conf'} = "/etc/anvil/anvil.conf";
-$anvil->Storage->read_config({file => $anvil->data->{path}{config}{'striker.conf'}});
+$anvil->data->{path}{config}{'anvil.conf'} = "/etc/anvil/anvil.conf";
+$anvil->Storage->read_config({file => $anvil->data->{path}{config}{'anvil.conf'}});
 
 my $local_id = $anvil->Database->get_local_id;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { local_id => $local_id }});

@@ -11,6 +11,9 @@ use Anvil::Tools;
 use Data::Dumper;
 use NetAddr::IP;
 
+# Turn off buffering
+$| = 1;
+
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 if (($running_directory =~ /^\./) && ($ENV{PWD}))
@@ -26,11 +29,11 @@ print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n
 # Set the log level to 2. Setting 3 slows he program down a LOT.
 $anvil->Log->level({set => 2});
 
-# Read in our words file.
-$anvil->Words->read({file => $anvil->data->{path}{directories}{'cgi-bin'}."/words.xml"});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { testing => "123" }});
 
 # Read the config and then connect to the database.
-$anvil->Storage->read_config({file => "/etc/striker/striker.conf"});
+$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf", debug => 2});
+
 
 # Make sure I can read the host UUID.
 if (not $anvil->Get->host_uuid)

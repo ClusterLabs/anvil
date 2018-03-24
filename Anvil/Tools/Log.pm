@@ -325,11 +325,20 @@ sub entry
 		if (not $anvil->{HANDLE}{log_file})
 		{
 			my $shell_call = "/var/log/anvil.log";
-			open (my $file_handle, ">>", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			# NOTE: Don't call '$anvil->Log->entry()' here, it will cause a loop!
+			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
+			
 			$anvil->{HANDLE}{log_file} = $file_handle;
 		}
-		my $file_handle = $anvil->{HANDLE}{log_file};
-		print $file_handle $string;
+		
+		if (not $anvil->{HANDLE}{log_file})
+		{
+			# NOTE: This can't be a normal error because we can't write to the logs.
+			die $THIS_FILE." ".__LINE__."; log file handle doesn't exist, but it should by now.\n";
+		}
+		
+		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
+		print { $anvil->{HANDLE}{log_file} } $string;
 	}
 	
 	return(0);
