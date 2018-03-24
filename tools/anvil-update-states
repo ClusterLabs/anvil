@@ -79,6 +79,12 @@ sub report_network
 				$speed  = 100000 if not $speed;
 				$duplex = "full" if not $duplex;
 			}
+			# If the state is 'down', set the speed to '0'.
+			if (not $link_state)
+			{
+				$speed = 0;
+			}
+			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface,
 				mac_address => $mac_address, 

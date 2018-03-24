@@ -3615,13 +3615,14 @@ sub resync_databases
 								foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
 								{
 									my $column_value =  $anvil->data->{sys}{use_db_fh}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+									   $column_value =  "NULL" if not defined $column_value;
 									   $column_value =~ s/'NULL'/NULL/g;
 									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 										column_name  => $column_name, 
 										column_value => $column_value, 
 									}});
 									
-									$query .= "$column_name = ".$anvil->data->{sys}{use_db_fh}->quote().", ";
+									$query .= "$column_name = ".$column_value.", ";
 								}
 								$query .= "modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).";";
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { id => $id, query => $query }});
