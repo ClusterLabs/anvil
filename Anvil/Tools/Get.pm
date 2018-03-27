@@ -262,8 +262,8 @@ sub cgi
 	
 	# This is a pretty way of displaying the passed-in CGI variables. It loops through all we've got and
 	# sorts out the longest variable name. Then it loops again, appending '.' to shorter ones so that 
-	# everything is lined up in the logs.
-	if ($anvil->Log->level >= $debug)
+	# everything is lined up in the logs. This almost always prints, save for log level 0.
+	if ($anvil->Log->level >= 1)
 	{
 		my $longest_variable = 0;
 		foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{cgi}})
@@ -303,8 +303,15 @@ sub cgi
 				}
 				$say_value .= " ";
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"cgi::${variable}::$say_value" => $anvil->data->{cgi}{$variable}{value},
+			# This is always '1' as the passed-in variables are what we want to see.
+			my $censored_value = $anvil->data->{cgi}{$variable}{value};
+			if ((($variable =~ /passwd/) or ($variable =~ /password/)) && (not $anvil->Log->secure))
+			{
+				# This is a password and we're not logging sensitive data, obfuscate it.
+				$censored_value = "--";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				"cgi::${variable}::$say_value" => $censored_value,
 			}});
 		}
 	}

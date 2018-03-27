@@ -1622,7 +1622,7 @@ sub insert_or_update_jobs
 	my $job_picked_up_at     = defined $parameter->{job_picked_up_at}     ? $parameter->{job_picked_up_at}     : 0;
 	my $job_updated          = defined $parameter->{job_updated}          ? $parameter->{job_updated}          : 0;
 	my $job_name             = defined $parameter->{job_name}             ? $parameter->{job_name}             : "";
-	my $job_progress         = defined $parameter->{job_progress}         ? $parameter->{job_progress}         : "";
+	my $job_progress         = defined $parameter->{job_progress}         ? $parameter->{job_progress}         : 0;
 	my $job_title            = defined $parameter->{job_title}            ? $parameter->{job_title}            : "";
 	my $job_description      = defined $parameter->{job_description}      ? $parameter->{job_description}      : "";
 	my $update_progress_only = defined $parameter->{update_progress_only} ? $parameter->{update_progress_only} : 0;
@@ -1779,11 +1779,11 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_command).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_data).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_picked_up_by).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_picked_up_at).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_updated).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_title).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_description).", 
@@ -3381,11 +3381,11 @@ sub resync_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->resync_databases()" }});
 	
 	# If a resync isn't needed, just return.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
 	if (not $anvil->data->{sys}{database}{resync_needed})
 	{
 		return(0);
@@ -3511,7 +3511,7 @@ sub resync_databases
 					my $column_value = defined $row->[$column_number] ? $row->[$column_number] : "NULL";
 					my $not_null     = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{not_null};
 					my $data_type    = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{data_type};
-					$anvil->Log->variables({source => 2, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => 2, line => __LINE__, level => $debug, list => { 
 						"s1:id"            => $id,
 						"s2:row_number"    => $row_number,
 						"s3:column_number" => $column_number,
@@ -3523,14 +3523,14 @@ sub resync_databases
 					if (($not_null) && ($column_value eq "NULL"))
 					{
 						$column_value = "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { column_value => $column_value }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_value => $column_value }});
 					}
 					
 					# The modified_date should be the first row.
 					if ($column_name eq "modified_date")
 					{
 						$modified_date = $column_value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { modified_date => $modified_date }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
 						next;
 					}
 					
@@ -3538,7 +3538,7 @@ sub resync_databases
 					if ($column_name eq $uuid_column)
 					{
 						$row_uuid = $column_value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { row_uuid => $row_uuid }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
 						
 						# This is used to determine if a given entry needs to be 
 						# updated or inserted into the public schema

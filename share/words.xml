@@ -293,6 +293,14 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0041">We're almost ready! Does this look right? If so, we'll setup this Striker dashboard.</key>
 		<key name="striker_0042">What we are planning to do...</key>
 		<key name="striker_0043">Apply New Configuration</key>
+		<key name="striker_0044">Done!</key>
+		<key name="striker_0045">The network will be reconfigured momentarily. You may need to reconnect using the new network address you chose.</key>
+		<key name="striker_0046">Offline...</key>
+		<key name="striker_0047">A job to reconfigure the network on this machine is underway. Please try again soon.</key>
+		
+		<!-- Strings used by jobs -->
+		<key name="job_0001">Configure Network</key>
+		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

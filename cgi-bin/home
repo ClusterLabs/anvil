@@ -29,11 +29,8 @@ print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n
 # Set the log level to 2. Setting 3 slows he program down a LOT.
 $anvil->Log->level({set => 2});
 
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { testing => "123" }});
-
 # Read the config and then connect to the database.
-$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf", debug => 2});
-
+$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
 
 # Make sure I can read the host UUID.
 if (not $anvil->Get->host_uuid)
@@ -85,52 +82,59 @@ my $body   = "";
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $available = check_availability($anvil);
-
-# This will be true when the dashboard is unconfigured.
-if (not $anvil->data->{cgi}{step}{value})
+if (not $available)
 {
-	$body = config_step1($anvil);
-}
-elsif ($anvil->data->{cgi}{step}{value} eq "step1")
-{
-	# Sanity check step1.
-	my $sane = sanity_check_step1($anvil);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
-	if ($sane)
-	{
-		# Step 1 was sane, show step 2.
-		$body = config_step2($anvil);
-	}
-	else
-	{
-		# No good
-		$body = config_step1($anvil);
-	}
-}
-elsif ($anvil->data->{cgi}{step}{value} eq "step2")
-{
-	# Sanity check step1.
-	my $sane = sanity_check_step2($anvil);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
-	if ($sane)
-	{
-		# Step 2 was sane, show step 3.
-		$body = config_step3($anvil);
-	}
-	else
-	{
-		# No good
-		$body = config_step2($anvil);
-	}
-}
-elsif ($anvil->data->{cgi}{step}{value} eq "step3")
-{
-	# User has confirmed, update the system!
-	update_system($anvil);
+	# Set the body to 'say::maintenance'.
+	$body = $anvil->data->{say}{maintenance};
 }
 else
 {
-	$body = get_network_details_form($anvil);
+	# This will be true when the dashboard is unconfigured.
+	if (not $anvil->data->{cgi}{step}{value})
+	{
+		$body = config_step1($anvil);
+	}
+	elsif ($anvil->data->{cgi}{step}{value} eq "step1")
+	{
+		# Sanity check step1.
+		my $sane = sanity_check_step1($anvil);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+		if ($sane)
+		{
+			# Step 1 was sane, show step 2.
+			$body = config_step2($anvil);
+		}
+		else
+		{
+			# No good
+			$body = config_step1($anvil);
+		}
+	}
+	elsif ($anvil->data->{cgi}{step}{value} eq "step2")
+	{
+		# Sanity check step1.
+		my $sane = sanity_check_step2($anvil);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+		if ($sane)
+		{
+			# Step 2 was sane, show step 3.
+			$body = config_step3($anvil);
+		}
+		else
+		{
+			# No good
+			$body = config_step2($anvil);
+		}
+	}
+	elsif ($anvil->data->{cgi}{step}{value} eq "step3")
+	{
+		# User has confirmed, update the system!
+		$body = save_job($anvil);
+	}
+	else
+	{
+		$body = get_network_details_form($anvil);
+	}
 }
 my $buttons = $anvil->Template->get({file => "main.html", name => "button_bar"});
 my $footer  = $anvil->Template->get({file => "main.html", name => "footer"});
@@ -158,15 +162,6 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-# This sets a flag that disables this dashboard and requests the reconfiguration of this system.
-sub update_system
-{
-	my ($anvil) = @_;
-	
-	
-	return(0);
-}
-
 # This checks to see if anything is running that requires Striker being unavailable. If not, this returns
 # '1'. If there is a job pending/running, it returns '0'
 sub check_availability
@@ -174,9 +169,62 @@ sub check_availability
 	my ($anvil) = @_;
 	
 	my $available = 1;
+	my $query = "SELECT count(*) FROM jobs WHERE job_name = 'configure::network' AND job_progress != 100 AND job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
+	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+	if ($count)
+	{
+		# We're waiting for the network configuration
+		$available = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { available => $available }});
+		
+		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "main.html", name => "striker-offline", variables => {
+			title_id    => "",
+			message_id  => "",
+			title       => "#!string!striker_0046!#",
+			description => "#!string!striker_0047!#",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+	}
 	
 	return($available);
+}
+
+# This requests the job to reconfigure the network be run
+sub save_job
+{
+	my ($anvil) = @_;
+	
+	# Record the job!
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		debug           => 2,
+		file            => $THIS_FILE, 
+		line            => __LINE__, 
+		job_command     => "anvil-configure-network", 
+		job_data        => "form::config_step2", 
+		job_name        => "configure::network", 
+		job_title       => "job_0001", 
+		job_description => "job_0002", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	
+	# TODO: Check that a job_uuid was returned and warn of a problem if not.
+	my $say_title      = "#!string!striker_0044!#";
+	my $say_desciption = "#!string!striker_0045!#";
+	
+	# We don't need to store anything as hidden variables, we'll read it back from the database later.
+	my $job_recorded_body = $anvil->Template->get({file => "main.html", name => "network_job_recorded", variables => {
+		title_id    => "",
+		message_id  => "",
+		title       => $say_title,
+		description => $say_desciption,
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_recorded_body => $job_recorded_body }});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	return($job_recorded_body);
 }
 
 # This shows the user what is about to be done and asks the user to confirm.
@@ -308,7 +356,7 @@ ORDER BY
 		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0001"}) }});
 	}
 	
-	# 
+	# We don't need to store anything as hidden variables, we'll read it back from the database later.
 	my $step3_body = $anvil->Template->get({file => "main.html", name => "config_step3", variables => {
 		step1_welcome_title_id   => "",
 		step1_welcome_message_id => "",

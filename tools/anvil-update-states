@@ -138,7 +138,6 @@ sub report_network
 			}});
 			
 			$anvil->Database->insert_or_update_network_interfaces({
-				debug                         => 2,
 				file                          => $THIS_FILE,
 				line                          => __LINE__,
 				network_interface_name        => $interface,

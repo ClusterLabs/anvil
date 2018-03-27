@@ -251,7 +251,6 @@
 									#!variable!organization!#
 								</td>
 							</tr>
-							<input type="hidden" name="organization" id="organization" value="#!variable!organization!#">
 							<!-- Domain name -->
 							<tr>
 								<td class="column_row_name">
@@ -261,7 +260,6 @@
 									#!variable!domain!#
 								</td>
 							</tr>
-							<input type="hidden" name="domain" id="domain" value="#!variable!domain!#">
 							<!-- User -->
 							<tr>
 								<td class="column_row_name">
@@ -293,17 +291,39 @@
 					</td>
 				</tr>
 				<!-- NOTE: For now, we support only one BCN in the web UI, but the system will be ready for N-number later. -->
-				<input type="hidden" name="step"      id="step"      value="step3">
-				<input type="hidden" name="cgi_list"  id="cgi_list"  value="next,step,#!variable!cgi_list!#">
-				<input type="hidden" name="prefix"    id="prefix"    value="#!variable!prefix!#">
-				<input type="hidden" name="sequence"  id="sequence"  value="#!variable!sequence!#">
-				<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
-				<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
+				<input type="hidden" name="step"     id="step"     value="step3">
+				<input type="hidden" name="cgi_list" id="cgi_list" value="next,step">
 				
 				</form>
 				</div>
 			</table>
 <!-- end config_step3 -->
+
+<!-- start network_job_recorded -->
+			<table>
+				<div id="network_job_recorded_div">
+				<tr>
+					<td>
+						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
+						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
+					</td>
+				</tr>
+				</div>
+			</table>
+<!-- end network_job_recorded -->
+
+<!-- start striker-offline -->
+			<table>
+				<div id="network_job_recorded_div">
+				<tr>
+					<td>
+						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
+						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
+					</td>
+				</tr>
+				</div>
+			</table>
+<!-- end striker-offline -->
 
 <!-- start step3_bonded_interface -->
 							<tr>
@@ -584,7 +604,7 @@
 						<table id="network_status" class="data_table_nowrap">
 							<tr>
 								<td colspan="5" class="column_header">
-									#!string!header_0001!#
+									<a href="/">#!string!header_0001!#</a>
 								</td>
 							</tr>
 							<tr class="data_row">

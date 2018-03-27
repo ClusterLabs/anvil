@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+# 
+# This is called when the local network needs to be reconfigured.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+# Read switches
+$anvil->Get->switches;
+
+# Paths
+$anvil->data->{path}{config}{'anvil.conf'} = "/etc/anvil/anvil.conf";
+$anvil->Storage->read_config({file => $anvil->data->{path}{config}{'anvil.conf'}});
