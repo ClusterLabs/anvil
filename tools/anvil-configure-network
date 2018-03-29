@@ -23,11 +23,140 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+$anvil->Log->secure({set => 0});
 
 # Read switches
 $anvil->Get->switches;
 
 # Paths
-$anvil->data->{path}{config}{'anvil.conf'} = "/etc/anvil/anvil.conf";
 $anvil->Storage->read_config({file => $anvil->data->{path}{config}{'anvil.conf'}});
+
+# Connect
+my $connections = $anvil->Database->connect({
+	sql_file   => $anvil->data->{sys}{database}{schema},
+	test_table => "network_interfaces", 
+});
+
+print $THIS_FILE." ".__LINE__."; connections: [".$connections."]\n";
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132", variables => { connections => $connections }});
+if (not $connections)
+{
+	# No databases, exit.
+	print $anvil->Words->string({key => "striker_error_0003"});
+	$anvil->nice_exit({exit_code => 2});
+}
+
+pickup_job_details($anvil);
+
+
+
+$anvil->nice_exit({code => 0});
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This will pick up the job, or exit.
+sub pickup_job_details
+{
+	my ($anvil) = @_;
+	
+	# If any job said it was picked up, and the "job_picked_up_by" PID doesn't exist, take it and update
+	# it.
+	
+	my $query = "
+SELECT 
+    job_uuid, 
+    job_command, 
+    job_data, 
+    job_picked_up_by, 
+    job_picked_up_at, 
+    job_updated, 
+    job_progress 
+FROM 
+    jobs 
+WHERE 
+    job_name = 'configure::network' 
+AND 
+    job_progress != 100 
+AND 
+    job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)."
+LIMIT 1;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	my $job_uuid         =         $results->[0]->[0];
+	my $job_command      =         $results->[0]->[1];
+	my $job_data         = defined $results->[0]->[2] ? $results->[0]->[2] : "";
+	my $job_picked_up_by =         $results->[0]->[3];
+	my $job_picked_up_at =         $results->[0]->[4]; 
+	my $job_updated      =         $results->[0]->[5];
+	my $job_progress     =         $results->[0]->[6];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		job_uuid         => $job_uuid,
+		job_command      => $job_command,
+		job_data         => $job_data,
+		job_picked_up_by => $job_picked_up_by,
+		job_picked_up_at => $job_picked_up_at,
+		job_updated      => $job_updated,
+		job_progress     => $job_progress,
+	}});
+	
+	# See if the job was picked up by another running instance.
+	if ($job_picked_up_by)
+	{
+		### TODO: Check if the PID is still active.
+		# Yup.
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132", variables => { pid => $job_picked_up_by }});
+		$anvil->nice_exit({code => 1});
+	}
+	
+	# This will store the variables from the database
+	$anvil->data->{variables} = {};
+	
+	# If we're still alive, pick up the details.
+	$results = "";
+	$count   = "";
+	$query   = "
+SELECT 
+    variable_name, 
+    variable_value 
+FROM 
+    variables 
+WHERE 
+    variable_name 
+LIKE 
+    'form::config_step%' 
+AND 
+    variable_source_table = 'hosts' 
+AND 
+    variable_source_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)."
+;";
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $this_variable =         $row->[0];
+		my $this_value    = defined $row->[1] ? $row->[1] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			this_variable => $this_variable, 
+			this_value    => $this_value, 
+		}});
+		
+		$anvil->_make_hash_reference($anvil->data->{variables}, $this_variable, $this_value);
+	}
+	
+	print Dumper $anvil->data->{variables};
+	
+	return(0);
+}

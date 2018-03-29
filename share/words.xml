@@ -216,6 +216,7 @@ The database connection error was:
 		<key name="log_0143">Failed to find a local ID, no databases are stored on this machine.</key>
 		<key name="log_0144">PostgreSQL server is not installed, unable to proceed.</key>
 		<key name="log_0145"><![CDATA[[ Warning ] - Unable to use the database on the host: [#!variable!host!#]. The local Anvil! version is: [#!variable!local_version!#], and the target host's is: [#!variable!target_version!#]. If you are upgrading, we will resync and use it once the host and our version is again the same.]]></key>
+		<key name="log_0146">A job to configure the network was found, but it has already been picked up by: [#!variable!pid!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
