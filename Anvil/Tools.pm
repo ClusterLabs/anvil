@@ -775,6 +775,7 @@ sub _set_paths
 				'mkdir'			=>	"/usr/bin/mkdir",
 				ping			=>	"/usr/bin/ping",
 				pgrep			=>	"/usr/bin/pgrep",
+				ps			=>	"/usr/bin/ps",
 				psql			=>	"/usr/bin/psql",
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
 				pwd			=>	"/usr/bin/pwd",

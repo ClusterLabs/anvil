@@ -782,6 +782,137 @@ sub manage_firewall
 	return($open);
 }
 
+=head2 pids
+
+This parses 'ps aux' and stores the information about running programs in C<< pids::<pid_number>::<data> >>.
+
+Optionally, if the C<< program_name >> parameter is set, an array of PIDs for that program will be returned.
+
+Parameters;
+
+=head3 ignore_me (optional)
+
+If set to '1', the PID of this program is ignored.
+
+=head3 program_name (optional)
+
+This is an option string that is searched for in the 'command' portion of the 'ps aux' call. If this string matches, the PID is added to the array reference returned by this method.
+
+=cut
+sub pids
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $ignore_me    = defined $parameter->{ignore_me}    ? $parameter->{ignore_me}    : "";
+	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ignore_me    => $ignore_me, 
+		program_name => $program_name,
+	}});
+	
+	# If we stored this data before, delete it as it is now stale.
+	if (exists $anvil->{pids})
+	{
+		delete $anvil->{pids};
+	}
+	my $my_pid     = $$;
+	my $pids       = [];
+	my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my $output = $anvil->System->call({shell_call => $shell_call});
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({ string => $line });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+
+		if ($line =~ /^\S+ \d+ /)
+		{
+			my ($user, $pid, $cpu, $memory, $virtual_memory_size, $resident_set_size, $control_terminal, $state_codes, $start_time, $time, $command) = ($line =~ /^(\S+) (\d+) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*?) (.*)$/);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				user                => $user, 
+				pid                 => $pid, 
+				cpu                 => $cpu, 
+				memory              => $memory, 
+				virtual_memory_size => $virtual_memory_size, 
+				resident_set_size   => $resident_set_size, 
+				control_terminal    => $control_terminal, 
+				state_codes         => $state_codes, 
+				start_time          => $start_time, 
+				'time'              => $time, 
+				command             => $command, 
+			}});
+			
+			if ($ignore_me)
+			{
+				if ($pid eq $my_pid)
+				{
+					# This is us! :D
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						pid    => $pid, 
+						my_pid => $my_pid, 
+					}});
+					next;
+				}
+				elsif (($command =~ /--status/) or ($command =~ /--state/))
+				{
+					# Ignore this, it is someone else also checking the state.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { command => $command }});
+					next;
+				}
+				elsif ($command =~ /\/timeout (\d)/)
+				{
+					# Ignore this, we were called by 'timeout' so the pid will be 
+					# different but it is still us.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { command => $command }});
+					next;
+				}
+			}
+			
+			# Store by PID
+			$anvil->{pids}{$pid}{user}                = $user;
+			$anvil->{pids}{$pid}{cpu}                 = $cpu;
+			$anvil->{pids}{$pid}{memory}              = $memory;
+			$anvil->{pids}{$pid}{virtual_memory_size} = $virtual_memory_size;
+			$anvil->{pids}{$pid}{resident_set_size}   = $resident_set_size;
+			$anvil->{pids}{$pid}{control_terminal}    = $control_terminal;
+			$anvil->{pids}{$pid}{state_codes}         = $state_codes;
+			$anvil->{pids}{$pid}{start_time}          = $start_time;
+			$anvil->{pids}{$pid}{'time'}              = $time;
+			$anvil->{pids}{$pid}{command}             = $command;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"pids::${pid}::cpu"                 => $anvil->{pids}{$pid}{cpu}, 
+				"pids::${pid}::memory"              => $anvil->{pids}{$pid}{memory}, 
+				"pids::${pid}::virtual_memory_size" => $anvil->{pids}{$pid}{virtual_memory_size}, 
+				"pids::${pid}::resident_set_size"   => $anvil->{pids}{$pid}{resident_set_size}, 
+				"pids::${pid}::control_terminal"    => $anvil->{pids}{$pid}{control_terminal}, 
+				"pids::${pid}::state_codes"         => $anvil->{pids}{$pid}{state_codes}, 
+				"pids::${pid}::start_time"          => $anvil->{pids}{$pid}{start_time}, 
+				"pids::${pid}::time"                => $anvil->{pids}{$pid}{'time'}, 
+				"pids::${pid}::command"             => $anvil->{pids}{$pid}{command}, 
+			}});
+			
+			if ($command =~ /$program_name/)
+			{
+				# If we're calling locally and we see our own PID, skip it.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					command      => $command, 
+					program_name => $program_name, 
+					pid          => $pid, 
+					my_pid       => $my_pid, 
+					line         => $line
+				}});
+				push @{$pids}, $pid;
+			}
+		}
+	}
+	
+	return($pids);
+}
+
+
 =head2 ping
 
 This method will attempt to ping a target, by hostname or IP, and returns C<< 1 >> if successful, and C<< 0 >> if not.
