@@ -767,6 +767,7 @@ sub _set_paths
 				'firewall-cmd'		=>	"/usr/bin/firewall-cmd",
 				gethostip		=>	"/usr/bin/gethostip",
 				hostname		=>	"/usr/bin/hostname",
+				hostnamectl		=>	"/usr/bin/hostnamectl",
 				ip			=>	"/usr/sbin/ip",
 				'iptables-save'		=>	"/usr/sbin/iptables-save",
 				journalctl		=>	"/usr/bin/journalctl",

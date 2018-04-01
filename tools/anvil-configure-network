@@ -61,24 +61,35 @@ sub reconfigure_network
 {
 	my ($anvil) = @_;
 	
-	my $prefix       = $anvil->data->{variables}{form}{config_step1}{prefix}{value};
-	my $sequence     = $anvil->data->{variables}{form}{config_step1}{sequence}{value};
-	my $domain       = $anvil->data->{variables}{form}{config_step1}{domain}{value};
-	my $organization = $anvil->data->{variables}{form}{config_step1}{organization}{value};
-	my $bcn_count    = 1;	# TODO: This should be coming from the form, even though it's only '1' for now.
-	my $ifn_count    = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
-	my $new_hostname = $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
+	my $prefix          = $anvil->data->{variables}{form}{config_step1}{prefix}{value};
+	my $sequence        = $anvil->data->{variables}{form}{config_step1}{sequence}{value};
+	my $domain          = $anvil->data->{variables}{form}{config_step1}{domain}{value};
+	my $organization    = $anvil->data->{variables}{form}{config_step1}{organization}{value};
+	my $bcn_count       = 1;	# TODO: This should be coming from the form, even though it's only '1' for now.
+	my $ifn_count       = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
+	my $new_hostname    = $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
+	my $pretty_hostname = $organization." - Striker ".sprintf("%02d", $sequence);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		prefix       => $prefix, 
-		sequence     => $sequence,
-		domain       => $domain, 
-		organization => $organization, 
-		bcn_count    => $bcn_count, 
-		ifn_count    => $ifn_count, 
-		new_hostname => $new_hostname, 
+		prefix          => $prefix, 
+		sequence        => $sequence,
+		domain          => $domain, 
+		organization    => $organization, 
+		bcn_count       => $bcn_count, 
+		ifn_count       => $ifn_count, 
+		new_hostname    => $new_hostname, 
+		pretty_hostname => $pretty_hostname, 
 	}});
 	
-
+	# Set the hostname
+	my $hostnam = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 2});
+	if ($hostname eq $new_hostname)
+	{
+		# Success
+	}
+	else
+	{
+		# Failed
+	}
 =cut
 	print Dumper $anvil->data->{variables};
 
@@ -128,24 +139,6 @@ $VAR1 = {
                                                               'value' => 'striker'
                                                             }
                                         },
-                      'config_step1' => {
-                                          'domain' => {
-                                                        'value' => 'alteeve.com'
-                                                      },
-                                          'sequence' => {
-                                                          'value' => '1'
-                                                        },
-                                          'ifn_count' => {
-                                                           'value' => '1'
-                                                         },
-                                          'prefix' => {
-                                                        'value' => 'an'
-                                                      },
-                                          'organization' => {
-                                                              'value' => 'Alteeve'
-                                                            }
-                                        }
-                    }
         };
 =cut
 
@@ -207,16 +200,22 @@ LIMIT 1;";
 	if ($job_picked_up_by)
 	{
 		# Check if the PID is still active.
-		my ($pids) = $anvil->System->pids({program_name => $THIS_FILE, ignore_me => 1});
-		my $count = @{$pids};
-		print "count: [".$count."], my pid: [".$$."]\n";
+		$anvil->System->pids({ignore_me => 1});
 		
-		# Any other instance running?.
-		if ($count)
+		# Is the PID that picked up the job still alive?
+		if (exists $anvil->{pids}{$job_picked_up_by})
 		{
-			# Yup, exit.
+			print Dumper $anvil->{pids}{$job_picked_up_by};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0146", variables => { pid => $job_picked_up_by }});
 			$anvil->nice_exit({code => 1});
+		}
+		else
+		{
+			# The previous job is gone, we'll take this over.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0147", variables => { 
+				pid     => $job_picked_up_by,
+				percent => $job_progress, 
+			}});
 		}
 	}
 	

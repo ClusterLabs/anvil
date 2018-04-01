@@ -20,6 +20,7 @@ my $THIS_FILE = "System.pm";
 # determine_host_type
 # enable_daemon
 # get_ips
+# hostname
 # is_local
 # manage_firewall
 # ping
@@ -421,8 +422,71 @@ sub get_ips
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::networks::${in_iface}::mac" => $anvil->data->{sys}{networks}{$in_iface}{mac} }});
 		}
 	}
-
+	
 	return(0);
+}
+
+=head2 hostname
+
+Get our set the local hostname. The current host name (or the new hostname if C<< set >> was used) is returned as a string.
+
+Parameters;
+
+=head3 set (optional)
+
+If set, this will become the new host name.
+
+=head3 pretty (optional)
+
+If set, this will be set as the "pretty" host name.
+
+=cut
+sub hostname
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_is_local()" }});
+	
+	my $pretty = $parameter->{pretty} ? $parameter->{pretty} : "";
+	my $set    = $parameter->{set}    ? $parameter->{set}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		pretty => $pretty, 
+		set    => $set, 
+	}});
+	
+	# Set
+	if ($set)
+	{
+		# TODO: Sanity check the host name
+		my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." set-hostname $set";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		my $output = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	}
+	
+	# Pretty
+	if ($pretty)
+	{
+		# TODO: Escape this for bash properly
+		#   $pretty     =~ s/"/\\"/g;
+		my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." set-hostname --pretty \"$pretty\"";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		my $output = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	}
+	
+	# Get
+	my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." --static";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my $hostname = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hostname => $hostname }});
+	
+	return($hostname);
 }
 
 =head2 is_local
