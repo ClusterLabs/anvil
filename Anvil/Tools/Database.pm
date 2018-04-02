@@ -1588,6 +1588,12 @@ When C<< anvil-jobs >> picks up a job, it will record it's PID here.
 
 This is a numeric value between C<< 0 >> and C<< 100 >>. The job will update this as it runs, with C<< 100 >> indicating that the job is complete. A value of C<< 0 >> will indicate that the job needs to be started. When the daemon picks up the job, it will set this to C<< 1 >>. Any value in between is set by the job itself.
 
+=head3 job_status (optional)
+
+This is used to tell the user the current status of the job. It can be included when C<< update_progress_only >> is set. 
+
+The expected format is C<< <key>,!!var1!foo!!,...,!!varN!bar!!\n >>, one key/variable set per line. The new lines will be converted to C<< <br />\n >> automatically in Striker.
+
 =head3 job_title (required*)
 
 This is a string key to display in the title of the box showing that the job is running.
@@ -1601,6 +1607,10 @@ Variables can not be passed to this title key.
 This is the C<< job_uuid >> to update. If it is not specified but the C<< job_name >> is, a check will be made to see if an entry already exists. If so, that row will be UPDATEd. If not, a random UUID will be generated and a new entry will be INSERTed.
 
 * This or C<< job_name >> must be passed
+
+=head3 update_progress_only (optional)
+
+When set, the progress percentage and, optionally, the C<< job_data >>, will be updated only.
 
 =cut 
 sub insert_or_update_jobs
@@ -1625,6 +1635,7 @@ sub insert_or_update_jobs
 	my $job_progress         = defined $parameter->{job_progress}         ? $parameter->{job_progress}         : 0;
 	my $job_title            = defined $parameter->{job_title}            ? $parameter->{job_title}            : "";
 	my $job_description      = defined $parameter->{job_description}      ? $parameter->{job_description}      : "";
+	my $job_status           = defined $parameter->{job_status}           ? $parameter->{job_status}           : "";
 	my $update_progress_only = defined $parameter->{update_progress_only} ? $parameter->{update_progress_only} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		id                   => $id, 
@@ -1641,6 +1652,7 @@ sub insert_or_update_jobs
 		job_progress         => $job_progress, 
 		job_title            => $job_title, 
 		job_description      => $job_description, 
+		job_status           => $job_status, 
 		update_progress_only => $update_progress_only, 
 	}});
 	
@@ -1774,6 +1786,7 @@ INSERT INTO
     job_progress, 
     job_title, 
     job_description, 
+    job_status, 
     modified_date 
 ) VALUES (
     ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid).", 
@@ -1787,7 +1800,8 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_title).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($job_description).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{use_db_fh}->quote($job_status).", 
+   ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -1808,7 +1822,8 @@ SELECT
     job_name,
     job_progress, 
     job_title, 
-    job_description 
+    job_description, 
+    job_status 
 FROM 
     jobs 
 WHERE 
@@ -1834,6 +1849,7 @@ WHERE
 			my $old_job_progress     =         $row->[7];
 			my $old_job_title        =         $row->[8];
 			my $old_job_description  =         $row->[9];
+			my $old_job_status       =         $row->[10];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_job_host_uuid    => $old_job_host_uuid,
 				old_job_command      => $old_job_command, 
@@ -1845,6 +1861,7 @@ WHERE
 				old_job_progress     => $old_job_progress,
 				old_job_title        => $old_job_title, 
 				old_job_description  => $old_job_description, 
+				old_job_status       => $old_job_status, 
 			}});
 			
 			# Anything change?
@@ -1862,6 +1879,19 @@ SET
 WHERE 
     job_uuid      = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
 ";
+					if ($job_status)
+					{
+						$query = "
+UPDATE 
+    jobs 
+SET 
+    job_progress  = ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
+    job_status    = ".$anvil->data->{sys}{use_db_fh}->quote($job_status).", 
+    modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    job_uuid      = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+";
+					}
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -1878,7 +1908,8 @@ WHERE
 				    ($old_job_name         ne $job_name)         or 
 				    ($old_job_progress     ne $job_progress)     or 
 				    ($old_job_title        ne $job_title)        or 
-				    ($old_job_description  ne $job_description))
+				    ($old_job_description  ne $job_description)  or 
+				    ($old_job_status       ne $job_status))
 				{
 					# Something changed, save.
 					my $query = "
@@ -1895,6 +1926,7 @@ SET
     job_progress     = ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
     job_title        = ".$anvil->data->{sys}{use_db_fh}->quote($job_title).", 
     job_description  = ".$anvil->data->{sys}{use_db_fh}->quote($job_description).", 
+    job_status       = ".$anvil->data->{sys}{use_db_fh}->quote($job_status).", 
     modified_date    = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
     job_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 

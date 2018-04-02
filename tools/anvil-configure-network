@@ -4,6 +4,8 @@
 # 
 # Exit codes;
 # 0 = Normal exit.
+# 1 = Job was already picked up by another running instance.
+# 2 = The host name did not update properly.
 # 
 
 use strict;
@@ -81,15 +83,59 @@ sub reconfigure_network
 	}});
 	
 	# Set the hostname
-	my $hostnam = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 2});
+	my $hostname = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hostname => $hostname }});
 	if ($hostname eq $new_hostname)
 	{
 		# Success
+		$anvil->Database->insert_or_update_jobs({
+			job_uuid             => $anvil->{job}{uuid}, 
+			update_progress_only => 1, 
+			job_progress         => 10, 
+			job_status           => "message_0016,!!hostname!$new_hostname!!\n",
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0016", variables => { hostname => $new_hostname }});
 	}
 	else
 	{
 		# Failed
+		$anvil->Database->insert_or_update_jobs({
+			job_uuid             => $anvil->{job}{uuid}, 
+			update_progress_only => 1, 
+			job_progress         => 100, 
+			job_status           => "message_0017,!!hostname!$new_hostname!!,!!bad_hostname!$hostname!!\nfailed\n",
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0017", variables => { 
+			hostname     => $new_hostname,
+			bad_hostname => $hostname,
+		}});
+		$anvil->nice_exit({code => 2});
 	}
+	
+	# Now configure the network.
+	foreach my $network (1..$bcn_count)
+	{
+		my $link1_key = "bcn".$network."_iface1_mac";
+		my $link2_key = "bcn".$network."_iface2_mac";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			link1_key => $link1_key, 
+			link2_key => $link2_key, 
+		}});
+		my $create_bond = 0;
+		if ((exists $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}})))
+		{
+			# Bonded
+		}
+		elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
+		{
+			# Single
+		}
+		else
+		{
+			# Doesn't exist, skip.
+		}
+	}
+	
 =cut
 	print Dumper $anvil->data->{variables};
 
@@ -196,6 +242,9 @@ LIMIT 1;";
 		job_progress     => $job_progress,
 	}});
 	
+	# This will be used when updating the job
+	$anvil->{job}{uuid} = $job_uuid;
+	
 	# See if the job was picked up by another running instance.
 	if ($job_picked_up_by)
 	{
@@ -261,10 +310,12 @@ AND
 	}
 	
 	# Record that we've picked up this job.
-	$query = "UPDATE jobs SET job_picked_up_by = ".$$.", job_progress = 1, job_picked_up_at = ".time." WHERE job_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid).";";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	
-	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	$anvil->Database->insert_or_update_jobs({
+		job_uuid             => $anvil->{job}{uuid}, 
+		update_progress_only => 1, 
+		job_progress         => 1, 
+		job_status           => "message_0015\n",
+	});
 	
 	return(0);
 }

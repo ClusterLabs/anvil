@@ -283,9 +283,10 @@ CREATE TABLE jobs (
     job_picked_up_at   numeric                     not null    default 0,      -- This is unix timestamp of when the job was picked up.
     job_updated        numeric                     not null    default 0,      -- This is unix timestamp that is perdiodically updated for jobs that take a long time. It is used to help determine when a job is hung.
     job_name           text                        not null,                   -- This is the 'x::y::z' style job name.
-    job_progress       numeric                     not null,                   -- An approximate percentage completed. Useful for jobs that that a while and are able to provide data for progress bars. When set to '100', the job is considered completed.
+    job_progress       numeric                     not null    default 0,      -- An approximate percentage completed. Useful for jobs that that a while and are able to provide data for progress bars. When set to '100', the job is considered completed.
     job_title          text                        not null,                   -- This is a word key for the title of this job
     job_description    text                        not null,                   -- This is a word key that describes this job.
+    job_status         text,                                                   -- This is a field used to report the status of the job. It is expected to be 'key,!!var1!foo!!,...,!!varN!bar!!' format, one per line. If the last line is 'failed', the job will be understood to have failed.
     modified_date      timestamp with time zone    not null,
     
     FOREIGN KEY(job_host_uuid) REFERENCES hosts(host_uuid)
@@ -305,6 +306,7 @@ CREATE TABLE history.jobs (
     job_progress       numeric,
     job_title          text,
     job_description    text,
+    job_status         text,
     modified_date      timestamp with time zone    not null 
 );
 ALTER TABLE history.jobs OWNER TO #!variable!user!#;
@@ -327,6 +329,7 @@ BEGIN
          job_progress, 
          job_title, 
          job_description, 
+         job_status, 
          modified_date)
     VALUES
         (history_jobs.job_uuid,
@@ -340,6 +343,7 @@ BEGIN
          history_jobs.job_progress, 
          history_jobs.job_title, 
          history_jobs.job_description, 
+         history_jobs.job_status, 
          history_jobs.modified_date);
     RETURN NULL;
 END;

@@ -89,6 +89,8 @@ sub keep_running
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
 	
+	# Check the local network and running services and tune the firewall as things change.
+	
 	return(0);
 }
 

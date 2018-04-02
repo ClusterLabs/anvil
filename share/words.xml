@@ -36,6 +36,9 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="message_0012">Wrote the journald config file: [#!variable!file!#] to disable rate limiting to ensure high log levels are not lost.</key>
 		<key name="message_0013">The md5sum of: [#!variable!file!#] has changed since the daemon started.</key>
 		<key name="message_0014">Exiting to reload.</key>
+		<key name="message_0015">The reconfigure of the network has begun.</key>
+		<key name="message_0016">The hostname: [#!variable!hostname!#] has been set.</key>
+		<key name="message_0017">Failed to set the hostname: [#!variable!hostname!#]! The hostname is currently [#!variable!bad_hostname!#]. This is probably a program error.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
