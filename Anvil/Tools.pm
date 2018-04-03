@@ -748,6 +748,7 @@ sub _set_paths
 				firewalld_services	=>	"/usr/lib/firewalld/services",
 				firewalld_zones		=>	"/etc/firewalld/zones",
 				html			=>	"/var/www/html",
+				ifcfg			=>	"/etc/sysconfig/network-scripts",
 				skins			=>	"/var/www/html/skins",
 				tools			=>	"/usr/sbin",
 				units			=>	"/usr/lib/systemd/system",

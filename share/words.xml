@@ -221,6 +221,8 @@ The database connection error was:
 		<key name="log_0145"><![CDATA[[ Warning ] - Unable to use the database on the host: [#!variable!host!#]. The local Anvil! version is: [#!variable!local_version!#], and the target host's is: [#!variable!target_version!#]. If you are upgrading, we will resync and use it once the host and our version is again the same.]]></key>
 		<key name="log_0146">A job to configure the network was found, but it has already been picked up by: [#!variable!pid!#].</key>
 		<key name="log_0147">A job to configure the network was found, and it was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Taking the job.</key>
+		<key name="log_0148">The network: [#!variable!network!#] has something set for the IP [#!variable!ip!#], but it appears to be invalid. Ignoring this network.</key>
+		<key name="log_0149">The network: [#!variable!network!#] is not set to be configured. Skipping it.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

@@ -60,6 +60,19 @@ Example Link config:
 
 Example Bonding config:
 ====
+BRIDGE_UUID="e7a8f977-560d-4a94-95cd-a1218f0fe890"
+DEVICE="ifn1_bond1"
+NAME="IFN 1 - Bond 1"
+UUID="a59d138e-6c40-4366-b859-fcadafe577f4"
+BONDING_OPTS="mode=active-backup primary=ifn1_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better"
+TYPE="Bond"
+BONDING_MASTER="yes"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+DEFROUTE="no"
+BRIDGE="ifn1_bridge1"
+ZONE=public
 ====
 
 Example Bridge config:

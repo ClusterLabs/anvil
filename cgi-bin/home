@@ -4,6 +4,9 @@
 # 0 == OK
 # 1 == Host UUID not available yet.
 # 
+# TODO: 
+# * Make the BCN count a thing, remove Striker user and make it statically 'admin'.
+# 
 
 use strict;
 use warnings;

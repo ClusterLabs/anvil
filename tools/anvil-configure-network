@@ -52,6 +52,10 @@ pickup_job_details($anvil);
 
 reconfigure_network($anvil);
 
+# Set the passwords
+my $password = $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
+
 $anvil->nice_exit({code => 0});
 
 #############################################################################################################
@@ -68,8 +72,9 @@ sub reconfigure_network
 	my $domain          = $anvil->data->{variables}{form}{config_step1}{domain}{value};
 	my $organization    = $anvil->data->{variables}{form}{config_step1}{organization}{value};
 	my $bcn_count       = 1;	# TODO: This should be coming from the form, even though it's only '1' for now.
+	my $sn_count        = 0;	# TODO: This should be coming from the form, even though it's always '0' for Strikers.
 	my $ifn_count       = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
-	my $new_hostname    = $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
+	my $new_hostname    = defined $anvil->data->{variables}{form}{config_step2}{hostname}{value} ? $anvil->data->{variables}{form}{config_step2}{hostname}{value} : $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
 	my $pretty_hostname = $organization." - Striker ".sprintf("%02d", $sequence);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		prefix          => $prefix, 
@@ -88,22 +93,25 @@ sub reconfigure_network
 	if ($hostname eq $new_hostname)
 	{
 		# Success
+		$anvil->{job}{status} .= "message_0016,!!hostname!$new_hostname!!\n";
 		$anvil->Database->insert_or_update_jobs({
 			job_uuid             => $anvil->{job}{uuid}, 
 			update_progress_only => 1, 
 			job_progress         => 10, 
-			job_status           => "message_0016,!!hostname!$new_hostname!!\n",
+			job_status           => $anvil->{job}{status},
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0016", variables => { hostname => $new_hostname }});
 	}
 	else
 	{
 		# Failed
+		$anvil->{job}{status} .= "message_0017,!!hostname!$new_hostname!!,!!bad_hostname!$hostname!!\n";
+		$anvil->{job}{status} .= "failed\n";
 		$anvil->Database->insert_or_update_jobs({
 			job_uuid             => $anvil->{job}{uuid}, 
 			update_progress_only => 1, 
 			job_progress         => 100, 
-			job_status           => "message_0017,!!hostname!$new_hostname!!,!!bad_hostname!$hostname!!\nfailed\n",
+			job_status           => $anvil->{job}{status},
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0017", variables => { 
 			hostname     => $new_hostname,
@@ -113,82 +121,195 @@ sub reconfigure_network
 	}
 	
 	# Now configure the network.
-	foreach my $network (1..$bcn_count)
+	my $dns = defined $anvil->data->{variables}{form}{config_step2}{dns}{value} ? [split/,/, $anvil->data->{variables}{form}{config_step2}{dns}{value}] : [];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns => $dns }});
+	for (my $i = 0; $i < @{$dns}; $i++)
 	{
-		my $link1_key = "bcn".$network."_iface1_mac";
-		my $link2_key = "bcn".$network."_iface2_mac";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			link1_key => $link1_key, 
-			link2_key => $link2_key, 
-		}});
-		my $create_bond = 0;
-		if ((exists $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}})))
-		{
-			# Bonded
-		}
-		elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
-		{
-			# Single
-		}
-		else
-		{
-			# Doesn't exist, skip.
-		}
+		$dns->[$i] = $anvil->Words->clean_spaces({ string => $dns->[$i] });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "dns->[$i]" => $dns->[$i] }});
 	}
 	
-=cut
-	print Dumper $anvil->data->{variables};
-
-$VAR1 = {
-          'form' => {
-                      'config_step2' => {
-                                          'bcn1_subnet' => {
-                                                             'value' => '255.255.0.0'
-                                                           },
-                                          'ifn1_iface1_mac' => {
-                                                                 'value' => '52:54:00:dd:ad:8a'
-                                                               },
-                                          'dns' => {
-                                                     'value' => '8.8.8.8, 8.8.4.4'
-                                                   },
-                                          'gateway' => {
-                                                         'value' => '192.168.122.1'
-                                                       },
-                                          'bcn1_iface1_mac' => {
-                                                                 'value' => '52:54:00:6b:35:bc'
-                                                               },
-                                          'striker_password' => {
-                                                                  'value' => 'super secret password'
-                                                                },
-                                          'hostname' => {
-                                                          'value' => 'an-striker01.alteeve.com'
-                                                        },
-                                          'gateway_interface' => {
-                                                                   'value' => 'ifn1'
-                                                                 },
-                                          'ifn1_subnet' => {
-                                                             'value' => '255.255.0.0'
-                                                           },
-                                          'ifn1_ip' => {
-                                                         'value' => '192.168.122.201'
-                                                       },
-                                          'bcn1_ip' => {
-                                                         'value' => '10.1.4.1'
-                                                       },
-                                          'bcn1_iface2_mac' => {
-                                                                 'value' => '52:54:00:5d:5d:3d'
-                                                               },
-                                          'ifn1_iface2_mac' => {
-                                                                 'value' => '52:54:00:1e:36:03'
-                                                               },
-                                          'striker_user' => {
-                                                              'value' => 'striker'
-                                                            }
-                                        },
-        };
-=cut
+	my $gateway           = defined $anvil->data->{variables}{form}{config_step2}{gateway}{value}           ? $anvil->data->{variables}{form}{config_step2}{gateway}{value}           : "";
+	my $gateway_interface = defined $anvil->data->{variables}{form}{config_step2}{gateway_interface}{value} ? $anvil->data->{variables}{form}{config_step2}{gateway_interface}{value} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		gateway           => $gateway, 
+		gateway_interface => $gateway_interface, 
+	}});
+	foreach my $network_type ("bcn", "sn", "ifn")
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+		
+		my $count = 0;
+		if    ($network_type eq "bcn") { $count = $bcn_count; }
+		elsif ($network_type eq "sn")  { $count = $sn_count;  }
+		elsif ($network_type eq "ifn") { $count = $ifn_count; }
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		next if not $count;
+		foreach my $network_count (1..$count)
+		{
+			my $this_network = $network_type.$network_count;
+			my $link1_key    = $this_network."_iface1_mac";
+			my $link2_key    = $this_network."_iface2_mac";
+			my $subnet_key   = $this_network."_subnet";
+			my $ip_key       = $this_network."_ip";
+			my $is_gateway   = $this_network eq $gateway_interface ? 1 : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				this_network => $this_network, 
+				link1_key    => $link1_key, 
+				link2_key    => $link2_key, 
+				subnet_key   => $subnet_key, 
+				ip_key       => $ip_key, 
+				is_gateway   => $is_gateway, 
+			}});
+			
+			# Skip if this doesn't exist or isn't a valid IPv$ address.
+			next if not exists $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
+			if (($anvil->data->{variables}{form}{config_step2}{$ip_key}{value}) and (not $anvil->Validate->is_ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
+			{
+				# Something was set, but it isn't valid.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0148", variables => { 
+					network => $this_network,
+					ip      => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value},
+				}});
+				next;
+			}
+			
+			my $ip     = $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
+			my $subnet = $anvil->data->{variables}{form}{config_step2}{$subnet_key}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				ip     => $ip, 
+				subnet => $subnet, 
+			}});
+			
+			if ((exists $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}})))
+			{
+				# Bonded
+				my $link1_mac = $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
+				my $link2_mac = $anvil->data->{variables}{form}{config_step2}{$link2_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					link1_mac => $link1_mac, 
+					link2_mac => $link2_mac, 
+				}});
+				
+				### TODO: Handle when bridges exist. Detect when the host is a node and/or have a "use as bridge" option?
+				# Build the configs.
+				my $say_network      = "";
+				my $say_interface    = "";
+				my $interface_prefix = "";
+				if ($network_type eq "bcn")
+				{
+					$say_network      = "Back-Channel Network ".$network_count;
+					$say_interface    = "bcn".$network_count;
+					$interface_prefix = "BCN";
+				}
+				elsif ($network_type eq "sn")
+				{
+					$say_network      = "Storage Network ".$network_count; 
+					$say_interface    = "sn".$network_count;
+					$interface_prefix = "SN";
+				}
+				elsif ($network_type eq "ifn")
+				{
+					$say_network      = "Internet-Facing Network ".$network_count; 
+					$say_interface    = "ifn".$network_count;
+					$interface_prefix = "IFN";
+				}
+				my $bond_file     = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Bond_1";
+				my $link2_file    = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_2";
+				my $link1_file    = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
+				my $bond_uuid     = get_uuid_from_interface_file($anvil, $bond_file);
+				my $link2_uuid    = get_uuid_from_interface_file($anvil, $link2_file);
+				my $link1_uuid    = get_uuid_from_interface_file($anvil, $link1_file);
+				my $say_defroute  = $is_gateway ? "yes" : "no";
+				my $cidr          = $anvil->Convert->cidr({subnet => $subnet});
+				
+				### TODO: Set the firewall Zone appropriately.
+				# Build the Bond config.
+				my $bond_config =  "# $say_network - Bond 1\n";
+				   $bond_config .= "DEVICE=\"".$say_interface."_bond1\"\n";
+				   $bond_config .= "NAME=\"".$interface_prefix." ".$network_count." - Bond 1\"\n";
+				   $bond_config .= "UUID=\"".$bond_uuid."\"\n";
+				   $bond_config .= "BONDING_OPTS=\"mode=active-backup primary=".$say_interface."_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better\"\n";
+				   $bond_config .= "TYPE=\"Bond\"\n";
+				   $bond_config .= "BONDING_MASTER=\"yes\"\n";
+				   $bond_config .= "BOOTPROTO=\"none\"\n";
+				   $bond_config .= "IPV6INIT=\"no\"\n";
+				   $bond_config .= "ONBOOT=\"yes\"\n";
+				   $bond_config .= "IPADDR=\"".$ip."\"\n";
+				   $bond_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet."\"\n";
+				if ($is_gateway)
+				{
+					$bond_config .= "GATEWAY=\"".$gateway."\"\n";
+					for (my $i = 0; $i < @{$dns}; $i++)
+					{
+						$bond_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+					}
+				}
+				$bond_config .= "DEFROUTE=\"".$say_defroute."\"\n";
+				$bond_config .= "ZONE=\"".$say_interface."\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					bond_config => $bond_config, 
+				}});
+				   
+				my $link1_config = "";
+				my $link2_config = "";
+			}
+			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
+			{
+				# Single
+				my $link1_mac = $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_mac => $link1_mac }});
+			}
+			else
+			{
+				# Doesn't exist, skip.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0149", variables => { network => $this_network }});
+				next;
+			}
+		}
+	}
 
 	return(0);
+}
+
+# This will read a network interface file and return the UUID="x" value. If the file doesn't exist or the 
+# UUID was not found, a new UUID is generated and returned.
+sub get_uuid_from_interface_file
+{
+	my ($anvil, $file) = @_;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0131", variables => { function => "get_uuid_from_interface_file" }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+	
+	my $uuid = "";
+	if (-e $file)
+	{
+		my $body = $anvil->Storage->read_file({file => $file});
+		foreach my $line (split/\n/, $body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			$line =~ s/#.*//;
+			if ($line =~ /UUID=\"(.*?)\"/)
+			{
+				my $test_uuid = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_uuid => $test_uuid }});
+				if ($anvil->Validate->is_uuid({uuid => $test_uuid}))
+				{
+					$uuid = $test_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+				}
+				last;
+			}
+		}
+	}
+	if (not $uuid)
+	{
+		$uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
+	return($uuid);
 }
 
 # This will pick up the job, or exit.
@@ -241,9 +362,6 @@ LIMIT 1;";
 		job_updated      => $job_updated,
 		job_progress     => $job_progress,
 	}});
-	
-	# This will be used when updating the job
-	$anvil->{job}{uuid} = $job_uuid;
 	
 	# See if the job was picked up by another running instance.
 	if ($job_picked_up_by)
@@ -309,12 +427,16 @@ AND
 		$anvil->_make_hash_reference($anvil->data->{variables}, $this_variable, $this_value);
 	}
 	
+	# This will be used when updating the job
+	$anvil->{job}{uuid}   = $job_uuid;
+	$anvil->{job}{status} = "message_0015\n";
+	
 	# Record that we've picked up this job.
 	$anvil->Database->insert_or_update_jobs({
 		job_uuid             => $anvil->{job}{uuid}, 
 		update_progress_only => 1, 
 		job_progress         => 1, 
-		job_status           => "message_0015\n",
+		job_status           => $anvil->{job}{status},
 	});
 	
 	return(0);
