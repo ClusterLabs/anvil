@@ -781,6 +781,7 @@ sub _set_paths
 				psql			=>	"/usr/bin/psql",
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
 				pwd			=>	"/usr/bin/pwd",
+				rsync			=>	"/usr/bin/rsync",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
 				touch			=>	"/usr/bin/touch",

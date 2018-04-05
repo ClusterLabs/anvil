@@ -368,7 +368,13 @@ sub enable_daemon
 
 =head2 get_ips
 
-This method checks the local system for interfaces with IP addresses and stores them in C<< sys::network::interface::<iface_name>::ip >> and C<< sys::network::interface::<iface_name>::subnet >>
+This method checks the local system for interfaces and stores them in:
+
+* C<< sys::network::interface::<iface_name>::ip >> - If an IP address is set
+* C<< sys::network::interface::<iface_name>::subnet >> - If an IP is set
+* C<< sys::network::interface::<iface_name>::mac >> - Always set.
+
+To aid in look-up by MAC address, C<< sys::mac::<mac_address>::iface >> is also set.
 
 =cut
 sub get_ips
@@ -376,7 +382,7 @@ sub get_ips
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_ips()" }});
 	
 	my $in_iface = "";
@@ -418,8 +424,13 @@ sub get_ips
 		}
 		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
 		{
-			$anvil->data->{sys}{networks}{$in_iface}{mac} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::networks::${in_iface}::mac" => $anvil->data->{sys}{networks}{$in_iface}{mac} }});
+			my $mac                                          = $1;
+			   $anvil->data->{sys}{networks}{$in_iface}{mac} = $mac;
+			   $anvil->data->{sys}{mac}{$mac}{iface}         = $in_iface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::networks::${in_iface}::mac" => $anvil->data->{sys}{networks}{$in_iface}{mac},
+				"sys::mac::${mac}::iface"         => $anvil->data->{sys}{mac}{$mac}{iface}, 
+			}});
 		}
 	}
 	

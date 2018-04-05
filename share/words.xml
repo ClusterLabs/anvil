@@ -223,6 +223,12 @@ The database connection error was:
 		<key name="log_0147">A job to configure the network was found, and it was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Taking the job.</key>
 		<key name="log_0148">The network: [#!variable!network!#] has something set for the IP [#!variable!ip!#], but it appears to be invalid. Ignoring this network.</key>
 		<key name="log_0149">The network: [#!variable!network!#] is not set to be configured. Skipping it.</key>
+		<key name="log_0150">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which does not appear to be a full path and file name (should start with '/').</key>
+		<key name="log_0151">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which does not appear to exist.</key>
+		<key name="log_0152">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which can not be read (please check permissions and SELinux).</key>
+		<key name="log_0153">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which isn't actually a file.</key>
+		<key name="log_0154">The file: [#!variable!source_file!#] has been backed up as: [#!variable!target_file!#].</key>
+		<key name="log_0155">Removing the old network configuration file: [#!variable!file!#] as part of the network reconfiguration.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

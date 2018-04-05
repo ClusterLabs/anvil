@@ -12,6 +12,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Storage.pm";
 
 ### Methods;
+# backup_file
 # change_mode
 # change_owner
 # check_md5sums
@@ -86,6 +87,102 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 backup
+
+This will create a copy of the file under the C<< path::directories::backups >> directory with the datestamp as a suffix. The path is preserved under the backup directory. The path and file name are returned.
+
+By default, a failure to backup will be fatal with return code C<< 1 >> for safety reasons. If the file is critical, you can set C<< fatal => 0 >> and an empty string will be returned on error.
+
+Parameters;
+
+=head3 fatal (optional, default 1)
+
+If set to C<< 0 >>, any problem with the backup will be ignored and an empty string will be returned.
+
+=head3 file (required)
+
+This is the path and file name of the file to be backed up. Fully paths must be used.
+
+=cut
+sub backup
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
+	
+	my $fatal       = defined $parameter->{fatal} ? $parameter->{fatal} : 1;
+	my $source_file = defined $parameter->{file}  ? $parameter->{file}  : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		source_file => $source_file,
+		fatal       => $fatal, 
+	}});
+	
+	my $target_file = "";
+	
+	if (not $source_file)
+	{
+		# No file passed in
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->backup()", parameter => "target" }});
+		if ($fatal) { $anvil->nice_exit({code => 1}); }
+	}
+	elsif ($source_file !~ /^\//)
+	{
+		# Isn't a full path
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0150", variables => { source_file => $source_file }});
+		if ($fatal) { $anvil->nice_exit({code => 1}); }
+	}
+	elsif (not -e $source_file)
+	{
+		# File doesn't exist.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0151", variables => { source_file => $source_file }});
+		if ($fatal) { $anvil->nice_exit({code => 1}); }
+	}
+	elsif (not -f $source_file)
+	{
+		# Not a file
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0153", variables => { source_file => $source_file }});
+		if ($fatal) { $anvil->nice_exit({code => 1}); }
+	}
+	elsif (not -r $source_file)
+	{
+		# Can't read the file.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0152", variables => { source_file => $source_file }});
+		if ($fatal) { $anvil->nice_exit({code => 1}); }
+	}
+	else
+	{
+		# Proceed with the backup. We'll recreate the path 
+		my ($directory, $file) = ($source_file =~ /^(\/.*)\/(.*)$/);
+		my $timestamp          = $anvil->Get->date_and_time({file_name => 1});
+		my $backup_directory   = $anvil->data->{path}{directories}{backups}.$directory;
+		my $backup_target      = $file.".".$timestamp;
+		   $target_file        = $backup_directory."/".$backup_target; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			directory        => $directory, 
+			file             => $file, 
+			timestamp        => $timestamp, 
+			backup_directory => $backup_directory, 
+			backup_target    => $backup_target, 
+			target_file      => $target_file, 
+		}});
+		
+		# Backup! It will create the target directory, if needed.
+		$anvil->Storage->copy_file({
+			source => $source_file, 
+			target => $target_file, 
+			debug  => 2,
+		});
+		
+		# Log that the file was backed up.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0154", variables => { source_file => $source_file, target_file => $target_file }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_file => $target_file }});
+	return($target_file);
+}
+=cut
 
 =head2 change_mode
 
