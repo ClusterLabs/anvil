@@ -382,7 +382,7 @@ sub get_ips
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_ips()" }});
 	
 	my $in_iface = "";
@@ -427,7 +427,7 @@ sub get_ips
 			my $mac                                          = $1;
 			   $anvil->data->{sys}{networks}{$in_iface}{mac} = $mac;
 			   $anvil->data->{sys}{mac}{$mac}{iface}         = $in_iface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"sys::networks::${in_iface}::mac" => $anvil->data->{sys}{networks}{$in_iface}{mac},
 				"sys::mac::${mac}::iface"         => $anvil->data->{sys}{mac}{$mac}{iface}, 
 			}});
@@ -889,9 +889,9 @@ sub pids
 	}});
 	
 	# If we stored this data before, delete it as it is now stale.
-	if (exists $anvil->{pids})
+	if (exists $anvil->data->{pids})
 	{
-		delete $anvil->{pids};
+		delete $anvil->data->{pids};
 	}
 	my $my_pid     = $$;
 	my $pids       = [];
@@ -947,26 +947,26 @@ sub pids
 			}
 			
 			# Store by PID
-			$anvil->{pids}{$pid}{user}                = $user;
-			$anvil->{pids}{$pid}{cpu}                 = $cpu;
-			$anvil->{pids}{$pid}{memory}              = $memory;
-			$anvil->{pids}{$pid}{virtual_memory_size} = $virtual_memory_size;
-			$anvil->{pids}{$pid}{resident_set_size}   = $resident_set_size;
-			$anvil->{pids}{$pid}{control_terminal}    = $control_terminal;
-			$anvil->{pids}{$pid}{state_codes}         = $state_codes;
-			$anvil->{pids}{$pid}{start_time}          = $start_time;
-			$anvil->{pids}{$pid}{'time'}              = $time;
-			$anvil->{pids}{$pid}{command}             = $command;
+			$anvil->data->{pids}{$pid}{user}                = $user;
+			$anvil->data->{pids}{$pid}{cpu}                 = $cpu;
+			$anvil->data->{pids}{$pid}{memory}              = $memory;
+			$anvil->data->{pids}{$pid}{virtual_memory_size} = $virtual_memory_size;
+			$anvil->data->{pids}{$pid}{resident_set_size}   = $resident_set_size;
+			$anvil->data->{pids}{$pid}{control_terminal}    = $control_terminal;
+			$anvil->data->{pids}{$pid}{state_codes}         = $state_codes;
+			$anvil->data->{pids}{$pid}{start_time}          = $start_time;
+			$anvil->data->{pids}{$pid}{'time'}              = $time;
+			$anvil->data->{pids}{$pid}{command}             = $command;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"pids::${pid}::cpu"                 => $anvil->{pids}{$pid}{cpu}, 
-				"pids::${pid}::memory"              => $anvil->{pids}{$pid}{memory}, 
-				"pids::${pid}::virtual_memory_size" => $anvil->{pids}{$pid}{virtual_memory_size}, 
-				"pids::${pid}::resident_set_size"   => $anvil->{pids}{$pid}{resident_set_size}, 
-				"pids::${pid}::control_terminal"    => $anvil->{pids}{$pid}{control_terminal}, 
-				"pids::${pid}::state_codes"         => $anvil->{pids}{$pid}{state_codes}, 
-				"pids::${pid}::start_time"          => $anvil->{pids}{$pid}{start_time}, 
-				"pids::${pid}::time"                => $anvil->{pids}{$pid}{'time'}, 
-				"pids::${pid}::command"             => $anvil->{pids}{$pid}{command}, 
+				"pids::${pid}::cpu"                 => $anvil->data->{pids}{$pid}{cpu}, 
+				"pids::${pid}::memory"              => $anvil->data->{pids}{$pid}{memory}, 
+				"pids::${pid}::virtual_memory_size" => $anvil->data->{pids}{$pid}{virtual_memory_size}, 
+				"pids::${pid}::resident_set_size"   => $anvil->data->{pids}{$pid}{resident_set_size}, 
+				"pids::${pid}::control_terminal"    => $anvil->data->{pids}{$pid}{control_terminal}, 
+				"pids::${pid}::state_codes"         => $anvil->data->{pids}{$pid}{state_codes}, 
+				"pids::${pid}::start_time"          => $anvil->data->{pids}{$pid}{start_time}, 
+				"pids::${pid}::time"                => $anvil->data->{pids}{$pid}{'time'}, 
+				"pids::${pid}::command"             => $anvil->data->{pids}{$pid}{command}, 
 			}});
 			
 			if ($command =~ /$program_name/)

@@ -39,7 +39,7 @@ $anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
 if (not $anvil->Get->host_uuid)
 {
 	# Too early, exit.
-	print $anvil->Words->string({key => "striker_error_0002"});
+	print $anvil->Words->string({key => "error_0002"});
 	$anvil->nice_exit({exit_code => 1});
 }
 
@@ -51,7 +51,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 if (not $connections)
 {
 	# No databases, exit.
-	print $anvil->Words->string({key => "striker_error_0003"});
+	print $anvil->Words->string({key => "error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
 
@@ -1060,7 +1060,7 @@ sub sanity_check_step2
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::gateway::alert" => $anvil->data->{cgi}{gateway}{alert} }});
 				
 				# Explain the problem
-				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_error_0004"}) }});
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0004"}) }});
 			}
 		}
 		
@@ -1212,7 +1212,7 @@ sub sanity_check_step1
 	if ($interface_count < $required_interfaces_for_single)
 	{
 		# Build the error message.
-		my $say_message = $anvil->Words->string({key => "striker_error_0001", variables => {
+		my $say_message = $anvil->Words->string({key => "error_0001", variables => {
 			interface_count                => $interface_count,
 			required_interfaces_for_single => $required_interfaces_for_single,
 		}});
@@ -1376,7 +1376,7 @@ sub get_network_details
 	
 	### TODO: Daemonize this or solve selinux issues
 	### Refresh the network.xml
-	#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'scancore-update-states'}});
+	#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}});
 	
 	# Now read the network.xml
 	my $file = $anvil->data->{path}{directories}{html}."/status/network.xml";

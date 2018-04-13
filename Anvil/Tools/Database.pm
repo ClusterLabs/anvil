@@ -156,7 +156,7 @@ sub check_lock_age
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::local_lock_active" => $anvil->data->{sys}{database}{local_lock_active} }});
 	}
 	
-	# If I have an active lock, check its age and also update the ScanCore lock file.
+	# If I have an active lock, check its age and also update the Anvil! lock file.
 	my $renewed = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::local_lock_active" => $anvil->data->{sys}{database}{local_lock_active} }});
 	if ($anvil->data->{sys}{database}{local_lock_active})
@@ -420,7 +420,7 @@ sub configure_pgsql
 	
 	# Does the database user exist?
 	my $create_user   = 1;
-	my $database_user = $anvil->data->{database}{$id}{user};
+	my $database_user = $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : $anvil->data->{sys}{database}{user};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_user => $database_user }});
 	if (not $database_user)
 	{
@@ -487,8 +487,8 @@ sub configure_pgsql
 	
 	# Create the database, if needed.
 	my $create_database = 1;
-	my $database_name   = $anvil->data->{database}{$id}{name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "database::${id}::name" => $anvil->data->{database}{$id}{name} }});
+	my $database_name   = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_name => $database_name }});
 	
 	my $database_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list }});
@@ -556,15 +556,11 @@ This method tries to connect to all databases it knows of. To define databases f
 
  database::1::host		=	an-striker01.alteeve.com
  database::1::port		=	5432
- database::1::name		=	scancore
- database::1::user		=	admin
  database::1::password		=	Initial1
  database::1::ping		=	0.25
  
  database::2::host		=	an-striker02.alteeve.com
  database::2::port		=	5432
- database::2::name		=	scancore
- database::2::user		=	admin
  database::2::password		=	Initial1
  database::2::ping		=	0.25
 
@@ -673,8 +669,8 @@ sub connect
 		my $driver   = "DBI:Pg";
 		my $host     = $anvil->data->{database}{$id}{host}     ? $anvil->data->{database}{$id}{host}     : ""; # This should fail
 		my $port     = $anvil->data->{database}{$id}{port}     ? $anvil->data->{database}{$id}{port}     : 5432;
-		my $name     = $anvil->data->{database}{$id}{name}     ? $anvil->data->{database}{$id}{name}     : ""; # This should fail
-		my $user     = $anvil->data->{database}{$id}{user}     ? $anvil->data->{database}{$id}{user}     : ""; # This should fail
+		my $name     = $anvil->data->{database}{$id}{name}     ? $anvil->data->{database}{$id}{name}     : $anvil->data->{sys}{database}{name};
+		my $user     = $anvil->data->{database}{$id}{user}     ? $anvil->data->{database}{$id}{user}     : $anvil->data->{sys}{database}{user};
 		my $password = $anvil->data->{database}{$id}{password} ? $anvil->data->{database}{$id}{password} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host     => $host,
@@ -980,11 +976,13 @@ sub connect
 	# Report any failed DB connections
 	foreach my $id (@{$failed_connections})
 	{
+		my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : "--";
+		my $database_user = defined $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : "--";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
 			"database::${id}::port"     => $anvil->data->{database}{$id}{port},
-			"database::${id}::name"     => $anvil->data->{database}{$id}{name},
-			"database::${id}::user"     => $anvil->data->{database}{$id}{user}, 
+			"database::${id}::name"     => $database_name,
+			"database::${id}::user"     => $database_user, 
 			"database::${id}::password" => $anvil->Log->secure ? $anvil->data->{database}{$id}{password} : "--", 
 		}});
 		
@@ -993,7 +991,7 @@ sub connect
 		
 		# Delete this DB so that we don't try to use it later. This is a quiet alert because the 
 		# original connection error was likely logged.
-		my $say_server = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$anvil->data->{database}{$id}{name};
+		my $say_server = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0092", variables => { server => $say_server, id => $id }});
 		
 		# Delete it from the list of known databases for this run.
@@ -1037,11 +1035,13 @@ sub connect
 	# Send an 'all clear' message if a now-connected DB previously wasn't.
 	foreach my $id (@{$successful_connections})
 	{
+		my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : "--";
+		my $database_user = defined $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : "--";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
 			"database::${id}::port"     => $anvil->data->{database}{$id}{port},
-			"database::${id}::name"     => $anvil->data->{database}{$id}{name},
-			"database::${id}::user"     => $anvil->data->{database}{$id}{user}, 
+			"database::${id}::name"     => $database_name,
+			"database::${id}::user"     => $database_user, 
 			"database::${id}::password" => $anvil->Log->secure ? $anvil->data->{database}{$id}{password} : "--", 
 		}});
 		
@@ -1068,13 +1068,13 @@ sub connect
 			{
 				$anvil->Alert->register_alert({
 					level			=>	"warning", 
-					agent_name		=>	"ScanCore",
+					agent_name		=>	"Anvil!",
 					title_key		=>	"an_title_0006",
 					message_key		=>	"cleared_log_0055",
 					message_variables	=>	{
-						name			=>	$anvil->data->{database}{$id}{name},
+						name			=>	$database_name,
 						host			=>	$anvil->data->{database}{$id}{host},
-						port			=>	$anvil->data->{database}{$id}{port} ? $anvil->data->{database}{$id}{port} : 5432,
+						port			=>	defined $anvil->data->{database}{$id}{port} ? $anvil->data->{database}{$id}{port} : 5432,
 					},
 				});
 			}
@@ -1314,7 +1314,8 @@ sub initialize
 	}});
 	
 	# This just makes some logging cleaner below.
-	my $say_server = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$anvil->data->{database}{$id}{name};
+	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_server => $say_server }});
 	
 	if (not $id)
@@ -1364,7 +1365,7 @@ sub initialize
 	}});
 	
 	# Read in the SQL file and replace #!variable!name!# with the database owner name.
-	my $user = $anvil->data->{database}{$id}{user};
+	my $user = $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : $anvil->data->{sys}{database}{user};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	
 	my $sql = $anvil->Storage->read_file({file => $sql_file});
@@ -2970,7 +2971,7 @@ sub locking
 		
 		if ($lock_value)
 		{
-			my $variable_uuid = $anvil->ScanCore->insert_or_update_variables({
+			my $variable_uuid = $anvil->Database->insert_or_update_variables({
 				variable_name     => $variable_name,
 				variable_value    => "",
 				update_value_only => 1,
@@ -2993,7 +2994,7 @@ sub locking
 	if ($renew)
 	{
 		# Yup, do it.
-		my $variable_uuid = $anvil->ScanCore->insert_or_update_variables({
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
 			variable_name     => $variable_name,
 			variable_value    => $variable_value,
 			update_value_only => 1,
@@ -3055,7 +3056,7 @@ sub locking
 			if ($current_time > $timeout_time)
 			{
 				# The lock is stale.
-				my $variable_uuid = $anvil->ScanCore->insert_or_update_variables({
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
 					variable_name     => $variable_name,
 					variable_value    => "",
 					update_value_only => 1,
@@ -3083,7 +3084,7 @@ sub locking
 	if ($request)
 	{
 		# Yup, do it.
-		my $variable_uuid = $anvil->ScanCore->insert_or_update_variables({
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
 			variable_name     => $variable_name,
 			variable_value    => $variable_value,
 			update_value_only => 1,
@@ -3163,7 +3164,7 @@ If an error occurs, C<< !!error!! >> will be returned.
 
 For example, given the query;
 
- scancore=# SELECT host_uuid, host_name, host_type FROM hosts ORDER BY host_name ASC;
+ anvil=# SELECT host_uuid, host_name, host_type FROM hosts ORDER BY host_name ASC;
                host_uuid               |        host_name         | host_type 
  --------------------------------------+--------------------------+-----------
   e27fc9a0-2656-4aaf-80e6-fedb3c339037 | an-a01n01.alteeve.com    | node
@@ -3243,7 +3244,8 @@ sub query
 	}});
 	
 	# Make logging code a little cleaner
-	my $say_server = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$anvil->data->{database}{$id}{name};
+	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
 	
 	if (not $id)
 	{
@@ -3448,10 +3450,10 @@ sub resync_databases
 		{
 			$column2 = $1."_uuid";
 		}
-		my $query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = 'scancore' AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column1).";";
+		my $query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column1).";";
 		if ($column2)
 		{
-			$query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = 'scancore' AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND (column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column1)." OR column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column2).");";
+			$query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND (column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column1)." OR column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column2).");";
 		}
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 		my $uuid_column = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -3780,7 +3782,7 @@ sub resync_databases
 	# Show columns;
 	# SELECT table_catalog, table_schema, table_name, column_name, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'alerts';
 	
-	# psql -E scancore <<-- LOVE <3
+	# psql -E anvil <<-- LOVE <3
 	
 	return(0);
 }
@@ -3815,7 +3817,8 @@ sub write
 	}});
 	
 	# Make logging code a little cleaner
-	my $say_server = $id eq "" ? "#!string!log_0129!#" : $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$anvil->data->{database}{$id}{name};
+	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $id eq "" ? "#!string!log_0129!#" : $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
 	#print "id: [$id], say_server: [$say_server]\n";
 	
 	# We don't check if ID is set here because not being set simply means to write to all available DBs.
@@ -4167,11 +4170,13 @@ sub _find_behind_databases
 	my $source_updated_time = 0;
 	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
+		my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : "--";
+		my $database_user = defined $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : "--";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
 			"database::${id}::port"     => $anvil->data->{database}{$id}{port},
-			"database::${id}::name"     => $anvil->data->{database}{$id}{name},
-			"database::${id}::user"     => $anvil->data->{database}{$id}{user}, 
+			"database::${id}::name"     => $database_name,
+			"database::${id}::user"     => $database_user, 
 			"database::${id}::password" => $anvil->Log->secure ? $anvil->data->{database}{$id}{password} : "--", 
 		}});
 		
@@ -4353,7 +4358,8 @@ sub _test_access
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
 	
 	# Make logging code a little cleaner
-	my $say_server = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$anvil->data->{database}{$id}{name};
+	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
 	
 	# Log our test
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0087", variables => { server => $say_server }});

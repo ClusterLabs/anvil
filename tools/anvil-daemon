@@ -94,7 +94,7 @@ sub keep_running
 	return(0);
 }
 
-# This calls 'scancore-update-states' which will scan the local machine's state (hardware and software) and
+# This calls 'anvil-update-states' which will scan the local machine's state (hardware and software) and
 # record write it out to an HTML file 
 sub update_state_file
 {

@@ -41,7 +41,7 @@ $$;
 -- This stores information about the host machine. This is the master table that everything will be linked 
 -- to. 
 CREATE TABLE hosts (
-    host_uuid        uuid                        not null    primary key,    -- This is the single most important record in ScanCore. Everything links back to here.
+    host_uuid        uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     host_name        text                        not null,
     host_type        text                        not null,            -- Either 'node' or 'dashboard'.
     modified_date    timestamp with time zone    not null
@@ -445,7 +445,7 @@ CREATE TABLE bonds (
     bond_uuid                    uuid                        not null    primary key,
     bond_host_uuid               uuid                        not null,
     bond_name                    text                        not null,
-    bond_mode                    integer                     not null,    -- This is the numerical bond type (will translate to the user's language in ScanCore)
+    bond_mode                    integer                     not null,    -- This is the numerical bond type (will translate to the user's language in the Anvil!)
     bond_mtu                     bigint,
     bond_primary_slave           text,
     bond_primary_reselect        text,
