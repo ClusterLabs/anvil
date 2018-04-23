@@ -23,8 +23,10 @@ my $THIS_FILE = "Storage.pm";
 # read_file
 # read_mode
 # record_md5sums
+# rsync
 # search_directories
 # write_file
+# _create_rsync_wrapper
 
 =pod
 
@@ -831,11 +833,35 @@ This is an optional parameter that controls whether the file is cached in case s
 
 =head3 file (required)
 
-This is the name of the file to read.
+This is the name of the file to read. When reading from a remote machine, it must be a full path and file name.
 
 =head3 force_read (optional)
 
 This is an otpional parameter that, if set, forces the file to be read, bypassing cache if it exists. Set this to C<< 1 >> to bypass the cache.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 remote_user (optional)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 secure (optional, default 0)
+
+If set to C<< 1 >>, the body of the read file will be treated as sensitive from a logging perspective.
+
+=head3 target (optional)
+
+If set, the file will be read from the target machine. This must be either an IP address or a resolvable host name. 
+
+The file will be copied to the local system using C<< $anvil->Storage->rsync() >> and stored in C<< /tmp/<file_path_and_name>.<target> >>. if C<< cache >> is set, the file will be preserved locally. Otherwise it will be deleted once it has been read into memory.
+
+B<< Note >>: the temporary file will be prefixed with the path to the file name, with the C<< / >> converted to C<< _ >>.
 
 =cut
 sub read_file
@@ -845,14 +871,24 @@ sub read_file
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $body       = "";
-	my $cache      = defined $parameter->{cache}      ? $parameter->{cache}      : 1;
-	my $file       = defined $parameter->{file}       ? $parameter->{file}       : "";
-	my $force_read = defined $parameter->{force_read} ? $parameter->{force_read} : 0;
+	my $body        = "";
+	my $cache       = defined $parameter->{cache}       ? $parameter->{cache}       : 1;
+	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
+	my $force_read  = defined $parameter->{force_read}  ? $parameter->{force_read}  : 0;
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "";
+	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : 0;
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		cache      => $cache, 
 		file       => $file,
 		force_read => $force_read, 
+		port        => $port, 
+		password    => $anvil->Log->secure ? $password : "--", 
+		remote_user => $remote_user, 
+		secure      => $secure, 
+		target      => $target,
 	}});
 	
 	if (not $file)
@@ -860,44 +896,129 @@ sub read_file
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->read_file()", parameter => "file" }});
 		return("!!error!!");
 	}
-	elsif (not -e $file)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0021", variables => { file => $file }});
-		return("!!error!!");
-	}
-	elsif (not -r $file)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0022", variables => { file => $file }});
-		return("!!error!!");
-	}
 	
-	# If I've read this before, don't read it again.
-	if ((exists $anvil->data->{cache}{file}{$file}) && (not $force_read))
+	# Reading locally or remote?
+	if ($target)
 	{
-		# Use the cache
-		$body = $anvil->data->{cache}{file}{$file};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+		# Remote. Make sure the passed file is a full path and file name.
+		if ($file !~ /^\/\w/)
+		{
+			# Not a fully defined path, abort.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0160", variables => { file => $file }});
+			return("!!error!!");
+		}
+		if ($file =~ /\/$/)
+		{
+			# The file name is missing.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0161", variables => { file => $file }});
+			return("!!error!!");
+		}
+		
+		# Setup the temp file name.
+		my $temp_file =  $file;
+		   $temp_file =~ s/\//_/g;
+		   $temp_file =  "/tmp/".$temp_file.".".$target;
+		   $temp_file =~ s/\s+/_/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_file => $temp_file }});
+		
+		# If the temp file exists and 'force_read' is set, remove it.
+		if (($force_read) && (-e $temp_file))
+		{
+			unlink $temp_file;
+		}
+		
+		# Do we have this cached?
+		if ((exists $anvil->data->{cache}{file}{$temp_file}) && (not $force_read))
+		{
+			# Use the cache
+			$body = $anvil->data->{cache}{file}{$temp_file};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+		}
+		else
+		{
+			# Read from the target by rsync'ing the file here.
+			$anvil->Storage->rsync({
+				destination => $temp_file,
+				password    => $password, 
+				port        => $port, 
+				source      => $remote_user."\@".$target.$file,
+			});
+			
+			if (-e $temp_file)
+			{
+				# Got it! read it in.
+				my $shell_call = $temp_file;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0012", variables => { shell_call => $shell_call }});
+				open (my $file_handle, "<", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
+				while(<$file_handle>)
+				{
+					chomp;
+					my $line = $_;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
+					$body .= $line."\n";
+				}
+				close $file_handle;
+				$body =~ s/\n$//s;
+				
+				if ($cache)
+				{
+					$anvil->data->{cache}{file}{$temp_file} = $body;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::file::${temp_file}" => $anvil->data->{cache}{file}{$temp_file} }});
+				}
+			}
+			else
+			{
+				# Something went wrong...
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0162", variables => { 
+					remote_file => $remote_user."\@".$target.$file,
+					local_file  => $temp_file, 
+				}});
+				return("!!error!!");
+			}
+		}
 	}
 	else
 	{
-		# Read from disk.
-		my $shell_call = $file;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0012", variables => { shell_call => $shell_call }});
-		open (my $file_handle, "<", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
-		while(<$file_handle>)
+		# Local
+		if (not -e $file)
 		{
-			chomp;
-			my $line = $_;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
-			$body .= $line."\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0021", variables => { file => $file }});
+			return("!!error!!");
 		}
-		close $file_handle;
-		$body =~ s/\n$//s;
-		
-		if ($cache)
+		elsif (not -r $file)
 		{
-			$anvil->data->{cache}{file}{$file} = $body;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::file::$file" => $anvil->data->{cache}{file}{$file} }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0022", variables => { file => $file }});
+			return("!!error!!");
+		}
+		
+		# If I've read this before, don't read it again.
+		if ((exists $anvil->data->{cache}{file}{$file}) && (not $force_read))
+		{
+			# Use the cache
+			$body = $anvil->data->{cache}{file}{$file};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+		}
+		else
+		{
+			# Read from disk.
+			my $shell_call = $file;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0012", variables => { shell_call => $shell_call }});
+			open (my $file_handle, "<", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
+			while(<$file_handle>)
+			{
+				chomp;
+				my $line = $_;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
+				$body .= $line."\n";
+			}
+			close $file_handle;
+			$body =~ s/\n$//s;
+			
+			if ($cache)
+			{
+				$anvil->data->{cache}{file}{$file} = $body;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::file::${file}" => $anvil->data->{cache}{file}{$file} }});
+			}
 		}
 	}
 	
@@ -1008,6 +1129,212 @@ sub record_md5sums
 	return(0);
 }
 
+=head2 rsync
+
+This method copies a file or directory (and its contents) to a remote machine using C<< rsync >> and an C<< expect >> wrapper.
+
+This supports the source B<< or >> the destination being remote, so the C<< source >> or C<< destination >> paramter can be in the format C<< <remote_user>@<target>:/file/path >>. If neither parameter is remove, a local C<< rsync >> operation will be performed.
+
+On success, C<< 0 >> is returned. If a problem arises, C<< 1 >> is returned.
+
+B<< NOTE >>: This method does not take C<< remote_user >> or C<< target >>. These are parsed off the C<< source >> or C<< destination >> parameter.
+
+Parameters;
+
+=head3 destination (required)
+
+This is the source being copied. Be careful with the closing C<< / >>! Generally you will always want to have the destination end in a closing slash, to ensure the files go B<< under >> the estination directory. The same as is the case when using C<< rsync >> directly.
+
+=head3 password (optional)
+
+This is the password used to connect to the target machine (if either the source or target is remote).
+
+=head3 port (optional, default 22)
+
+This is the TCP port used to connect to the target machine.
+
+=head3 source (required)
+
+The source can be a directory, or end in a wildcard (ie: C<< .../* >>) to copy multiple files/directories at the same time.
+
+=head3 switches (optional, default -av)
+
+These are the switches to pass to C<< rsync >>. If you specify this and you still want C<< -avS >>, be sure to include it. This parameter replaces the default.
+
+B<< NOTE >>: If C<< port >> is specified, C<< -e 'ssh -p <port> >> will be appended automatically, so you do not need to specify this.
+
+=head3 try_again (optional, default 1)
+
+If this is set to C<< 1 >>, and if a conflict is found with the SSH RSA key (C<< Offending key in... >> error) when trying the C<< rsync >> call, the offending key will be removed and a second attempt will be made. On the second attempt, this is set to C<< 0 >> to prevent a recursive loop if the removal fails.
+
+B<< NOTE >>: This is the default to better handle a rebuilt node, dashboard or DR machine. Of course, this is a possible security problem so please consider it's use on a case by case basis.
+
+=cut
+sub rsync
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Check my parameters.
+	my $destination = defined $parameter->{destination} ? $parameter->{destination} : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $source      = defined $parameter->{source}      ? $parameter->{source}      : "";
+	my $switches    = defined $parameter->{switches}    ? $parameter->{switches}    : "-avS";
+	my $try_again   = defined $parameter->{try_again}   ? $parameter->{try_again}   : 1;
+	my $remote_user = "";
+	my $target      = "";
+	my $failed      = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		destination => $destination,
+		password    => $anvil->Log->secure ? $password : "--", 
+		port        => $port, 
+		source      => $source,
+		switches    => $switches,
+		try_again   => $try_again, 
+	}});
+	
+	# Add an argument for the port if set
+	if ($port ne "22")
+	{
+		$switches .= " -e 'ssh -p $port'";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { switches => $switches }});
+	}
+	
+	# Make sure I have everything I need.
+	if (not $source)
+	{
+		# No source
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->rsync()", parameter => "source" }});
+		return(1);
+	}
+	if (not $destination)
+	{
+		# No destination
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->rsync()", parameter => "destination" }});
+		return(1);
+	}
+	
+	# If either the source or destination is remote, we need to make sure we have the remote machine in
+	# the current user's ~/.ssh/known_hosts file.
+	if ($source =~ /^(.*?)@(.*?):/)
+	{
+		$remote_user    = $1;
+		$target = $2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+			remote_user => $remote_user,
+			target      => $target, 
+		}});
+	}
+	elsif ($destination =~ /^(.*?)@(.*?):/)
+	{
+		$remote_user    = $1;
+		$target = $2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+			remote_user => $remote_user,
+			target      => $target, 
+		}});
+	}
+	
+	# If local, call rsync directly. If remote, setup the rsync wrapper
+	my $wrapper_script = "";
+	my $shell_call     = $anvil->data->{path}{exe}{rsync}." ".$switches." ".$source." ".$destination;
+	if ($target)
+	{
+		# If we didn't get a port, but the target is pre-configured for a port, use it.
+		if ((not $parameter->{port}) && ($anvil->data->{hosts}{$target}{port}))
+		{
+			$port = $anvil->data->{hosts}{$target}{port};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { port => $port }});
+		}
+		
+		# Make sure we know the fingerprint of the remote machine
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target }});
+		$anvil->Remote->add_target_to_known_hosts({
+			target => $target, 
+			user   => $<,
+		});
+		
+		# Remote target, wrapper needed.
+		$wrapper_script = $anvil->Storage->_create_rsync_wrapper({
+			target   => $target,
+			password => $password, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { wrapper_script => $wrapper_script }});
+		
+		# And make the shell call
+		$shell_call = $wrapper_script." ".$switches." ".$source." ".$destination;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { shell_call => $shell_call }});
+	
+	# Now make the call
+	my $conflict = "";
+	my $output   = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /Offending key in (\/.*\/).ssh\/known_hosts:(\d+)$/)
+		{
+			### TODO: I'm still mixed on taking this behaviour... a trade off between useability
+			###       and security... As of now, the logic for doing it is that the BCN should
+			###       be isolated and secured so favour usability.
+			# Need to delete the old key or warn the user.
+			my $path        = $1;
+			my $line_number = $2;
+			   $failed      = 1;
+			my $source      = $path.".ssh\/known_hosts";
+			my $destination = $path."known_hosts.".$anvil->Get->date_and_time({file_name => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				path        => $path, 
+				line_number => $line_number, 
+				failed      => $failed, 
+				source      => $source, 
+				destination => $destination, 
+			}});
+			
+			if ($line_number)
+			{
+				$conflict = $anvil->data->{path}{exe}{cp}." ".$source." ".$destination." && ".$anvil->data->{path}{exe}{sed}." -ie '".$line_number."d' ".$source;
+			}
+		}
+	}
+	
+	# If there was a conflict, clear it and try again.
+	if (($conflict) && ($try_again))
+	{
+		# Remove the conflicting fingerprint.
+		my $output = $anvil->System->call({shell_call => $conflict});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		}
+		
+		# Try again.
+		$failed = $anvil->Storage->rsync({
+			destination => $destination,
+			password    => $password, 
+			port        => $port, 
+			source      => $source,
+			switches    => $switches,
+			try_again   => 0, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+	}
+	
+	# Clean up the rsync wrapper, if appropriate.
+	if (($wrapper_script) && (-e $wrapper_script))
+	{
+		unlink $wrapper_script;
+	}
+	
+	return($failed);
+}
+
 =head2 search_directories
 
 This method returns an array reference of directories to search within for files and directories.
@@ -1116,9 +1443,15 @@ sub search_directories
 
 =head2 write_file
 
-This writes out a file on the local system. It can optionally set the mode as well.
+This writes out a file, either locally or on a remote system. It can optionally set the ownership and mode as well.
 
- $anvil->Storage->write_file({file => "/tmp/foo", body => "some data", mode => 0644});
+ $anvil->Storage->write_file({
+ 	file  => "/tmp/foo", 
+ 	body  => "some data", 
+ 	user  => "admin", 
+ 	group => "admin", 
+ 	mode  => "0644",
+ });
 
 If it fails to write the file, an alert will be logged.
 
@@ -1140,19 +1473,37 @@ This is the group name or group ID to set the ownership of the file to.
 
 =head3 mode (optional)
 
-This is the numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits.
+This is the B<< quoted >> numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits.
 
 =head3 overwrite (optional)
 
 Normally, if the file already exists, it won't be overwritten. Setting this to 'C<< 1 >>' will cause the file to be overwritten.
 
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
 =head3 secure (optional)
 
 If set to 'C<< 1 >>', the body is treated as containing secure data for logging purposes.
 
+=head3 target (optional)
+
+If set, the file will be written on the target machine. This must be either an IP address or a resolvable host name. 
+
+The file will be written locally in C<< /tmp/<file_name> >>, C<< $anvil->Storage->rsync() >> will be used to copy the file, and finally the local temprary copy will be removed.
+
 =head3 user (optional)
 
 This is the user name or user ID to set the ownership of the file to.
+
+=head3 remote_user (optional)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
 
 =cut
 sub write_file
@@ -1162,21 +1513,29 @@ sub write_file
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $body      = defined $parameter->{body}      ? $parameter->{body}      : "";
-	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
-	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
-	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
-	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
-	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : "";
-	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
+	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
+	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
+	my $group       = defined $parameter->{group}       ? $parameter->{group}       : "";
+	my $mode        = defined $parameter->{mode}        ? $parameter->{mode}        : "";
+	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "root";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
-		body      => $body,
-		file      => $file,
-		group     => $group, 
-		mode      => $mode,
-		overwrite => $overwrite,
-		secure    => $secure,
-		user      => $user,
+		body        => $body,
+		file        => $file,
+		group       => $group, 
+		mode        => $mode,
+		overwrite   => $overwrite,
+		port        => $port, 
+		password    => $anvil->Log->secure ? $password : "--", 
+		secure      => $secure,
+		target      => $target,
+		user        => $user,
+		remote_user => $remote_user, 
 	}});
 	
 	# Make sure the user and group and just one digit or word.
@@ -1188,64 +1547,185 @@ sub write_file
 	}});
 	
 	my $error = 0;
-	if ((-e $file) && (not $overwrite))
-	{
-		# Nope.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
-		$error = 1;
-	}
 	
+	# Make sure the passed file is a full path and file name.
 	if ($file !~ /^\/\w/)
 	{
 		# Not a fully defined path, abort.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0041", variables => { file => $file }});
 		$error = 1;
 	}
-	
-	if (not $error)
+	if ($file =~ /\/$/)
 	{
-		# Break the directory off the file.
-		my ($directory, $file_name) = ($file =~ /^(\/.*)\/(.*)$/);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			directory => $directory,
-			file_name => $file_name,
-		}});
-		
-		if (not -e $directory)
+		# The file name is missing.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0157", variables => { file => $file }});
+		$error = 1;
+	}
+	
+	# Break the directory off the file.
+	my ($directory, $file_name) = ($file =~ /^(\/.*)\/(.*)$/);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		directory => $directory,
+		file_name => $file_name,
+	}});
+	
+	# Now, are we writing locally or on a remote system?
+	if ($target)
+	{
+		# If we didn't get a port, but the target is pre-configured for a port, use it.
+		if ((not $parameter->{port}) && ($anvil->data->{hosts}{$target}{port}))
 		{
-			# Don't pass the mode as the file's mode is likely not executable.
-			$anvil->Storage->make_directory({
-				directory => $directory,
-				group     => $group, 
-				user      => $user,
-			});
+			$port = $anvil->data->{hosts}{$target}{port};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { port => $port }});
 		}
 		
-		# If 'secure' is set, the file will probably contain sensitive data so touch the file and set
-		# the mode before writing it.
-		if ($secure)
+		# Remote. See if the file exists on the remote system (and that we can connect to the remote 
+		# system).
+		my $shell_call = "
+if [ -e '".$file."' ]; 
+then
+    ".$anvil->data->{path}{exe}{echo}." 'exists'; 
+else 
+    ".$anvil->data->{path}{exe}{echo}." 'not found';
+fi";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		($error, my $output) = $anvil->Remote->call({
+			target     => $target,
+			user       => $remote_user, 
+			password   => $password,
+			shell_call => $shell_call,
+		});
+		if (not $error)
 		{
-			my $shell_call = $anvil->data->{path}{exe}{touch}." ".$file;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			# No error. Did the file exist?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
+			if (($output->[0] eq "exists") && (not $overwrite))
+			{
+				# Abort, we're not allowed to overwrite.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
+				$error = 1;
+			}
 			
-			$anvil->System->call({shell_call => $shell_call});
-			$anvil->Storage->change_mode({target => $file, mode => $mode});
+			# Make sure the directory exists on the remote machine. In this case, we'll use 'mkdir -p' if it isn't.
+			if (not $error)
+			{
+				my $shell_call = "
+if [ -d '".$directory."' ]; 
+then
+    ".$anvil->data->{path}{exe}{echo}." 'exists'; 
+else 
+    ".$anvil->data->{path}{exe}{echo}." 'not found';
+fi";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				($error, my $output) = $anvil->Remote->call({
+					target     => $target,
+					user       => $remote_user, 
+					password   => $password,
+					shell_call => $shell_call,
+				});
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
+				if ($output->[0] eq "not found")
+				{
+					# Create the directory
+					my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." -p ".$directory;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					($error, my $output) = $anvil->Remote->call({
+						target     => $target,
+						user       => $remote_user, 
+						password   => $password,
+						shell_call => $shell_call,
+					});
+				}
+				
+				if (not $error)
+				{
+					# OK, now write the file locally, then we'll rsync it over.
+					my $temp_file =  $file;
+					   $temp_file =~ s/\//_/g;
+					   $temp_file = "/tmp/".$temp_file;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_file => $temp_file }});
+					$anvil->Storage->write_file({
+						body      => $body,
+						debug     => $debug,
+						file      => $temp_file,
+						group     => $group, 
+						mode      => $mode,
+						overwrite => 1,
+						secure    => $secure,
+						user      => $user,
+					});
+					
+					# Now rsync it.
+					if (-e $temp_file)
+					{
+						$anvil->Storage->rsync({
+							destination => $remote_user."\@".$target.$file,
+							password    => $password, 
+							port        => $port, 
+							source      => $temp_file,
+						});
+						
+						# Unlink 
+						unlink $temp_file;
+					}
+					else
+					{
+						# Something went wrong writing it.
+						$error = 1;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		# Local
+		if ((-e $file) && (not $overwrite))
+		{
+			# Nope.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
+			$error = 1;
 		}
 		
-		# Now write the file.
-		my $shell_call = $file;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
-		open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
-		print $file_handle $body;
-		close $file_handle;
-		
-		if ($mode)
+		if (not $error)
 		{
-			$anvil->Storage->change_mode({target => $file, mode => $mode});
-		}
-		if (($user) or ($group))
-		{
-			$anvil->Storage->change_owner({target => $file, user => $user, group => $group});
+			if (not -e $directory)
+			{
+				# Don't pass the mode as the file's mode is likely not executable.
+				$anvil->Storage->make_directory({
+					directory => $directory,
+					group     => $group, 
+					user      => $user,
+				});
+			}
+			
+			# If 'secure' is set, the file will probably contain sensitive data so touch the file and set
+			# the mode before writing it.
+			if ($secure)
+			{
+				my $shell_call = $anvil->data->{path}{exe}{touch}." ".$file;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				$anvil->System->call({shell_call => $shell_call});
+				$anvil->Storage->change_mode({target => $file, mode => $mode});
+			}
+			
+			# Now write the file.
+			my $shell_call = $file;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
+			open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			print $file_handle $body;
+			close $file_handle;
+			
+			if ($mode)
+			{
+				$anvil->Storage->change_mode({target => $file, mode => $mode});
+			}
+			if (($user) or ($group))
+			{
+				$anvil->Storage->change_owner({target => $file, user => $user, group => $group});
+			}
 		}
 	}
 	
@@ -1262,5 +1742,80 @@ sub write_file
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2
+
+This does the actual work of creating the C<< expect >> wrapper script and returns the path to that wrapper for C<< rsync >> calls.
+
+If there is a problem, an empty string will be returned.
+
+Parameters;
+
+=head3 target (required)
+
+This is the IP address or (resolvable) hostname of the remote machine.
+
+=head3 password (required)
+
+This is the password of the user you will be connecting to the remote machine as.
+
+=cut
+sub _create_rsync_wrapper
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Check my parameters.
+	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
+	my $password = defined $parameter->{password} ? $parameter->{password} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		password => $anvil->Log->secure ? $password : "--", 
+		target   => $target, 
+	}});
+	
+	if (not $target)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->_create_rsync_wrapper()", parameter => "target" }});
+		return("");
+	}
+	if (not $password)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->_create_rsync_wrapper()", parameter => "password" }});
+		return("");
+	}
+	
+	my $timeout        = 3600;
+	my $wrapper_script = "/tmp/rsync.$target";
+	my $wrapper_body   = "
+".$anvil->data->{path}{exe}{echo}." #!".$anvil->data->{path}{exe}{expect}."
+".$anvil->data->{path}{exe}{echo}." set timeout ".$timeout."
+".$anvil->data->{path}{exe}{echo}." eval spawn rsync \$argv
+".$anvil->data->{path}{exe}{echo}." expect \"password:\" \{ send \"".$password."\\n\" \}
+".$anvil->data->{path}{exe}{echo}." expect eof
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		wrapper_script => $wrapper_script, 
+		wrapper_body   => $wrapper_body, 
+	}});
+	$anvil->Storage->write_file({
+		body      => $wrapper_body,
+		debug     => $debug,
+		file      => $wrapper_script,
+		mode      => "0700",
+		overwrite => 1,
+		secure    => 1,
+	});
+	
+	if (not -e $wrapper_script)
+	{
+		# Failed!
+		$wrapper_script = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { wrapper_script => $wrapper_script }});
+	}
+	
+	return($wrapper_script);
+}
 
 1;

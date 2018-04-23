@@ -15,6 +15,7 @@ my $THIS_FILE = "System.pm";
 
 ### Methods;
 # call
+# change_shell_user_password
 # check_daemon
 # check_memory
 # determine_host_type
@@ -25,7 +26,6 @@ my $THIS_FILE = "System.pm";
 # manage_firewall
 # ping
 # read_ssh_config
-# remote_call
 # reload_daemon
 # start_daemon
 # stop_daemon
@@ -186,6 +186,125 @@ sub call
 	return($output);
 }
 
+=head2 change_shell_user_password
+
+This changes the password for a shell user account. It can change the password on either the local or a remote machine.
+
+The return code will be C<< 255 >> on internal error. Otherwise, it will be the code returned from the C<< passwd >> call.
+
+B<< Note >>; The password is salted and (sha-512, C<< $6$<salt>$<hash>$ >>
+
+Parameters;
+
+=head3 new_password (required)
+
+This is the new password to set. The user should be encouraged to select a good (long) password.
+
+=head3 password (optional)
+
+If you are changing the password of a user on a remote machine, this is the password used to connect to that machine. If not passed, an attempt to connect with passwordless SSH will be made (but this won't be the case in most instances). Ignored if C<< target >> is not given.
+
+=head3 port (optional, default 22)
+
+This is the TCP port number to use if connecting to a remote machine over SSH. Ignored if C<< target >> is not given.
+
+=head3 target (optional)
+
+This is the IP address or (resolvable) host name of the target machine whose user account you want to change the password 
+
+=head3 user (required)
+
+This is the user name whose password is being changed.
+
+=cut
+sub change_shell_user_password
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $new_password = $parameter->{new_password} ? $parameter->{new_password} : "";
+	my $password     = $parameter->{password}     ? $parameter->{password}     : "";
+	my $port         = $parameter->{port}         ? $parameter->{port}         : "";
+	my $target       = $parameter->{target}       ? $parameter->{target}       : "";
+	my $user         = $parameter->{user}         ? $parameter->{user}         : "";
+	my $return_code  = 255;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		user         => $user, 
+		target       => $target, 
+		port         => $port, 
+		new_password => $anvil->Log->secure ? $new_password : "--", 
+		password     => $anvil->Log->secure ? $password     : "--", 
+	}});
+	
+	# Do I have a user?
+	if (not $user)
+	{
+		# Woops!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->change_shell_user_password()", parameter => "user" }});
+		return($return_code);
+	}
+	
+	# OK, what about a password?
+	if (not $new_password)
+	{
+		# Um...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->change_shell_user_password()", parameter => "new_password" }});
+		return($return_code);
+	}
+	
+	# Only the root user can do this!
+	# $< == real UID, $> == effective UID
+	if (($< != 0) && ($> != 0))
+	{
+		# Not root
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0156", variables => { method => "Systeme->change_shell_user_password()" }});
+		return($return_code);
+	}
+	
+	# Generate a salt and then use it to create a hash.
+	my $salt     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{openssl}." rand 1000 | ".$anvil->data->{path}{exe}{strings}." | ".$anvil->data->{path}{exe}{'grep'}." -io [0-9A-Za-z\.\/] | ".$anvil->data->{path}{exe}{head}." -n 16 | ".$anvil->data->{path}{exe}{'tr'}." -d '\n'" });
+	my $new_hash = $user.":".crypt($new_password,"\$6\$".$salt."\$");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		salt     => $salt, 
+		new_hash => $new_hash, 
+	}});
+	
+	# Update the password using 'usermod'. NOTE: The single-quotes are crtical!
+	my $output     = "";
+	my $shell_call = $anvil->data->{path}{exe}{usermod}." --password '".$new_hash."'; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
+	if ($target)
+	{
+		# Remote call.
+		$output = $anvil->Remote->call({
+			shell_call => $shell_call, 
+			target     => $target,
+			port       => $port, 
+			password   => $password,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	}
+	else
+	{
+		# Local call
+		$output = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	}
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^return_code:(\d+)$/)
+		{
+			$return_code = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+		}
+	}
+	
+	return($return_code);
+}
+
 =head2 check_daemon
 
 This method checks to see if a daemon is running or not. If it is, it returns 'C<< 1 >>'. If the daemon isn't running, it returns 'C<< 0 >>'. If the daemon wasn't found, 'C<< 2 >>' is returned.
@@ -213,6 +332,8 @@ sub check_daemon
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
 		if ($line =~ /return_code:(\d+)/)
 		{
 			my $return_code = $1;
@@ -1045,7 +1166,7 @@ B<NOTE>: The payload will have 28 bytes removed to account for ICMP overhead. So
 
 This is the port used to access a remote machine. This is used when pinging from a remote machine to a given ping target.
 
-B<NOTE>: See C<< System->remote_call >> for additional information on specifying the SSH port as part of the target.
+B<NOTE>: See C<< Remote->call >> for additional information on specifying the SSH port as part of the target.
 
 =head3 target (optional)
 
@@ -1137,7 +1258,7 @@ sub ping
 		if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
 		{
 			### Remote calls
-			$output = $anvil->System->remote_call({
+			$output = $anvil->Remote->call({
 				shell_call => $shell_call, 
 				target     => $target,
 				port       => $port, 
@@ -1235,457 +1356,6 @@ sub read_ssh_config
 	
 	return(0);
 }
-
-=head2 remote_call
-
-This does a remote call over SSH. The connection is held open and the file handle for the target is cached and re-used unless a specific ssh_fh is passed or a request to close the connection is received. 
-
-Example;
-
- # Call 'hostname' on a node.
- my ($error, $output) = $anvil->System->remote_call({
- 	target     => "an-a01n01.alteeve.com",
- 	user       => "admin",
- 	password   => "super secret password",
- 	shell_call => "/usr/bin/hostname",
- });
- 
- # Make a call with sensitive data that you want logged only if $anvil->Log->secure is set and close the 
- # connection when done.
- my ($error, $output) = $anvil->System->remote_call({
- 	target     => "an-a01n01.alteeve.com",
- 	user       => "root", 
- 	password   => "super secret password",
- 	shell_call => "/usr/sbin/fence_ipmilan -a an-a01n02.ipmi -l admin -p \"super secret password\" -o status",
- 	secure     => 1,
-	close      => 1, 
- });
-
-B<NOTE>: By default, a connection to a target will be held open and cached to increase performance for future connections. 
-
-Parameters;
-
-=head3 close (optional, default '0')
-
-If set, the connection to the target will be closed at the end of the call.
-
-=head3 log_level (optional, default C<< 3 >>)
-
-If set, the method will use the given log level. Valid values are integers between C<< 0 >> and C<< 4 >>.
-
-=head3 no_cache (optional, default C<< 0 >>)
-
-If set, and if an existing cached connection is open, it will be closed and a new connection to the target will be established.
-
-=head3 password (optional)
-
-This is the password used to connect to the remote target as the given user.
-
-B<NOTE>: Passwordless SSH is supported. If you can ssh to the target as the given user without a password, then no password needs to be given here.
-
-=head3 port (optional, default C<< 22 >>)
-
-This is the TCP port to use when connecting to the C<< target >>. The default is port 22.
-
-B<NOTE>: See C<< target >> for optional port definition.
-
-=head3 secure (optional, default C<< 0 >>)
-
-If set, the C<< shell_call >> is treated as containing sensitive data and will not be logged unless C<< $anvil->Log->secure >> is enabled.
-
-=head3 shell_call (required)
-
-This is the command to run on the target machine as the target user.
-
-=head3 target (required)
-
-This is the host name or IP address of the target machine that the C<< shell_call >> will be run on.
-
-B<NOTE>: If the target matches an entry in '/etc/ssh/ssh_config', the port defined there is used. If the port is set as part of the target name, the port in 'ssh_config' is ignored.
-
-B<NOTE>: If the C<< target >> is presented in the format C<< target:port >>, the port will be separated from the target and used as the TCP port. If the C<< port >> parameter is set, however, the port split off the C<< target >> will be ignored.
-
-=head3 user (optional, default 'root')
-
-This is the user account on the C<< target >> to connect as and to run the C<< shell_call >> as. The C<< password >> if so this user's account on the C<< target >>.
-
-=cut
-sub remote_call
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	
-	# Get the target and port so that we can create the ssh_fh key
-	my $log_level  = defined $parameter->{log_level} ? $parameter->{log_level} : 3;
-	if (($log_level !~ /^\d$/) or ($log_level < 0) or ($log_level > 4))
-	{
-		# Invalid log level, set 2.
-		$log_level = 3;
-	}
-	
-	my $port       = defined $parameter->{port}   ? $parameter->{port}   : 22;
-	my $target     = defined $parameter->{target} ? $parameter->{target} : "";
-	my $ssh_fh_key = $target.":".$port;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-		port   => $port, 
-		target => $target,
-	}});
-	
-	# This will store the SSH file handle for the given target after the initial connection.
-	$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = defined $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} ? $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
-	
-	# Now pick up the rest of the variables.
-	my $close      = defined $parameter->{'close'}    ? $parameter->{'close'}    : 0;
-	my $no_cache   = defined $parameter->{no_cache}   ? $parameter->{no_cache}   : 0;
-	my $password   = defined $parameter->{password}   ? $parameter->{password}   : $anvil->data->{sys}{root_password};
-	my $secure     = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
-	my $shell_call = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
-	my $user       = defined $parameter->{user}       ? $parameter->{user}       : "root";
-	my $start_time = time;
-	my $ssh_fh     = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
-	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-		'close'    => $close, 
-		password   => $anvil->Log->secure ? $password : "--", 
-		secure     => $secure, 
-		shell_call => ((not $anvil->Log->secure) && ($secure)) ? "--" : $shell_call,
-		ssh_fh     => $ssh_fh,
-		start_time => $start_time, 
-		user       => $user,
-	}});
-	
-	if (not $shell_call)
-	{
-		# No shell call
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "shell_call" }});
-		return("!!error!!");
-	}
-	if (not $target)
-	{
-		# No target
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "target" }});
-		return("!!error!!");
-	}
-	if (not $user)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->remote_call()", parameter => "user" }});
-		return("!!error!!");
-	}
-	
-	# If the user didn't pass a port, but there is an entry in 'hosts::<host>::port', use it.
-	if ((not $parameter->{port}) && ($anvil->data->{hosts}{$target}{port}))
-	{
-		$port = $anvil->data->{hosts}{$target}{port};
-	}
-	
-	# Break out the port, if needed.
-	my $state;
-	my $error;
-	if ($target =~ /^(.*):(\d+)$/)
-	{
-		$target = $1;
-		$port   = $2;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-			port   => $port, 
-			target => $target,
-		}});
-		
-		# If the user passed a port, override this.
-		if ($parameter->{port} =~ /^\d+$/)
-		{
-			$port = $parameter->{port};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
-		}
-	}
-	else
-	{
-		# In case the user is using ports in /etc/ssh/ssh_config, we'll want to check for an entry.
-		$anvil->System->read_ssh_config();
-		
-		$anvil->data->{hosts}{$target}{port} = "" if not defined $anvil->data->{hosts}{$target}{port};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "hosts::${target}::port" => $anvil->data->{hosts}{$target}{port} }});
-		if ($anvil->data->{hosts}{$target}{port} =~ /^\d+$/)
-		{
-			$port = $anvil->data->{hosts}{$target}{port};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
-		}
-	}
-	
-	# Make sure the port is valid.
-	if ($port eq "")
-	{
-		$port = 22;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
-	}
-	elsif ($port !~ /^\d+$/)
-	{
-		$port = getservbyname($port, 'tcp');
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { port => $port }});
-	}
-	if ((not defined $port) or (($port !~ /^\d+$/) or ($port < 0) or ($port > 65536)))
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0058", variables => { port => $port }});
-		return("!!error!!");
-	}
-	
-	# If the target is a host name, convert it to an IP.
-	if (not $anvil->Validate->is_ipv4({ip => $target}))
-	{
-		my $new_target = $anvil->Convert->hostname_to_ip({host_name => $target});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { new_target => $new_target }});
-		if ($new_target)
-		{
-			$target = $new_target;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { target => $target }});
-		}
-	}
-	
-	# If the user set 'no_cache', don't use any existing 'ssh_fh'.
-	if (($no_cache) && ($ssh_fh))
-	{
-		# Close the connection.
-		$ssh_fh->disconnect();
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "message_0010", variables => { target => $target }});
-		
-		# For good measure, blank both variables.
-		$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = "";
-		$ssh_fh                                 = "";
-	}
-	
-	# These will be merged into a single 'output' array before returning.
-	my $stdout_output = [];
-	my $stderr_output = [];
-	
-	# If I don't already have an active SSH file handle, connect now.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { ssh_fh => $ssh_fh }});
-	
-	if ($ssh_fh !~ /^Net::SSH2/)
-	{
-		### NOTE: Nevermind, timeout isn't supported... >_< Find a newer version if IO::Socket::IP?
-		### TODO: Make the timeout user-configurable to handle slow connections. Make it 
-		###       'sys::timeout::{all|host} = x'
-		my $start_time = [gettimeofday];
-		$ssh_fh = Net::SSH2->new(timeout => 1000);
-		if (not $ssh_fh->connect($target, $port))
-		{
-			
-			my $connect_time = tv_interval ($start_time, [gettimeofday]);
-			#print "[".$connect_time."] - Connection failed time to: [$target:$port]\n";
-			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", list => { 
-				user       => $user,
-				target     => $target, 
-				port       => $port, 
-				shell_call => $shell_call,
-				error      => $@,
-			}});
-			
-			# We'll now try to get a more useful message for the user and logs.
-			my $message_key = "message_0005";
-			my $variables   = { target => $target };
-			if ($@ =~ /Bad hostname/i)
-			{
-				$message_key = "message_0001";
-			}
-			elsif ($@ =~ /Connection refused/i)
-			{
-				$message_key = "message_0002";
-				$variables   = {
-					target => $target,
-					port   => $port,
-					user   => $user,
-				};
-			}
-			elsif ($@ =~ /No route to host/)
-			{
-				$message_key = "message_0003";
-			}
-			elsif ($@ =~ /timeout/)
-			{
-				$message_key = "message_0004";
-			}
-			$error = $anvil->Words->string({key => $message_key, variables => $variables});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables});
-		}
-		
-		my $connect_time = tv_interval ($start_time, [gettimeofday]);
-		#print "[".$connect_time."] - Connect time to: [$target:$port]\n";
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { error => $error, ssh_fh => $ssh_fh }});
-		if (not $error)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-				user     => $user,
-				password => $anvil->Log->secure ? $password : "--", 
-			}});
-			if (not $ssh_fh->auth_password($user, $password)) 
-			{
-				# Can we log in without a password?
-				my $user           = getpwuid($<);
-				my $home_directory = $anvil->Get->users_home({user => $user});
-				my $public_key     = $home_directory."/.ssh/id_rsa.pub";
-				my $private_key    = $home_directory."/.ssh/id_rsa";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-					user           => $user,
-					home_directory => $home_directory, 
-					public_key     => $public_key, 
-					private_key    => $private_key,
-				}});
-				
-				if ($ssh_fh->auth_publickey($user, $public_key, $private_key)) 
-				{
-					# We're in! Record the file handle for this target.
-					$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = $ssh_fh;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
-					
-					# Log that we got in without a password.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "log_0062", variables => { target => $target }});
-				}
-				else
-				{
-					# This is for the user
-					$error = $anvil->Words->string({key => "message_0006", variables => { target => $target }});
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "message_0006", variables => { target => $target }});
-				}
-			}
-			else
-			{
-				# We're in! Record the file handle for this target.
-				$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = $ssh_fh;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
-				
-				# Record our success
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "message_0007", variables => { target => $target }});
-			}
-		}
-	}
-	
-	### Special thanks to Rafael Kitover (rkitover@gmail.com), maintainer of Net::SSH2, for helping me
-	### sort out the polling and data collection in this section.
-	#
-	# Open a channel and make the call.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-		error  => $error, 
-		ssh_fh => $ssh_fh, 
-	}});
-	if (($ssh_fh =~ /^Net::SSH2/) && (not $error))
-	{
-		# We need to open a channel every time for 'exec' calls. We want to keep blocking off, but we
-		# need to enable it for the channel() call.
-		   $ssh_fh->blocking(1);
-		my $channel = $ssh_fh->channel();
-		   $ssh_fh->blocking(0);
-		
-		# Make the shell call
-		if (not $channel)
-		{
-			# ... or not.
-			$ssh_fh = "";
-			$error  = $anvil->Words->string({key => "message_0008", variables => { target => $target }});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "message_0008", variables => { target => $target }});
-		}
-		else
-		{
-			### TODO: Timeout if the call doesn't respond in X seconds, closing the filehandle if hit.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { 
-				channel    => $channel, 
-				shell_call => $shell_call, 
-			}});
-			$channel->exec("$shell_call");
-			
-			# This keeps the connection open when the remote side is slow to return data, like in
-			# '/etc/init.d/rgmanager stop'.
-			my @poll = {
-				handle => $channel,
-				events => [qw/in err/],
-			};
-			
-			# We'll store the STDOUT and STDERR data here.
-			my $stdout = "";
-			my $stderr = "";
-			
-			# Not collect the data.
-			while(1)
-			{
-				$ssh_fh->poll(250, \@poll);
-				
-				# Read in anything from STDOUT
-				while($channel->read(my $chunk, 80))
-				{
-					$stdout .= $chunk;
-				}
-				while ($stdout =~ s/^(.*)\n//)
-				{
-					my $line = $1;
-					   $line =~ s/\r//g;	# Remove \r from things like output of daemon start/stops.
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { "STDOUT:line" => $line }});
-					push @{$stdout_output}, $line;
-				}
-				
-				# Read in anything from STDERR
-				while($channel->read(my $chunk, 80, 1))
-				{
-					$stderr .= $chunk;
-				}
-				while ($stderr =~ s/^(.*)\n//)
-				{
-					my $line = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { "STDERR:line" => $line }});
-					push @{$stderr_output}, $line;
-				}
-				
-				# Exit when we get the end-of-file.
-				last if $channel->eof;
-			}
-			if ($stdout)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { stdout => $stdout }});
-				push @{$stdout_output}, $stdout;
-			}
-			if ($stderr)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { stderr => $stderr }});
-				push @{$stderr_output}, $stderr;
-			}
-		}
-	}
-	
-	# Merge the STDOUT and STDERR
-	my $output = [];
-	
-	foreach my $line (@{$stderr_output}, @{$stdout_output})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { line => $line }});
-		push @{$output}, $line;
-	}
-	
-	# Close the connection if requested.
-	if ($close)
-	{
-		if ($ssh_fh)
-		{
-			# Close it.
-			$ssh_fh->disconnect();
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => "message_0009", variables => { target => $target }});
-		}
-		
-		# For good measure, blank both variables.
-		$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = "";
-		$ssh_fh                                  = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
-	}
-	
-	$error = "" if not defined $error;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, secure => $secure, list => { 
-		error  => $error,
-		ssh_fh => $ssh_fh, 
-		output => $output, 
-	}});
-	return($error, $output);
-};
 
 =head2 reload_daemon
 

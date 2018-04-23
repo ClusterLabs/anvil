@@ -35,6 +35,7 @@ Requires:       perl-JSON
 Requires:       perl-Log-Journald 
 Requires:       perl-Net-SSH2 
 Requires:       perl-NetAddr-IP 
+Requires:       perl-Time-HiRes
 Requires:       perl-XML-Simple 
 Requires:       postgresql-contrib 
 Requires:       postgresql-plperl 

@@ -39,6 +39,11 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="message_0015">The reconfigure of the network has begun.</key>
 		<key name="message_0016">The hostname: [#!variable!hostname!#] has been set.</key>
 		<key name="message_0017">Failed to set the hostname: [#!variable!hostname!#]! The hostname is currently [#!variable!bad_hostname!#]. This is probably a program error.</key>
+		<key name="message_0018">What would you like the new password to be?</key>
+		<key name="message_0019">Please enter the password again to confirm.</key>
+		<key name="message_0020">About to update the local passwords (shell users, database and web interface).</key>
+		<key name="message_0021">Proceed? [y/N]</key>
+		<key name="message_0022">Aborting.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -112,7 +117,7 @@ Connecting to Database with configuration ID: [#!variable!id!#]
 		<key name="log_0055">Initialized PostgreSQL.</key>
 		<key name="log_0056">Updated: [#!variable!file!#] to listen on all interfaces.</key>
 		<key name="log_0057">Updated: [#!variable!file!#] to require passwords for access.</key>
-		<key name="log_0058"><![CDATA[[ Error ] - The method System->remote_call() was called but the port: [#!variable!port!#] is invalid. It must be a digit between '1' and '65535'.]]></key>
+		<key name="log_0058"><![CDATA[[ Error ] - The method Remote->call() was called but the port: [#!variable!port!#] is invalid. It must be a digit between '1' and '65535'.]]></key>
 		<key name="log_0059">Started the PostgreSQL database server.</key>
 		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!id!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
@@ -229,6 +234,13 @@ The database connection error was:
 		<key name="log_0153">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which isn't actually a file.</key>
 		<key name="log_0154">The file: [#!variable!source_file!#] has been backed up as: [#!variable!target_file!#].</key>
 		<key name="log_0155">Removing the old network configuration file: [#!variable!file!#] as part of the network reconfiguration.</key>
+		<key name="log_0156"><![CDATA[[ Error ] - The method: [#!variable!method!#] must be called with root-level priviledges.]]></key>
+		<key name="log_0157"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it appears to be missing the file name. Aborting.]]></key>
+		<key name="log_0158">Ensuring we've recorded: [#!variable!target!#]'s RSA fingerprint.</key>
+		<key name="log_0159">Adding the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
+		<key name="log_0160"><![CDATA[[ Error ] - The method Storage->read_file() was asked to read the remote file: [#!variable!file!#] but it is not a full path. Aborting.]]></key>
+		<key name="log_0161"><![CDATA[[ Error ] - The method Storage->read_file() was asked to read the remote file: [#!variable!file!#] but it appears to be missing the file name. Aborting.]]></key>
+		<key name="log_0162"><![CDATA[[ Error ] - The method Storage->read_file() tried to rsync the remote file: [#!variable!remote_file!#] to the local temporary file: [#!variable!local_file!#], but it did not arrive. There might be more information above.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -324,6 +336,10 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0003">None of the databases are accessible, unable to proceed.</key>
 		<key name="error_0004">The gateway address doesn't match any of your networks.</key>
 		<key name="error_0005">This program must run with 'root' level privileges.</key>
+		<key name="error_0006">No password was given, exiting.</key>
+		<key name="error_0007">The passwords don't match, exiting.</key>
+		<key name="error_0008">Failed to read the file: [#!variable!file!#]. Please see the logs for details</key>
+		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

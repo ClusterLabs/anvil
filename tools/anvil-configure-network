@@ -59,6 +59,9 @@ if (not $connections)
 	$anvil->nice_exit({exit_code => 2});
 }
 
+
+die "Testing...\n";
+
 pickup_job_details($anvil);
 
 reconfigure_network($anvil);

@@ -136,7 +136,7 @@ else
 fi;
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-		my ($error, $output) = $anvil->System->remote_call({
+		my ($error, $output) = $anvil->Remote->call({
 			shell_call => $shell_call, 
 			target     => $target,
 			port       => $port, 

@@ -43,6 +43,7 @@ use Anvil::Tools::Database;
 use Anvil::Tools::Convert;
 use Anvil::Tools::Get;
 use Anvil::Tools::Log;
+use Anvil::Tools::Remote;
 use Anvil::Tools::Storage;
 use Anvil::Tools::System;
 use Anvil::Tools::Template;
@@ -117,6 +118,7 @@ sub new
 			CONVERT				=>	Anvil::Tools::Convert->new(),
 			GET				=>	Anvil::Tools::Get->new(),
 			LOG				=>	Anvil::Tools::Log->new(),
+			REMOTE				=>	Anvil::Tools::Remote->new(),
 			STORAGE				=>	Anvil::Tools::Storage->new(),
 			SYSTEM				=>	Anvil::Tools::System->new(),
 			TEMPLATE			=>	Anvil::Tools::Template->new(),
@@ -152,6 +154,7 @@ sub new
 	$anvil->Convert->parent($anvil);
 	$anvil->Get->parent($anvil);
 	$anvil->Log->parent($anvil);
+	$anvil->Remote->parent($anvil);
 	$anvil->Storage->parent($anvil);
 	$anvil->System->parent($anvil);
 	$anvil->Template->parent($anvil);
@@ -420,6 +423,18 @@ sub Log
 	my $self = shift;
 	
 	return ($self->{HANDLE}{LOG});
+}
+
+=head2 Remote
+
+Access the C<Remote.pm> methods via 'C<< $anvil->Remote->method >>'.
+
+=cut
+sub Remote
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{REMOTE});
 }
 
 =head2 Storage
@@ -767,8 +782,10 @@ sub _set_paths
 				dmidecode		=>	"/usr/sbin/dmidecode",
 				echo			=>	"/usr/bin/echo",
 				ethtool			=>	"/usr/sbin/ethtool",
+				expect			=>	"/usr/bin/expect", 
 				'firewall-cmd'		=>	"/usr/bin/firewall-cmd",
 				gethostip		=>	"/usr/bin/gethostip",
+				head			=>	"/usr/bin/head",
 				hostname		=>	"/usr/bin/hostname",
 				hostnamectl		=>	"/usr/bin/hostnamectl",
 				ifdown			=>	"/sbin/ifdown",
@@ -780,6 +797,7 @@ sub _set_paths
 				md5sum			=>	"/usr/bin/md5sum",
 				'mkdir'			=>	"/usr/bin/mkdir",
 				nmcli			=>	"/bin/nmcli",
+				passwd			=>	"/usr/bin/passwd",
 				ping			=>	"/usr/bin/ping",
 				pgrep			=>	"/usr/bin/pgrep",
 				ps			=>	"/usr/bin/ps",
@@ -787,11 +805,17 @@ sub _set_paths
 				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
 				pwd			=>	"/usr/bin/pwd",
 				rsync			=>	"/usr/bin/rsync",
+				sed			=>	"/usr/bin/sed", 
 				'shutdown'		=>	"/usr/sbin/shutdown",
+				'ssh-keyscan'		=>	"/usr/bin/ssh-keygen",
+				strings			=>	"/usr/bin/strings",
+				stty			=>	"/usr/bin/stty",
 				su			=>	"/usr/bin/su",
 				systemctl		=>	"/usr/bin/systemctl",
-				touch			=>	"/usr/bin/touch",
 				timeout			=>	"/usr/bin/timeout",
+				touch			=>	"/usr/bin/touch",
+				'tr'			=>	"/usr/bin/tr",
+				usermod			=>	"/usr/sbin/usermod",
 				uuidgen			=>	"/usr/bin/uuidgen",
 			},
 			'lock'			=>	{
