@@ -968,6 +968,9 @@ sub read_file
 					$anvil->data->{cache}{file}{$temp_file} = $body;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::file::${temp_file}" => $anvil->data->{cache}{file}{$temp_file} }});
 				}
+				
+				# Remove the temp file.
+				unlink $temp_file;
 			}
 			else
 			{
@@ -1173,6 +1176,8 @@ If this is set to C<< 1 >>, and if a conflict is found with the SSH RSA key (C<<
 B<< NOTE >>: This is the default to better handle a rebuilt node, dashboard or DR machine. Of course, this is a possible security problem so please consider it's use on a case by case basis.
 
 =cut
+### TODO: Make is so that if both the source and destination are remote, we setup to copy from the source to 
+###       the destination (or ping via us, would be easier but possibly slower if we're remote).
 sub rsync
 {
 	my $self      = shift;
@@ -1224,8 +1229,8 @@ sub rsync
 	# the current user's ~/.ssh/known_hosts file.
 	if ($source =~ /^(.*?)@(.*?):/)
 	{
-		$remote_user    = $1;
-		$target = $2;
+		$remote_user = $1;
+		$target      = $2;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 			remote_user => $remote_user,
 			target      => $target, 
@@ -1233,8 +1238,8 @@ sub rsync
 	}
 	elsif ($destination =~ /^(.*?)@(.*?):/)
 	{
-		$remote_user    = $1;
-		$target = $2;
+		$remote_user = $1;
+		$target      = $2;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 			remote_user => $remote_user,
 			target      => $target, 
