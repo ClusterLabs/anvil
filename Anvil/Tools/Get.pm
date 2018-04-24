@@ -715,7 +715,7 @@ sub users_home
 	
 	my $home_directory = 0;
 	
-	my $user = $parameter->{user} ? $parameter->{user} : "";
+	my $user = defined $parameter->{user} ? $parameter->{user} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	
 	# Make sure the user is only one digit. Sometimes $< (and others) will return multiple IDs.

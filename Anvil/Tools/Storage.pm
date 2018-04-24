@@ -881,9 +881,9 @@ sub read_file
 	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : 0;
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		cache      => $cache, 
-		file       => $file,
-		force_read => $force_read, 
+		cache       => $cache, 
+		file        => $file,
+		force_read  => $force_read, 
 		port        => $port, 
 		password    => $anvil->Log->secure ? $password : "--", 
 		remote_user => $remote_user, 
@@ -917,6 +917,7 @@ sub read_file
 		# Setup the temp file name.
 		my $temp_file =  $file;
 		   $temp_file =~ s/\//_/g;
+		   $temp_file =~ s/^_//g;
 		   $temp_file =  "/tmp/".$temp_file.".".$target;
 		   $temp_file =~ s/\s+/_/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_file => $temp_file }});
@@ -937,12 +938,14 @@ sub read_file
 		else
 		{
 			# Read from the target by rsync'ing the file here.
-			$anvil->Storage->rsync({
+			my $failed = $anvil->Storage->rsync({
+				debug       => $debug, 
 				destination => $temp_file,
 				password    => $password, 
 				port        => $port, 
-				source      => $remote_user."\@".$target.$file,
+				source      => $remote_user."\@".$target.":".$file,
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 			
 			if (-e $temp_file)
 			{
@@ -1251,8 +1254,9 @@ sub rsync
 		}
 		
 		# Make sure we know the fingerprint of the remote machine
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => $< }});
 		$anvil->Remote->add_target_to_known_hosts({
+			debug  => $debug, 
 			target => $target, 
 			user   => $<,
 		});
@@ -1269,13 +1273,15 @@ sub rsync
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { shell_call => $shell_call }});
 	
-	# Now make the call
+	# Now make the call (this exposes the password so 'secure' is set).
 	my $conflict = "";
-	my $output   = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	my $output   = $anvil->System->call({secure => 1, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		# This exposes the password on the 'password: ' line.
+		my $secure = $line =~ /password/i ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { line => $line }});
 		
 		if ($line =~ /Offending key in (\/.*\/).ssh\/known_hosts:(\d+)$/)
 		{
@@ -1643,6 +1649,7 @@ fi";
 					# OK, now write the file locally, then we'll rsync it over.
 					my $temp_file =  $file;
 					   $temp_file =~ s/\//_/g;
+					   $temp_file =~ s/^_//g;
 					   $temp_file = "/tmp/".$temp_file;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_file => $temp_file }});
 					$anvil->Storage->write_file({
@@ -1659,12 +1666,14 @@ fi";
 					# Now rsync it.
 					if (-e $temp_file)
 					{
-						$anvil->Storage->rsync({
-							destination => $remote_user."\@".$target.$file,
+						my $failed = $anvil->Storage->rsync({
+							debug       => $debug, 
+							destination => $remote_user."\@".$target.":".$file,
 							password    => $password, 
 							port        => $port, 
 							source      => $temp_file,
 						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 						
 						# Unlink 
 						unlink $temp_file;
@@ -1786,14 +1795,14 @@ sub _create_rsync_wrapper
 		return("");
 	}
 	
+	### NOTE: The first line needs to be the '#!...' line, hence the odd formatting below.
 	my $timeout        = 3600;
 	my $wrapper_script = "/tmp/rsync.$target";
-	my $wrapper_body   = "
-".$anvil->data->{path}{exe}{echo}." #!".$anvil->data->{path}{exe}{expect}."
-".$anvil->data->{path}{exe}{echo}." set timeout ".$timeout."
-".$anvil->data->{path}{exe}{echo}." eval spawn rsync \$argv
-".$anvil->data->{path}{exe}{echo}." expect \"password:\" \{ send \"".$password."\\n\" \}
-".$anvil->data->{path}{exe}{echo}." expect eof
+	my $wrapper_body   = "#!".$anvil->data->{path}{exe}{expect}."
+set timeout ".$timeout."
+eval spawn rsync \$argv
+expect \"password:\" \{ send \"".$password."\\n\" \}
+expect eof
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		wrapper_script => $wrapper_script, 

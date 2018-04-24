@@ -124,7 +124,7 @@ sub add_target_to_known_hosts
 	}});
 	
 	# Get the local user's home
-	my $users_home = $anvil->Get->users_home({user => $user});
+	my $users_home = $anvil->Get->users_home({debug => $debug, user => $user});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { users_home => $users_home }});
 	if (not $users_home)
 	{
@@ -156,6 +156,7 @@ sub add_target_to_known_hosts
 	{
 		# We don't know about this machine yet, so scan it.
 		my $added = $anvil->Remote->_call_ssh_keyscan({
+			debug       => $debug, 
 			target      => $target, 
 			port        => $port, 
 			user        => $user, 
@@ -472,7 +473,7 @@ sub call
 			{
 				# Can we log in without a password?
 				my $user           = getpwuid($<);
-				my $home_directory = $anvil->Get->users_home({user => $user});
+				my $home_directory = $anvil->Get->users_home({debug => $debug, user => $user});
 				my $public_key     = $home_directory."/.ssh/id_rsa.pub";
 				my $private_key    = $home_directory."/.ssh/id_rsa";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
@@ -695,12 +696,13 @@ sub _call_ssh_keyscan
 		user   => $user, 
 	}});
 	
-	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." ".$target." >> ".$known_hosts;
+	# Redirect STDERR to STDOUT and grep off the comments.
+	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
 	if (($port) && ($port ne "22"))
 	{
-		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -p ".$port." ".$target." >> ".$known_hosts;
+		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -p ".$port." ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
 	}
-	my $output = $anvil->System->call({shell_call => $shell_call});
+	my $output = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
@@ -769,6 +771,7 @@ sub _check_known_hosts_for_target
 	my $port            = defined $parameter->{port}            ? $parameter->{port}            : "";
 	my $target          = defined $parameter->{target}          ? $parameter->{target}          : "";
 	my $user            = defined $parameter->{user}            ? $parameter->{user}            : $<;
+	my $known_machine   = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		delete_if_found => $delete_if_found,
 		known_hosts     => $known_hosts, 
@@ -777,12 +780,19 @@ sub _check_known_hosts_for_target
 		user            => $user,
 	}});
 	
+	# Is there a known_hosts file at all?
+	if (not $known_hosts)
+	{
+		# Nope.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0163", variables => { file => $$known_hosts }});
+		return($known_machine)
+	}
+	
 	# read it in and search.
-	my $known_machine = 0;
-	my $body          = $anvil->Storage->read_file({file => $known_hosts});
+	my $body = $anvil->Storage->read_file({debug => $debug, file => $known_hosts});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { body => $body }});
 	foreach my $line (split/\n/, $body)
 	{
-		my $line = $_;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
 		
 		if (($line =~ /$target ssh-rsa /) or ($line =~ /\[$target\]:$port ssh-rsa /))
@@ -805,7 +815,7 @@ sub _check_known_hosts_for_target
 			$shell_call = $anvil->data->{path}{exe}{su}." - ".$user." -c '".$anvil->data->{path}{exe}{'ssh-keygen'}." -R ".$target."'";
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { shell_call => $shell_call }});
-		my $output = $anvil->System->call({shell_call => $shell_call});
+		my $output = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 		foreach my $line (split/\n/, $output)
 		{

@@ -59,6 +59,19 @@ if (not $connections)
 	$anvil->nice_exit({exit_code => 2});
 }
 
+$anvil->Storage->write_file({
+	debug       => 2,
+	body        => "This is only a test.\n",
+	file        => "/home/admin/test.file",
+	group       => "admin", 
+	mode        => "0644",
+	overwrite   => 0,
+	port        => 22, 
+	password    => "Initial1", 
+	target      => "192.168.122.202",
+	user        => "admin",
+	remote_user => "admin", 
+});
 
 die "Testing...\n";
 
