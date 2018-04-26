@@ -697,6 +697,8 @@ sub _set_defaults
 			user				=>	"admin",
 		},
 		host_type			=>	"",
+		log_file			=>	"/var/log/anvil.log",
+		stty				=>	"",
 		use_base2			=>	1,
 	};
 	$anvil->data->{defaults} = {
@@ -798,6 +800,7 @@ sub _set_paths
 				md5sum			=>	"/usr/bin/md5sum",
 				'mkdir'			=>	"/usr/bin/mkdir",
 				nmcli			=>	"/bin/nmcli",
+				openssl			=>	"/usr/bin/openssl", 
 				passwd			=>	"/usr/bin/passwd",
 				ping			=>	"/usr/bin/ping",
 				pgrep			=>	"/usr/bin/pgrep",
@@ -919,6 +922,13 @@ sub catch_sig
 	if ($signal)
 	{
 		print "Process with PID: [$$] exiting on SIG".$signal.".\n";
+		
+		if ($anvil->data->{sys}{stty})
+		{
+			# Restore the terminal.
+			print "Restoring the terminal\n";
+			$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{stty}});
+		}
 	}
 	$anvil->nice_exit({code => 255});
 }

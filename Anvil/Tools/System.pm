@@ -29,6 +29,7 @@ my $THIS_FILE = "System.pm";
 # reload_daemon
 # start_daemon
 # stop_daemon
+# stty_echo
 # _load_firewalld_zones
 # _load_specific_firewalld_zone
 # _match_port_to_service
@@ -182,7 +183,6 @@ sub call
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { output => $output }});
 	return($output);
 }
 
@@ -264,8 +264,8 @@ sub change_shell_user_password
 	}
 	
 	# Generate a salt and then use it to create a hash.
-	my $salt     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{openssl}." rand 1000 | ".$anvil->data->{path}{exe}{strings}." | ".$anvil->data->{path}{exe}{'grep'}." -io [0-9A-Za-z\.\/] | ".$anvil->data->{path}{exe}{head}." -n 16 | ".$anvil->data->{path}{exe}{'tr'}." -d '\n'" });
-	my $new_hash = $user.":".crypt($new_password,"\$6\$".$salt."\$");
+	my $salt     = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{openssl}." rand 1000 | ".$anvil->data->{path}{exe}{strings}." | ".$anvil->data->{path}{exe}{'grep'}." -io [0-9A-Za-z\.\/] | ".$anvil->data->{path}{exe}{head}." -n 16 | ".$anvil->data->{path}{exe}{'tr'}." -d '\n'" });
+	my $new_hash = crypt($new_password,"\$6\$".$salt."\$");
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		salt     => $salt, 
 		new_hash => $new_hash, 
@@ -273,11 +273,12 @@ sub change_shell_user_password
 	
 	# Update the password using 'usermod'. NOTE: The single-quotes are crtical!
 	my $output     = "";
-	my $shell_call = $anvil->data->{path}{exe}{usermod}." --password '".$new_hash."'; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
+	my $shell_call = $anvil->data->{path}{exe}{usermod}." --password '".$new_hash."' ".$user."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
 	if ($target)
 	{
 		# Remote call.
 		$output = $anvil->Remote->call({
+			debug      => $debug, 
 			shell_call => $shell_call, 
 			target     => $target,
 			port       => $port, 
@@ -288,7 +289,7 @@ sub change_shell_user_password
 	else
 	{
 		# Local call
-		$output = $anvil->System->call({shell_call => $shell_call});
+		$output = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	}
 	foreach my $line (split/\n/, $output)
@@ -1481,6 +1482,42 @@ sub stop_daemon
 	return($return);
 }
 
+=head2 stty_echo
+
+This turns echo off (for password prompts, for example) and back on again. It does so in a way that a SIGINT/SIGKILL can restore the echo before the program dies.
+
+B<< Note >>: Calling C<< on >> before C<< off >> will result in no change. The C<< off >> stores the current TTY in C<< sys::stty >> and uses the value in there to reset the terminal. If you want to change the terminal, you can set that variable manually then call C<< on >>, though this is not recommended.
+
+Parameters;
+
+=head3 set (required, default 'on')
+
+This is set to C<< on >> or C<< off >>, which enables or disables echo'ing respectively.
+
+=cut
+sub stty_echo
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { set => $set }});
+	
+	if ($set eq "off")
+	{
+		$anvil->data->{sys}{stty} = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." --save"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 'sys::stty' => $anvil->data->{sys}{stty} }});
+		$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." -echo"});
+	}
+	elsif (($set eq "on") && ($anvil->data->{sys}{stty}))
+	{
+		$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{stty}});
+	}
+	
+	return(0);
+}
 
 # =head3
 # 

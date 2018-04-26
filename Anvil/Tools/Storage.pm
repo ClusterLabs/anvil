@@ -745,7 +745,7 @@ sub read_config
 	if (not $file)
 	{
 		# No file to read
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0032"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0164"});
 		$return_code = 1;
 	}
 	

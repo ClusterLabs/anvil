@@ -97,7 +97,7 @@ my $conf = {
 	},
 	# If a program isn't at the defined path, $ENV{PATH} will be searched.
 	path		=>	{
-		config		=>	{
+		configs		=>	{
 			definition	=>	"/mnt/anvil/definitions/#!NAME!#.xml",
 		},
 		exe		=>	{
@@ -351,7 +351,7 @@ sub start_server
 	# If we're still alive, we're ready to boot.
 	to_log($conf, {message => "Sanity checks passed, ready to start: [$server].", 'line' => __LINE__, level => 2});
 	
-	my $definition_file =  $conf->{path}{config}{definition};
+	my $definition_file =  $conf->{path}{configs}{definition};
 	   $definition_file =~ s/#!NAME!#/$server/;
 	to_log($conf, {message => "definition_file: [$definition_file].", 'line' => __LINE__, level => 2});
 	
@@ -1545,7 +1545,7 @@ sub read_server_definition
 	my ($conf) = @_;
 	
 	my $server          =  $conf->{environment}{OCF_RESKEY_name};
-	my $definition_file =  $conf->{path}{config}{definition};
+	my $definition_file =  $conf->{path}{configs}{definition};
 	   $definition_file =~ s/#!NAME!#/$server/;
 	my $server_xml      =  "";
 	to_log($conf, {message => "server: [$server], definition_file: [$definition_file]", 'line' => __LINE__, level => 3});

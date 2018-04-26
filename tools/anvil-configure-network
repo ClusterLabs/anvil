@@ -33,7 +33,7 @@ $anvil->Log->secure({set => 0});
 $anvil->Get->switches;
 
 # Paths
-$anvil->Storage->read_config({file => $anvil->data->{path}{config}{'anvil.conf'}});
+$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID

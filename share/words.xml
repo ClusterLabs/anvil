@@ -44,6 +44,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="message_0020">About to update the local passwords (shell users, database and web interface).</key>
 		<key name="message_0021">Proceed? [y/N]</key>
 		<key name="message_0022">Aborting.</key>
+		<key name="message_0023">Auto-approved by command line switch, proceeding.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -242,6 +243,7 @@ The database connection error was:
 		<key name="log_0161"><![CDATA[[ Error ] - The method Storage->read_file() was asked to read the remote file: [#!variable!file!#] but it appears to be missing the file name. Aborting.]]></key>
 		<key name="log_0162"><![CDATA[[ Error ] - The method Storage->read_file() tried to rsync the remote file: [#!variable!remote_file!#] to the local temporary file: [#!variable!local_file!#], but it did not arrive. There might be more information above.]]></key>
 		<key name="log_0163">The file: [#!variable!file!#] does not exist.</key>
+		<key name="log_0164"><![CDATA[[ Warning ] - Storage->read_config()' was called without a file name to read.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

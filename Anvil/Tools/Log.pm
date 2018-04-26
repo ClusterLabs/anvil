@@ -301,19 +301,8 @@ sub entry
 		$string .= $message;
 	}
 	
-	# Log with Log::Journald
-	if (0)
-	{
-		Log::Journald::send(
-			PRIORITY          => $priority, 
-			MESSAGE           => $string, 
-			CODE_FILE         => $source, 
-			CODE_LINE         => $line, 
-			SYSLOG_FACILITY   => $secure ? "authpriv" : $facility,
-			SYSLOG_IDENTIFIER => $tag,
-		);
-	}
-	else
+	# If the user set a log file, log to that. Otherwise, log via Log::Journald.
+	if ($anvil->data->{sys}{log_file})
 	{
 		# TODO: Switch back to journald later, using a file for testing for now
 		if ($string !~ /\n$/)
@@ -324,10 +313,18 @@ sub entry
 		# Open the file?
 		if (not $anvil->{HANDLE}{log_file})
 		{
-			my $shell_call = "/var/log/anvil.log";
+			# If the file doesn't start with a '/', we'll put it under /var/log.
+			my $log_file           = $anvil->data->{sys}{log_file} =~ /^\// ? $anvil->data->{sys}{log_file} : "/var/log/".$anvil->data->{sys}{log_file};
+			my ($directory, $file) = ($log_file =~ /^(\/.*)\/(.*)$/);
+			
+			# Make sure the log directory exists.
+			$anvil->Storage->make_directory({directory => $directory, group => 755});
+			
+			# Now open the log
+			my $shell_call = $log_file;
 			# NOTE: Don't call '$anvil->Log->entry()' here, it will cause a loop!
 			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
-			
+			$file_handle->autoflush(1);
 			$anvil->{HANDLE}{log_file} = $file_handle;
 		}
 		
@@ -339,6 +336,17 @@ sub entry
 		
 		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
 		print { $anvil->{HANDLE}{log_file} } $string;
+	}
+	else
+	{
+		Log::Journald::send(
+			PRIORITY          => $priority, 
+			MESSAGE           => $string, 
+			CODE_FILE         => $source, 
+			CODE_LINE         => $line, 
+			SYSLOG_FACILITY   => $secure ? "authpriv" : $facility,
+			SYSLOG_IDENTIFIER => $tag,
+		);
 	}
 	
 	return(0);
@@ -560,6 +568,7 @@ sub variables
 	{
 		die $THIS_FILE." ".__LINE__."; Log->variables() called without Log->level: [".$anvil->Log->level."] defined from: [$source : $line]\n";
 	}
+	#print "level: [$level], logging: [".$anvil->Log->level."], secure: [$secure], logging secure: [".$anvil->Log->secure."]\n";
 	if ($level > $anvil->Log->level)
 	{
 		return(1);

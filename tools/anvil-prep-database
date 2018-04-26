@@ -34,8 +34,7 @@ $anvil->Log->secure({set => 1});
 $anvil->Get->switches;
 
 # Paths
-$anvil->data->{path}{config}{'anvil.conf'} = "/etc/anvil/anvil.conf";
-$anvil->Storage->read_config({file => $anvil->data->{path}{config}{'anvil.conf'}});
+$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 
 my $local_id = $anvil->Database->get_local_id;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { local_id => $local_id }});
