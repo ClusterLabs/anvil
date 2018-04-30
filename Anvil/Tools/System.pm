@@ -208,6 +208,10 @@ If you are changing the password of a user on a remote machine, this is the pass
 
 This is the TCP port number to use if connecting to a remote machine over SSH. Ignored if C<< target >> is not given.
 
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set and we're changing the password for a remote user, this is the user we B<< log into >> the remote machine as, B<< not >> the user whose password we will change.
+
 =head3 target (optional)
 
 This is the IP address or (resolvable) host name of the target machine whose user account you want to change the password 
@@ -224,16 +228,18 @@ sub change_shell_user_password
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $new_password = $parameter->{new_password} ? $parameter->{new_password} : "";
-	my $password     = $parameter->{password}     ? $parameter->{password}     : "";
-	my $port         = $parameter->{port}         ? $parameter->{port}         : "";
-	my $target       = $parameter->{target}       ? $parameter->{target}       : "";
-	my $user         = $parameter->{user}         ? $parameter->{user}         : "";
+	my $new_password = defined $parameter->{new_password} ? $parameter->{new_password} : "";
+	my $password     = defined $parameter->{password}     ? $parameter->{password}     : "";
+	my $port         = defined $parameter->{port}         ? $parameter->{port}         : "";
+	my $remote_user  = defined $parameter->{remote_user}  ? $parameter->{remote_user}  : "root";
+	my $target       = defined $parameter->{target}       ? $parameter->{target}       : "";
+	my $user         = defined $parameter->{user}         ? $parameter->{user}         : "";
 	my $return_code  = 255;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		user         => $user, 
 		target       => $target, 
 		port         => $port, 
+		remote_user  => $remote_user, 
 		new_password => $anvil->Log->secure ? $new_password : "--", 
 		password     => $anvil->Log->secure ? $password     : "--", 
 	}});
@@ -277,12 +283,14 @@ sub change_shell_user_password
 	if ($target)
 	{
 		# Remote call.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 		$output = $anvil->Remote->call({
-			debug      => $debug, 
-			shell_call => $shell_call, 
-			target     => $target,
-			port       => $port, 
-			password   => $password,
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	}
@@ -1169,6 +1177,10 @@ This is the port used to access a remote machine. This is used when pinging from
 
 B<NOTE>: See C<< Remote->call >> for additional information on specifying the SSH port as part of the target.
 
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user we will use to log into the remote machine to run the actual ping.
+
 =head3 target (optional)
 
 This is the host name or IP address of a remote machine that you want to run the ping on. This is used to test a remote machine's access to a given ping target.
@@ -1192,22 +1204,24 @@ sub ping
 # 	print "[".$ping_time."] - Pinged: [$host]\n";
 	
 	# If we were passed a target, try pinging from it instead of locally
-	my $count    = $parameter->{count}    ? $parameter->{count}    : 1;	# How many times to try to ping it? Will exit as soon as one succeeds
-	my $fragment = $parameter->{fragment} ? $parameter->{fragment} : 1;	# Allow fragmented packets? Set to '0' to check MTU.
-	my $password = $parameter->{password} ? $parameter->{password} : "";
-	my $payload  = $parameter->{payload}  ? $parameter->{payload}  : 0;	# The size of the ping payload. Use when checking MTU.
-	my $ping     = $parameter->{ping}     ? $parameter->{ping}     : "";
-	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
-	my $target   = $parameter->{target}   ? $parameter->{target}   : "";
-	my $timeout  = $parameter->{timeout}  ? $parameter->{timeout}  : 1;	# This sets the 'timeout' delay.
+	my $count       = defined $parameter->{count}       ? $parameter->{count}       : 1;	# How many times to try to ping it? Will exit as soon as one succeeds
+	my $fragment    = defined $parameter->{fragment}    ? $parameter->{fragment}    : 1;	# Allow fragmented packets? Set to '0' to check MTU.
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $payload     = defined $parameter->{payload}     ? $parameter->{payload}     : 0;	# The size of the ping payload. Use when checking MTU.
+	my $ping        = defined $parameter->{ping}        ? $parameter->{ping}        : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $timeout     = defined $parameter->{timeout}     ? $parameter->{timeout}     : 1;	# This sets the 'timeout' delay.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		count    => $count, 
-		fragment => $fragment, 
-		payload  => $payload, 
-		password => $anvil->Log->secure ? $password : "--",
-		ping     => $ping, 
-		port     => $port, 
-		target   => $target, 
+		count       => $count, 
+		fragment    => $fragment, 
+		payload     => $payload, 
+		password    => $anvil->Log->secure ? $password : "--",
+		ping        => $ping, 
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
 	}});
 	
 	# Was timeout specified as a simple integer?
@@ -1259,11 +1273,14 @@ sub ping
 		if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
 		{
 			### Remote calls
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 			$output = $anvil->Remote->call({
-				shell_call => $shell_call, 
-				target     => $target,
-				port       => $port, 
-				password   => $password,
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 		}

@@ -36,9 +36,19 @@ $anvil->Get->switches;
 # Paths
 $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 
-my $local_id = $anvil->Database->get_local_id;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { local_id => $local_id }});
-if ($local_id)
+my $local_uuid = $anvil->Database->get_local_uuid;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+
+# If we didn't get the $local_uuid, then there is no entry for this system in anvil.conf yet, so we'll add it.
+if (not $local_uuid)
+{
+	$local_uuid = add_to_local_config($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+}
+exit;
+
+# Now configure!
+if ($local_uuid)
 {
 	# Start checks
 	my $running = $anvil->System->check_daemon({daemon => "postgresql"});
@@ -87,7 +97,10 @@ if ($local_id)
 			# Setup postgresql.conf
 			my $postgresql_backup = $anvil->data->{path}{directories}{backups}."/pgsql/postgresql.conf";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { postgresql_backup => $postgresql_backup }});
-			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'postgresql.conf'}, target => $postgresql_backup});
+			$anvil->Storage->copy_file({
+				source_file => $anvil->data->{path}{configs}{'postgresql.conf'}, 
+				target_file => $postgresql_backup,
+			});
 			
 			my $postgresql_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'postgresql.conf'}});
 			my $update_file         = 1;
@@ -126,7 +139,10 @@ if ($local_id)
 			my $pg_hba_backup = $anvil->data->{path}{directories}{backups}."/pgsql/pg_hba.conf";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pg_hba_backup => $pg_hba_backup }});
 			
-			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'pg_hba.conf'}, target => $pg_hba_backup});
+			$anvil->Storage->copy_file({
+				source_file => $anvil->data->{path}{configs}{'pg_hba.conf'},
+				target_file => $pg_hba_backup, 
+			});
 			my $pg_hba_conf     = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'pg_hba.conf'}});
 			   $update_file     = 1;
 			my $new_pg_hba_conf = "";
@@ -190,11 +206,11 @@ if ($local_id)
 	my $created_pgpass = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { 
 		'path::secure::postgres_pgpass'   => $anvil->data->{path}{secure}{postgres_pgpass},
-		"database::${local_id}::password" => $anvil->data->{database}{$local_id}{password}, 
+		"database::${local_uuid}::password" => $anvil->data->{database}{$local_uuid}{password}, 
 	}});
-	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$local_id}{password}))
+	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$local_uuid}{password}))
 	{
-		my $body = "*:*:*:postgres:".$anvil->data->{database}{$local_id}{password}."\n";
+		my $body = "*:*:*:postgres:".$anvil->data->{database}{$local_uuid}{password}."\n";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { body => $body }});
 		$anvil->Storage->write_file({
 			file      => $anvil->data->{path}{secure}{postgres_pgpass},  
@@ -214,12 +230,12 @@ if ($local_id)
 	
 	# Does the database user exist?
 	my $create_user   = 1;
-	my $database_user = $anvil->data->{database}{$local_id}{user} ? $anvil->data->{database}{$id}{user} : $anvil->data->{sys}{database}{user};
+	my $database_user = $anvil->data->{database}{$local_uuid}{user} ? $anvil->data->{database}{$local_uuid}{user} : $anvil->data->{sys}{database}{user};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_user => $database_user }});
 	if (not $database_user)
 	{
 		# No database user defined
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { id => $local_id }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { uuid => $local_uuid }});
 		exit(3);
 	}
 	my $user_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
@@ -261,11 +277,11 @@ if ($local_id)
 		}
 		
 		# Update/set the passwords.
-		if ($anvil->data->{database}{$local_id}{password})
+		if ($anvil->data->{database}{$local_uuid}{password})
 		{
 			foreach my $user ("postgres", $database_user)
 			{
-				my $update_output = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$local_id}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
+				my $update_output = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$local_uuid}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { update_output => $update_output }});
 				foreach my $line (split/\n/, $user_list)
 				{
@@ -281,7 +297,7 @@ if ($local_id)
 	
 	# Create the database, if needed.
 	my $create_database = 1;
-	my $database_name   = $anvil->data->{database}{$local_id}{name} ? $anvil->data->{database}{$local_id}{name} : $anvil->data->{sys}{database}{name};
+	my $database_name   = $anvil->data->{database}{$local_uuid}{name} ? $anvil->data->{database}{$local_uuid}{name} : $anvil->data->{sys}{database}{name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_name => $database_name }});
 	
 	my $database_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
@@ -394,3 +410,74 @@ exit(0);
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This adds this machine to the local anvil.conf file.
+sub add_to_local_config
+{
+	my ($anvil) = @_;
+	
+	my $host_uuid       = $anvil->Get->host_uuid();
+	my $local_uuid      = "";
+	my $anvil_conf_body = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		host_uuid       => $host_uuid,
+		anvil_conf_body => $anvil_conf_body,
+	}});
+	
+	# Setup the data we'll insert. The password will be changed after the user does the initial config.
+	my $insert =  "database::".$host_uuid."::host		=	localhost\n";
+	   $insert .= "database::".$host_uuid."::port		=	5432\n";
+	   $insert .= "database::".$host_uuid."::password	=	Initial1\n";
+	   $insert .= "database::".$host_uuid."::ping		=	0\n\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { insert => $insert }});
+	   
+	# Now inject the config.
+	my $new_body    = "";
+	my $config_seen = 0;
+	my $test_line   = "database::${host_uuid}::";
+	foreach my $line (split/\n/, $anvil_conf_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /^$test_line/)
+		{
+			# It's already configured, abort.
+			$config_seen = 1;
+			$local_uuid  = $host_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				config_seen => $config_seen,
+				local_uuid  => $local_uuid, 
+			}});
+		}
+		if ($line eq "### end db list ###")
+		{
+			$new_body .= $insert;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_body => $new_body }});
+		}
+		$new_body .= $line."\n";
+	}
+	
+	# If we're here, we're ready to write it out.
+	if (not $config_seen)
+	{
+		# Backup the original
+		my $backup_file = $anvil->Storage->backup({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+		
+		# Now update!
+		$anvil->Storage->write_file({
+			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
+			body      => $new_body, 
+			user      => "admin", 
+			group     => "admin", 
+			mode      => "0644",
+			overwrite => 1,
+		});
+		
+		# Record the local UUID for returning to the caller.
+		$local_uuid = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+	}
+	
+	return($local_uuid);
+}
+

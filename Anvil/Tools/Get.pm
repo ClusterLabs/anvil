@@ -101,6 +101,10 @@ This is the password to use when connecting to a remote machine. If not set, but
 
 This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
 
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
 =head3 target (optional)
 
 This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
@@ -113,14 +117,16 @@ sub anvil_version
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $password = $parameter->{password} ? $parameter->{password} : "";
-	my $port     = $parameter->{port}     ? $parameter->{port}     : "";
-	my $target   = $parameter->{target}   ? $parameter->{target}   : "local";
-	my $version  = 0;
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $version     = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password => $anvil->Log->secure ? $password : "--",
-		port     => $port, 
-		target   => $target, 
+		password    => $anvil->Log->secure ? $password : "--",
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
 	}});
 	
 	# Is this a local call or a remote call?
@@ -135,12 +141,14 @@ else
    echo 0;
 fi;
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 		my ($error, $output) = $anvil->Remote->call({
-			shell_call => $shell_call, 
-			target     => $target,
-			port       => $port, 
-			password   => $password,
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
 		

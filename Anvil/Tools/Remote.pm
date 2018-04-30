@@ -185,21 +185,21 @@ Example;
 
  # Call 'hostname' on a node.
  my ($error, $output) = $anvil->Remote->call({
- 	target     => "an-a01n01.alteeve.com",
- 	user       => "admin",
- 	password   => "super secret password",
- 	shell_call => "/usr/bin/hostname",
+ 	target      => "an-a01n01.alteeve.com",
+ 	password    => "super secret password",
+ 	remote_user => "admin",
+ 	shell_call  => "/usr/bin/hostname",
  });
  
  # Make a call with sensitive data that you want logged only if $anvil->Log->secure is set and close the 
  # connection when done.
  my ($error, $output) = $anvil->Remote->call({
- 	target     => "an-a01n01.alteeve.com",
- 	user       => "root", 
- 	password   => "super secret password",
- 	shell_call => "/usr/sbin/fence_ipmilan -a an-a01n02.ipmi -l admin -p \"super secret password\" -o status",
- 	secure     => 1,
-	'close'    => 1, 
+ 	target      => "an-a01n01.alteeve.com",
+ 	password    => "super secret password",
+ 	remote_user => "root",
+ 	shell_call  => "/usr/sbin/fence_ipmilan -a an-a01n02.ipmi -l admin -p \"super secret password\" -o status",
+ 	secure      => 1,
+	'close'     => 1, 
  });
 
 If there is any problem connecting to the target, C<< $error >> will contain a translated string explaining what went wrong. Checking if this is B<< false >> is a good way to verify that the call succeeded.
@@ -234,6 +234,10 @@ This is the TCP port to use when connecting to the C<< target >>. The default is
 
 B<NOTE>: See C<< target >> for optional port definition.
 
+=head3 remote_user (optional, default root)
+
+This is the user account on the C<< target >> to connect as and to run the C<< shell_call >> as. The C<< password >> if so this user's account on the C<< target >>.
+
 =head3 secure (optional, default C<< 0 >>)
 
 If set, the C<< shell_call >> is treated as containing sensitive data and will not be logged unless C<< $anvil->Log->secure >> is enabled.
@@ -249,10 +253,6 @@ This is the host name or IP address of the target machine that the C<< shell_cal
 B<NOTE>: If the target matches an entry in '/etc/ssh/ssh_config', the port defined there is used. If the port is set as part of the target name, the port in 'ssh_config' is ignored.
 
 B<NOTE>: If the C<< target >> is presented in the format C<< target:port >>, the port will be separated from the target and used as the TCP port. If the C<< port >> parameter is set, however, the port split off the C<< target >> will be ignored.
-
-=head3 user (optional, default 'root')
-
-This is the user account on the C<< target >> to connect as and to run the C<< shell_call >> as. The C<< password >> if so this user's account on the C<< target >>.
 
 =cut
 sub call
@@ -283,23 +283,23 @@ sub call
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	
 	# Now pick up the rest of the variables.
-	my $close      = defined $parameter->{'close'}    ? $parameter->{'close'}    : 0;
-	my $no_cache   = defined $parameter->{no_cache}   ? $parameter->{no_cache}   : 0;
-	my $password   = defined $parameter->{password}   ? $parameter->{password}   : $anvil->data->{sys}{root_password};
-	my $secure     = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
-	my $shell_call = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
-	my $user       = defined $parameter->{user}       ? $parameter->{user}       : "root";
-	my $start_time = time;
-	my $ssh_fh     = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
+	my $close       = defined $parameter->{'close'}     ? $parameter->{'close'}     : 0;
+	my $no_cache    = defined $parameter->{no_cache}    ? $parameter->{no_cache}    : 0;
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : $anvil->data->{sys}{root_password};
+	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : 0;
+	my $shell_call  = defined $parameter->{shell_call}  ? $parameter->{shell_call}  : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $start_time  = time;
+	my $ssh_fh      = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-		'close'    => $close, 
-		password   => $anvil->Log->secure ? $password : "--", 
-		secure     => $secure, 
-		shell_call => ((not $anvil->Log->secure) && ($secure)) ? "--" : $shell_call,
-		ssh_fh     => $ssh_fh,
-		start_time => $start_time, 
-		user       => $user,
+		'close'     => $close, 
+		password    => $anvil->Log->secure ? $password : "--", 
+		secure      => $secure, 
+		shell_call  => ((not $anvil->Log->secure) && ($secure)) ? "--" : $shell_call,
+		ssh_fh      => $ssh_fh,
+		start_time  => $start_time, 
+		remote_user => $remote_user,
 	}});
 	
 	if (not $shell_call)
@@ -314,9 +314,9 @@ sub call
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->call()", parameter => "target" }});
 		return("!!error!!");
 	}
-	if (not $user)
+	if (not $remote_user)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->call()", parameter => "user" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->call()", parameter => "remote_user" }});
 		return("!!error!!");
 	}
 	
@@ -424,11 +424,11 @@ sub call
 			#print "[".$connect_time."] - Connection failed time to: [$target:$port]\n";
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", list => { 
-				user       => $user,
-				target     => $target, 
-				port       => $port, 
-				shell_call => $shell_call,
-				error      => $@,
+				remote_user => $remote_user,
+				target      => $target, 
+				port        => $port, 
+				shell_call  => $shell_call,
+				error       => $@,
 			}});
 			
 			# We'll now try to get a more useful message for the user and logs.
@@ -442,9 +442,9 @@ sub call
 			{
 				$message_key = "message_0002";
 				$variables   = {
-					target => $target,
-					port   => $port,
-					user   => $user,
+					target      => $target,
+					port        => $port,
+					remote_user => $remote_user,
 				};
 			}
 			elsif ($@ =~ /No route to host/)
@@ -466,10 +466,10 @@ sub call
 		if (not $error)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-				user     => $user,
-				password => $anvil->Log->secure ? $password : "--", 
+				remote_user => $remote_user,
+				password    => $anvil->Log->secure ? $password : "--", 
 			}});
-			if (not $ssh_fh->auth_password($user, $password)) 
+			if (not $ssh_fh->auth_password($remote_user, $password)) 
 			{
 				# Can we log in without a password?
 				my $user           = getpwuid($<);

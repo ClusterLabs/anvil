@@ -98,16 +98,16 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0043"><![CDATA[[ Error ] - The method System->call() was called but 'shell_call' was not passed or was empty.]]></key>
 		<key name="log_0044">The host: [#!variable!host!#] has renewed its database lock.</key>
 		<key name="log_0045">The host: [#!variable!host!#] is requesting a database lock.</key>
-		<key name="log_0046"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source!#] to: [#!variable!target!#], but the target already exists and 'overwrite' wasn't specified, skipping.]]></key>
+		<key name="log_0046"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target already exists and 'overwrite' wasn't specified, skipping.]]></key>
 		<key name="log_0047"><![CDATA[[ Error ] - The method Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
 		<key name="log_0048"><![CDATA[[ Warning ] - Testing of Anvil::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
 		<key name="log_0049"><![CDATA[[ Warning ] - Testing of Anvil::Tools is complete.]]></key>
 		<key name="log_0050">[ Error ] - There is a local database defined, but it does not appear to exist and we could not initialize the database server. Is 'postgresql-server' installed?</key>
 		<key name="log_0051"><![CDATA[[ Error ] - The method Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
-		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->copy_file() was called but the source file: [#!variable!source!#] doesn't exist.]]></key>
+		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->copy_file() was called but the source file: [#!variable!source_file!#] doesn't exist.]]></key>
 		<key name="log_0053"><![CDATA[[ Error ] - The 'Database->connect()' method tried to connect to the same database twice: [#!variable!target!#].]]></key>
 		<key name="log_0054">
-Connecting to Database with configuration ID: [#!variable!id!#]
+Connecting to Database with configuration ID: [#!variable!uuid!#]
 - driver: . [#!variable!driver!#]
 - host: ... [#!variable!host!#]
 - port: ... [#!variable!port!#]
@@ -120,11 +120,11 @@ Connecting to Database with configuration ID: [#!variable!id!#]
 		<key name="log_0057">Updated: [#!variable!file!#] to require passwords for access.</key>
 		<key name="log_0058"><![CDATA[[ Error ] - The method Remote->call() was called but the port: [#!variable!port!#] is invalid. It must be a digit between '1' and '65535'.]]></key>
 		<key name="log_0059">Started the PostgreSQL database server.</key>
-		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!id!#].</key>
+		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!uuid!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
-		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the ID: [#!variable!id!#] did not respond to pings and 'database::#!variable!id!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.</key>
-		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with ID: [#!variable!id!#] can not be used, skipping it.</key>
+		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the ID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.</key>
+		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with ID: [#!variable!uuid!#] can not be used, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
 ----------
@@ -132,41 +132,41 @@ The database connection error was:
 ----------
 		</key>
 		<key name="log_0066">Is the database server running on: [#!variable!target!#] and does the target's firewall allow connections on TCP port: [#!variable!port!#]?</key>
-		<key name="log_0067"><![CDATA[The password was not passed, and it is required. Please set: [database::#!variable!id!#::password = <password>] in: [#!data!path::configs::anvil.conf!#].]]></key>
+		<key name="log_0067"><![CDATA[The password was not passed, and it is required. Please set: [database::#!variable!uuid!#::password = <password>] in: [#!data!path::configs::anvil.conf!#].]]></key>
 		<key name="log_0068"><![CDATA[The database user name: [#!variable!user!#] on the host: [#!variable!host!#] is either not the owner of the database: [#!variable!name!#], or the password for that user is incorrect. 
 - Please edit: [#!data!path::configs::anvil.conf!#]
   * If the user name is not correct, please update: 
-    database::#!variable!id!#::user = <user>
+    database::#!variable!uuid!#::user = <user>
   * If the user name is correct, please update: 
-    database::#!variable!id!#::password = <password>
+    database::#!variable!uuid!#::password = <password>
 		]]></key>
 		<key name="log_0069">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] was refused. Is the database server running?</key>
 		<key name="log_0070">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] failed because the name could not be translated to an IP address. Is this database server's host name in '/etc/hosts'?</key>
-		<key name="log_0071">Successfully Connected to the database: [#!variable!name!#] (id: [#!variable!id!#]) on host: [#!variable!host!#:#!variable!port!#].</key>
-		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
-		<key name="log_0073"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
-		<key name="log_0074">About to run: [#!variable!id!#]:[#!variable!query!#]</key>
+		<key name="log_0071">Successfully Connected to the database: [#!variable!name!#] (id: [#!variable!uuid!#]) on host: [#!variable!host!#:#!variable!port!#].</key>
+		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::read_db_uuid' doesn't contain a database ID, either. Are any databases available?]]></key>
+		<key name="log_0073"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with ID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
+		<key name="log_0074">About to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
-		<key name="log_0077"><![CDATA[[ Error ] - The method Database->initialize() was called without a database ID to query and 'sys::read_db_id' doesn't contain a database ID, either. Are any databases available?]]></key>
-		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
-		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!id!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
-		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
-		<key name="log_0081"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!id!#]) but the core SQL file: [#!variable!sql_file!#] exist, but can't be read.]]></key>
+		<key name="log_0077"><![CDATA[[ Error ] - The method Database->initialize() was called without a database ID to query and 'sys::read_db_uuid' doesn't contain a database ID, either. Are any databases available?]]></key>
+		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with ID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
+		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!uuid!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
+		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
+		<key name="log_0081"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but the core SQL file: [#!variable!sql_file!#] exist, but can't be read.]]></key>
 		<key name="log_0082">The database: [#!variable!server!#] needs to be initialized using: [#!variable!sql_file!#].</key>
-		<key name="log_0083">About to record: [#!variable!id!#]:[#!variable!query!#]</key>
+		<key name="log_0083">About to record: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		<key name="log_0084"><![CDATA[[ Error ] - The method Database->query() was asked to query the database: [#!variable!server!#] but no query was given.]]></key>
 		<key name="log_0085"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database: [#!variable!server!#] but no query was given.]]></key>
 		<key name="log_0086"><![CDATA[[ Error ] - The method System->check_memory() was called without a program name to check.]]></key>
 		<key name="log_0087">Testing access to the the database: [#!variable!server!#] prior to query or write. Program will exit if it fails.</key>
 		<key name="log_0088">Access confirmed.</key>
-		<key name="log_0089"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database with ID: [#!variable!id!#] but there is no file handle open to the database. Was the connection lost?]]></key>
+		<key name="log_0089"><![CDATA[[ Error ] - The method Database->write() was asked to write to the database with ID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0091">Failed to connect to any database.</key>
-		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!id!#]).]]></key>
+		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!uuid!#]).]]></key>
 		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'modified_date' parameter was not passed and/or 'sys::db_timestamp' is not set. Did the program fail to connect to any databases?]]></key>
 		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
-		<key name="log_0095">The database user: [#!variable!user!#] was created with ID: [#!variable!id!#].</key>
+		<key name="log_0095">The database user: [#!variable!user!#] was created with ID: [#!variable!uuid!#].</key>
 		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
 		<key name="log_0097"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'set' parameter was not passed or it is empty. It should be 'set' or 'clear'.]]></key>
 		<key name="log_0098">
@@ -178,14 +178,14 @@ The database connection error was:
 - Name: ......... [#!variable!name!#]
 - Timestamp: .... [#!variable!modified_date!#]
 		</key>
-		<key name="log_0099">[ Error ] - There is no Anvil! database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!id!#].</key>
+		<key name="log_0099">[ Error ] - There is no Anvil! database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#].</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
 		<key name="log_0101"><![CDATA[[ Error ] - The method Alert->register_alert() was called but the 'title_key' parameter was not passed or it is empty and 'header' is enable (default).]]></key>
 		<key name="log_0102">I am not recording the alert with message_key: [#!variable!message_key!#] to the database because its log level was lower than any recipients.</key>
 		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
-		<key name="log_0104">The database with ID: [#!variable!id!#] for: [#!variable!file!#] is behind.</key>
+		<key name="log_0104">The database with ID: [#!variable!uuid!#] for: [#!variable!file!#] is behind.</key>
 		<key name="log_0105">Anvil! database: [#!variable!database!#] already exists.</key>
-		<key name="log_0106">The database with ID: [#!variable!id!#] is behind. A database esync will be requested.</key>
+		<key name="log_0106">The database with ID: [#!variable!uuid!#] is behind. A database esync will be requested.</key>
 		<key name="log_0107">[ Warning ] - Failed to delete the temporary postgres password.</key>
 		<key name="log_0108"><![CDATA[[ Error ] - The method Database->insert_or_update_states() was called but the 'state_host_uuid' parameter was not passed or it is empty. Normally this is set to 'sys::data_uuid'.]]></key>
 		<key name="log_0109">[ Error ] - Failed to create the Anvil! database: [#!variable!database!#]</key>
@@ -244,6 +244,12 @@ The database connection error was:
 		<key name="log_0162"><![CDATA[[ Error ] - The method Storage->read_file() tried to rsync the remote file: [#!variable!remote_file!#] to the local temporary file: [#!variable!local_file!#], but it did not arrive. There might be more information above.]]></key>
 		<key name="log_0163">The file: [#!variable!file!#] does not exist.</key>
 		<key name="log_0164"><![CDATA[[ Warning ] - Storage->read_config()' was called without a file name to read.]]></key>
+		<key name="log_0165">The Storage->backup() method was asked to backup the file: [#!variable!source_file!#] on: [#!variable!target!#], but it looks like there was a problem connecting to the target.</key>
+		<key name="log_0166">About to run the shell command: [#!variable!shell_call!#] on: [#!variable!target!#] as: [#!variable!remote_user!#]</key>
+		<key name="log_0167">Failed to create the directory: [#!variable!directory!#] on: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
+		<key name="log_0168">Failed to create the directory: [#!variable!directory!#]. The error (if any) was: [#!variable!error!#].</key>
+		<key name="log_0169">Failed to copy the file: [#!variable!source_file!#] to: [#!variable!target_file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
+		<key name="log_0170"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target's parent directory doesn't exist and we were unable to create it.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

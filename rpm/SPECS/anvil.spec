@@ -165,6 +165,9 @@ restorecon -rv %{buildroot}/%{_localstatedir}/www
 %post striker
 systemctl enable httpd.service
 systemctl start httpd.service
+# Open access for Striker. The database will be opened after initial setup.
+firewall-cmd --zone=public --add-service=http
+firewall-cmd --zone=public --add-service=http --permanent
 
 %files core
 %doc README.md notes

@@ -346,25 +346,25 @@ if (-e $copy_file)
 {
 	unlink $copy_file or die "The test copy file: [$copy_file] exists (from a previous run?) and can't be removed. The error was: $!\n";
 }
-$anvil->Storage->copy_file({source => $test_file, target => $copy_file});
+$anvil->Storage->copy_file({source_file => $test_file, target_file => $copy_file});
 if (-e $copy_file)
 {
 	$copied_ok = 1;
 }
 is($copied_ok, "1", "Verifying that 'Storage->copy_file' was able to copy the test file.");
-my $copy_rc = $anvil->Storage->copy_file({target => $copy_file});
+my $copy_rc = $anvil->Storage->copy_file({target_file => $copy_file});
 is($copy_rc, "1", "Verifying that 'Storage->copy_file' returned '1' when no source file was passed.");
 $copy_rc = "";
-$copy_rc = $anvil->Storage->copy_file({source => $test_file});
+$copy_rc = $anvil->Storage->copy_file({source_file => $test_file});
 is($copy_rc, "2", "Verifying that 'Storage->copy_file' returned '2' when no target file was passed.");
 $copy_rc = "";
-$copy_rc = $anvil->Storage->copy_file({source => $test_file, target => $copy_file});
+$copy_rc = $anvil->Storage->copy_file({source_file => $test_file, target_file => $copy_file});
 is($copy_rc, "3", "Verifying that 'Storage->copy_file' returned '3' when the target file already exists.");
 $copy_rc = "";
-$copy_rc = $anvil->Storage->copy_file({source => $test_file, target => $copy_file, overwrite => 1});
+$copy_rc = $anvil->Storage->copy_file({source_file => $test_file, target_file => $copy_file, overwrite => 1});
 is($copy_rc, "0", "Verifying that 'Storage->copy_file' returned '0' when the target file already exists and overwrite was set.");
 $copy_rc = "";
-$copy_rc = $anvil->Storage->copy_file({source => "/fake/file", target => $copy_file});
+$copy_rc = $anvil->Storage->copy_file({source_file => "/fake/file", target_file => $copy_file});
 is($copy_rc, "4", "Verifying that 'Storage->copy_file' returned '4' when the target file is passed but doesn't exist.");
 # find
 my $test_path = $anvil->Storage->find({ file => "Anvil/Tools.t" });

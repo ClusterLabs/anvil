@@ -12,7 +12,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Storage.pm";
 
 ### Methods;
-# backup_file
+# backup
 # change_mode
 # change_owner
 # check_md5sums
@@ -96,6 +96,10 @@ This will create a copy of the file under the C<< path::directories::backups >> 
 
 By default, a failure to backup will be fatal with return code C<< 1 >> for safety reasons. If the file is critical, you can set C<< fatal => 0 >> and an empty string will be returned on error.
 
+This method can work on local and remote systems.
+
+If the backup failed, an empty string is returned.
+
 Parameters;
 
 =head3 fatal (optional, default 1)
@@ -106,6 +110,22 @@ If set to C<< 0 >>, any problem with the backup will be ignored and an empty str
 
 This is the path and file name of the file to be backed up. Fully paths must be used.
 
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 target (optional)
+
+If set, the file will be backed up on the target machine. This must be either an IP address or a resolvable host name. 
+
+=head3 remote_user (optional)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
 =cut
 sub backup
 {
@@ -114,15 +134,23 @@ sub backup
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	
-	my $fatal       = defined $parameter->{fatal} ? $parameter->{fatal} : 1;
-	my $source_file = defined $parameter->{file}  ? $parameter->{file}  : "";
+	my $fatal       = defined $parameter->{fatal}       ? $parameter->{fatal}       : 1;
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $source_file = defined $parameter->{file}        ? $parameter->{file}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		source_file => $source_file,
 		fatal       => $fatal, 
+		port        => $port, 
+		password    => $anvil->Log->secure ? $password : "--", 
+		target      => $target,
+		remote_user => $remote_user, 
+		source_file => $source_file,
 	}});
 	
+	my $proceed = 0;
 	my $target_file = "";
-	
 	if (not $source_file)
 	{
 		# No file passed in
@@ -135,25 +163,103 @@ sub backup
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0150", variables => { source_file => $source_file }});
 		if ($fatal) { $anvil->nice_exit({code => 1}); }
 	}
-	elsif (not -e $source_file)
+	
+	if ($target)
 	{
-		# File doesn't exist.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0151", variables => { source_file => $source_file }});
-		if ($fatal) { $anvil->nice_exit({code => 1}); }
-	}
-	elsif (not -f $source_file)
-	{
-		# Not a file
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0153", variables => { source_file => $source_file }});
-		if ($fatal) { $anvil->nice_exit({code => 1}); }
-	}
-	elsif (not -r $source_file)
-	{
-		# Can't read the file.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0152", variables => { source_file => $source_file }});
-		if ($fatal) { $anvil->nice_exit({code => 1}); }
+		# Make sure the source file exists, is a file and can be read.
+		my $shell_call = "
+if [ -e '".$source_file."' ]; 
+    if [ -f '".$source_file."' ];
+    then
+        if [ -r '".$source_file."' ];
+        then
+            ".$anvil->data->{path}{exe}{echo}." 'ok'
+        else
+            ".$anvil->data->{path}{exe}{echo}." 'not readable'
+        fi
+    else
+        ".$anvil->data->{path}{exe}{echo}." 'not a file'
+    fi
+else
+    ".$anvil->data->{path}{exe}{echo}." 'not found'
+fi";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+		my ($error, $output) = $anvil->Remote->call({
+			debug       => $debug, 
+			target      => $target,
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+			shell_call  => $shell_call,
+		});
+		if (not $error)
+		{
+			# No error. Did the file exist?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
+			if ($output->[0] eq "not found")
+			{
+				# File doesn't exist.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0151", variables => { source_file => $source_file }});
+				if ($fatal) { $anvil->nice_exit({code => 1}); }
+			}
+			elsif ($output->[0] eq "not a file")
+			{
+				# Not a file
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0153", variables => { source_file => $source_file }});
+				if ($fatal) { $anvil->nice_exit({code => 1}); }
+			}
+			elsif ($output->[0] eq "not readable")
+			{
+				# Can't read the file.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0152", variables => { source_file => $source_file }});
+				if ($fatal) { $anvil->nice_exit({code => 1}); }
+			}
+			else
+			{
+				# We're good.
+				$proceed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proceed => $proceed }});
+			}
+		}
+		else
+		{
+			# Didn't connect?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0165", variables => { 
+				target      => $target,
+				source_file => $source_file,
+			}});
+			if ($fatal) { $anvil->nice_exit({code => 1}); }
+		}
 	}
 	else
+	{
+		# Local file
+		if (not -e $source_file)
+		{
+			# File doesn't exist.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0151", variables => { source_file => $source_file }});
+			if ($fatal) { $anvil->nice_exit({code => 1}); }
+		}
+		elsif (not -f $source_file)
+		{
+			# Not a file
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0153", variables => { source_file => $source_file }});
+			if ($fatal) { $anvil->nice_exit({code => 1}); }
+		}
+		elsif (not -r $source_file)
+		{
+			# Can't read the file.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0152", variables => { source_file => $source_file }});
+			if ($fatal) { $anvil->nice_exit({code => 1}); }
+		}
+		else
+		{
+			$proceed = 1;
+		}
+	}
+	
+	# Proceed?
+	if ($proceed)
 	{
 		# Proceed with the backup. We'll recreate the path 
 		my ($directory, $file) = ($source_file =~ /^(\/.*)\/(.*)$/);
@@ -171,14 +277,22 @@ sub backup
 		}});
 		
 		# Backup! It will create the target directory, if needed.
-		$anvil->Storage->copy_file({
-			source => $source_file, 
-			target => $target_file, 
-			debug  => 2,
+		my $failed = $anvil->Storage->copy_file({
+			debug       => $debug,
+			source_file => $source_file, 
+			target_file => $target_file, 
+			password    => $password, 
+			target      => $target,
+			remote_user => $remote_user, 
+			source_file => $source_file,
 		});
 		
-		# Log that the file was backed up.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0154", variables => { source_file => $source_file, target_file => $target_file }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		if (not $failed)
+		{
+			# Log that the file was backed up.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0154", variables => { source_file => $source_file, target_file => $target_file }});
+		}
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_file => $target_file }});
@@ -433,10 +547,12 @@ sub check_md5sums
 
 =head2 copy_file
 
-This copies a file, with a few additional checks like creating the target directory if it doesn't exist, aborting if the file has already been backed up before, etc.
+This copies a file, with a few additional checks like creating the target directory if it doesn't exist, aborting if the file has already been backed up before, etc. It can copy files on the local or a remote machine.
 
  # Example
- $anvil->Storage->copy_file({source => "/some/file", target => "/another/directory/file"});
+ $anvil->Storage->copy_file({source_file => "/some/file", target_file => "/another/directory/file"});
+
+Returns C<< 0 >> on success, otherwise C<< 1 >>.
 
 Parameters;
 
@@ -446,15 +562,31 @@ If this is set to 'C<< 1 >>', and if the target file exists, it will be replaced
 
 If this is not passed and the target exists, this module will return 'C<< 3 >>'.
 
-=head3 source (required)
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 source_file (required)
 
 This is the source file. If it isn't specified, 'C<< 1 >>' will be returned. If it doesn't exist, this method will return 'C<< 4 >>'.
 
-=head3 target (required)
+=head3 target (optional)
 
-This is the target *B<file>*, not the directory to put it in. The target file name can be different from the source file name.
+If set, the file will be copied on the target machine. This must be either an IP address or a resolvable host name. 
+
+=head3 target_file (required)
+
+This is the target B<< file >>, not the directory to put it in. The target file name can be different from the source file name.
 
 if this is not specified, 'C<< 2 >>' will be returned.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
 
 =cut
 sub copy_file
@@ -464,63 +596,169 @@ sub copy_file
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
-	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
-	my $target    = defined $parameter->{target}    ? $parameter->{target}    : "";
+	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $source_file = defined $parameter->{source_file} ? $parameter->{source_file} : "";
+	my $target_file = defined $parameter->{target_file} ? $parameter->{target_file} : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		overwrite => $overwrite,
-		source    => $source, 
-		target    => $target,
+		overwrite   => $overwrite,
+		password    => $anvil->Log->secure ? $password : "--", 
+		remote_user => $remote_user, 
+		source_file => $source_file, 
+		target_file => $target_file,
+		target      => $target,
 	}});
 	
-	if (not $source)
+	if (not $source_file)
 	{
 		# No source passed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "source" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "source_file" }});
 		return(1);
 	}
-	elsif (not -e $source)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { source => $source }});
-		return(4);
-	}
-	if (not $target)
+	if (not $target_file)
 	{
 		# No target passed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "target" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "target_file" }});
 		return(2);
 	}
 	
-	# If the target exists, abort
-	if ((-e $target) && (not $overwrite))
-	{
-		# This isn't an error.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
-			source => $source,
-			target => $target,
-		}});
-		return(3);
-	}
-	
-	# Make sure the target directory exists and create it, if not.
-	my ($directory, $file) = ($target =~ /^(.*)\/(.*)$/);
+	my ($directory, $file) = ($target_file =~ /^(.*)\/(.*)$/);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		directory => $directory, 
 		file      => $file,
 	}});
-	if (not -e $directory)
-	{
-		$anvil->Storage->make_directory({
-			directory => $directory,
-			group     => $(,	# Real UID
-			user      => $<,	# Real GID
-			mode      => "0750",
-		});
-	}
 	
-	# Now backup the file.
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'cp'}." -af $source $target"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	if ($target)
+	{
+		# Copying on a remote system.
+		my $proceed    = 1;
+		my $shell_call = "
+if [ -e '".$source_file."' ]; 
+    ".$anvil->data->{path}{exe}{echo}." 'source file exists'
+else
+    ".$anvil->data->{path}{exe}{echo}." 'source file not found'
+fi
+if [ -d '".$target_file."' ];
+    ".$anvil->data->{path}{exe}{echo}." 'target file exists'
+elif [ -d '".$directory."' ];
+    ".$anvil->data->{path}{exe}{echo}." 'target directory exists'
+else
+    ".$anvil->data->{path}{exe}{echo}." 'target directory not found'
+fi";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+		my ($error, $output) = $anvil->Remote->call({
+			debug       => $debug, 
+			target      => $target,
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+			shell_call  => $shell_call,
+		});
+		if ($error)
+		{
+			# Something went wrong.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0169", variables => { 
+				source_file => $source_file, 
+				target_file => $target_file, 
+				error       => $error,
+				output      => $output,
+				target      => $target, 
+				remote_user => $remote_user, 
+			}});
+			return(1);
+		}
+		else
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				'output->[0]' => $output->[0],
+				'output->[1]' => $output->[1],
+			}});
+			if ($output->[0] eq "source file not found")
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { source_file => $source_file }});
+				return(1);
+			}
+			if (($output->[0] eq "source file exists") && (not $overwrite))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
+					source_file => $source_file,
+					target_file => $target_file,
+				}});
+				return(1);
+			}
+			if ($output->[1] eq "target directory not found")
+			{
+				my $failed = $anvil->Storage->make_directory({
+					debug       => $debug,
+					directory   => $directory,
+					password    => $password, 
+					remote_user => $remote_user, 
+					target      => $target,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0170", variables => {
+					source_file => $source_file,
+					target_file => $target_file,
+				}});
+				return(1);
+			}
+		
+			# Now backup the file.
+			my ($error, $output) = $anvil->Remote->call({
+				debug       => $debug, 
+				target      => $target,
+				user        => $remote_user, 
+				password    => $password,
+				remote_user => $remote_user, 
+				shell_call  => $anvil->data->{path}{exe}{'cp'}." -af ".$source_file." ".$target_file,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+		}
+	}
+	else
+	{
+		# Copying locally
+		if (not -e $source_file)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { source_file => $source_file }});
+			return(1);
+		}
+		
+		# If the target exists, abort
+		if ((-e $target_file) && (not $overwrite))
+		{
+			# This isn't an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
+				source_file => $source_file,
+				target_file => $target_file,
+			}});
+			return(1);
+		}
+		
+		# Make sure the target directory exists and create it, if not.
+		if (not -e $directory)
+		{
+			my $failed = $anvil->Storage->make_directory({
+				debug     => $debug,
+				directory => $directory,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+			if ($failed)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0170", variables => {
+					source_file => $source_file,
+					target_file => $target_file,
+				}});
+				return(1);
+			}
+		}
+		
+		# Now backup the file.
+		my $output = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'cp'}." -af ".$source_file." ".$target_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	}
 	
 	return(0);
 }
@@ -603,7 +841,7 @@ This creates a directory (and any parent directories).
 
  $anvil->Storage->make_directory({directory => "/foo/bar/baz", owner => "me", grou[ => "me", group => 755});
 
-If it fails to create the directory, an alert will be logged.
+If it fails to create the directory, C<< 1 >> will be returned. Otherwise, C<< 0 >> will be returned.
 
 Parameters;
 
@@ -619,6 +857,22 @@ This is the group name or group ID to set the ownership of the directory to.
 
 This is the numeric mode to set on the file. It expects four digits to cover the sticky bit, but will work with three digits.
 
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 target (optional)
+
+If set, the directory will be created on this machine. This must be an IP address or a (resolvable) host name.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
 =head3 user (optional)
 
 This is the user name or user ID to set the ownership of the directory to.
@@ -631,15 +885,24 @@ sub make_directory
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $directory = defined $parameter->{directory} ? $parameter->{directory} : "";
-	my $group     = defined $parameter->{group}     ? $parameter->{group}     : "";
-	my $mode      = defined $parameter->{mode}      ? $parameter->{mode}      : "";
-	my $user      = defined $parameter->{user}      ? $parameter->{user}      : "";
+	my $directory   = defined $parameter->{directory}   ? $parameter->{directory}   : "";
+	my $group       = defined $parameter->{group}       ? $parameter->{group}       : "";
+	my $mode        = defined $parameter->{mode}        ? $parameter->{mode}        : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "";
+	my $failed      = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		directory => $directory,
-		group     => $group, 
-		mode      => $mode,
-		user      => $user,
+		directory   => $directory,
+		group       => $group, 
+		mode        => $mode,
+		port        => $port, 
+		password    => $anvil->Log->secure ? $password : "--", 
+		remote_user => $remote_user, 
+		target      => $target,
+		user        => $user,
 	}});
 	
 	# Make sure the user and group and just one digit or word.
@@ -658,32 +921,109 @@ sub make_directory
 		$working_directory .= "/$this_directory";
 		$working_directory =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { working_directory => $working_directory }});
-		if (not -e $working_directory)
+		
+		# Are we working locally or remotely?
+		if ($target)
 		{
-			# Directory doesn't exist, so create it.
-			my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." ".$working_directory;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
-			open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
-			while(<$file_handle>)
-			{
-				chomp;
-				my $line = $_;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0017", variables => { line => $line }});
-			}
-			close $file_handle;
-			
+			# Assemble the command
+			my $shell_call = "
+if [ -d '".$working_directory."' ];
+then
+   ".$anvil->data->{path}{exe}{echo}." 'exists'
+else
+   ".$anvil->data->{path}{exe}{'mkdir'}." $working_directory
+";
 			if ($mode)
 			{
-				$anvil->Storage->change_mode({target => $working_directory, mode => $mode});
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chmod'}." ".$mode."\n";
 			}
-			if (($user) or ($group))
+			if (($user) && ($group))
 			{
-				$anvil->Storage->change_owner({target => $working_directory, user => $user, group => $group});
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." ".$user.":".$group."\n";
+			}
+			elsif ($user)
+			{
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." ".$user.":\n";
+			}
+			elsif ($group)
+			{
+				$shell_call .= "    ".$anvil->data->{path}{exe}{'chown'}." :".$group."\n";
+			}
+			$shell_call .= "
+    if [ -d '".$working_directory."' ];
+    then
+        ".$anvil->data->{path}{exe}{echo}." 'created'
+    else
+        ".$anvil->data->{path}{exe}{echo}." 'failed to create'
+    fi;
+fi;";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+			my ($error, $output) = $anvil->Remote->call({
+				debug       => $debug, 
+				target      => $target,
+				user        => $remote_user, 
+				password    => $password,
+				remote_user => $remote_user, 
+				shell_call  => $shell_call,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error  => $error,
+				output => $output, 
+			}});
+			if ($output->[0] eq "failed to create")
+			{
+				$failed = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0167", variables => { 
+					directory   => $working_directory, 
+					error       => $error,
+					output      => $output,
+					target      => $target, 
+					remote_user => $remote_user, 
+				}});
 			}
 		}
+		else
+		{
+			# Locally.
+			if (not -e $working_directory)
+			{
+				# Directory doesn't exist, so create it.
+				my $error      = "";
+				my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." ".$working_directory;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
+				open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+				while(<$file_handle>)
+				{
+					chomp;
+					my $line = $_;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0017", variables => { line => $line }});
+					$error .= $line."\n";
+				}
+				close $file_handle;
+				
+				if ($mode)
+				{
+					$anvil->Storage->change_mode({target => $working_directory, mode => $mode});
+				}
+				if (($user) or ($group))
+				{
+					$anvil->Storage->change_owner({target => $working_directory, user => $user, group => $group});
+				}
+				
+				if (not -e $working_directory)
+				{
+					$failed = 1;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0168", variables => { 
+						directory   => $working_directory, 
+						error       => $error,
+					}});
+				}
+			}
+		}
+		last if $failed;
 	}
 	
-	return(0);
+	return($failed);
 }
 
 =head2 read_config
@@ -1512,7 +1852,7 @@ The file will be written locally in C<< /tmp/<file_name> >>, C<< $anvil->Storage
 
 This is the user name or user ID to set the ownership of the file to.
 
-=head3 remote_user (optional)
+=head3 remote_user (optional, default root)
 
 If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
 
@@ -1534,7 +1874,7 @@ sub write_file
 	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : "";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "root";
-	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
 		body        => $body,
 		file        => $file,
@@ -1599,22 +1939,41 @@ then
 else 
     ".$anvil->data->{path}{exe}{echo}." 'not found';
 fi";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 		($error, my $output) = $anvil->Remote->call({
-			target     => $target,
-			user       => $remote_user, 
-			password   => $password,
-			shell_call => $shell_call,
+			debug       => $debug, 
+			target      => $target,
+			port        => $port, 
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+			shell_call  => $shell_call,
 		});
 		if (not $error)
 		{
 			# No error. Did the file exist?
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
-			if (($output->[0] eq "exists") && (not $overwrite))
+			if ($output->[0] eq "exists")
 			{
-				# Abort, we're not allowed to overwrite.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
-				$error = 1;
+				if (not $overwrite)
+				{
+					# Abort, we're not allowed to overwrite.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
+					$error = 1;
+				}
+			}
+			else
+			{
+				# Back it up.
+				my $backup_file = $anvil->Storage->backup({
+					file       => $file,
+					debug      => $debug, 
+					target     => $target,
+					port       => $port, 
+					user       => $remote_user, 
+					password   => $password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
 			}
 			
 			# Make sure the directory exists on the remote machine. In this case, we'll use 'mkdir -p' if it isn't.
@@ -1627,12 +1986,14 @@ then
 else 
     ".$anvil->data->{path}{exe}{echo}." 'not found';
 fi";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 				($error, my $output) = $anvil->Remote->call({
-					target     => $target,
-					user       => $remote_user, 
-					password   => $password,
-					shell_call => $shell_call,
+					debug       => $debug, 
+					target      => $target,
+					user        => $remote_user, 
+					password    => $password,
+					remote_user => $remote_user, 
+					shell_call  => $shell_call,
 				});
 				
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
@@ -1640,12 +2001,14 @@ fi";
 				{
 					# Create the directory
 					my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." -p ".$directory;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
 					($error, my $output) = $anvil->Remote->call({
-						target     => $target,
-						user       => $remote_user, 
-						password   => $password,
-						shell_call => $shell_call,
+						debug       => $debug, 
+						target      => $target,
+						user        => $remote_user, 
+						password    => $password,
+						remote_user => $remote_user, 
+						shell_call  => $shell_call,
 					});
 				}
 				
@@ -1708,6 +2071,7 @@ fi";
 			{
 				# Don't pass the mode as the file's mode is likely not executable.
 				$anvil->Storage->make_directory({
+					debug     => $debug, 
 					directory => $directory,
 					group     => $group, 
 					user      => $user,

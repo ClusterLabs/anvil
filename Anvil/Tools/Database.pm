@@ -20,7 +20,7 @@ my $THIS_FILE = "Database.pm";
 # connect
 # disconnect
 # get_hosts
-# get_local_id
+# get_local_uuid
 # initialize
 # insert_or_update_hosts
 # insert_or_update_jobs
@@ -58,8 +58,8 @@ Provides all methods related to managing and accessing databases.
  
  # Access to methods using '$anvil->Database->X'. 
  # 
- # Example using 'get_local_id()';
- my $local_id = $anvil->Database->get_local_id;
+ # Example using 'get_local_uuid()';
+ my $local_id = $anvil->Database->get_local_uuid;
 
 =head1 METHODS
 
@@ -198,12 +198,6 @@ If the system is already configured, this method will do nothing, so it is safe 
 
 If there is a problem, C<< !!error!! >> is returned.
 
-Parameters;
-
-=head3 id (required)
-
-This is the ID of the local database in the local configuration file that will be used to configure the local system.
-
 =cut
 sub configure_pgsql
 {
@@ -213,14 +207,9 @@ sub configure_pgsql
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->configure_pgsql()" }});
 	
-	my $id = defined $parameter->{id} ? $parameter->{id} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
-	
-	if (not $id)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->configure_pgsql()", parameter => "id" }});
-		return("!!error!!");
-	}
+	# The local host_uuid is the ID of the local database, so get that.
+	my $uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
 	# If we're not running with root access, return.
 	if (($< != 0) && ($> != 0))
@@ -294,7 +283,10 @@ sub configure_pgsql
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { postgresql_backup => $postgresql_backup }});
 		if (not -e $postgresql_backup)
 		{
-			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'postgresql.conf'}, target => $postgresql_backup});
+			$anvil->Storage->copy_file({
+				source_file => $anvil->data->{path}{configs}{'postgresql.conf'}, 
+				target_file => $postgresql_backup,
+			});
 		}
 		
 		# Write the updated one.
@@ -342,7 +334,10 @@ sub configure_pgsql
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pg_hba_backup => $pg_hba_backup }});
 		if (not -e $pg_hba_backup)
 		{
-			$anvil->Storage->copy_file({source => $anvil->data->{path}{configs}{'pg_hba.conf'}, target => $pg_hba_backup});
+			$anvil->Storage->copy_file({
+				source_file => $anvil->data->{path}{configs}{'pg_hba.conf'}, 
+				target_file => $pg_hba_backup,
+			});
 		}
 		
 		# Write the new one.
@@ -396,11 +391,11 @@ sub configure_pgsql
 	my $created_pgpass = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
 		'path::secure::postgres_pgpass' => $anvil->data->{path}{secure}{postgres_pgpass},
-		"database::${id}::password"     => $anvil->data->{database}{$id}{password}, 
+		"database::${uuid}::password"   => $anvil->data->{database}{$uuid}{password}, 
 	}});
-	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$id}{password}))
+	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$uuid}{password}))
 	{
-		my $body = "*:*:*:postgres:".$anvil->data->{database}{$id}{password};
+		my $body = "*:*:*:postgres:".$anvil->data->{database}{$uuid}{password};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { body => $body }});
 		$anvil->Storage->write_file({
 			file      => $anvil->data->{path}{secure}{postgres_pgpass},  
@@ -420,12 +415,12 @@ sub configure_pgsql
 	
 	# Does the database user exist?
 	my $create_user   = 1;
-	my $database_user = $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : $anvil->data->{sys}{database}{user};
+	my $database_user = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : $anvil->data->{sys}{database}{user};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_user => $database_user }});
 	if (not $database_user)
 	{
 		# No database user defined
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { id => $id }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { uuid => $uuid }});
 		return("!!error!!");
 	}
 	my $user_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
@@ -435,8 +430,8 @@ sub configure_pgsql
 		if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
 		{
 			# User exists already
-			my $id = $1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0060", variables => { user => $database_user, id => $id }});
+			my $uuid = $1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0060", variables => { user => $database_user, uuid => $uuid }});
 			$create_user = 0;
 			last;
 		}
@@ -454,8 +449,8 @@ sub configure_pgsql
 			if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
 			{
 				# Success!
-				my $id = $1;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0095", variables => { user => $database_user, id => $id }});
+				my $uuid = $1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0095", variables => { user => $database_user, uuid => $uuid }});
 				$user_exists = 1;
 				last;
 			}
@@ -467,11 +462,11 @@ sub configure_pgsql
 		}
 		
 		# Update/set the passwords.
-		if ($anvil->data->{database}{$id}{password})
+		if ($anvil->data->{database}{$uuid}{password})
 		{
 			foreach my $user ("postgres", $database_user)
 			{
-				my $update_output = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$id}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
+				my $update_output = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$uuid}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { update_output => $update_output }});
 				foreach my $line (split/\n/, $user_list)
 				{
@@ -487,7 +482,7 @@ sub configure_pgsql
 	
 	# Create the database, if needed.
 	my $create_database = 1;
-	my $database_name   = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
+	my $database_name   = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_name => $database_name }});
 	
 	my $database_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
@@ -540,10 +535,10 @@ sub configure_pgsql
 	}
 	
 	# Make sure the psql TCP port is open.
-	$anvil->data->{database}{$id}{port} = 5432 if not $anvil->data->{database}{$id}{port};
+	$anvil->data->{database}{$uuid}{port} = 5432 if not $anvil->data->{database}{$uuid}{port};
 	my $port_status = $anvil->System->manage_firewall({
 		task        => "open",
-		port_number => $anvil->data->{database}{$id}{port},
+		port_number => $anvil->data->{database}{$uuid}{port},
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port_status => $port_status }});
 	
@@ -654,7 +649,7 @@ sub connect
 	
 	# This will be used in a few cases where the local DB ID is needed (or the lack of it being set 
 	# showing we failed to connect to the local DB).
-	$anvil->data->{sys}{local_db_id} = "";
+	$anvil->data->{sys}{local_db_uuid} = "";
 	
 	# This will be set to '1' if either DB needs to be initialized or if the last_updated differs on any node.
 	$anvil->data->{sys}{database}{resync_needed} = 0;
@@ -664,14 +659,14 @@ sub connect
 	my $connections            = 0;
 	my $failed_connections     = [];
 	my $successful_connections = [];
-	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		my $driver   = "DBI:Pg";
-		my $host     = $anvil->data->{database}{$id}{host}     ? $anvil->data->{database}{$id}{host}     : ""; # This should fail
-		my $port     = $anvil->data->{database}{$id}{port}     ? $anvil->data->{database}{$id}{port}     : 5432;
-		my $name     = $anvil->data->{database}{$id}{name}     ? $anvil->data->{database}{$id}{name}     : $anvil->data->{sys}{database}{name};
-		my $user     = $anvil->data->{database}{$id}{user}     ? $anvil->data->{database}{$id}{user}     : $anvil->data->{sys}{database}{user};
-		my $password = $anvil->data->{database}{$id}{password} ? $anvil->data->{database}{$id}{password} : "";
+		my $host     = $anvil->data->{database}{$uuid}{host}     ? $anvil->data->{database}{$uuid}{host}     : ""; # This should fail
+		my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
+		my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : $anvil->data->{sys}{database}{name};
+		my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : $anvil->data->{sys}{database}{user};
+		my $password = $anvil->data->{database}{$uuid}{password} ? $anvil->data->{database}{$uuid}{password} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host     => $host,
 			port     => $port,
@@ -681,9 +676,9 @@ sub connect
 		}});
 		
 		# If not set, we will always ping before connecting.
-		if ((not exists $anvil->data->{database}{$id}{ping}) or (not defined $anvil->data->{database}{$id}{ping}))
+		if ((not exists $anvil->data->{database}{$uuid}{ping}) or (not defined $anvil->data->{database}{$uuid}{ping}))
 		{
-			$anvil->data->{database}{$id}{ping} = 1;
+			$anvil->data->{database}{$uuid}{ping} = 1;
 		}
 		
 		# Make sure the user didn't specify the same target twice.
@@ -706,7 +701,7 @@ sub connect
 		
 		# Log what we're doing.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0054", variables => { 
-			id       => $id,
+			uuid     => $uuid,
 			driver   => $driver,
 			host     => $host,
 			port     => $port,
@@ -720,16 +715,16 @@ sub connect
 		# Assemble my connection string
 		my $db_connect_string = "$driver:dbname=$name;host=$host;port=$port";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			db_connect_string       => $db_connect_string, 
-			"database::${id}::ping" => $anvil->data->{database}{$id}{ping},
+			db_connect_string         => $db_connect_string, 
+			"database::${uuid}::ping" => $anvil->data->{database}{$uuid}{ping},
 		}});
-		if ($anvil->data->{database}{$id}{ping})
+		if ($anvil->data->{database}{$uuid}{ping})
 		{
 			# Can I ping?
 			my ($pinged) = $anvil->System->ping({
 				ping    => $host, 
 				count   => 1,
-				timeout => $anvil->data->{database}{$id}{ping},
+				timeout => $anvil->data->{database}{$uuid}{ping},
 			});
 			
 			my $ping_time = tv_interval ($start_time, [gettimeofday]);
@@ -738,14 +733,14 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pinged => $pinged }});
 			if (not $pinged)
 			{
-				# Didn't ping and 'database::<id>::ping' not set. Record this 
+				# Didn't ping and 'database::<uuid>::ping' not set. Record this 
 				# in the failed connections array.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0063", variables => { 
 					host => $port ? $host.":".$port : $host,
 					name => $name, 
-					id   => $id,
+					uuid => $uuid,
 				}});
-				push @{$failed_connections}, $id;
+				push @{$failed_connections}, $uuid;
 				next;
 			}
 		}
@@ -755,16 +750,16 @@ sub connect
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
 		if ($is_local)
 		{
-			$anvil->data->{sys}{read_db_id} = $id;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::read_db_id" => $anvil->data->{sys}{read_db_id} }});
+			$anvil->data->{sys}{read_db_uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
 			
 			# Set it up (or update it) if needed. This method just returns if nothing is needed.
-			$anvil->Database->configure_pgsql({id => $id});
+			$anvil->Database->configure_pgsql({uuid => $uuid});
 		}
-		elsif (not $anvil->data->{sys}{read_db_id})
+		elsif (not $anvil->data->{sys}{read_db_uuid})
 		{
-			$anvil->data->{sys}{read_db_id} = $id;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::read_db_id" => $anvil->data->{sys}{read_db_id} }});
+			$anvil->data->{sys}{read_db_uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
 		}
 		
 		# If this isn't a local database, read the target's Anvil! version (if available) and make 
@@ -810,12 +805,12 @@ sub connect
 		{
 			# Something went wrong...
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0064", variables => { 
-				id   => $id,
+				uuid => $uuid,
 				host => $host,
 				name => $name,
 			}});
 
-			push @{$failed_connections}, $id;
+			push @{$failed_connections}, $uuid;
 			my $message_key = "log_0065";
 			my $variables   = { dbi_error => $DBI::errstr };
 			if (not defined $DBI::errstr)
@@ -831,13 +826,13 @@ sub connect
 			elsif ($DBI::errstr =~ /no password supplied/)
 			{
 				$message_key = "log_0067";
-				$variables   = { id => $id };
+				$variables   = { uuid => $uuid };
 			}
 			elsif ($DBI::errstr =~ /password authentication failed for user/)
 			{
 				$message_key = "log_0068";
 				$variables   = { 
-					id   => $id,
+					uuid => $uuid,
 					name => $name,
 					host => $host,
 					user => $user,
@@ -867,14 +862,14 @@ sub connect
 		{
 			# Woot!
 			$connections++;
-			push @{$successful_connections}, $id;
-			$anvil->data->{cache}{db_fh}{$id} = $dbh;
+			push @{$successful_connections}, $uuid;
+			$anvil->data->{cache}{db_fh}{$uuid} = $dbh;
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0071", variables => { 
 				host => $host,
 				port => $port,
 				name => $name,
-				id   => $id,
+				uuid => $uuid,
 			}});
 			
 			if (not $anvil->data->{sys}{use_db_fh})
@@ -889,7 +884,7 @@ sub connect
 				my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{defaults}{sql}{test_table})." AND schemaname='public';";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				my $count = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 				
 				if ($count < 1)
@@ -897,7 +892,7 @@ sub connect
 					### TODO: Create a version file/flag and don't sync with peers unless
 					###       they are the same version. Back-port this to v2.
 					# Need to load the database.
-					$anvil->Database->initialize({id => $id, sql_file => $anvil->data->{path}{sql}{'anvil.sql'}});
+					$anvil->Database->initialize({uuid => $uuid, sql_file => $anvil->data->{path}{sql}{'anvil.sql'}});
 				}
 			}
 			
@@ -905,42 +900,42 @@ sub connect
 			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{use_db_fh}->quote($test_table)." AND schemaname='public';";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
-			my $count = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 			if ($count < 1)
 			{
 				# Need to load the database.
-				$anvil->Database->initialize({id => $id, sql_file => $sql_file});
+				$anvil->Database->initialize({uuid => $uuid, sql_file => $sql_file});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::read_db_id"   => $anvil->data->{sys}{read_db_id}, 
-				"cache::db_fh::$id" => $anvil->data->{cache}{db_fh}{$id}, 
+				"sys::read_db_uuid"   => $anvil->data->{sys}{read_db_uuid}, 
+				"cache::db_fh::$uuid" => $anvil->data->{cache}{db_fh}{$uuid}, 
 			}});
 			
 			# Set the first ID to be the one I read from later. Alternatively, if this host is 
 			# local, use it.
 			if (($host eq $anvil->_hostname)       or 
 			    ($host eq $anvil->_short_hostname) or 
-			    ($host eq "localhost")          or 
-			    ($host eq "127.0.0.1")          or 
-			    (not $anvil->data->{sys}{read_db_id}))
+			    ($host eq "localhost")             or 
+			    ($host eq "127.0.0.1")             or 
+			    (not $anvil->data->{sys}{read_db_uuid}))
 			{
-				$anvil->data->{sys}{read_db_id}  = $id;
-				$anvil->data->{sys}{local_db_id} = $id;
-				$anvil->data->{sys}{use_db_fh}   = $anvil->data->{cache}{db_fh}{$id};
+				$anvil->data->{sys}{read_db_uuid}  = $uuid;
+				$anvil->data->{sys}{local_db_uuid} = $uuid;
+				$anvil->data->{sys}{use_db_fh}     = $anvil->data->{cache}{db_fh}{$uuid};
 				
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::read_db_id" => $anvil->data->{sys}{read_db_id}, 
-					"sys::use_db_fh"  => $anvil->data->{sys}{use_db_fh}
+					"sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid}, 
+					"sys::use_db_fh"    => $anvil->data->{sys}{use_db_fh}
 				}});
 			}
 			
 			# Get a time stamp for this run, if not yet gotten.
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"cache::db_fh::$id" => $anvil->data->{cache}{db_fh}{$id}, 
-				"sys::db_timestamp" => $anvil->data->{sys}{db_timestamp},
+				"cache::db_fh::$uuid" => $anvil->data->{cache}{db_fh}{$uuid}, 
+				"sys::db_timestamp"   => $anvil->data->{sys}{db_timestamp},
 			}});
 			
 			# Pick a timestamp for this run, if we haven't yet.
@@ -949,12 +944,12 @@ sub connect
 				my $query = "SELECT cast(now() AS timestamp with time zone)::timestamptz(0);";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				$anvil->data->{sys}{db_timestamp} = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$anvil->data->{sys}{db_timestamp} = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_timestamp" => $anvil->data->{sys}{db_timestamp} }});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::read_db_id"   => $anvil->data->{sys}{read_db_id},
+				"sys::read_db_uuid"   => $anvil->data->{sys}{read_db_uuid},
 				"sys::use_db_fh"    => $anvil->data->{sys}{use_db_fh},
 				"sys::db_timestamp" => $anvil->data->{sys}{db_timestamp},
 			}});
@@ -974,34 +969,34 @@ sub connect
 	}
 	
 	# Report any failed DB connections
-	foreach my $id (@{$failed_connections})
+	foreach my $uuid (@{$failed_connections})
 	{
-		my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : "--";
-		my $database_user = defined $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : "--";
+		my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "--";
+		my $database_user = defined $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "--";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
-			"database::${id}::port"     => $anvil->data->{database}{$id}{port},
-			"database::${id}::name"     => $database_name,
-			"database::${id}::user"     => $database_user, 
-			"database::${id}::password" => $anvil->Log->secure ? $anvil->data->{database}{$id}{password} : "--", 
+			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
+			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
+			"database::${uuid}::name"     => $database_name,
+			"database::${uuid}::user"     => $database_user, 
+			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : "--", 
 		}});
 		
-		# Copy my alert hash before I delete the id.
+		# Copy my alert hash before I delete the uuid.
 		my $error_array = [];
 		
 		# Delete this DB so that we don't try to use it later. This is a quiet alert because the 
 		# original connection error was likely logged.
-		my $say_server = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0092", variables => { server => $say_server, id => $id }});
+		my $say_server = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0092", variables => { server => $say_server, uuid => $uuid }});
 		
 		# Delete it from the list of known databases for this run.
-		delete $anvil->data->{database}{$id};
+		delete $anvil->data->{database}{$uuid};
 		
 		# If I've not sent an alert about this DB loss before, send one now.
 		my $set = $anvil->Alert->check_alert_sent({
 			type           => "set",
 			set_by         => $THIS_FILE,
-			record_locator => $id,
+			record_locator => $uuid,
 			name           => "connect_to_db",
 			modified_date  => $anvil->data->{sys}{db_timestamp},
 		});
@@ -1033,26 +1028,26 @@ sub connect
 	}
 	
 	# Send an 'all clear' message if a now-connected DB previously wasn't.
-	foreach my $id (@{$successful_connections})
+	foreach my $uuid (@{$successful_connections})
 	{
-		my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : "--";
-		my $database_user = defined $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : "--";
+		my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "--";
+		my $database_user = defined $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "--";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
-			"database::${id}::port"     => $anvil->data->{database}{$id}{port},
-			"database::${id}::name"     => $database_name,
-			"database::${id}::user"     => $database_user, 
-			"database::${id}::password" => $anvil->Log->secure ? $anvil->data->{database}{$id}{password} : "--", 
+			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
+			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
+			"database::${uuid}::name"     => $database_name,
+			"database::${uuid}::user"     => $database_user, 
+			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : "--", 
 		}});
 		
 		### TODO: Is this still an issue? If so, then we either need to require that the DB host 
 		###       matches the actual hostname (dumb) or find another way of mapping the host name.
 		# Query to see if the newly connected host is in the DB yet. If it isn't, don't send an
 		# alert as it'd cause a duplicate UUID error.
-# 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{database}{$id}{host}).";";
+# 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{database}{$uuid}{host}).";";
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 # 
-# 		my $count = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+# 		my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 # 		
 # 		if ($count > 0)
@@ -1060,7 +1055,7 @@ sub connect
 			my $cleared = $anvil->Alert->check_alert_sent({
 				type		=>	"clear",
 				set_by		=>	$THIS_FILE,
-				record_locator	=>	$id,
+				record_locator	=>	$uuid,
 				name		=>	"connect_to_db",
 				modified_date	=>	$anvil->data->{sys}{db_timestamp},
 			});
@@ -1073,8 +1068,8 @@ sub connect
 					message_key		=>	"cleared_log_0055",
 					message_variables	=>	{
 						name			=>	$database_name,
-						host			=>	$anvil->data->{database}{$id}{host},
-						port			=>	defined $anvil->data->{database}{$id}{port} ? $anvil->data->{database}{$id}{port} : 5432,
+						host			=>	$anvil->data->{database}{$uuid}{host},
+						port			=>	defined $anvil->data->{database}{$uuid}{port} ? $anvil->data->{database}{$uuid}{port} : 5432,
 					},
 				});
 			}
@@ -1134,10 +1129,10 @@ sub disconnect
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->disconnect()" }});
 	
 	my $marked_inactive = 0;
-	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		# Don't do anything if there isn't an active file handle for this DB.
-		next if ((not $anvil->data->{cache}{db_fh}{$id}) or ($anvil->data->{cache}{db_fh}{$id} !~ /^DBI::db=HASH/));
+		next if ((not $anvil->data->{cache}{db_fh}{$uuid}) or ($anvil->data->{cache}{db_fh}{$uuid} !~ /^DBI::db=HASH/));
 		
 		# Clear locks and mark that we're done running.
 		if (not $marked_inactive)
@@ -1147,14 +1142,14 @@ sub disconnect
 			$marked_inactive = 1;
 		}
 		
-		$anvil->data->{cache}{db_fh}{$id}->disconnect;
-		delete $anvil->data->{cache}{db_fh}{$id};
+		$anvil->data->{cache}{db_fh}{$uuid}->disconnect;
+		delete $anvil->data->{cache}{db_fh}{$uuid};
 	}
 	
 	# Delete the stored DB-related values.
 	delete $anvil->data->{sys}{db_timestamp};
 	delete $anvil->data->{sys}{use_db_fh};
-	delete $anvil->data->{sys}{read_db_id};
+	delete $anvil->data->{sys}{read_db_uuid};
 	
 	return(0);
 }
@@ -1227,42 +1222,42 @@ FROM
 	return($return);
 }
 
-=head2 get_local_id
+=head2 get_local_uuid
 
-This returns the database ID from 'C<< anvil.conf >>' based on matching the 'C<< database::<id>::host >>' to the local machine's host name or one of the active IP addresses on the host.
+This returns the database UUID (usually the host's UUID) from C<< anvil.conf >> based on matching the C<< database::<uuid>::host >> to the local machine's host name or one of the active IP addresses on the host.
 
- # Get the local ID
- my $local_id = $anvil->Database->get_local_id;
+NOTE: This returns nothing if the local machine is not found as a configured database in C<< anvil.conf >>. This is a good way to check if the system has been setup yet.
 
-This will return a blank string if no match is found.
+ # Get the local UUID
+ my $local_uuid = $anvil->Database->get_local_uuid;
 
 =cut
-sub get_local_id
+sub get_local_uuid
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_local_id()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_local_uuid()" }});
 	
-	my $local_id        = "";
+	my $local_uuid      = "";
 	my $network_details = $anvil->Get->network_details;
-	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"network_details->hostname" => $network_details->{hostname},
-			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
+			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
 		}});
-		if ($network_details->{hostname} eq $anvil->data->{database}{$id}{host})
+		if ($network_details->{hostname} eq $anvil->data->{database}{$uuid}{host})
 		{
-			$local_id = $id;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
+			$local_uuid = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 			last;
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
-	if (not $local_id)
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
+	if (not $local_uuid)
 	{
 		foreach my $interface (sort {$a cmp $b} keys %{$network_details->{interface}})
 		{
@@ -1272,24 +1267,24 @@ sub get_local_id
 				ip_address  => $ip_address,
 				subnet_mask => $subnet_mask,
 			}});
-			foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
+			foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					ip_address              => $ip_address,
-					"database::${id}::host" => $anvil->data->{database}{$id}{host},
+					ip_address                => $ip_address,
+					"database::${uuid}::host" => $anvil->data->{database}{$uuid}{host},
 				}});
-				if ($ip_address eq $anvil->data->{database}{$id}{host})
+				if ($ip_address eq $anvil->data->{database}{$uuid}{host})
 				{
-					$local_id = $id;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
+					$local_uuid = $uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 					last;
 				}
 			}
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_id => $local_id }});
-	return($local_id);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
+	return($local_uuid);
 }
 
 =head2 initialize
@@ -1305,36 +1300,30 @@ sub initialize
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
 	
-	my $id       = $parameter->{id}       ? $parameter->{id}       : $anvil->data->{sys}{read_db_id};
+	my $uuid     = $anvil->Get->host_uuid;
 	my $sql_file = $parameter->{sql_file} ? $parameter->{sql_file} : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $success  = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id       => $id, 
+		uuid     => $uuid, 
 		sql_file => $sql_file, 
 	}});
 	
 	# This just makes some logging cleaner below.
-	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
-	my $say_server    = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
+	my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_server => $say_server }});
 	
-	if (not $id)
-	{
-		# No database to talk to...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0077"});
-		return(0);
-	}
-	elsif (not defined $anvil->data->{cache}{db_fh}{$id})
+	if (not defined $anvil->data->{cache}{db_fh}{$uuid})
 	{
 		# Database handle is gone.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0078", variables => { id => $id }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0078", variables => { uuid => $uuid }});
 		return(0);
 	}
 	if (not $sql_file)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0079", variables => { 
 			server => $say_server,
-			id     => $id, 
+			uuid   => $uuid, 
 		}});
 		return(0);
 	}
@@ -1342,7 +1331,7 @@ sub initialize
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0080", variables => { 
 			server   => $say_server,
-			id       => $id, 
+			uuid     => $uuid, 
 			sql_file => $sql_file, 
 		}});
 		return(0);
@@ -1351,7 +1340,7 @@ sub initialize
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0081", variables => { 
 			server   => $say_server,
-			id       => $id, 
+			uuid     => $uuid, 
 			sql_file => $sql_file, 
 		}});
 		return(0);
@@ -1360,12 +1349,12 @@ sub initialize
 	# Tell the user we need to initialize
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0082", variables => { 
 		server   => $say_server,
-		id       => $id, 
+		uuid     => $uuid, 
 		sql_file => $sql_file, 
 	}});
 	
 	# Read in the SQL file and replace #!variable!name!# with the database owner name.
-	my $user = $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : $anvil->data->{sys}{database}{user};
+	my $user = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : $anvil->data->{sys}{database}{user};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	
 	my $sql = $anvil->Storage->read_file({file => $sql_file});
@@ -1375,10 +1364,10 @@ sub initialize
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sql" => $sql }});
 	
 	# Now that I am ready, disable autocommit, write and commit.
-	$anvil->Database->write({id => $id, query => $sql, source => $THIS_FILE, line => __LINE__});
+	$anvil->Database->write({uuid => $uuid, query => $sql, source => $THIS_FILE, line => __LINE__});
 	
-	$anvil->data->{sys}{db_initialized}{$id} = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_initialized::${id}" => $anvil->data->{sys}{db_initialized}{$id} }});
+	$anvil->data->{sys}{db_initialized}{$uuid} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_initialized::${uuid}" => $anvil->data->{sys}{db_initialized}{$uuid} }});
 	
 	# Mark that we need to update the DB.
 	$anvil->data->{sys}{database}{resync_needed} = 1;
@@ -1396,7 +1385,7 @@ If there is an error, an empty string is returned.
 
 Parameters;
 
-=head3 id (optional)
+=head3 uuid (optional)
 
 If set, only the corresponding database will be written to.
 
@@ -1429,14 +1418,14 @@ sub insert_or_update_hosts
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_hosts()" }});
 	
-	my $id        = defined $parameter->{id}        ? $parameter->{id}        : "";
+	my $uuid      = defined $parameter->{uuid}      ? $parameter->{uuid}      : "";
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_hostname;
 	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->determine_host_type;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id        => $id, 
+		uuid      => $uuid, 
 		file      => $file, 
 		line      => $line, 
 		host_name => $host_name, 
@@ -1471,7 +1460,7 @@ WHERE
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	my $results = $anvil->Database->query({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+	my $results = $anvil->Database->query({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
@@ -1506,7 +1495,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	elsif (($old_host_name ne $host_name) or ($old_host_type ne $host_type))
 	{
@@ -1523,7 +1512,7 @@ WHERE
 ;";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
@@ -1539,7 +1528,7 @@ If there is an error, an empty string is returned.
 
 Parameters;
 
-=head3 id (optional)
+=head3 uuid (optional)
 
 If set, only the corresponding database will be written to.
 
@@ -1622,7 +1611,7 @@ sub insert_or_update_jobs
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_jobs()" }});
 	
-	my $id                   = defined $parameter->{id}                   ? $parameter->{id}                   : "";
+	my $uuid                 = defined $parameter->{uuid}                 ? $parameter->{uuid}                 : "";
 	my $file                 = defined $parameter->{file}                 ? $parameter->{file}                 : "";
 	my $line                 = defined $parameter->{line}                 ? $parameter->{line}                 : "";
 	my $job_uuid             = defined $parameter->{job_uuid}             ? $parameter->{job_uuid}             : "";
@@ -1639,7 +1628,7 @@ sub insert_or_update_jobs
 	my $job_status           = defined $parameter->{job_status}           ? $parameter->{job_status}           : "";
 	my $update_progress_only = defined $parameter->{update_progress_only} ? $parameter->{update_progress_only} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id                   => $id, 
+		uuid                 => $uuid, 
 		file                 => $file, 
 		line                 => $line, 
 		job_uuid             => $job_uuid, 
@@ -1953,7 +1942,7 @@ If there is an error, an empty string is returned. Otherwise, the record's UUID 
 
 Parameters;
 
-=head3 id (optional)
+=head3 uuid (optional)
 
 If set, only the corresponding database will be written to.
 
@@ -2022,7 +2011,7 @@ sub insert_or_update_network_interfaces
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_network_interfaces()" }});
 	
-	my $id                            = defined $parameter->{id}                            ? $parameter->{id}                            : "";
+	my $uuid                          = defined $parameter->{uuid}                          ? $parameter->{uuid}                          : "";
 	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
 	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
 	my $network_interface_bond_uuid   = defined $parameter->{network_interface_bond_uuid}   ? $parameter->{network_interface_bond_uuid}   : "--";
@@ -2038,7 +2027,7 @@ sub insert_or_update_network_interfaces
 	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : "--";
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id                            => $id, 
+		uuid                          => $uuid, 
 		file                          => $file, 
 		line                          => $line, 
 		network_interface_bond_uuid   => $network_interface_bond_uuid, 
@@ -2096,7 +2085,7 @@ WHERE
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $results = $anvil->Database->query({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -2198,7 +2187,7 @@ WHERE
 ;";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+				$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
 			else
 			{
@@ -2283,7 +2272,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, id => $id, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_network_interfaces()" }});
@@ -2299,7 +2288,7 @@ If there is an error, an empty string is returned.
 
 Parameters;
 
-=head3 id (optional)
+=head3 uuid (optional)
 
 If set, only the corresponding database will be written to.
 
@@ -2336,7 +2325,7 @@ sub insert_or_update_states
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
 	
-	my $id              = defined $parameter->{id}              ? $parameter->{id}              : "";
+	my $uuid            = defined $parameter->{uuid}            ? $parameter->{uuid}            : "";
 	my $file            = defined $parameter->{file}            ? $parameter->{file}            : "";
 	my $line            = defined $parameter->{line}            ? $parameter->{line}            : "";
 	my $state_uuid      = defined $parameter->{state_uuid}      ? $parameter->{state_uuid}      : "";
@@ -2344,7 +2333,7 @@ sub insert_or_update_states
 	my $state_host_uuid = defined $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
 	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "NULL";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id              => $id, 
+		uuid            => $uuid, 
 		file            => $file, 
 		line            => $line, 
 		state_uuid      => $state_uuid, 
@@ -2513,7 +2502,7 @@ If there is an error, C<< !!error!! >> is returned.
 
 Parameters;
 
-=head3 id (optional)
+=head3 uuid (optional)
 
 If set, only the corresponding database will be written to.
 
@@ -2572,7 +2561,7 @@ sub insert_or_update_variables
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_variables()" }});
 	
-	my $id                    = defined $parameter->{id}                    ? $parameter->{id}                    : "";
+	my $uuid                  = defined $parameter->{uuid}                  ? $parameter->{uuid}                  : "";
 	my $file                  = defined $parameter->{file}                  ? $parameter->{file}                  : "";
 	my $line                  = defined $parameter->{line}                  ? $parameter->{line}                  : "";
 	my $variable_uuid         = defined $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
@@ -2586,7 +2575,7 @@ sub insert_or_update_variables
 	my $update_value_only     = defined $parameter->{update_value_only}     ? $parameter->{update_value_only}     : 1;
 	my $log_level             = defined $parameter->{log_level}             ? $parameter->{log_level}             : 3;	# Undocumented for now.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
-		id                    => $id, 
+		uuid                  => $uuid, 
 		file                  => $file, 
 		line                  => $line, 
 		variable_uuid         => $variable_uuid, 
@@ -3134,7 +3123,7 @@ sub mark_active
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
 	# If I haven't connected to a database yet, why am I here?
-	if (not $anvil->data->{sys}{read_db_id})
+	if (not $anvil->data->{sys}{read_db_uuid})
 	{
 		return(0);
 	}
@@ -3195,9 +3184,9 @@ B<NOTE>: Do not sort the array references; They won't make any sense as the refe
 
 Parameters;
 
-=head3 id (optional)
+=head3 uuid (optional)
 
-By default, the local database will be queried (if run on a machine with a database). Otherwise, the first database successfully connected to will be used for queries (as stored in C<< $anvil->data->{sys}{read_db_id} >>).
+By default, the local database will be queried (if run on a machine with a database). Otherwise, the first database successfully connected to will be used for queries (as stored in C<< $anvil->data->{sys}{read_db_uuid} >>).
 
 If you want to read from a specific database, though, you can set this parameter to the ID of the database (C<< database::<id>::host). If you specify a read from a database that isn't available, C<< !!error!! >> will be returned.
 
@@ -3219,7 +3208,6 @@ If set, the query will be treated as containing sensitive data and will only be 
 
 To help with logging the source of a query, C<< source >> can be set to the name of the script that requested the query. It is generally used along side C<< line >>.
 
-
 =cut
 sub query
 {
@@ -3229,14 +3217,14 @@ sub query
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->query()" }});
 	
-	my $id     = $parameter->{id}     ? $parameter->{id}     : $anvil->data->{sys}{read_db_id};
+	my $uuid   = $parameter->{uuid}   ? $parameter->{uuid}   : $anvil->data->{sys}{read_db_uuid};
 	my $line   = $parameter->{line}   ? $parameter->{line}   : __LINE__;
 	my $query  = $parameter->{query}  ? $parameter->{query}  : "";
 	my $secure = $parameter->{secure} ? $parameter->{secure} : 0;
 	my $source = $parameter->{source} ? $parameter->{source} : $THIS_FILE;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id                    => $id, 
-		"cache::db_fh::${id}" => $anvil->data->{cache}{db_fh}{$id}, 
+		uuid                  => $uuid, 
+		"cache::db_fh::${uuid}" => $anvil->data->{cache}{db_fh}{$uuid}, 
 		line                  => $line, 
 		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "--", 
 		secure                => $secure, 
@@ -3244,19 +3232,19 @@ sub query
 	}});
 	
 	# Make logging code a little cleaner
-	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
-	my $say_server    = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
+	my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
 	
-	if (not $id)
+	if (not $uuid)
 	{
 		# No database to talk to...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0072"});
 		return("!!error!!");
 	}
-	elsif (not defined $anvil->data->{cache}{db_fh}{$id})
+	elsif (not defined $anvil->data->{cache}{db_fh}{$uuid})
 	{
 		# Database handle is gone.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0073", variables => { id => $id }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0073", variables => { uuid => $uuid }});
 		return("!!error!!");
 	}
 	if (not $query)
@@ -3275,16 +3263,16 @@ sub query
 	if ($anvil->data->{sys}{database}{log_transactions})
 	{
 		$anvil->Log->entry({source => $source, line => $line, secure => $secure, level => 0, key => "log_0074", variables => { 
-			id    => $id, 
+			uuid  => $uuid, 
 			query => $query, 
 		}});
 	}
 	
 	# Test access to the DB before we do the actual query
-	$anvil->Database->_test_access({id => $id});
+	$anvil->Database->_test_access({uuid => $uuid});
 	
 	# Do the query.
-	my $DBreq = $anvil->data->{cache}{db_fh}{$id}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
+	my $DBreq = $anvil->data->{cache}{db_fh}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
 			query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "--", 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
@@ -3330,7 +3318,7 @@ sub read_variable
 	my $variable_name         = $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
 	my $variable_source_uuid  = $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "NULL";
 	my $variable_source_table = $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "NULL";
-	my $id                    = $parameter->{id}                    ? $parameter->{id}                    : $anvil->data->{sys}{read_db_id};
+	my $uuid                  = $parameter->{uuid}                  ? $parameter->{uuid}                  : $anvil->data->{sys}{read_db_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		variable_uuid         => $variable_uuid, 
 		variable_name         => $variable_name, 
@@ -3379,7 +3367,7 @@ AND
 	
 	my $variable_value = "";
 	my $modified_date  = "";
-	my $results        = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
+	my $results        = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count          = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
@@ -3491,11 +3479,11 @@ sub resync_databases
 		}
 		
 		# Now read in the data from the different databases.
-		foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
 		{
 			# ...
-			$anvil->data->{db_resync}{$id}{public}{sql}  = [];
-			$anvil->data->{db_resync}{$id}{history}{sql} = [];
+			$anvil->data->{db_resync}{$uuid}{public}{sql}  = [];
+			$anvil->data->{db_resync}{$uuid}{history}{sql} = [];
 			
 			# Read in the data, modified_date first as we'll need that for all entries we record.
 			my $query        = "SELECT modified_date AT time zone 'UTC', $uuid_column, ";
@@ -3523,9 +3511,9 @@ sub resync_databases
 				$query .= " WHERE ".$host_column." = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid});
 			}
 			$query .= " ORDER BY modified_date DESC;";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { id => $id, query => $query }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 			
-			my $results = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				results => $results, 
@@ -3546,7 +3534,7 @@ sub resync_databases
 					my $not_null     = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{not_null};
 					my $data_type    = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{data_type};
 					$anvil->Log->variables({source => 2, line => __LINE__, level => $debug, list => { 
-						"s1:id"            => $id,
+						"s1:id"            => $uuid,
 						"s2:row_number"    => $row_number,
 						"s3:column_number" => $column_number,
 						"s4:column_name"   => $column_name, 
@@ -3576,11 +3564,11 @@ sub resync_databases
 						
 						# This is used to determine if a given entry needs to be 
 						# updated or inserted into the public schema
-						$anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'} = 1;
-						$anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen}     = 0;
+						$anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'} = 1;
+						$anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen}     = 0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::exists" => $anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'}, 
-							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::seen"   => $anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen}, 
+							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::exists" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'}, 
+							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen"   => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen}, 
 						}});
 						next;
 					}
@@ -3591,10 +3579,10 @@ sub resync_databases
 					
 					# Record this in the unified and local hashes. 						# This table isn't restricted to given hosts.
 					$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
-					$anvil->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}     = $column_value;
+					$anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}     = $column_value;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"db_data::unified::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}" => $anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
-						"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}"   => $anvil->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
+						"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}"   => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
 					}});
 				}
 			}
@@ -3609,9 +3597,9 @@ sub resync_databases
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
 				
-				foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 					
 					# For each 'row_uuid' we see;
 					# - Check if we've *seen* it before
@@ -3622,27 +3610,27 @@ sub resync_databases
 					#   \- If we have seen, see if it exists at the current timestamp.
 					#      \- If not, _INSERT_ it into history schema.
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"db_data::${id}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} 
+						"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen} 
 					}});
-					if (not $anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen})
+					if (not $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen})
 					{
 						# Mark this record as now having been seen.
-						$anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} = 1;
+						$anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen} = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{seen} 
+							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen} 
 						}});
 						
 						# Does it exist?
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"db_data::${id}::${table}::${uuid_column}::${row_uuid}::exists" => $anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'} 
+							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::exists" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'} 
 						}});
-						if ($anvil->data->{db_data}{$id}{$table}{$uuid_column}{$row_uuid}{'exists'})
+						if ($anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'})
 						{
 							# It exists, but does it exist at this time stamp?
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-								"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
+								"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
 							}});
-							if (not $anvil->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
+							if (not $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
 							{
 								# No, so UPDATE it. We'll build the query now...
 								my $query = "UPDATE public.$table SET ";
@@ -3659,10 +3647,10 @@ sub resync_databases
 									$query .= "$column_name = ".$column_value.", ";
 								}
 								$query .= "modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).";";
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { id => $id, query => $query }});
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 								
 								# Now record the query in the array
-								push @{$anvil->data->{db_resync}{$id}{public}{sql}}, $query;
+								push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
 							} # if not exists - timestamp
 						} # if exists
 						else
@@ -3695,10 +3683,10 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { id => $id, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 							
 							# Now record the query in the array
-							push @{$anvil->data->{db_resync}{$id}{public}{sql}}, $query;
+							push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
 						} # if not exists
 					} # if not seen
 					else
@@ -3711,9 +3699,9 @@ sub resync_databases
 						# question of whether the entry for the current 
 						# timestamp exists in the history schema.
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"db_data::${id}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
+							"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
 						}});
-						if (not $anvil->data->{db_data}{$id}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
+						if (not $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
 						{
 							# It hasn't been seen, so INSERT it. We need 
 							# to build entries for the column names and 
@@ -3743,10 +3731,10 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { id => $id, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 							
 							# Now record the query in the array
-							push @{$anvil->data->{db_resync}{$id}{history}{sql}}, $query;
+							push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
 						} # if not exists - timestamp
 					} # if seen
 				} # foreach $id
@@ -3757,20 +3745,20 @@ sub resync_databases
 		delete $anvil->data->{db_data};
 		
 		# Do the INSERTs now and then release the memory.
-		foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
 		{
 			# Merge the queries for both schemas into one array, with public schema 
 			# queries being first, then delete the arrays holding them to free memory
 			# before we start the resync.
 			my $merged = [];
-			@{$merged} = (@{$anvil->data->{db_resync}{$id}{public}{sql}}, @{$anvil->data->{db_resync}{$id}{history}{sql}});
-			undef $anvil->data->{db_resync}{$id}{public}{sql};
-			undef $anvil->data->{db_resync}{$id}{history}{sql};
+			@{$merged} = (@{$anvil->data->{db_resync}{$uuid}{public}{sql}}, @{$anvil->data->{db_resync}{$uuid}{history}{sql}});
+			undef $anvil->data->{db_resync}{$uuid}{public}{sql};
+			undef $anvil->data->{db_resync}{$uuid}{history}{sql};
 			
 			# If the merged array has any entries, push them in.
 			if (@{$merged} > 0)
 			{
-				$anvil->Database->write({id => $id, query => $merged, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({uuid => $uuid, query => $merged, source => $THIS_FILE, line => __LINE__});
 				undef $merged;
 			}
 		}
@@ -3800,15 +3788,15 @@ sub write
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->write()" }});
 	
-	my $id      = $parameter->{id}      ? $parameter->{id}     : "";
+	my $uuid    = $parameter->{uuid}    ? $parameter->{uuid}   : "";
 	my $line    = $parameter->{line}    ? $parameter->{line}   : __LINE__;
 	my $query   = $parameter->{query}   ? $parameter->{query}  : "";
 	my $secure  = $parameter->{secure}  ? $parameter->{secure} : 0;
 	my $source  = $parameter->{source}  ? $parameter->{source} : $THIS_FILE;
 	my $reenter = $parameter->{reenter} ? $parameter->{reenter} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id                    => $id, 
-		"cache::db_fh::${id}" => $anvil->data->{cache}{db_fh}{$id}, 
+		uuid                  => $uuid, 
+		"cache::db_fh::${uuid}" => $anvil->data->{cache}{db_fh}{$uuid}, 
 		line                  => $line, 
 		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "--", 
 		secure                => $secure, 
@@ -3817,9 +3805,9 @@ sub write
 	}});
 	
 	# Make logging code a little cleaner
-	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
-	my $say_server    = $id eq "" ? "#!string!log_0129!#" : $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
-	#print "id: [$id], say_server: [$say_server]\n";
+	my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $uuid eq "" ? "#!string!log_0129!#" : $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
+	#print "uuid: [$uuid], say_server: [$say_server]\n";
 	
 	# We don't check if ID is set here because not being set simply means to write to all available DBs.
 	if (not $query)
@@ -3833,18 +3821,18 @@ sub write
 	$anvil->Database->check_lock_age;
 	
 	# This array will hold either just the passed DB ID or all of them, if no ID was specified.
-	my @db_ids;
-	if ($id)
+	my @db_uuids;
+	if ($uuid)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
-		push @db_ids, $id;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		push @db_uuids, $uuid;
 	}
 	else
 	{
-		foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
-			push @db_ids, $id;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+			push @db_uuids, $uuid;
 		}
 	}
 	
@@ -3891,10 +3879,10 @@ sub write
 				if ($i > $next)
 				{
 					# Commit this batch.
-					foreach my $id (@db_ids)
+					foreach my $uuid (@db_uuids)
 					{
 						# Commit this chunk to this DB.
-						$anvil->Database->write({id => $id, query => $query_set, source => $THIS_FILE, line => $line, reenter => 1});
+						$anvil->Database->write({uuid => $uuid, query => $query_set, source => $THIS_FILE, line => $line, reenter => 1});
 						
 						### TODO: Rework this so that we exit here (so that we can 
 						###       send an alert) if the RAM use is too high.
@@ -3924,21 +3912,21 @@ sub write
 	{
 		push @{$query_set}, $query;
 	}
-	foreach my $id (@db_ids)
+	foreach my $uuid (@db_uuids)
 	{
 		# Test access to the DB before we do the actual query
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
-		$anvil->Database->_test_access({id => $id});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		$anvil->Database->_test_access({uuid => $uuid});
 		
 		# Do the actual query(ies)
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			id    => $id, 
+			uuid  => $uuid, 
 			count => $count, 
 		}});
 		if ($count)
 		{
 			# More than one query, so start a transaction block.
-			$anvil->data->{cache}{db_fh}{$id}->begin_work;
+			$anvil->data->{cache}{db_fh}{$uuid}->begin_work;
 		}
 		
 		foreach my $query (@{$query_set})
@@ -3946,19 +3934,19 @@ sub write
 			if ($anvil->data->{sys}{database}{log_transactions})
 			{
 				$anvil->Log->entry({source => $source, line => $line, secure => $secure, level => 0, key => "log_0083", variables => { 
-					id    => $id, 
+					uuid  => $uuid, 
 					query => $query, 
 				}});
 			}
 			
-			if (not $anvil->data->{cache}{db_fh}{$id})
+			if (not $anvil->data->{cache}{db_fh}{$uuid})
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0089", variables => { id => $id }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0089", variables => { uuid => $uuid }});
 				next;
 			}
 			
 			# Do the do.
-			$anvil->data->{cache}{db_fh}{$id}->do($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
+			$anvil->data->{cache}{db_fh}{$uuid}->do($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
 					query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "--", 
 					server   => $say_server,
 					db_error => $DBI::errstr, 
@@ -3969,7 +3957,7 @@ sub write
 		if ($count)
 		{
 			# Commit the changes.
-			$anvil->data->{cache}{db_fh}{$id}->commit();
+			$anvil->data->{cache}{db_fh}{$uuid}->commit();
 		}
 	}
 	
@@ -4168,16 +4156,16 @@ sub _find_behind_databases
 	
 	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
 	my $source_updated_time = 0;
-	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{database}})
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
-		my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : "--";
-		my $database_user = defined $anvil->data->{database}{$id}{user} ? $anvil->data->{database}{$id}{user} : "--";
+		my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "--";
+		my $database_user = defined $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "--";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"database::${id}::host"     => $anvil->data->{database}{$id}{host},
-			"database::${id}::port"     => $anvil->data->{database}{$id}{port},
-			"database::${id}::name"     => $database_name,
-			"database::${id}::user"     => $database_user, 
-			"database::${id}::password" => $anvil->Log->secure ? $anvil->data->{database}{$id}{password} : "--", 
+			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
+			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
+			"database::${uuid}::name"     => $database_name,
+			"database::${uuid}::user"     => $database_user, 
+			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : "--", 
 		}});
 		
 		# Loop through the tables in this DB. For each table, we'll record the most recent time 
@@ -4189,7 +4177,7 @@ sub _find_behind_databases
 			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table).";";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
-			my $count = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 			
 			if ($count == 1)
@@ -4201,7 +4189,7 @@ sub _find_behind_databases
 				# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
 				# it later to restrict resync activity to these columns with the local 
 				# 'sys::host_uuid'.
-				my $host_column = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $host_column = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				   $host_column = "" if not defined $host_column;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
 				
@@ -4209,7 +4197,7 @@ sub _find_behind_databases
 				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				my $count = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 				
 				my $schema = $count ? "history" : "public";
@@ -4229,29 +4217,29 @@ ORDER BY
     modified_date DESC
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					id    => $id, 
+					uuid  => $uuid, 
 					query => $query, 
 				}});
 				
-				my $last_updated = $anvil->Database->query({id => $id, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $last_updated = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				   $last_updated = 0 if not defined $last_updated;
 				
 				# Record this table's last modified_date for later comparison. We'll also 
 				# record the schema and host column, if found, to save looking the same thing
 				# up later if we do need a resync.
-				$anvil->data->{sys}{database}{table}{$table}{id}{$id}{last_updated} = $last_updated;
+				$anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated} = $last_updated;
 				$anvil->data->{sys}{database}{table}{$table}{schema}                = $schema;
 				$anvil->data->{sys}{database}{table}{$table}{host_column}           = $host_column;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::database::table::${table}::id::${id}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{id}{$id}{last_updated}, 
+					"sys::database::table::${table}::id::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated}, 
 					"sys::database::table::${table}::last_updated"            => $anvil->data->{sys}{database}{table}{$table}{last_updated},
 					"sys::database::table::${table}::schema"                  => $anvil->data->{sys}{database}{table}{$table}{schema},
 					"sys::database::table::${table}::host_column"             => $anvil->data->{sys}{database}{table}{$table}{host_column},
 				}});
 				
-				if ($anvil->data->{sys}{database}{table}{$table}{id}{$id}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{last_updated})
+				if ($anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{last_updated})
 				{
-					$anvil->data->{sys}{database}{table}{$table}{last_updated} = $anvil->data->{sys}{database}{table}{$table}{id}{$id}{last_updated};
+					$anvil->data->{sys}{database}{table}{$table}{last_updated} = $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 					}});
@@ -4267,18 +4255,18 @@ ORDER BY
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 		}});
-		foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}{$table}{id}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}{$table}{id}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::database::table::${table}::id::${id}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{id}{$id}{last_updated}, 
+				"sys::database::table::${table}::id::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated}, 
 			}});
-			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{id}{$id}{last_updated})
+			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated})
 			{
 				# Resync needed.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { id => $id }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { uuid => $uuid }});
 				
 				# Mark it as behind.
-				$anvil->Database->_mark_database_as_behind({id => $id});
+				$anvil->Database->_mark_database_as_behind({uuid => $uuid});
 				last;
 			}
 		}
@@ -4307,31 +4295,31 @@ sub _mark_database_as_behind
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_mark_database_as_behind()" }});
 	
-	my $id = $parameter->{id} ? $parameter->{id} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
+	my $uuid = $parameter->{uuid} ? $parameter->{uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
-	$anvil->data->{sys}{database}{to_update}{$id}{behind} = 1;
+	$anvil->data->{sys}{database}{to_update}{$uuid}{behind} = 1;
 	$anvil->data->{sys}{database}{resync_needed}          = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"sys::database::to_update::${id}::behind" => $anvil->data->{sys}{database}{to_update}{$id}{behind}, 
+		"sys::database::to_update::${uuid}::behind" => $anvil->data->{sys}{database}{to_update}{$uuid}{behind}, 
 		"sys::database::resync_needed"            => $anvil->data->{sys}{database}{resync_needed}, 
 	}});
 		
 	# We can't trust this database for reads, so switch to another database for reads if
 	# necessary.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		id                => $id, 
-		"sys::read_db_id" => $anvil->data->{sys}{read_db_id}, 
+		uuid              => $uuid, 
+		"sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid}, 
 	}});
-	if ($id eq $anvil->data->{sys}{read_db_id})
+	if ($uuid eq $anvil->data->{sys}{read_db_uuid})
 	{
 		# Switch.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> sys::read_db_id" => $anvil->data->{sys}{read_db_id} }});
-		foreach my $this_id (sort {$a cmp $b} keys %{$anvil->data->{database}})
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
+		foreach my $this_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 		{
-			next if $this_id eq $id;
-			$anvil->data->{sys}{read_db_id} = $this_id;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sys::read_db_id" => $anvil->data->{sys}{read_db_id} }});
+			next if $this_uuid eq $uuid;
+			$anvil->data->{sys}{read_db_uuid} = $this_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
 			last;
 		}
 	}
@@ -4354,18 +4342,18 @@ sub _test_access
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_test_access()" }});
 	
-	my $id = $parameter->{id} ? $parameter->{id} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
+	my $uuid = $parameter->{uuid} ? $parameter->{uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
 	# Make logging code a little cleaner
-	my $database_name = defined $anvil->data->{database}{$id}{name} ? $anvil->data->{database}{$id}{name} : $anvil->data->{sys}{database}{name};
-	my $say_server    = $anvil->data->{database}{$id}{host}.":".$anvil->data->{database}{$id}{port}." -> ".$database_name;
+	my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
+	my $say_server    = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
 	
 	# Log our test
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0087", variables => { server => $say_server }});
 	
 	my $query = "SELECT 1";
-	my $DBreq = $anvil->data->{cache}{db_fh}{$id}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
+	my $DBreq = $anvil->data->{cache}{db_fh}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
 			query    => $query, 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
