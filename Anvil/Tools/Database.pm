@@ -1246,9 +1246,17 @@ sub get_local_uuid
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"network_details->hostname" => $network_details->{hostname},
-			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
+			"database::${uuid}::host"   => $anvil->data->{database}{$uuid}{host},
 		}});
-		if ($network_details->{hostname} eq $anvil->data->{database}{$uuid}{host})
+		# If the uuid matches our host_uuid or if the hostname matches ours (or is localhost), return
+		# that UUID.
+		if ($uuid eq $anvil->Get->host_uuid)
+		{
+			$local_uuid = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
+			last;
+		}
+		elsif (($network_details->{hostname} eq $anvil->data->{database}{$uuid}{host}) or ($anvil->data->{database}{$uuid}{host} eq "localhost"))
 		{
 			$local_uuid = $uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
@@ -1283,7 +1291,6 @@ sub get_local_uuid
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 	return($local_uuid);
 }
 

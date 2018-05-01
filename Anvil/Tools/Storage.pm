@@ -1051,7 +1051,7 @@ C<< 3 >> = File not readable
 
 Parameters;
 
-=head3 file (required)
+=head3 file (optional, default file stored in 'path::configs::anvil.conf')
 
 This is the configuration file to read. 
 
@@ -1078,7 +1078,7 @@ sub read_config
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup default values
-	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
+	my $file        = defined $parameter->{file} ? $parameter->{file} : $anvil->data->{path}{configs}{'anvil.conf'};
 	my $return_code = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
 	
@@ -1124,21 +1124,26 @@ sub read_config
 		}
 		else
 		{
-			# Read it in!
+			# Read it in! 
 			my $count = 0;
-			open (my $file_handle, "<$file") or die "Can't read: [$file], error was: $!\n";
-			while (<$file_handle>)
+			my $body  = $anvil->Storage->read_file({file => $file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+			foreach my $line (split/\n/, $body)
 			{
-				chomp;
-				my $line =  $_;
-				$line =~ s/^\s+//;
-				$line =~ s/\s+$//;
+				$line = $anvil->Words->clean_spaces({ string => $line });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 				$count++;
+				
+				# Skip empty lines and lines that start with a '#', and lines without an '='.
 				next if ((not $line) or ($line =~ /^#/));
 				next if $line !~ /=/;
 				my ($variable, $value) = split/=/, $line, 2;
 				$variable =~ s/\s+$//;
 				$value    =~ s/^\s+//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:variable" => $variable,
+					"s2:value"    => $value, 
+				}});
 				if (not $variable)
 				{
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0035", variables => { 
@@ -1150,7 +1155,6 @@ sub read_config
 				
 				$anvil->_make_hash_reference($anvil->data, $variable, $value);
 			}
-			close $file_handle;
 		}
 	}
 	

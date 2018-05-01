@@ -36,7 +36,7 @@ $anvil->Get->switches;
 # Paths
 $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 
-my $local_uuid = $anvil->Database->get_local_uuid;
+my $local_uuid = $anvil->Database->get_local_uuid();
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
 
 # If we didn't get the $local_uuid, then there is no entry for this system in anvil.conf yet, so we'll add it.
@@ -44,8 +44,14 @@ if (not $local_uuid)
 {
 	$local_uuid = add_to_local_config($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+	
+	# If we still don't have a local_uuid, something went wrong.
+	if (not $local_uuid)
+	{
+		print $anvil->Words->string({key => "error_0010"})."\n";
+		$anvil->nice_exit({code => 1});
+	}
 }
-exit;
 
 # Now configure!
 if ($local_uuid)
@@ -404,7 +410,7 @@ else
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0143"});
 }
 
-exit(0);
+$anvil->nice_exit({code => 0});
 
 
 #############################################################################################################
@@ -465,6 +471,7 @@ sub add_to_local_config
 		
 		# Now update!
 		$anvil->Storage->write_file({
+			debug     => 2,
 			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
 			body      => $new_body, 
 			user      => "admin", 
@@ -476,6 +483,9 @@ sub add_to_local_config
 		# Record the local UUID for returning to the caller.
 		$local_uuid = $host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
+		
+		# Re-read the new config.
+		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	}
 	
 	return($local_uuid);

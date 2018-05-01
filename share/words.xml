@@ -349,6 +349,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0007">The passwords don't match, exiting.</key>
 		<key name="error_0008">Failed to read the file: [#!variable!file!#]. Please see the logs for details</key>
 		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
+		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>
