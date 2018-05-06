@@ -177,7 +177,9 @@ firewall-cmd --zone=public --add-service=http --permanent
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
-
+# TODO: Remove this!! This is only for use during development, all SELinux 
+#       issues must be resolved before final release!
+sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config 
 
 %files striker
 %attr(0775, apache, root) %{_localstatedir}/www/*/*

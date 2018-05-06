@@ -58,7 +58,7 @@ sub scan
 		next if $file eq "lo";
 		my $full_path = "$directory/$file";
 		print $THIS_FILE." ".__LINE__."; full_path: [".$full_path."]\n";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
@@ -93,7 +93,7 @@ sub scan
 			}
 			
 			# Log
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
 				mac_address => $mac_address, 
 				link_state  => $link_state, 

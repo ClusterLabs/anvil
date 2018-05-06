@@ -1,0 +1,288 @@
+#!/usr/bin/perl
+# 
+# Simple little program that takes the name of VM, parses its XML to find the 'vnetx' bridge links, 
+# determines which bridge they're connected to and then takes the interfaces down, waits a few seconds, and 
+# brings it back up. It cycles the interfaces connected to the BCN, then the SN and finally the IFN, always
+# in that order.
+#
+# The goal of this program is to simplify testing the Striker and Anvil! node installer scripts when using 
+# KVM/qemu based VMs.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Not run as root
+# 2 = Server name not passed in
+# 3 = Server not found
+# 4 = Server not running
+# 
+
+use strict;
+use warnings;
+
+$| = 1;
+
+our $debug = 1;
+my  $server = defined $ARGV[0] ? $ARGV[0] : "";
+if (not $server)
+{
+	print "[ Error ] - Server name required. Usage: '$0 <server>'\n";
+	exit(2);
+}
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print "[ Error ] - This program requires root (or sudo) access.\n";
+	exit(1);
+}
+#print "Searching: [$server] for 'vnetX' interfaces...\n";
+
+# We don't read switches, as the only allowed switch is the server's name.
+check_server_running($server);
+
+# If we're here, the server was found and running.
+my $nics = get_nic_list($server);
+
+# Now cycle the NICs.
+cycle_nics($server, $nics);
+
+exit(0);
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This does the work of cycling the NICs.
+sub cycle_nics
+{
+	my ($server, $nics) = @_;
+	print __LINE__."; [ Debug ] - server: [".$server."]\n" if $debug >= 2;
+	
+	print "Cycling network cables on the server: [".$server."]...\n";
+	
+	my $nics_processed = 1;
+	my $say_network    = "";
+	foreach my $bridge_type ("bcn", "sn", "ifn")
+	{
+		print __LINE__."; [ Debug ] - bridge_type: [".$bridge_type."]\n" if $debug >= 2;
+		foreach my $network_number (sort {$a cmp $b} keys %{$nics->{$bridge_type}})
+		{
+			print __LINE__."; [ Debug ]  - network_number: [".$network_number."]\n" if $debug >= 2;
+			foreach my $bridge_number (sort {$a cmp $b} keys %{$nics->{$bridge_type}{$network_number}})
+			{
+				if ($bridge_type eq "bcn")
+				{
+					$say_network = "Back-Chanel Network ".$network_number." - Bridge ".$bridge_number;
+				}
+				elsif ($bridge_type eq "sn")
+				{
+					$say_network = "Storage Network ".$network_number." - Bridge ".$bridge_number;
+				}
+				elsif ($bridge_type eq "ifn")
+				{
+					$say_network = "Internet-Facing Network ".$network_number." - Bridge ".$bridge_number;
+				}
+				
+				print __LINE__."; [ Debug ]   - bridge_number: [".$bridge_number."]\n" if $debug >= 2;
+				foreach my $this_vnet (sort {$a cmp $b} keys %{$nics->{$bridge_type}{$network_number}{$bridge_number}})
+				{
+					print __LINE__."; [ Debug ]    - this_vnet: [".$this_vnet."]\n" if $debug >= 2;
+				
+					my $this_mac = $nics->{$bridge_type}{$network_number}{$bridge_number}{$this_vnet};
+					print __LINE__."; [ Debug ] - nics->${bridge_type}::${network_number}::${bridge_number}::${this_vnet}: [".$nics->{$bridge_type}{$network_number}{$bridge_number}{$this_vnet}."]\n" if $debug >= 2;
+					
+					# Down
+					print "Unplugging: [".$this_vnet."] from: [".$say_network."]";
+					my $shell_call = "virsh domif-setlink ".$server." ".$this_vnet." down";
+					print "\n".__LINE__."; [ Debug ] - shell_call: [".$shell_call."]\n" if $debug >= 2;
+					open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
+					while(<$file_handle>)
+					{
+						chomp;
+						my $line = $_;
+						print __LINE__."; [ Debug ] - line: [".$line."]\n" if $debug >= 2;
+					}
+					close $file_handle;
+					
+					for (1..3)
+					{
+						#print "- Sleeping briefly\n";
+						print ".";
+						sleep 1;
+					}
+					
+					print " Reconnecting";
+					$shell_call = "virsh domif-setlink ".$server." ".$this_vnet." up";
+					print "\n".__LINE__."; [ Debug ] - shell_call: [".$shell_call."]\n" if $debug >= 2;
+					open ($file_handle, $shell_call." 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
+					while(<$file_handle>)
+					{
+						chomp;
+						my $line = $_;
+						print __LINE__."; [ Debug ] - line: [".$line."]\n" if $debug >= 2;
+					}
+					close $file_handle;
+					
+					print __LINE__."; [ Debug ] - nics_processed: [".$nics_processed."], nics->count: [".$nics->{count}."]\n" if $debug >= 2;
+					if ($nics_processed < $nics->{count})
+					{
+						#print "- Sleeping briefly\n";
+						for(1..3)
+						{
+							print ".";
+							sleep 1;
+						}
+						print " Up\n";
+					}
+					else
+					{
+						print ". Up.\n";
+					}
+					$nics_processed++;
+				}
+			}
+		}
+	}
+	print "- Done.\n";
+	
+	return(0);
+}
+
+# This parses the server's XML definition and returns a hash reference of interfaces to cycle.
+sub get_nic_list
+{
+	my ($server) = @_;
+	
+	my $nic_count      = 0;
+	my $nics           = {};
+	my $bridge_number  = 0;
+	my $network_number = 0;
+	my $bridge_type    = "";
+	my $this_vnet      = "";
+	my $this_mac       = "";
+	my $in_interface   = 0;
+	my $shell_call     = "virsh dumpxml ".$server;
+	print __LINE__."; [ Debug ] - shell_call: [".$shell_call."]\n" if $debug >= 2;
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
+	while(<$file_handle>)
+	{
+		chomp;
+		my $line = $_;
+		print __LINE__."; [ Debug ] - line: [".$line."]\n" if $debug >= 2;
+		
+		if ($line =~ /<interface type='network'>/)
+		{
+			$in_interface = 1;
+		}
+		
+		if ($in_interface)
+		{
+			print __LINE__."; [ Debug ] - line: [".$line."]\n" if $debug >= 2;
+			
+			if (($line =~ /source network='(.*?)'/) or ($line =~ /bridge='(.*?)'/))
+			{
+				my $this_bridge = $1;
+				print __LINE__."; [ Debug ] - this_bridge: [".$this_bridge."]\n" if $debug >= 2;
+				
+				($bridge_type, $network_number, $bridge_number) = ($this_bridge =~ /^(\D+)(\d+)_bridge(\d+)$/);
+				print __LINE__."; [ Debug ] - bridge_type: [".$bridge_type."], network_number: [".$network_number."], bridge_number: [".$bridge_number."]\n" if $debug >= 2;
+			}
+			if ($line =~ /target dev='(.*?)'/)
+			{
+				$this_vnet = $1;
+				print __LINE__."; [ Debug ] - this_vnet: [".$this_vnet."]\n" if $debug >= 2;
+			}
+			if ($line =~ /address='(.*?)'/)
+			{
+				$this_mac = $1;
+				print __LINE__."; [ Debug ] - this_mac: [".$this_mac."]\n" if $debug >= 2;
+			}
+		}
+		
+		if ($line =~ /<\/interface>/)
+		{
+			# Record the details.
+			print __LINE__."; [ Debug ] - bridge_type: [".$bridge_type."], network_number: [".$network_number."], bridge_number: [".$bridge_number."], this_vnet: [".$this_vnet."], this_mac: [".$this_mac."]\n" if $debug >= 2;
+			
+			$nics->{$bridge_type}{$network_number}{$bridge_number}{$this_vnet} = $this_mac;
+			$nic_count++;
+			print __LINE__."; [ Debug ] - nics->${bridge_type}::${network_number}::${bridge_number}::${this_vnet}: [".$nics->{$bridge_type}{$network_number}{$bridge_number}{$this_vnet}."]\n" if $debug >= 2;
+			
+			# Clear the variables.
+			$in_interface   = 0;
+			$bridge_number  = 0;
+			$network_number = 0;
+			$bridge_type    = "";
+			$this_vnet      = "";
+			$this_mac       = "";
+		}
+	}
+	close $file_handle;
+	
+	$nics->{count} = $nic_count;
+	print __LINE__."; [ Debug ] - nics->count: [".$nics->{count}."]\n" if $debug >= 2;
+	
+	return($nics);
+}
+
+# This checks to see if the name of the server was found and is running. It will exit if a problem is found.
+sub check_server_running
+{
+	my ($server) = @_;
+	
+	my $found      = 0;
+	my $shell_call = "virsh list --all";
+	print __LINE__."; [ Debug ] - shell_call: [".$shell_call."]\n" if $debug >= 2;
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [$shell_call], error was: $!\n";
+	while(<$file_handle>)
+	{
+		chomp;
+		my $line = $_;
+		   $line =~ s/\n$//;
+		   $line =~ s/^\s+//;
+		   $line =~ s/\s+$//;
+		   $line =~ s/\s+/ /g;
+		print __LINE__."; [ Debug ] - line: [".$line."]\n" if $debug >= 2;
+		
+		# Look for running servers
+		if ($line =~ /^(\d+) (.*?) (.*)$/)
+		{
+			my $id          = $1;
+			my $this_server = $2;
+			my $state       = $3;
+			print __LINE__."; [ Debug ] - id: [".$id."], server: [".$this_server."], state: [".$state."]\n" if $debug >= 2;
+			
+			if ($server eq $this_server)
+			{
+				# Found it
+				$found = 1;
+				last;
+			}
+		}
+		
+		# Look for stopped servers
+		if ($line =~ /^- (.*?) (.*)$/)
+		{
+			my $this_server = $1;
+			my $state       = $2;
+			print __LINE__."; [ Debug ] - id: [-], server: [".$this_server."], state: [".$state."]\n" if $debug >= 2;
+			
+			if ($server eq $this_server)
+			{
+				print "[ Error ] - The server: [".$server."] is not running.\n";
+				exit(4);
+			}
+		}
+	}
+	close $file_handle;
+	
+	if (not $found)
+	{
+		print "[ Error ] - The server: [".$server."] was not found.\n";
+		exit(3);
+	}
+	
+	return(0);
+}

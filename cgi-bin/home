@@ -33,7 +33,7 @@ print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n
 $anvil->Log->level({set => 2});
 
 # Read the config and then connect to the database.
-$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
+$anvil->Storage->read_config();
 
 # Make sure I can read the host UUID.
 if (not $anvil->Get->host_uuid)
@@ -176,6 +176,7 @@ sub check_availability
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
 	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	   $count = 0 if not defined $count;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	if ($count)
 	{

@@ -103,7 +103,7 @@ sub reconfigure_network
 	my $ifn_count       = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
 	my $new_hostname    = defined $anvil->data->{variables}{form}{config_step2}{hostname}{value} ? $anvil->data->{variables}{form}{config_step2}{hostname}{value} : $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
 	my $pretty_hostname = $organization." - Striker ".sprintf("%02d", $sequence);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
 		prefix          => $prefix, 
 		sequence        => $sequence,
 		domain          => $domain, 
