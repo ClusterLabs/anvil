@@ -664,6 +664,9 @@ sub _set_defaults
 	my ($anvil) = shift;
 	
 	$anvil->data->{sys}      = {
+		apache				=>	{
+			user				=>	"admin",
+		},
 		daemons				=>	{
 			restart_firewalld		=>	1,
 		},
@@ -751,6 +754,7 @@ sub _set_paths
 				'anvil.conf'		=>	"/etc/anvil/anvil.conf",
 				'anvil.version'		=>	"/etc/anvil/anvil.version",
 				'firewalld.conf'	=>	"/etc/firewalld/firewalld.conf",
+				'httpd.conf'		=>	"/etc/httpd/conf/httpd.conf", 
 				'journald_anvil'	=>	"/etc/systemd/journald.conf.d/anvil.conf",
 				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
@@ -758,6 +762,7 @@ sub _set_paths
 			},
 			data			=>	{
 				group			=>	"/etc/group",
+				htpasswd		=>	"/var/www/home/htpasswd",
 				host_uuid		=>	"/etc/anvil/host.uuid",
 				passwd			=>	"/etc/passwd",
 			},
@@ -791,6 +796,7 @@ sub _set_paths
 				head			=>	"/usr/bin/head",
 				hostname		=>	"/usr/bin/hostname",
 				hostnamectl		=>	"/usr/bin/hostnamectl",
+				htpasswd		=>	"/usr/bin/htpasswd",
 				ifdown			=>	"/sbin/ifdown",
 				ifup			=>	"/sbin/ifup",
 				ip			=>	"/usr/sbin/ip",

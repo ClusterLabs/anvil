@@ -15,6 +15,7 @@ my $THIS_FILE = "System.pm";
 
 ### Methods;
 # call
+# change_apache_password
 # change_shell_user_password
 # check_daemon
 # check_memory
@@ -185,6 +186,167 @@ sub call
 	
 	return($output);
 }
+
+=head2 change_apache_password
+
+This changes the password used to connet to Striker's web interface. If the C<< .htpasswd >> file isn't found, this method will effectively enable the password feature.
+
+The return code will be C<< 255 >> on internal error. Otherwise, it will be the code returned from the C<< passwd >> call.
+
+Parameters;
+
+=head3 new_password (required)
+
+This is the new password to set. The user should be encouraged to select a good (long) password.
+
+=head3 password (optional)
+
+If you are changing the apache password on a remote machine, this is the password used to connect to that machine. If not passed, an attempt to connect with passwordless SSH will be made (but this won't be the case in most instances). Ignored if C<< target >> is not given.
+
+=head3 port (optional, default 22)
+
+This is the TCP port number to use if connecting to a remote machine over SSH. Ignored if C<< target >> is not given.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set and we're changing the password for a remote user, this is the user we B<< log into >> the remote machine as, B<< not >> the user whose password we will change.
+
+=head3 target (optional)
+
+This is the IP address or (resolvable) host name of the target machine whose user account you want to change the password 
+
+=head3 user (optional, default 'sys::apache::user' or 'admin')
+
+This is the apache user name to use. If another name existed before in C<< .htpasswd >>, that old user name will be removed.
+
+=cut
+sub change_apache_password
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $new_password = defined $parameter->{new_password} ? $parameter->{new_password} : "";
+	my $password     = defined $parameter->{password}     ? $parameter->{password}     : "";
+	my $port         = defined $parameter->{port}         ? $parameter->{port}         : "";
+	my $remote_user  = defined $parameter->{remote_user}  ? $parameter->{remote_user}  : $anvil->data->{sys}{apache}{user};
+	my $target       = defined $parameter->{target}       ? $parameter->{target}       : "";
+	my $user         = defined $parameter->{user}         ? $parameter->{user}         : "";
+	my $return_code  = 255;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		user         => $user, 
+		target       => $target, 
+		port         => $port, 
+		remote_user  => $remote_user, 
+		new_password => $anvil->Log->secure ? $new_password : "--", 
+		password     => $anvil->Log->secure ? $password     : "--", 
+	}});
+	
+	# Set the user to 'admin' if it's not set.
+	if (not $user)
+	{
+		$user = "admin";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { user => $user }});
+	}
+	
+	# OK, what about a password?
+	if (not $new_password)
+	{
+		# Um...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->change_apache_password()", parameter => "new_password" }});
+		return($return_code);
+	}
+	
+	# Only the root user can do this!
+	# $< == real UID, $> == effective UID
+	if (($< != 0) && ($> != 0))
+	{
+		# Not root
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0156", variables => { method => "Systeme->change_apache_password()" }});
+		return($return_code);
+	}
+	
+	# Read httpd.conf and make sure apache is configured for .htpasswd.
+	my $httpd_conf = $anvil->Storage->read_file({
+		file        => $anvil->data->{path}{configs}{'httpd.conf'},
+		debug       => $debug, 
+		target      => $target,
+		port        => $port, 
+		remote_user => $remote_user, 
+		password    => $password,
+	});
+	if ($httpd_conf eq "!!error!!")
+	{
+		# We're done.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { httpd_conf => $httpd_conf }});
+		return($return_code);
+	}
+	my $rewrite      = 0;
+	my $new_file     = "";
+	my $in_directory = 0;
+	foreach my $line (split/\n/, $httpd_conf)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
+		
+		if ($in_directory)
+		{
+			if ($line =~ /^(\s+)AllowOverride None/i)
+			{
+				# We need to update.
+				my $space    =  $1;
+				   $rewrite  =  1;
+				   $new_file .= $space."AllowOverride AuthConfig\n";
+				next; 
+			}
+			elsif ($line eq "</Directory>")
+			{
+				$in_directory = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { in_directory => $in_directory }});
+			}
+		}
+		elsif ($line eq '<Directory "/var/www/html">')
+		{
+			$in_directory = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { in_directory => $in_directory }});
+		}
+		
+		$new_file .= $line."\n";
+	}
+	
+	if ($rewrite)
+	{
+		# Back it up first.
+		my $backup_file = $anvil->Storage->backup({
+			file        => $anvil->data->{path}{configs}{'httpd.conf'},
+			debug       => $debug, 
+			target      => $target,
+			port        => $port, 
+			remote_user => $remote_user, 
+			password    => $password,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+		
+		if ($backup_file)
+		{
+			# Proceed.
+			$anvil->Storage->write_file({
+				body        => $new_file,
+				debug       => $debug,
+				file        => $anvil->data->{path}{configs}{'httpd.conf'},
+				overwrite   => 1,
+				secure      => 0,
+				target      => $target,
+				port        => $port, 
+				remote_user => $remote_user, 
+				password    => $password,
+			});
+		}
+	}
+	
+	return($return_code);
+}
+
 
 =head2 change_shell_user_password
 
