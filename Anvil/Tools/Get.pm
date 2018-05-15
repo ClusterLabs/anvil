@@ -22,6 +22,8 @@ my $THIS_FILE = "Get.pm";
 # switches
 # users_home
 # uuid
+# _salt
+# _wrap_to
 
 =pod
 
@@ -444,7 +446,7 @@ sub host_uuid
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
 	if ($set)
@@ -514,7 +516,13 @@ sub host_uuid
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
+	# We'll also store the host UUID in a variable.
+	if ((not $anvil->data->{sys}{host_uuid}) && ($anvil->data->{HOST}{UUID}))
+	{
+		$anvil->data->{sys}{host_uuid} = $anvil->data->{HOST}{UUID};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
+	}
+	
 	return($anvil->data->{HOST}{UUID});
 }
 
@@ -784,7 +792,7 @@ sub uuid
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	### TODO: System calls are slow, find a pure-perl UUID generator
-	my $uuid = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uuidgen}." --random"});
+	my $uuid = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{uuidgen}." --random"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
 	return($uuid);
@@ -799,3 +807,99 @@ sub uuid
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2 _salt
+
+This generates a random salt string for use with internal Striker passwords.
+
+=cut
+sub _salt
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	my $salt        = "";
+	my $salt_length = 16;
+	my @seed        = (" ", "~", "`", "!", "#", "^", "&", "*", "(", ")", "-", "_", "+", "=", "{", "[", "}", "]", "|", ":", ";", "'", ",", "<", ".", ">", "/");
+	my @alpha       = ("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z");
+	my $seed_count  = @seed;
+	my $alpha_count = @alpha;
+
+	my $skip_count = 0;
+	for (1..$salt_length)
+	{
+		# We want to have a little randomness in the salt length, but not skip tooooo many times.
+		if ((int(rand(20)) == 2) && ($skip_count <= 3))
+		{
+			$skip_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { skip_count => $skip_count }});
+			next;
+		}
+		
+		# What character will this string be?
+		my $this_integer = int(rand(3));
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_integer => $this_integer }});
+		if ($this_integer == 0)
+		{
+			# Inject a random digit
+			$salt .= int(rand(10));
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { salt => $salt }});
+		}
+		elsif ($this_integer == 1)
+		{
+			# Inject a random letter
+			$salt .= $alpha[int(rand($alpha_count))];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { salt => $salt }});
+		}
+		else
+		{
+			# Inject a random character
+			$salt .= $seed[int(rand($seed_count))];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { salt => $salt }});
+		}
+	}
+
+	return($salt);
+}
+
+
+=head2 _wrap_to
+
+This determines how wide the user's terminal currently is and returns that width, as well as store it in C<< sys::terminal::columns >>.
+
+This takes no parameters. If there is a problem reading the column width, C<< 0 >> will be returned.
+
+=cut
+sub _wrap_to
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Get the column width
+	my $shell_call = $anvil->data->{path}{exe}{tput}." cols";
+	my $columns    = $anvil->System->call({
+		debug           => $debug, 
+		redirect_stderr => 0, 
+		shell_call      => $shell_call, 
+	});
+	if ((not defined $columns) or ($columns !~ /^\d+$/))
+	{
+		# Set 0.
+		$columns = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { columns => $columns }});
+	}
+	else
+	{
+		# Got a good value
+		$anvil->data->{sys}{terminal}{columns} = $columns;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::terminal::columns' => $anvil->data->{sys}{terminal}{columns} }});
+	}
+
+	return($columns);
+}
+
+1;

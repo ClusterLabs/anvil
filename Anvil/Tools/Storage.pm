@@ -1808,7 +1808,7 @@ This writes out a file, either locally or on a remote system. It can optionally 
  	mode  => "0644",
  });
 
-If it fails to write the file, an alert will be logged.
+Returns C<< 0 >> on success. C<< 1 >> or an error string will be returned otherwise.
 
 Parameters;
 
@@ -1879,6 +1879,7 @@ sub write_file
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "root";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $error       = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
 		body        => $body,
 		file        => $file,
@@ -1901,7 +1902,6 @@ sub write_file
 		user      => $user,
 	}});
 	
-	my $error = 0;
 	
 	# Make sure the passed file is a full path and file name.
 	if ($file !~ /^\/\w/)
@@ -2111,7 +2111,7 @@ fi";
 		}
 	}
 	
-	return(0);
+	return($error);
 }
 
 

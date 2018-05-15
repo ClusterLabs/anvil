@@ -38,6 +38,73 @@ BEGIN
 END
 $$;
 
+-- This stores information about users. 
+-- Note that is all permissions are left false, the user can still interact with the Anvil! doing safe things, like changing optical media, perform migrations, start servers (but not stop them), etc. 
+CREATE TABLE users (
+    user_uuid            uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    user_name            text                        not null,
+    user_password        text,                                                   -- A user without a password is disabled.
+    user_salt            text,                                                   -- This is used to enhance the security of the user's password.
+    user_language        text,                                                   -- If set, this will choose a different language over the default.
+    user_is_admin        boolean                     not null    default false,  -- If true, all aspects of the program are available to the user. 
+    user_is_experienced  boolean                     not null    default false,  -- If true, user is allowed to delete a server, alter disk size, alter hardware and do other potentially risky things. They will also get fewer confirmation dialogues. 
+    user_is_trusted      boolean                     not null    default false,  -- If true, user is allowed to do things that would cause interruptions, like force-reset and gracefully stop servers, withdraw nodes, and stop the Anvil! entirely.
+    modified_date        timestamp with time zone    not null
+);
+ALTER TABLE users OWNER TO #!variable!user!#;
+
+CREATE TABLE history.users (
+    history_id           bigserial,
+    user_uuid            uuid,
+    user_name            text,
+    user_password        text,
+    user_salt            text,
+    user_language        text,
+    user_is_admin        boolean,
+    user_is_experienced  boolean,
+    user_is_trusted      boolean,
+    modified_date        timestamp with time zone    not null
+);
+ALTER TABLE history.users OWNER TO #!variable!user!#;
+
+CREATE FUNCTION history_users() RETURNS trigger
+AS $$
+DECLARE
+    history_users RECORD;
+BEGIN
+    SELECT INTO history_users * FROM users WHERE user_uuid = new.user_uuid;
+    INSERT INTO history.users
+        (user_uuid, 
+         user_name, 
+         user_password, 
+         user_salt, 
+         user_language, 
+         user_is_admin, 
+         user_is_experienced, 
+         user_is_trusted, 
+         modified_date)
+    VALUES
+        (history_users.user_uuid,
+         history_users.user_name,
+         history_users.user_password, 
+         history_users.user_salt, 
+         history_users.user_language, 
+         history_users.user_is_admin, 
+         history_users.user_is_experienced, 
+         history_users.user_is_trusted, 
+         history_users.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_users() OWNER TO #!variable!user!#;
+
+CREATE TRIGGER trigger_users
+    AFTER INSERT OR UPDATE ON users
+    FOR EACH ROW EXECUTE PROCEDURE history_users();
+
+
+
 -- This stores information about the host machine. This is the master table that everything will be linked 
 -- to. 
 CREATE TABLE hosts (

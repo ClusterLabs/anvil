@@ -23,7 +23,7 @@ my $THIS_FILE = "Alert.pm";
 
 Anvil::Tools::Alert
 
-Provides all methods related warnings and alerts.
+Provides all methods related to warnings and alerts.
 
 =head1 SYNOPSIS
 

@@ -38,6 +38,7 @@ binmode(STDOUT, ':encoding(utf-8)');
 # I intentionally don't use EXPORT, @ISA and the like because I want my "subclass"es to be accessed in a
 # somewhat more OO style. I know some may wish to strike me down for this, but I like the idea of accessing
 # methods via their containing module's name. (A La: C<< $anvil->Module->method >> rather than C<< $anvil->method >>).
+use Anvil::Tools::Account;
 use Anvil::Tools::Alert;
 use Anvil::Tools::Database;
 use Anvil::Tools::Convert;
@@ -113,6 +114,7 @@ sub new
 	my $parameter = shift;
 	my $self      = {
 		HANDLE				=>	{
+			ACCOUNT				=>	Anvil::Tools::Account->new(),
 			ALERT				=>	Anvil::Tools::Alert->new(),
 			DATABASE			=>	Anvil::Tools::Database->new(),
 			CONVERT				=>	Anvil::Tools::Convert->new(),
@@ -149,6 +151,7 @@ sub new
 	$anvil->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
 	
 	# Get a handle on the various submodules
+	$anvil->Account->parent($anvil);
 	$anvil->Alert->parent($anvil);
 	$anvil->Database->parent($anvil);
 	$anvil->Convert->parent($anvil);
@@ -196,6 +199,9 @@ sub new
 	{
 		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	}
+	
+	# Get the local host UUID.
+	$anvil->Get->host_uuid;
 	
 	# Read in any command line switches.
 	$anvil->Get->switches;
@@ -364,6 +370,18 @@ sub nice_exit
 The methods below are used to access methods of submodules using 'C<< $anvil->Module->method() >>'.
 
 =cut
+
+=head2 Account
+
+Access the C<Acount.pm> methods via 'C<< $anvil->Alert->method >>'.
+
+=cut
+sub Account
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{ACCOUNT});
+}
 
 =head2 Alert
 
@@ -700,8 +718,12 @@ sub _set_defaults
 			user				=>	"admin",
 		},
 		host_type			=>	"",
+		host_uuid			=>	"",
 		log_file			=>	"/var/log/anvil.log",
-		stty				=>	"",
+		terminal			=>	{
+			columns				=>	80,
+			stty				=>	"",
+		},
 		use_base2			=>	1,
 	};
 	$anvil->data->{defaults} = {
@@ -762,7 +784,7 @@ sub _set_paths
 			},
 			data			=>	{
 				group			=>	"/etc/group",
-				htpasswd		=>	"/var/www/home/htpasswd",
+				'.htpasswd'		=>	"/etc/httpd/.htpasswd",
 				host_uuid		=>	"/etc/anvil/host.uuid",
 				passwd			=>	"/etc/passwd",
 			},
@@ -824,6 +846,7 @@ sub _set_paths
 				systemctl		=>	"/usr/bin/systemctl",
 				timeout			=>	"/usr/bin/timeout",
 				touch			=>	"/usr/bin/touch",
+				tput			=>	"/usr/bin/tput", 
 				'tr'			=>	"/usr/bin/tr",
 				usermod			=>	"/usr/sbin/usermod",
 				uuidgen			=>	"/usr/bin/uuidgen",
@@ -929,11 +952,11 @@ sub catch_sig
 	{
 		print "Process with PID: [$$] exiting on SIG".$signal.".\n";
 		
-		if ($anvil->data->{sys}{stty})
+		if ($anvil->data->{sys}{terminal}{stty})
 		{
 			# Restore the terminal.
 			print "Restoring the terminal\n";
-			$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{stty}});
+			$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{terminal}{stty}});
 		}
 	}
 	$anvil->nice_exit({code => 255});

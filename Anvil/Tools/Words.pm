@@ -22,6 +22,7 @@ my $THIS_FILE = "Words.pm";
 # language
 # read
 # string
+# _wrap_string
 
 =pod
 
@@ -339,7 +340,7 @@ This time, requesting 'C<< t_0002 >>' and passing in two variables. Note that 'C
 
 So to request this string in Canadian English is the two variables inserted, we would call:
 
- my $string = $anvil->Words->string({	
+ my $string = $anvil->Words->string({
  	language  => 'en_CA',
  	key       => 't_0002',
  	variables => {
@@ -604,5 +605,152 @@ sub string
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2 _wrap_string
+
+When printing strings to the console, this will wrap the string based on the current output of C<< $anvil->Get->_wrap_to >> (which itself updates C<< sys::terminal::columns >>).
+
+This method looks for a string that starts with spaces or C<< [ foo ] - >> type leader and preserves the spacing when wrapping lines.
+
+This returns the wrapped string as a simple string variable.
+
+Parameters;
+
+=head3 string
+
+This is the string to wrap. If no string is passed in, a blank string will be returned.
+
+=cut
+sub _wrap_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Get the string to wrap.
+	my $string = defined $parameter->{string} ? $parameter->{string} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+	
+	# Update the wrap length
+	$anvil->Get->_wrap_to;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::terminal::columns' => $anvil->data->{sys}{terminal}{columns} }});
+	
+	# If the given line starts with tabs, convert them to 8 spaces.
+	my $start_spaces = "";
+	if ($string =~ /^(\s+)/)
+	{
+		$start_spaces = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { start_spaces => $start_spaces }});
+		
+		# Now strip the leading space, convert any tabs to spaces and then bolt the new spacing back 
+		# on.
+		$string       =~ s/^\s+//;
+		$start_spaces =~ s/\t/        /g;
+		$string       =  $start_spaces.$string;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			start_spaces => $start_spaces,
+			string       => $string, 
+		}});
+	}
+	
+	# This will contain the wrapped string
+	my $wrapped_string = "";
+	if ($string)
+	{
+		# Create the space prefix for wrapped lines.
+		my $prefix_spaces = "";
+		if ($string =~ /^\[ (.*?) \] - /)
+		{
+			my $prefix      = "[ $1 ] - ";
+			my $wrap_spaces = length($prefix);
+			for (1..$wrap_spaces)
+			{
+				$prefix_spaces .= " ";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				prefix        => $prefix,
+				wrap_spaces   => $wrap_spaces, 
+				prefix_spaces => $prefix_spaces, 
+			}});
+		}
+		elsif ($string =~/^(\s+)/)
+		{
+			# We have some number of white spaces.
+			my $prefix      =  $1;
+			my $say_prefix  =  $prefix;
+			my $wrap_spaces =  length($say_prefix);
+			for (1..$wrap_spaces)
+			{
+				$prefix_spaces .= " ";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				prefix        => $prefix,
+				wrap_spaces   => $wrap_spaces, 
+				say_prefix    => $say_prefix, 
+				prefix_spaces => $prefix_spaces, 
+			}});
+		}
+		
+		my $this_line =  $prefix_spaces;
+		   $string    =~ s/^\s+//;
+		foreach my $word (split/ /, $string)
+		{
+			# Store the line as it was before in case the next word pushes line line past the 
+			# 'wrap_to' value. Then append this word and see if we're over the width of the 
+			# terminal. If we are, we'll use 'last_line' to append to 'wrapped_string' and use
+			# this word to start the next line.
+			my $last_line   =  $this_line;
+			   $this_line   .= $word;
+			my $line_length =  length($this_line); 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:last_line' => $last_line, 
+				's2:word'      => $word,
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:line_length' => $line_length, 
+				's2:this_line'   => $this_line, 
+			}});
+			
+			if ((not $last_line) && ($line_length >= $anvil->data->{sys}{terminal}{columns}))
+			{
+				# This one word goes over the length of the column, so we have to store it as
+				# it's own line.
+				$wrapped_string .= $word."\n";
+				$this_line      =  $prefix_spaces;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					this_line      => $this_line, 
+					wrapped_string => $wrapped_string,
+				}});
+			}
+			elsif ($line_length > $anvil->data->{sys}{terminal}{columns})
+			{
+				# This word appended to the line pushes over the terminal width, so store the
+				# 'last_line' and use this word to start the next line.
+				$last_line      =~ s/\s+$//;
+				$wrapped_string .= $last_line."\n";
+				$this_line      =  $prefix_spaces.$word." ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					this_line      => $this_line, 
+					wrapped_string => $wrapped_string,
+				}});
+			}
+			else
+			{
+				# Just add a space after this word, we're not at the edge yet.
+				$this_line .= " ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_line => $this_line }});
+			}
+		}
+		
+		# We're out of the loop, so store the 'last_line' and remove the last space.
+		$this_line      =~ s/\s+$//;
+		$wrapped_string .= $this_line;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wrapped_string => $wrapped_string }});
+	}
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wrapped_string => $wrapped_string }});
+	return($wrapped_string);
+}
 
 1;
