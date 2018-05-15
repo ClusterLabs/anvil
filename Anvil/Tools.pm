@@ -720,6 +720,11 @@ sub _set_defaults
 		host_type			=>	"",
 		host_uuid			=>	"",
 		log_file			=>	"/var/log/anvil.log",
+		password			=>	{
+			algorithm			=>	"sha512",
+			hash_count			=>	500000,
+			salt_length			=>	16,
+		},
 		terminal			=>	{
 			columns				=>	80,
 			stty				=>	"",

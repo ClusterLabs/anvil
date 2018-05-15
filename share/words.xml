@@ -250,6 +250,7 @@ The database connection error was:
 		<key name="log_0168">Failed to create the directory: [#!variable!directory!#]. The error (if any) was: [#!variable!error!#].</key>
 		<key name="log_0169">Failed to copy the file: [#!variable!source_file!#] to: [#!variable!target_file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0170"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target's parent directory doesn't exist and we were unable to create it.]]></key>
+		<key name="log_0171"><![CDATA[[ Error ] - The method: Account->encrypt_password() tried to use the algorithm: [#!variable!algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported. The desired algorithm can be set via 'sys::password::algorithm'.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

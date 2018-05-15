@@ -30,7 +30,8 @@ Requires:       gpm
 Requires:       mlocate 
 Requires:       perl-Data-Dumper 
 Requires:       perl-DBD-Pg 
-Requires:       perl-DBI 
+Requires:       perl-DBI
+Requires:       perl-Digest-SHA
 Requires:       perl-JSON 
 Requires:       perl-Log-Journald 
 Requires:       perl-Net-SSH2 

@@ -45,6 +45,8 @@ CREATE TABLE users (
     user_name            text                        not null,
     user_password        text,                                                   -- A user without a password is disabled.
     user_salt            text,                                                   -- This is used to enhance the security of the user's password.
+    user_algorithm       text,                                                   -- This is the algorithm used to encrypt the password and salt.
+    user_hash_count      text,                                                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
     user_language        text,                                                   -- If set, this will choose a different language over the default.
     user_is_admin        boolean                     not null    default false,  -- If true, all aspects of the program are available to the user. 
     user_is_experienced  boolean                     not null    default false,  -- If true, user is allowed to delete a server, alter disk size, alter hardware and do other potentially risky things. They will also get fewer confirmation dialogues. 
@@ -59,6 +61,8 @@ CREATE TABLE history.users (
     user_name            text,
     user_password        text,
     user_salt            text,
+    user_algorithm       text,
+    user_hash_count      text,
     user_language        text,
     user_is_admin        boolean,
     user_is_experienced  boolean,
@@ -78,6 +82,8 @@ BEGIN
          user_name, 
          user_password, 
          user_salt, 
+         user_algorithm, 
+         user_hash_count, 
          user_language, 
          user_is_admin, 
          user_is_experienced, 
@@ -88,6 +94,8 @@ BEGIN
          history_users.user_name,
          history_users.user_password, 
          history_users.user_salt, 
+         history_users.user_algorithm, 
+         history_users.user_hash_count, 
          history_users.user_language, 
          history_users.user_is_admin, 
          history_users.user_is_experienced, 
