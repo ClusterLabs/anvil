@@ -13,7 +13,7 @@ my $THIS_FILE = "Account.pm";
 
 ### Methods;
 # encrypt_password
-
+# 
 
 
 =pod
@@ -76,7 +76,7 @@ sub parent
 
 =head2 encrypt_password
 
-This takes a string (a new password from a user), generates a salt, appends the salt to the string and hashes that using C<< sys::password::algorithm >>, the re-hashes the string C<< sys::password::hash_count >> times. The default algorithm is 'sha256' and the default rehashing count is '100,000' times.
+This takes a string (a new password from a user), generates a salt, appends the salt to the string and hashes that using C<< sys::password::algorithm >>, the re-hashes the string C<< sys::password::hash_count >> times. The default algorithm is 'sha512' and the default rehashing count is '500,000' times. 
 
 This method returns a hash reference with the following keys;
 
@@ -137,6 +137,7 @@ sub encrypt_password
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { salt => $salt }});
 	}
 	
+	### TODO: Look at using/support bcrypt as the default algorithm. Needed RPMs are already in the el7 AN!Repo.
 	# We support sha256, sha384 and sha512, possible new ones later.
 	if ($algorithm eq "sha256" )
 	{

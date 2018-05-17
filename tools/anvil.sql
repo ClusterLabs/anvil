@@ -43,11 +43,11 @@ $$;
 CREATE TABLE users (
     user_uuid            uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     user_name            text                        not null,
-    user_password        text,                                                   -- A user without a password is disabled.
-    user_salt            text,                                                   -- This is used to enhance the security of the user's password.
-    user_algorithm       text,                                                   -- This is the algorithm used to encrypt the password and salt.
-    user_hash_count      text,                                                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
-    user_language        text,                                                   -- If set, this will choose a different language over the default.
+    user_password        text                        not null,                   -- A user without a password is disabled.
+    user_salt            text                        not null,                   -- This is used to enhance the security of the user's password.
+    user_algorithm       text                        not null,                   -- This is the algorithm used to encrypt the password and salt.
+    user_hash_count      text                        not null,                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
+    user_language        text                        not null,                   -- If set, this will choose a different language over the default.
     user_is_admin        boolean                     not null    default false,  -- If true, all aspects of the program are available to the user. 
     user_is_experienced  boolean                     not null    default false,  -- If true, user is allowed to delete a server, alter disk size, alter hardware and do other potentially risky things. They will also get fewer confirmation dialogues. 
     user_is_trusted      boolean                     not null    default false,  -- If true, user is allowed to do things that would cause interruptions, like force-reset and gracefully stop servers, withdraw nodes, and stop the Anvil! entirely.

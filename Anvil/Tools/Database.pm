@@ -26,6 +26,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_jobs
 # insert_or_update_network_interfaces
 # insert_or_update_states
+# insert_or_update_users
 # insert_or_update_variables
 # lock_file
 # locking
@@ -2497,6 +2498,347 @@ WHERE
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 	return($state_uuid);
+}
+
+=head2 insert_or_update_users
+
+This updates (or inserts) a record in the 'users' table. The C<< user_uuid >> referencing the database row will be returned.
+
+If there is an error, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 user_uuid (optional)
+
+Is passed, the associated record will be updated.
+
+=head3 user_name (required)
+
+This is the user's name they type when logging into Striker.
+
+=head3 user_password (required)
+
+This is either the B<< hash >> of the user's password, or the raw password. Which it is will be determined by whether C<< user_salt >> is passed in. If it is, C<< user_algorithm >> and C<< user_hash_count >> will also be required. If not, the password will be hashed (and a salt generated) using the default algorithm and hash count.
+
+=head3 user_salt (optional, see 'user_password')
+
+This is the random salt used to generate the password hash.
+
+=head3 user_algorithm (optional, see 'user_password')
+
+This is the algorithm used to create the password hash (with the salt appended to the password).
+
+=head3 user_hash_count (optional, see 'user_password')
+
+This is how many times the initial hash is re-encrypted. 
+
+=head3 user_language (optional, default 'sys::language')
+
+=head3 user_is_admin (optional, default '0')
+
+This determines if the user is an administrator or not. If set to C<< 1 >>, then all features and functions are available to the user.
+
+=head3 user_is_experienced (optional, default '0')
+
+This determines if the user is trusted with potentially dangerous operations, like changing the disk space allocated to a server, deleting a server, and so forth. This also reduces the number of confirmation boxes presented to the user. Set to C<< 1 >> to enable.
+
+=head3 user_is_trusted (optional, default '0')
+
+This determines if the user is trusted to perform operations that are inherently safe, but can cause service interruptions. This includes shutting down (gracefully or forced) servers. Set to C<< 1 >> to enable.
+
+=cut
+sub insert_or_update_users
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
+	
+	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
+	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
+	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
+	my $user_uuid           = defined $parameter->{user_uuid}           ? $parameter->{user_uuid}           : "";
+	my $user_name           = defined $parameter->{user_name}           ? $parameter->{user_name}           : "";
+	my $user_password       = defined $parameter->{user_password}       ? $parameter->{user_password}       : "";
+	my $user_salt           = defined $parameter->{user_salt}           ? $parameter->{user_salt}           : "";
+	my $user_algorithm      = defined $parameter->{user_algorithm}      ? $parameter->{user_algorithm}      : "";
+	my $user_hash_count     = defined $parameter->{user_hash_count}     ? $parameter->{user_hash_count}     : "";
+	my $user_language       = defined $parameter->{user_language}       ? $parameter->{user_language}       : $anvil->data->{sys}{language};
+	my $user_is_admin       = defined $parameter->{user_is_admin}       ? $parameter->{user_is_admin}       : 0;
+	my $user_is_experienced = defined $parameter->{user_is_experienced} ? $parameter->{user_is_experienced} : 0;
+	my $user_is_trusted     = defined $parameter->{user_is_trusted}     ? $parameter->{user_is_trusted}     : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                => $uuid, 
+		file                => $file, 
+		line                => $line, 
+		user_uuid           => $user_uuid, 
+		user_name           => $user_name, 
+		user_password       => (($anvil->Log->secure) or ($user_salt)) ? $user_password : "--" , 
+		user_salt           => $user_salt, 
+		user_algorithm      => $user_algorithm, 
+		user_hash_count     => $user_hash_count, 
+		user_language       => $user_language, 
+		user_is_admin       => $user_is_admin, 
+		user_is_experienced => $user_is_experienced, 
+		user_is_trusted     => $user_is_trusted, 
+	}});
+	
+	if (not $user_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_users()", parameter => "user_name" }});
+		return("");
+	}
+	if (not $user_password)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_users()", parameter => "user_password" }});
+		return("");
+	}
+	
+	# If we have a salt, we need the algorithm and hash count. If not, we'll generate the hash by 
+	# treating the password like the initial string.
+	if ($user_salt)
+	{
+		# We have a salt, so we also need the algorithm and loop count.
+		if (not $user_algorithm)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_users()", parameter => "user_algorithm" }});
+			return("");
+		}
+		if (not $user_hash_count)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_users()", parameter => "user_hash_count" }});
+			return("");
+		}
+	}
+	else
+	{
+		# No salt given, we'll generate a hash now.
+		my $answer          = $anvil->Account->encrypt_password({password => $user_password});
+		   $user_password   = $answer->{hash};
+		   $user_salt       = $answer->{salt};
+		   $user_algorithm  = $answer->{algorithm};
+		   $user_hash_count = $answer->{loops};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			user_password   => (($anvil->Log->secure) or ($user_salt)) ? $user_password : "--" , 
+			user_salt       => $user_salt, 
+			user_algorithm  => $user_algorithm, 
+			user_hash_count => $user_hash_count, 
+		}});
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given user server name.
+	if (not $user_uuid)
+	{
+		my $query = "
+SELECT 
+    user_uuid 
+FROM 
+    users 
+WHERE 
+    user_name = ".$anvil->data->{sys}{use_db_fh}->quote($user_name)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			$user_uuid = $row->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
+		}
+	}
+	
+	# Switch the values to be boolean friendly for the database.
+	my $say_user_is_admin       = (($user_is_admin       eq "1") or ($user_is_admin       =~ /true/i)) ? "TRUE" : "FALSE";
+	my $say_user_is_experienced = (($user_is_experienced eq "1") or ($user_is_experienced =~ /true/i)) ? "TRUE" : "FALSE";
+	my $say_user_is_trusted     = (($user_is_trusted     eq "1") or ($user_is_trusted     =~ /true/i)) ? "TRUE" : "FALSE";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		say_user_is_admin       => $say_user_is_admin,
+		say_user_is_experienced => $say_user_is_experienced,
+		say_user_is_trusted     => $say_user_is_trusted, 
+	}});
+	
+	# If I still don't have an user_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
+	if (not $user_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $anvil->Database->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		   $user_uuid = $anvil->Get->uuid();
+		my $query     = "
+INSERT INTO 
+    users 
+(
+    user_uuid, 
+    user_name,
+    user_password, 
+    user_salt, 
+    user_algorithm, 
+    user_hash_count, 
+    user_language, 
+    user_is_admin, 
+    user_is_experienced, 
+    user_is_trusted, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_name).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_password).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_salt).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_language).", 
+    ".$say_user_is_admin.", 
+    ".$say_user_is_experienced.", 
+    ".$say_user_is_trusted.", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    user_name,
+    user_password, 
+    user_salt, 
+    user_algorithm, 
+    user_hash_count, 
+    user_language, 
+    user_is_admin, 
+    user_is_experienced, 
+    user_is_trusted 
+FROM 
+    users 
+WHERE 
+    user_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_user_name           = $row->[0];
+			my $old_user_password       = $row->[1];
+			my $old_user_salt           = $row->[2];
+			my $old_user_algorithm      = $row->[3];
+			my $old_user_hash_count     = $row->[4];
+			my $old_user_language       = $row->[5];
+			my $old_user_is_admin       = $row->[6];
+			my $old_user_is_experienced = $row->[7];
+			my $old_user_is_trusted     = $row->[8];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_user_name           => $old_user_name, 
+				old_user_password       => $old_user_password,
+				old_user_salt           => $old_user_salt,
+				old_user_algorithm      => $old_user_algorithm,
+				old_user_hash_count     => $old_user_hash_count,
+				old_user_language       => $old_user_language,
+				old_user_is_admin       => $old_user_is_admin,
+				old_user_is_experienced => $old_user_is_experienced,
+				old_user_is_trusted     => $old_user_is_trusted,
+			}});
+			
+			# Switch the values to be boolean friendly for the database.
+			my $say_old_user_is_admin       = (($old_user_is_admin       eq "1") or ($old_user_is_admin       =~ /true/i)) ? "TRUE" : "FALSE";
+			my $say_old_user_is_experienced = (($old_user_is_experienced eq "1") or ($old_user_is_experienced =~ /true/i)) ? "TRUE" : "FALSE";
+			my $say_old_user_is_trusted     = (($old_user_is_trusted     eq "1") or ($old_user_is_trusted     =~ /true/i)) ? "TRUE" : "FALSE";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				say_old_user_is_admin       => $say_old_user_is_admin,
+				say_old_user_is_experienced => $say_old_user_is_experienced,
+				say_old_user_is_trusted     => $say_old_user_is_trusted, 
+			}});
+			
+			# Anything change?
+			if (($old_user_name               ne $user_name)               or 
+			    ($old_user_name               ne $user_name)               or 
+			    ($old_user_password           ne $user_password)           or 
+			    ($old_user_salt               ne $user_salt)               or 
+			    ($old_user_algorithm          ne $user_algorithm)          or 
+			    ($old_user_hash_count         ne $user_hash_count)         or 
+			    ($old_user_language           ne $user_language)           or 
+			    ($say_old_user_is_admin       ne $say_user_is_admin)       or 
+			    ($say_old_user_is_experienced ne $say_user_is_experienced) or 
+			    ($say_old_user_is_trusted     ne $say_user_is_trusted))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    users 
+SET 
+    user_name           = ".$anvil->data->{sys}{use_db_fh}->quote($user_name).", 
+    user_password       = ".$anvil->data->{sys}{use_db_fh}->quote($user_password).",  
+    user_salt           = ".$anvil->data->{sys}{use_db_fh}->quote($user_salt).",  
+    user_algorithm      = ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).",  
+    user_hash_count     = ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).",  
+    user_language       = ".$anvil->data->{sys}{use_db_fh}->quote($user_language).",  
+    user_is_admin       = ".$say_user_is_admin.", 
+    user_is_experienced = ".$say_user_is_experienced.", 
+    user_is_trusted     = ".$say_user_is_trusted.", 
+    modified_date       = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    user_uuid           = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)." 
+";
+				$query =~ s/'NULL'/NULL/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
+	return($user_uuid);
 }
 
 =head2 insert_or_update_variables
