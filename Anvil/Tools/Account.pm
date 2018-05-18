@@ -13,7 +13,7 @@ my $THIS_FILE = "Account.pm";
 
 ### Methods;
 # encrypt_password
-# 
+# validate_password
 
 
 =pod
@@ -206,6 +206,151 @@ sub encrypt_password
 	}});
 	
 	return($answer);
+}
+
+=head2 validate_password
+
+This method takes a user name and password and checks to see if the password matches.
+
+If the password is wrong, or if the user isn't found, C<< 0 >> is returned. If the password matches, C<< 1 >> is returned.
+
+Parameters;
+
+=head3 password (required)
+
+This is the password to test.
+
+=head3 user (required)
+
+This is the user whose password we're testing.
+
+=cut
+sub validate_password
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password  = defined $parameter->{password} ? $parameter->{password} : "";
+	my $user      = defined $parameter->{user}     ? $parameter->{user}     : "";
+	my $valid     = 0;
+	my $hash      = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password => $anvil->Log->secure ? $password : "--",
+		user     => $user, 
+	}});
+	
+	if (not $password)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Account->validate_password()", parameter => "password" }});
+		return($valid);
+	}
+	if (not $user)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Account->validate_password()", parameter => "user" }});
+		return($valid);
+	}
+	
+	my $query = "
+SELECT 
+    user_password, 
+    user_salt, 
+    user_algorithm, 
+    user_hash_count 
+FROM 
+    users 
+WHERE 
+    user_name = ".$anvil->data->{sys}{use_db_fh}->quote($user)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	
+	if (not $count)
+	{
+		# User not found.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0172", variables => { user => $user }});
+		return($valid);
+	}
+
+	my $user_password   = $results->[0]->[0];
+	my $user_salt       = $results->[0]->[1];
+	my $user_algorithm  = $results->[0]->[2];
+	my $user_hash_count = $results->[0]->[3];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		user_password   => $user_password,
+		user_salt       => $user_salt,
+		user_algorithm  => $user_algorithm,
+		user_hash_count => $user_hash_count,
+	}});
+	
+	if ($user_algorithm eq "sha256" )
+	{
+		$hash = sha256_base64($password.$user_salt);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hash => $hash }});
+		
+		if ($user_hash_count > 0)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_hash_count => $user_hash_count }});
+			for (1..$user_hash_count)
+			{
+				$hash = sha256_base64($hash);
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hash => $hash }});
+		}
+	}
+	elsif ($user_algorithm eq "sha384" )
+	{
+		$hash = sha384_base64($password.$user_salt);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hash => $hash }});
+		
+		if ($user_hash_count > 0)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_hash_count => $user_hash_count }});
+			for (1..$user_hash_count)
+			{
+				$hash = sha384_base64($hash);
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hash => $hash }});
+		}
+	}
+	elsif ($user_algorithm eq "sha512" )
+	{
+		$hash = sha512_base64($password.$user_salt);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hash => $hash }});
+		
+		if ($user_hash_count > 0)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_hash_count => $user_hash_count }});
+			for (1..$user_hash_count)
+			{
+				$hash = sha512_base64($hash);
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hash => $hash }});
+		}
+	}
+	else
+	{
+		# Bad algorith. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0173", variables => { user_algorithm => $user_algorithm }});
+		return($valid);
+	}
+	
+	# Test.
+	if ($hash eq $user_password)
+	{
+		# Good password.
+		$valid = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	return($valid);
 }
 
 1;
