@@ -2528,19 +2528,19 @@ Is passed, the associated record will be updated.
 
 This is the user's name they type when logging into Striker.
 
-=head3 user_password (required)
+=head3 user_password_hash (required)
 
 This is either the B<< hash >> of the user's password, or the raw password. Which it is will be determined by whether C<< user_salt >> is passed in. If it is, C<< user_algorithm >> and C<< user_hash_count >> will also be required. If not, the password will be hashed (and a salt generated) using the default algorithm and hash count.
 
-=head3 user_salt (optional, see 'user_password')
+=head3 user_salt (optional, see 'user_password_hash')
 
 This is the random salt used to generate the password hash.
 
-=head3 user_algorithm (optional, see 'user_password')
+=head3 user_algorithm (optional, see 'user_password_hash')
 
 This is the algorithm used to create the password hash (with the salt appended to the password).
 
-=head3 user_hash_count (optional, see 'user_password')
+=head3 user_hash_count (optional, see 'user_password_hash')
 
 This is how many times the initial hash is re-encrypted. 
 
@@ -2572,7 +2572,7 @@ sub insert_or_update_users
 	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
 	my $user_uuid           = defined $parameter->{user_uuid}           ? $parameter->{user_uuid}           : "";
 	my $user_name           = defined $parameter->{user_name}           ? $parameter->{user_name}           : "";
-	my $user_password       = defined $parameter->{user_password}       ? $parameter->{user_password}       : "";
+	my $user_password_hash  = defined $parameter->{user_password_hash}  ? $parameter->{user_password_hash}  : "";
 	my $user_salt           = defined $parameter->{user_salt}           ? $parameter->{user_salt}           : "";
 	my $user_algorithm      = defined $parameter->{user_algorithm}      ? $parameter->{user_algorithm}      : "";
 	my $user_hash_count     = defined $parameter->{user_hash_count}     ? $parameter->{user_hash_count}     : "";
@@ -2586,7 +2586,7 @@ sub insert_or_update_users
 		line                => $line, 
 		user_uuid           => $user_uuid, 
 		user_name           => $user_name, 
-		user_password       => (($anvil->Log->secure) or ($user_salt)) ? $user_password : "--" , 
+		user_password_hash  => (($anvil->Log->secure) or ($user_salt)) ? $user_password_hash : "--" , 
 		user_salt           => $user_salt, 
 		user_algorithm      => $user_algorithm, 
 		user_hash_count     => $user_hash_count, 
@@ -2602,10 +2602,10 @@ sub insert_or_update_users
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_users()", parameter => "user_name" }});
 		return("");
 	}
-	if (not $user_password)
+	if (not $user_password_hash)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_users()", parameter => "user_password" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_users()", parameter => "user_password_hash" }});
 		return("");
 	}
 	
@@ -2630,17 +2630,23 @@ sub insert_or_update_users
 	else
 	{
 		# No salt given, we'll generate a hash now.
-		my $answer          = $anvil->Account->encrypt_password({password => $user_password});
-		   $user_password   = $answer->{hash};
-		   $user_salt       = $answer->{salt};
-		   $user_algorithm  = $answer->{algorithm};
-		   $user_hash_count = $answer->{loops};
+		my $answer             = $anvil->Account->encrypt_password({password => $user_password_hash});
+		   $user_password_hash = $answer->{user_password_hash};
+		   $user_salt          = $answer->{user_salt};
+		   $user_algorithm     = $answer->{user_algorithm};
+		   $user_hash_count    = $answer->{user_hash_count};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			user_password   => (($anvil->Log->secure) or ($user_salt)) ? $user_password : "--" , 
-			user_salt       => $user_salt, 
-			user_algorithm  => $user_algorithm, 
-			user_hash_count => $user_hash_count, 
+			user_password_hash => (($anvil->Log->secure) or ($user_salt)) ? $user_password_hash : "--" , 
+			user_salt          => $user_salt, 
+			user_algorithm     => $user_algorithm, 
+			user_hash_count    => $user_hash_count, 
 		}});
+		
+		if (not $user_salt)
+		{
+			# Something went wrong.
+			return("");
+		}
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given user server name.
@@ -2713,7 +2719,7 @@ INSERT INTO
 (
     user_uuid, 
     user_name,
-    user_password, 
+    user_password_hash, 
     user_salt, 
     user_algorithm, 
     user_hash_count, 
@@ -2725,7 +2731,7 @@ INSERT INTO
 ) VALUES (
     ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_password).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_password_hash).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_salt).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).", 
@@ -2746,7 +2752,7 @@ INSERT INTO
 		my $query = "
 SELECT 
     user_name,
-    user_password, 
+    user_password_hash, 
     user_salt, 
     user_algorithm, 
     user_hash_count, 
@@ -2770,7 +2776,7 @@ WHERE
 		foreach my $row (@{$results})
 		{
 			my $old_user_name           = $row->[0];
-			my $old_user_password       = $row->[1];
+			my $old_user_password_hash  = $row->[1];
 			my $old_user_salt           = $row->[2];
 			my $old_user_algorithm      = $row->[3];
 			my $old_user_hash_count     = $row->[4];
@@ -2780,7 +2786,7 @@ WHERE
 			my $old_user_is_trusted     = $row->[8];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_user_name           => $old_user_name, 
-				old_user_password       => $old_user_password,
+				old_user_password_hash  => $old_user_password_hash,
 				old_user_salt           => $old_user_salt,
 				old_user_algorithm      => $old_user_algorithm,
 				old_user_hash_count     => $old_user_hash_count,
@@ -2803,7 +2809,7 @@ WHERE
 			# Anything change?
 			if (($old_user_name               ne $user_name)               or 
 			    ($old_user_name               ne $user_name)               or 
-			    ($old_user_password           ne $user_password)           or 
+			    ($old_user_password_hash      ne $user_password_hash)      or 
 			    ($old_user_salt               ne $user_salt)               or 
 			    ($old_user_algorithm          ne $user_algorithm)          or 
 			    ($old_user_hash_count         ne $user_hash_count)         or 
@@ -2818,7 +2824,7 @@ UPDATE
     users 
 SET 
     user_name           = ".$anvil->data->{sys}{use_db_fh}->quote($user_name).", 
-    user_password       = ".$anvil->data->{sys}{use_db_fh}->quote($user_password).",  
+    user_password_hash  = ".$anvil->data->{sys}{use_db_fh}->quote($user_password_hash).",  
     user_salt           = ".$anvil->data->{sys}{use_db_fh}->quote($user_salt).",  
     user_algorithm      = ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).",  
     user_hash_count     = ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).",  

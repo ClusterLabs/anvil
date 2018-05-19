@@ -177,7 +177,7 @@ sub check_availability
 	
 	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	   $count = 0 if not defined $count;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 	if ($count)
 	{
 		# We're waiting for the network configuration

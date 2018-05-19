@@ -43,7 +43,7 @@ $$;
 CREATE TABLE users (
     user_uuid            uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     user_name            text                        not null,
-    user_password        text                        not null,                   -- A user without a password is disabled.
+    user_password_hash   text                        not null,                   -- A user without a password is disabled.
     user_salt            text                        not null,                   -- This is used to enhance the security of the user's password.
     user_algorithm       text                        not null,                   -- This is the algorithm used to encrypt the password and salt.
     user_hash_count      text                        not null,                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
@@ -59,7 +59,7 @@ CREATE TABLE history.users (
     history_id           bigserial,
     user_uuid            uuid,
     user_name            text,
-    user_password        text,
+    user_password_hash   text,
     user_salt            text,
     user_algorithm       text,
     user_hash_count      text,
@@ -80,7 +80,7 @@ BEGIN
     INSERT INTO history.users
         (user_uuid, 
          user_name, 
-         user_password, 
+         user_password_hash, 
          user_salt, 
          user_algorithm, 
          user_hash_count, 
@@ -92,7 +92,7 @@ BEGIN
     VALUES
         (history_users.user_uuid,
          history_users.user_name,
-         history_users.user_password, 
+         history_users.user_password_hash, 
          history_users.user_salt, 
          history_users.user_algorithm, 
          history_users.user_hash_count, 
