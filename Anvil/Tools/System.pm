@@ -1793,7 +1793,7 @@ sub stty_echo
 	if ($set eq "off")
 	{
 		$anvil->data->{sys}{terminal}{stty} = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." --save"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 'sys::terminal::stty' => $anvil->data->{sys}{terminal}{stty} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 'sys::terminal::stty' => $anvil->data->{sys}{terminal}{stty} }});
 		$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." -echo"});
 	}
 	elsif (($set eq "on") && ($anvil->data->{sys}{terminal}{stty}))

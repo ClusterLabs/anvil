@@ -211,7 +211,7 @@ if ($local_uuid)
 	# Create the .pgpass file, if needed.
 	my $created_pgpass = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { 
-		'path::secure::postgres_pgpass'   => $anvil->data->{path}{secure}{postgres_pgpass},
+		'path::secure::postgres_pgpass'     => $anvil->data->{path}{secure}{postgres_pgpass},
 		"database::${local_uuid}::password" => $anvil->data->{database}{$local_uuid}{password}, 
 	}});
 	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$local_uuid}{password}))

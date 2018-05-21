@@ -25,6 +25,7 @@ my $THIS_FILE = "Storage.pm";
 # record_md5sums
 # rsync
 # search_directories
+# update_config
 # write_file
 # _create_rsync_wrapper
 
@@ -1796,6 +1797,174 @@ sub search_directories
 	return ($self->{SEARCH_DIRECTORIES});
 }
 
+=head2 update_config
+
+This takes a variable name and value and updates the C<< path::configs::anvil.conf >> file. If the given variable is already set to the requested value, nothing further is done.
+
+Returns C<< 0 >> on success, C<< 1 >> on error.
+
+B<< Note >>: If the variable is not found, it is treated like an error and C<< 1 >> is returned.
+
+Parameters;
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 secure (optional)
+
+If set to 'C<< 1 >>', the value is treated as containing secure data for logging purposes.
+
+=head3 target (optional)
+
+If set, the config file will be updated on the target machine. This must be either an IP address or a resolvable host name. 
+
+=head3 variable (required)
+
+This is the C<< a::b::c >> format variable name to update.
+
+=head3 value (optional)
+
+This is the value to set the C<< variable >> to. If this is not passed, the variable will be set to an empty string.
+
+The updated config file will be written locally in C<< /tmp/<file_name> >>, C<< $anvil->Storage->rsync() >> will be used to copy the file, and finally the local temprary copy will be removed.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=cut
+sub update_config
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $variable    = defined $parameter->{variable}    ? $parameter->{variable}    : "";
+	my $value       = defined $parameter->{value}       ? $parameter->{value}       : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $seen        = 0;
+	my $update      = 0;
+	my $new_file    = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		password    => $anvil->Log->secure ? $password : "--", 
+		port        => $port, 
+		secure      => $secure,
+		target      => $target,
+		value       => ((not $secure) or ($anvil->Log->secure)) ? $value : "--",
+		variable    => $variable, 
+		remote_user => $remote_user, 
+	}});
+	
+	if (not $variable)
+	{
+		# No source
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->update_config()", parameter => "variable" }});
+		return(1);
+	}
+	
+	# Read in the config file.
+	my $body = $anvil->Storage->read_file({
+		debug       => $debug,
+		file        => $anvil->data->{path}{configs}{'anvil.conf'}, 
+		password    => $password, 
+		port        => $port, 
+		target      => $target, 
+		remote_user => $remote_user, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+	foreach my $line (split/\n/, $body)
+	{
+		my $original_line =  $line;
+		   $line          =~ s/#.*$//;
+		   $line          =~ s/^\s+//;
+		   
+		if ($line =~ /^(.*?)=(.*)$/)
+		{
+			my $this_variable =  $1;
+			my $this_value    =  $2;
+			   $this_variable =~ s/\s+$//;
+			   $this_value    =~ s/^\s+//;
+			my $is_secure     =  $this_variable =~ /passw/i ? 1 : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+				this_variable => $this_variable,
+				this_value    => ((not $is_secure) or ($anvil->Log->secure)) ? $this_value : "--",
+			}});
+			if ($this_variable eq $variable)
+			{
+				$seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { seen => $seen }});
+				if ($this_value ne $value)
+				{
+					$update =  1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { update => $update }});
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { ">> original_line" => $original_line }});
+					$original_line =~ s/$this_value/$value/;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { "<< original_line" => $original_line }});
+				}
+			}
+		}
+		$new_file .= $original_line."\n";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { new_file => $new_file }});
+	
+	# Did we see the variable?
+	if (not $seen)
+	{
+		if ($target)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0175", variables => { 
+				variable => $variable, 
+				file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
+				target   => $target,
+			}});
+			return(1);
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0174", variables => { 
+				variable => $variable, 
+				file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
+			}});
+			return(1);
+		}
+	}
+	
+	# Do we need to update the file?
+	my $error = 0;
+	if ($update)
+	{
+		# Yup!
+		$error = $anvil->Storage->write_file({
+			body        => $new_file,
+			debug       => $debug,
+			file        => $anvil->data->{path}{configs}{'anvil.conf'},
+			group       => "admin", 
+			mode        => "0640",
+			overwrite   => 1,
+			secure      => 1,
+			user        => "admin",
+			password    => $password, 
+			port        => $port, 
+			target      => $target, 
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { error => $error }});
+	}
+	
+	return($error);
+}
+
 =head2 write_file
 
 This writes out a file, either locally or on a remote system. It can optionally set the ownership and mode as well.
@@ -1880,7 +2049,7 @@ sub write_file
 	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "root";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $error       = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		body        => $body,
 		file        => $file,
 		group       => $group, 
