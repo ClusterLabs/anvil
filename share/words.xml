@@ -45,6 +45,16 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="message_0021">Proceed? [y/N]</key>
 		<key name="message_0022">Aborting.</key>
 		<key name="message_0023">Auto-approved by command line switch, proceeding.</key>
+		<key name="message_0024">Updating the Striker user: [#!variable!user!#] password... </key>
+		<key name="message_0025">Done.</key>
+		<key name="message_0026">Updating the database user: [#!variable!user!#] password... </key>
+		<key name="message_0027">Updating the local config file: [#!variable!file!#] database password... </key>
+		<key name="message_0028">Updating the shell user: [#!variable!user!#] password... </key>
+		<key name="message_0029">Finished! 
+
+NOTE: You must update the password of any other system using this host's 
+      database manually!
+		</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -352,7 +362,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0005">This program must run with 'root' level privileges.</key>
 		<key name="error_0006">No password was given, exiting.</key>
 		<key name="error_0007">The passwords don't match, exiting.</key>
-		<key name="error_0008">Failed to read the file: [#!variable!file!#]. Please see the logs for details</key>
+		<key name="error_0008">Failed to read the file: [#!variable!file!#]. It doesn't appear to exist.</key>
 		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
 		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
 		

@@ -608,20 +608,43 @@ sub variables
 		}
 		else
 		{
-			# Put all the entries on their own line.
+			# Put all the entries on their own line. We'll loop twice; the first time to get the 
+			# longest variable, and the second loop to print them (with dots to make the values 
+			# all line up).
+			my $length = 0;
+			foreach my $key (sort {$a cmp $b} keys %{$list})
+			{
+				if (length($key) > $length)
+				{
+					$length = length($key);
+				}
+			}
+			# We add '1' to account for the colon we append.
+			$length++;
+			
 			$raw .= $anvil->Words->string({key => "log_0019"})."\n";
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
 				# Strip a leading 'sX:' in case the user is sorting the output.
 				my $say_key =  $key;
 				   $say_key =~ s/^s(\d+)://;
+				   $say_key .= ":";
+				my $difference = $length - length($say_key);
+				if ($difference)
+				{
+					$say_key .= " ";
+					for (2..$difference)
+					{
+						$say_key .= ".";
+					}
+				}
 				if ($entry ne $entries)
 				{
-					$raw .= "|- $say_key: [".$list->{$key}."]\n";
+					$raw .= "|- $say_key [".$list->{$key}."]\n";
 				}
 				else
 				{
-					$raw .= "\\- $say_key: [".$list->{$key}."]\n";
+					$raw .= "\\- $say_key [".$list->{$key}."]\n";
 				}
 				$entry++;
 			}

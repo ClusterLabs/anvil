@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This is called when the local network needs to be reconfigured.
+# This is called when striker needs to configure the local network and user accounts.
 # 
 # Exit codes;
 # 0 = Normal exit.
@@ -84,6 +84,18 @@ $anvil->nice_exit({code => 0});
 sub update_passwords
 {
 	my ($anvil) = @_;
+	
+	# Write the password into a temporary file.
+	my $error = $anvil->Storage->write_file({
+		body      => ,
+		debug     => $debug,
+		file      => $temp_file,
+		group     => $group, 
+		mode      => $mode,
+		overwrite => 1,
+		secure    => $secure,
+		user      => $user,
+	});
 	
 	
 	return(0);

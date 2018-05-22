@@ -48,11 +48,17 @@ sub report_network
 {
 	my ($anvil) = @_;
 	
-	# Write out the data in json format.
+	# Run 'ip addr' to see what IPs are in use. The results will be stored in:
+	$anvil->System->get_ips();
+	
+	# We'll read through '/sys/class/net' looking for network interfaces.
+	# * 'sys::network::interface::<iface_name>::ip'     - If an IP address is set
+	# * 'sys::network::interface::<iface_name>::subnet' - If an IP is set
 	my $directory = $anvil->data->{path}{sysfs}{network_interfaces};
-	#print $THIS_FILE." ".__LINE__."; directory: [".$directory."]\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
+	
 	local(*DIRECTORY);
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
 	while(my $file = readdir(DIRECTORY))
 	{
@@ -61,7 +67,7 @@ sub report_network
 		next if $file eq "lo";
 		next if $file =~ /virbr\d/;
 		my $full_path = "$directory/$file";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
@@ -71,48 +77,96 @@ sub report_network
 			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
 			my $operational = -e $full_path."/operstate" ? $anvil->Storage->read_file({file => $full_path."/operstate"}) : "unknown";	# up or down
+			my $ip_address  = "";
+			my $subnet_mask = "";
 			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed", debug => 2}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			my $media       = "unknown";
+			my $is_bond     = 0;
+			my $is_slave    = 0;
+			
+			if (exists $anvil->data->{sys}{network}{interface}{$interface})
+			{
+				$ip_address  = $anvil->data->{sys}{network}{interface}{$interface}{ip}     ? $anvil->data->{sys}{network}{interface}{$interface}{ip}     : "";
+				$subnet_mask = $anvil->data->{sys}{network}{interface}{$interface}{subnet} ? $anvil->data->{sys}{network}{interface}{$interface}{subnet} : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ip_address  => $ip_address, 
+					subnet_mask => $subnet_mask,
+				}});
+			}
+			
+			# If this interface is already a bond slave, the real mac address will be in a 
+			# sub-directory.
+			my $mac_bond_file = $directory."/".$file."/bonding_slave/perm_hwaddr";
+			if (-e $mac_bond_file)
+			{
+				# It's a slave.
+				$is_slave    = 1;
+				$mac_address = $anvil->Storage->read_file({file => $mac_bond_file});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					is_slave    => $is_slave, 
+					mac_address => $mac_address,
+				}});
+			}
+			
+			# If this is a virtual interface, set some fake values that don't actually exist on 
+			# the system for the sake of a cleaner display.
 			if ($mac_address =~ /^52:54:00/)
 			{
 				### Set some fake values.
 				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
 				$speed  = 100000 if not $speed;
 				$duplex = "full" if not $duplex;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					speed  => $speed, 
+					duplex => $duplex,
+				}});
 			}
 			# If the state is 'down', set the speed to '0'.
 			if (not $link_state)
 			{
 				$speed = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed => $speed }});
+			}
+			
+			# Is this a bond interface?
+			if (-e "/proc/net/bonding/".$interface)
+			{
+				# Yup, we'll neet to dig into the bond proc files to get the proper slaved 
+				# interface MAC addresses.
+				$is_bond = 1;
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				interface   => $interface,
-				mac_address => $mac_address, 
-				link_state  => $link_state, 
-				mtu         => $mtu, 
 				duplex      => $duplex, 
+				interface   => $interface,
+				ip_address  => $ip_address, 
+				link_state  => $link_state, 
+				mac_address => $mac_address, 
+				mtu         => $mtu, 
 				operational => $operational, 
 				speed       => $speed, 
+				subnet_mask => $subnet_mask, 
 			}});
 			
 			# If the MAC address starts with '52:54:00', we've got a virtio NIC.
-			
-			die $THIS_FILE." ".__LINE__."; No speed for: [".$full_path."/speed]\n" if ((not defined $speed) or ($speed eq ""));
-			die $THIS_FILE." ".__LINE__."; Speed: [$speed] isn't numeric for: [".$full_path."/speed]\n" if $speed =~ /\D/;
-			#            
-			#            100000
+			if ((not defined $speed) or ($speed eq ""))
+			{
+				die $THIS_FILE." ".__LINE__."; No speed for: [".$full_path."/speed]\n";
+			}
+			if ($speed =~ /\D/)
+			{
+				die $THIS_FILE." ".__LINE__."; Speed: [$speed] isn't numeric for: [".$full_path."/speed]\n";
+			}
 			if ($speed > 100000)
 			{
 				# NOTE: This is probably 0 now... Though someday >100 Gbps will be reasonable
 				#       and we'll need to change this.
 				$speed = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { speed => $speed }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed => $speed }});
 			}
 			
 			# Find the media, if possible.
-			my $media      = "unknown";
 			my $shell_call = $anvil->data->{path}{exe}{ethtool}." $interface";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			my $ethtool    = $anvil->System->call({shell_call => $shell_call});
 			foreach my $line (split/\n/, $ethtool)
 			{
@@ -120,44 +174,83 @@ sub report_network
 				if ($line =~ /Supported ports: \[ (.*?) \]/i)
 				{
 					$media = lc($1);
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { media => $media }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
 					last;
 				}
 			}
 			
 			# Log
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				interface   => $interface, 
-				mac_address => $mac_address, 
-				link_state  => $link_state, 
-				mtu         => $mtu, 
+			$anvil->data->{network}{interfaces}{by_name}{$interface} = {
 				duplex      => $duplex,
+				ip_address  => $ip_address, 
+				is_bond     => $is_bond, 
+				is_slave    => $is_slave, 
+				link_state  => $link_state, 
+				mac_address => $mac_address, 
+				media       => $media, 
+				mtu         => $mtu, 
 				operational => $operational,
 				speed       => $speed,
-				media       => $media, 
+				subnet_mask => $subnet_mask, 
+			};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"network::interfaces::by_name::${interface}::duplex"      => $duplex,
+				"network::interfaces::by_name::${interface}::ip_address"  => $ip_address,
+				"network::interfaces::by_name::${interface}::is_bond"     => $is_bond,
+				"network::interfaces::by_name::${interface}::is_slave"    => $is_slave,
+				"network::interfaces::by_name::${interface}::link_state"  => $link_state, 
+				"network::interfaces::by_name::${interface}::mac_address" => $mac_address, 
+				"network::interfaces::by_name::${interface}::media"       => $media, 
+				"network::interfaces::by_name::${interface}::mtu"         => $mtu, 
+				"network::interfaces::by_name::${interface}::operational" => $operational,
+				"network::interfaces::by_name::${interface}::speed"       => $speed,
+				"network::interfaces::by_name::${interface}::subnet_mask" => $subnet_mask,
 			}});
-			
-			$anvil->Database->insert_or_update_network_interfaces({
-				file                          => $THIS_FILE,
-				line                          => __LINE__,
-				network_interface_name        => $interface,
-				network_interface_duplex      => $duplex, 
-				network_interface_link_state  => $link_state, 
-				network_interface_operational => $operational, 
-				network_interface_mac_address => $mac_address, 
-				network_interface_medium      => $media, 
-				network_interface_mtu         => $mtu, 
-				network_interface_speed       => $speed, 
-			});
-			
 		}
 	}
 	closedir(DIRECTORY);
-	
-	### TODO: Create $anvil "ip" table and record IPs on this system, linking back to $anvil interface, bond or 
-	###       bridge.
-	# Run 'ip addr' to see what IPs are in use.
-	$anvil->System->get_ips;
+
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{interfaces}{by_name}})
+	{
+		my $duplex      = $anvil->data->{network}{interfaces}{by_name}{$interface}{duplex};
+		my $ip_address  = $anvil->data->{network}{interfaces}{by_name}{$interface}{ip_address};
+		my $is_bond     = $anvil->data->{network}{interfaces}{by_name}{$interface}{is_bond};
+		my $is_slave    = $anvil->data->{network}{interfaces}{by_name}{$interface}{is_slave};
+		my $link_state  = $anvil->data->{network}{interfaces}{by_name}{$interface}{link_state};
+		my $mac_address = $anvil->data->{network}{interfaces}{by_name}{$interface}{mac_address};
+		my $media       = $anvil->data->{network}{interfaces}{by_name}{$interface}{media};
+		my $mtu         = $anvil->data->{network}{interfaces}{by_name}{$interface}{mtu};
+		my $operational = $anvil->data->{network}{interfaces}{by_name}{$interface}{operational};
+		my $speed       = $anvil->data->{network}{interfaces}{by_name}{$interface}{speed};
+		my $subnet_mask = $anvil->data->{network}{interfaces}{by_name}{$interface}{subnet_mask};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			duplex      => $duplex,
+			interface   => $interface, 
+			ip_address  => $ip_address, 
+			is_bond     => $is_bond,
+			is_slave    => $is_slave,
+			link_state  => $link_state, 
+			mac_address => $mac_address, 
+			media       => $media, 
+			mtu         => $mtu, 
+			operational => $operational,
+			speed       => $speed,
+			subnet_mask => $subnet_mask, 
+		}});
+		
+# 		$anvil->Database->insert_or_update_network_interfaces({
+# 			file                          => $THIS_FILE,
+# 			line                          => __LINE__,
+# 			network_interface_name        => $interface,
+# 			network_interface_duplex      => $duplex, 
+# 			network_interface_link_state  => $link_state, 
+# 			network_interface_operational => $operational, 
+# 			network_interface_mac_address => $mac_address, 
+# 			network_interface_medium      => $media, 
+# 			network_interface_mtu         => $mtu, 
+# 			network_interface_speed       => $speed, 
+# 		});
+	}
 	
 	# Write out the XML file and JSON file.
 	my $order        = 1;
