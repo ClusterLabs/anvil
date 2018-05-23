@@ -23,6 +23,7 @@ my $THIS_FILE = "Database.pm";
 # get_local_uuid
 # initialize
 # insert_or_update_hosts
+# insert_or_update_ip_addresses
 # insert_or_update_jobs
 # insert_or_update_network_interfaces
 # insert_or_update_states
@@ -1387,7 +1388,7 @@ sub initialize
 
 =head2 insert_or_update_hosts
 
-This updates (or inserts) a record in the 'hosts' table. 
+This updates (or inserts) a record in the 'hosts' table. The C<< host_uuid >> UUID will be returned.
 
 If there is an error, an empty string is returned.
 
@@ -1524,7 +1525,304 @@ WHERE
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
-	return(0);
+	return($host_uuid);
+}
+
+=head2 insert_or_update_ip_addresses
+
+This updates (or inserts) a record in the 'ip_addresses' table. The C<< ip_address_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head2 ip_address_uuid (optional)
+
+If not passed, a check will be made to see if an existing entry is found for C<< ip_address_address >>. If found, that entry will be updated. If not found, a new record will be inserted.
+
+=head2 ip_address_host_uuid (optional)
+
+This is the host that the IP address is on. If not passed, the local C<< sys::host_uuid >> will be used (indicating it is a local IP address).
+
+=head2 ip_address_on_type (required)
+
+This indicates what type of interface the IP address is on. This must be either C<< interface >>, C<< bond >> or C<< bridge >>. 
+
+=head2 ip_address_on_uuid (required)
+
+This is the UUID of the bridge, bond or interface that this IP address is on.
+
+=head2 ip_address_address (required)
+
+This is the acual IP address. It's tested with IPv4 addresses in dotted-decimal format, though it can also store IPv6 addresses. If this is set to C<< 0 >>, it will be treated as deleted and will be ignored (unless a new IP is assigned to the same interface in the future).
+
+=head2 ip_address_subnet (required)
+
+This is the subnet mask for the IP address. It is tested with IPv4 in dotted decimal format, though it can also store IPv6 format subnet masks.
+
+=head2 ip_address_default_gateway (optional, default '0')
+
+If a gateway address is set, and this is set to C<< 1 >>, the associated interface will be the default gateway for the host.
+
+=head2 ip_address_gateway (optional)
+
+This is an option gateway IP address for this interface.
+
+=head2 ip_address_dns (optional)
+
+This is a comma-separated list of DNS servers used to resolve host names. This is recorded, but ignored unless C<< ip_address_gateway >> is set. Example format is C<< 8.8.8.8 >> or C<< 8.8.8.8,4.4.4.4 >>.
+
+=cut
+sub insert_or_update_ip_addresses
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_ip_addresses()" }});
+	
+	my $uuid                       = defined $parameter->{uuid}                       ? $parameter->{uuid}                       : "";
+	my $file                       = defined $parameter->{file}                       ? $parameter->{file}                       : "";
+	my $line                       = defined $parameter->{line}                       ? $parameter->{line}                       : "";
+	my $ip_address_uuid            = defined $parameter->{ip_address_uuid}            ? $parameter->{ip_address_uuid}            : "";
+	my $ip_address_host_uuid       = defined $parameter->{ip_address_host_uuid}       ? $parameter->{ip_address_host_uuid}       : $anvil->data->{sys}{host_uuid};
+	my $ip_address_on_type         = defined $parameter->{ip_address_on_type}         ? $parameter->{ip_address_on_type}         : "";
+	my $ip_address_on_uuid         = defined $parameter->{ip_address_on_uuid}         ? $parameter->{ip_address_on_uuid}         : "";
+	my $ip_address_address         = defined $parameter->{ip_address_address}         ? $parameter->{ip_address_address}         : "";
+	my $ip_address_subnet          = defined $parameter->{ip_address_subnet}          ? $parameter->{ip_address_subnet}          : "";
+	my $ip_address_gateway         = defined $parameter->{ip_address_gateway}         ? $parameter->{ip_address_gateway}         : "NULL";
+	my $ip_address_default_gateway = defined $parameter->{ip_address_default_gateway} ? $parameter->{ip_address_default_gateway} : 0;
+	my $ip_address_dns             = defined $parameter->{ip_address_dns}             ? $parameter->{ip_address_dns}             : "NULL";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                       => $uuid, 
+		file                       => $file, 
+		line                       => $line, 
+		ip_address_uuid            => $ip_address_uuid, 
+		ip_address_host_uuid       => $ip_address_host_uuid, 
+		ip_address_on_type         => $ip_address_on_type, 
+		ip_address_on_uuid         => $ip_address_on_uuid, 
+		ip_address_address         => $ip_address_address, 
+		ip_address_subnet          => $ip_address_subnet, 
+		ip_address_gateway         => $ip_address_gateway, 
+		ip_address_default_gateway => $ip_address_default_gateway, 
+		ip_address_dns             => $ip_address_dns, 
+	}});
+	
+	if (not $ip_address_on_type)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_on_type" }});
+		return("");
+	}
+	if (not $ip_address_on_uuid)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_on_uuid" }});
+		return("");
+	}
+	if (not $ip_address_address)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_address" }});
+		return("");
+	}
+	if (not $ip_address_subnet)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_subnet" }});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given ip_address server name.
+	if (not $ip_address_uuid)
+	{
+		my $query = "
+SELECT 
+    ip_address_uuid 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_address   = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address)." 
+AND 
+    ip_address_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$ip_address_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address_uuid => $ip_address_uuid }});
+		}
+	}
+	
+	# default gateway is a boolean, so translate it.
+	my $say_ip_address_default_gateway = (($ip_address_default_gateway eq "1") or ($ip_address_default_gateway =~ /true/i)) ? "TRUE" : "FALSE";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_ip_address_default_gateway => $say_ip_address_default_gateway }});
+	
+	# If I still don't have an ip_address_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address_uuid => $ip_address_uuid }});
+	if (not $ip_address_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $anvil->Database->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		$ip_address_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address_uuid => $ip_address_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    ip_addresses 
+(
+    ip_address_uuid, 
+    ip_address_host_uuid, 
+    ip_address_on_type, 
+    ip_address_on_uuid, 
+    ip_address_address, 
+    ip_address_subnet, 
+    ip_address_gateway, 
+    ip_address_default_gateway, 
+    ip_address_dns, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_host_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_type).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
+    $say_ip_address_default_gateway, 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    ip_address_host_uuid, 
+    ip_address_on_type, 
+    ip_address_on_uuid, 
+    ip_address_address, 
+    ip_address_subnet, 
+    ip_address_gateway, 
+    ip_address_default_gateway, 
+    ip_address_dns 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_ip_address_host_uuid       =         $row->[0];
+			my $old_ip_address_on_type         =         $row->[1];
+			my $old_ip_address_on_uuid         =         $row->[2];
+			my $old_ip_address_address         =         $row->[3];
+			my $old_ip_address_subnet          =         $row->[4];
+			my $old_ip_address_gateway         = defined $row->[5] ? $row->[5] : "NULL";
+			my $old_ip_address_default_gateway =         $row->[6];
+			my $old_ip_address_dns             = defined $row->[7] ? $row->[7] : "NULL";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_ip_address_host_uuid       => $old_ip_address_host_uuid, 
+				old_ip_address_on_type         => $old_ip_address_on_type, 
+				old_ip_address_on_uuid         => $old_ip_address_on_uuid, 
+				old_ip_address_address         => $old_ip_address_address, 
+				old_ip_address_subnet          => $old_ip_address_subnet, 
+				old_ip_address_gateway         => $old_ip_address_gateway, 
+				old_ip_address_default_gateway => $old_ip_address_default_gateway, 
+				old_ip_address_dns             => $old_ip_address_dns, 
+			}});
+			
+			my $say_old_ip_address_default_gateway = (($old_ip_address_default_gateway eq "1") or ($old_ip_address_default_gateway =~ /true/i)) ? "TRUE" : "FALSE";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_old_ip_address_default_gateway => $say_old_ip_address_default_gateway }});
+			
+			# Anything change?
+			if (($old_ip_address_host_uuid           ne $ip_address_host_uuid)           or 
+			    ($old_ip_address_on_type             ne $ip_address_on_type)             or 
+			    ($old_ip_address_on_uuid             ne $ip_address_on_uuid)             or 
+			    ($old_ip_address_address             ne $ip_address_address)             or 
+			    ($old_ip_address_subnet              ne $ip_address_subnet)              or 
+			    ($old_ip_address_gateway             ne $ip_address_gateway)             or 
+			    ($say_old_ip_address_default_gateway ne $say_ip_address_default_gateway) or 
+			    ($old_ip_address_dns                 ne $ip_address_dns))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    ip_addresses 
+SET 
+    ip_address_host_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_host_uuid).",  
+    ip_address_on_type         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_type).",  
+    ip_address_on_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_uuid).", 
+    ip_address_address         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
+    ip_address_subnet          = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet).", 
+    ip_address_gateway         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
+    ip_address_default_gateway = $say_ip_address_default_gateway, 
+    ip_address_dns             = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
+    modified_date              = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    ip_address_uuid            = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_uuid)." 
+";
+				$query =~ s/'NULL'/NULL/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+			}
+		}
+	}
+	
+	return($ip_address_uuid);
 }
 
 

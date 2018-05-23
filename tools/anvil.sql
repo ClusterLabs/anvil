@@ -655,6 +655,76 @@ CREATE TRIGGER trigger_bridges
     FOR EACH ROW EXECUTE PROCEDURE history_bridges();
 
 
+-- This stores information about network ip addresss. 
+CREATE TABLE ip_addresses (
+    ip_address_uuid               uuid                        not null    primary key,
+    ip_address_host_uuid          uuid                        not null,
+    ip_address_on_type            text                        not null,                     -- Either 'interface', 'bond' or 'bridge'
+    ip_address_on_uuid            uuid                        not null,                     -- This is the UUID of the interface, bond or bridge that has this IP
+    ip_address_address            text                        not null,                     -- The actual IP address
+    ip_address_subnet             text                        not null,                     -- The subnet mask (in dotted decimal format)
+    ip_address_gateway            text,                                                     -- If set, this is the gateway IP for this subnet
+    ip_address_default_gateway    boolean                                 default FALSE,    -- If true, the gateway will be the default for the host.
+    ip_address_dns                text,                                                     -- If set, this is a comma-separated list of DNS IPs to use (in the order given)
+    modified_date                 timestamp with time zone    not null,
+    
+    FOREIGN KEY(ip_address_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE ip_addresses OWNER TO #!variable!user!#;
+
+CREATE TABLE history.ip_addresses (
+    history_id                    bigserial,
+    ip_address_uuid               uuid,
+    ip_address_host_uuid          uuid,
+    ip_address_on_type            text,
+    ip_address_on_uuid            uuid,
+    ip_address_address            text,
+    ip_address_subnet             text,
+    ip_address_gateway            text,
+    ip_address_default_gateway    text,
+    ip_address_dns                text,
+    modified_date                 timestamp with time zone    not null
+);
+ALTER TABLE history.ip_addresses OWNER TO #!variable!user!#;
+
+CREATE FUNCTION history_ip_addresses() RETURNS trigger
+AS $$
+DECLARE
+    history_ip_addresses RECORD;
+BEGIN
+    SELECT INTO history_ip_addresses * FROM ip_addresses WHERE ip_address_uuid = new.ip_address_uuid;
+    INSERT INTO history.ip_addresses
+        (ip_address_uuid, 
+         ip_address_host_uuid, 
+         ip_address_on_type, 
+         ip_address_on_uuid, 
+         ip_address_address, 
+         ip_address_subnet, 
+         ip_address_gateway, 
+         ip_address_default_gateway, 
+         ip_address_dns, 
+         modified_date)
+    VALUES
+        (history_ip_addresses.ip_address_uuid, 
+         history_ip_addresses.ip_address_host_uuid, 
+         history_ip_addresses.ip_address_on_type, 
+         history_ip_addresses.ip_address_on_uuid, 
+         history_ip_addresses.ip_address_address, 
+         history_ip_addresses.ip_address_subnet, 
+         history_ip_addresses.ip_address_gateway, 
+         history_ip_addresses.ip_address_default_gateway, 
+         history_ip_addresses.ip_address_dns, 
+         history_ip_addresses.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_ip_addresses() OWNER TO #!variable!user!#;
+
+CREATE TRIGGER trigger_ip_addresses
+    AFTER INSERT OR UPDATE ON ip_addresses
+    FOR EACH ROW EXECUTE PROCEDURE history_ip_addresses();
+
 
 -- ------------------------------------------------------------------------------------------------------- --
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --

@@ -511,9 +511,12 @@ sub enable_daemon
 
 This method checks the local system for interfaces and stores them in:
 
-* C<< sys::network::interface::<iface_name>::ip >> - If an IP address is set
-* C<< sys::network::interface::<iface_name>::subnet >> - If an IP is set
-* C<< sys::network::interface::<iface_name>::mac >> - Always set.
+* C<< sys::network::interface::<iface_name>::ip >>              - If an IP address is set
+* C<< sys::network::interface::<iface_name>::subnet >>          - If an IP is set
+* C<< sys::network::interface::<iface_name>::mac >>             - Always set.
+* C<< sys::network::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
+* C<< sys::network::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
+* C<< sys::network::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
 
 To aid in look-up by MAC address, C<< sys::mac::<mac_address>::iface >> is also set.
 
@@ -527,7 +530,7 @@ sub get_ips
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_ips()" }});
 	
 	my $in_iface = "";
-	my $ip_addr  = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." addr list"});
+	my $ip_addr  = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ip}." addr list"});
 	foreach my $line (split/\n/, $ip_addr)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -536,9 +539,12 @@ sub get_ips
 			$in_iface = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_iface => $in_iface }});
 			
-			$anvil->data->{sys}{network}{interface}{$in_iface}{ip}     = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{ip};
-			$anvil->data->{sys}{network}{interface}{$in_iface}{subnet} = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{subnet};
-			$anvil->data->{sys}{network}{interface}{$in_iface}{mac}    = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{mac};
+			$anvil->data->{sys}{network}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{ip};
+			$anvil->data->{sys}{network}{interface}{$in_iface}{subnet}          = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{subnet};
+			$anvil->data->{sys}{network}{interface}{$in_iface}{mac}             = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{mac};
+			$anvil->data->{sys}{network}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{default_gateway};
+			$anvil->data->{sys}{network}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{gateway};
+			$anvil->data->{sys}{network}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{dns};
 		}
 		next if not $in_iface;
 		next if $in_iface eq "lo";
@@ -565,14 +571,91 @@ sub get_ips
 		}
 		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
 		{
-			my $mac                                          = $1;
+			my $mac                                                    = $1;
 			   $anvil->data->{sys}{network}{interface}{$in_iface}{mac} = $mac;
-			   $anvil->data->{sys}{mac}{$mac}{iface}         = $in_iface;
+			   $anvil->data->{sys}{mac}{$mac}{iface}                   = $in_iface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"sys::network::interface::${in_iface}::mac" => $anvil->data->{sys}{network}{interface}{$in_iface}{mac},
 				"sys::mac::${mac}::iface"                   => $anvil->data->{sys}{mac}{$mac}{iface}, 
 			}});
 		}
+	}
+	
+	# Get the routing info.
+	my $lowest_metric   = 99999999;
+	my $route_interface = "";
+	my $route_ip        = "";
+	my $ip_route        = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ip}." route show"});
+	foreach my $line (split/\n/, $ip_route)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /default via (.*?) dev (.*?) proto static metric (\d+)/i)
+		{
+			my $this_ip        = $1;
+			my $this_interface = $2;
+			my $metric         = $3;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				this_ip        => $this_ip,
+				this_interface => $this_interface, 
+				metric         => $metric, 
+			}});
+			
+			if ($metric < $lowest_metric)
+			{
+				$lowest_metric   = $metric;
+				$route_interface = $this_interface;
+				$route_ip        = $this_ip;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					lowest_metric   => $lowest_metric,
+					route_interface => $route_interface, 
+					route_ip        => $route_ip, 
+				}});
+			}
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		route_interface => $route_interface, 
+		route_ip        => $route_ip, 
+	}});
+	
+	# If I got a route, get the DNS.
+	if ($route_interface)
+	{
+		my $dns_list = "";
+		my $dns_hash = {};
+		my $ip_route = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{nmcli}." dev show"});
+		foreach my $line (split/\n/, $ip_route)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /IP4.DNS\[(\d+)\]:\s+(.*)/i)
+			{
+				my $order = $1;
+				my $ip    = $2;
+				
+				$dns_hash->{$order} = $ip;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "dns_hash->{$order}" => $dns_hash->{$order} }});
+			}
+		}
+		
+		foreach my $order (sort {$a cmp $b} keys %{$dns_hash})
+		{
+			$dns_list .= $dns_hash->{$order}.",";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:dns_hash->{$order}" => $dns_hash->{$order}, 
+				"s2:dns_list"           => $dns_list, 
+			}});
+		}
+		$dns_list =~ s/,$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dns_list => $dns_list }});
+		
+		$anvil->data->{sys}{network}{interface}{$route_interface}{default_gateway} = 1;
+		$anvil->data->{sys}{network}{interface}{$route_interface}{gateway}         = $route_ip;
+		$anvil->data->{sys}{network}{interface}{$route_interface}{dns}             = $dns_list;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::network::interface::${route_interface}::default_gateway" => $anvil->data->{sys}{network}{interface}{$route_interface}{default_gateway}, 
+			"sys::network::interface::${route_interface}::gateway"         => $anvil->data->{sys}{network}{interface}{$route_interface}{gateway}, 
+			"sys::network::interface::${route_interface}::dns"             => $anvil->data->{sys}{network}{interface}{$route_interface}{dns}, 
+		}});
 	}
 	
 	return(0);
