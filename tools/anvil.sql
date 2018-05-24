@@ -662,7 +662,7 @@ CREATE TABLE ip_addresses (
     ip_address_on_type            text                        not null,                     -- Either 'interface', 'bond' or 'bridge'
     ip_address_on_uuid            uuid                        not null,                     -- This is the UUID of the interface, bond or bridge that has this IP
     ip_address_address            text                        not null,                     -- The actual IP address
-    ip_address_subnet             text                        not null,                     -- The subnet mask (in dotted decimal format)
+    ip_address_subnet_mask        text                        not null,                     -- The subnet mask (in dotted decimal format)
     ip_address_gateway            text,                                                     -- If set, this is the gateway IP for this subnet
     ip_address_default_gateway    boolean                                 default FALSE,    -- If true, the gateway will be the default for the host.
     ip_address_dns                text,                                                     -- If set, this is a comma-separated list of DNS IPs to use (in the order given)
@@ -679,7 +679,7 @@ CREATE TABLE history.ip_addresses (
     ip_address_on_type            text,
     ip_address_on_uuid            uuid,
     ip_address_address            text,
-    ip_address_subnet             text,
+    ip_address_subnet_mask        text,
     ip_address_gateway            text,
     ip_address_default_gateway    text,
     ip_address_dns                text,
@@ -699,7 +699,7 @@ BEGIN
          ip_address_on_type, 
          ip_address_on_uuid, 
          ip_address_address, 
-         ip_address_subnet, 
+         ip_address_subnet_mask, 
          ip_address_gateway, 
          ip_address_default_gateway, 
          ip_address_dns, 
@@ -710,7 +710,7 @@ BEGIN
          history_ip_addresses.ip_address_on_type, 
          history_ip_addresses.ip_address_on_uuid, 
          history_ip_addresses.ip_address_address, 
-         history_ip_addresses.ip_address_subnet, 
+         history_ip_addresses.ip_address_subnet_mask, 
          history_ip_addresses.ip_address_gateway, 
          history_ip_addresses.ip_address_default_gateway, 
          history_ip_addresses.ip_address_dns, 

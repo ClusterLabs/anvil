@@ -234,28 +234,39 @@ sub report_network
 			type            => $type,
 		}});
 		
-# 		my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
-# 			file                          => $THIS_FILE,
-# 			line                          => __LINE__,
-# 			network_interface_name        => $interface,
-# 			network_interface_duplex      => $duplex, 
-# 			network_interface_link_state  => $link_state, 
-# 			network_interface_operational => $operational, 
-# 			network_interface_mac_address => $mac_address, 
-# 			network_interface_medium      => $media, 
-# 			network_interface_mtu         => $mtu, 
-# 			network_interface_speed       => $speed, 
-# 		});
-# 		
-# 		my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
-# 			ip_address_on_type         => $ip_address_on_type, 
-# 			ip_address_on_uuid         => $ip_address_on_uuid, 
-# 			ip_address_address         => $ip_address_address, 
-# 			ip_address_subnet          => $ip_address_subnet, 
-# 			ip_address_gateway         => $ip_address_gateway, 
-# 			ip_address_default_gateway => $ip_address_default_gateway, 
-# 			ip_address_dns             => $ip_address_dns, 
-# 		});
+		if ($type eq "interface")
+		{
+			my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
+				file                          => $THIS_FILE,
+				line                          => __LINE__,
+				network_interface_name        => $interface,
+				network_interface_duplex      => $duplex, 
+				network_interface_link_state  => $link_state, 
+				network_interface_operational => $operational, 
+				network_interface_mac_address => $mac_address, 
+				network_interface_medium      => $media, 
+				network_interface_mtu         => $mtu, 
+				network_interface_speed       => $speed, 
+			});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+			if (($network_interface_uuid) && ($ip_address))
+			{
+				my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
+					debug                      => 2,
+					ip_address_on_type         => $type, 
+					ip_address_on_uuid         => $network_interface_uuid, 
+					ip_address_address         => $ip_address, 
+					ip_address_subnet_mask     => $subnet_mask, 
+					ip_address_gateway         => $gateway, 
+					ip_address_default_gateway => $default_gateway, 
+					ip_address_dns             => $dns, 
+				});
+			}
+		}
+		elsif ($type eq "bond")
+		{
+		}
 	}
 	
 	# Write out the XML file and JSON file.

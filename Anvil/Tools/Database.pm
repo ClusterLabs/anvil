@@ -22,6 +22,7 @@ my $THIS_FILE = "Database.pm";
 # get_hosts
 # get_local_uuid
 # initialize
+# insert_or_update_bonds
 # insert_or_update_hosts
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
@@ -1386,6 +1387,318 @@ sub initialize
 	return($success);
 };
 
+
+=head2 insert_or_update_bonds
+
+This updates (or inserts) a record in the 'bonds' table. The C<< bond_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head2 bond_uuid (optional)
+
+If not passed, a check will be made to see if an existing entry is found for C<< bond_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
+
+=head2 bond_host_uuid (optional)
+
+This is the host that the IP address is on. If not passed, the local C<< sys::host_uuid >> will be used (indicating it is a local IP address).
+
+=head2 bond_name (required)
+
+This is the bond's device name.
+
+=head2 bond_mode (required)
+
+This is the bonding mode named used for this bond.
+
+=head2 bond_mtu (optional)
+
+This is the MTU for the bonded interface.
+
+=head2 bond_primary_slave (optional)
+
+This is the primary interface name in the bond.
+
+=head2 bond_primary_reselect (optional)
+
+This is the primary interface reselect policy.
+
+=head2 bond_active_slave (optional)
+
+This is the interface currently being used by the bond.
+
+=head2 bond_mii_status (optional)
+
+This is the current status of the interface (C<< up >> or C<< down >>).
+
+=head2 bond_mii_polling_interval (optional)
+
+This is how often, in milliseconds, that the link (mii) status is manually checked.
+
+=head2 bond_up_delay (optional)
+
+This is how long the bond waits, in millisecinds, after an interfaces comes up before considering it for use.
+
+=head2 bond_down_delay (optional)
+
+=cut
+sub insert_or_update_bonds
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_bonds()" }});
+	
+	my $uuid                      = defined $parameter->{uuid}                      ? $parameter->{uuid}                      : "";
+	my $file                      = defined $parameter->{file}                      ? $parameter->{file}                      : "";
+	my $line                      = defined $parameter->{line}                      ? $parameter->{line}                      : "";
+	my $bond_uuid                 = defined $parameter->{bond_uuid}                 ? $parameter->{bond_uuid}                 : "";
+	my $bond_host_uuid            = defined $parameter->{bond_host_uuid}            ? $parameter->{bond_host_uuid}            : $anvil->data->{sys}{host_uuid};
+	my $bond_name                 = defined $parameter->{bond_name}                 ? $parameter->{bond_name}                 : "";
+	my $bond_mode                 = defined $parameter->{bond_mode}                 ? $parameter->{bond_mode}                 : "";
+	my $bond_mtu                  =         $parameter->{bond_mtu}                  ? $parameter->{bond_mtu}                  : "NULL";
+	my $bond_primary_slave        =         $parameter->{bond_primary_slave}        ? $parameter->{bond_primary_slave}        : "NULL";
+	my $bond_primary_reselect     =         $parameter->{bond_primary_reselect}     ? $parameter->{bond_primary_reselect}     : "NULL";
+	my $bond_active_slave         =         $parameter->{bond_active_slave}         ? $parameter->{bond_active_slave}         : "NULL";
+	my $bond_mii_status           =         $parameter->{bond_mii_status}           ? $parameter->{bond_mii_status}           : "NULL";
+	my $bond_mii_polling_interval =         $parameter->{bond_mii_polling_interval} ? $parameter->{bond_mii_polling_interval} : "NULL";
+	my $bond_up_delay             =         $parameter->{bond_up_delay}             ? $parameter->{bond_up_delay}             : "NULL";
+	my $bond_down_delay           =         $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "NULL";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                      => $uuid, 
+		file                      => $file, 
+		line                      => $line, 
+		bond_uuid                 => $bond_uuid, 
+		bond_host_uuid            => $bond_host_uuid, 
+		bond_name                 => $bond_name, 
+		bond_mode                 => $bond_mode, 
+		bond_mtu                  => $bond_mtu, 
+		bond_primary_slave        => $bond_primary_slave, 
+		bond_primary_reselect     => $bond_primary_reselect, 
+		bond_active_slave         => $bond_active_slave, 
+		bond_mii_status           => $bond_mii_status, 
+		bond_mii_polling_interval => $bond_mii_polling_interval, 
+		bond_up_delay             => $bond_up_delay, 
+		bond_down_delay           => $bond_down_delay, 
+	}});
+	
+	if (not $bond_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_name" }});
+		return("");
+	}
+	if (not $bond_mode)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_mode" }});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given bond server name.
+	if (not $bond_uuid)
+	{
+		my $query = "
+SELECT 
+    bond_uuid 
+FROM 
+    bonds 
+WHERE 
+    bond_name      = ".$anvil->data->{sys}{use_db_fh}->quote($bond_name)." 
+AND 
+    bond_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$bond_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_uuid => $bond_uuid }});
+		}
+	}
+	
+	# If I still don't have an bond_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_uuid => $bond_uuid }});
+	if (not $bond_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $anvil->Database->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		$bond_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_uuid => $bond_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    bonds 
+(
+    bond_uuid, 
+    bond_host_uuid, 
+    bond_name, 
+    bond_mode, 
+    bond_mtu, 
+    bond_primary_slave, 
+    bond_primary_reselect, 
+    bond_active_slave, 
+    bond_mii_status, 
+    bond_mii_polling_interval, 
+    bond_up_delay, 
+    bond_down_delay, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_name).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mode).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mtu).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_slave).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_reselect).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_active_slave).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_status).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    bond_host_uuid, 
+    bond_name, 
+    bond_mode, 
+    bond_mtu, 
+    bond_primary_slave, 
+    bond_primary_reselect, 
+    bond_active_slave, 
+    bond_mii_status, 
+    bond_mii_polling_interval, 
+    bond_up_delay, 
+    bond_down_delay 
+FROM 
+    bonds 
+WHERE 
+    bond_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_bond_host_uuid            =         $row->[0];
+			my $old_bond_name                 =         $row->[1];
+			my $old_bond_mode                 =         $row->[2];
+			my $old_bond_mtu                  = defined $row->[3]  ? $row->[3]  : "NULL";
+			my $old_bond_primary_slave        = defined $row->[4]  ? $row->[4]  : "NULL";
+			my $old_bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : "NULL";
+			my $old_bond_active_slave         = defined $row->[6]  ? $row->[6]  : "NULL";
+			my $old_bond_mii_status           = defined $row->[7]  ? $row->[7]  : "NULL";
+			my $old_bond_mii_polling_interval = defined $row->[8]  ? $row->[8]  : "NULL";
+			my $old_bond_up_delay             = defined $row->[9]  ? $row->[9]  : "NULL";
+			my $old_bond_down_delay           = defined $row->[10] ? $row->[10] : "NULL";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_bond_host_uuid            => $old_bond_host_uuid, 
+				old_bond_name                 => $old_bond_name, 
+				old_bond_mode                 => $old_bond_mode, 
+				old_bond_mtu                  => $old_bond_mtu, 
+				old_bond_primary_slave        => $old_bond_primary_slave, 
+				old_bond_primary_reselect     => $old_bond_primary_reselect, 
+				old_bond_active_slave         => $old_bond_active_slave, 
+				old_bond_mii_status           => $old_bond_mii_status, 
+				old_bond_mii_polling_interval => $old_bond_mii_polling_interval, 
+				old_bond_up_delay             => $old_bond_up_delay, 
+				old_bond_down_delay           => $old_bond_down_delay, 
+			}});
+			
+=cut
+			# Anything change?
+			if (($old_bond_host_uuid           ne $bond_host_uuid)           or 
+			    ($old_bond_on_type             ne $bond_on_type)             or 
+			    ($old_bond_on_uuid             ne $bond_on_uuid)             or 
+			    ($old_bond_name             ne $bond_name)             or 
+			    ($old_bond_subnet_mask         ne $bond_subnet_mask)         or 
+			    ($old_bond_gateway             ne $bond_gateway)             or 
+			    ($say_old_bond_default_gateway ne $say_bond_default_gateway) or 
+			    ($old_bond_dns                 ne $bond_dns))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    bonds 
+SET 
+    bond_host_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid).",  
+    bond_on_type         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_on_type).",  
+    bond_on_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_on_uuid).", 
+    bond_name         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_name).", 
+    bond_subnet_mask     = ".$anvil->data->{sys}{use_db_fh}->quote($bond_subnet_mask).", 
+    bond_gateway         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_gateway).", 
+    bond_default_gateway = $say_bond_default_gateway, 
+    bond_dns             = ".$anvil->data->{sys}{use_db_fh}->quote($bond_dns).", 
+    modified_date              = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    bond_uuid            = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 
+";
+				$query =~ s/'NULL'/NULL/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+			}
+=cut
+		}
+	}
+	
+	return($bond_uuid);
+}
+
 =head2 insert_or_update_hosts
 
 This updates (or inserts) a record in the 'hosts' table. The C<< host_uuid >> UUID will be returned.
@@ -1568,7 +1881,7 @@ This is the UUID of the bridge, bond or interface that this IP address is on.
 
 This is the acual IP address. It's tested with IPv4 addresses in dotted-decimal format, though it can also store IPv6 addresses. If this is set to C<< 0 >>, it will be treated as deleted and will be ignored (unless a new IP is assigned to the same interface in the future).
 
-=head2 ip_address_subnet (required)
+=head2 ip_address_subnet_mask (required)
 
 This is the subnet mask for the IP address. It is tested with IPv4 in dotted decimal format, though it can also store IPv6 format subnet masks.
 
@@ -1601,10 +1914,10 @@ sub insert_or_update_ip_addresses
 	my $ip_address_on_type         = defined $parameter->{ip_address_on_type}         ? $parameter->{ip_address_on_type}         : "";
 	my $ip_address_on_uuid         = defined $parameter->{ip_address_on_uuid}         ? $parameter->{ip_address_on_uuid}         : "";
 	my $ip_address_address         = defined $parameter->{ip_address_address}         ? $parameter->{ip_address_address}         : "";
-	my $ip_address_subnet          = defined $parameter->{ip_address_subnet}          ? $parameter->{ip_address_subnet}          : "";
-	my $ip_address_gateway         = defined $parameter->{ip_address_gateway}         ? $parameter->{ip_address_gateway}         : "NULL";
+	my $ip_address_subnet_mask     = defined $parameter->{ip_address_subnet_mask}     ? $parameter->{ip_address_subnet_mask}     : "";
+	my $ip_address_gateway         =         $parameter->{ip_address_gateway}         ? $parameter->{ip_address_gateway}         : "NULL";
 	my $ip_address_default_gateway = defined $parameter->{ip_address_default_gateway} ? $parameter->{ip_address_default_gateway} : 0;
-	my $ip_address_dns             = defined $parameter->{ip_address_dns}             ? $parameter->{ip_address_dns}             : "NULL";
+	my $ip_address_dns             =         $parameter->{ip_address_dns}             ? $parameter->{ip_address_dns}             : "NULL";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                       => $uuid, 
 		file                       => $file, 
@@ -1614,7 +1927,7 @@ sub insert_or_update_ip_addresses
 		ip_address_on_type         => $ip_address_on_type, 
 		ip_address_on_uuid         => $ip_address_on_uuid, 
 		ip_address_address         => $ip_address_address, 
-		ip_address_subnet          => $ip_address_subnet, 
+		ip_address_subnet_mask     => $ip_address_subnet_mask, 
 		ip_address_gateway         => $ip_address_gateway, 
 		ip_address_default_gateway => $ip_address_default_gateway, 
 		ip_address_dns             => $ip_address_dns, 
@@ -1638,10 +1951,10 @@ sub insert_or_update_ip_addresses
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_address" }});
 		return("");
 	}
-	if (not $ip_address_subnet)
+	if (not $ip_address_subnet_mask)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_subnet" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_subnet_mask" }});
 		return("");
 	}
 	
@@ -1716,7 +2029,7 @@ INSERT INTO
     ip_address_on_type, 
     ip_address_on_uuid, 
     ip_address_address, 
-    ip_address_subnet, 
+    ip_address_subnet_mask, 
     ip_address_gateway, 
     ip_address_default_gateway, 
     ip_address_dns, 
@@ -1727,7 +2040,7 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_type).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_uuid).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet_mask).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
     $say_ip_address_default_gateway, 
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
@@ -1747,7 +2060,7 @@ SELECT
     ip_address_on_type, 
     ip_address_on_uuid, 
     ip_address_address, 
-    ip_address_subnet, 
+    ip_address_subnet_mask, 
     ip_address_gateway, 
     ip_address_default_gateway, 
     ip_address_dns 
@@ -1770,7 +2083,7 @@ WHERE
 			my $old_ip_address_on_type         =         $row->[1];
 			my $old_ip_address_on_uuid         =         $row->[2];
 			my $old_ip_address_address         =         $row->[3];
-			my $old_ip_address_subnet          =         $row->[4];
+			my $old_ip_address_subnet_mask     =         $row->[4];
 			my $old_ip_address_gateway         = defined $row->[5] ? $row->[5] : "NULL";
 			my $old_ip_address_default_gateway =         $row->[6];
 			my $old_ip_address_dns             = defined $row->[7] ? $row->[7] : "NULL";
@@ -1779,7 +2092,7 @@ WHERE
 				old_ip_address_on_type         => $old_ip_address_on_type, 
 				old_ip_address_on_uuid         => $old_ip_address_on_uuid, 
 				old_ip_address_address         => $old_ip_address_address, 
-				old_ip_address_subnet          => $old_ip_address_subnet, 
+				old_ip_address_subnet_mask     => $old_ip_address_subnet_mask, 
 				old_ip_address_gateway         => $old_ip_address_gateway, 
 				old_ip_address_default_gateway => $old_ip_address_default_gateway, 
 				old_ip_address_dns             => $old_ip_address_dns, 
@@ -1793,7 +2106,7 @@ WHERE
 			    ($old_ip_address_on_type             ne $ip_address_on_type)             or 
 			    ($old_ip_address_on_uuid             ne $ip_address_on_uuid)             or 
 			    ($old_ip_address_address             ne $ip_address_address)             or 
-			    ($old_ip_address_subnet              ne $ip_address_subnet)              or 
+			    ($old_ip_address_subnet_mask         ne $ip_address_subnet_mask)         or 
 			    ($old_ip_address_gateway             ne $ip_address_gateway)             or 
 			    ($say_old_ip_address_default_gateway ne $say_ip_address_default_gateway) or 
 			    ($old_ip_address_dns                 ne $ip_address_dns))
@@ -1807,7 +2120,7 @@ SET
     ip_address_on_type         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_type).",  
     ip_address_on_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_uuid).", 
     ip_address_address         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
-    ip_address_subnet          = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet).", 
+    ip_address_subnet_mask     = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet_mask).", 
     ip_address_gateway         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
     ip_address_default_gateway = $say_ip_address_default_gateway, 
     ip_address_dns             = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
