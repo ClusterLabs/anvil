@@ -22,6 +22,7 @@ my $THIS_FILE = "Database.pm";
 # get_hosts
 # get_local_uuid
 # initialize
+# insert_or_update_bridges
 # insert_or_update_bonds
 # insert_or_update_hosts
 # insert_or_update_ip_addresses
@@ -1387,6 +1388,225 @@ sub initialize
 	return($success);
 };
 
+=head2 insert_or_update_bridges
+
+This updates (or inserts) a record in the 'bridges' table. The C<< bridge_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head2 bridge_uuid (optional)
+
+If not passed, a check will be made to see if an existing entry is found for C<< bridge_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
+
+=head2 bridge_host_uuid (optional)
+
+This is the host that the IP address is on. If not passed, the local C<< sys::host_uuid >> will be used (indicating it is a local IP address).
+
+=head2 bridge_name (required)
+
+This is the bridge's device name.
+
+=head2 bridge_id (optional)
+
+This is the unique identifier for the bridge.
+
+=head2 bridge_stp_enabled (optional)
+
+This is set to C<< yes >> or C<< no >> to indicate if spanning tree protocol is enabled on the switch.
+
+=cut
+sub insert_or_update_bridges
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_bridges()" }});
+	
+	my $uuid               = defined $parameter->{uuid}               ? $parameter->{uuid}               : "";
+	my $file               = defined $parameter->{file}               ? $parameter->{file}               : "";
+	my $line               = defined $parameter->{line}               ? $parameter->{line}               : "";
+	my $bridge_uuid        = defined $parameter->{bridge_uuid}        ? $parameter->{bridge_uuid}        : "";
+	my $bridge_host_uuid   = defined $parameter->{bridge_host_uuid}   ? $parameter->{bridge_host_uuid}   : $anvil->data->{sys}{host_uuid};
+	my $bridge_name        = defined $parameter->{bridge_name}        ? $parameter->{bridge_name}        : "";
+	my $bridge_id          =         $parameter->{bridge_id}          ? $parameter->{bridge_id}          : "NULL";
+	my $bridge_stp_enabled =         $parameter->{bridge_stp_enabled} ? $parameter->{bridge_stp_enabled} : "NULL";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid              => $uuid, 
+		file              => $file, 
+		line              => $line, 
+		bridge_uuid       => $bridge_uuid, 
+		bridge_host_uuid  => $bridge_host_uuid, 
+		bridge_name       => $bridge_name, 
+		bridge_id         => $bridge_id, 
+		bridge_down_delay => $bridge_down_delay, 
+	}});
+    
+	if (not $bridge_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bridges()", parameter => "bridge_name" }});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given bridge server name.
+	if (not $bridge_uuid)
+	{
+		my $query = "
+SELECT 
+    bridge_uuid 
+FROM 
+    bridges 
+WHERE 
+    bridge_name      = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_name)." 
+AND 
+    bridge_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$bridge_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_uuid => $bridge_uuid }});
+		}
+	}
+	
+	# If I still don't have an bridge_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_uuid => $bridge_uuid }});
+	if (not $bridge_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $anvil->Database->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		$bridge_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_uuid => $bridge_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    bridges 
+(
+    bridge_uuid, 
+    bridge_host_uuid, 
+    bridge_name, 
+    bridge_id, 
+    bridge_stp_enabled, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_host_uuid).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_name).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_id).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_stp_enabled).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    bridge_host_uuid, 
+    bridge_name, 
+    bridge_id, 
+    bridge_stp_enabled 
+FROM 
+    bridges 
+WHERE 
+    bridge_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_bridge_host_uuid   =         $row->[0];
+			my $old_bridge_name        =         $row->[1];
+			my $old_bridge_id          = defined $row->[2] ? $row->[2] : "NULL";
+			my $old_bridge_stp_enabled = defined $row->[3] ? $row->[3] : "NULL";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_bridge_host_uuid   => $old_bridge_host_uuid, 
+				old_bridge_name        => $old_bridge_name, 
+				old_bridge_id          => $old_bridge_id, 
+				old_bridge_stp_enabled => $old_bridge_stp_enabled,  
+			}});
+			
+			# Anything change?
+			if (($old_bridge_host_uuid   ne $bridge_host_uuid) or 
+			    ($old_bridge_name        ne $bridge_name)      or 
+			    ($old_bridge_id          ne $bridge_id)        or 
+			    ($old_bridge_stp_enabled ne $bridge_stp_enabled))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    bridges 
+SET 
+    bridge_host_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_host_uuid).",  
+    bridge_name        = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_name).", 
+    bridge_id          = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_id).", 
+    bridge_stp_enabled = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_stp_enabled).", 
+    modified_date      = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    bridge_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_uuid)." 
+";
+				$query =~ s/'NULL'/NULL/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+			}
+		}
+	}
+	
+	return($bridge_uuid);
+}
 
 =head2 insert_or_update_bonds
 
@@ -1660,39 +1880,43 @@ WHERE
 				old_bond_down_delay           => $old_bond_down_delay, 
 			}});
 			
-=cut
 			# Anything change?
-			if (($old_bond_host_uuid           ne $bond_host_uuid)           or 
-			    ($old_bond_on_type             ne $bond_on_type)             or 
-			    ($old_bond_on_uuid             ne $bond_on_uuid)             or 
-			    ($old_bond_name             ne $bond_name)             or 
-			    ($old_bond_subnet_mask         ne $bond_subnet_mask)         or 
-			    ($old_bond_gateway             ne $bond_gateway)             or 
-			    ($say_old_bond_default_gateway ne $say_bond_default_gateway) or 
-			    ($old_bond_dns                 ne $bond_dns))
+			if (($old_bond_host_uuid            ne $bond_host_uuid)            or 
+			    ($old_bond_name                 ne $bond_name)                 or 
+			    ($old_bond_mode                 ne $bond_mode)                 or 
+			    ($old_bond_mtu                  ne $bond_mtu)                  or 
+			    ($old_bond_primary_slave        ne $bond_primary_slave)        or 
+			    ($old_bond_primary_reselect     ne $bond_primary_reselect)     or 
+			    ($old_bond_active_slave         ne $bond_active_slave)         or 
+			    ($old_bond_mii_status           ne $bond_mii_status)           or 
+			    ($old_bond_mii_polling_interval ne $bond_mii_polling_interval) or 
+			    ($old_bond_up_delay             ne $bond_up_delay)             or 
+			    ($old_bond_down_delay           ne $bond_down_delay))
 			{
 				# Something changed, save.
 				my $query = "
 UPDATE 
     bonds 
 SET 
-    bond_host_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid).",  
-    bond_on_type         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_on_type).",  
-    bond_on_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_on_uuid).", 
-    bond_name         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_name).", 
-    bond_subnet_mask     = ".$anvil->data->{sys}{use_db_fh}->quote($bond_subnet_mask).", 
-    bond_gateway         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_gateway).", 
-    bond_default_gateway = $say_bond_default_gateway, 
-    bond_dns             = ".$anvil->data->{sys}{use_db_fh}->quote($bond_dns).", 
-    modified_date              = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    bond_host_uuid            = ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid).",  
+    bond_name                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_name).", 
+    bond_mode                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mode).", 
+    bond_mtu                  = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mtu).", 
+    bond_primary_slave        = ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_slave).", 
+    bond_primary_reselect     = ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_reselect).", 
+    bond_active_slave         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_active_slave).", 
+    bond_mii_status           = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_status).", 
+    bond_mii_polling_interval = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
+    bond_up_delay             = ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
+    bond_down_delay           = ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
+    modified_date             = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
-    bond_uuid            = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 
+    bond_uuid                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 
 ";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
-=cut
 		}
 	}
 	
