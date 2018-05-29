@@ -520,7 +520,7 @@ CREATE TABLE bonds (
     bond_uuid                    uuid                        not null    primary key,
     bond_host_uuid               uuid                        not null,
     bond_name                    text                        not null,
-    bond_mode                    integer                     not null,    -- This is the numerical bond type (will translate to the user's language in the Anvil!)
+    bond_mode                    text                        not null,                   -- This is the numerical bond type (will translate to the user's language in the Anvil!)
     bond_mtu                     bigint,
     bond_primary_slave           text,
     bond_primary_reselect        text,
@@ -529,6 +529,8 @@ CREATE TABLE bonds (
     bond_mii_polling_interval    bigint,
     bond_up_delay                bigint,
     bond_down_delay              bigint,
+    bond_mac_address             text, 
+    bond_operational             text,                                                   -- This is 'up', 'down' or 'unknown' 
     modified_date                timestamp with time zone    not null,
     
     FOREIGN KEY(bond_host_uuid) REFERENCES hosts(host_uuid)
@@ -540,7 +542,7 @@ CREATE TABLE history.bonds (
     bond_uuid                    uuid,
     bond_host_uuid               uuid,
     bond_name                    text,
-    bond_mode                    integer,
+    bond_mode                    text,
     bond_mtu                     bigint,
     bond_primary_slave           text,
     bond_primary_reselect        text,
@@ -549,6 +551,8 @@ CREATE TABLE history.bonds (
     bond_mii_polling_interval    bigint,
     bond_up_delay                bigint,
     bond_down_delay              bigint,
+    bond_mac_address             text, 
+    bond_operational             text,
     modified_date                timestamp with time zone    not null
 );
 ALTER TABLE history.bonds OWNER TO #!variable!user!#;
@@ -572,6 +576,8 @@ BEGIN
          bond_mii_polling_interval, 
          bond_up_delay, 
          bond_down_delay, 
+         bond_mac_address, 
+         bond_operational, 
          modified_date)
     VALUES
         (history_bonds.bond_uuid,
@@ -586,6 +592,8 @@ BEGIN
          history_bonds.bond_mii_polling_interval, 
          history_bonds.bond_up_delay, 
          history_bonds.bond_down_delay, 
+         history_bonds.bond_mac_address, 
+         history_bonds.bond_operational, 
          history_bonds.modified_date);
     RETURN NULL;
 END;

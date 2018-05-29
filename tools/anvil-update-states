@@ -54,7 +54,7 @@ sub report_network
 	# We'll read through '/sys/class/net' looking for network interfaces.
 	# * 'sys::network::interface::<iface_name>::ip'     - If an IP address is set
 	# * 'sys::network::interface::<iface_name>::subnet' - If an IP is set
-	my $directory = $anvil->data->{path}{sysfs}{network_interfaces};
+	my $directory = "/sys/class/net";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
 	
 	local(*DIRECTORY);
@@ -64,7 +64,7 @@ sub report_network
 	{
 		next if $file eq ".";
 		next if $file eq "..";
-		next if $file eq "lo";
+		next if $file eq "lo"; 
 		next if $file =~ /virbr\d/;
 		my $full_path = "$directory/$file";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
@@ -77,11 +77,20 @@ sub report_network
 			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
 			my $operational = -e $full_path."/operstate" ? $anvil->Storage->read_file({file => $full_path."/operstate"}) : "unknown";	# up or down
-			my $ip_address  = "";
-			my $subnet_mask = "";
 			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed", debug => 2}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
 			my $media       = "unknown";
 			my $type        = "interface";
+			
+			# These are variables that will be needed if this is a bond interface.
+			my $ip_address           = "";
+			my $subnet_mask          = "";
+			my $bond_mode            = "";
+			my $primary_slave        = "";
+			my $primary_reselect     = "";
+			my $active_slave         = ""; 
+			my $mii_polling_interval = "";
+			my $up_delay             = "";
+			my $down_delay           = "";
 			
 			if (exists $anvil->data->{sys}{network}{interface}{$interface})
 			{
@@ -129,17 +138,43 @@ sub report_network
 				# Yup, we'll neet to dig into the bond proc files to get the proper slaved 
 				# interface MAC addresses.
 				$type = "bond";
+				
+				# Read the bond mode.
+				$bond_mode            =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/mode"});
+				$bond_mode            =~ s/\s.*//;
+				$primary_slave        =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary"});
+				$primary_reselect     =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary_reselect"});
+				$primary_reselect     =~ s/\s.*//;
+				$active_slave         =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/active_slave"});
+				$mii_polling_interval =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/miimon"});
+				$up_delay             =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/updelay"});
+				$down_delay           =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/downdelay"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					active_slave         => $active_slave, 
+					bond_mode            => $bond_mode, 
+					mii_polling_interval => $mii_polling_interval, 
+					primary_reselect     => $primary_reselect, 
+					primary_slave        => $primary_slave, 
+					type                 => $type,
+				}});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				duplex      => $duplex, 
-				interface   => $interface,
-				mac_address => $mac_address, 
-				mtu         => $mtu, 
-				operational => $operational, 
-				speed       => $speed, 
-				subnet_mask => $subnet_mask, 
-				type        => $type, 
+				active_slave         => $active_slave, 
+				bond_mode            => $bond_mode, 
+				down_delay           => $down_delay, 
+				duplex               => $duplex, 
+				interface            => $interface,
+				mac_address          => $mac_address, 
+				mii_polling_interval => $mii_polling_interval, 
+				mtu                  => $mtu, 
+				operational          => $operational, 
+				primary_reselect     => $primary_reselect, 
+				primary_slave        => $primary_slave, 
+				speed                => $speed, 
+				subnet_mask          => $subnet_mask, 
+				type                 => $type, 
+				up_delay             => $up_delay, 
 			}});
 			
 			# If the MAC address starts with '52:54:00', we've got a virtio NIC.
@@ -175,28 +210,42 @@ sub report_network
 			
 			# Log
 			$anvil->data->{network}{interfaces}{by_name}{$interface} = {
-				duplex      => $duplex,
-				ip_address  => $ip_address, 
-				link_state  => $link_state, 
-				mac_address => $mac_address, 
-				media       => $media, 
-				mtu         => $mtu, 
-				operational => $operational,
-				speed       => $speed,
-				subnet_mask => $subnet_mask, 
-				type        => $type, 
+				active_slave         => $active_slave, 
+				bond_mode            => $bond_mode, 
+				down_delay           => $down_delay, 
+				duplex               => $duplex,
+				ip_address           => $ip_address, 
+				link_state           => $link_state, 
+				mac_address          => $mac_address, 
+				media                => $media, 
+				mii_polling_interval => $mii_polling_interval, 
+				mtu                  => $mtu, 
+				operational          => $operational,
+				primary_reselect     => $primary_reselect, 
+				primary_slave        => $primary_slave, 
+				speed                => $speed,
+				subnet_mask          => $subnet_mask, 
+				type                 => $type, 
+				up_delay             => $up_delay, 
 			};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"network::interfaces::by_name::${interface}::duplex"      => $duplex,
-				"network::interfaces::by_name::${interface}::ip_address"  => $ip_address,
-				"network::interfaces::by_name::${interface}::link_state"  => $link_state, 
-				"network::interfaces::by_name::${interface}::mac_address" => $mac_address, 
-				"network::interfaces::by_name::${interface}::media"       => $media, 
-				"network::interfaces::by_name::${interface}::mtu"         => $mtu, 
-				"network::interfaces::by_name::${interface}::operational" => $operational,
-				"network::interfaces::by_name::${interface}::speed"       => $speed,
-				"network::interfaces::by_name::${interface}::subnet_mask" => $subnet_mask,
-				"network::interfaces::by_name::${interface}::type"        => $type,
+				"network::interfaces::by_name::${interface}::active_slave"           => $anvil->data->{network}{interfaces}{by_name}{$interface}{active_slave},
+				"network::interfaces::by_name::${interface}::bond_mode"              => $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_mode},
+				"network::interfaces::by_name::${interface}::down_delay"             => $anvil->data->{network}{interfaces}{by_name}{$interface}{down_delay},
+				"network::interfaces::by_name::${interface}::duplex"                 => $anvil->data->{network}{interfaces}{by_name}{$interface}{duplex},
+				"network::interfaces::by_name::${interface}::ip_address"             => $anvil->data->{network}{interfaces}{by_name}{$interface}{ip_address},
+				"network::interfaces::by_name::${interface}::link_state"             => $anvil->data->{network}{interfaces}{by_name}{$interface}{link_state}, 
+				"network::interfaces::by_name::${interface}::mac_address"            => $anvil->data->{network}{interfaces}{by_name}{$interface}{mac_address}, 
+				"network::interfaces::by_name::${interface}::media"                  => $anvil->data->{network}{interfaces}{by_name}{$interface}{media}, 
+				"network::interfaces::by_name::${interface}::mii_polling_interval"   => $anvil->data->{network}{interfaces}{by_name}{$interface}{mii_polling_interval},
+				"network::interfaces::by_name::${interface}::mtu"                    => $anvil->data->{network}{interfaces}{by_name}{$interface}{mtu}, 
+				"network::interfaces::by_name::${interface}::operational"            => $anvil->data->{network}{interfaces}{by_name}{$interface}{operational},
+				"network::interfaces::by_name::${interface}::primary_reselect"       => $anvil->data->{network}{interfaces}{by_name}{$interface}{primary_reselect},
+				"network::interfaces::by_name::${interface}::primary_slave"          => $anvil->data->{network}{interfaces}{by_name}{$interface}{primary_slave},
+				"network::interfaces::by_name::${interface}::speed"                  => $anvil->data->{network}{interfaces}{by_name}{$interface}{speed},
+				"network::interfaces::by_name::${interface}::subnet_mask"            => $anvil->data->{network}{interfaces}{by_name}{$interface}{subnet_mask},
+				"network::interfaces::by_name::${interface}::type"                   => $anvil->data->{network}{interfaces}{by_name}{$interface}{type},
+				"network::interfaces::by_name::${interface}::up_delay"               => $anvil->data->{network}{interfaces}{by_name}{$interface}{up_delay},
 			}});
 		}
 	}
@@ -204,34 +253,48 @@ sub report_network
 
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{interfaces}{by_name}})
 	{
-		my $duplex          = $anvil->data->{network}{interfaces}{by_name}{$interface}{duplex};
-		my $ip_address      = $anvil->data->{network}{interfaces}{by_name}{$interface}{ip_address};
-		my $link_state      = $anvil->data->{network}{interfaces}{by_name}{$interface}{link_state};
-		my $mac_address     = $anvil->data->{network}{interfaces}{by_name}{$interface}{mac_address};
-		my $media           = $anvil->data->{network}{interfaces}{by_name}{$interface}{media};
-		my $mtu             = $anvil->data->{network}{interfaces}{by_name}{$interface}{mtu};
-		my $operational     = $anvil->data->{network}{interfaces}{by_name}{$interface}{operational};
-		my $speed           = $anvil->data->{network}{interfaces}{by_name}{$interface}{speed};
-		my $subnet_mask     = $anvil->data->{network}{interfaces}{by_name}{$interface}{subnet_mask};
-		my $type            = $anvil->data->{network}{interfaces}{by_name}{$interface}{type};
-		my $default_gateway = $anvil->data->{sys}{network}{interface}{$interface}{default_gateway};
-		my $gateway         = $anvil->data->{sys}{network}{interface}{$interface}{gateway};
-		my $dns             = $anvil->data->{sys}{network}{interface}{$interface}{dns};
+		my $active_slave         = $anvil->data->{network}{interfaces}{by_name}{$interface}{active_slave};
+		my $bond_mode            = $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_mode};
+		my $down_delay           = $anvil->data->{network}{interfaces}{by_name}{$interface}{down_delay};
+		my $duplex               = $anvil->data->{network}{interfaces}{by_name}{$interface}{duplex};
+		my $ip_address           = $anvil->data->{network}{interfaces}{by_name}{$interface}{ip_address};
+		my $link_state           = $anvil->data->{network}{interfaces}{by_name}{$interface}{link_state};
+		my $mac_address          = $anvil->data->{network}{interfaces}{by_name}{$interface}{mac_address};
+		my $media                = $anvil->data->{network}{interfaces}{by_name}{$interface}{media};
+		my $mii_polling_interval = $anvil->data->{network}{interfaces}{by_name}{$interface}{mii_polling_interval};
+		my $mtu                  = $anvil->data->{network}{interfaces}{by_name}{$interface}{mtu};
+		my $operational          = $anvil->data->{network}{interfaces}{by_name}{$interface}{operational};
+		my $primary_reselect     = $anvil->data->{network}{interfaces}{by_name}{$interface}{primary_reselect};
+		my $primary_slave        = $anvil->data->{network}{interfaces}{by_name}{$interface}{primary_slave};
+		my $speed                = $anvil->data->{network}{interfaces}{by_name}{$interface}{speed};
+		my $subnet_mask          = $anvil->data->{network}{interfaces}{by_name}{$interface}{subnet_mask};
+		my $type                 = $anvil->data->{network}{interfaces}{by_name}{$interface}{type};
+		my $up_delay             = $anvil->data->{network}{interfaces}{by_name}{$interface}{up_delay};
+		my $default_gateway      = $anvil->data->{sys}{network}{interface}{$interface}{default_gateway};
+		my $gateway              = $anvil->data->{sys}{network}{interface}{$interface}{gateway};
+		my $dns                  = $anvil->data->{sys}{network}{interface}{$interface}{dns};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			default_gateway => $default_gateway, 
-			dns             => $dns, 
-			duplex          => $duplex,
-			gateway         => $gateway, 
-			interface       => $interface, 
-			ip_address      => $ip_address, 
-			link_state      => $link_state, 
-			mac_address     => $mac_address, 
-			media           => $media, 
-			mtu             => $mtu, 
-			operational     => $operational,
-			speed           => $speed,
-			subnet_mask     => $subnet_mask, 
-			type            => $type,
+			active_slave         => $active_slave, 
+			bond_mode            => $bond_mode, 
+			default_gateway      => $default_gateway, 
+			down_delay           => $down_delay, 
+			dns                  => $dns, 
+			duplex               => $duplex,
+			gateway              => $gateway, 
+			interface            => $interface, 
+			ip_address           => $ip_address, 
+			link_state           => $link_state, 
+			mac_address          => $mac_address, 
+			media                => $media,
+			mii_polling_interval => $mii_polling_interval,  
+			mtu                  => $mtu, 
+			operational          => $operational,
+			primary_reselect     => $primary_reselect,
+			primary_slave        => $primary_slave, 
+			speed                => $speed,
+			subnet_mask          => $subnet_mask, 
+			type                 => $type,
+			up_delay             => $up_delay, 
 		}});
 		
 		if ($type eq "interface")
@@ -266,6 +329,37 @@ sub report_network
 		}
 		elsif ($type eq "bond")
 		{
+			my $bond_uuid = $anvil->Database->insert_or_update_bonds({
+				file                      => $THIS_FILE,
+				line                      => __LINE__,
+				bond_name                 => $interface,
+				bond_mode                 => $bond_mode, 
+				bond_mtu                  => $mtu, 
+				bond_link_state           => $link_state, 
+				bond_operational          => $operational, 
+				bond_mac_address          => $mac_address, 
+				bond_primary_slave        => $primary_slave, 
+				bond_primary_reselect     => $primary_reselect, 
+				bond_active_slave         => $active_slave, 
+				bond_mii_polling_interval => $mii_polling_interval, 
+				bond_up_delay             => $up_delay, 
+				bond_down_delay           => $down_delay, 
+			});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_uuid => $bond_uuid }});
+			if (($bond_uuid) && ($ip_address))
+			{
+				my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
+					debug                      => 2,
+					ip_address_on_type         => $type, 
+					ip_address_on_uuid         => $bond_uuid, 
+					ip_address_address         => $ip_address, 
+					ip_address_subnet_mask     => $subnet_mask, 
+					ip_address_gateway         => $gateway, 
+					ip_address_default_gateway => $default_gateway, 
+					ip_address_dns             => $dns, 
+				});
+			}
 		}
 	}
 	

@@ -46,7 +46,7 @@ sub scan
 {
 	my ($anvil) = @_;
 	
-	my $directory = $anvil->data->{path}{sysfs}{network_interfaces};
+	my $directory = "/sys/class/net";
 	print $THIS_FILE." ".__LINE__."; directory: [".$directory."]\n";
 	local(*DIRECTORY);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});

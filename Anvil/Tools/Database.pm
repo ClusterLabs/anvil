@@ -1446,14 +1446,14 @@ sub insert_or_update_bridges
 	my $bridge_id          =         $parameter->{bridge_id}          ? $parameter->{bridge_id}          : "NULL";
 	my $bridge_stp_enabled =         $parameter->{bridge_stp_enabled} ? $parameter->{bridge_stp_enabled} : "NULL";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid              => $uuid, 
-		file              => $file, 
-		line              => $line, 
-		bridge_uuid       => $bridge_uuid, 
-		bridge_host_uuid  => $bridge_host_uuid, 
-		bridge_name       => $bridge_name, 
-		bridge_id         => $bridge_id, 
-		bridge_down_delay => $bridge_down_delay, 
+		uuid               => $uuid, 
+		file               => $file, 
+		line               => $line, 
+		bridge_uuid        => $bridge_uuid, 
+		bridge_host_uuid   => $bridge_host_uuid, 
+		bridge_name        => $bridge_name, 
+		bridge_id          => $bridge_id, 
+		bridge_stp_enabled => $bridge_stp_enabled, 
 	}});
     
 	if (not $bridge_name)
@@ -1642,11 +1642,15 @@ This is the bond's device name.
 
 =head2 bond_mode (required)
 
-This is the bonding mode named used for this bond.
+This is the bonding mode used for this bond. 
 
 =head2 bond_mtu (optional)
 
 This is the MTU for the bonded interface.
+
+=head2 bond_operational (optional)
+
+This is set to C<< up >>, C<< down >> or C<< unknown >>. It indicates whether the bond has a working slaved interface or not.
 
 =head2 bond_primary_slave (optional)
 
@@ -1659,6 +1663,10 @@ This is the primary interface reselect policy.
 =head2 bond_active_slave (optional)
 
 This is the interface currently being used by the bond.
+
+=head2 bond_mac_address (optional)
+
+This is the current / active MAC address in use by the bond interface.
 
 =head2 bond_mii_status (optional)
 
@@ -1698,6 +1706,8 @@ sub insert_or_update_bonds
 	my $bond_mii_polling_interval =         $parameter->{bond_mii_polling_interval} ? $parameter->{bond_mii_polling_interval} : "NULL";
 	my $bond_up_delay             =         $parameter->{bond_up_delay}             ? $parameter->{bond_up_delay}             : "NULL";
 	my $bond_down_delay           =         $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "NULL";
+	my $bond_mac_address          =         $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "NULL";
+	my $bond_operational          =         $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "NULL";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                      => $uuid, 
 		file                      => $file, 
@@ -1714,6 +1724,8 @@ sub insert_or_update_bonds
 		bond_mii_polling_interval => $bond_mii_polling_interval, 
 		bond_up_delay             => $bond_up_delay, 
 		bond_down_delay           => $bond_down_delay, 
+		bond_mac_address          => $bond_mac_address, 
+		bond_operational          => $bond_operational, 
 	}});
 	
 	if (not $bond_name)
@@ -1803,6 +1815,8 @@ INSERT INTO
     bond_mii_polling_interval, 
     bond_up_delay, 
     bond_down_delay, 
+    bond_mac_address, 
+    bond_operational, 
     modified_date 
 ) VALUES (
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid).", 
@@ -1817,6 +1831,8 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mac_address).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($bond_operational).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
@@ -1839,7 +1855,9 @@ SELECT
     bond_mii_status, 
     bond_mii_polling_interval, 
     bond_up_delay, 
-    bond_down_delay 
+    bond_down_delay, 
+    bond_mac_address, 
+    bond_operational 
 FROM 
     bonds 
 WHERE 
@@ -1866,6 +1884,8 @@ WHERE
 			my $old_bond_mii_polling_interval = defined $row->[8]  ? $row->[8]  : "NULL";
 			my $old_bond_up_delay             = defined $row->[9]  ? $row->[9]  : "NULL";
 			my $old_bond_down_delay           = defined $row->[10] ? $row->[10] : "NULL";
+			my $old_bond_mac_address          = defined $row->[11] ? $row->[11] : "NULL";
+			my $old_bond_operational          = defined $row->[12] ? $row->[12] : "NULL";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bond_host_uuid            => $old_bond_host_uuid, 
 				old_bond_name                 => $old_bond_name, 
@@ -1878,6 +1898,8 @@ WHERE
 				old_bond_mii_polling_interval => $old_bond_mii_polling_interval, 
 				old_bond_up_delay             => $old_bond_up_delay, 
 				old_bond_down_delay           => $old_bond_down_delay, 
+				old_bond_mac_address          => $old_bond_mac_address, 
+				old_bond_operational          => $old_bond_operational, 
 			}});
 			
 			# Anything change?
@@ -1891,7 +1913,9 @@ WHERE
 			    ($old_bond_mii_status           ne $bond_mii_status)           or 
 			    ($old_bond_mii_polling_interval ne $bond_mii_polling_interval) or 
 			    ($old_bond_up_delay             ne $bond_up_delay)             or 
-			    ($old_bond_down_delay           ne $bond_down_delay))
+			    ($old_bond_down_delay           ne $bond_down_delay)           or 
+			    ($old_bond_mac_address          ne $bond_mac_address)          or 
+			    ($old_bond_operational          ne $bond_operational))
 			{
 				# Something changed, save.
 				my $query = "
@@ -1909,6 +1933,8 @@ SET
     bond_mii_polling_interval = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
     bond_up_delay             = ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
     bond_down_delay           = ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
+    bond_mac_address          = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mac_address).", 
+    bond_operational          = ".$anvil->data->{sys}{use_db_fh}->quote($bond_operational).", 
     modified_date             = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
     bond_uuid                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 

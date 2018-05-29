@@ -863,9 +863,6 @@ sub _set_paths
 			secure			=>	{
 				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",
 			},
-			sysfs			=>	{
-				network_interfaces	=>	"/sys/class/net",
-			},
 			sql			=>	{
 				'anvil.sql'		=>	"/usr/sbin/anvil.sql",
 			},
