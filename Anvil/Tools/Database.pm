@@ -1375,7 +1375,13 @@ sub initialize
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sql" => $sql }});
 	
 	# Now that I am ready, disable autocommit, write and commit.
-	$anvil->Database->write({uuid => $uuid, query => $sql, source => $THIS_FILE, line => __LINE__});
+	$anvil->Database->write({
+		debug  => 2,
+		uuid   => $uuid, 
+		query  => $sql, 
+		source => $THIS_FILE, 
+		line   => __LINE__,
+	});
 	
 	$anvil->data->{sys}{db_initialized}{$uuid} = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_initialized::${uuid}" => $anvil->data->{sys}{db_initialized}{$uuid} }});

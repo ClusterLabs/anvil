@@ -806,6 +806,7 @@ sub _set_paths
 				units			=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
+				'anvil-change-password'	=>	"/usr/sbin/anvil-change-password",
 				'anvil-prep-database'	=>	"/usr/sbin/anvil-prep-database",
 				'anvil-update-states'	=>	"/usr/sbin/anvil-update-states",
 				'anvil-report-memory'	=>	"/usr/sbin/anvil-report-memory",

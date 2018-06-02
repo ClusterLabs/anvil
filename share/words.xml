@@ -55,6 +55,8 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 NOTE: You must update the password of any other system using this host's 
       database manually!
 		</key>
+		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
+		<key name="message_0031">Beginning configuration of local system.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -365,6 +367,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0008">Failed to read the file: [#!variable!file!#]. It doesn't appear to exist.</key>
 		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
 		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
+		<key name="error_0011">Something went wrong while trying to update the password. The return code was: [#!variable!return_code!#], but '0' was expected.</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

@@ -573,11 +573,20 @@ sub get_ips
 		{
 			my $mac                                                    = $1;
 			   $anvil->data->{sys}{network}{interface}{$in_iface}{mac} = $mac;
-			   $anvil->data->{sys}{mac}{$mac}{iface}                   = $in_iface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"sys::network::interface::${in_iface}::mac" => $anvil->data->{sys}{network}{interface}{$in_iface}{mac},
-				"sys::mac::${mac}::iface"                   => $anvil->data->{sys}{mac}{$mac}{iface}, 
 			}});
+			
+			# We only record the mac in 'sys::mac' if this isn't a bond.
+			my $test_file = "/proc/net/bonding/".$in_iface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_file => $test_file }});
+			if (not -e $test_file)
+			{
+				$anvil->data->{sys}{mac}{$mac}{iface} = $in_iface;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::mac::${mac}::iface" => $anvil->data->{sys}{mac}{$mac}{iface}, 
+				}});
+			}
 		}
 	}
 	

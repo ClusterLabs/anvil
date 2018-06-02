@@ -294,6 +294,10 @@ fi";
 			# Log that the file was backed up.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0154", variables => { source_file => $source_file, target_file => $target_file }});
 		}
+		else
+		{
+			die;
+		}
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_file => $target_file }});

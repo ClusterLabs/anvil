@@ -8,6 +8,7 @@
 # 2 = Failed to connect to database(s).
 # 3 = Job was already picked up by another running instance.
 # 4 = The host name did not update properly.
+# 5 = Failed to write the temp file with the new password needed to call anvil-change-password.
 # 
 
 use strict;
@@ -27,7 +28,7 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 0});
+$anvil->Log->secure({set => 1});
 
 # Read switches
 $anvil->Get->switches;
@@ -40,7 +41,7 @@ $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'
 if (($< != 0) && ($> != 0))
 {
 	# Not root
-	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0005"});
 	$anvil->nice_exit({code => 1});
 }
 
@@ -50,12 +51,12 @@ my $connections = $anvil->Database->connect({
 	test_table => "network_interfaces", 
 });
 
-print $THIS_FILE." ".__LINE__."; connections: [".$connections."]\n";
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0031"});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132", variables => { connections => $connections }});
 if (not $connections)
 {
 	# No databases, exit.
-	print $anvil->Words->string({key => "error_0003"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
 
@@ -64,9 +65,6 @@ pickup_job_details($anvil);
 reconfigure_network($anvil);
 
 update_passwords($anvil);
-# Set the passwords
-my $password = $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
 
 
 
@@ -85,18 +83,57 @@ sub update_passwords
 {
 	my ($anvil) = @_;
 	
+	# Set the passwords
+	my $password  = $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
+	my $temp_file = "/tmp/anvil-".$anvil->Get->uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
+	
 	# Write the password into a temporary file.
 	my $error = $anvil->Storage->write_file({
-		body      => ,
-		debug     => $debug,
+		body      => $password,
+		debug     => 2,
 		file      => $temp_file,
-		group     => $group, 
-		mode      => $mode,
+		group     => "root", 
+		mode      => "0600",
 		overwrite => 1,
-		secure    => $secure,
-		user      => $user,
+		secure    => 1,
+		user      => "root",
 	});
 	
+	# Call anvil-change-password
+	if ($error)
+	{
+		# Couldn't write the temp file.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0030", variables => { file => $temp_file }});
+		$anvil->nice_exit({code => 5});
+	}
+	else
+	{
+		my $return_code = "";
+		my $output      = $anvil->System->call({
+			debug      => 2, 
+			shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$!",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output }});
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { line => $line }});
+			if ($line =~ /return_code:(\d+)$/)
+			{
+				$return_code = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { return_code => $return_code }});
+			}
+		}
+		
+		# Unlink the temp file.
+		unlink $temp_file;
+		
+		if ($return_code)
+		{
+			# Something went wrong
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0011", variables => { return_code => $return_code }});
+		}
+	}
 	
 	return(0);
 }
@@ -201,16 +238,16 @@ sub reconfigure_network
 			my $old_link1_iface = $anvil->data->{sys}{mac}{$link1_mac}{iface} ? $anvil->data->{sys}{mac}{$link1_mac}{iface} : "";
 			my $old_link2_iface = $anvil->data->{sys}{mac}{$link2_mac}{iface} ? $anvil->data->{sys}{mac}{$link2_mac}{iface} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				this_network    => $this_network, 
-				link1_key       => $link1_key, 
-				link2_key       => $link2_key, 
-				subnet_key      => $subnet_key, 
 				ip_key          => $ip_key, 
 				is_gateway      => $is_gateway, 
+				link1_key       => $link1_key, 
 				link1_mac       => $link1_mac, 
+				link2_key       => $link2_key, 
 				link2_mac       => $link2_mac, 
 				old_link1_iface => $old_link1_iface, 
 				old_link2_iface => $old_link2_iface, 
+				subnet_key      => $subnet_key, 
+				this_network    => $this_network, 
 			}});
 			
 			# Skip if this doesn't exist or isn't a valid IPv4 address.
@@ -362,17 +399,32 @@ sub reconfigure_network
 				}});
 				
 				# Make backups of existing files
-				if (-e $bond_file)      { $anvil->Storage->backup({file => $bond_file});      }
-				if (-e $old_link1_file) { $anvil->Storage->backup({file => $old_link1_file}); }
-				if (-e $old_link2_file) { $anvil->Storage->backup({file => $old_link1_file}); }
-				if (-e $new_link1_file) { $anvil->Storage->backup({file => $new_link1_file}); }
-				if (-e $new_link2_file) { $anvil->Storage->backup({file => $new_link1_file}); }
-				
+				if (-e $bond_file)
+				{
+					$anvil->Storage->backup({debug => 2, file => $bond_file});
+				}
+				if (-e $old_link1_file)
+				{
+					$anvil->Storage->backup({debug => 2, file => $old_link1_file});
+				}
+				if (-e $old_link2_file)
+				{
+					$anvil->Storage->backup({debug => 2, file => $old_link2_file});
+				}
+				if (($old_link1_file ne $new_link1_file) && (-e $new_link1_file))
+				{
+					$anvil->Storage->backup({debug => 2, file => $new_link1_file});
+				}
+				if (($old_link2_file ne $new_link2_file) && (-e $new_link2_file))
+				{
+					$anvil->Storage->backup({debug => 2, file => $new_link2_file});
+				}
+
 				### Write out the new configs
 				# Bond, Link 1 and Link 2
-				$anvil->Storage->write_file({file => $bond_file,      body => $bond_config,  user => "root", group => "root", mode => "0644"});
-				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config, user => "root", group => "root", mode => "0644"});
-				$anvil->Storage->write_file({file => $new_link2_file, body => $link2_config, user => "root", group => "root", mode => "0644"});
+				$anvil->Storage->write_file({file => $bond_file,      body => $bond_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Storage->write_file({file => $new_link2_file, body => $link2_config, user => "root", group => "root", mode => "0644", overwrite => 1});
 				
 				### NOTE: Everything except the unlink is disabled until we sort out the reload
 				# Shut down (and rename) Link 1
@@ -564,7 +616,6 @@ LIMIT 1;";
 		# Is the PID that picked up the job still alive?
 		if (exists $anvil->data->{pids}{$job_picked_up_by})
 		{
-			print Dumper $anvil->data->{pids}{$job_picked_up_by};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0146", variables => { pid => $job_picked_up_by }});
 			$anvil->nice_exit({code => 3});
 		}
