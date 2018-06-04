@@ -264,8 +264,8 @@ ORDER BY
 	}});
 	foreach my $row (@{$results})
 	{
-		my $variable_name  =         $row->[0];
-		my $variable_value = defined $row->[1] ? $row->[1] : "";
+		my $variable_name  = $row->[0];
+		my $variable_value = $row->[1];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			variable_name  => $variable_name, 
 			variable_value => $variable_value, 
@@ -273,8 +273,8 @@ ORDER BY
 	
 		if ($variable_name =~ /form::config_step2::(.*?)::value/)
 		{
-			my $variable                          =  $1;
-			   $cgi                               .= $variable.",";
+			my $variable                             =  $1;
+			   $cgi                                  .= $variable.",";
 			   $anvil->data->{cgi}{$variable}{value} =  $variable_value;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
 			
@@ -412,8 +412,8 @@ ORDER BY
 		}});
 		foreach my $row (@{$results})
 		{
-			my $variable_name  =         $row->[0];
-			my $variable_value = defined $row->[1] ? $row->[1] : "";
+			my $variable_name  = $row->[0];
+			my $variable_value = $row->[1];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				variable_name  => $variable_name, 
 				variable_value => $variable_value, 
@@ -421,7 +421,7 @@ ORDER BY
 		
 			if ($variable_name =~ /form::config_step2::(.*?)::value/)
 			{
-				my $variable                          = $1;
+				my $variable                             = $1;
 				   $anvil->data->{cgi}{$variable}{value} = $variable_value;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
 			}

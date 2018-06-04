@@ -1449,8 +1449,8 @@ sub insert_or_update_bridges
 	my $bridge_uuid        = defined $parameter->{bridge_uuid}        ? $parameter->{bridge_uuid}        : "";
 	my $bridge_host_uuid   = defined $parameter->{bridge_host_uuid}   ? $parameter->{bridge_host_uuid}   : $anvil->data->{sys}{host_uuid};
 	my $bridge_name        = defined $parameter->{bridge_name}        ? $parameter->{bridge_name}        : "";
-	my $bridge_id          =         $parameter->{bridge_id}          ? $parameter->{bridge_id}          : "NULL";
-	my $bridge_stp_enabled =         $parameter->{bridge_stp_enabled} ? $parameter->{bridge_stp_enabled} : "NULL";
+	my $bridge_id          =         $parameter->{bridge_id}          ? $parameter->{bridge_id}          : "";
+	my $bridge_stp_enabled =         $parameter->{bridge_stp_enabled} ? $parameter->{bridge_stp_enabled} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid               => $uuid, 
 		file               => $file, 
@@ -1546,7 +1546,6 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -1574,10 +1573,10 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_bridge_host_uuid   =         $row->[0];
-			my $old_bridge_name        =         $row->[1];
-			my $old_bridge_id          = defined $row->[2] ? $row->[2] : "NULL";
-			my $old_bridge_stp_enabled = defined $row->[3] ? $row->[3] : "NULL";
+			my $old_bridge_host_uuid   = $row->[0];
+			my $old_bridge_name        = $row->[1];
+			my $old_bridge_id          = $row->[2];
+			my $old_bridge_stp_enabled = $row->[3];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bridge_host_uuid   => $old_bridge_host_uuid, 
 				old_bridge_name        => $old_bridge_name, 
@@ -1604,7 +1603,6 @@ SET
 WHERE 
     bridge_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_uuid)." 
 ";
-				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
@@ -1674,10 +1672,6 @@ This is the interface currently being used by the bond.
 
 This is the current / active MAC address in use by the bond interface.
 
-=head2 bond_mii_status (optional)
-
-This is the current status of the interface (C<< up >> or C<< down >>).
-
 =head2 bond_mii_polling_interval (optional)
 
 This is how often, in milliseconds, that the link (mii) status is manually checked.
@@ -1704,16 +1698,15 @@ sub insert_or_update_bonds
 	my $bond_host_uuid            = defined $parameter->{bond_host_uuid}            ? $parameter->{bond_host_uuid}            : $anvil->data->{sys}{host_uuid};
 	my $bond_name                 = defined $parameter->{bond_name}                 ? $parameter->{bond_name}                 : "";
 	my $bond_mode                 = defined $parameter->{bond_mode}                 ? $parameter->{bond_mode}                 : "";
-	my $bond_mtu                  =         $parameter->{bond_mtu}                  ? $parameter->{bond_mtu}                  : "NULL";
-	my $bond_primary_slave        =         $parameter->{bond_primary_slave}        ? $parameter->{bond_primary_slave}        : "NULL";
-	my $bond_primary_reselect     =         $parameter->{bond_primary_reselect}     ? $parameter->{bond_primary_reselect}     : "NULL";
-	my $bond_active_slave         =         $parameter->{bond_active_slave}         ? $parameter->{bond_active_slave}         : "NULL";
-	my $bond_mii_status           =         $parameter->{bond_mii_status}           ? $parameter->{bond_mii_status}           : "NULL";
-	my $bond_mii_polling_interval =         $parameter->{bond_mii_polling_interval} ? $parameter->{bond_mii_polling_interval} : "NULL";
-	my $bond_up_delay             =         $parameter->{bond_up_delay}             ? $parameter->{bond_up_delay}             : "NULL";
-	my $bond_down_delay           =         $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "NULL";
-	my $bond_mac_address          =         $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "NULL";
-	my $bond_operational          =         $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "NULL";
+	my $bond_mtu                  =         $parameter->{bond_mtu}                  ? $parameter->{bond_mtu}                  : "";
+	my $bond_primary_slave        =         $parameter->{bond_primary_slave}        ? $parameter->{bond_primary_slave}        : "";
+	my $bond_primary_reselect     =         $parameter->{bond_primary_reselect}     ? $parameter->{bond_primary_reselect}     : "";
+	my $bond_active_slave         =         $parameter->{bond_active_slave}         ? $parameter->{bond_active_slave}         : "";
+	my $bond_mii_polling_interval =         $parameter->{bond_mii_polling_interval} ? $parameter->{bond_mii_polling_interval} : "";
+	my $bond_up_delay             =         $parameter->{bond_up_delay}             ? $parameter->{bond_up_delay}             : "";
+	my $bond_down_delay           =         $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "";
+	my $bond_mac_address          =         $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "";
+	my $bond_operational          =         $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                      => $uuid, 
 		file                      => $file, 
@@ -1726,7 +1719,6 @@ sub insert_or_update_bonds
 		bond_primary_slave        => $bond_primary_slave, 
 		bond_primary_reselect     => $bond_primary_reselect, 
 		bond_active_slave         => $bond_active_slave, 
-		bond_mii_status           => $bond_mii_status, 
 		bond_mii_polling_interval => $bond_mii_polling_interval, 
 		bond_up_delay             => $bond_up_delay, 
 		bond_down_delay           => $bond_down_delay, 
@@ -1817,7 +1809,6 @@ INSERT INTO
     bond_primary_slave, 
     bond_primary_reselect, 
     bond_active_slave, 
-    bond_mii_status, 
     bond_mii_polling_interval, 
     bond_up_delay, 
     bond_down_delay, 
@@ -1833,7 +1824,6 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_slave).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_reselect).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_active_slave).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_status).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
@@ -1842,7 +1832,6 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -1858,7 +1847,6 @@ SELECT
     bond_primary_slave, 
     bond_primary_reselect, 
     bond_active_slave, 
-    bond_mii_status, 
     bond_mii_polling_interval, 
     bond_up_delay, 
     bond_down_delay, 
@@ -1879,19 +1867,18 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_bond_host_uuid            =         $row->[0];
-			my $old_bond_name                 =         $row->[1];
-			my $old_bond_mode                 =         $row->[2];
-			my $old_bond_mtu                  = defined $row->[3]  ? $row->[3]  : "NULL";
-			my $old_bond_primary_slave        = defined $row->[4]  ? $row->[4]  : "NULL";
-			my $old_bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : "NULL";
-			my $old_bond_active_slave         = defined $row->[6]  ? $row->[6]  : "NULL";
-			my $old_bond_mii_status           = defined $row->[7]  ? $row->[7]  : "NULL";
-			my $old_bond_mii_polling_interval = defined $row->[8]  ? $row->[8]  : "NULL";
-			my $old_bond_up_delay             = defined $row->[9]  ? $row->[9]  : "NULL";
-			my $old_bond_down_delay           = defined $row->[10] ? $row->[10] : "NULL";
-			my $old_bond_mac_address          = defined $row->[11] ? $row->[11] : "NULL";
-			my $old_bond_operational          = defined $row->[12] ? $row->[12] : "NULL";
+			my $old_bond_host_uuid            = $row->[0];
+			my $old_bond_name                 = $row->[1];
+			my $old_bond_mode                 = $row->[2];
+			my $old_bond_mtu                  = $row->[3];
+			my $old_bond_primary_slave        = $row->[4];
+			my $old_bond_primary_reselect     = $row->[5];
+			my $old_bond_active_slave         = $row->[6];
+			my $old_bond_mii_polling_interval = $row->[8];
+			my $old_bond_up_delay             = $row->[9];
+			my $old_bond_down_delay           = $row->[10];
+			my $old_bond_mac_address          = $row->[11];
+			my $old_bond_operational          = $row->[12];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bond_host_uuid            => $old_bond_host_uuid, 
 				old_bond_name                 => $old_bond_name, 
@@ -1900,7 +1887,6 @@ WHERE
 				old_bond_primary_slave        => $old_bond_primary_slave, 
 				old_bond_primary_reselect     => $old_bond_primary_reselect, 
 				old_bond_active_slave         => $old_bond_active_slave, 
-				old_bond_mii_status           => $old_bond_mii_status, 
 				old_bond_mii_polling_interval => $old_bond_mii_polling_interval, 
 				old_bond_up_delay             => $old_bond_up_delay, 
 				old_bond_down_delay           => $old_bond_down_delay, 
@@ -1916,7 +1902,6 @@ WHERE
 			    ($old_bond_primary_slave        ne $bond_primary_slave)        or 
 			    ($old_bond_primary_reselect     ne $bond_primary_reselect)     or 
 			    ($old_bond_active_slave         ne $bond_active_slave)         or 
-			    ($old_bond_mii_status           ne $bond_mii_status)           or 
 			    ($old_bond_mii_polling_interval ne $bond_mii_polling_interval) or 
 			    ($old_bond_up_delay             ne $bond_up_delay)             or 
 			    ($old_bond_down_delay           ne $bond_down_delay)           or 
@@ -1935,7 +1920,6 @@ SET
     bond_primary_slave        = ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_slave).", 
     bond_primary_reselect     = ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_reselect).", 
     bond_active_slave         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_active_slave).", 
-    bond_mii_status           = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_status).", 
     bond_mii_polling_interval = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
     bond_up_delay             = ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
     bond_down_delay           = ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
@@ -1945,7 +1929,6 @@ SET
 WHERE 
     bond_uuid                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 
 ";
-				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
@@ -2071,7 +2054,6 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -2088,7 +2070,6 @@ SET
 WHERE
     host_uuid     = ".$anvil->data->{sys}{use_db_fh}->quote($host_uuid)."
 ;";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -2171,9 +2152,9 @@ sub insert_or_update_ip_addresses
 	my $ip_address_on_uuid         = defined $parameter->{ip_address_on_uuid}         ? $parameter->{ip_address_on_uuid}         : "";
 	my $ip_address_address         = defined $parameter->{ip_address_address}         ? $parameter->{ip_address_address}         : "";
 	my $ip_address_subnet_mask     = defined $parameter->{ip_address_subnet_mask}     ? $parameter->{ip_address_subnet_mask}     : "";
-	my $ip_address_gateway         =         $parameter->{ip_address_gateway}         ? $parameter->{ip_address_gateway}         : "NULL";
+	my $ip_address_gateway         = defined $parameter->{ip_address_gateway}         ? $parameter->{ip_address_gateway}         : "";
 	my $ip_address_default_gateway = defined $parameter->{ip_address_default_gateway} ? $parameter->{ip_address_default_gateway} : 0;
-	my $ip_address_dns             =         $parameter->{ip_address_dns}             ? $parameter->{ip_address_dns}             : "NULL";
+	my $ip_address_dns             = defined $parameter->{ip_address_dns}             ? $parameter->{ip_address_dns}             : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                       => $uuid, 
 		file                       => $file, 
@@ -2242,10 +2223,6 @@ AND
 		}
 	}
 	
-	# default gateway is a boolean, so translate it.
-	my $say_ip_address_default_gateway = (($ip_address_default_gateway eq "1") or ($ip_address_default_gateway =~ /true/i)) ? "TRUE" : "FALSE";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_ip_address_default_gateway => $say_ip_address_default_gateway }});
-	
 	# If I still don't have an ip_address_uuid, we're INSERT'ing .
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address_uuid => $ip_address_uuid }});
 	if (not $ip_address_uuid)
@@ -2298,12 +2275,11 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet_mask).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
-    $say_ip_address_default_gateway, 
+    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_default_gateway).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -2335,14 +2311,14 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_ip_address_host_uuid       =         $row->[0];
-			my $old_ip_address_on_type         =         $row->[1];
-			my $old_ip_address_on_uuid         =         $row->[2];
-			my $old_ip_address_address         =         $row->[3];
-			my $old_ip_address_subnet_mask     =         $row->[4];
-			my $old_ip_address_gateway         = defined $row->[5] ? $row->[5] : "NULL";
-			my $old_ip_address_default_gateway =         $row->[6];
-			my $old_ip_address_dns             = defined $row->[7] ? $row->[7] : "NULL";
+			my $old_ip_address_host_uuid       = $row->[0];
+			my $old_ip_address_on_type         = $row->[1];
+			my $old_ip_address_on_uuid         = $row->[2];
+			my $old_ip_address_address         = $row->[3];
+			my $old_ip_address_subnet_mask     = $row->[4];
+			my $old_ip_address_gateway         = $row->[5];
+			my $old_ip_address_default_gateway = $row->[6];
+			my $old_ip_address_dns             = $row->[7];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_ip_address_host_uuid       => $old_ip_address_host_uuid, 
 				old_ip_address_on_type         => $old_ip_address_on_type, 
@@ -2354,18 +2330,15 @@ WHERE
 				old_ip_address_dns             => $old_ip_address_dns, 
 			}});
 			
-			my $say_old_ip_address_default_gateway = (($old_ip_address_default_gateway eq "1") or ($old_ip_address_default_gateway =~ /true/i)) ? "TRUE" : "FALSE";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_old_ip_address_default_gateway => $say_old_ip_address_default_gateway }});
-			
 			# Anything change?
-			if (($old_ip_address_host_uuid           ne $ip_address_host_uuid)           or 
-			    ($old_ip_address_on_type             ne $ip_address_on_type)             or 
-			    ($old_ip_address_on_uuid             ne $ip_address_on_uuid)             or 
-			    ($old_ip_address_address             ne $ip_address_address)             or 
-			    ($old_ip_address_subnet_mask         ne $ip_address_subnet_mask)         or 
-			    ($old_ip_address_gateway             ne $ip_address_gateway)             or 
-			    ($say_old_ip_address_default_gateway ne $say_ip_address_default_gateway) or 
-			    ($old_ip_address_dns                 ne $ip_address_dns))
+			if (($old_ip_address_host_uuid       ne $ip_address_host_uuid)       or 
+			    ($old_ip_address_on_type         ne $ip_address_on_type)         or 
+			    ($old_ip_address_on_uuid         ne $ip_address_on_uuid)         or 
+			    ($old_ip_address_address         ne $ip_address_address)         or 
+			    ($old_ip_address_subnet_mask     ne $ip_address_subnet_mask)     or 
+			    ($old_ip_address_gateway         ne $ip_address_gateway)         or 
+			    ($old_ip_address_default_gateway ne $ip_address_default_gateway) or 
+			    ($old_ip_address_dns             ne $ip_address_dns))
 			{
 				# Something changed, save.
 				my $query = "
@@ -2378,13 +2351,12 @@ SET
     ip_address_address         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
     ip_address_subnet_mask     = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet_mask).", 
     ip_address_gateway         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
-    ip_address_default_gateway = $say_ip_address_default_gateway, 
+    ip_address_default_gateway = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_default_gateway).", 
     ip_address_dns             = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
     modified_date              = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
     ip_address_uuid            = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_uuid)." 
 ";
-				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
@@ -2669,7 +2641,6 @@ INSERT INTO
    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -2704,17 +2675,17 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_job_host_uuid    =         $row->[0];
-			my $old_job_command      =         $row->[1];
-			my $old_job_data         = defined $row->[2] ? $row->[2] : "";
-			my $old_job_picked_up_by =         $row->[3];
-			my $old_job_picked_up_at =         $row->[4];
-			my $old_job_updated      =         $row->[5];
-			my $old_job_name         =         $row->[6];
-			my $old_job_progress     =         $row->[7];
-			my $old_job_title        =         $row->[8];
-			my $old_job_description  =         $row->[9];
-			my $old_job_status       =         $row->[10];
+			my $old_job_host_uuid    = $row->[0];
+			my $old_job_command      = $row->[1];
+			my $old_job_data         = $row->[2];
+			my $old_job_picked_up_by = $row->[3];
+			my $old_job_picked_up_at = $row->[4];
+			my $old_job_updated      = $row->[5];
+			my $old_job_name         = $row->[6];
+			my $old_job_progress     = $row->[7];
+			my $old_job_title        = $row->[8];
+			my $old_job_description  = $row->[9];
+			my $old_job_status       = $row->[10];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_job_host_uuid    => $old_job_host_uuid,
 				old_job_command      => $old_job_command, 
@@ -2757,7 +2728,6 @@ WHERE
     job_uuid      = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
 ";
 					}
-					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 				}
@@ -2796,7 +2766,6 @@ SET
 WHERE 
     job_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
 ";
-					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 				}
@@ -2968,17 +2937,17 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_network_interface_host_uuid   =         $row->[0];
-			my $old_network_interface_mac_address =         $row->[1];
-			my $old_network_interface_name        =         $row->[2];
-			my $old_network_interface_speed       =         $row->[3];
-			my $old_network_interface_mtu         = defined $row->[4]  ? $row->[4]  : "";
-			my $old_network_interface_link_state  =         $row->[5];
-			my $old_network_interface_operational =         $row->[6];
-			my $old_network_interface_duplex      =         $row->[7];
-			my $old_network_interface_medium      = defined $row->[8]  ? $row->[8]  : "";
-			my $old_network_interface_bond_uuid   = defined $row->[9]  ? $row->[9]  : "";
-			my $old_network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : "";
+			my $old_network_interface_host_uuid   = $row->[0];
+			my $old_network_interface_mac_address = $row->[1];
+			my $old_network_interface_name        = $row->[2];
+			my $old_network_interface_speed       = $row->[3];
+			my $old_network_interface_mtu         = $row->[4];
+			my $old_network_interface_link_state  = $row->[5];
+			my $old_network_interface_operational = $row->[6];
+			my $old_network_interface_duplex      = $row->[7];
+			my $old_network_interface_medium      = $row->[8];
+			my $old_network_interface_bond_uuid   = $row->[9];
+			my $old_network_interface_bridge_uuid = $row->[10];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_network_interface_host_uuid   => $old_network_interface_host_uuid,
 				old_network_interface_mac_address => $old_network_interface_mac_address,
@@ -3060,7 +3029,6 @@ SET
 WHERE
     network_interface_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_uuid)."
 ;";
-				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
@@ -3085,8 +3053,8 @@ WHERE
 		}
 		
 		# Convert unpassed values to their defaults.
-		$network_interface_bond_uuid   = "NULL"    if $network_interface_bond_uuid   eq "--";
-		$network_interface_bridge_uuid = "NULL"    if $network_interface_bridge_uuid eq "--";
+		$network_interface_bond_uuid   = ""        if $network_interface_bond_uuid   eq "--";
+		$network_interface_bridge_uuid = ""        if $network_interface_bridge_uuid eq "--";
 		$network_interface_duplex      = "unknown" if $network_interface_duplex      eq "--";
 		$network_interface_link_state  = 0         if $network_interface_link_state  eq "--";
 		$network_interface_operational = "unknown" if $network_interface_operational eq "--";
@@ -3095,13 +3063,13 @@ WHERE
 		$network_interface_mtu         = 0         if $network_interface_mtu         eq "--";
 		
 		# Make sure the UUIDs are sane.
-		if (($network_interface_bond_uuid ne "NULL") && (not $anvil->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
+		if (($network_interface_bond_uuid ne "") && (not $anvil->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
 		{
 			# Bad UUID.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bond_uuid }});
 			return("");
 		}
-		if (($network_interface_bridge_uuid ne "NULL") && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
+		if (($network_interface_bridge_uuid ne "") && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
 		{
 			# Bad UUID.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bridge_uuid }});
@@ -3145,7 +3113,6 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -3206,7 +3173,7 @@ sub insert_or_update_states
 	my $state_uuid      = defined $parameter->{state_uuid}      ? $parameter->{state_uuid}      : "";
 	my $state_name      = defined $parameter->{state_name}      ? $parameter->{state_name}      : "";
 	my $state_host_uuid = defined $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
-	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "NULL";
+	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid            => $uuid, 
 		file            => $file, 
@@ -3303,7 +3270,6 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -3330,9 +3296,9 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_state_name         =         $row->[0];
-			my $old_state_host_uuid    =         $row->[1];
-			my $old_state_note         = defined $row->[2] ? $row->[2] : "NULL";
+			my $old_state_name         = $row->[0];
+			my $old_state_host_uuid    = $row->[1];
+			my $old_state_note         = $row->[2];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_state_name      => $old_state_name, 
 				old_state_host_uuid => $old_state_host_uuid, 
@@ -3356,7 +3322,6 @@ SET
 WHERE 
     state_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($state_uuid)." 
 ";
-				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
@@ -3542,16 +3507,6 @@ WHERE
 		}
 	}
 	
-	# Switch the values to be boolean friendly for the database.
-	my $say_user_is_admin       = (($user_is_admin       eq "1") or ($user_is_admin       =~ /true/i)) ? "TRUE" : "FALSE";
-	my $say_user_is_experienced = (($user_is_experienced eq "1") or ($user_is_experienced =~ /true/i)) ? "TRUE" : "FALSE";
-	my $say_user_is_trusted     = (($user_is_trusted     eq "1") or ($user_is_trusted     =~ /true/i)) ? "TRUE" : "FALSE";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		say_user_is_admin       => $say_user_is_admin,
-		say_user_is_experienced => $say_user_is_experienced,
-		say_user_is_trusted     => $say_user_is_trusted, 
-	}});
-	
 	# If I still don't have an user_uuid, we're INSERT'ing .
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
 	if (not $user_uuid)
@@ -3603,13 +3558,12 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_language).", 
-    ".$say_user_is_admin.", 
-    ".$say_user_is_experienced.", 
-    ".$say_user_is_trusted.", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_is_admin).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_is_experienced).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_is_trusted).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
@@ -3663,27 +3617,17 @@ WHERE
 				old_user_is_trusted     => $old_user_is_trusted,
 			}});
 			
-			# Switch the values to be boolean friendly for the database.
-			my $say_old_user_is_admin       = (($old_user_is_admin       eq "1") or ($old_user_is_admin       =~ /true/i)) ? "TRUE" : "FALSE";
-			my $say_old_user_is_experienced = (($old_user_is_experienced eq "1") or ($old_user_is_experienced =~ /true/i)) ? "TRUE" : "FALSE";
-			my $say_old_user_is_trusted     = (($old_user_is_trusted     eq "1") or ($old_user_is_trusted     =~ /true/i)) ? "TRUE" : "FALSE";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				say_old_user_is_admin       => $say_old_user_is_admin,
-				say_old_user_is_experienced => $say_old_user_is_experienced,
-				say_old_user_is_trusted     => $say_old_user_is_trusted, 
-			}});
-			
 			# Anything change?
-			if (($old_user_name               ne $user_name)               or 
-			    ($old_user_name               ne $user_name)               or 
-			    ($old_user_password_hash      ne $user_password_hash)      or 
-			    ($old_user_salt               ne $user_salt)               or 
-			    ($old_user_algorithm          ne $user_algorithm)          or 
-			    ($old_user_hash_count         ne $user_hash_count)         or 
-			    ($old_user_language           ne $user_language)           or 
-			    ($say_old_user_is_admin       ne $say_user_is_admin)       or 
-			    ($say_old_user_is_experienced ne $say_user_is_experienced) or 
-			    ($say_old_user_is_trusted     ne $say_user_is_trusted))
+			if (($old_user_name           ne $user_name)           or 
+			    ($old_user_name           ne $user_name)           or 
+			    ($old_user_password_hash  ne $user_password_hash)  or 
+			    ($old_user_salt           ne $user_salt)           or 
+			    ($old_user_algorithm      ne $user_algorithm)      or 
+			    ($old_user_hash_count     ne $user_hash_count)     or 
+			    ($old_user_language       ne $user_language)       or 
+			    ($old_user_is_admin       ne $user_is_admin)       or 
+			    ($old_user_is_experienced ne $user_is_experienced) or 
+			    ($old_user_is_trusted     ne $user_is_trusted))
 			{
 				# Something changed, save.
 				my $query = "
@@ -3696,14 +3640,13 @@ SET
     user_algorithm      = ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).",  
     user_hash_count     = ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).",  
     user_language       = ".$anvil->data->{sys}{use_db_fh}->quote($user_language).",  
-    user_is_admin       = ".$say_user_is_admin.", 
-    user_is_experienced = ".$say_user_is_experienced.", 
-    user_is_trusted     = ".$say_user_is_trusted.", 
+    user_is_admin       = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_admin).", 
+    user_is_experienced = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_experienced).", 
+    user_is_trusted     = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_trusted).", 
     modified_date       = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
     user_uuid           = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)." 
 ";
-				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 			}
@@ -3718,7 +3661,7 @@ WHERE
 
 This updates (or inserts) a record in the 'variables' table. The C<< state_uuid >> referencing the database row will be returned.
 
-Unlike the other methods of this type, this method can be told to update the 'variable_value' only. This is so because the section, description and default columns rarely ever change. If this is set and the variable name is new, an INSERT will be done the same as if it weren't set, with the unset columns set to NULL.
+Unlike the other methods of this type, this method can be told to update the 'variable_value' only. This is so because the section, description and default columns rarely ever change. If this is set and the variable name is new, an INSERT will be done the same as if it weren't set, with the unset columns set to an empty string.
 
 If there is an error, C<< !!error!! >> is returned.
 
@@ -3788,12 +3731,12 @@ sub insert_or_update_variables
 	my $line                  = defined $parameter->{line}                  ? $parameter->{line}                  : "";
 	my $variable_uuid         = defined $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = defined $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
-	my $variable_value        = defined $parameter->{variable_value}        ? $parameter->{variable_value}        : "NULL";
-	my $variable_default      = defined $parameter->{variable_default}      ? $parameter->{variable_default}      : "NULL";
-	my $variable_description  = defined $parameter->{variable_description}  ? $parameter->{variable_description}  : "NULL";
-	my $variable_section      = defined $parameter->{variable_section}      ? $parameter->{variable_section}      : "NULL";
-	my $variable_source_uuid  = defined $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "NULL";
-	my $variable_source_table = defined $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "NULL";
+	my $variable_value        = defined $parameter->{variable_value}        ? $parameter->{variable_value}        : "";
+	my $variable_default      = defined $parameter->{variable_default}      ? $parameter->{variable_default}      : "";
+	my $variable_description  = defined $parameter->{variable_description}  ? $parameter->{variable_description}  : "";
+	my $variable_section      = defined $parameter->{variable_section}      ? $parameter->{variable_section}      : "";
+	my $variable_source_uuid  = defined $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "";
+	my $variable_source_table = defined $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "";
 	my $update_value_only     = defined $parameter->{update_value_only}     ? $parameter->{update_value_only}     : 1;
 	my $log_level             = defined $parameter->{log_level}             ? $parameter->{log_level}             : 3;	# Undocumented for now.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
@@ -3847,7 +3790,7 @@ FROM
     variables 
 WHERE 
     variable_name = ".$anvil->data->{sys}{use_db_fh}->quote($variable_name);
-		if (($variable_source_uuid ne "NULL") && ($variable_source_table ne "NULL"))
+		if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 		{
 			$query .= "
 AND 
@@ -3903,7 +3846,6 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
-		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
 		$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -3920,7 +3862,7 @@ FROM
     variables 
 WHERE 
     variable_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid);
-			if (($variable_source_uuid ne "NULL") && ($variable_source_table ne "NULL"))
+			if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 			{
 				$query .= "
 AND 
@@ -3940,7 +3882,7 @@ AND
 			}});
 			foreach my $row (@{$results})
 			{
-				my $old_variable_value = defined $row->[0] ? $row->[0] : "";
+				my $old_variable_value = $row->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { old_variable_value => $old_variable_value }});
 				
 				# Anything change?
@@ -3955,7 +3897,7 @@ SET
     modified_date  = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
     variable_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid);
-					if (($variable_source_uuid ne "NULL") && ($variable_source_table ne "NULL"))
+					if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 					{
 						$query .= "
 AND 
@@ -3965,7 +3907,6 @@ AND
 ";
 					}
 					$query .= ";";
-					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 					
 					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -3998,10 +3939,10 @@ WHERE
 			foreach my $row (@{$results})
 			{
 				my $old_variable_name        = $row->[0];
-				my $old_variable_value       = $row->[1] ? $row->[1] : "NULL";
-				my $old_variable_default     = $row->[2] ? $row->[2] : "NULL";
-				my $old_variable_description = $row->[3] ? $row->[3] : "NULL";
-				my $old_variable_section     = $row->[4] ? $row->[4] : "NULL";
+				my $old_variable_value       = $row->[1];
+				my $old_variable_default     = $row->[2];
+				my $old_variable_description = $row->[3];
+				my $old_variable_section     = $row->[4];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 					old_variable_name        => $old_variable_name, 
 					old_variable_value       => $old_variable_value, 
@@ -4031,7 +3972,6 @@ SET
 WHERE 
     variable_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid)." 
 ";
-					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 					
 					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -4538,8 +4478,8 @@ sub read_variable
 	
 	my $variable_uuid         = $parameter->{variable_uuid}         ? $parameter->{variable_uuid}         : "";
 	my $variable_name         = $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
-	my $variable_source_uuid  = $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "NULL";
-	my $variable_source_table = $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "NULL";
+	my $variable_source_uuid  = $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "";
+	my $variable_source_table = $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "";
 	my $uuid                  = $parameter->{uuid}                  ? $parameter->{uuid}                  : $anvil->data->{sys}{read_db_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		variable_uuid         => $variable_uuid, 
@@ -4574,7 +4514,7 @@ WHERE ";
 	{
 		$query .= "
     variable_name = ".$anvil->data->{sys}{use_db_fh}->quote($variable_name);
-		if (($variable_source_uuid ne "NULL") && ($variable_source_table ne "NULL"))
+		if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 		{
 			$query .= "
 AND 
@@ -4597,9 +4537,9 @@ AND
 	}});
 	foreach my $row (@{$results})
 	{
-		$variable_value = defined $row->[0] ? $row->[0] : "";
-		$variable_uuid  =         $row->[1];
-		$modified_date  =         $row->[2];
+		$variable_value = $row->[0];
+		$variable_uuid  = $row->[1];
+		$modified_date  = $row->[2];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			variable_value => $variable_value, 
 			variable_uuid  => $variable_uuid, 

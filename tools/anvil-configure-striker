@@ -660,8 +660,8 @@ AND
 	}});
 	foreach my $row (@{$results})
 	{
-		my $this_variable =         $row->[0];
-		my $this_value    = defined $row->[1] ? $row->[1] : "";
+		my $this_variable = $row->[0];
+		my $this_value    = $row->[1];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			this_variable => $this_variable, 
 			this_value    => $this_value, 

@@ -23,6 +23,15 @@
 -- each that you plan to link, still use a '*_host_uuid' column (if the data is host-specific). This is 
 -- needed by the resync method.
 
+-- COLUMN TYPE NOTE!
+-- 
+-- To minimize the risk of coding errors translating NULL (versus "") or boolean (1 vs TRUE) in the code and 
+-- agents, it is recommended to use only 'text' and '[big]int' column types, and that all columns have the 
+-- 'NOT NULL' constraint. This is a recommendation, not a hard requirement. Remember, reliability comes from
+-- simplicity and consistency!
+-- 
+-- COLUMN TYPE NOTE!
+
 
 SET client_encoding = 'UTF8';
 -- This doesn't work before 9.3 - CREATE SCHEMA IF NOT EXISTS history;
@@ -48,9 +57,9 @@ CREATE TABLE users (
     user_algorithm       text                        not null,                   -- This is the algorithm used to encrypt the password and salt.
     user_hash_count      text                        not null,                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
     user_language        text                        not null,                   -- If set, this will choose a different language over the default.
-    user_is_admin        boolean                     not null    default false,  -- If true, all aspects of the program are available to the user. 
-    user_is_experienced  boolean                     not null    default false,  -- If true, user is allowed to delete a server, alter disk size, alter hardware and do other potentially risky things. They will also get fewer confirmation dialogues. 
-    user_is_trusted      boolean                     not null    default false,  -- If true, user is allowed to do things that would cause interruptions, like force-reset and gracefully stop servers, withdraw nodes, and stop the Anvil! entirely.
+    user_is_admin        integer                     not null    default 0,      -- If 1, all aspects of the program are available to the user. 
+    user_is_experienced  integer                     not null    default 0,      -- If 1, user is allowed to delete a server, alter disk size, alter hardware and do other potentially risky things. They will also get fewer confirmation dialogues. 
+    user_is_trusted      integer                     not null    default 0,      -- If 1, user is allowed to do things that would cause interruptions, like force-reset and gracefully stop servers, withdraw nodes, and stop the Anvil! entirely.
     modified_date        timestamp with time zone    not null
 );
 ALTER TABLE users OWNER TO #!variable!user!#;
@@ -64,9 +73,9 @@ CREATE TABLE history.users (
     user_algorithm       text,
     user_hash_count      text,
     user_language        text,
-    user_is_admin        boolean,
-    user_is_experienced  boolean,
-    user_is_trusted      boolean,
+    user_is_admin        integer,
+    user_is_experienced  integer,
+    user_is_trusted      integer,
     modified_date        timestamp with time zone    not null
 );
 ALTER TABLE history.users OWNER TO #!variable!user!#;
@@ -164,14 +173,14 @@ CREATE TABLE host_variable (
     host_variable_uuid         uuid                        not null    primary key,    -- This is the single most important record in ScanCore. Everything links back to here.
     host_variable_host_uuid    uuid                        not null,
     host_variable_name         text                        not null,
-    host_variable_value        text,
+    host_variable_value        text                        not null,
     modified_date              timestamp with time zone    not null
 );
 ALTER TABLE host_variable OWNER TO #!variable!user!#;
 
 CREATE TABLE history.host_variable (
     history_id                 bigserial,
-    host_variable_uuid         uuid                        not null,
+    host_variable_uuid         uuid,
     host_variable_host_uuid    uuid,
     host_variable_name         text,
     host_variable_value        text,
@@ -215,11 +224,11 @@ CREATE TABLE alerts (
     alert_set_by               text                        not null,
     alert_level                text                        not null,                    -- debug (log only), info (+ admin email), notice (+ curious users), warning (+ client technical staff), critical (+ all)
     alert_title_key            text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
-    alert_title_variables      text,                                                    -- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
+    alert_title_variables      text                        not null,                    -- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
     alert_message_key          text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
-    alert_message_variables    text,                                                    -- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
-    alert_sort                 text,                                                    -- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
-    alert_header               boolean                     not null    default TRUE,    -- This can be set to have the alert be printed with only the contents of the string, no headers.
+    alert_message_variables    text                        not null,                    -- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
+    alert_sort                 text                        not null,                    -- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
+    alert_header               integer                     not null    default 1,       -- This can be set to have the alert be printed with only the contents of the string, no headers.
     modified_date              timestamp with time zone    not null,
     
     FOREIGN KEY(alert_host_uuid) REFERENCES hosts(host_uuid)
@@ -237,7 +246,7 @@ CREATE TABLE history.alerts (
     alert_message_key          text,
     alert_message_variables    text,
     alert_sort                 text,
-    alert_header               boolean,
+    alert_header               integer,
     modified_date              timestamp with time zone    not null
 );
 ALTER TABLE history.alerts OWNER TO #!variable!user!#;
@@ -287,12 +296,12 @@ CREATE TRIGGER trigger_alerts
 CREATE TABLE variables (
     variable_uuid            uuid                        not null    primary key,
     variable_name            text                        not null,                   -- This is the 'x::y::z' style variable name.
-    variable_value           text,                                                   -- It is up to the software to sanity check variable values before they are stored
-    variable_default         text,                                                   -- This acts as a reference for the user should they want to roll-back changes.
-    variable_description     text,                                                   -- This is a string key that describes this variable's use.
-    variable_section         text,                                                   -- This is a free-form field that is used when displaying the various entries to a user. This allows for the various variables to be grouped into sections.
-    variable_source_uuid     text,                                                   -- Optional; Marks the variable as belonging to a specific X_uuid, where 'X' is a table name set in 'variable_source_table'
-    variable_source_table    text,                                                   -- Optional; Marks the database table corresponding to the 'variable_source_uuid' value.
+    variable_value           text                        not null,                   -- It is up to the software to sanity check variable values before they are stored
+    variable_default         text                        not null,                   -- This acts as a reference for the user should they want to roll-back changes.
+    variable_description     text                        not null,                   -- This is a string key that describes this variable's use.
+    variable_section         text                        not null,                   -- This is a free-form field that is used when displaying the various entries to a user. This allows for the various variables to be grouped into sections.
+    variable_source_uuid     text                        not null,                   -- Optional; Marks the variable as belonging to a specific X_uuid, where 'X' is a table name set in 'variable_source_table'
+    variable_source_table    text                        not null,                   -- Optional; Marks the database table corresponding to the 'variable_source_uuid' value.
     modified_date            timestamp with time zone    not null 
 );
 ALTER TABLE variables OWNER TO #!variable!user!#;
@@ -353,7 +362,7 @@ CREATE TABLE jobs (
     job_uuid           uuid                        not null    primary key,    -- 
     job_host_uuid      uuid                        not null,                   -- This is the host that requested the job
     job_command        text                        not null,                   -- This is the command to run (usually a shell call).
-    job_data           text,                                                   -- This is optional data to be used by anvil-data 
+    job_data           text                        not null,                   -- This is optional data to be used by anvil-data 
     job_picked_up_by   numeric                     not null    default 0,      -- This is the PID of the 'anvil-jobs' script that picked up the job.
     job_picked_up_at   numeric                     not null    default 0,      -- This is unix timestamp of when the job was picked up.
     job_updated        numeric                     not null    default 0,      -- This is unix timestamp that is perdiodically updated for jobs that take a long time. It is used to help determine when a job is hung.
@@ -441,13 +450,13 @@ CREATE TABLE network_interfaces (
     network_interface_mac_address    text                        not null,
     network_interface_name           text                        not null,                   -- This is the current name of the interface. 
     network_interface_speed          bigint                      not null,                   -- This is the speed, in bits-per-second, of the interface.
-    network_interface_mtu            bigint,                                                 -- This is the MTU (Maximum Transmitable Size), in bytes, for this interface.
+    network_interface_mtu            bigint                      not null,                   -- This is the MTU (Maximum Transmitable Size), in bytes, for this interface.
     network_interface_link_state     text                        not null,                   -- 0 or 1
     network_interface_operational    text                        not null,                   -- This is 'up', 'down' or 'unknown' 
     network_interface_duplex         text                        not null,                   -- This is 'full', 'half' or 'unknown' 
-    network_interface_medium         text,                                                   -- This is 'tp' (twisted pair), 'fiber' or whatever they invent in the future.
-    network_interface_bond_uuid      uuid,                                                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
-    network_interface_bridge_uuid    uuid,                                                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
+    network_interface_medium         text                        not null,                   -- This is 'tp' (twisted pair), 'fiber' or whatever they invent in the future.
+    network_interface_bond_uuid      uuid                        not null,                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
+    network_interface_bridge_uuid    uuid                        not null,                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
     modified_date                    timestamp with time zone    not null
 );
 ALTER TABLE network_interfaces OWNER TO #!variable!user!#;
@@ -521,16 +530,15 @@ CREATE TABLE bonds (
     bond_host_uuid               uuid                        not null,
     bond_name                    text                        not null,
     bond_mode                    text                        not null,                   -- This is the numerical bond type (will translate to the user's language in the Anvil!)
-    bond_mtu                     bigint,
-    bond_primary_slave           text,
-    bond_primary_reselect        text,
-    bond_active_slave            text,
-    bond_mii_status              text,
-    bond_mii_polling_interval    bigint,
-    bond_up_delay                bigint,
-    bond_down_delay              bigint,
-    bond_mac_address             text, 
-    bond_operational             text,                                                   -- This is 'up', 'down' or 'unknown' 
+    bond_mtu                     bigint                      not null,
+    bond_primary_slave           text                        not null,
+    bond_primary_reselect        text                        not null,
+    bond_active_slave            text                        not null,
+    bond_mii_polling_interval    bigint                      not null,
+    bond_up_delay                bigint                      not null,
+    bond_down_delay              bigint                      not null,
+    bond_mac_address             text                        not null,
+    bond_operational             text                        not null,                   -- This is 'up', 'down' or 'unknown' 
     modified_date                timestamp with time zone    not null,
     
     FOREIGN KEY(bond_host_uuid) REFERENCES hosts(host_uuid)
@@ -547,7 +555,6 @@ CREATE TABLE history.bonds (
     bond_primary_slave           text,
     bond_primary_reselect        text,
     bond_active_slave            text,
-    bond_mii_status              text,
     bond_mii_polling_interval    bigint,
     bond_up_delay                bigint,
     bond_down_delay              bigint,
@@ -572,7 +579,6 @@ BEGIN
          bond_primary_slave, 
          bond_primary_reselect, 
          bond_active_slave, 
-         bond_mii_status, 
          bond_mii_polling_interval, 
          bond_up_delay, 
          bond_down_delay, 
@@ -588,7 +594,6 @@ BEGIN
          history_bonds.bond_primary_slave, 
          history_bonds.bond_primary_reselect, 
          history_bonds.bond_active_slave, 
-         history_bonds.bond_mii_status, 
          history_bonds.bond_mii_polling_interval, 
          history_bonds.bond_up_delay, 
          history_bonds.bond_down_delay, 
@@ -611,8 +616,8 @@ CREATE TABLE bridges (
     bridge_uuid           uuid                        not null    primary key,
     bridge_host_uuid      uuid                        not null,
     bridge_name           text                        not null,
-    bridge_id             text,
-    bridge_stp_enabled    text,
+    bridge_id             text                        not null,
+    bridge_stp_enabled    text                        not null,
     modified_date         timestamp with time zone    not null,
     
     FOREIGN KEY(bridge_host_uuid) REFERENCES hosts(host_uuid)
@@ -671,9 +676,9 @@ CREATE TABLE ip_addresses (
     ip_address_on_uuid            uuid                        not null,                     -- This is the UUID of the interface, bond or bridge that has this IP
     ip_address_address            text                        not null,                     -- The actual IP address
     ip_address_subnet_mask        text                        not null,                     -- The subnet mask (in dotted decimal format)
-    ip_address_gateway            text,                                                     -- If set, this is the gateway IP for this subnet
-    ip_address_default_gateway    boolean                                 default FALSE,    -- If true, the gateway will be the default for the host.
-    ip_address_dns                text,                                                     -- If set, this is a comma-separated list of DNS IPs to use (in the order given)
+    ip_address_gateway            text                        not null,                     -- If set, this is the gateway IP for this subnet
+    ip_address_default_gateway    integer                     not null,   default 0,        -- If true, the gateway will be the default for the host.
+    ip_address_dns                text                        not null,                     -- If set, this is a comma-separated list of DNS IPs to use (in the order given)
     modified_date                 timestamp with time zone    not null,
     
     FOREIGN KEY(ip_address_host_uuid) REFERENCES hosts(host_uuid)
@@ -689,7 +694,7 @@ CREATE TABLE history.ip_addresses (
     ip_address_address            text,
     ip_address_subnet_mask        text,
     ip_address_gateway            text,
-    ip_address_default_gateway    text,
+    ip_address_default_gateway    integer,
     ip_address_dns                text,
     modified_date                 timestamp with time zone    not null
 );
@@ -773,7 +778,7 @@ CREATE TABLE states (
     state_uuid         uuid                        not null    primary key,
     state_name         text                        not null,                   -- This is the name of the state (ie: 'migration', etc)
     state_host_uuid    uuid                        not null,                   -- The UUID of the machine that the state relates to. In migrations, this is the UUID of the target
-    state_note         text,                                                   -- This is a free-form note section that the application setting the state can use for extra information (like the name of the server being migrated)
+    state_note         text                        not null,                   -- This is a free-form note section that the application setting the state can use for extra information (like the name of the server being migrated)
     modified_date      timestamp with time zone    not null,
     
     FOREIGN KEY(state_host_uuid) REFERENCES hosts(host_uuid)
