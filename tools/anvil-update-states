@@ -300,6 +300,7 @@ sub report_network
 		if ($type eq "interface")
 		{
 			my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
+				debug                         => 2,
 				file                          => $THIS_FILE,
 				line                          => __LINE__,
 				network_interface_name        => $interface,
@@ -494,17 +495,17 @@ ORDER BY
 	my $order = 1;
 	foreach my $row (@{$results})
 	{
-		my $network_interface_uuid        = $row->[0];
-		my $network_interface_mac_address = $row->[1];
-		my $network_interface_name        = $row->[2];
-		my $network_interface_speed       = $row->[3];
-		my $network_interface_mtu         = $row->[4];
-		my $network_interface_link_state  = $row->[5];
-		my $network_interface_operational = $row->[6];
-		my $network_interface_duplex      = $row->[7];
-		my $network_interface_medium      = $row->[8];
-		my $network_interface_bond_uuid   = $row->[9];
-		my $network_interface_bridge_uuid = $row->[10];
+		my $network_interface_uuid        =         $row->[0];
+		my $network_interface_mac_address =         $row->[1];
+		my $network_interface_name        =         $row->[2];
+		my $network_interface_speed       =         $row->[3];
+		my $network_interface_mtu         =         $row->[4];
+		my $network_interface_link_state  =         $row->[5];
+		my $network_interface_operational =         $row->[6];
+		my $network_interface_duplex      =         $row->[7];
+		my $network_interface_medium      =         $row->[8];
+		my $network_interface_bond_uuid   = defined $row->[9] ? $row->[9] : 'NULL';
+		my $network_interface_bridge_uuid =         $row->[10];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			network_interface_mac_address => $network_interface_mac_address,
 			network_interface_name        => $network_interface_name,
@@ -521,13 +522,13 @@ ORDER BY
 		$order++;
 	}
 	
-	
 die; 
+
 	# Write out the XML file and JSON file.
 	my $network_xml  =  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 	   $network_xml  .= "<network>\n";
 	my $network_json =  "{\"networks\":[\n";
-	my $query        = "
+	   $query        = "
 SELECT 
     network_interface_mac_address, 
     network_interface_name, 
@@ -547,24 +548,24 @@ ORDER BY
     modified_date DESC
 ;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
 	}});
 	foreach my $row (@{$results})
 	{
-		my $network_interface_mac_address = $row->[0];
-		my $network_interface_name        = $row->[1];
-		my $network_interface_speed       = $row->[2];
-		my $network_interface_mtu         = $row->[3];
-		my $network_interface_link_state  = $row->[4];
-		my $network_interface_operational = $row->[5];
-		my $network_interface_duplex      = $row->[6];
-		my $network_interface_medium      = $row->[7];
-		my $network_interface_bond_uuid   = $row->[8];
-		my $network_interface_bridge_uuid = $row->[9];
+		my $network_interface_mac_address =         $row->[0];
+		my $network_interface_name        =         $row->[1];
+		my $network_interface_speed       =         $row->[2];
+		my $network_interface_mtu         =         $row->[3];
+		my $network_interface_link_state  =         $row->[4];
+		my $network_interface_operational =         $row->[5];
+		my $network_interface_duplex      =         $row->[6];
+		my $network_interface_medium      =         $row->[7];
+		my $network_interface_bond_uuid   = defined $row->[8] ? $row->[8] : 'NULL';
+		my $network_interface_bridge_uuid =         $row->[9];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			network_interface_mac_address => $network_interface_mac_address,
 			network_interface_name        => $network_interface_name,

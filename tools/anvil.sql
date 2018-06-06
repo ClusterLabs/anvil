@@ -23,15 +23,6 @@
 -- each that you plan to link, still use a '*_host_uuid' column (if the data is host-specific). This is 
 -- needed by the resync method.
 
--- COLUMN TYPE NOTE!
--- 
--- To minimize the risk of coding errors translating NULL (versus "") or boolean (1 vs TRUE) in the code and 
--- agents, it is recommended to use only 'text' and '[big]int' column types, and that all columns have the 
--- 'NOT NULL' constraint. This is a recommendation, not a hard requirement. Remember, reliability comes from
--- simplicity and consistency!
--- 
--- COLUMN TYPE NOTE!
-
 
 SET client_encoding = 'UTF8';
 -- This doesn't work before 9.3 - CREATE SCHEMA IF NOT EXISTS history;
@@ -455,7 +446,7 @@ CREATE TABLE network_interfaces (
     network_interface_operational    text                        not null,                   -- This is 'up', 'down' or 'unknown' 
     network_interface_duplex         text                        not null,                   -- This is 'full', 'half' or 'unknown' 
     network_interface_medium         text                        not null,                   -- This is 'tp' (twisted pair), 'fiber' or whatever they invent in the future.
-    network_interface_bond_uuid      uuid                        not null,                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
+    network_interface_bond_uuid      uuid,                                                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
     network_interface_bridge_uuid    uuid                        not null,                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
     modified_date                    timestamp with time zone    not null
 );
@@ -677,7 +668,7 @@ CREATE TABLE ip_addresses (
     ip_address_address            text                        not null,                     -- The actual IP address
     ip_address_subnet_mask        text                        not null,                     -- The subnet mask (in dotted decimal format)
     ip_address_gateway            text                        not null,                     -- If set, this is the gateway IP for this subnet
-    ip_address_default_gateway    integer                     not null,   default 0,        -- If true, the gateway will be the default for the host.
+    ip_address_default_gateway    integer                     not null    default 0,        -- If true, the gateway will be the default for the host.
     ip_address_dns                text                        not null,                     -- If set, this is a comma-separated list of DNS IPs to use (in the order given)
     modified_date                 timestamp with time zone    not null,
     

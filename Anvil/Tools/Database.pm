@@ -1449,8 +1449,8 @@ sub insert_or_update_bridges
 	my $bridge_uuid        = defined $parameter->{bridge_uuid}        ? $parameter->{bridge_uuid}        : "";
 	my $bridge_host_uuid   = defined $parameter->{bridge_host_uuid}   ? $parameter->{bridge_host_uuid}   : $anvil->data->{sys}{host_uuid};
 	my $bridge_name        = defined $parameter->{bridge_name}        ? $parameter->{bridge_name}        : "";
-	my $bridge_id          =         $parameter->{bridge_id}          ? $parameter->{bridge_id}          : "";
-	my $bridge_stp_enabled =         $parameter->{bridge_stp_enabled} ? $parameter->{bridge_stp_enabled} : "";
+	my $bridge_id          = defined $parameter->{bridge_id}          ? $parameter->{bridge_id}          : "";
+	my $bridge_stp_enabled = defined $parameter->{bridge_stp_enabled} ? $parameter->{bridge_stp_enabled} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid               => $uuid, 
 		file               => $file, 
@@ -1698,15 +1698,15 @@ sub insert_or_update_bonds
 	my $bond_host_uuid            = defined $parameter->{bond_host_uuid}            ? $parameter->{bond_host_uuid}            : $anvil->data->{sys}{host_uuid};
 	my $bond_name                 = defined $parameter->{bond_name}                 ? $parameter->{bond_name}                 : "";
 	my $bond_mode                 = defined $parameter->{bond_mode}                 ? $parameter->{bond_mode}                 : "";
-	my $bond_mtu                  =         $parameter->{bond_mtu}                  ? $parameter->{bond_mtu}                  : "";
-	my $bond_primary_slave        =         $parameter->{bond_primary_slave}        ? $parameter->{bond_primary_slave}        : "";
-	my $bond_primary_reselect     =         $parameter->{bond_primary_reselect}     ? $parameter->{bond_primary_reselect}     : "";
-	my $bond_active_slave         =         $parameter->{bond_active_slave}         ? $parameter->{bond_active_slave}         : "";
-	my $bond_mii_polling_interval =         $parameter->{bond_mii_polling_interval} ? $parameter->{bond_mii_polling_interval} : "";
-	my $bond_up_delay             =         $parameter->{bond_up_delay}             ? $parameter->{bond_up_delay}             : "";
-	my $bond_down_delay           =         $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "";
-	my $bond_mac_address          =         $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "";
-	my $bond_operational          =         $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "";
+	my $bond_mtu                  = defined $parameter->{bond_mtu}                  ? $parameter->{bond_mtu}                  : "";
+	my $bond_primary_slave        = defined $parameter->{bond_primary_slave}        ? $parameter->{bond_primary_slave}        : "";
+	my $bond_primary_reselect     = defined $parameter->{bond_primary_reselect}     ? $parameter->{bond_primary_reselect}     : "";
+	my $bond_active_slave         = defined $parameter->{bond_active_slave}         ? $parameter->{bond_active_slave}         : "";
+	my $bond_mii_polling_interval = defined $parameter->{bond_mii_polling_interval} ? $parameter->{bond_mii_polling_interval} : "";
+	my $bond_up_delay             = defined $parameter->{bond_up_delay}             ? $parameter->{bond_up_delay}             : "";
+	my $bond_down_delay           = defined $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "";
+	my $bond_mac_address          = defined $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "";
+	my $bond_operational          = defined $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                      => $uuid, 
 		file                      => $file, 
@@ -2858,17 +2858,17 @@ sub insert_or_update_network_interfaces
 	my $uuid                          = defined $parameter->{uuid}                          ? $parameter->{uuid}                          : "";
 	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
 	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
-	my $network_interface_bond_uuid   = defined $parameter->{network_interface_bond_uuid}   ? $parameter->{network_interface_bond_uuid}   : "--";
-	my $network_interface_bridge_uuid = defined $parameter->{network_interface_bridge_uuid} ? $parameter->{network_interface_bridge_uuid} : "--";
-	my $network_interface_duplex      = defined $parameter->{network_interface_duplex}      ? $parameter->{network_interface_duplex}      : "--";
+	my $network_interface_bond_uuid   = defined $parameter->{network_interface_bond_uuid}   ? $parameter->{network_interface_bond_uuid}   : 'NULL';
+	my $network_interface_bridge_uuid = defined $parameter->{network_interface_bridge_uuid} ? $parameter->{network_interface_bridge_uuid} : "";
+	my $network_interface_duplex      = defined $parameter->{network_interface_duplex}      ? $parameter->{network_interface_duplex}      : "unknown";
 	my $network_interface_host_uuid   = defined $parameter->{network_interface_host_uuid}   ? $parameter->{network_interface_host_uuid}   : $anvil->Get->host_uuid;
-	my $network_interface_link_state  = defined $parameter->{network_interface_link_state}  ? $parameter->{network_interface_link_state}  : "--";
-	my $network_interface_operational = defined $parameter->{network_interface_operational} ? $parameter->{network_interface_operational} : "--";
-	my $network_interface_mac_address = defined $parameter->{network_interface_mac_address} ? $parameter->{network_interface_mac_address} : "--";
-	my $network_interface_medium      = defined $parameter->{network_interface_medium}      ? $parameter->{network_interface_medium}      : "--";
-	my $network_interface_mtu         = defined $parameter->{network_interface_mtu}         ? $parameter->{network_interface_mtu}         : "--";
-	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "--";
-	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : "--";
+	my $network_interface_link_state  = defined $parameter->{network_interface_link_state}  ? $parameter->{network_interface_link_state}  : "unknown";
+	my $network_interface_operational = defined $parameter->{network_interface_operational} ? $parameter->{network_interface_operational} : "unknown";
+	my $network_interface_mac_address = defined $parameter->{network_interface_mac_address} ? $parameter->{network_interface_mac_address} : "";
+	my $network_interface_medium      = defined $parameter->{network_interface_medium}      ? $parameter->{network_interface_medium}      : "";
+	my $network_interface_mtu         = defined $parameter->{network_interface_mtu}         ? $parameter->{network_interface_mtu}         : 0;
+	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "";
+	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : 0;
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                          => $uuid, 
@@ -2888,13 +2888,31 @@ sub insert_or_update_network_interfaces
 		network_interface_uuid        => $network_interface_uuid,
 	}});
 	
-	# I will need a MAC address and a UUID. If I don't have one, use the other to look it up.
-	if ((not $network_interface_mac_address) && (not $network_interface_uuid))
+	# INSERT, but make sure we have enough data first.
+	if (not $network_interface_mac_address)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_mac_address" }});
 		return("");
 	}
-	elsif (not $network_interface_uuid)
+	else
+	{
+		# Always lower-case the MAC address.
+		$network_interface_mac_address = lc($network_interface_mac_address);
+	}
+	if (not $network_interface_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name" }});
+		return("");
+	}
+	if (($network_interface_bridge_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
+	{
+		# Bad UUID.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bridge_uuid }});
+		return("");
+	}
+	
+	# If we don't have a network interface UUID, try to look one up using the MAC address
+	if (not $network_interface_uuid)
 	{
 		# See if I know this NIC by referencing it's MAC.
 		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mac_address).";";
@@ -2937,17 +2955,17 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			my $old_network_interface_host_uuid   = $row->[0];
-			my $old_network_interface_mac_address = $row->[1];
-			my $old_network_interface_name        = $row->[2];
-			my $old_network_interface_speed       = $row->[3];
-			my $old_network_interface_mtu         = $row->[4];
-			my $old_network_interface_link_state  = $row->[5];
-			my $old_network_interface_operational = $row->[6];
-			my $old_network_interface_duplex      = $row->[7];
-			my $old_network_interface_medium      = $row->[8];
-			my $old_network_interface_bond_uuid   = $row->[9];
-			my $old_network_interface_bridge_uuid = $row->[10];
+			my $old_network_interface_host_uuid   =         $row->[0];
+			my $old_network_interface_mac_address =         $row->[1];
+			my $old_network_interface_name        =         $row->[2];
+			my $old_network_interface_speed       =         $row->[3];
+			my $old_network_interface_mtu         =         $row->[4];
+			my $old_network_interface_link_state  =         $row->[5];
+			my $old_network_interface_operational =         $row->[6];
+			my $old_network_interface_duplex      =         $row->[7];
+			my $old_network_interface_medium      =         $row->[8];
+			my $old_network_interface_bond_uuid   = defined $row->[9] ? $row->[9] : 'NULL';
+			my $old_network_interface_bridge_uuid =         $row->[10];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_network_interface_host_uuid   => $old_network_interface_host_uuid,
 				old_network_interface_mac_address => $old_network_interface_mac_address,
@@ -2966,17 +2984,17 @@ WHERE
 			
 			# Anything to update? This is a little extra complicated because if a variable was
 			# not passed in, we want to not compare it.
-			if ((($network_interface_bond_uuid   ne "--") && ($network_interface_bond_uuid   ne $old_network_interface_bond_uuid))   or 
-			    (($network_interface_bridge_uuid ne "--") && ($network_interface_bridge_uuid ne $old_network_interface_bridge_uuid)) or 
-			    (($network_interface_name        ne "--") && ($network_interface_name        ne $old_network_interface_name))        or 
-			    (($network_interface_duplex      ne "--") && ($network_interface_duplex      ne $old_network_interface_duplex))      or 
-			    (($network_interface_link_state  ne "--") && ($network_interface_link_state  ne $old_network_interface_link_state))  or 
-			    (($network_interface_operational ne "--") && ($network_interface_operational ne $old_network_interface_operational)) or 
-			    (($network_interface_mac_address ne "--") && ($network_interface_mac_address ne $old_network_interface_mac_address)) or 
-			    (($network_interface_medium      ne "--") && ($network_interface_medium      ne $old_network_interface_medium))      or 
-			    (($network_interface_mtu         ne "--") && ($network_interface_mtu         ne $old_network_interface_mtu))         or 
-			    (($network_interface_speed       ne "--") && ($network_interface_speed       ne $old_network_interface_speed))       or
-			                                                 ($network_interface_host_uuid   ne $old_network_interface_host_uuid)) 
+			if (($network_interface_bond_uuid   ne $old_network_interface_bond_uuid)   or 
+			    ($network_interface_bridge_uuid ne $old_network_interface_bridge_uuid) or 
+			    ($network_interface_name        ne $old_network_interface_name)        or 
+			    ($network_interface_duplex      ne $old_network_interface_duplex)      or 
+			    ($network_interface_link_state  ne $old_network_interface_link_state)  or 
+			    ($network_interface_operational ne $old_network_interface_operational) or 
+			    ($network_interface_mac_address ne $old_network_interface_mac_address) or 
+			    ($network_interface_medium      ne $old_network_interface_medium)      or 
+			    ($network_interface_mtu         ne $old_network_interface_mtu)         or 
+			    ($network_interface_speed       ne $old_network_interface_speed)       or
+			    ($network_interface_host_uuid   ne $old_network_interface_host_uuid))
 			{
 				# UPDATE any rows passed to us.
 				my $query = "
@@ -2984,98 +3002,28 @@ UPDATE
     network_interfaces
 SET 
     network_interface_host_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_host_uuid).", 
-";
-				if ($network_interface_bond_uuid ne "--")
-				{
-					$query .= "    network_interface_bond_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bond_uuid).", \n";
-				}
-				if ($network_interface_bridge_uuid ne "--")
-				{
-					$query .= "    network_interface_bridge_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bridge_uuid).", \n";
-				}
-				if ($network_interface_name ne "--")
-				{
-					$query .= "    network_interface_name        = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_name).", \n";
-				}
-				if ($network_interface_duplex ne "--")
-				{
-					$query .= "    network_interface_duplex      = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_duplex).", \n";
-				}
-				if ($network_interface_link_state ne "--")
-				{
-					$query .= "    network_interface_link_state  = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_link_state).", \n";
-				}
-				if ($network_interface_operational ne "--")
-				{
-					$query .= "    network_interface_operational = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_operational).", \n";
-				}
-				if ($network_interface_mac_address ne "--")
-				{
-					$query .= "    network_interface_mac_address = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mac_address).", \n";
-				}
-				if ($network_interface_medium ne "--")
-				{
-					$query .= "    network_interface_medium      = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_medium).", \n";
-				}
-				if ($network_interface_mtu ne "--")
-				{
-					$query .= "    network_interface_mtu         = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mtu).", \n";
-				}
-				if ($network_interface_speed ne "--")
-				{
-					$query .= "    network_interface_speed       = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_speed).", \n";
-				}
-				$query .= "    modified_date                 = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    network_interface_bond_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bond_uuid).", 
+    network_interface_bridge_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bridge_uuid).", 
+    network_interface_name        = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_name).", 
+    network_interface_duplex      = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_duplex).", 
+    network_interface_link_state  = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_link_state).", 
+    network_interface_operational = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_operational).", 
+    network_interface_mac_address = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mac_address).", 
+    network_interface_medium      = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_medium).", 
+    network_interface_mtu         = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mtu).", 
+    network_interface_speed       = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_speed).", 
+    modified_date                 = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE
     network_interface_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_uuid)."
 ;";
+				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
-			}
-			else
-			{
-				# No change.
 			}
 		}
 	}
 	else
 	{
-		# INSERT, but make sure we have enough data first.
-		if (($network_interface_mac_address eq "--") or (not $network_interface_mac_address))
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_mac_address" }});
-			return("");
-		}
-		if (($network_interface_name eq "--") or (not $network_interface_name))
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name" }});
-			return("");
-		}
-		
-		# Convert unpassed values to their defaults.
-		$network_interface_bond_uuid   = ""        if $network_interface_bond_uuid   eq "--";
-		$network_interface_bridge_uuid = ""        if $network_interface_bridge_uuid eq "--";
-		$network_interface_duplex      = "unknown" if $network_interface_duplex      eq "--";
-		$network_interface_link_state  = 0         if $network_interface_link_state  eq "--";
-		$network_interface_operational = "unknown" if $network_interface_operational eq "--";
-		$network_interface_medium      = ""        if $network_interface_medium      eq "--";
-		$network_interface_speed       = 0         if $network_interface_speed       eq "--";
-		$network_interface_mtu         = 0         if $network_interface_mtu         eq "--";
-		
-		# Make sure the UUIDs are sane.
-		if (($network_interface_bond_uuid ne "") && (not $anvil->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
-		{
-			# Bad UUID.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bond_uuid }});
-			return("");
-		}
-		if (($network_interface_bridge_uuid ne "") && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
-		{
-			# Bad UUID.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bridge_uuid }});
-			return("");
-		}
-		
 		# And INSERT
 		$network_interface_uuid = $anvil->Get->uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
@@ -3113,6 +3061,7 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
+		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
 	}
