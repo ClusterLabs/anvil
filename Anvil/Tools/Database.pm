@@ -2859,7 +2859,7 @@ sub insert_or_update_network_interfaces
 	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
 	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
 	my $network_interface_bond_uuid   = defined $parameter->{network_interface_bond_uuid}   ? $parameter->{network_interface_bond_uuid}   : 'NULL';
-	my $network_interface_bridge_uuid = defined $parameter->{network_interface_bridge_uuid} ? $parameter->{network_interface_bridge_uuid} : "";
+	my $network_interface_bridge_uuid = defined $parameter->{network_interface_bridge_uuid} ? $parameter->{network_interface_bridge_uuid} : 'NULL';
 	my $network_interface_duplex      = defined $parameter->{network_interface_duplex}      ? $parameter->{network_interface_duplex}      : "unknown";
 	my $network_interface_host_uuid   = defined $parameter->{network_interface_host_uuid}   ? $parameter->{network_interface_host_uuid}   : $anvil->Get->host_uuid;
 	my $network_interface_link_state  = defined $parameter->{network_interface_link_state}  ? $parameter->{network_interface_link_state}  : "unknown";
@@ -2904,10 +2904,16 @@ sub insert_or_update_network_interfaces
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name" }});
 		return("");
 	}
+	if (($network_interface_bond_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
+	{
+		# Bad UUID.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bond_uuid", uuid => $network_interface_bond_uuid }});
+		return("");
+	}
 	if (($network_interface_bridge_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
 	{
 		# Bad UUID.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name", uuid => $network_interface_bridge_uuid }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bridge_uuid", uuid => $network_interface_bridge_uuid }});
 		return("");
 	}
 	
@@ -2964,8 +2970,8 @@ WHERE
 			my $old_network_interface_operational =         $row->[6];
 			my $old_network_interface_duplex      =         $row->[7];
 			my $old_network_interface_medium      =         $row->[8];
-			my $old_network_interface_bond_uuid   = defined $row->[9] ? $row->[9] : 'NULL';
-			my $old_network_interface_bridge_uuid =         $row->[10];
+			my $old_network_interface_bond_uuid   = defined $row->[9]  ? $row->[9]  : 'NULL';
+			my $old_network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : 'NULL';
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_network_interface_host_uuid   => $old_network_interface_host_uuid,
 				old_network_interface_mac_address => $old_network_interface_mac_address,

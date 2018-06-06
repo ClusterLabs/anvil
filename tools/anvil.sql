@@ -447,7 +447,7 @@ CREATE TABLE network_interfaces (
     network_interface_duplex         text                        not null,                   -- This is 'full', 'half' or 'unknown' 
     network_interface_medium         text                        not null,                   -- This is 'tp' (twisted pair), 'fiber' or whatever they invent in the future.
     network_interface_bond_uuid      uuid,                                                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
-    network_interface_bridge_uuid    uuid                        not null,                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
+    network_interface_bridge_uuid    uuid,                                                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
     modified_date                    timestamp with time zone    not null
 );
 ALTER TABLE network_interfaces OWNER TO #!variable!user!#;

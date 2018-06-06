@@ -318,6 +318,8 @@ sub report_network
 			{
 				my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
 					debug                      => 2,
+					file                       => $THIS_FILE,
+					line                       => __LINE__,
 					ip_address_on_type         => $type, 
 					ip_address_on_uuid         => $network_interface_uuid, 
 					ip_address_address         => $ip_address, 
@@ -331,6 +333,7 @@ sub report_network
 		elsif ($type eq "bond")
 		{
 			my $bond_uuid = $anvil->Database->insert_or_update_bonds({
+				debug                     => 2,
 				file                      => $THIS_FILE,
 				line                      => __LINE__,
 				bond_name                 => $interface,
@@ -352,6 +355,8 @@ sub report_network
 			{
 				my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
 					debug                      => 2,
+					file                       => $THIS_FILE,
+					line                       => __LINE__,
 					ip_address_on_type         => $type, 
 					ip_address_on_uuid         => $bond_uuid, 
 					ip_address_address         => $ip_address, 
@@ -504,8 +509,8 @@ ORDER BY
 		my $network_interface_operational =         $row->[6];
 		my $network_interface_duplex      =         $row->[7];
 		my $network_interface_medium      =         $row->[8];
-		my $network_interface_bond_uuid   = defined $row->[9] ? $row->[9] : 'NULL';
-		my $network_interface_bridge_uuid =         $row->[10];
+		my $network_interface_bond_uuid   = defined $row->[9]  ? $row->[9]  : 'NULL';
+		my $network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : 'NULL';
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			network_interface_mac_address => $network_interface_mac_address,
 			network_interface_name        => $network_interface_name,
@@ -565,7 +570,7 @@ ORDER BY
 		my $network_interface_duplex      =         $row->[6];
 		my $network_interface_medium      =         $row->[7];
 		my $network_interface_bond_uuid   = defined $row->[8] ? $row->[8] : 'NULL';
-		my $network_interface_bridge_uuid =         $row->[9];
+		my $network_interface_bridge_uuid = defined $row->[9] ? $row->[9] : 'NULL';
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			network_interface_mac_address => $network_interface_mac_address,
 			network_interface_name        => $network_interface_name,
