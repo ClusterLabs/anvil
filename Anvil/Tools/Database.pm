@@ -1874,11 +1874,11 @@ WHERE
 			my $old_bond_primary_slave        = $row->[4];
 			my $old_bond_primary_reselect     = $row->[5];
 			my $old_bond_active_slave         = $row->[6];
-			my $old_bond_mii_polling_interval = $row->[8];
-			my $old_bond_up_delay             = $row->[9];
-			my $old_bond_down_delay           = $row->[10];
-			my $old_bond_mac_address          = $row->[11];
-			my $old_bond_operational          = $row->[12];
+			my $old_bond_mii_polling_interval = $row->[7];
+			my $old_bond_up_delay             = $row->[8];
+			my $old_bond_down_delay           = $row->[9];
+			my $old_bond_mac_address          = $row->[10];
+			my $old_bond_operational          = $row->[11];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bond_host_uuid            => $old_bond_host_uuid, 
 				old_bond_name                 => $old_bond_name, 
