@@ -623,66 +623,6 @@ ORDER BY
 	$network_xml .= "</network>\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_xml => $network_xml }});
 	
-die; 
-
-	# Write out the XML file and JSON file.
-	   $query        = "
-SELECT 
-    network_interface_mac_address, 
-    network_interface_name, 
-    network_interface_speed, 
-    network_interface_mtu, 
-    network_interface_link_state, 
-    network_interface_operational, 
-    network_interface_duplex, 
-    network_interface_medium, 
-    network_interface_bond_uuid, 
-    network_interface_bridge_uuid 
-FROM 
-    network_interfaces 
-WHERE 
-    network_interface_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)." 
-ORDER BY 
-    modified_date DESC
-;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	foreach my $row (@{$results})
-	{
-		my $network_interface_mac_address =         $row->[0];
-		my $network_interface_name        =         $row->[1];
-		my $network_interface_speed       =         $row->[2];
-		my $network_interface_mtu         =         $row->[3];
-		my $network_interface_link_state  =         $row->[4];
-		my $network_interface_operational =         $row->[5];
-		my $network_interface_duplex      =         $row->[6];
-		my $network_interface_medium      =         $row->[7];
-		my $network_interface_bond_uuid   = defined $row->[8] ? $row->[8] : 'NULL';
-		my $network_interface_bridge_uuid = defined $row->[9] ? $row->[9] : 'NULL';
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			network_interface_mac_address => $network_interface_mac_address,
-			network_interface_name        => $network_interface_name,
-			network_interface_speed       => $network_interface_speed,
-			network_interface_mtu         => $network_interface_mtu,
-			network_interface_link_state  => $network_interface_link_state,
-			network_interface_operational => $network_interface_operational,
-			network_interface_duplex      => $network_interface_duplex,
-			network_interface_medium      => $network_interface_medium,
-			network_interface_bond_uuid   => $network_interface_bond_uuid,
-			network_interface_bridge_uuid => $network_interface_bridge_uuid,
-			order                         => $order,
-		}});
-		$network_json .= "	{ \"name\":\"$network_interface_name\", \"mac\":\"$network_interface_mac_address\", \"link\":\"$network_interface_link_state\", \"speed\":\"$network_interface_speed\", \"mtu\":\"$network_interface_mtu\", \"duplex\":\"$network_interface_duplex\", \"state\":\"$network_interface_operational\", \"media\":\"$network_interface_medium\", \"bond\":\"$network_interface_bond_uuid\", \"bridge\":\"$network_interface_bridge_uuid\", \"order\":\"$order\" },\n";
-		$network_xml .= "	<interface name=\"$network_interface_name\" mac=\"$network_interface_mac_address\" link=\"$network_interface_link_state\" speed=\"$network_interface_speed\" mtu=\"$network_interface_mtu\" duplex=\"$network_interface_duplex\" state=\"$network_interface_operational\" media=\"$network_interface_medium\" bond=\"$network_interface_bond_uuid\" bridge=\"$network_interface_bridge_uuid\" order=\"$order\" />\n";
-		$order++;
-	}
-	
-	### TODO: Set the 'status/network.json' name into 'anvil.conf'
 	# Write the JSON file.
 	my $output_json = $anvil->data->{path}{directories}{html}."/status/network.json";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_json }});
