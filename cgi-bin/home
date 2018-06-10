@@ -1387,7 +1387,7 @@ sub get_network_details
 	my $xml     = XML::Simple->new();
 	my $data    = "";
 	my $network = "";
-	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name' }, ForceArray => [ 'interface', 'key' ]) };
+	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name', ip => 'address' }, ForceArray => [ 'interface', 'key' ]) };
 	if ($@)
 	{
 		chomp $@;
@@ -1413,7 +1413,7 @@ sub get_network_details
 				speed   => $data->{interface}{$interface}{speed},
 				'state' => $data->{interface}{$interface}{'state'},
 			};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"interfaces::${interface}::bond"   => $anvil->data->{interfaces}{$interface}{bond}, 
 				"interfaces::${interface}::bridge" => $anvil->data->{interfaces}{$interface}{bridge}, 
 				"interfaces::${interface}::duplex" => $anvil->data->{interfaces}{$interface}{duplex}, 
@@ -1424,6 +1424,24 @@ sub get_network_details
 				"interfaces::${interface}::order"  => $anvil->data->{interfaces}{$interface}{order}, 
 				"interfaces::${interface}::speed"  => $anvil->data->{interfaces}{$interface}{speed}, 
 				"interfaces::${interface}::state"  => $anvil->data->{interfaces}{$interface}{'state'}, 
+			}});
+		}
+		foreach my $address (sort {$a cmp $b} keys %{$data->{ip}})
+		{
+			# <ip address="192.168.122.201" on="ifn1_bond1" subnet="255.255.0.0" gateway="192.168.122.1" default_gateway="1" dns="8.8.8.8,8.8.4.4"
+			$anvil->data->{ip}{$address} = {
+				on              => $data->{ip}{$address}{on}, 
+				subnet          => $data->{ip}{$address}{subnet}, 
+				gateway         => $data->{ip}{$address}{gateway}, 
+				default_gateway => $data->{ip}{$address}{default_gateway}, 
+				dns             => $data->{ip}{$address}{dns}, 
+			};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"ip::${address}::on"              => $anvil->data->{ip}{$address}{on}, 
+				"ip::${address}::subnet"          => $anvil->data->{ip}{$address}{subnet}, 
+				"ip::${address}::gateway"         => $anvil->data->{ip}{$address}{gateway}, 
+				"ip::${address}::default_gateway" => $anvil->data->{ip}{$address}{default_gateway}, 
+				"ip::${address}::dns"             => $anvil->data->{ip}{$address}{dns}, 
 			}});
 		}
 	}

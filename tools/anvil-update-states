@@ -575,13 +575,8 @@ ORDER BY
 	}
 	
 	$network_json =~ s/,$//s;
-	$network_json .= "]\n";
+	$network_json .= "],\n";
 	$network_json .= "\"ips\":[\n";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_json => $network_json }});
-	
-	$network_xml .= "</network>\n";
-	$network_xml .= "<ips>\n";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_xml => $network_xml }});
 	
 	# Now record the IPs.
 	$query = "
@@ -651,7 +646,7 @@ WHERE
 	$network_json .= "]}\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_json => $network_json }});
 	
-	$network_xml .= "</ips>\n";
+	$network_xml .= "</network>\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_xml => $network_xml }});
 	
 	# Write the JSON file.
