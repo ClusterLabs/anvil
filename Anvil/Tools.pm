@@ -723,6 +723,9 @@ sub _set_defaults
 		host_uuid			=>	"",
 		language			=>	"en_CA",
 		log_file			=>	"/var/log/anvil.log",
+		network				=>	{
+			
+		},
 		password			=>	{
 			algorithm			=>	"sha512",
 			hash_count			=>	500000,

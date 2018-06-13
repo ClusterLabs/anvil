@@ -38,8 +38,32 @@ $(function() {
 
 $( window ).on( "load", function()
 {
-	// NOTE: Disabled for now. Clears the URL to remove everything off after '?'.
-// 	var newURL = location.href.split("?")[0];
-// 	window.history.pushState('object', document.title, newURL);
+	// NOTE: Disabled for now. Breaks viewing the source.
+	//  Clears the URL to remove everything off after '?'.
+	//var newURL = location.href.split("?")[0];
+	//window.history.pushState('object', document.title, newURL);
 	console.log('onload fired.');
+	
+	/*
+	if($("#interface_list").val()) {
+		var interface_list = $('#interface_list').val();
+		console.log('Interface list: ['+interface_list+'].');
+		jQuery.each(interface_list.split(","), function(index, item) {
+			console.log('Interface: ['+item+'].');
+		});
+	}
+	*/
+	
+	if($("#bcn_count").val()) {
+		var bcn_count = $("#bcn_count").val();
+		console.log('BCN Count: ['+bcn_count+'].');
+		for (var i = 1; i <= bcn_count; i++) {
+			console.log('BCN IP set: ['+$("#bcn"+i+"_ip").val()+'], default: ['+$("#bcn"+i+"_ip_default").val()+'].');
+			if ($("#bcn"+i+"_ip").val() == '') {
+				var default_ip = $("#bcn"+i+"_ip_default").val();
+				console.log('BCN IP not set. Setting to: ['+default_ip+']');
+				$("#bcn"+i+"_ip").val(default_ip)
+			}
+		};
+	}
 })

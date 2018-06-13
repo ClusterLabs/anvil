@@ -490,16 +490,17 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "main.html", name => "bonded_interface_form", variables => {
-				field         => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
-				description   => "#!string!striker_0019!#",
-				ip_key        => $this_ip_key,
-				ip_value      => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : $this_ip,
-				ip_class      => $this_ip_class,
-				subnet_key    => $this_subnet_key, 
-				subnet_value  => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{bcn}{netmask},
-				subnet_class  => $this_subnet_class,
-				iface1_select => $this_iface1_form,
-				iface2_select => $this_iface2_form,
+				field            => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
+				description      => "#!string!striker_0019!#",
+				ip_key           => $this_ip_key,
+				ip_value         => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default => $this_ip,
+				ip_class         => $this_ip_class,
+				subnet_key       => $this_subnet_key, 
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{bcn}{netmask},
+				subnet_class     => $this_subnet_class,
+				iface1_select    => $this_iface1_form,
+				iface2_select    => $this_iface2_form,
 			}});
 		}
 		
@@ -537,16 +538,17 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "main.html", name => "bonded_interface_form", variables => {
-				field         => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
-				description   => "#!string!striker_0023!#",
-				ip_key        => $this_ip_key,
-				ip_value      => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : $this_ip,
-				ip_class      => $this_ip_class,
-				subnet_key    => $this_subnet_key, 
-				subnet_value  => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{ifn}{netmask},
-				subnet_class  => $this_subnet_class,
-				iface1_select => $this_iface1_form,
-				iface2_select => $this_iface2_form,
+				field            => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
+				description      => "#!string!striker_0023!#",
+				ip_key           => $this_ip_key,
+				ip_value         => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default => $this_ip,
+				ip_class         => $this_ip_class,
+				subnet_key       => $this_subnet_key, 
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{ifn}{netmask},
+				subnet_class     => $this_subnet_class,
+				iface1_select    => $this_iface1_form,
+				iface2_select    => $this_iface2_form,
 			}});
 		}
 	}
@@ -578,15 +580,16 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "main.html", name => "single_interface_form", variables => {
-				field         => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
-				description   => "#!string!striker_0019!#",
-				ip_key        => $this_ip_key,
-				ip_value      => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : $this_ip,
-				ip_class      => $this_ip_class,
-				subnet_key    => $this_subnet_key, 
-				subnet_value  => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{bcn}{netmask},
-				subnet_class  => $this_subnet_class,
-				iface1_select => $this_iface1_form,
+				field            => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
+				description      => "#!string!striker_0019!#",
+				ip_key           => $this_ip_key,
+				ip_value         => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default => $this_ip,
+				ip_class         => $this_ip_class,
+				subnet_key       => $this_subnet_key, 
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{bcn}{netmask},
+				subnet_class     => $this_subnet_class,
+				iface1_select    => $this_iface1_form,
 			}});
 		}
 		
@@ -615,15 +618,16 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "main.html", name => "single_interface_form", variables => {
-				field         => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
-				description   => "#!string!striker_0023!#",
-				ip_key        => $this_ip_key,
-				ip_value      => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : $this_ip,
-				ip_class      => $this_ip_class,
-				subnet_key    => $this_subnet_key, 
-				subnet_value  => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{ifn}{netmask},
-				subnet_class  => $this_subnet_class,
-				iface1_select => $this_iface1_form,
+				field            => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
+				description      => "#!string!striker_0023!#",
+				ip_key           => $this_ip_key,
+				ip_value         => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default => $this_ip,
+				ip_class         => $this_ip_class,
+				subnet_key       => $this_subnet_key, 
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{ifn}{netmask},
+				subnet_class     => $this_subnet_class,
+				iface1_select    => $this_iface1_form,
 			}});
 		}
 	}
@@ -1532,7 +1536,7 @@ sub generate_ip
 		{
 			# We can work with this.
 			$ip_octet2 += $network_sequence;
-			$ip_octet3 =  $anvil->data->{'default'}{bcn}{striker_octet3};
+			$ip_octet3 =  $anvil->data->{'default'}{$network}{striker_octet3};
 			$ip_octet4 =  $device_sequence;
 			$ip        =  $ip_octet1.".".$ip_octet2.".".$ip_octet3.".".$ip_octet4;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
