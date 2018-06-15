@@ -360,11 +360,14 @@ sub report_network
 			if (($type eq $processing) && ($type eq "interface"))
 			{
 				my $say_bond_uuid = "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "bond_by_name::${bond_master}" => $anvil->data->{bond_by_name}{$bond_master} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_master => $bond_master }});
 				if (($bond_master) && ($anvil->data->{bond_by_name}{$bond_master}))
 				{
 					$say_bond_uuid = $anvil->data->{bond_by_name}{$bond_master};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_bond_uuid => $say_bond_uuid }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"bond_by_name::${bond_master}" => $anvil->data->{bond_by_name}{$bond_master}, 
+						say_bond_uuid                  => $say_bond_uuid,
+					}});
 				}
 				my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
 					debug                         => 2,

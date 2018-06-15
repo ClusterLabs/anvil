@@ -723,9 +723,6 @@ sub _set_defaults
 		host_uuid			=>	"",
 		language			=>	"en_CA",
 		log_file			=>	"/var/log/anvil.log",
-		network				=>	{
-			
-		},
 		password			=>	{
 			algorithm			=>	"sha512",
 			hash_count			=>	500000,
@@ -736,8 +733,35 @@ sub _set_defaults
 			stty				=>	"",
 		},
 		use_base2			=>	1,
+		user				=>	"admin",
 	};
 	$anvil->data->{defaults} = {
+		## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such,
+		##                  we need to use a wider spread between the BCNs, SNs and IFNs than we had
+		##                  in v2.
+		network		=>	{
+			# BCN starts at 10.(0+n)/16
+			bcn		=>	{
+				subnet		=> "10.0.0.0",
+				netmask		=> "255.255.0.0",
+				pdu_octet3	=> "1",
+				ups_octet3	=> "2",
+				switch_octet3 	=> "3",
+				striker_octet3	=> "4",
+			},
+			dns		=>	"8.8.8.8, 8.8.4.4",
+			# IFN starts at 10.(80+)/16
+			ifn		=>	{
+				subnet		=>	"10.100.0.0",
+				netmask		=>	"255.255.0.0",
+				striker_octet3	=> "4",
+			},
+			# SN starts at 10.(40+n)/16
+			sn		=>	{
+				subnet		=>	"10.50.0.0",
+				netmask		=>	"255.255.0.0",
+			},
+		},
 		database	=>	{
 			locking		=>	{
 				reap_age	=>	300,

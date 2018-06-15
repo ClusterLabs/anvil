@@ -60,21 +60,6 @@ $| = 1;
 
 ### Setup some variables.
 $anvil->data->{form}{error_massage} = "&nbsp;";
-## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such, we need to use
-##                  a wider spread between the BCNs, SNs and IFNs than we had in v2.
-# BCN starts at 10.(0+n)/16
-$anvil->data->{'default'}{bcn}{subnet}         = "10.0.0.0";
-$anvil->data->{'default'}{bcn}{netmask}        = "255.255.0.0";
-$anvil->data->{'default'}{bcn}{pdu_octet3}     = "1";
-$anvil->data->{'default'}{bcn}{ups_octet3}     = "2";
-$anvil->data->{'default'}{bcn}{switch_octet3}  = "3";
-$anvil->data->{'default'}{bcn}{striker_octet3} = "4";
-# SN starts at 10.(40+n)/16
-$anvil->data->{'default'}{sn}{subnet}  = "10.40.0.0";
-$anvil->data->{'default'}{sn}{netmask} = "255.255.0.0";
-# IFN starts at 10.(80+)/16
-$anvil->data->{'default'}{ifn}{subnet}  = "10.80.0.0";
-$anvil->data->{'default'}{ifn}{netmask} = "255.255.0.0";
 
 # Read in any CGI variables, if needed.
 $anvil->Get->cgi();
@@ -497,7 +482,7 @@ ORDER BY
 				ip_value_default => $this_ip,
 				ip_class         => $this_ip_class,
 				subnet_key       => $this_subnet_key, 
-				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{bcn}{netmask},
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{network}{bcn}{netmask},
 				subnet_class     => $this_subnet_class,
 				iface1_select    => $this_iface1_form,
 				iface2_select    => $this_iface2_form,
@@ -545,7 +530,7 @@ ORDER BY
 				ip_value_default => $this_ip,
 				ip_class         => $this_ip_class,
 				subnet_key       => $this_subnet_key, 
-				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{ifn}{netmask},
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{network}{ifn}{netmask},
 				subnet_class     => $this_subnet_class,
 				iface1_select    => $this_iface1_form,
 				iface2_select    => $this_iface2_form,
@@ -587,7 +572,7 @@ ORDER BY
 				ip_value_default => $this_ip,
 				ip_class         => $this_ip_class,
 				subnet_key       => $this_subnet_key, 
-				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{bcn}{netmask},
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{network}{bcn}{netmask},
 				subnet_class     => $this_subnet_class,
 				iface1_select    => $this_iface1_form,
 			}});
@@ -625,7 +610,7 @@ ORDER BY
 				ip_value_default => $this_ip,
 				ip_class         => $this_ip_class,
 				subnet_key       => $this_subnet_key, 
-				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{ifn}{netmask},
+				subnet_value     => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{'default'}{network}{ifn}{netmask},
 				subnet_class     => $this_subnet_class,
 				iface1_select    => $this_iface1_form,
 			}});
@@ -634,28 +619,29 @@ ORDER BY
 	
 	### TODO: Add a form for Gateway, DNS and which interface to use
 	# Gateway
-	my $say_default_gateway = "";
-	my $gateway_class       = $anvil->data->{cgi}{gateway}{alert} ? "input_alert" : "input_clear";
-	my $say_gateway         = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "gateway",
-		id          => "gateway",
-		field       => "#!string!striker_0035!#",
-		description => "#!string!striker_0036!#",
-		value       => defined $anvil->data->{cgi}{gateway}{value} ? $anvil->data->{cgi}{gateway}{value} : $say_default_gateway,
-		class       => $gateway_class,
-		extra       => "",
+	my $gateway_class = $anvil->data->{cgi}{gateway}{alert} ? "input_alert" : "input_clear";
+	my $say_gateway   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "gateway",
+		id            => "gateway",
+		field         => "#!string!striker_0035!#",
+		description   => "#!string!striker_0036!#",
+		value         => defined $anvil->data->{cgi}{gateway}{value} ? $anvil->data->{cgi}{gateway}{value} : "",
+		default_value => "", 
+		class         => $gateway_class,
+		extra         => "",
 	}});
 	
 	# DNS
-	my $dns_class       = $anvil->data->{cgi}{dns}{alert} ? "input_alert" : "input_clear";
-	my $say_dns         = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "dns",
-		id          => "dns",
-		field       => "#!string!striker_0037!#",
-		description => "#!string!striker_0038!#",
-		value       => defined $anvil->data->{cgi}{dns}{value} ? $anvil->data->{cgi}{dns}{value} : "8.8.8.8, 8.8.4.4",
-		class       => $dns_class,
-		extra       => "",
+	my $dns_class = $anvil->data->{cgi}{dns}{alert} ? "input_alert" : "input_clear";
+	my $say_dns   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "dns",
+		id            => "dns",
+		field         => "#!string!striker_0037!#",
+		description   => "#!string!striker_0038!#",
+		value         => defined $anvil->data->{cgi}{dns}{value} ? $anvil->data->{cgi}{dns}{value} : "",
+		default_value => $anvil->data->{defaults}{network}{dns},
+		class         => $dns_class,
+		extra         => "",
 	}});
 	
 	# Which interface gets the route?
@@ -678,42 +664,41 @@ ORDER BY
 	my $say_default_hostname = $anvil->data->{cgi}{prefix}{value}."-striker0".$anvil->data->{cgi}{sequence}{value}.".".$anvil->data->{cgi}{domain}{value};
 	my $hostname_class       = $anvil->data->{cgi}{hostname}{alert} ? "input_alert" : "input_clear";
 	my $say_hostname         = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "hostname",
-		id          => "hostname",
-		field       => "#!string!striker_0016!#",
-		description => "#!string!striker_0017!#",
-		value       => defined $anvil->data->{cgi}{hostname}{value} ? $anvil->data->{cgi}{hostname}{value} : $say_default_hostname,
-		class       => $hostname_class,
-		extra       => "",
+		name          => "hostname",
+		id            => "hostname",
+		field         => "#!string!striker_0016!#",
+		description   => "#!string!striker_0017!#",
+		value         => defined $anvil->data->{cgi}{hostname}{value} ? $anvil->data->{cgi}{hostname}{value} : $say_default_hostname,
+		default_value => "",
+		class         => $hostname_class,
+		extra         => "",
 	}});
 	
 	# Admin user
-	my $say_default_striker_user = "striker";
-	my $striker_user_class       = $anvil->data->{cgi}{striker_user}{alert} ? "input_alert" : "input_clear";
-	my $say_striker_user         = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "striker_user",
-		id          => "striker_user",
-		field       => "#!string!striker_0031!#",
-		description => "#!string!striker_0032!#",
-		value       => defined $anvil->data->{cgi}{striker_user}{value} ? $anvil->data->{cgi}{striker_user}{value} : $say_default_striker_user,
-		class       => $striker_user_class,
-		extra       => "",
+	my $striker_user_class = $anvil->data->{cgi}{striker_user}{alert} ? "input_alert" : "input_clear";
+	my $say_striker_user   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "striker_user",
+		id            => "striker_user",
+		field         => "#!string!striker_0031!#",
+		description   => "#!string!striker_0032!#",
+		value         => defined $anvil->data->{cgi}{striker_user}{value} ? $anvil->data->{cgi}{striker_user}{value} : $anvil->data->{sys}{user},
+		default_value => "",
+		class         => $striker_user_class,
+		extra         => "",
 	}});
 	
 	# Password
-	my $say_default_striker_password = "";
-	my $striker_password_class       = $anvil->data->{cgi}{striker_password}{alert} ? "input_alert" : "input_clear";
-	my $say_striker_password         = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "striker_password",
-		id          => "striker_password",
-		field       => "#!string!striker_0033!#",
-		description => "#!string!striker_0034!#",
-		value       => defined $anvil->data->{cgi}{striker_password}{value} ? $anvil->data->{cgi}{striker_password}{value} : $say_default_striker_password,
-		class       => $striker_password_class,
-		extra       => "",
+	my $striker_password_class = $anvil->data->{cgi}{striker_password}{alert} ? "input_alert" : "input_clear";
+	my $say_striker_password   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "striker_password",
+		id            => "striker_password",
+		field         => "#!string!striker_0033!#",
+		description   => "#!string!striker_0034!#",
+		value         => defined $anvil->data->{cgi}{striker_password}{value} ? $anvil->data->{cgi}{striker_password}{value} : "",
+		default_value => "",
+		class         => $striker_password_class,
+		extra         => "",
 	}});
-	
-	
 	
 	# Get the table that shows the current interface states.
 	my $interface_states = get_network_details_form($anvil);
@@ -1305,35 +1290,38 @@ sub config_step1
 	
 	my $organization_class = $anvil->data->{cgi}{organization}{alert} ? "input_alert" : "input_clear";
 	my $say_organization   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "organization",
-		id          => "organization",
-		field       => "#!string!striker_0003!#",
-		description => "#!string!striker_0004!#",
-		value       => defined $anvil->data->{cgi}{organization}{value} ? $anvil->data->{cgi}{organization}{value} : "",
-		class       => $organization_class,
-		extra       => "",
+		name          => "organization",
+		id            => "organization",
+		field         => "#!string!striker_0003!#",
+		description   => "#!string!striker_0004!#",
+		value         => defined $anvil->data->{cgi}{organization}{value} ? $anvil->data->{cgi}{organization}{value} : "",
+		default_value => "",
+		class         => $organization_class,
+		extra         => "",
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_organization => $say_organization }});
 	my $prefix_class = $anvil->data->{cgi}{prefix}{alert} ? "input_alert" : "input_clear";
 	my $say_prefix   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "prefix",
-		id          => "prefix",
-		field       => "#!string!striker_0005!#",
-		description => "#!string!striker_0006!#",
-		value       => defined $anvil->data->{cgi}{prefix}{value} ? $anvil->data->{cgi}{prefix}{value} : "",
-		class       => $prefix_class,
-		extra       => "maxlength=\"5\"",
+		name          => "prefix",
+		id            => "prefix",
+		field         => "#!string!striker_0005!#",
+		description   => "#!string!striker_0006!#",
+		value         => defined $anvil->data->{cgi}{prefix}{value} ? $anvil->data->{cgi}{prefix}{value} : "",
+		default_value => "",
+		class         => $prefix_class,
+		extra         => "maxlength=\"5\"",
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_prefix => $say_prefix }});
 	my $domain_class = $anvil->data->{cgi}{domain}{alert} ? "input_alert" : "input_clear";
 	my $say_domain   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name        => "domain",
-		id          => "domain",
-		field       => "#!string!striker_0007!#",
-		description => "#!string!striker_0008!#",
-		value       => defined $anvil->data->{cgi}{domain}{value} ? $anvil->data->{cgi}{domain}{value} : "",
-		class       => $domain_class,
-		extra       => "maxlength=\"255\"",
+		name          => "domain",
+		id            => "domain",
+		field         => "#!string!striker_0007!#",
+		description   => "#!string!striker_0008!#",
+		value         => defined $anvil->data->{cgi}{domain}{value} ? $anvil->data->{cgi}{domain}{value} : "",
+		default_value => "",
+		class         => $domain_class,
+		extra         => "maxlength=\"255\"",
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_domain => $say_domain }});
 	my $sequence_class = $anvil->data->{cgi}{sequence}{alert} ? "input_alert" : "input_clear";
@@ -1504,7 +1492,8 @@ sub get_network_details_form
 sub generate_ip
 {
 	my ($anvil, $network, $network_sequence, $device_sequence) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	my $debug = 2;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		network          => $network,
 		network_sequence => $network_sequence, 
 		device_sequence  => $device_sequence, 
@@ -1514,9 +1503,9 @@ sub generate_ip
 	my $ip = "";
 	
 	# The subnet's second octet will be '+X' where 'X' is the sequence.
-	my $default_ip      = $anvil->data->{'default'}{$network}{subnet};
-	my $default_netmark = $anvil->data->{'default'}{$network}{netmask};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	my $default_ip      = $anvil->data->{defaults}{network}{$network}{subnet};
+	my $default_netmark = $anvil->data->{defaults}{network}{$network}{netmask};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		default_ip      => $default_ip,
 		default_netmark => $default_netmark, 
 	}});
@@ -1525,7 +1514,7 @@ sub generate_ip
 	{
 		# Valid values.
 		my ($ip_octet1, $ip_octet2, $ip_octet3, $ip_octet4) = (split/\./, $default_ip);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			ip_octet1 => $ip_octet1,
 			ip_octet2 => $ip_octet2,
 			ip_octet3 => $ip_octet3,
@@ -1536,10 +1525,10 @@ sub generate_ip
 		{
 			# We can work with this.
 			$ip_octet2 += $network_sequence;
-			$ip_octet3 =  $anvil->data->{'default'}{$network}{striker_octet3};
+			$ip_octet3 =  $anvil->data->{defaults}{network}{$network}{striker_octet3};
 			$ip_octet4 =  $device_sequence;
 			$ip        =  $ip_octet1.".".$ip_octet2.".".$ip_octet3.".".$ip_octet4;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:ip_octet2" => $ip_octet2,
 				"s2:ip_octet3" => $ip_octet3,
 				"s3:ip_octet4" => $ip_octet4,
@@ -1553,6 +1542,6 @@ sub generate_ip
 		$ip = "#!error!#";
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip => $ip }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 	return($ip);
 }

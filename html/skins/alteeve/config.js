@@ -54,16 +54,42 @@ $( window ).on( "load", function()
 	}
 	*/
 	
-	if($("#bcn_count").val()) {
-		var bcn_count = $("#bcn_count").val();
-		console.log('BCN Count: ['+bcn_count+'].');
-		for (var i = 1; i <= bcn_count; i++) {
-			console.log('BCN IP set: ['+$("#bcn"+i+"_ip").val()+'], default: ['+$("#bcn"+i+"_ip_default").val()+'].');
-			if ($("#bcn"+i+"_ip").val() == '') {
-				var default_ip = $("#bcn"+i+"_ip_default").val();
-				console.log('BCN IP not set. Setting to: ['+default_ip+']');
-				$("#bcn"+i+"_ip").val(default_ip)
-			}
+	jQuery.each("bcn sn ifn".split(" "), function(index, network) {
+		console.log('Network: ['+network+'].');
+		if($("#"+network+"_count").val()) {
+			var count = $("#"+network+"_count").val();
+			console.log(network+' count: ['+count+'].');
+			for (var i = 1; i <= count; i++) {
+				var network_name = network+i;
+				console.log('Network: ['+network_name+'], BCN IP set: ['+$("#"+network_name+"_ip").val()+'], default: ['+$("#"+network_name+"_ip_default").val()+'].');
+				if ($("#"+network_name+"_ip").val() == '') {
+					var set_ip      = '';
+					var set_subnet  = '';
+					var set_gateway = '';
+					var set_dns     = '';
+					$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
+						$.each(data.ips, function(index, element) {
+							var on_interface = element.on;
+							if(on_interface.match(new RegExp(network_name))) {
+								console.log('entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
+								console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
+								
+								if (element.default_gateway == '1') {
+									if ($("#gateway").val() == '') {
+										$("#gateway").val(element.gateway);
+									};
+									if ($("#dns").val() == '') {
+										$("#dns").var(element.dns);
+									};
+								};
+							};
+						});
+					});
+					var default_ip = $("#"+network_name+"_ip_default").val();
+					console.log(network+' IP not set. Setting to: ['+default_ip+']');
+					$("#"+network_name+"_ip").val(default_ip);
+				};
+			};
 		};
-	}
+	});
 })
