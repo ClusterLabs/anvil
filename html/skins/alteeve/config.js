@@ -42,7 +42,7 @@ $( window ).on( "load", function()
 	//  Clears the URL to remove everything off after '?'.
 	//var newURL = location.href.split("?")[0];
 	//window.history.pushState('object', document.title, newURL);
-	console.log('onload fired.');
+	//console.log('onload fired.');
 	
 	/*
 	if($("#interface_list").val()) {
@@ -53,43 +53,76 @@ $( window ).on( "load", function()
 		});
 	}
 	*/
-	
-	jQuery.each("bcn sn ifn".split(" "), function(index, network) {
-		console.log('Network: ['+network+'].');
-		if($("#"+network+"_count").val()) {
-			var count = $("#"+network+"_count").val();
-			console.log(network+' count: ['+count+'].');
-			for (var i = 1; i <= count; i++) {
-				var network_name = network+i;
-				console.log('Network: ['+network_name+'], BCN IP set: ['+$("#"+network_name+"_ip").val()+'], default: ['+$("#"+network_name+"_ip_default").val()+'].');
-				if ($("#"+network_name+"_ip").val() == '') {
-					var set_ip      = '';
-					var set_subnet  = '';
-					var set_gateway = '';
-					var set_dns     = '';
-					$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
-						$.each(data.ips, function(index, element) {
-							var on_interface = element.on;
-							if(on_interface.match(new RegExp(network_name))) {
-								console.log('entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
-								console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
-								
-								if (element.default_gateway == '1') {
-									if ($("#gateway").val() == '') {
-										$("#gateway").val(element.gateway);
-									};
-									if ($("#dns").val() == '') {
-										$("#dns").var(element.dns);
-									};
-								};
-							};
-						});
-					});
-					var default_ip = $("#"+network_name+"_ip_default").val();
-					console.log(network+' IP not set. Setting to: ['+default_ip+']');
-					$("#"+network_name+"_ip").val(default_ip);
-				};
-			};
-		};
+
+	$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
+		$.each(data.ips, function(index, element) {
+			console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
+			console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
+			
+			// If this is the default gateway, see about setting the Gateway IP and DNS.
+			if (element.default_gateway == '1') {
+				console.log('This is the default gateway interface.');
+				console.log('- Form value for gateway......: ['+$("#gateway").val()+'] and dns: ['+$("#dns").val()+'].');
+				console.log('- Default values for gateway..: ['+$("#gateway_default").val()+'] and dns: ['+$("#dns_default").val()+'].');
+				console.log('- Interface values for gateway: ['+element.gateway+'] and dns: ['+element.dns+'].');
+				if (($("#gateway").val() == '') && (element.gateway)) {
+					$("#gateway").val(element.gateway);
+				}
+				if (($("#dns").val() == '') && (element.dns)) {
+					$("#dns").val(element.dns);
+				}
+			}
+		});
+		
+		// If DNS or gateway are blank still and we have default values, set them.
+		console.log('Form value for gateway......: ['+$("#gateway").val()+'] and dns: ['+$("#dns").val()+'].');
+		console.log('Interface values for gateway: ['+$("#gateway_default").val()+'] and dns: ['+$("#dns_default").val()+'].');
+		if (($("#gateway").val() == '') && ($("#gateway_default").val())) {
+			$("#gateway").val($("#gateway_default").val());
+		}
+		if (($("#dns").val() == '') && ($("#dns_default").val())) {
+			$("#dns").val($("#dns_default").val());
+		}
 	});
+
+	
+	//jQuery.each("bcn sn ifn".split(" "), function(index, network) {
+// 	jQuery.each("ifn".split(" "), function(index, network) {
+// 		//console.log('Network: ['+network+'].');
+// 		if($("#"+network+"_count").val()) {
+// 			var count = $("#"+network+"_count").val();
+// 			//console.log(network+' count: ['+count+'].');
+// 			for (var i = 1; i <= count; i++) {
+// 				var network_name = network+i;
+// 				var ip_set       = $("#"+network_name+"_ip").val();
+// 				console.log('i: ['+i+'], Network: ['+network_name+'], IP set: ['+ip_set+'], default: ['+$("#"+network_name+"_ip_default").val()+'].');
+// 				if (ip_set == '') {
+// 					console.log('Reading /status/network.json');
+// 					$.ajax({dataType:"json",url:"/status/network.json",data:{get_param:"value"},async:false}), function(data) {
+// 						console.log('Read for: ['+network_name+'].');
+// 						$.each(data.ips, function(index, element) {
+// 							var on_interface = element.on;
+// 							console.log('on_interface: ['+on_interface+'], network_name: ['+network_name+'].');
+// 							//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
+// 							//console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
+// 							if(on_interface.match(new RegExp(network_name))) {
+// 								console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
+// 								if (element.default_gateway == '1') {
+// 									if ($("#gateway").val() == '') {
+// 										$("#gateway").val(element.gateway);
+// 									};
+// 									if ($("#dns").val() == '') {
+// 										$("#dns").var(element.dns);
+// 									};
+// 								};
+// 							};
+// 						});
+// 					};
+// 					var default_ip = $("#"+network_name+"_ip_default").val();
+// 					console.log(network+' IP not set. Setting to: ['+default_ip+']');
+// 					$("#"+network_name+"_ip").val(default_ip);
+// 				};
+// 			};
+// 		};
+// 	});
 })

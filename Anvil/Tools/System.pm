@@ -630,12 +630,27 @@ sub get_ips
 	# If I got a route, get the DNS.
 	if ($route_interface)
 	{
-		my $dns_list = "";
-		my $dns_hash = {};
-		my $ip_route = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{nmcli}." dev show"});
+		# I want to build the DNS list from only the interface that is used for routing.
+		my $in_interface = "";
+		my $dns_list     = "";
+		my $dns_hash     = {};
+		my $ip_route     = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{nmcli}." dev show"});
 		foreach my $line (split/\n/, $ip_route)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /GENERAL.DEVICE:\s+(.*)$/)
+			{
+				$in_interface = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_interface => $in_interface }});
+			}
+			if (not $line)
+			{
+				$in_interface = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_interface => $in_interface }});
+			}
+			
+			next if $in_interface ne $route_interface;
+			
 			if ($line =~ /IP4.DNS\[(\d+)\]:\s+(.*)/i)
 			{
 				my $order = $1;
@@ -648,13 +663,13 @@ sub get_ips
 		
 		foreach my $order (sort {$a cmp $b} keys %{$dns_hash})
 		{
-			$dns_list .= $dns_hash->{$order}.",";
+			$dns_list .= $dns_hash->{$order}.", ";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:dns_hash->{$order}" => $dns_hash->{$order}, 
 				"s2:dns_list"           => $dns_list, 
 			}});
 		}
-		$dns_list =~ s/,$//;
+		$dns_list =~ s/, $//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dns_list => $dns_list }});
 		
 		$anvil->data->{sys}{network}{interface}{$route_interface}{default_gateway} = 1;
