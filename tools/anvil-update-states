@@ -3,6 +3,8 @@
 # This is the master daemon that manages all periodically run processes on Striker dashboards and Anvil! 
 # nodes.
 # 
+# TODO: Make sure to delete interfaces/bonds/bridges that disappear
+# 
 use strict;
 use warnings;
 use Anvil::Tools;

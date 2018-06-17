@@ -56,15 +56,15 @@ $( window ).on( "load", function()
 
 	$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
 		$.each(data.ips, function(index, element) {
-			console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
-			console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
+			//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
+			//console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
 			
 			// If this is the default gateway, see about setting the Gateway IP and DNS.
 			if (element.default_gateway == '1') {
-				console.log('This is the default gateway interface.');
-				console.log('- Form value for gateway......: ['+$("#gateway").val()+'] and dns: ['+$("#dns").val()+'].');
-				console.log('- Default values for gateway..: ['+$("#gateway_default").val()+'] and dns: ['+$("#dns_default").val()+'].');
-				console.log('- Interface values for gateway: ['+element.gateway+'] and dns: ['+element.dns+'].');
+				//console.log('This is the default gateway interface.');
+				//console.log('- Form value for gateway......: ['+$("#gateway").val()+'] and dns: ['+$("#dns").val()+'].');
+				//console.log('- Default values for gateway..: ['+$("#gateway_default").val()+'] and dns: ['+$("#dns_default").val()+'].');
+				//console.log('- Interface values for gateway: ['+element.gateway+'] and dns: ['+element.dns+'].');
 				if (($("#gateway").val() == '') && (element.gateway)) {
 					$("#gateway").val(element.gateway);
 				}
@@ -72,57 +72,59 @@ $( window ).on( "load", function()
 					$("#dns").val(element.dns);
 				}
 			}
+			
+			// Does this IP match any of the fields?
+			if(element.on.match(new RegExp('_'))) {
+				var network_prefix     = element.on.match(/^(.*)_/).pop();
+				var network_ip_key     = network_prefix+'_ip'
+				var network_subnet_key = network_prefix+'_subnet'
+				//console.log('Matching: ['+network_ip_key+'] and: ['+network_subnet_key+'].');
+				
+				if ($("#"+network_ip_key).val() == '')
+				{
+					$("#"+network_ip_key).val(element.address);
+				}
+				if ($("#"+network_subnet_key).val() == '')
+				{
+					$("#"+network_subnet_key).val(element.subnet);
+				}
+			}
 		});
 		
 		// If DNS or gateway are blank still and we have default values, set them.
-		console.log('Form value for gateway......: ['+$("#gateway").val()+'] and dns: ['+$("#dns").val()+'].');
-		console.log('Interface values for gateway: ['+$("#gateway_default").val()+'] and dns: ['+$("#dns_default").val()+'].');
+		//console.log('Form value for gateway......: ['+$("#gateway").val()+'] and dns: ['+$("#dns").val()+'].');
+		//console.log('Interface values for gateway: ['+$("#gateway_default").val()+'] and dns: ['+$("#dns_default").val()+'].');
 		if (($("#gateway").val() == '') && ($("#gateway_default").val())) {
 			$("#gateway").val($("#gateway_default").val());
 		}
 		if (($("#dns").val() == '') && ($("#dns_default").val())) {
 			$("#dns").val($("#dns_default").val());
 		}
+		
+		// Now set any other default IP/subnets
+		jQuery.each("bcn sn ifn".split(" "), function(index, network) {
+			//console.log('Network: ['+network+'].');
+			if($("#"+network+"_count").val()) {
+				var count = $("#"+network+"_count").val();
+				//console.log(network+' count: ['+count+'].');
+				for (var i = 1; i <= count; i++) {
+					var network_name = network+i;
+					console.log('Network: ['+network_name+'], IP set: ['+$("#"+network_name+"_ip").val()+'/'+$("#"+network_name+"_subnet").val()+'].');
+					console.log('- default: ['+$("#"+network_name+"_ip_default").val()+'/'+$("#"+network_name+"_subnet_default").val()+'].');
+					
+					if ($("#"+network_name+"_ip").val() == '')
+					{
+						var ip = $("#"+network_name+"_ip_default").val();
+						$("#"+network_name+"_ip").val(ip);
+					}
+					if ($("#"+network_name+"_subnet").val() == '')
+					{
+						var subnet = $("#"+network_name+"_subnet_default").val();
+						$("#"+network_name+"_subnet").val(subnet);
+					}
+				};
+			};
+			
+		});
 	});
-
-	
-	//jQuery.each("bcn sn ifn".split(" "), function(index, network) {
-// 	jQuery.each("ifn".split(" "), function(index, network) {
-// 		//console.log('Network: ['+network+'].');
-// 		if($("#"+network+"_count").val()) {
-// 			var count = $("#"+network+"_count").val();
-// 			//console.log(network+' count: ['+count+'].');
-// 			for (var i = 1; i <= count; i++) {
-// 				var network_name = network+i;
-// 				var ip_set       = $("#"+network_name+"_ip").val();
-// 				console.log('i: ['+i+'], Network: ['+network_name+'], IP set: ['+ip_set+'], default: ['+$("#"+network_name+"_ip_default").val()+'].');
-// 				if (ip_set == '') {
-// 					console.log('Reading /status/network.json');
-// 					$.ajax({dataType:"json",url:"/status/network.json",data:{get_param:"value"},async:false}), function(data) {
-// 						console.log('Read for: ['+network_name+'].');
-// 						$.each(data.ips, function(index, element) {
-// 							var on_interface = element.on;
-// 							console.log('on_interface: ['+on_interface+'], network_name: ['+network_name+'].');
-// 							//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
-// 							//console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
-// 							if(on_interface.match(new RegExp(network_name))) {
-// 								console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
-// 								if (element.default_gateway == '1') {
-// 									if ($("#gateway").val() == '') {
-// 										$("#gateway").val(element.gateway);
-// 									};
-// 									if ($("#dns").val() == '') {
-// 										$("#dns").var(element.dns);
-// 									};
-// 								};
-// 							};
-// 						});
-// 					};
-// 					var default_ip = $("#"+network_name+"_ip_default").val();
-// 					console.log(network+' IP not set. Setting to: ['+default_ip+']');
-// 					$("#"+network_name+"_ip").val(default_ip);
-// 				};
-// 			};
-// 		};
-// 	});
 })

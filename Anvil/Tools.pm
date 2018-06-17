@@ -749,7 +749,7 @@ sub _set_defaults
 				switch_octet3 	=> "3",
 				striker_octet3	=> "4",
 			},
-			dns		=>	"8.8.8.8, 4.4.4.4",
+			dns		=>	"8.8.8.8, 8.8.4.4",
 			# IFN starts at 10.(80+)/16
 			ifn		=>	{
 				subnet		=>	"10.100.0.0",
