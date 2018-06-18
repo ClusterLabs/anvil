@@ -44,16 +44,7 @@ $( window ).on( "load", function()
 	//window.history.pushState('object', document.title, newURL);
 	//console.log('onload fired.');
 	
-	/*
-	if($("#interface_list").val()) {
-		var interface_list = $('#interface_list').val();
-		console.log('Interface list: ['+interface_list+'].');
-		jQuery.each(interface_list.split(","), function(index, item) {
-			console.log('Interface: ['+item+'].');
-		});
-	}
-	*/
-
+	// Walk through the network.json file and use it to pre-fill the form.
 	$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
 		$.each(data.ips, function(index, element) {
 			//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
@@ -109,8 +100,8 @@ $( window ).on( "load", function()
 				//console.log(network+' count: ['+count+'].');
 				for (var i = 1; i <= count; i++) {
 					var network_name = network+i;
-					console.log('Network: ['+network_name+'], IP set: ['+$("#"+network_name+"_ip").val()+'/'+$("#"+network_name+"_subnet").val()+'].');
-					console.log('- default: ['+$("#"+network_name+"_ip_default").val()+'/'+$("#"+network_name+"_subnet_default").val()+'].');
+					//console.log('Network: ['+network_name+'], IP set: ['+$("#"+network_name+"_ip").val()+'/'+$("#"+network_name+"_subnet").val()+'].');
+					//console.log('- default: ['+$("#"+network_name+"_ip_default").val()+'/'+$("#"+network_name+"_subnet_default").val()+'].');
 					
 					if ($("#"+network_name+"_ip").val() == '')
 					{
@@ -125,6 +116,21 @@ $( window ).on( "load", function()
 				};
 			};
 			
+		});
+		
+		// Look for interfaces with names we recognize and use them to select interfaces from the 
+		// select lists.
+		$.each(data.networks, function(index, element) {
+			//console.log('Entry: ['+index+'], name: ['+element.name+'], mac: ['+element.mac+'].');
+			var mac_key = element.name+'_mac_to_set';
+			if ($("#"+mac_key).length) {
+				var select_value = $('#'+mac_key).find(":selected").text();
+				//console.log('- Field exists, current value: ['+select_value+'].');
+				if (select_value == '') {
+					//console.log('- Setting to: ['+element.mac+'].');
+					$("#"+mac_key).val(element.mac);
+				}
+			}
 		});
 	});
 })
