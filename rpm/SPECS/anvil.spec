@@ -169,6 +169,8 @@ systemctl start httpd.service
 # Open access for Striker. The database will be opened after initial setup.
 firewall-cmd --zone=public --add-service=http
 firewall-cmd --zone=public --add-service=http --permanent
+firewall-cmd --zone=public --add-service=postgresql
+firewall-cmd --zone=public --add-service=postgresql --permanent
 
 %files core
 %doc README.md notes

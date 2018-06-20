@@ -227,16 +227,16 @@ sub reconfigure_network
 		next if not $count;
 		foreach my $network_count (1..$count)
 		{
-			my $this_network    = $network_type.$network_count;
-			my $link1_key       = $this_network."_iface1_mac";
-			my $link2_key       = $this_network."_iface2_mac";
-			my $subnet_key      = $this_network."_subnet";
-			my $ip_key          = $this_network."_ip";
-			my $is_gateway      = $this_network eq $gateway_interface ? 1 : 0;
-			my $link1_mac       = $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
-			my $link2_mac       = $anvil->data->{variables}{form}{config_step2}{$link2_key}{value};
-			my $old_link1_iface = $anvil->data->{sys}{mac}{$link1_mac}{iface} ? $anvil->data->{sys}{mac}{$link1_mac}{iface} : "";
-			my $old_link2_iface = $anvil->data->{sys}{mac}{$link2_mac}{iface} ? $anvil->data->{sys}{mac}{$link2_mac}{iface} : "";
+			my $this_network    =         $network_type.$network_count;
+			my $link1_key       =         $this_network."_link1_mac_to_set";
+			my $link2_key       =         $this_network."_link2_mac_to_set";
+			my $subnet_key      =         $this_network."_subnet";
+			my $ip_key          =         $this_network."_ip";
+			my $is_gateway      =         $this_network eq $gateway_interface ? 1 : 0;
+			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
+			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} : "";
+			my $old_link1_iface =         $anvil->data->{sys}{mac}{$link1_mac}{iface} ? $anvil->data->{sys}{mac}{$link1_mac}{iface} : "";
+			my $old_link2_iface =         $link2_mac                                  ? $anvil->data->{sys}{mac}{$link2_mac}{iface} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_key          => $ip_key, 
 				is_gateway      => $is_gateway, 
@@ -251,7 +251,15 @@ sub reconfigure_network
 			}});
 			
 			# Skip if this doesn't exist or isn't a valid IPv4 address.
-			next if not exists $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
+			if (not exists $anvil->data->{variables}{form}{config_step2}{$ip_key}{value})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0176", variables => { ip_key => $ip_key }});
+				next;
+			}
+			else
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "variables::form::config_step2::${ip_key}::value" => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value} }});
+			}
 			if (($anvil->data->{variables}{form}{config_step2}{$ip_key}{value}) and (not $anvil->Validate->is_ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
 			{
 				# Something was set, but it isn't valid.
@@ -269,10 +277,11 @@ sub reconfigure_network
 				subnet => $subnet, 
 			}});
 			
+			# Are we building bonded interfaces?
 			if ($anvil->Validate->is_mac({mac => $link2_mac}))
 			{
 				### TODO: Handle when bridges exist. Detect when the host is a node and/or have a "use as bridge" option?
-				# Bonded; Build the configs.
+				# Yup! Build the configs.
 				my $say_network      = "";
 				my $say_interface    = "";
 				my $interface_prefix = "";
@@ -494,9 +503,111 @@ sub reconfigure_network
 			}
 			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
 			{
-				# Single interface
+				# Single interface, set it up
 				my $link1_mac = $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_mac => $link1_mac }});
+				
+				my $say_network      = "";
+				my $say_interface    = "";
+				my $interface_prefix = "";
+				if ($network_type eq "bcn")
+				{
+					$say_network      = "Back-Channel Network ".$network_count;
+					$say_interface    = "bcn".$network_count;
+					$interface_prefix = "BCN";
+				}
+				elsif ($network_type eq "sn")
+				{
+					$say_network      = "Storage Network ".$network_count; 
+					$say_interface    = "sn".$network_count;
+					$interface_prefix = "SN";
+				}
+				elsif ($network_type eq "ifn")
+				{
+					$say_network      = "Internet-Facing Network ".$network_count; 
+					$say_interface    = "ifn".$network_count;
+					$interface_prefix = "IFN";
+				}
+				my $say_defroute    = $is_gateway ? "yes" : "no";
+				my $cidr            = $anvil->Convert->cidr({subnet => $subnet});
+				my $new_link1_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
+				my $old_link1_file  = $new_link1_file;
+				my $new_link1_iface = $say_interface."_link1";
+				if ((exists $anvil->data->{sys}{mac}{$link1_mac}{iface}) && ($anvil->data->{sys}{mac}{$link1_mac}{iface}))
+				{
+					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link1_mac}{iface};
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					say_defroute    => $say_defroute, 
+					cidr            => $cidr, 
+					new_link1_file  => $new_link1_file,
+					old_link1_file  => $old_link1_file, 
+					new_link1_iface => $new_link1_iface, 
+				}});
+				
+				# Gather (or create) UUIDs
+				my $link1_uuid = get_uuid_from_interface_file($anvil, $old_link1_file);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_uuid => $link1_uuid }});
+				
+				my $link1_config =  "# $say_network - Link 1\n";
+				   $link1_config .= "HWADDR=\"".uc($link1_mac)."\"\n";
+				   $link1_config .= "UUID=\"".$link1_uuid."\"\n";
+				   $link1_config .= "NAME=\"".$interface_prefix." ".$network_count." - Link 1\"\n";
+				   $link1_config .= "DEVICE=\"".$new_link1_iface."\"\n";
+				   $link1_config .= "TYPE=\"Ethernet\"\n";
+				   $link1_config .= "BOOTPROTO=\"none\"\n";
+				   $link1_config .= "IPV6INIT=\"no\"\n";
+				   $link1_config .= "ONBOOT=\"yes\"\n";
+				   $link1_config .= "IPADDR=\"".$ip."\"\n";
+				   $link1_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet."\"\n";
+				if ($is_gateway)
+				{
+					$link1_config .= "GATEWAY=\"".$gateway."\"\n";
+					for (my $i = 0; $i < @{$dns}; $i++)
+					{
+						$link1_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+					}
+				}
+				   $link1_config .= "DEFROUTE=\"".$say_defroute."\"\n";
+				   $link1_config .= "USERCTL=\"no\"\n";
+				   $link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
+				   $link1_config .= "NM_CONTROLLED=\"yes\"\n";
+				   $link1_config .= "ZONE=\"".$say_interface."\"";
+				   
+				# Backup the existing link1 file, if it exists.
+				if (-e $old_link1_file)
+				{
+					$anvil->Storage->backup({debug => 2, file => $old_link1_file});
+				}
+				
+				# Write out the link1 config file.
+				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+				
+				if ($old_link1_iface)
+ 				{
+					# Take down and rename the old link 1 interface
+					#print "Downing: ..... [$old_link1_iface]\n";
+					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$old_link1_iface});
+					#print "Disconnecting: [$old_link1_iface]\n";
+					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link1_iface." down"});
+				}
+				if ($old_link1_iface ne $new_link1_iface)
+				{
+					# Rename it
+					#print "Renaming: .... [$old_link1_iface] -> [$new_link1_iface]\n";
+					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link1_iface." name ".$new_link1_iface});
+					
+					# Unllnk the old one, if it exists.
+					if (-e $old_link1_file)
+					{
+						#print "Deleting: .... [$old_link1_file]\n";
+						unlink $old_link1_file;
+					}
+				}
+				
+				# Drop the new link, too, in case it still has the old config
+				#print "Downing: ..... [$new_link1_iface]\n";
+				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$new_link1_iface});
 			}
 			else
 			{
@@ -505,6 +616,43 @@ sub reconfigure_network
 				next;
 			}
 		}
+	}
+	
+	# If any virtio bridges exist, remove it/them.
+	my $start   = 0;
+	my $bridges = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges }});
+	foreach my $line (split/\n/, $bridges)
+	{
+		$line = $anvil->Words->clean_spaces({ string => $line });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /^----------/)
+		{
+			$start = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start => $start }});
+			next;
+		}
+		next if not $start;
+		my $bridge = ($line =~ /(.*?)\s/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge => $bridge }});
+		
+		$anvil->data->{virsh}{bridge}{$bridge} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "virsh::bridge::$bridge" => $anvil->data->{virsh}{bridge}{$bridge} }});
+	}
+	
+	foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{virsh}{bridge}})
+	{
+		# Destroy (stop) it.
+		my $destroy = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { destroy => $destroy }});
+		
+		# Disable it from auto-start.
+		my $disable = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disable => $disable }});
+		
+		# Undefine (delete)
+		my $undefine = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { undefine => $undefine }});
 	}
 	
 	### TODO: This isn't working... The route table won't set the IFN as the default route properly and 

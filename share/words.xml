@@ -267,6 +267,7 @@ The database connection error was:
 		<key name="log_0173"><![CDATA[[ Error ] - Asked to valudate a password encoded with the algorithm: [#!variable!user_algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported.]]></key>
 		<key name="log_0174"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#], but that variable was not found.]]></key>
 		<key name="log_0175"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#] on the host: [#!variable!target!#], but that variable was not found.]]></key>
+		<key name="log_0176">The IP hash key: [#!variable!ip_key!#] does not exist, skipping it.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -368,6 +369,17 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
 		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
 		<key name="error_0011">Something went wrong while trying to update the password. The return code was: [#!variable!return_code!#], but '0' was expected.</key>
+		<key name="error_0012"><![CDATA[The <a href="https://en.wikipedia.org/wiki/Hostname" target="_new">hostname</a> has to be set to a valid value.]]></key>
+		<key name="error_0013">A user name must be set. This is usually 'admin'.</key>
+		<key name="error_0014">You must set a password. There are no complexity rules, but a long password is strongly recommended.</key>
+		<key name="error_0015">A DNS entry is bad. One or more IPv4 addresses can be specified, with a comma separating multiple IPs.</key>
+		<key name="error_0016">The IPv4 address assigned to: [#!variable!network!#] is invalid.</key>
+		<key name="error_0017">An interface to use in: [#!variable!network!# - Link #!variable!link!#] must be selected.</key>
+		<key name="error_0018">Network interfaces can only be selected once.</key>
+		<key name="error_0019">The gateway appears to have an invalid IPv4 address set.</key>
+		<key name="error_0020">The: [#!variable!field!#] field can't be empty.</key>
+		<key name="error_0021">The prefix needs to be set, and be between 1 and 5 characters long.</key>
+		<key name="error_0022">The: [#!variable!field!#] must be a positive integer.</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

@@ -178,6 +178,7 @@ sub check_availability
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { available => $available }});
 	return($available);
 }
 
@@ -742,7 +743,9 @@ sub sanity_check_step2
 	# Do we have a host name, striker user and password?
 	if (not $anvil->Validate->form_field({name => "hostname", type => "domain_name"}))
 	{
-		$sane = 0;
+		$anvil->data->{form}{error_massage}  = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0012"}) }});
+		$anvil->data->{cgi}{hostname}{alert} = 1;
+		$sane                                = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
 	else
@@ -763,8 +766,9 @@ sub sanity_check_step2
 	# The user name
 	if ((not defined $anvil->data->{cgi}{striker_user}{value}) or (not $anvil->data->{cgi}{striker_user}{value}))
 	{
+		$anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0013"}) }});
 		$anvil->data->{cgi}{striker_user}{alert} = 1;
-		$sane                                 = 0;
+		$sane                                    = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_user::alert" => $anvil->data->{cgi}{striker_user}{alert} }});
 	}
 	else
@@ -785,8 +789,9 @@ sub sanity_check_step2
 	# The password
 	if ((not defined $anvil->data->{cgi}{striker_password}{value}) or (not $anvil->data->{cgi}{striker_password}{value}) or (length($anvil->data->{cgi}{striker_password}{value}) < 6))
 	{
+		$anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0014"}) }});
 		$anvil->data->{cgi}{striker_password}{alert} = 1;
-		$sane                                     = 0;
+		$sane                                        = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::striker_password::alert" => $anvil->data->{cgi}{striker_password}{alert} }});
 	}
 	else
@@ -815,9 +820,10 @@ sub sanity_check_step2
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip => $ip }});
 			if (not $anvil->Validate->is_ipv4({ip => $ip}))
 			{
-				$anvil->data->{cgi}{dns}{alert} = 1;
-				$sane                        = 0;
-				$dns_ok                      = 0;
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0015"}) }});
+				$anvil->data->{cgi}{dns}{alert}     = 1;
+				$sane                               = 0;
+				$dns_ok                             = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, dns_ok => $dns_ok, "cgi::dns::alert" => $anvil->data->{cgi}{dns}{alert} }});
 			}
 		}
@@ -853,8 +859,8 @@ sub sanity_check_step2
 			my $this_network    = $network.$count;
 			my $this_ip_key     = $this_network."_ip";
 			my $this_subnet_key = $this_network."_subnet";
-			my $this_iface1_key = $this_network."_iface1_mac";
-			my $this_iface2_key = $this_network."_iface2_mac";
+			my $this_iface1_key = $this_network."_link1_mac_to_set";
+			my $this_iface2_key = $this_network."_link2_mac_to_set";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				count                            => $count,
 				this_ip_key                      => $this_ip_key, 
@@ -867,13 +873,19 @@ sub sanity_check_step2
 				"cgi::${this_iface2_key}::value" => $anvil->data->{cgi}{$this_iface2_key}{value},
 			}});
 			
+			# This will be used to tell the user which interface has a problem, if one exists.
+			my $network_key = $network =~ /^bcn/ ? "striker_0018" : "striker_0022";
+			my $say_network = $anvil->Words->string({key => $network_key, variables => { number => $count }});
+			
 			# Is the IP sane?
 			my $ip_ok = 1;
 			if (not $anvil->Validate->form_field({name => $this_ip_key, type => "ipv4"}))
 			{
 				# Nope
-				$sane  = 0;
-				$ip_ok = 0;
+				$anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0016", variables => { network => $say_network}}) }});
+				$anvil->data->{cgi}{$this_ip_key}{alert} = 1;
+				$sane                                    = 0;
+				$ip_ok                                   = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, ip_ok => $ip_ok }});
 			}
 			else
@@ -894,7 +906,9 @@ sub sanity_check_step2
 			# What about the subnet?
 			if (not $anvil->Validate->form_field({name => $this_subnet_key, type => "subnet"}))
 			{
-				$sane = 0;
+				$anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0016", variables => { network => $say_network }}) }});
+				$anvil->data->{cgi}{$this_subnet_key}{alert} = 1;
+				$sane                                        = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 			}
 			elsif ($ip_ok)
@@ -922,7 +936,9 @@ sub sanity_check_step2
 			# Interface 1 must be set
 			if (not $anvil->Validate->form_field({name => $this_iface1_key, type => "mac"}))
 			{
-				$sane = 0;
+				$anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0017", variables => { network => $say_network, 'link' => "1" }}) }});
+				$anvil->data->{cgi}{$this_iface1_key}{alert} = 1;
+				$sane                                        = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 			}
 			else
@@ -950,10 +966,11 @@ sub sanity_check_step2
 				else
 				{
 					# Conflict! Set the alert for this interface and the conflicting one.
-					my $conflict_key                             = $anvil->data->{network}{$mac}{set_as};
+					my $conflict_key                                = $anvil->data->{network}{$mac}{set_as};
 					   $anvil->data->{cgi}{$conflict_key}{alert}    = 1;
 					   $anvil->data->{cgi}{$this_iface1_key}{alert} = 1;
-					   $sane                                     = 0;
+					   $anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0018"}) }});
+					   $sane                                        = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 						sane                             => $sane, 
 						"cgi::${conflict_key}::alert"    => $anvil->data->{cgi}{$conflict_key}{alert},
@@ -967,7 +984,9 @@ sub sanity_check_step2
 			{
 				if (not $anvil->Validate->form_field({name => $this_iface2_key, type => "mac"}))
 				{
-					$sane = 0;
+					$anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0017", variables => { network => $say_network, 'link' => "2" }}) }});
+					$anvil->data->{cgi}{$this_iface2_key}{alert} = 1;
+					$sane                                        = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 				}
 				else
@@ -996,9 +1015,10 @@ sub sanity_check_step2
 					{
 						# Conflict! Set the alert for this interface and the conflicting one.
 						my $conflict_key                             = $anvil->data->{network}{$mac}{set_as};
-						$anvil->data->{cgi}{$conflict_key}{alert}    = 1;
-						$anvil->data->{cgi}{$this_iface2_key}{alert} = 1;
-						$sane                                     = 0;
+						   $anvil->data->{cgi}{$conflict_key}{alert}    = 1;
+						   $anvil->data->{cgi}{$this_iface2_key}{alert} = 1;
+						   $anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0018"}) }});
+						   $sane                                        = 0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 							sane                             => $sane, 
 							"cgi::${conflict_key}::alert"    => $anvil->data->{cgi}{$conflict_key}{alert},
@@ -1014,7 +1034,9 @@ sub sanity_check_step2
 	# if not)
 	if (not $anvil->Validate->form_field({name => "gateway", type => "ipv4", empty_ok => 1}))
 	{
-		$sane = 0;
+		$anvil->data->{cgi}{gateway}{alert} = 1;
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0019"}) }});
+		$sane                               = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
 	else
@@ -1049,12 +1071,11 @@ sub sanity_check_step2
 			}
 			if (not $gateway_interface)
 			{
-				$anvil->data->{cgi}{gateway}{alert} = 1;
-				$sane                            = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::gateway::alert" => $anvil->data->{cgi}{gateway}{alert} }});
-				
 				# Explain the problem
 				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0004"}) }});
+				$anvil->data->{cgi}{gateway}{alert} = 1;
+				$sane                               = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::gateway::alert" => $anvil->data->{cgi}{gateway}{alert} }});
 			}
 		}
 		
@@ -1103,8 +1124,9 @@ sub sanity_check_step1
 	# Organization just needs *something*
 	if ((not defined $anvil->data->{cgi}{organization}{value}) or (not $anvil->data->{cgi}{organization}{value}))
 	{
+		$anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0020", variables => { field => "striker_0003" }}) }});
 		$anvil->data->{cgi}{organization}{alert} = 1;
-		$sane                                 = 0;
+		$sane                                    = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::organization::alert" => $anvil->data->{cgi}{organization}{alert} }});
 	}
 	else
@@ -1125,8 +1147,9 @@ sub sanity_check_step1
 	# The prefix needs to be alphanumeric and be between 1 ~ 5 chatacters.
 	if ((not $anvil->Validate->is_alphanumeric({string => $anvil->data->{cgi}{prefix}{value}})) or (length($anvil->data->{cgi}{prefix}{value}) > 5))
 	{
-		$anvil->data->{cgi}{prefix}{alert} = 1;
-		$sane                           = 0;
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0021"}) }});
+		$anvil->data->{cgi}{prefix}{alert}  = 1;
+		$sane                               = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::prefix::alert" => $anvil->data->{cgi}{prefix}{alert} }});
 	}
 	else
@@ -1147,7 +1170,9 @@ sub sanity_check_step1
 	# We can use Validate to check the domain.
 	if (not $anvil->Validate->form_field({name => "domain", type => "domain_name"}))
 	{
-		$sane = 0;
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0020", variables => { field => "striker_0007" }}) }});
+		$anvil->data->{cgi}{domain}{alert}  = 1;
+		$sane                               = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
 	else
@@ -1168,8 +1193,9 @@ sub sanity_check_step1
 	# The sequence and IFN count need to be integers.
 	if (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{sequence}{value}}))
 	{
+		$anvil->data->{form}{error_massage}  = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0022", variables => { field => "striker_0009" }}) }});
 		$anvil->data->{cgi}{sequence}{alert} = 1;
-		$sane                             = 0;
+		$sane                                = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::sequence::alert" => $anvil->data->{cgi}{sequence}{alert} }});
 	}
 	else
@@ -1189,8 +1215,9 @@ sub sanity_check_step1
 	
 	if (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{ifn_count}{value}}))
 	{
+		$anvil->data->{form}{error_massage}   = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0022", variables => { field => "striker_0011" }}) }});
 		$anvil->data->{cgi}{ifn_count}{alert} = 1;
-		$sane                              = 0;
+		$sane                                 = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane, "cgi::ifn_count::alert" => $anvil->data->{cgi}{ifn_count}{alert} }});
 	}
 	
@@ -1212,11 +1239,9 @@ sub sanity_check_step1
 		}});
 		
 		# Not enough interfaces found.
-		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $say_message }});
-		
-		# We're not sane
+		$anvil->data->{form}{error_massage}   = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $say_message }});
 		$anvil->data->{cgi}{ifn_count}{alert} = 1;
-		$sane                              = 0;
+		$sane                                 = 0;
 	}
 	else
 	{
@@ -1383,7 +1408,7 @@ sub get_network_details
 	my $xml     = XML::Simple->new();
 	my $data    = "";
 	my $network = "";
-	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name', ip => 'address' }, ForceArray => [ 'interface', 'key' ]) };
+	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name', ip => 'address' }, ForceArray => [ 'interface', 'key' ] ) };
 	if ($@)
 	{
 		chomp $@;
@@ -1422,15 +1447,33 @@ sub get_network_details
 				"interfaces::${interface}::state"  => $anvil->data->{interfaces}{$interface}{'state'}, 
 			}});
 		}
-		foreach my $address (sort {$a cmp $b} keys %{$data->{ip}})
+		### TODO: Sort out how to read the XML using the proper KeyAttr to avoid this mess...
+		# If there is only one IP, the details will be stored directly under the 'ip' key. If two or 
+		# more exist, each ip address will be the key after 'ip'.
+		if (exists $data->{ip}{address})
 		{
-			# <ip address="192.168.122.201" on="ifn1_bond1" subnet="255.255.0.0" gateway="192.168.122.1" default_gateway="1" dns="8.8.8.8,8.8.4.4"
+			# Only one entry. Fix the hash.
+			my $address         = $data->{ip}{address};
+			my $on              = $data->{ip}{on};
+			my $subnet          = $data->{ip}{subnet};
+			my $gateway         = $data->{ip}{gateway};
+			my $default_gateway = $data->{ip}{default_gateway};
+			my $dns             = $data->{ip}{dns};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				address         => $address,
+				on              => $on, 
+				subnet          => $subnet, 
+				gateway         => $gateway, 
+				default_gateway => $default_gateway, 
+				dns             => $dns, 
+			}});
+			
 			$anvil->data->{ip}{$address} = {
-				on              => $data->{ip}{$address}{on}, 
-				subnet          => $data->{ip}{$address}{subnet}, 
-				gateway         => $data->{ip}{$address}{gateway}, 
-				default_gateway => $data->{ip}{$address}{default_gateway}, 
-				dns             => $data->{ip}{$address}{dns}, 
+				on              => $on, 
+				subnet          => $subnet, 
+				gateway         => $gateway, 
+				default_gateway => $default_gateway, 
+				dns             => $dns, 
 			};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"ip::${address}::on"              => $anvil->data->{ip}{$address}{on}, 
@@ -1439,6 +1482,27 @@ sub get_network_details
 				"ip::${address}::default_gateway" => $anvil->data->{ip}{$address}{default_gateway}, 
 				"ip::${address}::dns"             => $anvil->data->{ip}{$address}{dns}, 
 			}});
+		}
+		else
+		{
+			foreach my $address (sort {$a cmp $b} keys %{$data->{ip}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
+				$anvil->data->{ip}{$address} = {
+					on              => $data->{ip}{$address}{on}, 
+					subnet          => $data->{ip}{$address}{subnet}, 
+					gateway         => $data->{ip}{$address}{gateway}, 
+					default_gateway => $data->{ip}{$address}{default_gateway}, 
+					dns             => $data->{ip}{$address}{dns}, 
+				};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"ip::${address}::on"              => $anvil->data->{ip}{$address}{on}, 
+					"ip::${address}::subnet"          => $anvil->data->{ip}{$address}{subnet}, 
+					"ip::${address}::gateway"         => $anvil->data->{ip}{$address}{gateway}, 
+					"ip::${address}::default_gateway" => $anvil->data->{ip}{$address}{default_gateway}, 
+					"ip::${address}::dns"             => $anvil->data->{ip}{$address}{dns}, 
+				}});
+			}
 		}
 	}
 	

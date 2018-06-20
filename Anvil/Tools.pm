@@ -886,6 +886,7 @@ sub _set_paths
 				'tr'			=>	"/usr/bin/tr",
 				usermod			=>	"/usr/sbin/usermod",
 				uuidgen			=>	"/usr/bin/uuidgen",
+				virsh			=>	"/usr/bin/virsh",
 			},
 			'lock'			=>	{
 				database		=>	"/tmp/anvil-tools.database.lock",
