@@ -70,6 +70,24 @@ update_passwords($anvil);
 
 ### TODO: This is only until we can get the damn networking stable on reconfigure.
 # Reboot.
+$anvil->Database->insert_or_update_jobs({
+	job_uuid             => $anvil->data->{job}{uuid}, 
+	update_progress_only => 1, 
+	job_progress         => 100, 
+	job_status           => $anvil->data->{job}{status},
+});
+
+# Record that we've configured this machine.
+$anvil->Database->insert_or_update_variables({
+	variable_name         => "system::configured", 
+	variable_value        => 1, 
+	variable_default      => "", 
+	variable_description  => "striker_0048", 
+	variable_section      => "system", 
+	variable_source_uuid  => $anvil->Get->host_uuid, 
+	variable_source_table => "hosts", 
+});
+
 #$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
 
 $anvil->nice_exit({code => 0});
@@ -110,10 +128,7 @@ sub update_passwords
 	else
 	{
 		my $return_code = "";
-		my $output      = $anvil->System->call({
-			debug      => 2, 
-			shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$!",
-		});
+		my $output      = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$!" });
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output }});
 		foreach my $line (split/\n/, $output)
 		{
@@ -134,6 +149,13 @@ sub update_passwords
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0011", variables => { return_code => $return_code }});
 		}
 	}
+	
+	$anvil->Database->insert_or_update_jobs({
+		job_uuid             => $anvil->data->{job}{uuid}, 
+		update_progress_only => 1, 
+		job_progress         => 95, 
+		job_status           => $anvil->data->{job}{status},
+	});
 	
 	return(0);
 }
@@ -618,6 +640,13 @@ sub reconfigure_network
 		}
 	}
 	
+	$anvil->Database->insert_or_update_jobs({
+		job_uuid             => $anvil->data->{job}{uuid}, 
+		update_progress_only => 1, 
+		job_progress         => 50, 
+		job_status           => $anvil->data->{job}{status},
+	});
+	
 	# If any virtio bridges exist, remove it/them.
 	my $start   = 0;
 	my $bridges = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
@@ -661,6 +690,13 @@ sub reconfigure_network
 	# Reload the network
 	#print "reloading nmcli\n";
 	#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
+	
+	$anvil->Database->insert_or_update_jobs({
+		job_uuid             => $anvil->data->{job}{uuid}, 
+		update_progress_only => 1, 
+		job_progress         => 75, 
+		job_status           => $anvil->data->{job}{status},
+	});
 
 	return(0);
 }

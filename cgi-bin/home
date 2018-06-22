@@ -70,14 +70,69 @@ my $body   = "";
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $available = check_availability($anvil);
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { available => $available }});
 if (not $available)
 {
 	# Set the body to 'say::maintenance'.
 	$body = $anvil->data->{say}{maintenance};
 }
+
+# If there is no user account yet, then the system is new and needs to be reconfigured.
+my $configured = check_if_configured($anvil);
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+if (not $configured)
+{
+	$body = configure_striker($anvil);
+}
 else
 {
+	# Normal operation
+	$body = process_task($anvil);
+}
+
+my $buttons = $anvil->Template->get({file => "main.html", name => "button_bar"});
+my $footer  = $anvil->Template->get({file => "main.html", name => "footer"});
+
+# Display the page.
+my $template = $anvil->Template->get({file => "main.html", name => "master", variables => {
+	header            => $header,
+	skin_url          => $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin,
+	left_top_bar      => "&nbsp;",
+	center_top_bar    => $anvil->data->{form}{error_massage},
+	right_top_bar     => $buttons,
+	center_body       => $body,
+	left_bottom_bar   => "&nbsp;",
+	center_bottom_bar => "&nbsp;",
+	right_bottom_bar  => "&nbsp;",
+	footer            => $footer,
+}});
+
+print $template;
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This handles all the daily tasks of Striker.
+sub process_task
+{
+	my ($anvil) = @_;
+	
+	my $body = "hi";
+	
+	return($body);
+}
+
+# This shows the menus for configuring Striker.
+sub configure_striker
+{
+	my ($anvil) = @_;
+	
 	# This will be true when the dashboard is unconfigured.
+	my $body = "";
 	if (not $anvil->data->{cgi}{step}{value})
 	{
 		$body = config_step1($anvil);
@@ -123,32 +178,30 @@ else
 	{
 		$body = get_network_details_form($anvil);
 	}
+	
+	return($body);
 }
-my $buttons = $anvil->Template->get({file => "main.html", name => "button_bar"});
-my $footer  = $anvil->Template->get({file => "main.html", name => "footer"});
 
-# Display the page.
-my $template = $anvil->Template->get({file => "main.html", name => "master", variables => {
-	header            => $header,
-	skin_url          => $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin,
-	left_top_bar      => "&nbsp;",
-	center_top_bar    => $anvil->data->{form}{error_massage},
-	right_top_bar     => $buttons,
-	center_body       => $body,
-	left_bottom_bar   => "&nbsp;",
-	center_bottom_bar => "&nbsp;",
-	right_bottom_bar  => "&nbsp;",
-	footer            => $footer,
-}});
-
-print $template;
-
-$anvil->nice_exit({exit_code => 0});
-
-
-#############################################################################################################
-# Functions                                                                                                 #
-#############################################################################################################
+# This checks to see if the local machine has been configured after initial install. If not, it will present
+# the configuration menu.
+sub check_if_configured
+{
+	my ($anvil) = @_;
+	
+	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+		variable_name         => "system::configured", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		configured    => $configured, 
+		variable_uuid => $variable_uuid, 
+		modified_date => $modified_date, 
+	}});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+	return($configured);
+}
 
 # This checks to see if anything is running that requires Striker being unavailable. If not, this returns
 # '1'. If there is a job pending/running, it returns '0'
@@ -157,23 +210,36 @@ sub check_availability
 	my ($anvil) = @_;
 	
 	my $available = 1;
-	my $query = "SELECT count(*) FROM jobs WHERE job_name = 'configure::network' AND job_progress != 100 AND job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid).";";
+	my $query = "SELECT job_progress, modified_date, extract(epoch from modified_date) FROM jobs WHERE job_name = 'configure::network' AND job_progress != 100 AND job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid).";";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
-	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	   $count = 0 if not defined $count;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
 	if ($count)
 	{
 		# We're waiting for the network configuration
-		$available = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { available => $available }});
+		my $percent     = $results->[0]->[0];
+		my $timestamp   = $results->[0]->[1];
+		my $unixtime    = $results->[0]->[2];
+		my $seconds_ago = $anvil->Convert->add_commas({number => (time - $unixtime)});
+		   $available   = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			available   => $available,
+			percent     => $percent,
+			seconds_ago => $seconds_ago, 
+			timestamp   => $timestamp, 
+			unixtime    => $unixtime, 
+		}});
 		
 		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "main.html", name => "striker-offline", variables => {
 			title_id    => "",
 			message_id  => "",
 			title       => "#!string!striker_0046!#",
-			description => "#!string!striker_0047!#",
+			description => $anvil->Words->string({key => "striker_0047", variables => { percent => $percent, timestamp => $timestamp, seconds_ago => $seconds_ago }}),
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	}

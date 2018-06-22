@@ -348,7 +348,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0044">Done!</key>
 		<key name="striker_0045">The network will be reconfigured momentarily. You may need to reconnect using the new network address you chose.</key>
 		<key name="striker_0046">Offline...</key>
-		<key name="striker_0047">A job to reconfigure the network on this machine is underway. Please try again soon.</key>
+		<key name="striker_0047">A job to reconfigure this Striker is underway. It is: [#!variable!percent!#%] done. It last updated its progress at: [#!variable!timestamp!#] (#!variable!seconds_ago!# seconds ago). Please try again shortly.</key>
+		<key name="striker_0048">This indicates that this machine has been configured. After an initial install, this variable won't exist. If it is set to '0', it will trigger a reconfiguration of the local system.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
