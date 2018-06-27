@@ -57,6 +57,7 @@ NOTE: You must update the password of any other system using this host's
 		</key>
 		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
 		<key name="message_0031">Beginning configuration of local system.</key>
+		<key name="message_0032"><![CDATA[Forgot your password?<br />Use '<span class="code">anvil-change-password</span>' from the console to reset it.]]></key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -268,6 +269,16 @@ The database connection error was:
 		<key name="log_0174"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#], but that variable was not found.]]></key>
 		<key name="log_0175"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#] on the host: [#!variable!target!#], but that variable was not found.]]></key>
 		<key name="log_0176">The IP hash key: [#!variable!ip_key!#] does not exist, skipping it.</key>
+		<key name="log_0177">No cookies were read, the use is not logged in.</key>
+		<key name="log_0178">The user's UUID: [#!variable!uuid!#] was read, but it didn't match any known users.</key>
+		<key name="log_0179">The user has been logged out.</key>
+		<key name="log_0180">The user hash in the user's cookie is valid.</key>
+		<key name="log_0181">The user hash in the user's cookie was valid yesterday, updating the stored hash and allowing the user to proceed.</key>
+		<key name="log_0182">The user hash in the user's coolkie is invalid. It is probably expired.</key>
+		<key name="log_0183">The user: [#!variable!user!#] logged in successfully.</key>
+		<key name="log_0184">Theew was a failed login attempt from: [#!variable!user_agent!#], trying to log in as: [#!variable!user!#]. log in rejected.</key>
+		<key name="log_0185"><![CDATA[<unknown>]]></key>	<!-- Used in some cases when a variable isn't known -->
+		<key name="log_0186"><![CDATA[<supressed>]]></key>	<!-- Used in some cases when a variable isn't known -->
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -350,6 +361,9 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0046">Offline...</key>
 		<key name="striker_0047">A job to reconfigure this Striker is underway. It is: [#!variable!percent!#%] done. It last updated its progress at: [#!variable!timestamp!#] (#!variable!seconds_ago!# seconds ago). Please try again shortly.</key>
 		<key name="striker_0048">This indicates that this machine has been configured. After an initial install, this variable won't exist. If it is set to '0', it will trigger a reconfiguration of the local system.</key>
+		<key name="striker_0049">Log in</key>
+		<key name="striker_0050">User name</key>
+		<key name="striker_0051">Password</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -381,6 +395,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0020">The: [#!variable!field!#] field can't be empty.</key>
 		<key name="error_0021">The prefix needs to be set, and be between 1 and 5 characters long.</key>
 		<key name="error_0022">The: [#!variable!field!#] must be a positive integer.</key>
+		<key name="error_0023">There was a problem reading your session details. To be safe, you have been logged out. Please try logging back in.</key>
+		<key name="error_0024">It appears that your session has expired. To be safe, you have been logged out. Please try logging back in.</key>
+		<key name="error_0025">The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.</key>
+		<key name="error_0026">The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.</key>
+		<key name="error_0027">Login failed, please try again.</key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

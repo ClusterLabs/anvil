@@ -215,7 +215,7 @@ sub new
 		### TODO: Calls to allow the user to override defaults...
 		# Local parameters...
 	}
-	elsif($parameter)
+	elsif ($parameter)
 	{
 		# Um...
 		print $THIS_FILE." ".__LINE__."; Anvil::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
@@ -733,7 +733,12 @@ sub _set_defaults
 			stty				=>	"",
 		},
 		use_base2			=>	1,
-		user				=>	"admin",
+		user				=>	{
+			name				=>	"admin",
+			cookie_valid			=>	0,
+			language			=>	"en_CA",
+			skin				=>	"alteeve",
+		},
 	};
 	$anvil->data->{defaults} = {
 		## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such,

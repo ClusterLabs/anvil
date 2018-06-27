@@ -26,8 +26,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-# Print the html headers, with a new line to break the header from the body.
-print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
+### NOTE: We'll print the headers only when we need to. If we print them hear, it will block cookies being set.
 
 # Set the log level to 2. Setting 3 slows he program down a LOT.
 $anvil->Log->level({set => 2});
@@ -51,6 +50,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 if (not $connections)
 {
 	# No databases, exit.
+	print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
 	print $anvil->Words->string({key => "error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
@@ -107,6 +107,7 @@ my $template = $anvil->Template->get({file => "main.html", name => "master", var
 	footer            => $footer,
 }});
 
+print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
 print $template;
 
 $anvil->nice_exit({exit_code => 0});
@@ -121,7 +122,65 @@ sub process_task
 {
 	my ($anvil) = @_;
 	
-	my $body = "hi";
+	# Is the user trying to log in?
+	my $body      = "hi";
+	my $logged_in = 0;
+	if ((defined $anvil->data->{cgi}{login}) && ($anvil->data->{cgi}{login}{value}))
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::login::value" => $anvil->data->{cgi}{login}{value} }});
+		
+		# Woot!
+		my $failed = $anvil->Account->login({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+		if (not $failed)
+		{
+			$logged_in = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
+		}
+	}
+	else
+	{
+		# Is the user logged in?
+		# 0 - The cookies were read, the account was validated and the user's details were loaded.
+		# 1 - No cookie was found or read. The user needs to log in
+		# 2 - There was a problem reading the user's UUID (it wasn't found in the database), so the 
+		#     cookies were deleted (via C<< Account->_logout() >>. The user needs to log back in.
+		# 3 - There user's hash is invalid, it is probably expired. The user has been logged out and
+		#     needs to log back in.
+		my $cookie_problem = $anvil->Account->read_cookies({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cookie_problem => $cookie_problem }});
+		if (not $cookie_problem)
+		{
+			$logged_in = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
+		}
+	}
+	
+	# Show the login screen, if the user isn't logged in.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
+	if (not $logged_in)
+	{
+		$body = $anvil->Template->get({file => "main.html", name => "striker-login", variables => {
+			user     => $anvil->data->{cgi}{username}{value},
+			password => "",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
+		return($body);
+	}
+	
+	# If we're here, the user is logged in!
+	$body = "logged in as: [".$anvil->data->{sys}{users}{user_name}."]\n";
+	
+# 	$anvil->data->{sys}{users}{user_name}           = $user_name;
+# 	$anvil->data->{sys}{users}{user_uuid}           = $user_uuid;
+# 	$anvil->data->{sys}{users}{user_password_hash}  = $user_password_hash,
+# 	$anvil->data->{sys}{users}{user_salt}           = $user_salt,
+# 	$anvil->data->{sys}{users}{user_algorithm}      = $user_algorithm,
+# 	$anvil->data->{sys}{users}{user_hash_count}     = $user_hash_count,
+# 	$anvil->data->{sys}{users}{user_language}       = $user_language,
+# 	$anvil->data->{sys}{users}{user_is_admin}       = $user_is_admin,
+# 	$anvil->data->{sys}{users}{user_is_experienced} = $user_is_experienced,
+# 	$anvil->data->{sys}{users}{user_is_trusted}     = $user_is_trusted,
 	
 	return($body);
 }

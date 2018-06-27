@@ -125,7 +125,7 @@ sub anvil_version
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	my $version     = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : "--",
+		password    => $anvil->Log->secure ? $password : "#!string!log_0186!#",
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 
@@ -318,7 +318,7 @@ sub cgi
 			if ((($variable =~ /passwd/) or ($variable =~ /password/)) && (not $anvil->Log->secure))
 			{
 				# This is a password and we're not logging sensitive data, obfuscate it.
-				$censored_value = "--";
+				$censored_value = "#!string!log_0186!#";
 			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 				"cgi::${variable}::$say_value" => $censored_value,
@@ -375,6 +375,7 @@ sub date_and_time
 	my $time_only = defined $parameter->{time_only} ? $parameter->{time_only} : 0;
 	my $date_only = defined $parameter->{date_only} ? $parameter->{date_only} : 0;
 	
+	# NOTE: This is used too early for normal error handling.
 	# Are things sane?
 	if ($use_time =~ /D/)
 	{

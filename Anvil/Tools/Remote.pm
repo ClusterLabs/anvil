@@ -294,9 +294,9 @@ sub call
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 		'close'     => $close, 
-		password    => $anvil->Log->secure ? $password : "--", 
+		password    => $anvil->Log->secure ? $password : "#!string!log_0186!#", 
 		secure      => $secure, 
-		shell_call  => ((not $anvil->Log->secure) && ($secure)) ? "--" : $shell_call,
+		shell_call  => ((not $anvil->Log->secure) && ($secure)) ? "#!string!log_0186!#" : $shell_call,
 		ssh_fh      => $ssh_fh,
 		start_time  => $start_time, 
 		remote_user => $remote_user,
@@ -467,7 +467,7 @@ sub call
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 				remote_user => $remote_user,
-				password    => $anvil->Log->secure ? $password : "--", 
+				password    => $anvil->Log->secure ? $password : "#!string!log_0186!#", 
 			}});
 			if (not $ssh_fh->auth_password($remote_user, $password)) 
 			{

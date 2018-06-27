@@ -10,6 +10,16 @@ Colours;
 - Footer text:       #515151
 */
 
+.login {
+    width:       600px;
+    height:      50px;
+    position:    fixed;
+    margin-left: -300px; /* half of width */
+    margin-top:  -25px;  /* half of height */
+    top:         50%;
+    left:        50%;
+}
+
 .error_message {
 	border-left:   3px solid #d02724;
 	border-right:  3px solid #d02724;
@@ -28,7 +38,7 @@ input[type=text].input_alert, input[type=number].input_alert, select.input_alert
 	border: 1px solid #ff3f3f;
 }
 
-input[type=text], input[type=number] {
+input[type=text], input[type=number], input[type=password] {
 	width:            100%;
 	padding:          6px 10px;
 	margin:           2px 0;
@@ -52,6 +62,10 @@ select {
 	color:            #f7f7f7;
 	font-family:      'Dejavu Sans Mono', 'Courier 10 pitch', monospace, Courier;
 	font-size:        1.0em;
+}
+
+.code {
+	font-family: 'Dejavu Sans Mono', Courier;
 }
 
 body {
@@ -175,6 +189,7 @@ td {
 .subtle_text {
 	color:      #9D9D9D;
 	text-align: left;
+	font-size:  0.9em;
 }
 
 .header {
