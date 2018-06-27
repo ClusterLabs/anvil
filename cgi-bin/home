@@ -69,18 +69,31 @@ my $header = $anvil->Template->get({file => "main.html", name => "header", varia
 my $body   = "";
 
 # If any jobs are pending/running, show the "unavailable" option.
+<<<<<<< HEAD
 my $available = check_availability($anvil);
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { available => $available }});
+=======
+my $available  = check_availability($anvil);
+my $configured = check_if_configured($anvil);
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	available  => $available,
+	configured => $configured,
+}});
+>>>>>>> a6a5df2496cbe4474d34585a2d41207dd6d5e005
 if (not $available)
 {
 	# Set the body to 'say::maintenance'.
 	$body = $anvil->data->{say}{maintenance};
 }
+<<<<<<< HEAD
 
 # If there is no user account yet, then the system is new and needs to be reconfigured.
 my $configured = check_if_configured($anvil);
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
 if (not $configured)
+=======
+elsif (not $configured)
+>>>>>>> a6a5df2496cbe4474d34585a2d41207dd6d5e005
 {
 	$body = configure_striker($anvil);
 }

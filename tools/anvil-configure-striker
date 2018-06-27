@@ -88,7 +88,7 @@ $anvil->Database->insert_or_update_variables({
 	variable_source_table => "hosts", 
 });
 
-#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
+$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
 
 $anvil->nice_exit({code => 0});
 
