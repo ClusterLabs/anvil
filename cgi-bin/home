@@ -70,7 +70,7 @@ my $body   = "";
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $available = check_availability($anvil);
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { available => $available }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { available => $available }});
 if (not $available)
 {
 	# Set the body to 'say::maintenance'.
@@ -79,7 +79,7 @@ if (not $available)
 
 # If there is no user account yet, then the system is new and needs to be reconfigured.
 my $configured = check_if_configured($anvil);
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
 if (not $configured)
 {
 	$body = configure_striker($anvil);
@@ -90,7 +90,11 @@ else
 	$body = process_task($anvil);
 }
 
-my $buttons = $anvil->Template->get({file => "main.html", name => "button_bar"});
+my $buttons = $anvil->Template->get({file => "main.html", name => "button_bar", variables => {
+	anvil_button   => 0                                     ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})   : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
+	striker_button => 0                                     ? $anvil->Template->get({file => "main.html", name => "striker_button_on"}) : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
+	user_button    => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})    : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
+}});
 my $footer  = $anvil->Template->get({file => "main.html", name => "footer"});
 
 # Display the page.
@@ -130,7 +134,7 @@ sub process_task
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::login::value" => $anvil->data->{cgi}{login}{value} }});
 		
 		# Woot!
-		my $failed = $anvil->Account->login({debug => 2});
+		my $failed = $anvil->Account->login({debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
 		if (not $failed)
 		{
@@ -138,21 +142,26 @@ sub process_task
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
 		}
 	}
+	elsif ((defined $anvil->data->{cgi}{logout}) && ($anvil->data->{cgi}{logout}{value}))
+	{
+		# Bye now!
+		$anvil->Account->logout({debug => 3});
+	}
 	else
 	{
 		# Is the user logged in?
 		# 0 - The cookies were read, the account was validated and the user's details were loaded.
 		# 1 - No cookie was found or read. The user needs to log in
 		# 2 - There was a problem reading the user's UUID (it wasn't found in the database), so the 
-		#     cookies were deleted (via C<< Account->_logout() >>. The user needs to log back in.
+		#     cookies were deleted (via C<< Account->logout() >>. The user needs to log back in.
 		# 3 - There user's hash is invalid, it is probably expired. The user has been logged out and
 		#     needs to log back in.
-		my $cookie_problem = $anvil->Account->read_cookies({debug => 2});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cookie_problem => $cookie_problem }});
+		my $cookie_problem = $anvil->Account->read_cookies({debug => 3});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cookie_problem => $cookie_problem }});
 		if (not $cookie_problem)
 		{
 			$logged_in = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { logged_in => $logged_in }});
 		}
 	}
 	
@@ -252,13 +261,13 @@ sub check_if_configured
 		variable_source_uuid  => $anvil->Get->host_uuid, 
 		variable_source_table => "hosts", 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		configured    => $configured, 
 		variable_uuid => $variable_uuid, 
 		modified_date => $modified_date, 
 	}});
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
 	return($configured);
 }
 
@@ -269,12 +278,25 @@ sub check_availability
 	my ($anvil) = @_;
 	
 	my $available = 1;
-	my $query = "SELECT job_progress, modified_date, extract(epoch from modified_date) FROM jobs WHERE job_name = 'configure::network' AND job_progress != 100 AND job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid).";";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $query = "
+SELECT 
+    job_progress, 
+    modified_date, 
+    extract(epoch from modified_date) 
+FROM 
+    jobs 
+WHERE 
+    job_name      =  'configure::network' 
+AND 
+    job_progress  != 100 
+AND 
+    job_host_uuid =  ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -286,7 +308,7 @@ sub check_availability
 		my $unixtime    = $results->[0]->[2];
 		my $seconds_ago = $anvil->Convert->add_commas({number => (time - $unixtime)});
 		   $available   = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			available   => $available,
 			percent     => $percent,
 			seconds_ago => $seconds_ago, 
@@ -300,10 +322,10 @@ sub check_availability
 			title       => "#!string!striker_0046!#",
 			description => $anvil->Words->string({key => "striker_0047", variables => { percent => $percent, timestamp => $timestamp, seconds_ago => $seconds_ago }}),
 		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { available => $available }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { available => $available }});
 	return($available);
 }
 

@@ -317,13 +317,25 @@ AND
 	if ($test_password_hash eq $user_password_hash)
 	{
 		# User passed a valid username/password. Create a session hash.
-		my ($session_hash, $session_salt) = $anvil->Account->_build_cookie_hash({uuid => $anvil->data->{cookie}{anvil_user_uuid}, offset => 0});
+		my ($session_hash, $session_salt) = $anvil->Account->_build_cookie_hash({
+			debug  => $debug,
+			uuid   => $user_uuid, 
+			offset => 0,
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			session_hash => $session_hash,
 			session_salt => $session_salt, 
 		}});
 		
-		my $query = "
+		if (not $session_hash)
+		{
+			# Something went wrong generating the session cookie, login failed.
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0028"}) }});
+			return(1);
+		}
+		else
+		{
+			my $query = "
 UPDATE 
     users 
 SET 
@@ -332,15 +344,16 @@ SET
 WHERE 
     user_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $anvil->data->{cgi}{username}{value} }});
-		$anvil->Account->_write_cookies({
-			debug => $debug, 
-			hash  => $session_hash, 
-			uuid  => $user_uuid,
-		});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $anvil->data->{cgi}{username}{value} }});
+			$anvil->Account->_write_cookies({
+				debug => $debug, 
+				hash  => $session_hash, 
+				uuid  => $user_uuid,
+			});
+		}
 	}
 	else
 	{
@@ -377,6 +390,26 @@ sub logout
 	
 	# Delete the user's cookie data. Sending nothing to '_write_cookies' does this.
 	$anvil->Account->_write_cookies({debug => $debug});
+	
+	# Delete the user's session salt.
+	if ($anvil->data->{cookie}{anvil_user_uuid})
+	{
+		my $query = "
+UPDATE 
+    users 
+SET 
+    user_session_salt = '', 
+    modified_date     = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    user_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{cookie}{anvil_user_uuid})."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $anvil->data->{cgi}{username}{value} }});
+	}
+	
+	# Log that they're out
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0179"});
 	
 	return(0);
@@ -466,8 +499,6 @@ sub read_cookies
 	
 	if ($count < 1)
 	{
-	
-	die;
 		# The user in the cookie isn't in the database. The user was deleted?
 		$anvil->Account->logout();
 		
@@ -485,8 +516,18 @@ sub read_cookies
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "users::user_session_salt" => $anvil->data->{users}{user_session_salt} }});
 	
 	# Generate a hash using today and yesterday's date.
-	my ($today_hash)     = $anvil->Account->_build_cookie_hash({uuid => $anvil->data->{cookie}{anvil_user_uuid}, offset => 0});
-	my ($yesterday_hash) = $anvil->Account->_build_cookie_hash({uuid => $anvil->data->{cookie}{anvil_user_uuid}, offset => -86400});
+	my ($today_hash) = $anvil->Account->_build_cookie_hash({
+		debug  => $debug, 
+		uuid   => $anvil->data->{cookie}{anvil_user_uuid}, 
+		salt   => $anvil->data->{users}{user_session_salt}, 
+		offset => 0,
+	});
+	my ($yesterday_hash) = $anvil->Account->_build_cookie_hash({
+		debug  => $debug,
+		uuid   => $anvil->data->{cookie}{anvil_user_uuid}, 
+		salt   => $anvil->data->{users}{user_session_salt}, 
+		offset => -86400,
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		today_hash     => $today_hash,
 		yesterday_hash => $yesterday_hash, 
@@ -514,6 +555,9 @@ sub read_cookies
 	}
 	else
 	{
+		### TODO: left off here. First check fails and the user is logged out.
+		#die;
+		
 		# The user's cookie is invalid, log the user out.
 		$anvil->Account->logout();
 		
@@ -796,7 +840,9 @@ WHERE
 
 =head2 _build_cookie_hash
 
-This takes a (user) UUID and offset (stated as seconds) and builds a hash approporiate for use in cookies (or a test hash to validate a read cookie hash).
+This takes a (user) UUID and offset (stated as seconds) and builds a hash approporiate for use in cookies (or a test hash to validate a read cookie hash). The resulting hash and the salt used to generate the hash are returned.
+
+If there is a problem, C<< 0 >> will be returned for both the hash and salt.
 
 Parameters;
 
@@ -822,6 +868,7 @@ sub _build_cookie_hash
 	
 	my $offset     = defined $parameter->{offset}     ? $parameter->{offset}     : 0;
 	my $user_agent = defined $parameter->{user_agent} ? $parameter->{user_agent} : $ENV{HTTP_USER_AGENT};
+	my $salt       = defined $parameter->{salt}       ? $parameter->{salt}       : "";
 	my $uuid       = defined $parameter->{uuid}       ? $parameter->{uuid}       : $anvil->data->{cookie}{anvil_user_uuid};
 	# I know I could do chained conditionals, but it gets hard to read.
 	$user_agent = "" if not defined $user_agent; 
@@ -829,25 +876,47 @@ sub _build_cookie_hash
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		offset     => $offset, 
 		user_agent => $user_agent, 
+		salt       => $salt, 
 		uuid       => $uuid, 
 	}});
+	
+	if (not $anvil->Validate->is_uuid({uuid => $uuid}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Account->_build_cookie_hash()", parameter => "uuid" }});
+		return(0, 0);
+	}
+	if (not $user_agent)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Account->_build_cookie_hash()", parameter => "user_agent" }});
+		return(0, 0);
+	}
 	
 	my $date = $anvil->Get->date_and_time({date_only => 1, offset => $offset});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { date => $date }});
 
-	my $session_string = $uuid.$date.$user_agent;
+	my $session_string = $uuid.":".$date.":".$user_agent;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { session_string => $session_string }});
 	
+	if (not $salt)
+	{
+		$salt = $anvil->Get->_salt;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { salt => $salt }});
+	}
+	
 	# Generate a hash, but unike normal passwords, we won't re-encrypt it.
-	my $answer = $anvil->Account->encrypt_password({password => $session_string, hash_count => 0});
-	my $hash   = $answer->{user_password_hash};
-	my $salt   = $answer->{user_salt};
+	my $answer = $anvil->Account->encrypt_password({
+		debug      => $debug, 
+		hash_count => 0,
+		password   => $session_string, 
+		salt       => $salt, 
+	});
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		hash => $hash,
-		salt => $salt, 
+		hash => $answer->{user_password_hash},
+		salt => $answer->{user_salt}, 
 	}});
 	
-	return($hash, $salt);
+	return($answer->{user_password_hash}, $answer->{user_salt});
 }
 
 =head2 _write_cookies

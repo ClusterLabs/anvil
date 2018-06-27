@@ -209,10 +209,19 @@ sub cgi
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
 			push @{$cgis}, $variable;
 		}
-		
-		$cgi_count = @{$cgis};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_count => $cgi_count }});
 	}
+	elsif (exists $cgi->{param})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'cgi->{param}' => $cgi->{param} }});
+		foreach my $variable (sort {$a cmp $b} keys %{$cgi->{param}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
+			push @{$cgis}, $variable;
+		}
+	}
+	
+	$cgi_count = @{$cgis};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_count => $cgi_count }});
 	
 	# If we don't have at least one variable, we're done.
 	if ($cgi_count < 1)

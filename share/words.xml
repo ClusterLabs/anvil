@@ -58,6 +58,7 @@ NOTE: You must update the password of any other system using this host's
 		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
 		<key name="message_0031">Beginning configuration of local system.</key>
 		<key name="message_0032"><![CDATA[Forgot your password?<br />Use '<span class="code">anvil-change-password</span>' from the console to reset it.]]></key>
+		<key name="message_0033">Log out</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -400,6 +401,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0025">The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.</key>
 		<key name="error_0026">The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.</key>
 		<key name="error_0027">Login failed, please try again.</key>
+		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!sys::log_file!#</span>] for details.]]></key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>
