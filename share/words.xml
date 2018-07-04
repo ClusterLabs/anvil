@@ -59,6 +59,11 @@ NOTE: You must update the password of any other system using this host's
 		<key name="message_0031">Beginning configuration of local system.</key>
 		<key name="message_0032"><![CDATA[Forgot your password?<br />Use '<span class="code">anvil-change-password</span>' from the console to reset it.]]></key>
 		<key name="message_0033">Log out</key>
+		<key name="message_0034"><![CDATA[Logged in as: [<span class="fixed_width">#!data!sys::users::user_name!#</span>]]]></key>
+		<key name="message_0035">Welcome!</key>
+		<key name="message_0036">Create or manage Anvil! systems</key>
+		<key name="message_0037">Manage this Striker system and sync with others</key>
+		<key name="message_0038">Help and support</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

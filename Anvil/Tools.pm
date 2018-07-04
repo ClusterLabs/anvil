@@ -739,6 +739,19 @@ sub _set_defaults
 			language			=>	"en_CA",
 			skin				=>	"alteeve",
 		},
+		# This is data filled from the active user's database table.
+		users				=>	{
+			user_name			=>	"",
+			user_password_hash		=>	"", 
+			user_session_salt		=>	"",  
+			user_salt			=>	"", 
+			user_algorithm			=>	"", 
+			user_hash_count			=>	"", 
+			user_language			=>	"", 
+			user_is_admin			=>	"", 
+			user_is_experienced		=>	"", 
+			user_is_trusted			=>	"", 
+		},
 	};
 	$anvil->data->{defaults} = {
 		## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such,

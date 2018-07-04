@@ -210,7 +210,6 @@ td {
 }
 
 .footer {
-	text-align: center;
 	background: #171717;
 	font-size:  12px;
 	color:      #515151;
@@ -230,4 +229,37 @@ td {
 	cursor:          pointer;
 	text-decoration: none;
 	color:           #616161;
+}
+
+.fixed_width {
+	font-family: 'Dejavu Sans Mono', Courier;
+}
+
+#center_body {
+	height: 100%;
+}
+
+.striker_welcome {
+}
+
+.title {
+	font-size:  1.2em;
+	text-align: center;
+}
+
+.icon_button {
+	padding-top:    30px;
+	vertical-align: top;
+}
+
+.menu_title {
+	font-size:      1.1em;
+	padding-top:    30px;
+	padding-left:   20px;
+	padding-bottom: 10px;
+}
+
+.menu_details {
+	padding-left:  10px;
+	padding-right: 10px;
 }

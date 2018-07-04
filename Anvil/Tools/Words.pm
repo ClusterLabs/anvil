@@ -452,8 +452,7 @@ sub string
 			# restore them once we're out of this loop.
 			foreach my $check ($string =~ /#!([^\s]+?)!#/)
 			{
-				if (($check !~ /^replace/) &&
-				    ($check !~ /^data/)    &&
+				if (($check !~ /^data/)    &&
 				    ($check !~ /^string/)  &&
 				    ($check !~ /^variable/))
 				{

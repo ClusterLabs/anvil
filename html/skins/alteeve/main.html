@@ -1,6 +1,105 @@
+<!-- start striker-setup -->
+		<table align="center" class="striker_welcome">
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2" class="title">
+					Striker Configuration and Management
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td rowspan="2" class="icon_button">
+					<a href="?striker=true&task=sync"><img src="#!data!skin::url!#/images/sync.png" class="top_icon" ></a>
+				</td>
+				<td class="menu_title">
+					Configure Striker Peers
+				</td>
+			</tr>
+			<tr>
+				<td class="menu_details">
+					When you sync with a peer, this machine's data will be copied to and recorded on the peer's database. Data gathered by ScanCore will also be kept in sync on both dashboards, and any general purpose data collected by other dashboards while this one is offline will be copied back when this machine comes online. Should this machine ever be rebuilt, data recorded from before the rebuild will be automatically restored as well.
+				</td>
+			</tr>
+			<tr>
+				<td rowspan="2" class="icon_button">
+					<a href="?striker=true&task=update"><img src="#!data!skin::url!#/images/update.png" class="top_icon" ></a>
+				</td>
+				<td class="menu_title">
+					Update this Striker
+				</td>
+			</tr>
+			<tr>
+				<td class="menu_details">
+					This will update this system using any available software repositories. You can also use this to create or load update packs to allow for the update of offline or air-gapped Anvil! systems.
+				</td>
+			</tr>
+		</table>
+<!-- end striker-setup -->
+
+<!-- start striker-welcome -->
+		<table align="center" class="striker_welcome">
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2" class="title">
+					#!string!message_0035!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<a href="?anvil=true"><img src="#!data!skin::url!#/images/anvil_icon_on.png" class="top_icon"></a>
+				</td>
+				<td>
+					#!string!message_0036!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<a href="?striker=true"><img src="#!data!skin::url!#/images/striker_icon_on.png" class="top_icon"></a>
+				</td>
+				<td>
+					#!string!message_0037!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<a href="?logout=true"><img src="#!data!skin::url!#/images/users_icon_on.png" alt="#!string!message_0033!#" class="top_icon"></a>
+				</td>
+				<td>
+					#!string!message_0033!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<a href="https://alteeve.com/w/Support" target="_new"><img src="#!data!skin::url!#/images/help_icon_on.png" id="help_icon" class="top_icon"></a>
+				</td>
+				<td>
+					#!string!message_0038!#
+				</td>
+			</tr>
+		</table>
+<!-- end striker-welcome -->
+
 <!-- start button_bar -->
 			<table id="button_bar">
 				<tr>
+					<td>
+						#!variable!back_button!#
+					</td>
+					<td>
+						#!variable!refresh_button!#
+					</td>
 					<td>
 						#!variable!striker_button!#
 					</td>
@@ -17,12 +116,28 @@
 			</table>
 <!-- end button_bar -->
 
+<!-- start back_button_off -->
+<img src="#!data!skin::url!#/images/back_off.png" class="top_icon">
+<!-- end back_button_off -->
+
+<!-- start back_button_on -->
+<a href="#!variable!url!#"><img src="#!data!skin::url!#/images/back_on.png" class="top_icon"></a>
+<!-- end back_button_on -->
+
+<!-- start refresh_button_off -->
+<img src="#!data!skin::url!#/images/refresh_off.png" class="top_icon">
+<!-- end refresh_button_off -->
+
+<!-- start refresh_button_on -->
+<a href="#!variable!url!#"><img src="#!data!skin::url!#/images/refresh_on.png" class="top_icon"></a>
+<!-- end refresh_button_on -->
+
 <!-- start anvil_button_off -->
 <img src="#!data!skin::url!#/images/anvil_icon_off.png" class="top_icon">
 <!-- end anvil_button_off -->
 
 <!-- start anvil_button_on -->
-<a href="?anvil=true"><img src="#!data!skin::url!#/images/anvil_icon_on.png" class="top_icon">
+<a href="?anvil=true"><img src="#!data!skin::url!#/images/anvil_icon_on.png" class="top_icon"></a>
 <!-- end anvil_button_on -->
 
 <!-- start striker_button_off -->
@@ -30,7 +145,7 @@
 <!-- end striker_button_off -->
 
 <!-- start striker_button_on -->
-<a href="?striker=true"><img src="#!data!skin::url!#/images/striker_icon_on.png" class="top_icon">
+<a href="?striker=true"><img src="#!data!skin::url!#/images/striker_icon_on.png" class="top_icon"></a>
 <!-- end striker_button_on -->
 
 <!-- start user_button_off -->
@@ -38,7 +153,7 @@
 <!-- end user_button_off -->
 
 <!-- start user_button_on -->
-<a href="?logout=true"><img src="#!data!skin::url!#/images/users_icon_on.png" alt="#!string!message_0033!#" class="top_icon">
+<a href="?logout=true"><img src="#!data!skin::url!#/images/users_icon_on.png" alt="#!string!message_0033!#" class="top_icon"></a>
 <!-- end user_button_on -->
 
 <!-- start config_step1 -->
@@ -721,7 +836,22 @@
 
 <!-- start footer -->
 <div class="footer">
-	#!string!brand_0005!#
+	<table width="100%">
+		<tr>
+			<td width="2%">
+				&nbsp;
+			</td>
+			<td width="48%"">
+				#!variable!user!#
+			</td>
+			<td width="48%" style="text-align: right;">
+				#!string!brand_0005!#
+			</td>
+			<td width="2%">
+				&nbsp;
+			</td>
+		</tr>
+	</table>
 </div>
 <!-- end footer -->
 
@@ -748,7 +878,7 @@
 #!variable!header!#
 
 <body>
-<table class="body_table">
+<table class="body_table" height="100%">
 	<tr>
 		<td class="header" width="5%">
 			<a href="/"><img src="#!data!skin::url!#/images/logo.png" class="logo"></a>
@@ -761,8 +891,10 @@
 		</td>
 	</tr>
 	<tr>
-		<td colspan="3">
+		<td colspan="3" height="100%">
+		<div id="center_body">
 #!variable!center_body!#
+		</div>
 		</td>
 	</tr>
 	<tr>

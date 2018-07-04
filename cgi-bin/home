@@ -60,13 +60,15 @@ $| = 1;
 
 ### Setup some variables.
 $anvil->data->{form}{error_massage} = "&nbsp;";
+$anvil->data->{form}{back_link}     = "";
+$anvil->data->{form}{refresh_link}  = "";
 
 # Read in any CGI variables, if needed.
 $anvil->Get->cgi();
 
-$anvil->data->{skin}{url} = $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin;
+$anvil->data->{skin}{url}  = $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin;
+$anvil->data->{form}{body} = "";
 my $header = $anvil->Template->get({file => "main.html", name => "header", variables => { language => $anvil->Words->language }});
-my $body   = "";
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $available = check_availability($anvil);
@@ -74,7 +76,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list
 if (not $available)
 {
 	# Set the body to 'say::maintenance'.
-	$body = $anvil->data->{say}{maintenance};
+	$anvil->data->{form}{body} = $anvil->data->{say}{maintenance};
 }
 
 # If there is no user account yet, then the system is new and needs to be reconfigured.
@@ -82,20 +84,51 @@ my $configured = check_if_configured($anvil);
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
 if (not $configured)
 {
-	$body = configure_striker($anvil);
+	configure_striker($anvil);
 }
 else
 {
 	# Normal operation
-	$body = process_task($anvil);
+	process_task($anvil);
 }
 
+# Preparing the back (and eventually 'reload' button) takes a bit more work.
+my $refresh_button = "";
+if ($anvil->data->{form}{refresh_link})
+{
+	$refresh_button = $anvil->Template->get({file => "main.html", name => "refresh_button_on", variables => { url => $anvil->data->{form}{refresh_link} }});
+}
+else
+{
+	$refresh_button = $anvil->Template->get({file => "main.html", name => "refresh_button_off"});
+}
+
+my $back_button = "";
+if ($anvil->data->{form}{back_link})
+{
+	my $url = $THIS_FILE;
+	if ($anvil->data->{form}{back_link} ne "?")
+	{
+		# Turn on the back button, 
+		$url = $anvil->data->{form}{back_link};
+	}
+	$back_button = $anvil->Template->get({file => "main.html", name => "back_button_on", variables => { url => $url }});
+}
+else
+{
+	# Back is disabled.
+	$back_button = $anvil->Template->get({file => "main.html", name => "back_button_off"});
+}
 my $buttons = $anvil->Template->get({file => "main.html", name => "button_bar", variables => {
+	back_button    => $back_button,
+	refresh_button => $refresh_button, 
 	anvil_button   => 0                                     ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})   : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
 	striker_button => 0                                     ? $anvil->Template->get({file => "main.html", name => "striker_button_on"}) : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
 	user_button    => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})    : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
 }});
-my $footer  = $anvil->Template->get({file => "main.html", name => "footer"});
+my $footer  = $anvil->Template->get({file => "main.html", name => "footer", variables => {
+	user => $anvil->data->{sys}{users}{user_name} ? "#!string!message_0034!#" : "&nbsp;",
+}});
 
 # Display the page.
 my $template = $anvil->Template->get({file => "main.html", name => "master", variables => {
@@ -104,7 +137,7 @@ my $template = $anvil->Template->get({file => "main.html", name => "master", var
 	left_top_bar      => "&nbsp;",
 	center_top_bar    => $anvil->data->{form}{error_massage},
 	right_top_bar     => $buttons,
-	center_body       => $body,
+	center_body       => $anvil->data->{form}{body},
 	left_bottom_bar   => "&nbsp;",
 	center_bottom_bar => "&nbsp;",
 	right_bottom_bar  => "&nbsp;",
@@ -127,7 +160,6 @@ sub process_task
 	my ($anvil) = @_;
 	
 	# Is the user trying to log in?
-	my $body      = "hi";
 	my $logged_in = 0;
 	if ((defined $anvil->data->{cgi}{login}) && ($anvil->data->{cgi}{login}{value}))
 	{
@@ -169,16 +201,28 @@ sub process_task
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
 	if (not $logged_in)
 	{
-		$body = $anvil->Template->get({file => "main.html", name => "striker-login", variables => {
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "main.html", name => "striker-login", variables => {
 			user     => $anvil->data->{cgi}{username}{value},
 			password => "",
 		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
-		return($body);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+		return(0);
 	}
 	
 	# If we're here, the user is logged in!
-	$body = "logged in as: [".$anvil->data->{sys}{users}{user_name}."]\n";
+	if ($anvil->data->{cgi}{striker}{value})
+	{
+		$anvil->data->{form}{back_link} = "?";
+		$anvil->data->{form}{body}      = $anvil->Template->get({file => "main.html", name => "striker-setup"});
+	}
+	elsif (0)
+	{
+	}
+	else
+	{
+		# Load the main page.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "main.html", name => "striker-welcome"});
+	}
 	
 # 	$anvil->data->{sys}{users}{user_name}           = $user_name;
 # 	$anvil->data->{sys}{users}{user_uuid}           = $user_uuid;
@@ -191,7 +235,7 @@ sub process_task
 # 	$anvil->data->{sys}{users}{user_is_experienced} = $user_is_experienced,
 # 	$anvil->data->{sys}{users}{user_is_trusted}     = $user_is_trusted,
 	
-	return($body);
+	return(0);
 }
 
 # This shows the menus for configuring Striker.
@@ -200,10 +244,9 @@ sub configure_striker
 	my ($anvil) = @_;
 	
 	# This will be true when the dashboard is unconfigured.
-	my $body = "";
 	if (not $anvil->data->{cgi}{step}{value})
 	{
-		$body = config_step1($anvil);
+		$anvil->data->{form}{body} = config_step1($anvil);
 	}
 	elsif ($anvil->data->{cgi}{step}{value} eq "step1")
 	{
@@ -213,12 +256,12 @@ sub configure_striker
 		if ($sane)
 		{
 			# Step 1 was sane, show step 2.
-			$body = config_step2($anvil);
+			$anvil->data->{form}{body} = config_step2($anvil);
 		}
 		else
 		{
 			# No good
-			$body = config_step1($anvil);
+			$anvil->data->{form}{body} = config_step1($anvil);
 		}
 	}
 	elsif ($anvil->data->{cgi}{step}{value} eq "step2")
@@ -229,25 +272,25 @@ sub configure_striker
 		if ($sane)
 		{
 			# Step 2 was sane, show step 3.
-			$body = config_step3($anvil);
+			$anvil->data->{form}{body} = config_step3($anvil);
 		}
 		else
 		{
 			# No good
-			$body = config_step2($anvil);
+			$anvil->data->{form}{body} = config_step2($anvil);
 		}
 	}
 	elsif ($anvil->data->{cgi}{step}{value} eq "step3")
 	{
 		# User has confirmed, update the system!
-		$body = save_job($anvil);
+		$anvil->data->{form}{body} = save_job($anvil);
 	}
 	else
 	{
-		$body = get_network_details_form($anvil);
+		$anvil->data->{form}{body} = get_network_details_form($anvil);
 	}
 	
-	return($body);
+	return(0);
 }
 
 # This checks to see if the local machine has been configured after initial install. If not, it will present
