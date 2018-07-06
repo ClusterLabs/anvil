@@ -187,14 +187,16 @@ sub get
 	
 	if (not $error)
 	{
-		my $in_template   = 0;
-		my $template_file = $anvil->Storage->read_file({file => $source});
+		my $template_found = 0;
+		my $in_template    = 0;
+		my $template_file  = $anvil->Storage->read_file({debug => $debug, file => $source});
 		foreach my $line (split/\n/, $template_file)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
 			if ($line =~ /^<!-- start $name -->/)
 			{
 				$in_template = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_template => $in_template }});
 				if ($show_name)
 				{
 					$template .= "<!-- start: [$source] -> [$name] -->\n";
@@ -205,7 +207,12 @@ sub get
 			{
 				if ($line =~ /^<!-- end $name -->/)
 				{
-					$in_template = 0;
+					$in_template    = 0;
+					$template_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						in_template    => $in_template,
+						template_found => $template_found, 
+					}});
 					if ($show_name)
 					{
 						$template .= "<!-- end: [$source] -> [$name] -->\n";
@@ -225,9 +232,24 @@ sub get
 			string    => $template,
 			variables => $variables,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+		
+		# If we failed to read the template, then load an error message.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			template_found => $template_found, 
+			template       => $template,
+		}});
+		if ((not $template_found) or ($template eq "#!not_found!#"))
+		{
+			# Error!
+			$template = $anvil->Words->string({key => "error_0029", variables => {
+				template => $name,
+				file     => $source,
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
+		}
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
 	return($template);
 }
 

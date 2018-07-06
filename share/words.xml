@@ -407,6 +407,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0026">The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.</key>
 		<key name="error_0027">Login failed, please try again.</key>
 		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!sys::log_file!#</span>] for details.]]></key>
+		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
 		
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>

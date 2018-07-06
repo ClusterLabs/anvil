@@ -68,6 +68,8 @@ $anvil->Get->cgi();
 
 $anvil->data->{skin}{url}  = $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin;
 $anvil->data->{form}{body} = "";
+
+# Time for the header
 my $header = $anvil->Template->get({file => "main.html", name => "header", variables => { language => $anvil->Words->language }});
 
 # If any jobs are pending/running, show the "unavailable" option.
@@ -92,7 +94,7 @@ else
 	process_task($anvil);
 }
 
-# Preparing the back (and eventually 'reload' button) takes a bit more work.
+# Build the page to display
 my $refresh_button = "";
 if ($anvil->data->{form}{refresh_link})
 {
@@ -119,24 +121,28 @@ else
 	# Back is disabled.
 	$back_button = $anvil->Template->get({file => "main.html", name => "back_button_off"});
 }
-my $buttons = $anvil->Template->get({file => "main.html", name => "button_bar", variables => {
-	back_button    => $back_button,
-	refresh_button => $refresh_button, 
-	anvil_button   => 0                                     ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})   : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
-	striker_button => 0                                     ? $anvil->Template->get({file => "main.html", name => "striker_button_on"}) : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
-	user_button    => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})    : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
+my $left_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_left", variables => {
+	back_button       => $back_button,
+	refresh_button    => $refresh_button, 
+}});
+
+my $right_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_right", variables => {
+	anvil_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})     : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
+	striker_button   => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "striker_button_on"})   : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
+	configure_button => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "configure_button_on"}) : $anvil->Template->get({file => "main.html", name => "configure_button_off"}),
+	user_button      => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})      : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
 }});
 my $footer  = $anvil->Template->get({file => "main.html", name => "footer", variables => {
 	user => $anvil->data->{sys}{users}{user_name} ? "#!string!message_0034!#" : "&nbsp;",
 }});
 
 # Display the page.
-my $template = $anvil->Template->get({file => "main.html", name => "master", variables => {
+my $body = $anvil->Template->get({debug => 3, file => "main.html", name => "master", variables => {
 	header            => $header,
 	skin_url          => $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin,
-	left_top_bar      => "&nbsp;",
 	center_top_bar    => $anvil->data->{form}{error_massage},
-	right_top_bar     => $buttons,
+	right_top_bar     => $right_buttons,
+	left_top_bar      => $left_buttons,
 	center_body       => $anvil->data->{form}{body},
 	left_bottom_bar   => "&nbsp;",
 	center_bottom_bar => "&nbsp;",
@@ -145,7 +151,7 @@ my $template = $anvil->Template->get({file => "main.html", name => "master", var
 }});
 
 print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
-print $template;
+print "$body";
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -201,7 +207,7 @@ sub process_task
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
 	if (not $logged_in)
 	{
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "main.html", name => "striker-login", variables => {
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-login", variables => {
 			user     => $anvil->data->{cgi}{username}{value},
 			password => "",
 		}});
@@ -212,8 +218,17 @@ sub process_task
 	# If we're here, the user is logged in!
 	if ($anvil->data->{cgi}{striker}{value})
 	{
-		$anvil->data->{form}{back_link} = "?";
-		$anvil->data->{form}{body}      = $anvil->Template->get({file => "main.html", name => "striker-setup"});
+		$anvil->data->{form}{back_link} = "?striker=true";
+		if ($anvil->data->{cgi}{task}{value} eq "sync")
+		{
+			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-sync"});
+		}
+		else
+		{
+			# The 'back' goes home
+			$anvil->data->{form}{back_link} = "?";
+			$anvil->data->{form}{body}      = $anvil->Template->get({file => "striker.html", name => "striker-setup"});
+		}
 	}
 	elsif (0)
 	{
@@ -221,7 +236,7 @@ sub process_task
 	else
 	{
 		# Load the main page.
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "main.html", name => "striker-welcome"});
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-welcome"});
 	}
 	
 # 	$anvil->data->{sys}{users}{user_name}           = $user_name;
@@ -359,7 +374,7 @@ AND
 			unixtime    => $unixtime, 
 		}});
 		
-		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "main.html", name => "striker-offline", variables => {
+		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "striker.html", name => "striker-offline", variables => {
 			title_id    => "",
 			message_id  => "",
 			title       => "#!string!striker_0046!#",
@@ -510,7 +525,7 @@ ORDER BY
 			$template                       .= "_with_gateway";
 			$anvil->data->{cgi}{dns}{value} =  "--" if not $anvil->data->{cgi}{dns}{value};
 		}
-		$networks .= $anvil->Template->get({file => "main.html", name => $template, variables => {
+		$networks .= $anvil->Template->get({file => "config.html", name => $template, variables => {
 			column     => $anvil->Words->string({key => $column, variables => { number => $link_number }}),
 			ip_address => $say_ip,
 			ip         => $ip,
@@ -537,7 +552,7 @@ ORDER BY
 	}
 	
 	# We don't need to store anything as hidden variables, we'll read it back from the database later.
-	my $step3_body = $anvil->Template->get({file => "main.html", name => "config_step3", variables => {
+	my $step3_body = $anvil->Template->get({file => "config.html", name => "config_step3", variables => {
 		step1_welcome_title_id   => "",
 		step1_welcome_message_id => "",
 		organization             => $anvil->data->{cgi}{organization}{value},
@@ -665,7 +680,7 @@ ORDER BY
 			});
 			
 			# Assemble the form
-			$interface_form .= $anvil->Template->get({file => "main.html", name => "bonded_interface_form", variables => {
+			$interface_form .= $anvil->Template->get({file => "config.html", name => "bonded_interface_form", variables => {
 				field                => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
 				description          => "#!string!striker_0019!#",
 				ip_key               => $this_ip_key,
@@ -757,7 +772,7 @@ ORDER BY
 			});
 			
 			# Assemble the form
-			$interface_form .= $anvil->Template->get({file => "main.html", name => "single_interface_form", variables => {
+			$interface_form .= $anvil->Template->get({file => "config.html", name => "single_interface_form", variables => {
 				field                => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
 				description          => "#!string!striker_0019!#",
 				ip_key               => $this_ip_key,
@@ -899,7 +914,7 @@ ORDER BY
 	my $interface_states = get_network_details_form($anvil);
 	
 	# Store the previous CGI variables and display the new fields.
-	my $step2_body = $anvil->Template->get({file => "main.html", name => "config_step2", variables => {
+	my $step2_body = $anvil->Template->get({file => "config.html", name => "config_step2", variables => {
 		step1_welcome_title_id   => "",
 		step1_welcome_message_id => "",
 		organization             => $anvil->data->{cgi}{organization}{value},
@@ -1566,7 +1581,7 @@ sub config_step1
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_ifn_count => $say_ifn_count }});
 	
-	my $step1_body = $anvil->Template->get({file => "main.html", name => "config_step1", variables => {
+	my $step1_body = $anvil->Template->get({file => "config.html", name => "config_step1", variables => {
 		step1_welcome_title_id   => "",
 		step1_welcome_message_id => "",
 		organization_form        => $say_organization,
@@ -1721,11 +1736,11 @@ sub get_network_details_form
 	else
 	{
 		my $interface_list = "";
-		   $network        = $anvil->Template->get({file => "main.html", name => "network_header"});
+		   $network        = $anvil->Template->get({file => "config.html", name => "network_header"});
 		foreach my $interface (sort {$a cmp $b} keys %{$data->{interface}})
 		{
 			$interface_list .= "$interface,";
-			$network .= $anvil->Template->get({file => "main.html", name => "network_entry", variables => {
+			$network .= $anvil->Template->get({file => "config.html", name => "network_entry", variables => {
 				mac      => "",
 				mac_id   => $interface."_mac",
 				name     => $interface,
@@ -1739,7 +1754,7 @@ sub get_network_details_form
 			}});
 		}
 		$interface_list =~ s/,$//;
-		$network        .= $anvil->Template->get({file => "main.html", name => "network_footer", variables => { interface_list => $interface_list }});
+		$network        .= $anvil->Template->get({file => "config.html", name => "network_footer", variables => { interface_list => $interface_list }});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network => $network }});
