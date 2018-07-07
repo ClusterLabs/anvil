@@ -679,6 +679,10 @@ sub connect
 			password => $anvil->Log->secure ? $password : "#!string!log_0186!#", 
 		}});
 		
+		# Some places will want to pull up the database user, so in case it isn't set (which is 
+		# usual), set it as if we had read it from the config file using the default.
+		$anvil->data->{database}{$uuid}{name} = $anvil->data->{sys}{database}{name} if not $anvil->data->{database}{$uuid}{name};
+		
 		# If not set, we will always ping before connecting.
 		if ((not exists $anvil->data->{database}{$uuid}{ping}) or (not defined $anvil->data->{database}{$uuid}{ping}))
 		{

@@ -240,12 +240,21 @@ sub get
 		}});
 		if ((not $template_found) or ($template eq "#!not_found!#"))
 		{
-			# Error!
+			# Woops!
 			$template = $anvil->Words->string({key => "error_0029", variables => {
 				template => $name,
 				file     => $source,
 			}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
+		}
+		
+		# If there was a problem processing the template, it will be '#!error!#'.
+		if ($template eq "#!error!#")
+		{
+			$template = $anvil->Words->string({key => "error_0030", variables => {
+				template => $name,
+				file     => $source,
+			}});
 		}
 	}
 	

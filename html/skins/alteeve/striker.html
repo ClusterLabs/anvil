@@ -22,7 +22,7 @@
 				</tr>
 				<tr>
 					<td colspan="5" class="subtle_text" style="text-align: center;">
-						#!string!message_0032!#
+						#!string!striker_0065!#
 					</td>
 				</tr>
 				</div>
@@ -40,7 +40,7 @@
 						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
 						<br />
 						<hr>
-						<a href="/" class="button">Reload</a>
+						<a href="/" class="button">#!string!striker_0053!#</a>
 					</td>
 				</tr>
 				</div>
@@ -56,7 +56,7 @@
 			</tr>
 			<tr>
 				<td colspan="2" class="title">
-					Striker Configuration and Management
+					#!string!striker_0052!#
 				</td>
 			</tr>
 			<tr>
@@ -69,12 +69,12 @@
 					<a href="?striker=true&task=sync"><img src="#!data!skin::url!#/images/sync.png" class="top_icon" ></a>
 				</td>
 				<td class="menu_title">
-					Configure Striker Peers
+					<a href="?striker=true&task=sync">#!string!striker_0054!#</a>
 				</td>
 			</tr>
 			<tr>
 				<td class="menu_details">
-					When you sync with a peer, this machine's data will be copied to and recorded on the peer's database. Data gathered by ScanCore will also be kept in sync on both dashboards, and any general purpose data collected by other dashboards while this one is offline will be copied back when this machine comes online. Should this machine ever be rebuilt, data recorded from before the rebuild will be automatically restored as well.
+					#!string!striker_0055!#
 				</td>
 			</tr>
 			<tr>
@@ -82,12 +82,12 @@
 					<a href="?striker=true&task=update"><img src="#!data!skin::url!#/images/update.png" class="top_icon" ></a>
 				</td>
 				<td class="menu_title">
-					Update this Striker
+					<a href="?striker=true&task=update">#!string!striker_0056!#</a>
 				</td>
 			</tr>
 			<tr>
 				<td class="menu_details">
-					This will update this system using any available software repositories. You can also use this to create or load update packs to allow for the update of offline or air-gapped Anvil! systems.
+					#!string!striker_0057!#
 				</td>
 			</tr>
 			<tr>
@@ -95,19 +95,63 @@
 					<a href="?striker=true&task=update"><img src="#!data!skin::url!#/images/striker_configure.png" class="top_icon" ></a>
 				</td>
 				<td class="menu_title">
-					Configure this Striker
+					<a href="?striker=true&task=update">#!string!striker_0058!#</a>
 				</td>
 			</tr>
 			<tr>
 				<td class="menu_details">
-					Update the network configuration for this Striker.
+					#!string!striker_0059!#
 				</td>
 			</tr>
 		</table>
 <!-- end striker-setup -->
 
 <!-- start striker-sync -->
+		<table align="center">
+			<tr>
+				<td>
+					Add or remove Striker peers.
+				</td>
+			</tr>
+			<tr>
+				<td>
+					Peer dashboards are Striker machines whose databases this Striker will use to record data. If this machine ever needs to be replaced, or goes offline for a period of time, it will automatically pull the data back from any peers that it is missing.
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<table>
+						#!variable!table!#
+					</table>
+				</td>
+			</tr>
+		</table>
 <!-- end striker-sync -->
+
+<!-- start striker-sync-entry -->
+						<tr>
+							<td>
+								#!variable!access!#
+							</td>
+							<td>
+								#!variable!ping!#
+							</td>
+							<td>
+								#!variable!button!#
+							</td>
+						</tr>
+<!-- end striker-sync-entry -->
+
+<!-- start striker-sync-inbound -->
+						<tr>
+							<td>
+								#!variable!access!#
+							</td>
+							<td colspan="2">
+								#!variable!note!#
+							</td>
+						</tr>
+<!-- end striker-sync-inbound -->
 
 <!-- start striker-welcome -->
 		<table align="center" class="striker_welcome">
@@ -118,7 +162,7 @@
 			</tr>
 			<tr>
 				<td colspan="2" class="title">
-					#!string!message_0035!#
+					#!string!striker_0060!#
 				</td>
 			</tr>
 			<tr>
@@ -126,7 +170,7 @@
 					<a href="?anvil=true"><img src="#!data!skin::url!#/images/anvil_icon_on.png" class="top_icon"></a>
 				</td>
 				<td>
-					#!string!message_0036!#
+					#!string!striker_0061!#
 				</td>
 			</tr>
 			<tr>
@@ -134,15 +178,15 @@
 					<a href="?striker=true"><img src="#!data!skin::url!#/images/striker_icon_on.png" class="top_icon"></a>
 				</td>
 				<td>
-					#!string!message_0037!#
+					#!string!striker_0062!#
 				</td>
 			</tr>
 			<tr>
 				<td>
-					<a href="?logout=true"><img src="#!data!skin::url!#/images/users_icon_on.png" alt="#!string!message_0033!#" class="top_icon"></a>
+					<a href="?logout=true"><img src="#!data!skin::url!#/images/users_icon_on.png" alt="#!string!striker_0063!#" class="top_icon"></a>
 				</td>
 				<td>
-					#!string!message_0033!#
+					#!string!striker_0063!#
 				</td>
 			</tr>
 			<tr>
@@ -150,7 +194,7 @@
 					<a href="https://alteeve.com/w/Support" target="_new"><img src="#!data!skin::url!#/images/help_icon_on.png" id="help_icon" class="top_icon"></a>
 				</td>
 				<td>
-					#!string!message_0038!#
+					#!string!striker_0064!#
 				</td>
 			</tr>
 		</table>

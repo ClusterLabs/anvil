@@ -69,10 +69,16 @@ select {
 }
 
 body {
-	font-family: 'Dejavu Sans', Arial, Helvetica, Verdana, Sans-Serif;
-	background-image: url("/skins/alteeve/images/Texture.jpg");
+	font-family:       'Dejavu Sans', Arial, Helvetica, Verdana, Sans-Serif;
+	background-image:  url("/skins/alteeve/images/Texture.jpg");
 	background-repeat: repeat;
 	color:             #f2f2f2;
+}
+
+a {
+	font-family:     'Dejavu Sans', Arial, Helvetica, Verdana, Sans-Serif;
+	color:           #f2f2f2;
+	text-decoration: none;
 }
 
 table.data_table_nowrap {
