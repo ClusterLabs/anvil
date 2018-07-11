@@ -128,7 +128,7 @@ sub encrypt_password
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		algorithm  => $algorithm, 
 		hash_count => $hash_count, 
-		password   => $anvil->Log->secure ? $password : "#!string!log_0186!#",
+		password   => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
 		salt       => $salt,
 	}});
 	
@@ -711,7 +711,7 @@ sub validate_password
 	my $valid     = 0;
 	my $hash      = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password => $anvil->Log->secure ? $password : "#!string!log_0186!#",
+		password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
 		user     => $user, 
 	}});
 	

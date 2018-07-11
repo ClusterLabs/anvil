@@ -676,7 +676,7 @@ sub connect
 			port     => $port,
 			name     => $name,
 			user     => $user, 
-			password => $anvil->Log->secure ? $password : "#!string!log_0186!#", 
+			password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
 		}});
 		
 		# Some places will want to pull up the database user, so in case it isn't set (which is 
@@ -715,7 +715,7 @@ sub connect
 			port     => $port,
 			name     => $name,
 			user     => $user,
-			password => $anvil->Log->secure ? $password : "#!string!log_0186!#",
+			password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
 		}});
 		
 		### TODO: Can we do a telnet port ping with a short timeout instead of a shell ping call?
@@ -986,7 +986,7 @@ sub connect
 			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
 			"database::${uuid}::name"     => $database_name,
 			"database::${uuid}::user"     => $database_user, 
-			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : "#!string!log_0186!#", 
+			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : $anvil->Words->string({key => "log_0186"}), 
 		}});
 		
 		# Copy my alert hash before I delete the uuid.
@@ -1045,7 +1045,7 @@ sub connect
 			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
 			"database::${uuid}::name"     => $database_name,
 			"database::${uuid}::user"     => $database_user, 
-			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : "#!string!log_0186!#", 
+			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : $anvil->Words->string({key => "log_0186"}), 
 		}});
 		
 		### TODO: Is this still an issue? If so, then we either need to require that the DB host 
@@ -3377,7 +3377,7 @@ sub insert_or_update_users
 		line                => $line, 
 		user_uuid           => $user_uuid, 
 		user_name           => $user_name, 
-		user_password_hash  => (($anvil->Log->secure) or ($user_salt)) ? $user_password_hash : "#!string!log_0186!#" , 
+		user_password_hash  => (($anvil->Log->secure) or ($user_salt)) ? $user_password_hash : $anvil->Words->string({key => "log_0186"}) , 
 		user_salt           => $user_salt, 
 		user_algorithm      => $user_algorithm, 
 		user_hash_count     => $user_hash_count, 
@@ -3427,7 +3427,7 @@ sub insert_or_update_users
 		   $user_algorithm     = $answer->{user_algorithm};
 		   $user_hash_count    = $answer->{user_hash_count};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			user_password_hash => (($anvil->Log->secure) or ($user_salt)) ? $user_password_hash : "#!string!log_0186!#" , 
+			user_password_hash => (($anvil->Log->secure) or ($user_salt)) ? $user_password_hash : $anvil->Words->string({key => "log_0186"}) , 
 			user_salt          => $user_salt, 
 			user_algorithm     => $user_algorithm, 
 			user_hash_count    => $user_hash_count, 
@@ -4347,7 +4347,7 @@ sub query
 		uuid                  => $uuid, 
 		"cache::db_fh::${uuid}" => $anvil->data->{cache}{db_fh}{$uuid}, 
 		line                  => $line, 
-		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "#!string!log_0186!#", 
+		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
 		secure                => $secure, 
 		source                => $source, 
 	}});
@@ -4394,14 +4394,14 @@ sub query
 	
 	# Do the query.
 	my $DBreq = $anvil->data->{cache}{db_fh}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
-			query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "#!string!log_0186!#", 
+			query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
 	
 	# Execute on the query
 	$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
-			query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "#!string!log_0186!#", 
+			query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
@@ -4919,7 +4919,7 @@ sub write
 		uuid                  => $uuid, 
 		"cache::db_fh::${uuid}" => $anvil->data->{cache}{db_fh}{$uuid}, 
 		line                  => $line, 
-		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "#!string!log_0186!#", 
+		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
 		secure                => $secure, 
 		source                => $source, 
 		reenter               => $reenter,
@@ -5068,7 +5068,7 @@ sub write
 			
 			# Do the do.
 			$anvil->data->{cache}{db_fh}{$uuid}->do($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
-					query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : "#!string!log_0186!#", 
+					query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
 					server   => $say_server,
 					db_error => $DBI::errstr, 
 				}});
@@ -5286,7 +5286,7 @@ sub _find_behind_databases
 			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
 			"database::${uuid}::name"     => $database_name,
 			"database::${uuid}::user"     => $database_user, 
-			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : "#!string!log_0186!#", 
+			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : $anvil->Words->string({key => "log_0186"}), 
 		}});
 		
 		# Loop through the tables in this DB. For each table, we'll record the most recent time 

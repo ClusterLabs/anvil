@@ -258,7 +258,7 @@ sub reconfigure_network
 			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
 			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} : "";
 			my $old_link1_iface =         $anvil->data->{sys}{mac}{$link1_mac}{iface} ? $anvil->data->{sys}{mac}{$link1_mac}{iface} : "";
-			my $old_link2_iface =         $link2_mac                                  ? $anvil->data->{sys}{mac}{$link2_mac}{iface} : "";
+			my $old_link2_iface = defined $anvil->data->{sys}{mac}{$link2_mac}{iface} ? $anvil->data->{sys}{mac}{$link2_mac}{iface} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_key          => $ip_key, 
 				is_gateway      => $is_gateway, 

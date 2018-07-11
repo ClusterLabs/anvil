@@ -251,8 +251,8 @@ sub change_shell_user_password
 		target       => $target, 
 		port         => $port, 
 		remote_user  => $remote_user, 
-		new_password => $anvil->Log->secure ? $new_password : "#!string!log_0186!#", 
-		password     => $anvil->Log->secure ? $password     : "#!string!log_0186!#", 
+		new_password => $anvil->Log->secure ? $new_password : $anvil->Words->string({key => "log_0186"}), 
+		password     => $anvil->Log->secure ? $password     : $anvil->Words->string({key => "log_0186"}), 
 	}});
 	
 	# Do I have a user?
@@ -1335,7 +1335,7 @@ sub ping
 		count       => $count, 
 		fragment    => $fragment, 
 		payload     => $payload, 
-		password    => $anvil->Log->secure ? $password : "#!string!log_0186!#",
+		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
 		ping        => $ping, 
 		port        => $port, 
 		remote_user => $remote_user, 

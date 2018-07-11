@@ -297,19 +297,19 @@ sub process_sync_page
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
 		next if $uuid eq $host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
 		
 		my $host     = $anvil->data->{database}{$uuid}{host}     ? $anvil->data->{database}{$uuid}{host}     : ""; # This should fail
 		my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
 		my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : $anvil->data->{sys}{database}{name};
 		my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : $anvil->data->{sys}{database}{user};
 		my $password = $anvil->data->{database}{$uuid}{password} ? $anvil->data->{database}{$uuid}{password} : "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host     => $host,
 			port     => $port,
 			name     => $name,
 			user     => $user, 
-			password => $anvil->Log->secure ? $password : "#!string!log_0186!#", 
+			password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
 		}});
 	}
 	
@@ -336,7 +336,7 @@ sub configure_striker
 	{
 		# Sanity check step1.
 		my $sane = sanity_check_step1($anvil);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
 		if ($sane)
 		{
 			# Step 1 was sane, show step 2.
@@ -718,8 +718,10 @@ ORDER BY
 		### Show the bonded ifaces form.
 		# BCN
 		my $bcn_count = $anvil->data->{cgi}{bcn_count}{value} ? $anvil->data->{cgi}{bcn_count}{value} : 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_count => $bcn_count }});
 		foreach my $bcn (1..$bcn_count)
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn => $bcn }});
 			push @{$links}, "bcn_link".$bcn;
 			my $this_ip_key       =  "bcn".$bcn."_ip";
 			my $this_subnet_key   =  "bcn".$bcn."_subnet";
@@ -767,8 +769,10 @@ ORDER BY
 		
 		# IFN
 		my $ifn_count = $anvil->data->{cgi}{ifn_count}{value} ? $anvil->data->{cgi}{ifn_count}{value} : 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifn_count => $ifn_count }});
 		foreach my $ifn (1..$ifn_count)
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifn => $ifn }});
 			push @{$links}, "ifn_link".$ifn;
 			my $this_ip_key       =  "ifn".$ifn."_ip";
 			my $this_subnet_key   =  "ifn".$ifn."_subnet";
@@ -798,7 +802,7 @@ ORDER BY
 			});
 			
 			# Assemble the form
-			$interface_form .= $anvil->Template->get({file => "main.html", name => "bonded_interface_form", variables => {
+			$interface_form .= $anvil->Template->get({file => "config.html", name => "bonded_interface_form", variables => {
 				field                => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
 				description          => "#!string!striker_0023!#",
 				ip_key               => $this_ip_key,
@@ -960,7 +964,7 @@ ORDER BY
 		id            => "striker_user",
 		field         => "#!string!striker_0031!#",
 		description   => "#!string!striker_0032!#",
-		value         => defined $anvil->data->{cgi}{striker_user}{value} ? $anvil->data->{cgi}{striker_user}{value} : $anvil->data->{sys}{user},
+		value         => defined $anvil->data->{cgi}{striker_user}{value} ? $anvil->data->{cgi}{striker_user}{value} : $anvil->data->{sys}{user}{name},
 		default_value => "",
 		class         => $striker_user_class,
 		extra         => "",
