@@ -270,10 +270,11 @@ sub process_sync_page
 		#remove_sync_peer($anvil);
 	}
 	
+	my $host_uuid = $anvil->Get->host_uuid;
 	$anvil->System->get_ips();
 	
 	# We'll want to show the user way to access the local machine. For that, we'll loop through our own IPs.
-	my $table = "";
+	my $inbound_table = "";
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
 	{
 		next if (($interface !~ /^bcn/) && ($interface !~ /^ifn/));
@@ -281,19 +282,42 @@ sub process_sync_page
 		next if not $anvil->Validate->is_subnet({subnet => $anvil->data->{sys}{network}{interface}{$interface}{subnet}});
 		my ($network_type, $network_number) = ($interface =~ /^(.*?)(\d+)_/);
 		
-		my $host_uuid     = $anvil->Get->host_uuid;
 		my $database_user = $anvil->data->{database}{$host_uuid}{name};
 		my $database_port = $anvil->data->{database}{$host_uuid}{port};
 		my $network_key   = $network_type eq "bcn" ? "striker_0018" : "striker_0022";
 		my $say_network   = $anvil->Words->string({key => $network_key, variables => { number => $network_number }});
-		$table .= $anvil->Template->get({file => "striker.html", name => "striker-sync-inbound", variables => {
+		$inbound_table .= $anvil->Template->get({file => "striker.html", name => "striker-sync-inbound", variables => {
 			access => $database_user."\@".$anvil->data->{sys}{network}{interface}{$interface}{ip}.":".$database_port,
-			note   => $anvil->Words->string({key => "striker_0066", variables => { network => $say_network }}),
+			note   => $say_network,
+		}});
+	}
+	
+	# This needs to be loaded into a hash by target, the sorted. We'll build the table on sort.
+	my $peer_table = "";
+	foreach my $uuid (keys %{$anvil->data->{database}})
+	{
+		next if $uuid eq $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		
+		my $host     = $anvil->data->{database}{$uuid}{host}     ? $anvil->data->{database}{$uuid}{host}     : ""; # This should fail
+		my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
+		my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : $anvil->data->{sys}{database}{name};
+		my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : $anvil->data->{sys}{database}{user};
+		my $password = $anvil->data->{database}{$uuid}{password} ? $anvil->data->{database}{$uuid}{password} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host     => $host,
+			port     => $port,
+			name     => $name,
+			user     => $user, 
+			password => $anvil->Log->secure ? $password : "#!string!log_0186!#", 
 		}});
 	}
 	
 	# Build the menu.
-	$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-sync", variables => { table => $table }});
+	$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-sync", variables => { 
+		inbound_table => $inbound_table,
+		peer_table    => $peer_table,
+	}});
 	
 	return(0);
 }

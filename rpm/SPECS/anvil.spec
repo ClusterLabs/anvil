@@ -1,7 +1,9 @@
 %define debug_package %{nil}
+%define anviluser     admin
+%define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -60,6 +62,133 @@ Requires:       httpd
 Requires:       nmap
 Requires:       perl-CGI 
 Requires:       postgresql-server 
+Requires:       firefox
+Requires:       virt-manager
+### Gnome Desktop group
+Requires:       abrt-desktop
+Requires:       at-spi2-atk
+Requires:       at-spi2-core
+# Requires:       avahi
+# Requires:       baobab
+Requires:       caribou
+Requires:       caribou-gtk2-module
+Requires:       caribou-gtk3-module
+# Requires:       cheese
+# Requires:       compat-cheese314
+Requires:       control-center
+Requires:       dconf
+# Requires:       empathy
+# Requires:       eog
+Requires:       evince
+Requires:       evince-nautilus
+Requires:       file-roller
+Requires:       file-roller-nautilus
+# Requires:       firewall-config
+# Requires:       firstboot
+# Requires:       fprintd-pam
+Requires:       gdm
+Requires:       gedit
+Requires:       glib-networking
+Requires:       gnome-bluetooth
+# Requires:       gnome-boxes
+Requires:       gnome-calculator
+Requires:       gnome-classic-session
+Requires:       gnome-clocks
+# Requires:       gnome-color-manager
+# Requires:       gnome-contacts
+Requires:       gnome-dictionary
+Requires:       gnome-disk-utility
+Requires:       gnome-font-viewer
+# Requires:       gnome-getting-started-docs
+Requires:       gnome-icon-theme
+Requires:       gnome-icon-theme-extras
+Requires:       gnome-icon-theme-symbolic
+# Requires:       gnome-initial-setup
+Requires:       gnome-packagekit
+Requires:       gnome-packagekit-updater
+Requires:       gnome-screenshot
+Requires:       gnome-session
+Requires:       gnome-session-xsession
+Requires:       gnome-settings-daemon
+Requires:       gnome-shell
+Requires:       gnome-software
+Requires:       gnome-system-log
+Requires:       gnome-system-monitor
+Requires:       gnome-terminal
+Requires:       gnome-terminal-nautilus
+Requires:       gnome-themes-standard
+Requires:       gnome-tweak-tool
+Requires:       gnome-user-docs
+Requires:       gnome-weather
+Requires:       gucharmap
+Requires:       gvfs-afc
+Requires:       gvfs-afp
+Requires:       gvfs-archive
+Requires:       gvfs-fuse
+Requires:       gvfs-goa
+Requires:       gvfs-gphoto2
+Requires:       gvfs-mtp
+Requires:       gvfs-smb
+# Requires:       initial-setup-gui
+Requires:       libcanberra-gtk2
+Requires:       libcanberra-gtk3
+Requires:       libproxy-mozjs
+Requires:       librsvg2
+Requires:       libsane-hpaio
+Requires:       metacity
+Requires:       mousetweaks
+Requires:       nautilus
+# Requires:       nautilus-sendto
+# Requires:       NetworkManager-libreswan-gnome
+Requires:       nm-connection-editor
+Requires:       orca
+Requires:       PackageKit-command-not-found
+Requires:       PackageKit-gtk3-module
+# Requires:       redhat-access-gui
+# Requires:       sane-backends-drivers-scanners
+# Requires:       seahorse
+Requires:       setroubleshoot
+Requires:       sushi
+# Requires:       totem
+# Requires:       totem-nautilus
+Requires:       vinagre
+# Requires:       vino
+Requires:       xdg-user-dirs-gtk
+Requires:       yelp
+Requires:       qgnomeplatform
+Requires:       xdg-desktop-portal-gtk
+Requires:       alacarte
+Requires:       dconf-editor
+# Requires:       dvgrab
+Requires:       fonts-tweak-tool
+Requires:       gconf-editor
+Requires:       gedit-plugins
+Requires:       gnome-shell-browser-plugin
+Requires:       gnote
+Requires:       libappindicator-gtk3
+# Requires:       seahorse-nautilus
+# Requires:       seahorse-sharing
+# Requires:       vim-X11
+# Requires:       xguest
+### x11 group
+Requires:       glx-utils
+Requires:       initial-setup-gui
+Requires:       mesa-dri-drivers
+Requires:       plymouth-system-theme
+Requires:       spice-vdagent
+Requires:       xorg-x11-drivers
+Requires:       xorg-x11-server-Xorg
+Requires:       xorg-x11-utils
+Requires:       xorg-x11-xauth
+Requires:       xorg-x11-xinit
+Requires:       xvattr
+Requires:       tigervnc-server
+# Requires:       wayland-protocols-devel
+Requires:       xorg-x11-drv-keyboard
+Requires:       xorg-x11-drv-libinput
+Requires:       xorg-x11-drv-mouse
+Requires:       xorg-x11-drv-openchrome
+
 # A Striker dashboard is not allowed to host servers or be a migration target. 
 # So the node and dr packages can not be installed.
 Conflicts: 	anvil-node
@@ -83,7 +212,7 @@ Requires:       libvirt-daemon
 Requires:       libvirt-daemon-driver-qemu 
 Requires:       libvirt-daemon-kvm 
 Requires:       libvirt-docs 
-Requires:       pacemaker 
+Requires:       pacemaker2 
 Requires:       pcs 
 Requires:       qemu-kvm 
 Requires:       qemu-kvm-common 
@@ -156,11 +285,18 @@ cp -R -p tools/* %{buildroot}/%{_sbindir}
 cp -R -p anvil.conf %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p anvil.version %{buildroot}/%{_sysconfdir}/anvil/
 mv %{buildroot}/%{_sbindir}/anvil.sql %{buildroot}/%{_datadir}/anvil.sql
-mv %{buildroot}/%{_sbindir}/snmp-models.json %{buildroot}/%{_sysconfdir}/anvil/snmp-models.json
-sed -i "1s/^.*$/%{version}/" %{buildroot}/%{_sysconfdir}/anvil/anvil.version
 
+
+%pre
+getent group %{anvilgroup} >/dev/null || groupadd -r %{anvilgroup}
+getent passwd %{anviluser} >/dev/null || useradd --create-home \
+    --gid %{anvilgroup}  --comment "Anvil! user account" %{anviluser}
 
 %post
+# TODO: Remove this!! This is only for use during development, all SELinux 
+#       issues must be resolved before final release!
+sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config 
+sed -i "1s/^.*$/%{version}/" %{buildroot}/%{_sysconfdir}/anvil/anvil.version
 restorecon -rv %{buildroot}/%{_localstatedir}/www
 
 %post striker
@@ -180,13 +316,9 @@ firewall-cmd --zone=public --add-service=postgresql --permanent
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
-# TODO: Remove this!! This is only for use during development, all SELinux 
-#       issues must be resolved before final release!
-sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config 
 
 %files striker
 %attr(0775, apache, root) %{_localstatedir}/www/*/*
-%{_sysconfdir}/anvil/snmp-models.json
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
@@ -197,6 +329,11 @@ sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 
 
 %changelog
+* Tue Jul 10 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-4
+- Added a check for and creation of the 'admin' user/group.
+- Updated the pacemaker dependency to 'pacemaker2'.
+- Added packages for anvil-striker to pull in Gnome.
+
 * Sun Mar 18 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-3
 - Changed the 'Obsoletes' to 'Conflicts'.
 

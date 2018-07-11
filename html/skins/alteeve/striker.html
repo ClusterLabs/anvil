@@ -109,19 +109,44 @@
 <!-- start striker-sync -->
 		<table align="center">
 			<tr>
-				<td>
+				<td class="menu_title">
 					Add or remove Striker peers.
 				</td>
 			</tr>
 			<tr>
-				<td>
+				<td class="menu_details">
 					Peer dashboards are Striker machines whose databases this Striker will use to record data. If this machine ever needs to be replaced, or goes offline for a period of time, it will automatically pull the data back from any peers that it is missing.
 				</td>
 			</tr>
 			<tr>
 				<td>
-					<table>
-						#!variable!table!#
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td align="center">
+					<table class="data_table">
+						<tr>
+							<td class="column_header">
+								#!string!header_0007!#
+							</td>
+							<td colspan="3" class="column_header">
+								#!string!header_0008!#
+							</td>
+						</tr>
+						#!variable!inbound_table!#
+						<tr>
+							<td class="column_header">
+								#!string!header_0009!#
+							</td>
+							<td class="column_header">
+								#!string!header_0010!#
+							</td>
+							<td colspan="2" class="column_header">
+								&nbsp;
+							</td>
+						</tr>
+						#!variable!peer_table!#
 					</table>
 				</td>
 			</tr>
@@ -137,7 +162,10 @@
 								#!variable!ping!#
 							</td>
 							<td>
-								#!variable!button!#
+								#!variable!save_button!#
+							</td>
+							<td>
+								#!variable!delete_button!#
 							</td>
 						</tr>
 <!-- end striker-sync-entry -->
