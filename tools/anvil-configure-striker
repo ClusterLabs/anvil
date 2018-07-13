@@ -56,7 +56,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "
 if (not $connections)
 {
 	# No databases, exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0003"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0003"})."\n";
 	$anvil->nice_exit({exit_code => 2});
 }
 

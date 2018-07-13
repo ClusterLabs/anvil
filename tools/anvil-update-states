@@ -32,7 +32,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "
 if (not $connections)
 {
 	# No databases, exit.
-	print $anvil->Words->string({key => "error_0003"});
+	print $anvil->Words->string({key => "error_0003"})."\n";
 	$anvil->nice_exit({exit_code => 2});
 }
 
