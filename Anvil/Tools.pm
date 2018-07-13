@@ -729,7 +729,7 @@ sub _set_defaults
 			salt_length			=>	16,
 		},
 		service			=>	{
-			postgresql		=>	"postgresql-9.6",
+			postgresql		=>	"postgresql",
 		},
 		terminal			=>	{
 			columns				=>	80,

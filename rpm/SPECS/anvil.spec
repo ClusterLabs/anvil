@@ -40,8 +40,8 @@ Requires:       perl-Net-SSH2
 Requires:       perl-NetAddr-IP 
 Requires:       perl-Time-HiRes
 Requires:       perl-XML-Simple 
-Requires:       postgresql96-contrib 
-Requires:       postgresql96-plperl 
+Requires:       postgresql-contrib 
+Requires:       postgresql-plperl 
 Requires:       rsync 
 Requires:       screen 
 Requires:       vim 
@@ -61,7 +61,7 @@ Requires:	anvil-core
 Requires:       httpd
 Requires:       nmap
 Requires:       perl-CGI 
-Requires:       postgresql96-server 
+Requires:       postgresql-server 
 Requires:       firefox
 Requires:       virt-manager
 ### Gnome Desktop group
@@ -272,22 +272,25 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p %{buildroot}/%{_sbindir}/anvil/
 mkdir -p %{buildroot}/%{_sysconfdir}/anvil/
 mkdir -p %{buildroot}/%{_localstatedir}/www/
+mkdir -p %{buildroot}/%{_usr}/share/anvil/
 install -d -p Anvil %{buildroot}/%{_datadir}/perl5/
 install -d -p html %{buildroot}/%{_localstatedir}/www/
 install -d -p cgi-bin %{buildroot}/%{_localstatedir}/www/
-install -d -p units/ %{buildroot}/usr/lib/systemd/system/
+install -d -p units/ %{buildroot}/%{_usr}/lib/systemd/system/
 install -d -p tools/ %{buildroot}/%{_sbindir}/
 cp -R -p Anvil %{buildroot}/%{_datadir}/perl5/
 cp -R -p html %{buildroot}/%{_localstatedir}/www/
 cp -R -p cgi-bin %{buildroot}/%{_localstatedir}/www/
-cp -R -p units/* %{buildroot}/usr/lib/systemd/system/
+cp -R -p units/* %{buildroot}/%{_usr}/lib/systemd/system/
 cp -R -p tools/* %{buildroot}/%{_sbindir}
 cp -R -p anvil.conf %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p anvil.version %{buildroot}/%{_sysconfdir}/anvil/
+cp -R -p share/* %{buildroot}/%{_usr}/share/anvil/
 mv %{buildroot}/%{_sbindir}/anvil.sql %{buildroot}/%{_datadir}/anvil.sql
 
 
 %pre core
+mkdir /usr/share/anvil
 getent group %{anvilgroup} >/dev/null || groupadd -r %{anvilgroup}
 getent passwd %{anviluser} >/dev/null || useradd --create-home \
     --gid %{anvilgroup}  --comment "Anvil! user account" %{anviluser}
@@ -334,8 +337,8 @@ firewall-cmd --zone=public --remove-service=postgresql --permanent
 echo "Disabling and stopping postgresql-9.6."
 # systemctl disable httpd.service
 # systemctl stop httpd.service
-systemctl disable postgresql-9.6.service
-systemctl stop postgresql-9.6.service
+systemctl disable postgresql.service
+systemctl stop postgresql.service
 
 
 %files core
@@ -343,6 +346,7 @@ systemctl stop postgresql-9.6.service
 %config(noreplace) %{_sysconfdir}/anvil/anvil.conf
 %config(noreplace) %{_datadir}/anvil.sql
 %{_usr}/lib/*
+%{_usr}/share/anvil/*
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
@@ -360,7 +364,6 @@ systemctl stop postgresql-9.6.service
 
 %changelog
 * Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-7
-- Fixed the postgresql dependencies to v9.6
 - Added an explicit call to anvil-prep-database in post.
 
 * Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-6
