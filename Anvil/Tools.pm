@@ -912,6 +912,9 @@ sub _set_paths
 			secure			=>	{
 				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",
 			},
+			service			=>	{
+				postgresql		=>	"postgresql-9.6",
+			},
 			sql			=>	{
 				'anvil.sql'		=>	"/usr/sbin/anvil.sql",
 			},

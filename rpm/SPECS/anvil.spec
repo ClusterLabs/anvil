@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        4%{?dist}
+Release:        7%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -40,8 +40,8 @@ Requires:       perl-Net-SSH2
 Requires:       perl-NetAddr-IP 
 Requires:       perl-Time-HiRes
 Requires:       perl-XML-Simple 
-Requires:       postgresql-contrib 
-Requires:       postgresql-plperl 
+Requires:       postgresql96-contrib 
+Requires:       postgresql96-plperl 
 Requires:       rsync 
 Requires:       screen 
 Requires:       vim 
@@ -61,7 +61,7 @@ Requires:	anvil-core
 Requires:       httpd
 Requires:       nmap
 Requires:       perl-CGI 
-Requires:       postgresql-server 
+Requires:       postgresql96-server 
 Requires:       firefox
 Requires:       virt-manager
 ### Gnome Desktop group
@@ -197,7 +197,7 @@ Conflicts:	anvil-dr
 Web interface of the Striker dashboard for Alteeve Anvil! systems
 
 
-%package node
+%package node 
 Summary:        Alteeve's Anvil! node package
 Requires:	anvil-core
 Requires:       bridge-utils 
@@ -212,7 +212,7 @@ Requires:       libvirt-daemon
 Requires:       libvirt-daemon-driver-qemu 
 Requires:       libvirt-daemon-kvm 
 Requires:       libvirt-docs 
-Requires:       pacemaker2 
+Requires:       pacemaker 
 Requires:       pcs 
 Requires:       qemu-kvm 
 Requires:       qemu-kvm-common 
@@ -287,26 +287,56 @@ cp -R -p anvil.version %{buildroot}/%{_sysconfdir}/anvil/
 mv %{buildroot}/%{_sbindir}/anvil.sql %{buildroot}/%{_datadir}/anvil.sql
 
 
-%pre
+%pre core
 getent group %{anvilgroup} >/dev/null || groupadd -r %{anvilgroup}
 getent passwd %{anviluser} >/dev/null || useradd --create-home \
     --gid %{anvilgroup}  --comment "Anvil! user account" %{anviluser}
 
-%post
+%post core
 # TODO: Remove this!! This is only for use during development, all SELinux 
 #       issues must be resolved before final release!
+echo "WARNING: Setting SELinux to 'permissive' during development."
 sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config 
-sed -i "1s/^.*$/%{version}/" %{buildroot}/%{_sysconfdir}/anvil/anvil.version
-restorecon -rv %{buildroot}/%{_localstatedir}/www
+setenforce 0
+sed -i "1s/^.*$/%{version}-%{release}/" /%{_sysconfdir}/anvil/anvil.version
 
 %post striker
+### NOTE: PostgreSQL is initialized and enabled by anvil-prep-database later.
+echo "Enabling and starting apache."
 systemctl enable httpd.service
 systemctl start httpd.service
+restorecon -rv /%{_localstatedir}/www
+echo "Preparing the database"
+anvil-prep-database
+
 # Open access for Striker. The database will be opened after initial setup.
+echo "Opening the web and postgresql ports."
 firewall-cmd --zone=public --add-service=http
 firewall-cmd --zone=public --add-service=http --permanent
 firewall-cmd --zone=public --add-service=postgresql
 firewall-cmd --zone=public --add-service=postgresql --permanent
+
+### Remove stuff
+%postun core
+getent passwd %{anviluser} >/dev/null && userdel %{anviluser}
+getent group %{anvilgroup} >/dev/null && groupdel %{anvilgroup}
+echo "NOTE: Re-enabling SELinux."
+sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config 
+setenforce 1
+
+%postun striker
+### TODO: This breaks the repos
+echo "Closing the postgresql ports."
+#firewall-cmd --zone=public --remove-service=http
+#firewall-cmd --zone=public --remove-service=http --permanent
+firewall-cmd --zone=public --remove-service=postgresql
+firewall-cmd --zone=public --remove-service=postgresql --permanent
+echo "Disabling and stopping postgresql-9.6."
+# systemctl disable httpd.service
+# systemctl stop httpd.service
+systemctl disable postgresql-9.6.service
+systemctl stop postgresql-9.6.service
+
 
 %files core
 %doc README.md notes
@@ -329,6 +359,17 @@ firewall-cmd --zone=public --add-service=postgresql --permanent
 
 
 %changelog
+* Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-7
+- Fixed the postgresql dependencies to v9.6
+- Added an explicit call to anvil-prep-database in post.
+
+* Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-6
+- Fixed 'pre' to actually run for 'core'.
+- Added 'postun' to cleanup after removal.
+
+* Wed Jul 11 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-5
+- Restored stock pacemaker/corosync. 
+
 * Tue Jul 10 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-4
 - Added a check for and creation of the 'admin' user/group.
 - Updated the pacemaker dependency to 'pacemaker2'.
