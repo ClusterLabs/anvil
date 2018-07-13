@@ -326,6 +326,9 @@ sub entry
 			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
 			$file_handle->autoflush(1);
 			$anvil->{HANDLE}{log_file} = $file_handle;
+			
+			# Make sure it can be written to by apache.
+			$anvil->Storage->change_mode({target => $log_file, mode => "0666"});
 		}
 		
 		if (not $anvil->{HANDLE}{log_file})

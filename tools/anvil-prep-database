@@ -283,6 +283,7 @@ if ($local_uuid)
 		}
 		
 		# Update/set the passwords.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { "database::${local_uuid}::password" => $anvil->data->{database}{$local_uuid}{password} }});
 		if ($anvil->data->{database}{$local_uuid}{password})
 		{
 			foreach my $user ("postgres", $database_user)

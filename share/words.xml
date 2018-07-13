@@ -185,7 +185,7 @@ The database connection error was:
 		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!uuid!#]).]]></key>
 		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'modified_date' parameter was not passed and/or 'sys::db_timestamp' is not set. Did the program fail to connect to any databases?]]></key>
 		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
-		<key name="log_0095">The database user: [#!variable!user!#] was created with ID: [#!variable!uuid!#].</key>
+		<key name="log_0095">The database user: [#!variable!user!#] was created with ID: [#!variable!id!#].</key>
 		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
 		<key name="log_0097"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'set' parameter was not passed or it is empty. It should be 'set' or 'clear'.]]></key>
 		<key name="log_0098">

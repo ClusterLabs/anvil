@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        7%{?dist}
+Release:        8%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -286,7 +286,7 @@ cp -R -p tools/* %{buildroot}/%{_sbindir}
 cp -R -p anvil.conf %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p anvil.version %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p share/* %{buildroot}/%{_usr}/share/anvil/
-mv %{buildroot}/%{_sbindir}/anvil.sql %{buildroot}/%{_datadir}/anvil.sql
+mv %{buildroot}/%{_sbindir}/anvil.sql %{buildroot}/%{_datadir}/anvil/anvil.sql
 
 
 %pre core
@@ -344,7 +344,7 @@ systemctl stop postgresql.service
 %files core
 %doc README.md notes
 %config(noreplace) %{_sysconfdir}/anvil/anvil.conf
-%config(noreplace) %{_datadir}/anvil.sql
+%config(noreplace) %{_datadir}/anvil/anvil.sql
 %{_usr}/lib/*
 %{_usr}/share/anvil/*
 %{_sbindir}/*
@@ -363,6 +363,9 @@ systemctl stop postgresql.service
 
 
 %changelog
+* Thu Jul 13 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-8
+- Fixed the path to anvil.sql
+
 * Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-7
 - Added an explicit call to anvil-prep-database in post.
 

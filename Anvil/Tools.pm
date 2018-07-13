@@ -916,7 +916,7 @@ sub _set_paths
 				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",
 			},
 			sql			=>	{
-				'anvil.sql'		=>	"/usr/sbin/anvil.sql",
+				'anvil.sql'		=>	"/usr/share/anvil/anvil.sql",
 			},
 			urls		=>	{
 				skins			=>	"/skins",
