@@ -728,6 +728,9 @@ sub _set_defaults
 			hash_count			=>	500000,
 			salt_length			=>	16,
 		},
+		service			=>	{
+			postgresql		=>	"postgresql-9.6",
+		},
 		terminal			=>	{
 			columns				=>	80,
 			stty				=>	"",
@@ -911,9 +914,6 @@ sub _set_paths
 			},
 			secure			=>	{
 				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",
-			},
-			service			=>	{
-				postgresql		=>	"postgresql-9.6",
 			},
 			sql			=>	{
 				'anvil.sql'		=>	"/usr/sbin/anvil.sql",
