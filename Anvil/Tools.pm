@@ -929,8 +929,10 @@ sub _set_paths
 	# Make sure we actually have the requested files.
 	foreach my $type (sort {$a cmp $b} keys %{$anvil->data->{path}})
 	{
-		# We don't look for urls because they're relative to the domain.
+		# We don't look for urls because they're relative to the domain. We also don't look for 
+		# configs as we might find backups.
 		next if $type eq "urls";
+		next if $type eq "configs";
 		foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{path}{$type}})
 		{
 			if (not -e $anvil->data->{path}{$type}{$file})

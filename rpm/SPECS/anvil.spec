@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        8%{?dist}
+Release:        9%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -329,6 +329,7 @@ setenforce 1
 
 %postun striker
 ### TODO: This breaks the repos
+rm -rf /usr/share/anvil
 echo "Closing the postgresql ports."
 #firewall-cmd --zone=public --remove-service=http
 #firewall-cmd --zone=public --remove-service=http --permanent
@@ -363,7 +364,10 @@ systemctl stop postgresql.service
 
 
 %changelog
-* Thu Jul 13 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-8
+* Fri Jul 13 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-9
+- Updated the source tarball.
+
+* Fri Jul 13 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-8
 - Fixed the path to anvil.sql
 
 * Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-7

@@ -57,7 +57,9 @@ if (not $local_uuid)
 if ($local_uuid)
 {
 	# Start checks
-	my $running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{service}{postgresql}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::service::postgresql" => $anvil->data->{sys}{service}{postgresql} }});
+	
+	my $running = $anvil->System->check_daemon({debug => 2, daemon => $anvil->data->{sys}{service}{postgresql}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
 	if ($running eq "2")
 	{
@@ -68,7 +70,13 @@ if ($local_uuid)
 	elsif (not $running)
 	{
 		# Do we need to initialize the databae?
-		if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::configs::pg_hba.conf" => $anvil->data->{path}{configs}{'pg_hba.conf'} }});
+		if (-e $anvil->data->{path}{configs}{'pg_hba.conf'})
+		{
+			# It already exists.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::configs::pg_hba.conf" => $anvil->data->{path}{configs}{'pg_hba.conf'} }});
+		}
+		else
 		{
 			# Initialize.
 			my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
@@ -189,7 +197,7 @@ if ($local_uuid)
 		}
 		
 		# Start the daemon. '0' = started, anything else is a problem.
-		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{service}{postgresql}});
+		my $return_code = $anvil->System->start_daemon({debug => 2, daemon => $anvil->data->{sys}{service}{postgresql}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 		if ($return_code eq "0")
 		{
@@ -432,10 +440,14 @@ sub add_to_local_config
 	}});
 	
 	# Setup the data we'll insert. The password will be changed after the user does the initial config.
-	my $insert =  "database::".$host_uuid."::host		=	localhost\n";
-	   $insert .= "database::".$host_uuid."::port		=	5432\n";
-	   $insert .= "database::".$host_uuid."::password	=	Initial1\n";
-	   $insert .= "database::".$host_uuid."::ping		=	0\n\n";
+	$anvil->data->{database}{$host_uuid}{host}     = "localhost";
+	$anvil->data->{database}{$host_uuid}{port}     = "5432";
+	$anvil->data->{database}{$host_uuid}{password} = "Initial1";
+	$anvil->data->{database}{$host_uuid}{ping}     = "0";
+	my $insert =  "database::".$host_uuid."::host		=	".$anvil->data->{database}{$host_uuid}{host}."\n";
+	   $insert .= "database::".$host_uuid."::port		=	".$anvil->data->{database}{$host_uuid}{port}."\n";
+	   $insert .= "database::".$host_uuid."::password	=	".$anvil->data->{database}{$host_uuid}{password}."\n";
+	   $insert .= "database::".$host_uuid."::ping		=	".$anvil->data->{database}{$host_uuid}{ping}."\n\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { insert => $insert }});
 	   
 	# Now inject the config.
@@ -464,6 +476,7 @@ sub add_to_local_config
 	}
 	
 	# If we're here, we're ready to write it out.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { config_seen => $config_seen }});
 	if (not $config_seen)
 	{
 		# Backup the original
@@ -472,7 +485,7 @@ sub add_to_local_config
 		
 		# Now update!
 		$anvil->Storage->write_file({
-			debug     => 3,
+			debug     => 2,
 			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
 			body      => $new_body, 
 			user      => "admin", 
@@ -484,9 +497,6 @@ sub add_to_local_config
 		# Record the local UUID for returning to the caller.
 		$local_uuid = $host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_uuid => $local_uuid }});
-		
-		# Re-read the new config.
-		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	}
 	
 	return($local_uuid);
