@@ -28,7 +28,7 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+$anvil->Log->secure({set => 0});
 
 # Read switches
 $anvil->Get->switches;
@@ -434,7 +434,7 @@ sub add_to_local_config
 	my $host_uuid       = $anvil->Get->host_uuid();
 	my $local_uuid      = "";
 	my $anvil_conf_body = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.conf'}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { 
 		host_uuid       => $host_uuid,
 		anvil_conf_body => $anvil_conf_body,
 	}});
@@ -448,7 +448,7 @@ sub add_to_local_config
 	   $insert .= "database::".$host_uuid."::port		=	".$anvil->data->{database}{$host_uuid}{port}."\n";
 	   $insert .= "database::".$host_uuid."::password	=	".$anvil->data->{database}{$host_uuid}{password}."\n";
 	   $insert .= "database::".$host_uuid."::ping		=	".$anvil->data->{database}{$host_uuid}{ping}."\n\n";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { insert => $insert }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { insert => $insert }});
 	   
 	# Now inject the config.
 	my $new_body    = "";
@@ -456,7 +456,8 @@ sub add_to_local_config
 	my $test_line   = "database::${host_uuid}::";
 	foreach my $line (split/\n/, $anvil_conf_body)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		my $secure = (($line =~ /password/) && ($line !~ /^#/)) ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => $secure, level => 2, list => { line => $line }});
 		if ($line =~ /^$test_line/)
 		{
 			# It's already configured, abort.
@@ -470,7 +471,7 @@ sub add_to_local_config
 		if ($line eq "### end db list ###")
 		{
 			$new_body .= $insert;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_body => $new_body }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { new_body => $new_body }});
 		}
 		$new_body .= $line."\n";
 	}
@@ -480,11 +481,12 @@ sub add_to_local_config
 	if (not $config_seen)
 	{
 		# Backup the original
-		my $backup_file = $anvil->Storage->backup({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+		my $backup_file = $anvil->Storage->backup({secure => 1, file => $anvil->data->{path}{configs}{'anvil.conf'}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
 		
 		# Now update!
 		$anvil->Storage->write_file({
+			secure    => 1, 
 			debug     => 2,
 			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
 			body      => $new_body, 

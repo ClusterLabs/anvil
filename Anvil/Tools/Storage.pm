@@ -2048,13 +2048,13 @@ sub write_file
 	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
-	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : "";
+	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : 0;
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "root";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $error       = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-		body        => $body,
+		body        => $secure ? $anvil->Words->string({key => "log_0186"}) : $body,
 		file        => $file,
 		group       => $group, 
 		mode        => $mode,
