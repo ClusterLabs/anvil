@@ -319,7 +319,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="header_0006">Up Order</key>
 		<key name="header_0007">Inbound Connections</key>
 		<key name="header_0008">Network</key>
-		<key name="header_0009">Peer Connection (user@host:port)</key>
+		<key name="header_0009">Peer Connections</key>
 		<key name="header_0010">Ping</key>
 		<key name="header_0011"></key>
 		
@@ -390,10 +390,12 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0064">Help and support</key>
 		<key name="striker_0065"><![CDATA[Forgot your password?<br />Use '<span class="code">anvil-change-password</span>' from the console to reset it.]]></key>
 		<key name="striker_0066">Access to this machine via: [#!variable!network!#].</key>
-		<key name="striker_0067"></key>
-		<key name="striker_0068"></key>
-		<key name="striker_0069"></key>
-		<key name="striker_0070"></key>
+		<key name="striker_0067">Update</key>
+		<key name="striker_0068">Delete</key>
+		<key name="striker_0069">db_user@hostname_or_ip[:tcp_port]</key>
+		<key name="striker_0070">Add</key>
+		<key name="striker_0071">Ping before connect:</key>
+		<key name="striker_0072">Bi-directional:</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

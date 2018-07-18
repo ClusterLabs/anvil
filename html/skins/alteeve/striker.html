@@ -147,6 +147,20 @@
 							</td>
 						</tr>
 						#!variable!peer_table!#
+						<tr>
+							<td>
+								<input type="text" id="new_peer_access" name="new_peer_access" placeholder="#!string!striker_0069!#" />
+							</td>
+							<td>
+								#!string!striker_0071!# <input type="checkbox" id="new_peer_ping" name="new_peer_ping" checked />
+							</td>
+							<td>
+								#!string!striker_0072!# <input type="checkbox" id="new_peer_bidirection" name="new_peer_bidirection" checked />
+							</td>
+							<td align="center">
+								<input type="button" id="new_peer_save" name="new_peer_save" value="#!string!striker_0070!#" />
+							</td>
+						</tr>
 					</table>
 				</td>
 			</tr>
@@ -159,13 +173,13 @@
 								#!variable!access!#
 							</td>
 							<td>
-								#!variable!ping!#
+								#!string!striker_0071!# <input type="checkbox" id="#!variable!access!#_ping" name="#!variable!access!#_ping" #!variable!ping_checked!# />
 							</td>
-							<td>
-								#!variable!save_button!#
+							<td align="center">
+								<input type="button" id="#!variable!access!#_save" name="#!variable!access!#_save" value="#!string!striker_0067!#" />
 							</td>
-							<td>
-								#!variable!delete_button!#
+							<td align="center">
+								<input type="button" id="#!variable!access!#_delete" name="#!variable!access!#_delete" value="#!string!striker_0068!#" />
 							</td>
 						</tr>
 <!-- end striker-sync-entry -->

@@ -31,6 +31,7 @@ $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
 # Read switches
+$anvil->data->{switches}{'no-reboot'} = 0;
 $anvil->Get->switches;
 
 # Paths
@@ -85,8 +86,11 @@ $anvil->Database->insert_or_update_variables({
 });
 
 ### TODO: This is only until we can get the damn networking stable on reconfigure.
-# Reboot.
-$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
+if (not $anvil->data->{switches}{'no-reboot'})
+{
+	# Reboot.
+	$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
+}
 
 $anvil->nice_exit({code => 0});
 

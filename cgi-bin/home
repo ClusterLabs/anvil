@@ -297,6 +297,7 @@ sub process_sync_page
 	my $peer_table = "";
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
+		next if not $anvil->Validate->is_uuid({uuid => $uuid});
 		next if $uuid eq $host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
 		
@@ -304,13 +305,51 @@ sub process_sync_page
 		my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
 		my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : $anvil->data->{sys}{database}{name};
 		my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : $anvil->data->{sys}{database}{user};
+		my $ping     = $anvil->data->{database}{$uuid}{ping}     ? $anvil->data->{database}{$uuid}{ping}     : 1;
 		my $password = $anvil->data->{database}{$uuid}{password} ? $anvil->data->{database}{$uuid}{password} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host     => $host,
 			port     => $port,
 			name     => $name,
 			user     => $user, 
+			ping     => $ping, 
 			password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		}});
+		
+		# Store it by name.
+		$anvil->data->{peers}{$host}{port}     = $port;
+		$anvil->data->{peers}{$host}{name}     = $name;
+		$anvil->data->{peers}{$host}{user}     = $user;
+		$anvil->data->{peers}{$host}{ping}     = $ping;
+		$anvil->data->{peers}{$host}{password} = $password;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"peers::${host}::port"     => $anvil->data->{peers}{$host}{port},
+			"peers::${host}::name"     => $anvil->data->{peers}{$host}{name},
+			"peers::${host}::ping"     => $anvil->data->{peers}{$host}{ping}, 
+			"peers::${host}::password" => $anvil->Log->secure ? $anvil->data->{peers}{$host}{password} : $anvil->Words->string({key => "log_0186"}), 
+		}});
+	}
+	
+	# Now peers are sortable by host name.
+	foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{peers}})
+	{
+		my $port     = $anvil->data->{peers}{$host}{port};
+		my $name     = $anvil->data->{peers}{$host}{name};
+		my $user     = $anvil->data->{peers}{$host}{user};
+		my $ping     = $anvil->data->{peers}{$host}{ping};
+		my $password = $anvil->data->{peers}{$host}{password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host     => $host,
+			port     => $port,
+			name     => $name,
+			user     => $user, 
+			ping     => $ping, 
+			password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		}});
+		
+		$peer_table .= $anvil->Template->get({file => "striker.html", name => "striker-sync-entry", variables => {
+			access       => $port eq 5432 ? $user."\@".$host : $user."\@".$host.":".$port,
+			ping_checked => $ping ? "checked" : "",
 		}});
 	}
 	
