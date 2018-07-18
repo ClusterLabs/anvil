@@ -52,11 +52,11 @@ my $connections = $anvil->Database->connect({
 });
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0031"});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132", variables => { connections => $connections }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132", variables => { connections => $connections }});
 if (not $connections)
 {
 	# No databases, exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0003"})."\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
 
@@ -66,10 +66,6 @@ reconfigure_network($anvil);
 
 update_passwords($anvil);
 
-
-
-### TODO: This is only until we can get the damn networking stable on reconfigure.
-# Reboot.
 $anvil->Database->insert_or_update_jobs({
 	job_uuid             => $anvil->data->{job}{uuid}, 
 	update_progress_only => 1, 
@@ -88,6 +84,8 @@ $anvil->Database->insert_or_update_variables({
 	variable_source_table => "hosts", 
 });
 
+### TODO: This is only until we can get the damn networking stable on reconfigure.
+# Reboot.
 $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
 
 $anvil->nice_exit({code => 0});
@@ -223,11 +221,11 @@ sub reconfigure_network
 	
 	# Now configure the network.
 	my $dns = defined $anvil->data->{variables}{form}{config_step2}{dns}{value} ? [split/,/, $anvil->data->{variables}{form}{config_step2}{dns}{value}] : [];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dns => $dns }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns => $dns }});
 	for (my $i = 0; $i < @{$dns}; $i++)
 	{
 		$dns->[$i] = $anvil->Words->clean_spaces({ string => $dns->[$i] });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "dns->[$i]" => $dns->[$i] }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "dns->[$i]" => $dns->[$i] }});
 	}
 	
 	my $gateway           = defined $anvil->data->{variables}{form}{config_step2}{gateway}{value}           ? $anvil->data->{variables}{form}{config_step2}{gateway}{value}           : "";
@@ -736,7 +734,7 @@ sub get_uuid_from_interface_file
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
 	return($uuid);
 }
 
@@ -838,7 +836,7 @@ AND
 	
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -846,9 +844,10 @@ AND
 	{
 		my $this_variable = $row->[0];
 		my $this_value    = $row->[1];
+		my $secure        = $this_variable =~ /passw/ ? 1 : 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			this_variable => $this_variable, 
-			this_value    => $this_value, 
+			this_value    => (($anvil->Log->secure) or (not $secure)) ? $this_value : $anvil->Words->string({key => "log_0186"}), 
 		}});
 		
 		$anvil->_make_hash_reference($anvil->data->{variables}, $this_variable, $this_value);

@@ -73,19 +73,20 @@ $anvil->data->{form}{body} = "";
 my $header = $anvil->Template->get({file => "main.html", name => "header", variables => { language => $anvil->Words->language }});
 
 # If any jobs are pending/running, show the "unavailable" option.
-my $available = check_availability($anvil);
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { available => $available }});
+my $available  = check_availability($anvil);
+my $configured = $available ? check_if_configured($anvil) : 0;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	available  => $available,
+	configured => $configured,
+}});
 if (not $available)
 {
 	# Set the body to 'say::maintenance'.
 	$anvil->data->{form}{body} = $anvil->data->{say}{maintenance};
 }
-
-# If there is no user account yet, then the system is new and needs to be reconfigured.
-my $configured = check_if_configured($anvil);
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
-if (not $configured)
+elsif (not $configured)
 {
+	# If there is no user account yet, then the system is new and needs to be reconfigured.
 	configure_striker($anvil);
 }
 else
@@ -404,8 +405,9 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
+	my $debug     = 3;
 	my $available = 1;
-	my $query = "
+	my $query     = "
 SELECT 
     job_progress, 
     modified_date, 
@@ -419,11 +421,11 @@ AND
 AND 
     job_host_uuid =  ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)."
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -435,7 +437,7 @@ AND
 		my $unixtime    = $results->[0]->[2];
 		my $seconds_ago = $anvil->Convert->add_commas({number => (time - $unixtime)});
 		   $available   = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			available   => $available,
 			percent     => $percent,
 			seconds_ago => $seconds_ago, 
@@ -449,10 +451,10 @@ AND
 			title       => "#!string!striker_0046!#",
 			description => $anvil->Words->string({key => "striker_0047", variables => { percent => $percent, timestamp => $timestamp, seconds_ago => $seconds_ago }}),
 		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { available => $available }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
 	return($available);
 }
 

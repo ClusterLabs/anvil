@@ -3365,6 +3365,7 @@ sub insert_or_update_users
 	my $user_name           = defined $parameter->{user_name}           ? $parameter->{user_name}           : "";
 	my $user_password_hash  = defined $parameter->{user_password_hash}  ? $parameter->{user_password_hash}  : "";
 	my $user_salt           = defined $parameter->{user_salt}           ? $parameter->{user_salt}           : "";
+	my $user_session_salt   = defined $parameter->{user_session_salt}   ? $parameter->{user_session_salt}   : "";
 	my $user_algorithm      = defined $parameter->{user_algorithm}      ? $parameter->{user_algorithm}      : "";
 	my $user_hash_count     = defined $parameter->{user_hash_count}     ? $parameter->{user_hash_count}     : "";
 	my $user_language       = defined $parameter->{user_language}       ? $parameter->{user_language}       : $anvil->data->{sys}{language};
@@ -3508,6 +3509,7 @@ INSERT INTO
     user_is_admin, 
     user_is_experienced, 
     user_is_trusted, 
+    user_session_salt, 
     modified_date 
 ) VALUES (
     ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid).", 
@@ -3520,6 +3522,7 @@ INSERT INTO
     ".$anvil->data->{sys}{use_db_fh}->quote($user_is_admin).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_is_experienced).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($user_is_trusted).", 
+    ".$anvil->data->{sys}{use_db_fh}->quote($user_session_salt).", 
     ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
 );
 ";
@@ -3539,7 +3542,8 @@ SELECT
     user_language, 
     user_is_admin, 
     user_is_experienced, 
-    user_is_trusted 
+    user_is_trusted, 
+    user_session_salt 
 FROM 
     users 
 WHERE 
@@ -3564,6 +3568,7 @@ WHERE
 			my $old_user_is_admin       = $row->[6];
 			my $old_user_is_experienced = $row->[7];
 			my $old_user_is_trusted     = $row->[8];
+			my $old_user_session_salt   = $row->[9];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_user_name           => $old_user_name, 
 				old_user_password_hash  => $old_user_password_hash,
@@ -3574,6 +3579,7 @@ WHERE
 				old_user_is_admin       => $old_user_is_admin,
 				old_user_is_experienced => $old_user_is_experienced,
 				old_user_is_trusted     => $old_user_is_trusted,
+				old_user_session_salt   => $old_user_session_salt
 			}});
 			
 			# Anything change?
@@ -3586,7 +3592,8 @@ WHERE
 			    ($old_user_language       ne $user_language)       or 
 			    ($old_user_is_admin       ne $user_is_admin)       or 
 			    ($old_user_is_experienced ne $user_is_experienced) or 
-			    ($old_user_is_trusted     ne $user_is_trusted))
+			    ($old_user_is_trusted     ne $user_is_trusted)     or 
+			    ($old_user_session_salt   ne $user_session_salt))
 			{
 				# Something changed, save.
 				my $query = "
@@ -3602,6 +3609,7 @@ SET
     user_is_admin       = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_admin).", 
     user_is_experienced = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_experienced).", 
     user_is_trusted     = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_trusted).", 
+    user_session_salt   = ".$anvil->data->{sys}{use_db_fh}->quote($user_session_salt).", 
     modified_date       = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
 WHERE 
     user_uuid           = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)." 
