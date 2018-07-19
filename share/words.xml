@@ -318,7 +318,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="header_0005">Speed</key>
 		<key name="header_0006">Up Order</key>
 		<key name="header_0007">Inbound Connections</key>
-		<key name="header_0008">Network</key>
+		<key name="header_0008">Via network:</key>
 		<key name="header_0009">Peer Connections</key>
 		<key name="header_0010">Ping</key>
 		<key name="header_0011"></key>
@@ -390,12 +390,16 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0064">Help and support</key>
 		<key name="striker_0065"><![CDATA[Forgot your password?<br />Use '<span class="code">anvil-change-password</span>' from the console to reset it.]]></key>
 		<key name="striker_0066">Access to this machine via: [#!variable!network!#].</key>
-		<key name="striker_0067">Update</key>
+		<key name="striker_0067">Save</key>
 		<key name="striker_0068">Delete</key>
-		<key name="striker_0069">db_user@hostname_or_ip[:tcp_port]</key>
+		<key name="striker_0069">[db_user@]hostname_or_ip[:tcp_port]</key>
 		<key name="striker_0070">Add</key>
-		<key name="striker_0071">Ping before connect:</key>
-		<key name="striker_0072">Bi-directional:</key>
+		<key name="striker_0071">Ping</key>
+		<key name="striker_0072">Bi-directional</key>
+		<key name="striker_0073">When checked, the Anvil! will ping the peer before trying to connect to the database. This speeds up skipping a database that is offline, but won't help if the databsae is behind a router. When unchecked, connections will be a touch faster when the database is available.</key>
+		<key name="striker_0074">When checked, the peer will be configure to add the local database as a peer at the same time that we add it to this system.</key>
+		<key name="striker_0075">Access</key>
+		<key name="striker_0076"><![CDATA[This tells Striker how to connect to the peer. The default username is '<span class="fixed_width">admin</span>', and the default port is '<span class="fixed_width">5432</span>'. If the peer uses these, then you only need to specify the IP address or hostname of the peer. If the user name is not '<span class="fixed_width">admin</span>', then you need to use the format '<span class="fixed_width">user@host</span>. If the TCP port is not '<span class="fixed_width">5432</span>', then you need to use '<span class="fixed_width">host:port</span>. If both user and port are different, use the format '<span class="fixed_width">user@host:port</span>'.]]></key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

@@ -283,12 +283,27 @@ sub process_sync_page
 		next if not $anvil->Validate->is_subnet({subnet => $anvil->data->{sys}{network}{interface}{$interface}{subnet}});
 		my ($network_type, $network_number) = ($interface =~ /^(.*?)(\d+)_/);
 		
-		my $database_user = $anvil->data->{database}{$host_uuid}{name};
+		my $database_user = $anvil->data->{database}{$host_uuid}{user} ? $anvil->data->{database}{$host_uuid}{user} : $anvil->data->{sys}{database}{user};
 		my $database_port = $anvil->data->{database}{$host_uuid}{port};
 		my $network_key   = $network_type eq "bcn" ? "striker_0018" : "striker_0022";
 		my $say_network   = $anvil->Words->string({key => $network_key, variables => { number => $network_number }});
+		
+		# The user 'admin' and the port 5432 are default, so only show them if they're non-standard.
+		my $access_string = $database_user."\@".$anvil->data->{sys}{network}{interface}{$interface}{ip}.":".$database_port;
+		if (($database_port eq "5432") && ($database_user eq "admin"))
+		{
+			$access_string = $anvil->data->{sys}{network}{interface}{$interface}{ip};
+		}
+		elsif ($database_port eq "5432")
+		{
+			$access_string = $database_user."\@".$anvil->data->{sys}{network}{interface}{$interface}{ip};
+		}
+		elsif ($database_user eq "admin")
+		{
+			$access_string = $anvil->data->{sys}{network}{interface}{$interface}{ip}.":".$database_port;
+		}
 		$inbound_table .= $anvil->Template->get({file => "striker.html", name => "striker-sync-inbound", variables => {
-			access => $database_user."\@".$anvil->data->{sys}{network}{interface}{$interface}{ip}.":".$database_port,
+			access => $access_string,
 			note   => $say_network,
 		}});
 	}
@@ -347,8 +362,10 @@ sub process_sync_page
 			password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
 		}});
 		
+		$anvil->data->{cgi}{new_peer_password}{value} = "" if not defined $anvil->data->{cgi}{new_peer_password}{value};
 		$peer_table .= $anvil->Template->get({file => "striker.html", name => "striker-sync-entry", variables => {
 			access       => $port eq 5432 ? $user."\@".$host : $user."\@".$host.":".$port,
+			password     => $anvil->data->{cgi}{new_peer_password}{value},
 			ping_checked => $ping ? "checked" : "",
 		}});
 	}
