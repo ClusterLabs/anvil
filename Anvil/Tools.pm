@@ -150,6 +150,19 @@ sub new
 	# Record the start time.
 	$anvil->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
 	
+	# Set passed parameters if needed.
+	if (ref($parameter) eq "HASH")
+	{
+		### TODO: Calls to allow the user to override defaults...
+		# Local parameters...
+	}
+	elsif ($parameter)
+	{
+		# Um...
+		print $THIS_FILE." ".__LINE__."; Anvil::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
+		exit(1);
+	}
+	
 	# Get a handle on the various submodules
 	$anvil->Account->parent($anvil);
 	$anvil->Alert->parent($anvil);
@@ -207,20 +220,7 @@ sub new
 	$anvil->Get->switches;
 	
 	# Read in the local Anvil! version.
-
 	
-	# Set passed parameters if needed.
-	if (ref($parameter) eq "HASH")
-	{
-		### TODO: Calls to allow the user to override defaults...
-		# Local parameters...
-	}
-	elsif ($parameter)
-	{
-		# Um...
-		print $THIS_FILE." ".__LINE__."; Anvil::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
-		exit(1);
-	}
 	
 	return ($self);
 }

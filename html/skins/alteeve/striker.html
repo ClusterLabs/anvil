@@ -1,6 +1,65 @@
+<!-- start confirm-new-peer -->
+			<table>
+				<form name="confirm-new-peer" action="" method="post">
+				<div id="confirm-new-peer">
+				<tr>
+					<td colspan="2">
+						About to add a new peer
+					</td>
+				</tr>
+				<tr>
+					<td>
+						Striker User:
+					</td>
+					<td class="fixed_width">
+						#!variable!user!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						Host:
+					</td>
+					<td class="fixed_width">
+						#!variable!host!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						Port:
+					</td>
+					<td class="fixed_width">
+						#!variable!port!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						Ping before Connect:
+					</td>
+					<td class="fixed_width">
+						#!variable!ping!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						Bi-directional:
+					</td>
+					<td class="fixed_width">
+						#!variable!bidirectional!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="5" class="subtle_text" style="text-align: center;">
+						When the peer is added, all data from this host will be copied to the peer's database. Depending on how much data this is, how fast the connection is, and how fast the local machine is, this sync process could take a little time.
+					</td>
+				</tr>
+				</div>
+				<input type="hidden" name="cgi_list" id="cgi_list" value="username,password,login">
+				</form>
+			</table>
+<!-- end confirm-new-peer -->
 
 <!-- start striker-login -->
-			<table class="login"">
+			<table class="login">
 				<form name="striker_login" action="" method="post">
 				<div id="striker_login">
 				<tr>
@@ -156,10 +215,11 @@
 						</tr>
 						<tr>
 							<td style="padding: 0px 5px;">
-								<input type="text" id="new_peer_access" name="new_peer_access" placeholder="#!string!striker_0069!#" readonly onfocus="this.removeAttribute('readonly');" />
+								<input type="text" id="new_peer_access" name="new_peer_access" placeholder="#!string!striker_0069!#" value="#!variable!new_peer_access!#" readonly onfocus="this.removeAttribute('readonly');" />
 							</td>
 							<td style="padding: 0px 5px;">
-								<input type="password" id="new_peer_password" name="new_peer_password" placeholder="#!string!striker_0051!#" readonly onfocus="this.removeAttribute('readonly');" />
+								<!-- To prevent browsers from offering to save the user/password, we'll set the password to a text field and use css to obfuscate echoing back what the user typed -->
+								<input type="text" id="new_peer_password" name="new_peer_password" placeholder="#!string!striker_0051!#" value="#!variable!new_peer_password!#" readonly onfocus="this.removeAttribute('readonly');" style="-webkit-text-security: disc;" />
 							</td>
 							<td style="padding: 0px 5px;">
 								#!string!striker_0071!#: <input type="checkbox" id="new_peer_ping" name="new_peer_ping" checked />
@@ -170,9 +230,11 @@
 						</tr>
 						<tr>
 							<td style="padding: 10px 5px;" colspan="4" align="center">
-								<input type="submit" id="#!variable!access!#_save" name="#!variable!access!#_save" value="#!string!striker_0067!#" />
+								<input type="submit" id="save" name="save" value="#!string!striker_0067!#" />
 							</td>
 						</tr>
+						<input type="hidden" name="striker" value="true" />
+						<input type="hidden" name="task"    value="sync" />
 						</form>
 					</table>
 				</td>
@@ -190,7 +252,8 @@
 								<span class="code" style="white-space: nowrap;">#!string!striker_0075!#</span>: &nbsp;
 							</td>
 							<td class="subtle_text" style="padding-bottom: 10px;">
-								#!string!striker_0076!#
+								#!string!striker_0076!#<br />
+								#!string!striker_0077!#
 							</td>
 						</tr>
 						<tr>
@@ -289,4 +352,3 @@
 			</tr>
 		</table>
 <!-- end striker-welcome -->
-

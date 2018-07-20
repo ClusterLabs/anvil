@@ -88,7 +88,7 @@ sub parent
 
 This validates that a given HTML form field is valid. It takes an input ID and the type of data that is expected. If it is sane, C<< 1 >> is returned. If it fails to validate, C<< 0 >> is returned and C<< cgi::<name>::alert >> is set to C<< 1 >>.
 
-=head2 Parameters;
+Parameters;
 
 =head3 empty_ok (optional)
 
@@ -222,7 +222,7 @@ NOTE: An empty string is considered invalid.
  	print "The string: [$string] is valid!\n";
  }
 
-=head2 Parameters;
+Parameters;
 
 =head3 string (required)
 
@@ -266,7 +266,7 @@ Checks if the passed-in string is a valid domain name. Returns 'C<< 1 >>' if OK,
  	print "The domain name: [$name] is valid!\n";
  }
 
-=head2 Parameters;
+Parameters;
 
 =head3 name (required)
 
@@ -310,7 +310,7 @@ Checks if the passed-in string is an IPv4 address. Returns 'C<< 1 >>' if OK, 'C<
  	print "The IP address: [$ip] is valid!\n";
  }
 
-=head2 Parameters;
+Parameters;
 
 =head3 ip (required)
 
@@ -367,7 +367,7 @@ sub is_ipv4
 
 Checks if the passed-in string is a valid network MAC address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
 
-=head2 Parameters;
+Parameters;
 
 =head3 mac (required)
 
@@ -408,7 +408,7 @@ NOTE: This method is strict and will only validate numbers without decimal place
  	print "The number: [$number] is valid!\n";
  }
 
-=head2 Parameters;
+Parameters;
 
 =head3 number (required)
 
@@ -458,7 +458,7 @@ sub is_positive_integer
 
 This method takes a subnet string and checks to see if it is a valid IPv4 address or CIDR notation. It returns 'C<< 1 >>' if it is a valid address. Otherwise it returns 'C<< 0 >>'.
 
-=head2 Parameters;
+Parameters;
 
 =head3 subnet (required)
 
@@ -520,7 +520,7 @@ NOTE: This method is strict and will only validate UUIDs that are lower case!
  	print "The UUID: [$string] is valid!\n";
  }
 
-=head2 Parameters;
+Parameters;
 
 =head3 uuid (required)
 

@@ -400,6 +400,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0074">When checked, the peer will be configure to add the local database as a peer at the same time that we add it to this system.</key>
 		<key name="striker_0075">Access</key>
 		<key name="striker_0076"><![CDATA[This tells Striker how to connect to the peer. The default username is '<span class="fixed_width">admin</span>', and the default port is '<span class="fixed_width">5432</span>'. If the peer uses these, then you only need to specify the IP address or hostname of the peer. If the user name is not '<span class="fixed_width">admin</span>', then you need to use the format '<span class="fixed_width">user@host</span>. If the TCP port is not '<span class="fixed_width">5432</span>', then you need to use '<span class="fixed_width">host:port</span>. If both user and port are different, use the format '<span class="fixed_width">user@host:port</span>'.]]></key>
+		<key name="striker_0077"><![CDATA[If the '#!string!striker_0072!#' is set, we will need to update the peer's configuration. If the peer's SSH port is not '<span class="fixed_width">22</span>', you can append: '<span class="fixed_width">,ssh=X</span>' where 'X' is the SSH TCP port.]]></key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -407,6 +408,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
+		<key name="striker_warning_0002">The access information appears to not be valid.</key>
+		<key name="striker_warning_0003">Test access to the peer (using SSH) failed. There may be details in the log file.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
