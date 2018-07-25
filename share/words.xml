@@ -29,7 +29,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="message_0005">There was an unknown error while connecting to: [#!variable!target!#]. The error was: [#!variable!error!#]</key>
 		<key name="message_0006">We were unable to log in to: [#!variable!target!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
 		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
-		<key name="message_0008">There was a problem establishing an SSH channel to the target: [#!variable!target!#] for shell call: [#!variable!shell_call!#]</key>
+		<key name="message_0008">There was a problem establishing an SSH channel to the target: [#!variable!target!#].</key>
 		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
 		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
@@ -284,7 +284,7 @@ The database connection error was:
 		<key name="log_0183">The user: [#!variable!user!#] logged in successfully.</key>
 		<key name="log_0184">Theew was a failed login attempt from: [#!variable!user_agent!#], trying to log in as: [#!variable!user!#]. log in rejected.</key>
 		<key name="log_0185"><![CDATA[<unknown>]]></key>	<!-- Used in some cases when a variable isn't known -->
-		<key name="log_0186"><![CDATA[<supressed>]]></key>	<!-- Used in some cases when a variable isn't known -->
+		<key name="log_0186"><![CDATA[<suppressed>]]></key>	<!-- Used in some cases when a variable isn't known -->
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -400,7 +400,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0074">When checked, the peer will be configure to add the local database as a peer at the same time that we add it to this system.</key>
 		<key name="striker_0075">Access</key>
 		<key name="striker_0076"><![CDATA[This tells Striker how to connect to the peer. The default username is '<span class="fixed_width">admin</span>', and the default port is '<span class="fixed_width">5432</span>'. If the peer uses these, then you only need to specify the IP address or hostname of the peer. If the user name is not '<span class="fixed_width">admin</span>', then you need to use the format '<span class="fixed_width">user@host</span>. If the TCP port is not '<span class="fixed_width">5432</span>', then you need to use '<span class="fixed_width">host:port</span>. If both user and port are different, use the format '<span class="fixed_width">user@host:port</span>'.]]></key>
-		<key name="striker_0077"><![CDATA[If the '#!string!striker_0072!#' is set, we will need to update the peer's configuration. If the peer's SSH port is not '<span class="fixed_width">22</span>', you can append: '<span class="fixed_width">,ssh=X</span>' where 'X' is the SSH TCP port.]]></key>
+		<key name="striker_0077"><![CDATA[If '#!string!striker_0072!#' is set, we will need to update the peer's configuration. If the peer's SSH port is not '<span class="fixed_width">22</span>', you can append: '<span class="fixed_width">,ssh=X</span>' where 'X' is the SSH TCP port.]]></key>
+		<key name="striker_0078">Please verify</key>
+		<key name="striker_0079">Peer</key>
+		<key name="striker_0080">Ping before connect</key>
+		<key name="striker_0081">The test connection was successful. When saved, the resynchronization process might take a few minutes, and cause maintenance periods where some features are offline until complete.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -410,6 +414,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
 		<key name="striker_warning_0002">The access information appears to not be valid.</key>
 		<key name="striker_warning_0003">Test access to the peer (using SSH) failed. There may be details in the log file.</key>
+		<key name="striker_warning_0004">Accessing the peer over SSH worked, but a test connection to the database failed.</key>
+		<key name="striker_warning_0005">There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -443,6 +449,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
 		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!sys::log_file!#</span>].]]></key>
 		
+		<!-- These are units, words and so on used when displaying information. -->
+		<key name="unit_0001">Yes</key>
+		<key name="unit_0002">No</key>
+		
+		<!-- TODO: Merge these into 'unit' -->
 		<!-- These are works and strings used by javascript/jqery -->
 		<key name="js_0001">Up</key>
 		<key name="js_0002">Down</key>

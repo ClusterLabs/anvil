@@ -727,7 +727,7 @@ This method takes a user's name and returns the user's home directory. If the ho
 
 Parameters;
 
-=head3 user (required)
+=head3 user (optional, default is the user name of the real UID (as stored in '$<'))
 
 This is the user whose home directory you are looking for.
 
@@ -741,7 +741,7 @@ sub users_home
 	
 	my $home_directory = 0;
 	
-	my $user = defined $parameter->{user} ? $parameter->{user} : "";
+	my $user = defined $parameter->{user} ? $parameter->{user} : getpwuid($<);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	
 	# Make sure the user is only one digit. Sometimes $< (and others) will return multiple IDs.

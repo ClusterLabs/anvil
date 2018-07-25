@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        9%{?dist}
+Release:        12%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -38,6 +38,7 @@ Requires:       perl-JSON
 Requires:       perl-Log-Journald 
 Requires:       perl-Net-SSH2 
 Requires:       perl-NetAddr-IP 
+Requires:       perl-Sys-Syslog
 Requires:       perl-Time-HiRes
 Requires:       perl-XML-Simple 
 Requires:       postgresql-contrib 
@@ -56,7 +57,7 @@ Common base libraries required for the Anvil! system.
 
 %package striker
 Summary:        Alteeve's Anvil! Striker dashboard package
-BuildRequires:  httpd
+Requires:       httpd
 Requires:	anvil-core
 Requires:       httpd
 Requires:       nmap
@@ -64,130 +65,133 @@ Requires:       perl-CGI
 Requires:       postgresql-server 
 Requires:       firefox
 Requires:       virt-manager
-### Gnome Desktop group
-Requires:       abrt-desktop
-Requires:       at-spi2-atk
-Requires:       at-spi2-core
-# Requires:       avahi
-# Requires:       baobab
-Requires:       caribou
-Requires:       caribou-gtk2-module
-Requires:       caribou-gtk3-module
-# Requires:       cheese
-# Requires:       compat-cheese314
-Requires:       control-center
+### Desktop stuff
+Requires:       aajohan-comfortaa-fonts
+Requires:       abattis-cantarell-fonts
+Requires:       adobe-source-han-sans-cn-fonts
+Requires:       adobe-source-han-sans-tw-fonts
+Requires:       adobe-source-han-serif-cn-fonts
+Requires:       adobe-source-han-serif-tw-fonts
+Requires:       adwaita-gtk2-theme
+Requires:       adwaita-icon-theme
+Requires:       alsa-plugins-pulseaudio
+Requires:       alsa-ucm
+Requires:       alsa-utils
+Requires:       awesome
 Requires:       dconf
-# Requires:       empathy
-# Requires:       eog
-Requires:       evince
-Requires:       evince-nautilus
-Requires:       file-roller
-Requires:       file-roller-nautilus
-# Requires:       firewall-config
-# Requires:       firstboot
-# Requires:       fprintd-pam
+Requires:       dconf-editor
+Requires:       dejavu-sans-fonts
+Requires:       dejavu-sans-mono-fonts
+Requires:       dejavu-serif-fonts
+Requires:       dwm
+Requires:       fedora-icon-theme
 Requires:       gdm
-Requires:       gedit
-Requires:       glib-networking
-Requires:       gnome-bluetooth
-# Requires:       gnome-boxes
+Requires:       glx-utils
+Requires:       gnu-free-mono-fonts
+Requires:       gnu-free-sans-fonts
+Requires:       gnu-free-serif-fonts
+Requires:       google-noto-emoji-color-fonts
+Requires:       google-noto-emoji-fonts
+Requires:       google-noto-sans-lisu-fonts
+Requires:       google-noto-sans-mandaic-fonts
+Requires:       google-noto-sans-meetei-mayek-fonts
+Requires:       google-noto-sans-sinhala-fonts
+Requires:       google-noto-sans-tagalog-fonts
+Requires:       google-noto-sans-tai-tham-fonts
+Requires:       google-noto-sans-tai-viet-fonts
+Requires:       gnome-screenshot
+Requires:       gnome-shell
+Requires:       gnome-terminal
+Requires:       gnome-autoar
+Requires:       gnome-backgrounds
 Requires:       gnome-calculator
+Requires:       gnome-characters
 Requires:       gnome-classic-session
 Requires:       gnome-clocks
-# Requires:       gnome-color-manager
-# Requires:       gnome-contacts
-Requires:       gnome-dictionary
+Requires:       gnome-color-manager
 Requires:       gnome-disk-utility
+Requires:       gnome-documents
+Requires:       gnome-documents-libs
 Requires:       gnome-font-viewer
-# Requires:       gnome-getting-started-docs
-Requires:       gnome-icon-theme
-Requires:       gnome-icon-theme-extras
-Requires:       gnome-icon-theme-symbolic
-# Requires:       gnome-initial-setup
-Requires:       gnome-packagekit
-Requires:       gnome-packagekit-updater
-Requires:       gnome-screenshot
-Requires:       gnome-session
-Requires:       gnome-session-xsession
-Requires:       gnome-settings-daemon
-Requires:       gnome-shell
+Requires:       gnome-logs
+Requires:       gnome-menus
+Requires:       gnome-shell-extension-alternate-tab
+Requires:       gnome-shell-extension-apps-menu
+Requires:       gnome-shell-extension-common
+Requires:       gnome-shell-extension-launch-new-instance
+Requires:       gnome-shell-extension-places-menu
+Requires:       gnome-shell-extension-window-list
 Requires:       gnome-software
-Requires:       gnome-system-log
 Requires:       gnome-system-monitor
-Requires:       gnome-terminal
-Requires:       gnome-terminal-nautilus
-Requires:       gnome-themes-standard
-Requires:       gnome-tweak-tool
 Requires:       gnome-user-docs
-Requires:       gnome-weather
-Requires:       gucharmap
-Requires:       gvfs-afc
-Requires:       gvfs-afp
-Requires:       gvfs-archive
-Requires:       gvfs-fuse
-Requires:       gvfs-goa
-Requires:       gvfs-gphoto2
-Requires:       gvfs-mtp
-Requires:       gvfs-smb
-# Requires:       initial-setup-gui
-Requires:       libcanberra-gtk2
-Requires:       libcanberra-gtk3
-Requires:       libproxy-mozjs
-Requires:       librsvg2
-Requires:       libsane-hpaio
-Requires:       metacity
-Requires:       mousetweaks
-Requires:       nautilus
-# Requires:       nautilus-sendto
-# Requires:       NetworkManager-libreswan-gnome
-Requires:       nm-connection-editor
-Requires:       orca
-Requires:       PackageKit-command-not-found
-Requires:       PackageKit-gtk3-module
-# Requires:       redhat-access-gui
-# Requires:       sane-backends-drivers-scanners
-# Requires:       seahorse
-Requires:       setroubleshoot
-Requires:       sushi
-# Requires:       totem
-# Requires:       totem-nautilus
-Requires:       vinagre
-# Requires:       vino
-Requires:       xdg-user-dirs-gtk
-Requires:       yelp
-Requires:       qgnomeplatform
-Requires:       xdg-desktop-portal-gtk
-Requires:       alacarte
-Requires:       dconf-editor
-# Requires:       dvgrab
-Requires:       fonts-tweak-tool
-Requires:       gconf-editor
-Requires:       gedit-plugins
-Requires:       gnome-shell-browser-plugin
-Requires:       gnote
-Requires:       libappindicator-gtk3
-# Requires:       seahorse-nautilus
-# Requires:       seahorse-sharing
-# Requires:       vim-X11
-# Requires:       xguest
-### x11 group
-Requires:       glx-utils
-Requires:       initial-setup-gui
+Requires:       gnome-user-share
+Requires:       hyperv-daemons
+Requires:       i3
+Requires:       isdn4k-utils
+Requires:       jomolhari-fonts
+Requires:       julietaula-montserrat-fonts
+Requires:       khmeros-base-fonts
+Requires:       liberation-mono-fonts
+Requires:       liberation-sans-fonts
+Requires:       liberation-serif-fonts
+Requires:       lightdm-gtk
+Requires:       linux-atm
+Requires:       lohit-assamese-fonts
+Requires:       lohit-bengali-fonts
+Requires:       lohit-devanagari-fonts
+Requires:       lohit-gujarati-fonts
+Requires:       lohit-gurmukhi-fonts
+Requires:       lohit-kannada-fonts
+Requires:       lohit-odia-fonts
+Requires:       lohit-tamil-fonts
+Requires:       lohit-telugu-fonts
+Requires:       lrzsz
 Requires:       mesa-dri-drivers
+Requires:       metacity
+Requires:       minicom
+Requires:       naver-nanum-gothic-fonts
+Requires:       NetworkManager-adsl
+Requires:       NetworkManager-ppp
+Requires:       open-vm-tools-desktop
+Requires:       openbox
+Requires:       PackageKit-gstreamer-plugin
+Requires:       paktype-naskh-basic-fonts
+Requires:       paratype-pt-sans-fonts
 Requires:       plymouth-system-theme
+Requires:       ppp
+Requires:       qtile
+Requires:       ratpoison
+Requires:       rp-pppoe
+Requires:       setroubleshoot
+Requires:       sil-abyssinica-fonts
+Requires:       sil-mingzat-fonts
+Requires:       sil-nuosu-fonts
+Requires:       sil-padauk-fonts
+Requires:       smc-meera-fonts
 Requires:       spice-vdagent
-Requires:       xorg-x11-drivers
+Requires:       stix-fonts
+Requires:       tabish-eeyek-fonts
+Requires:       thai-scalable-waree-fonts
+Requires:       tigervnc-server
+Requires:       vlgothic-fonts
+Requires:       wvdial
+Requires:       xmonad-basic
+Requires:       xorg-x11-drv-ati
+Requires:       xorg-x11-drv-evdev
+Requires:       xorg-x11-drv-fbdev
+Requires:       xorg-x11-drv-intel
+Requires:       xorg-x11-drv-libinput
+Requires:       xorg-x11-drv-nouveau
+Requires:       xorg-x11-drv-openchrome
+Requires:       xorg-x11-drv-qxl
+Requires:       xorg-x11-drv-vesa
+Requires:       xorg-x11-drv-vmware
+Requires:       xorg-x11-drv-wacom
 Requires:       xorg-x11-server-Xorg
 Requires:       xorg-x11-utils
 Requires:       xorg-x11-xauth
 Requires:       xorg-x11-xinit
-Requires:       xvattr
-Requires:       tigervnc-server
-# Requires:       wayland-protocols-devel
-Requires:       xorg-x11-drv-keyboard
-Requires:       xorg-x11-drv-libinput
-Requires:       xorg-x11-drv-mouse
-Requires:       xorg-x11-drv-openchrome
+
 
 # A Striker dashboard is not allowed to host servers or be a migration target. 
 # So the node and dr packages can not be installed.
@@ -196,6 +200,7 @@ Conflicts:	anvil-dr
 %description striker
 Web interface of the Striker dashboard for Alteeve Anvil! systems
 
+NOTE: This installs and enables Gnome desktop.
 
 %package node 
 Summary:        Alteeve's Anvil! node package
@@ -203,10 +208,10 @@ Requires:	anvil-core
 Requires:       bridge-utils 
 Requires:       drbd 
 Requires:       drbd-bash-completion 
-Requires:       drbd-kernel 
 Requires:       drbd-utils 
-Requires:       kernel-doc 
-Requires:       kmod-drbd 
+### NOTE: Disabled only until we get drbd9 building on F28
+#Requires:       drbd-kernel 
+#Requires:       kmod-drbd 
 Requires:       libvirt 
 Requires:       libvirt-daemon 
 Requires:       libvirt-daemon-driver-qemu 
@@ -215,8 +220,7 @@ Requires:       libvirt-docs
 Requires:       pacemaker 
 Requires:       pcs 
 Requires:       qemu-kvm 
-Requires:       qemu-kvm-common 
-Requires:       qemu-kvm-tools 
+Requires:       qemu-kvm-core 
 Requires:       virt-install
 # A node is allowed to host servers and be a live migration target. It is not 
 # allowed to host a database or be a DR host.
@@ -238,18 +242,17 @@ Requires:	anvil-core
 Requires:       bridge-utils 
 Requires:       drbd 
 Requires:       drbd-bash-completion 
-Requires:       drbd-kernel 
 Requires:       drbd-utils 
-Requires:       kernel-doc 
-Requires:       kmod-drbd 
+### NOTE: Disabled only until we get drbd9 building on F28
+#Requires:       drbd-kernel 
+#Requires:       kmod-drbd 
 Requires:       libvirt 
 Requires:       libvirt-daemon 
 Requires:       libvirt-daemon-driver-qemu 
 Requires:       libvirt-daemon-kvm 
 Requires:       libvirt-docs 
 Requires:       qemu-kvm 
-Requires:       qemu-kvm-common 
-Requires:       qemu-kvm-tools 
+Requires:       qemu-kvm-core 
 Requires:       virt-install
 # A DR host is not allowed to be a live-migration target or host a database.
 Conflicts:	anvil-striker
@@ -309,15 +312,25 @@ echo "Enabling and starting apache."
 systemctl enable httpd.service
 systemctl start httpd.service
 restorecon -rv /%{_localstatedir}/www
+if ! $(ls -l /etc/systemd/system/default.target | grep -q graphical); 
+then 
+    echo "Seting graphical interface as default on boot."
+    systemctl set-default graphical.target
+    systemctl enable gdm.service
+fi
+
 echo "Preparing the database"
 anvil-prep-database
+anvil-update-states
 
 # Open access for Striker. The database will be opened after initial setup.
 echo "Opening the web and postgresql ports."
-firewall-cmd --zone=public --add-service=http
-firewall-cmd --zone=public --add-service=http --permanent
-firewall-cmd --zone=public --add-service=postgresql
-firewall-cmd --zone=public --add-service=postgresql --permanent
+firewall-cmd --add-service=http
+firewall-cmd --add-service=http --permanent
+firewall-cmd --add-service=https
+firewall-cmd --add-service=https --permanent
+firewall-cmd --add-service=postgresql
+firewall-cmd --add-service=postgresql --permanent
 
 ### Remove stuff
 %postun core
@@ -364,6 +377,13 @@ systemctl stop postgresql.service
 
 
 %changelog
+* Tue Jul 24 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-11
+- Added a check to enable the graphical target on boot.
+- Updated anvil-striker dependency list to pull in gnome.
+
+* Tue Jul 24 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-10
+- Began switching to Fedora 28 (as an analog for EL8)
+
 * Fri Jul 13 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-9
 - Updated the source tarball.
 

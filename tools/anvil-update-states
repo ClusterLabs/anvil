@@ -128,7 +128,7 @@ sub update_network
 			{
 				### Set some fake values.
 				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
-				$speed  = 100000 if not $speed;
+				$speed  = 100000 if ((not $speed) or ($speed eq "-1"));
 				$duplex = "full" if not $duplex;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					speed  => $speed, 

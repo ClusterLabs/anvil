@@ -389,11 +389,11 @@ Parameters;
 
 This is the file or directory to change the mode on.
 
-=head3 group (optional)
+=head3 group (optional, default is the main group of the user running the program)
 
 This is the group name or UID to set the target to.
 
-=head3 user (optional)
+=head3 user (optional, default is the user running the program)
 
 This is the user name or UID to set the target to.
 
@@ -406,8 +406,8 @@ sub change_owner
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
-	my $group  = defined $parameter->{group}  ? $parameter->{group}  : "";
-	my $user   = defined $parameter->{user}   ? $parameter->{user}   : "";
+	my $group  = defined $parameter->{group}  ? $parameter->{group}  : getgrgid($();
+	my $user   = defined $parameter->{user}   ? $parameter->{user}   : getpwuid($<);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target => $target,
 		group  => $group,
@@ -854,7 +854,7 @@ Parameters;
 
 This is the name of the directory to create.
 
-=head3 group (optional)
+=head3 group (optional, default is the main group of the user running the program)
 
 This is the group name or group ID to set the ownership of the directory to.
 
@@ -878,7 +878,7 @@ If set, the directory will be created on this machine. This must be an IP addres
 
 If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
 
-=head3 user (optional)
+=head3 user (optional, default is the user running the program)
 
 This is the user name or user ID to set the ownership of the directory to.
 
@@ -891,13 +891,13 @@ sub make_directory
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $directory   = defined $parameter->{directory}   ? $parameter->{directory}   : "";
-	my $group       = defined $parameter->{group}       ? $parameter->{group}       : "";
+	my $group       = defined $parameter->{group}       ? $parameter->{group}       : getgrgid($();
 	my $mode        = defined $parameter->{mode}        ? $parameter->{mode}        : "";
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "";
+	my $user        = defined $parameter->{user}        ? $parameter->{user}        : getpwuid($<);
 	my $failed      = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		directory   => $directory,
@@ -1995,7 +1995,7 @@ This is the name of the file to write.
 
 NOTE: The file must include the full directory it will be written into.
 
-=head3 group (optional)
+=head3 group (optional, default is the main group of the user running the program)
 
 This is the group name or group ID to set the ownership of the file to.
 
@@ -2025,7 +2025,7 @@ If set, the file will be written on the target machine. This must be either an I
 
 The file will be written locally in C<< /tmp/<file_name> >>, C<< $anvil->Storage->rsync() >> will be used to copy the file, and finally the local temprary copy will be removed.
 
-=head3 user (optional)
+=head3 user (optional, default is the user running the program)
 
 This is the user name or user ID to set the ownership of the file to.
 
@@ -2043,14 +2043,14 @@ sub write_file
 	
 	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
 	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
-	my $group       = defined $parameter->{group}       ? $parameter->{group}       : "";
+	my $group       = defined $parameter->{group}       ? $parameter->{group}       : getgrgid($();
 	my $mode        = defined $parameter->{mode}        ? $parameter->{mode}        : "";
 	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : 0;
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	my $user        = defined $parameter->{user}        ? $parameter->{user}        : "root";
+	my $user        = defined $parameter->{user}        ? $parameter->{user}        : getpwuid($<);
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $error       = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 

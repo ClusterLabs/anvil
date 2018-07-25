@@ -30,7 +30,7 @@ my $anvil = Anvil::Tools->new();
 
 # Set the log level to 2. Setting 3 slows he program down a LOT.
 $anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 0});
+$anvil->Log->secure({set => 1});
 
 # Read the config and then connect to the database.
 $anvil->Storage->read_config();
@@ -206,7 +206,7 @@ sub process_task
 	}
 	
 	# Show the login screen, if the user isn't logged in.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { logged_in => $logged_in }});
 	if (not $logged_in)
 	{
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-login", variables => {
@@ -271,24 +271,22 @@ sub process_sync_page
 	# This handles checkboxes
 	if (defined $anvil->data->{cgi}{new_peer_ping}{value})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> cgi::new_peer_ping::value" => $anvil->data->{cgi}{new_peer_ping}{value} }});
-		$anvil->data->{cgi}{new_peer_ping}{value} = $anvil->data->{cgi}{new_peer_ping}{value} eq "off" ? 0 : 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< cgi::new_peer_ping::value" => $anvil->data->{cgi}{new_peer_ping}{value} }});
+		$anvil->data->{cgi}{new_peer_ping}{value} = "" if $anvil->data->{cgi}{new_peer_ping}{value} ne "on";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_ping::value" => $anvil->data->{cgi}{new_peer_ping}{value} }});
 	}
 	else
 	{
-		$anvil->data->{cgi}{new_peer_ping}{value} = 0;
+		$anvil->data->{cgi}{new_peer_ping}{value} = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_ping::value" => $anvil->data->{cgi}{new_peer_ping}{value} }});
 	}
 	if (defined $anvil->data->{cgi}{new_peer_bidirection}{value})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
-		$anvil->data->{cgi}{new_peer_bidirection}{value} = $anvil->data->{cgi}{new_peer_bidirection}{value} eq "off" ? 0 : 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
+		$anvil->data->{cgi}{new_peer_bidirection}{value} = "" if $anvil->data->{cgi}{new_peer_bidirection}{value} ne "on";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
 	}
 	else
 	{
-		$anvil->data->{cgi}{new_peer_bidirection}{value} = 0;
+		$anvil->data->{cgi}{new_peer_bidirection}{value} = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
 	}
 	
@@ -296,6 +294,12 @@ sub process_sync_page
 	if (($anvil->data->{cgi}{new_peer_access}{value}) && ($anvil->data->{cgi}{new_peer_password}{value} ne ""))
 	{
 		add_sync_peer($anvil);
+		
+		if ($anvil->data->{form}{body})
+		{
+			# We're done
+			return(0);
+		}
 	}
 	elsif ($anvil->data->{cgi}{action}{value} eq "remove")
 	{
@@ -425,16 +429,16 @@ sub add_sync_peer
 	my $ssh_tcp   = 22;
 	my $peer_uuid = "";
 	my $peer_host = "";
-	if ($anvil->data->{cgi}{new_peer_access}{value} =~ /,ssh=(\d+)$/)
+	if ($host =~ /,ssh=(\d+)$/)
 	{
-		$ssh_tcp                                    =  $1;
-		$anvil->data->{cgi}{new_peer_access}{value} =~ s/,ssh=\d+$//;
+		$ssh_tcp =  $1;
+		$host    =~ s/,ssh=\d+$//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			ssh_tcp                       => $ssh_tcp,
-			"cgi::new_peer_access::value" => $anvil->data->{cgi}{new_peer_access}{value}, 
+			ssh_tcp => $ssh_tcp,
+			host    => $host, 
 		}});
 	}
-	if ($anvil->data->{cgi}{new_peer_access}{value} =~ /^(.*?)\@(.*?):(\d+)$/)
+	if ($host =~ /^(.*?)\@(.*?):(\d+)$/)
 	{
 		$user = $1;
 		$host = $2;
@@ -445,7 +449,7 @@ sub add_sync_peer
 			user => $user, 
 		}});
 	}
-	elsif ($anvil->data->{cgi}{new_peer_access}{value} =~ /^(.*?)\@(.*?)$/)
+	elsif ($host =~ /^(.*?)\@(.*?)$/)
 	{
 		$user = $1;
 		$host = $2;
@@ -454,7 +458,7 @@ sub add_sync_peer
 			user => $user, 
 		}});
 	}
-	elsif ($anvil->data->{cgi}{new_peer_access}{value} =~ /^(.*?):(\d+)$/)
+	elsif ($host =~ /^(.*?):(\d+)$/)
 	{
 		$host = $1;
 		$port = $2;
@@ -466,10 +470,14 @@ sub add_sync_peer
 	
 	# Is the host a domain or IP?
 	# If so, and 'bi-directional' is set, verify we can ssh into the peer.
-	if ((not $anvil->Validate->is_domain_name({name => $host})) or 
-	    (not $anvil->Validate->is_ipv4({ip => $host}))          or 
-	    ($port < 1)                                             or 
-	    ($port > 65536))
+	my $is_domain = $anvil->Validate->is_domain_name({name => $host});
+	my $is_ipv4   = $anvil->Validate->is_ipv4({ip => $host});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		is_domain => $is_domain,
+		is_ipv4   => $is_ipv4,
+		port      => $port,
+	}});
+	if (((not $is_domain) && (not $is_ipv4)) or ($port < 1) or ($port > 65536))
 	{
 		# Bad host.
 		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0002"}) }});
@@ -477,11 +485,16 @@ sub add_sync_peer
 	else
 	{
 		# Can we connect to the peer?
-		(my $error, $peer_uuid) = $anvil->Remote->call({
+		my $shell_call = $anvil->data->{path}{exe}{dmidecode}." --string system-uuid";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+		my ($error, $output) = $anvil->Remote->call({
+			debug      => 2,
 			password   => $anvil->data->{cgi}{new_peer_password}{value}, 
 			target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
-			shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid",
+			shell_call => $shell_call,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error => $error }});
 		if ($error)
 		{
 			# No access
@@ -490,38 +503,83 @@ sub add_sync_peer
 		else
 		{
 			# We got the peer's UUID. Get the hostname as well.
-			$peer_uuid = lc($peer_uuid);
+			$peer_uuid = lc($output->[0]);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_uuid => $peer_uuid }});
 			
-			(my $error, $peer_host) = $anvil->Remote->call({
-				password   => $anvil->data->{cgi}{new_peer_password}{value}, 
-				target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
-				shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host => $peer_host }});
+			if (not $anvil->Validate->is_uuid({uuid => $peer_uuid}))
+			{
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $peer_uuid }}) }});
+			}
+			else
+			{
+				my ($error, $output) = $anvil->Remote->call({
+					debug      => 2,
+					password   => $anvil->data->{cgi}{new_peer_password}{value}, 
+					target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
+					shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
+				});
+				
+				$peer_host = $output->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host => $peer_host }});
+			}
 		}
 	}
 	
-	# Lastly, verify we can access the peer database. This will involve writting out a .pgpass file, then making a local system call.
-	my $password  = $anvil->data->{cgi}{new_peer_password}{value};
-	   $password  =~ s/:/\:/g;
-	my $pgpass    = $host.":".$port.":".$name.":".$user.":".$password;
-	
-	# Write out the .pgpass file.
-	# TODO: Left off here, write out .pgpass, set the mode to 0600, then call 'psql --host 10.1.4.1 --port 5432 --dbname anvil --username admin --no-password --command "SELECT 1" '
-	
-	my $db_access = $anvil->System->call({uuid => $peer_uuid});
-	
-	# Is it confirmed?
-	if (not $anvil->data->{cgi}{confirm}{value})
+	# Now, verify we can access the peer database. This will involve writting out a .pgpass file, then making a local system call.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+	if (not $anvil->data->{form}{error_massage})
 	{
-		# Show the screen the confirm the addition.
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-new-peer", variables => { 
-			user
+		my $pgpass_file = "/tmp/.pgpass"; 
+		my $password    =  $anvil->data->{cgi}{new_peer_password}{value};
+		$password    =~ s/:/\:/g;
+		my $body        =  $host.":".$port.":".$name.":".$user.":".$password;
+		$anvil->Storage->write_file({
+			file   => $pgpass_file, 
+			body   => $body, 
+			mode   => "0600", 
+			secure => 1, 
+		});
+		
+		# This will return '1' only, if it works.
+		my $db_access = $anvil->System->call({shell_call => "PGPASSFILE=\"".$pgpass_file."\" ".$anvil->data->{path}{exe}{psql}." --host ".$host." --port ".$port." --dbname ".$name." --username ".$user." --no-password --tuples-only --no-align --command \"SELECT 1\""});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_access => $db_access }});
+		if ($db_access ne "1")
+		{
+			# Failed to connect.
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0004"}) }});
+		}
+		
+		# Delete the pgpass file.
+		#unlink $pgpass_file;
+	}
+	
+	# If an error was set, clear the 'save' and 'confirm' values.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+	if ($anvil->data->{form}{error_massage})
+	{
+		$anvil->data->{cgi}{save}{value}    = "";
+		$anvil->data->{cgi}{confirm}{value} = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::save::value"    => $anvil->data->{cgi}{save}{value},
+			"cgi::confirm::value" => $anvil->data->{cgi}{confirm}{value},
 		}});
 	}
 	else
 	{
+		# Things look good. Is the save confirmed?
+		if ($anvil->data->{cgi}{confirm}{value})
+		{
+			# OK, save!
+		}
+		else
+		{
+			# Show the screen the confirm the addition.
+			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-new-peer", variables => { 
+				access        => $user."@".$host.":".$port,
+				ping          => $anvil->data->{cgi}{new_peer_ping}{value}        ? "#!string!unit_0001!#" : "#!string!unit_0002!#",
+				bidirectional => $anvil->data->{cgi}{new_peer_bidirection}{value} ? "#!string!unit_0001!#" : "#!string!unit_0002!#",
+			}});
+		}
 	}
 	
 	return(0);
@@ -772,8 +830,8 @@ ORDER BY
 	{
 		my $ip_key      = $this_net."_ip";
 		my $subnet_key  = $this_net."_subnet";
-		my $iface1_key  = $this_net."_iface1_mac";
-		my $iface2_key  = $this_net."_iface2_mac";
+		my $iface1_key  = $this_net."_link1_mac_to_set";
+		my $iface2_key  = $this_net."_link2_mac_to_set";
 		my $ip          = $anvil->data->{cgi}{$ip_key}{value};
 		my $subnet      = $anvil->data->{cgi}{$subnet_key}{value};
 		my $iface1_mac  = $anvil->data->{cgi}{$iface1_key}{value};
@@ -800,6 +858,7 @@ ORDER BY
 			$template                       .= "_with_gateway";
 			$anvil->data->{cgi}{dns}{value} =  "--" if not $anvil->data->{cgi}{dns}{value};
 		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { template => $template }});
 		$networks .= $anvil->Template->get({file => "config.html", name => $template, variables => {
 			column     => $anvil->Words->string({key => $column, variables => { number => $link_number }}),
 			ip_address => $say_ip,
@@ -819,6 +878,7 @@ ORDER BY
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matched_ip => $matched_ip }});
 		}
 	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
 	
 	# If the IP is going to change, warn the user.
 	if (not $matched_ip)
@@ -832,7 +892,7 @@ ORDER BY
 		step1_welcome_message_id => "",
 		organization             => $anvil->data->{cgi}{organization}{value},
 		prefix                   => $anvil->data->{cgi}{prefix}{value},
-		domain                   => $anvil->data->{cgi}{domain}{value},
+		hostname                 => $anvil->data->{cgi}{hostname}{value},
 		striker_user             => $anvil->data->{cgi}{striker_user}{value},
 		striker_password         => $anvil->data->{cgi}{striker_password}{value},
 		networks                 => $networks,

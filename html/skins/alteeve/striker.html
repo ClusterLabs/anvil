@@ -4,36 +4,20 @@
 				<div id="confirm-new-peer">
 				<tr>
 					<td colspan="2">
-						About to add a new peer
+						#!string!striker_0078!#
 					</td>
 				</tr>
 				<tr>
 					<td>
-						Striker User:
+						#!string!striker_0079!#:
 					</td>
 					<td class="fixed_width">
-						#!variable!user!#
+						#!variable!access!#
 					</td>
 				</tr>
 				<tr>
 					<td>
-						Host:
-					</td>
-					<td class="fixed_width">
-						#!variable!host!#
-					</td>
-				</tr>
-				<tr>
-					<td>
-						Port:
-					</td>
-					<td class="fixed_width">
-						#!variable!port!#
-					</td>
-				</tr>
-				<tr>
-					<td>
-						Ping before Connect:
+						#!string!striker_0080!#:
 					</td>
 					<td class="fixed_width">
 						#!variable!ping!#
@@ -41,7 +25,7 @@
 				</tr>
 				<tr>
 					<td>
-						Bi-directional:
+						#!string!striker_0072!#:
 					</td>
 					<td class="fixed_width">
 						#!variable!bidirectional!#
@@ -49,11 +33,18 @@
 				</tr>
 				<tr>
 					<td colspan="5" class="subtle_text" style="text-align: center;">
-						When the peer is added, all data from this host will be copied to the peer's database. Depending on how much data this is, how fast the connection is, and how fast the local machine is, this sync process could take a little time.
+						#!string!striker_0081!#
 					</td>
 				</tr>
 				</div>
-				<input type="hidden" name="cgi_list" id="cgi_list" value="username,password,login">
+				<input type="hidden" name="new_peer_access"      id="new_peer_access"      value="#!data!cgi::new_peer_access::value!#">
+				<input type="hidden" name="new_peer_password"    id="new_peer_password"    value="#!data!cgi::new_peer_password::value!#">
+				<input type="hidden" name="new_peer_bidirection" id="new_peer_bidirection" value="#!data!cgi::new_peer_bidirection::value!#">
+				<input type="hidden" name="new_peer_ping"        id="new_peer_ping"        value="#!data!cgi::new_peer_ping::value!#">
+				<input type="hidden" name="striker"              id="striker"              value="#!data!cgi::striker::value!#">
+				<input type="hidden" name="task"                 id="task"                 value="#!data!cgi::task::value!#">
+				<input type="hidden" name="save"                 id="save"                 value="#!data!cgi::save::value!#">
+				<input type="hidden" name="confirm"              id="confirm"              value="true">
 				</form>
 			</table>
 <!-- end confirm-new-peer -->
