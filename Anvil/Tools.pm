@@ -220,7 +220,7 @@ sub new
 	$anvil->Get->switches;
 	
 	# Read in the local Anvil! version.
-	
+	#...
 	
 	return ($self);
 }

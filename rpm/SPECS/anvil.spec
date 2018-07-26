@@ -25,6 +25,7 @@ WARNING: This is an alpha-stage project. Many features are missing and this
 Summary:        Alteeve's Anvil! Core package
 Requires:       bash-completion 
 Requires:       bind-utils 
+Requires:       dmidecode
 Requires:       fence-agents-all 
 Requires:       fence-agents-virsh 
 Requires:       firewalld

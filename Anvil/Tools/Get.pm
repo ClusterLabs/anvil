@@ -440,7 +440,7 @@ sub date_and_time
 
 =head2 host_uuid
 
-This returns the local host's system UUID (as reported by 'dmidecode'). 
+This returns the local host's system UUID (as reported by 'dmidecode'). If the host UUID isn't available, and the program is not running with root priviledges, C<< #!error!# >> is returned.
 
  print "This host's UUID: [".$anvil->Get->host_uuid."]\n";
 
@@ -490,7 +490,8 @@ sub host_uuid
 			if (not -e $anvil->data->{path}{data}{host_uuid})
 			{
 				# We're done.
-				die $THIS_FILE." ".__LINE__."; UUID cache file: [".$anvil->data->{path}{data}{host_uuid}."] doesn't exists and we're not running as root. Unable to proceed.\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0187"});
+				return("#!error!#");
 			}
 			else
 			{

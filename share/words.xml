@@ -285,6 +285,7 @@ The database connection error was:
 		<key name="log_0184">Theew was a failed login attempt from: [#!variable!user_agent!#], trying to log in as: [#!variable!user!#]. log in rejected.</key>
 		<key name="log_0185"><![CDATA[<unknown>]]></key>	<!-- Used in some cases when a variable isn't known -->
 		<key name="log_0186"><![CDATA[<suppressed>]]></key>	<!-- Used in some cases when a variable isn't known -->
+		<key name="log_0187">UUID cache file: [#!data!path::data::host_uuid!#] doesn't exists and we're not running as root. Unable to proceed.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

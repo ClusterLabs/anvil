@@ -35,12 +35,22 @@ $anvil->Log->secure({set => 1});
 # Read the config and then connect to the database.
 $anvil->Storage->read_config();
 
-# Make sure I can read the host UUID.
-if (not $anvil->Get->host_uuid)
+### Setup some variables.
+$anvil->data->{skin}{url}           = $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin;
+$anvil->data->{form}{body}          = "";
+$anvil->data->{form}{error_massage} = "&nbsp;";
+$anvil->data->{form}{back_link}     = "";
+$anvil->data->{form}{refresh_link}  = "";
+
+# Read in any CGI variables, if needed.
+$anvil->Get->cgi();
+
+# If the system hasn't initialized, there may be no host.uuid, and we'll need a better error to show the 
+# user.
+if (not -e $anvil->data->{path}{data}{host_uuid})
 {
-	# Too early, exit.
-	print $anvil->Words->string({key => "error_0002"});
-	$anvil->nice_exit({exit_code => 1});
+	$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0002"}) }});
+	print_and_exit($anvil);
 }
 
 my $connections = $anvil->Database->connect({
@@ -51,27 +61,9 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "
 if (not $connections)
 {
 	# No databases, exit.
-	print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
 	print $anvil->Words->string({key => "error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
-
-# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
-$| = 1;
-
-### Setup some variables.
-$anvil->data->{form}{error_massage} = "&nbsp;";
-$anvil->data->{form}{back_link}     = "";
-$anvil->data->{form}{refresh_link}  = "";
-
-# Read in any CGI variables, if needed.
-$anvil->Get->cgi();
-
-$anvil->data->{skin}{url}  = $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin;
-$anvil->data->{form}{body} = "";
-
-# Time for the header
-my $header = $anvil->Template->get({file => "main.html", name => "header", variables => { language => $anvil->Words->language }});
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $available  = check_availability($anvil);
@@ -107,60 +99,72 @@ else
 	$refresh_button = $anvil->Template->get({file => "main.html", name => "refresh_button_off"});
 }
 
-my $back_button = "";
-if ($anvil->data->{form}{back_link})
-{
-	my $url = $THIS_FILE;
-	if ($anvil->data->{form}{back_link} ne "?")
-	{
-		# Turn on the back button, 
-		$url = $anvil->data->{form}{back_link};
-	}
-	$back_button = $anvil->Template->get({file => "main.html", name => "back_button_on", variables => { url => $url }});
-}
-else
-{
-	# Back is disabled.
-	$back_button = $anvil->Template->get({file => "main.html", name => "back_button_off"});
-}
-my $left_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_left", variables => {
-	back_button       => $back_button,
-	refresh_button    => $refresh_button, 
-}});
-
-my $right_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_right", variables => {
-	anvil_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})     : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
-	striker_button   => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "striker_button_on"})   : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
-	configure_button => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "configure_button_on"}) : $anvil->Template->get({file => "main.html", name => "configure_button_off"}),
-	user_button      => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})      : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
-}});
-my $footer = $anvil->Template->get({file => "main.html", name => "footer", variables => {
-	user => $anvil->data->{sys}{users}{user_name} ? "#!string!message_0034!#" : "&nbsp;",
-}});
-
-# Display the page.
-my $body = $anvil->Template->get({debug => 3, file => "main.html", name => "master", variables => {
-	header            => $header,
-	skin_url          => $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin,
-	center_top_bar    => $anvil->data->{form}{error_massage},
-	right_top_bar     => $right_buttons,
-	left_top_bar      => $left_buttons,
-	center_body       => $anvil->data->{form}{body},
-	left_bottom_bar   => "&nbsp;",
-	center_bottom_bar => "&nbsp;",
-	right_bottom_bar  => "&nbsp;",
-	footer            => $footer,
-}});
-
-print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
-print "$body";
-
-$anvil->nice_exit({exit_code => 0});
+print_and_exit($anvil);
 
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub print_and_exit
+{
+	my ($anvil) = @_;
+
+	# Time for the header
+	my $header = $anvil->Template->get({file => "main.html", name => "header", variables => { language => $anvil->Words->language }});
+	
+	my $back_button = "";
+	if ($anvil->data->{form}{back_link})
+	{
+		my $url = $THIS_FILE;
+		if ($anvil->data->{form}{back_link} ne "?")
+		{
+			# Turn on the back button, 
+			$url = $anvil->data->{form}{back_link};
+		}
+		$back_button = $anvil->Template->get({file => "main.html", name => "back_button_on", variables => { url => $url }});
+	}
+	else
+	{
+		# Back is disabled.
+		$back_button = $anvil->Template->get({file => "main.html", name => "back_button_off"});
+	}
+	my $left_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_left", variables => {
+		back_button       => $back_button,
+		refresh_button    => $refresh_button, 
+	}});
+
+	my $right_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_right", variables => {
+		anvil_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})     : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
+		striker_button   => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "striker_button_on"})   : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
+		configure_button => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "configure_button_on"}) : $anvil->Template->get({file => "main.html", name => "configure_button_off"}),
+		user_button      => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})      : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
+	}});
+	my $footer = $anvil->Template->get({file => "main.html", name => "footer", variables => {
+		user => $anvil->data->{sys}{users}{user_name} ? "#!string!message_0034!#" : "&nbsp;",
+	}});
+
+	# Display the page.
+	my $body = $anvil->Template->get({debug => 3, file => "main.html", name => "master", variables => {
+		header            => $header,
+		skin_url          => $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin,
+		center_top_bar    => $anvil->data->{form}{error_massage},
+		right_top_bar     => $right_buttons,
+		left_top_bar      => $left_buttons,
+		center_body       => $anvil->data->{form}{body},
+		left_bottom_bar   => "&nbsp;",
+		center_bottom_bar => "&nbsp;",
+		right_bottom_bar  => "&nbsp;",
+		footer            => $footer,
+	}});
+
+	print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
+	print "$body";
+
+	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
 
 # This handles all the daily tasks of Striker.
 sub process_task
@@ -1150,7 +1154,7 @@ ORDER BY
 			});
 			
 			# Assemble the form
-			$interface_form .= $anvil->Template->get({file => "main.html", name => "single_interface_form", variables => {
+			$interface_form .= $anvil->Template->get({file => "config.html", name => "single_interface_form", variables => {
 				field                => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
 				description          => "#!string!striker_0023!#",
 				ip_key               => $this_ip_key,
