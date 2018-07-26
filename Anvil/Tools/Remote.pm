@@ -293,6 +293,8 @@ sub call
 		ssh_fh      => $ssh_fh,
 		start_time  => $start_time, 
 		remote_user => $remote_user,
+		port        => $port, 
+		target      => $target,
 	}});
 	
 	if (not $shell_call)
@@ -409,8 +411,7 @@ sub call
 		### TODO: Make the timeout user-configurable to handle slow connections. Make it 
 		###       'sys::timeout::{all|host} = x'
 		my $start_time = [gettimeofday];
-		$ssh_fh = Net::SSH2->new();
-		$ssh_fh->timeout(1000);
+		$ssh_fh = Net::SSH2->new(timeout => 1000);
 		if (not $ssh_fh->connect($target, $port))
 		{
 			
