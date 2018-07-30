@@ -95,6 +95,22 @@ tr.data_row {
 	border-top: 1px solid #5f5f5f;
 }
 
+td.button_cell {
+	padding:    10px 5px;
+	text-align: center;
+}
+
+td.top_padded_cell {
+	padding-top:    5px;
+	padding-left:   5px;
+	padding-right:  5px;
+	padding-bottom: 0px; 
+}
+
+td.padded_cell {
+	padding: 0px 5px;
+}
+
 td.column_header {
 	text-align: left;
 	color:      #9ba0a5;

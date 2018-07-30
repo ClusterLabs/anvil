@@ -404,18 +404,22 @@ sub call
 	
 	if ($ssh_fh !~ /^Net::SSH2/)
 	{
-		use Time::HiRes qw (usleep ualarm gettimeofday tv_interval nanosleep
-                          clock_gettime clock_getres clock_nanosleep clock
-                          stat);
+# 		use Time::HiRes qw (usleep ualarm gettimeofday tv_interval nanosleep
+#                           clock_gettime clock_getres clock_nanosleep clock
+#                           stat);
 		### NOTE: Nevermind, timeout isn't supported... >_< Find a newer version if IO::Socket::IP?
 		### TODO: Make the timeout user-configurable to handle slow connections. Make it 
 		###       'sys::timeout::{all|host} = x'
-		my $start_time = [gettimeofday];
+# 		my $start_time = [gettimeofday];
 		$ssh_fh = Net::SSH2->new(timeout => 1000);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			ssh_fh => $ssh_fh,
+			target => $target, 
+			port   => $port, 
+		}});
 		if (not $ssh_fh->connect($target, $port))
 		{
-			
-			my $connect_time = tv_interval ($start_time, [gettimeofday]);
+#			my $connect_time = tv_interval ($start_time, [gettimeofday]);
 			#print "[".$connect_time."] - Connection failed time to: [$target:$port]\n";
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", list => { 
@@ -454,7 +458,7 @@ sub call
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables});
 		}
 		
-		my $connect_time = tv_interval ($start_time, [gettimeofday]);
+# 		my $connect_time = tv_interval ($start_time, [gettimeofday]);
 		#print "[".$connect_time."] - Connect time to: [$target:$port]\n";
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error, ssh_fh => $ssh_fh }});
@@ -519,8 +523,49 @@ sub call
 		# We need to open a channel every time for 'exec' calls. We want to keep blocking off, but we
 		# need to enable it for the channel() call.
 		   $ssh_fh->blocking(1);
-		my $channel = $ssh_fh->channel() or $ssh_fh->die_with_error;
-		   $ssh_fh->blocking(0);
+		my $channel = $ssh_fh->channel(); # or $ssh_fh->die_with_error;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { channel => $channel }});
+		if (not $channel)
+		{
+			my $try = 0;
+			my $ok  = 0;
+			until ($ok)
+			{
+				sleep 1;
+				if ($try > 5)
+				{
+					### Give up.
+					# If we're in a web interface, set 'form::error_massage'.
+					my $message = $anvil->Words->string({key => "striker_warning_0006", variables => { 
+						target => $remote_user."\@".$target,
+						error  => $ssh_fh->error, 
+					} });
+					   $error   = $message;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $message});
+					if ($anvil->environment eq" html")
+					{
+						$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+					}
+					return($error, []);
+				}
+				
+				$channel = $ssh_fh->channel(); # or $ssh_fh->die_with_error;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { channel => $channel }});
+				
+				if ($channel)
+				{
+					$ok = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ok => $ok }});
+				}
+				else
+				{
+					$try++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { try => $try }});
+				}
+			}
+		}
+		$ssh_fh->blocking(0);
 		
 		# Make the shell call
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { channel => $channel }});

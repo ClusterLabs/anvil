@@ -38,7 +38,7 @@ $anvil->Storage->read_config();
 ### Setup some variables.
 $anvil->data->{skin}{url}           = $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin;
 $anvil->data->{form}{body}          = "";
-$anvil->data->{form}{error_massage} = "&nbsp;";
+$anvil->data->{form}{error_massage} = "";
 $anvil->data->{form}{back_link}     = "";
 $anvil->data->{form}{refresh_link}  = "";
 
@@ -148,7 +148,7 @@ sub print_and_exit
 	my $body = $anvil->Template->get({debug => 3, file => "main.html", name => "master", variables => {
 		header            => $header,
 		skin_url          => $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin,
-		center_top_bar    => $anvil->data->{form}{error_massage},
+		center_top_bar    => $anvil->data->{form}{error_massage} ? $anvil->data->{form}{error_massage} : "&nbsp;",
 		right_top_bar     => $right_buttons,
 		left_top_bar      => $left_buttons,
 		center_body       => $anvil->data->{form}{body},
@@ -538,10 +538,11 @@ sub add_sync_peer
 		$password    =~ s/:/\:/g;
 		my $body        =  $host.":".$port.":".$name.":".$user.":".$password;
 		$anvil->Storage->write_file({
-			file   => $pgpass_file, 
-			body   => $body, 
-			mode   => "0600", 
-			secure => 1, 
+			file      => $pgpass_file, 
+			body      => $body, 
+			mode      => "0600", 
+			secure    => 1, 
+			overwrite => 1,
 		});
 		
 		# This will return '1' only, if it works.
@@ -554,7 +555,7 @@ sub add_sync_peer
 		}
 		
 		# Delete the pgpass file.
-		#unlink $pgpass_file;
+		unlink $pgpass_file;
 	}
 	
 	# If an error was set, clear the 'save' and 'confirm' values.

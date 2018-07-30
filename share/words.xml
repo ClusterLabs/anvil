@@ -406,6 +406,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0079">Peer</key>
 		<key name="striker_0080">Ping before connect</key>
 		<key name="striker_0081">The test connection was successful. When saved, the resynchronization process might take a few minutes, and cause maintenance periods where some features are offline until complete.</key>
+		<key name="striker_0082">Confirm</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -417,6 +418,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_warning_0003">Test access to the peer (using SSH) failed. There may be details in the log file.</key>
 		<key name="striker_warning_0004">Accessing the peer over SSH worked, but a test connection to the database failed.</key>
 		<key name="striker_warning_0005">There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
+		<key name="striker_warning_0006">An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

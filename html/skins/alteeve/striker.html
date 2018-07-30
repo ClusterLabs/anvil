@@ -1,52 +1,66 @@
 <!-- start confirm-new-peer -->
-			<table>
-				<form name="confirm-new-peer" action="" method="post">
-				<div id="confirm-new-peer">
+			<table align="center">
 				<tr>
-					<td colspan="2">
+					<td class="menu_title">
 						#!string!striker_0078!#
 					</td>
 				</tr>
 				<tr>
-					<td>
-						#!string!striker_0079!#:
-					</td>
-					<td class="fixed_width">
-						#!variable!access!#
-					</td>
-				</tr>
-				<tr>
-					<td>
-						#!string!striker_0080!#:
-					</td>
-					<td class="fixed_width">
-						#!variable!ping!#
-					</td>
-				</tr>
-				<tr>
-					<td>
-						#!string!striker_0072!#:
-					</td>
-					<td class="fixed_width">
-						#!variable!bidirectional!#
-					</td>
-				</tr>
-				<tr>
-					<td colspan="5" class="subtle_text" style="text-align: center;">
+					<td class="menu_details">
 						#!string!striker_0081!#
 					</td>
 				</tr>
-				</div>
-				<input type="hidden" name="new_peer_access"      id="new_peer_access"      value="#!data!cgi::new_peer_access::value!#">
-				<input type="hidden" name="new_peer_password"    id="new_peer_password"    value="#!data!cgi::new_peer_password::value!#">
-				<input type="hidden" name="new_peer_bidirection" id="new_peer_bidirection" value="#!data!cgi::new_peer_bidirection::value!#">
-				<input type="hidden" name="new_peer_ping"        id="new_peer_ping"        value="#!data!cgi::new_peer_ping::value!#">
-				<input type="hidden" name="striker"              id="striker"              value="#!data!cgi::striker::value!#">
-				<input type="hidden" name="task"                 id="task"                 value="#!data!cgi::task::value!#">
-				<input type="hidden" name="save"                 id="save"                 value="#!data!cgi::save::value!#">
-				<input type="hidden" name="confirm"              id="confirm"              value="true">
-				</form>
-			</table>
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<table align="center" class="data_table">
+							<form name="confirm-new-peer" action="" method="post">
+							<div id="confirm-new-peer">
+							<tr>
+								<td class="top_padded_cell">
+									#!string!striker_0079!#:
+								</td>
+								<td class="top_padded_cell" class="fixed_width">
+									#!variable!access!#
+								</td>
+							</tr>
+							<tr>
+								<td class="padded_cell">
+									#!string!striker_0080!#:
+								</td>
+								<td class="padded_cell" class="fixed_width">
+									#!variable!ping!#
+								</td>
+							</tr>
+							<tr>
+								<td class="padded_cell">
+									#!string!striker_0072!#:
+								</td>
+								<td class="padded_cell" class="fixed_width">
+									#!variable!bidirectional!#
+								</td>
+							</tr>
+							<tr>
+								<td class="button_cell" colspan="2">
+									<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#">
+								</td>
+							</tr>
+							<input type="hidden" name="new_peer_access"      id="new_peer_access"      value="#!data!cgi::new_peer_access::value!#">
+							<input type="hidden" name="new_peer_password"    id="new_peer_password"    value="#!data!cgi::new_peer_password::value!#">
+							<input type="hidden" name="new_peer_bidirection" id="new_peer_bidirection" value="#!data!cgi::new_peer_bidirection::value!#">
+							<input type="hidden" name="new_peer_ping"        id="new_peer_ping"        value="#!data!cgi::new_peer_ping::value!#">
+							<input type="hidden" name="striker"              id="striker"              value="#!data!cgi::striker::value!#">
+							<input type="hidden" name="task"                 id="task"                 value="#!data!cgi::task::value!#">
+							<input type="hidden" name="save"                 id="save"                 value="#!data!cgi::save::value!#">
+							</form>
+							</div>
+						</table>
+					</td>
+				</tr>
 <!-- end confirm-new-peer -->
 
 <!-- start striker-login -->
@@ -205,22 +219,22 @@
 #!variable!peer_table!#
 						</tr>
 						<tr>
-							<td style="padding: 0px 5px;">
+							<td class="padded_cell">
 								<input type="text" id="new_peer_access" name="new_peer_access" placeholder="#!string!striker_0069!#" value="#!variable!new_peer_access!#" readonly onfocus="this.removeAttribute('readonly');" />
 							</td>
-							<td style="padding: 0px 5px;">
+							<td class="padded_cell">
 								<!-- To prevent browsers from offering to save the user/password, we'll set the password to a text field and use css to obfuscate echoing back what the user typed -->
 								<input type="text" id="new_peer_password" name="new_peer_password" placeholder="#!string!striker_0051!#" value="#!variable!new_peer_password!#" readonly onfocus="this.removeAttribute('readonly');" style="-webkit-text-security: disc;" />
 							</td>
-							<td style="padding: 0px 5px;">
+							<td class="padded_cell">
 								#!string!striker_0071!#: <input type="checkbox" id="new_peer_ping" name="new_peer_ping" checked />
 							</td>
-							<td style="padding: 0px 5px;">
+							<td class="padded_cell">
 								#!string!striker_0072!#: <input type="checkbox" id="new_peer_bidirection" name="new_peer_bidirection" checked />
 							</td>
 						</tr>
 						<tr>
-							<td style="padding: 10px 5px;" colspan="4" align="center">
+							<td class="button_cell" colspan="4" align="center">
 								<input type="submit" id="save" name="save" value="#!string!striker_0067!#" />
 							</td>
 						</tr>
@@ -271,16 +285,16 @@
 
 <!-- start striker-sync-entry -->
 						<tr>
-							<td width="25%" style="padding: 0px 5px;">
+							<td width="25%" class="padded_cell">
 								#!variable!access!#
 							</td>
-							<td width="25%" style="padding: 0px 5px;">
+							<td width="25%" class="padded_cell">
 								#!variable!password!#
 							</td>
-							<td width="25%" style="padding: 0px 5px;">
+							<td width="25%" class="padded_cell">
 								#!string!striker_0071!# <input type="checkbox" id="#!variable!access!#_ping" name="#!variable!access!#_ping" #!variable!ping_checked!# />
 							</td>
-							<td width="25%" style="padding: 0px 5px;" align="center">
+							<td width="25%" class="padded_cell" align="center">
 								<a href="striker=true&task=sync&delete=#!variable!access!#" id="#!variable!access!#_delete" class="button">#!string!striker_0068!#"<a/>
 							</td>
 						</tr>
@@ -288,10 +302,10 @@
 
 <!-- start striker-sync-inbound -->
 						<tr>
-							<td width="25%" style="padding: 0px 5px;" class="code">
+							<td width="25%" class="padded_cell" class="code">
 								#!variable!access!#
 							</td>
-							<td width="75%" style="padding: 0px 5px;" colspan="3">
+							<td width="75%" class="padded_cell" colspan="3">
 								#!variable!note!#
 							</td>
 						</tr>
