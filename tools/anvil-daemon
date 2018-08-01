@@ -13,6 +13,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Proc::Simple;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -24,14 +25,22 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 1});
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+
+# Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
+# is to setup the database server.
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132", variables => { "sys::db_connections" => $anvil->data->{sys}{db_connections} }});
 
 # There are some things we only want to run on (re)start and don't need to always run.
 run_once($anvil);
 
 # Calculate my sum so that we can exit if it changes later.
 $anvil->Storage->record_md5sums;
+
+# Disconnect. We'll reconnect inside the loop
+$anvil->Database->disconnect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132", variables => { "sys::db_connections" => $anvil->data->{sys}{db_connections} }});
 
 # These are the things we always want running.
 while(1)
@@ -62,7 +71,8 @@ $anvil->nice_exit({code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-# These are tools that don't need to constantly run.
+# These are tools that don't need to constantly run. They'll typically run when the server starts up or the
+# daemon is restarted or reloaded.
 sub run_once
 {
 	my ($anvil) = @_;
@@ -84,12 +94,157 @@ sub keep_running
 {
 	my ($anvil) = @_;
 	
+	# Check for jobs that were running and now exited.
+	if (exists $anvil->data->{processes})
+	{
+		foreach my $job_uuid (%{$anvil->data->{jobs}{handles}})
+		{
+			# If it's not a handle, delete it.
+			my $running = $anvil->data->{jobs}{handles}{$job_uuid}->poll();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				"jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid},
+				running                      => $running, 
+			}});
+			
+			# If it's not running, update the table to clear the 'job_picked_up_by' column.
+			if (not $running)
+			{
+				my $exit_status = $anvil->data->{jobs}{handles}{$job_uuid}->exit_status();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { exit_status => $exit_status }});
+				
+				# Free up memory
+				$anvil->data->{jobs}{handles}{$job_uuid}->cleanup();
+				
+				clear_job($anvil, $job_uuid);
+			}
+		}
+	}
+	
 	# Update hardware state files.
 	update_state_file($anvil);
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
+	run_jobs($anvil);
 	
-	# Check the local network and running services and tune the firewall as things change.
+	return(0);
+}
+
+# This clears the 'job_picked_up_by'.
+sub clear_job
+{
+	my ($anvil, $job_uuid) = @_;
+	
+	my $query = "
+UPDATE 
+    jobs 
+SET 
+    job_picked_up_by = '0', 
+    modified_date    = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    job_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	
+	return(0);
+}
+
+# This will check for any jobs that aren't at 100%. For each found, if 'picked_up_by' is set, a check is made
+# to see if the PID is still alive. If it isn't, or if 'picked_up_by' is not set, the appropriate tool is
+# invoked to handle it.
+sub run_jobs
+{
+	my ($anvil) = @_;
+	
+	# Get a list of pending or incomplete jobs.
+	my $query = "
+SELECT 
+    job_uuid, 
+    job_command, 
+    job_data, 
+    job_picked_up_by, 
+    job_picked_up_at, 
+    job_updated, 
+    job_progress 
+FROM 
+    jobs 
+WHERE 
+    job_progress != 100 
+AND 
+    job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)."
+LIMIT 1;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $job_uuid         =         $row->[0];
+		my $job_command      =         $row->[1];
+		my $job_data         = defined $row->[2] ? $row->[2] : "";
+		my $job_picked_up_by =         $row->[3];
+		my $job_picked_up_at =         $row->[4]; 
+		my $job_updated      =         $row->[5];
+		my $job_progress     =         $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			job_uuid         => $job_uuid,
+			job_command      => $job_command,
+			job_data         => $job_data,
+			job_picked_up_by => $job_picked_up_by,
+			job_picked_up_at => $job_picked_up_at,
+			job_updated      => $job_updated,
+			job_progress     => $job_progress,
+		}});
+		
+		# See if the job was picked up by another running instance.
+		if ($job_picked_up_by)
+		{
+			# Check if the PID is still active.
+			$anvil->System->pids({ignore_me => 1});
+			
+			### TODO: Add a check to verify the job isn't hung.
+			# Skip if this job is in progress.
+			next if exists $anvil->data->{pids}{$job_picked_up_by};
+
+			# The previous job is gone, but the job isn't finished. Start it again.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "striker_warning_0007", variables => { 
+				command => $job_command,
+				pid     => $job_picked_up_by,
+				percent => $job_progress, 
+			}});
+			clear_job($anvil, $job_uuid);
+		}
+		
+		# Start the job, appending '--job-uuid' to the command.
+		$anvil->data->{jobs}{handles}{$job_uuid} = $anvil->System->call({
+			debug       => 2,
+			background  => 1, 
+			stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
+			stderr_file => "/tmp/anvil.job.".$job_uuid.".stderr", 
+			shell_call  => $job_command." --job-uuid ".$job_uuid, 
+			source      => $THIS_FILE, 
+			line        => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid} }});
+		
+		# Record the PID
+		my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
+		my $query = "
+UPDATE 
+    jobs 
+SET 
+    job_picked_up_by = ".$anvil->data->{sys}{use_db_fh}->quote($pid).", 
+    modified_date    = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+WHERE 
+    job_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
 	
 	return(0);
 }

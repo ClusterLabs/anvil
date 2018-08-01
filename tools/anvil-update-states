@@ -18,18 +18,13 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
+my $anvil = Anvil::Tools->new({log_level => 1, log_secure => 1});
 
 $anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
-my $connections = $anvil->Database->connect({
-	sql_file   => $anvil->data->{sys}{database}{schema},
-	test_table => "network_interfaces", 
-});
+$anvil->Database->connect;
 
-print $THIS_FILE." ".__LINE__."; connections: [".$connections."]\n";
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132", variables => { connections => $connections }});
-if (not $connections)
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132", variables => { "sys::db_connections" => $anvil->data->{sys}{db_connections} }});
+if (not $anvil->data->{sys}{db_connections})
 {
 	# No databases, exit.
 	print $anvil->Words->string({key => "error_0003"})."\n";

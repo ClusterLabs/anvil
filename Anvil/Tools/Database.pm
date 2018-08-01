@@ -116,10 +116,25 @@ sub archive_database
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->archive_database()" }});
 	
+	# Is archiving disabled?
+	if (not $anvil->data->{sys}{database}{archive}{trigger})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0189"});
+		return(1);
+	}
+	
+	# Only the root user can archive the database so that the archived files can be properly secured.
+	if (($< != 0) && ($> != 0))
+	{
+		# Not root
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0188"});
+		return(1);
+	}
+	
 	# If we don't have an array of tables, we have nothing to do.
 	if ((not exists $anvil->data->{sys}{database}{check_tables}) or (ref(@{$anvil->data->{sys}{database}{check_tables}} ne "ARRAY")))
 	{
-		return(0);
+		return(1);
 	}
 	
 	# We'll use the list of tables created for _find_behind_databases()'s 'sys::database::check_tables' 
@@ -196,11 +211,11 @@ sub check_lock_age
 
 =head2 configure_pgsql
 
-This configures the local database server. Specifically, it checks to make sure the daemon is running and starts it if not. It also checks the 'pg_hba.conf' configuration to make sure it is set properly to listen on this machine's IP addresses and interfaces.
+This configures the local database server. Specifically, it checks to make sure the daemon is running and starts it if not. It also checks the C<< pg_hba.conf >> configuration to make sure it is set properly to listen on this machine's IP addresses and interfaces.
 
 If the system is already configured, this method will do nothing, so it is safe to call it at any time.
 
-If there is a problem, C<< !!error!! >> is returned.
+If the method completes, C<< 0 >> is returned. If this method is called without C<< root >> access, it returns C<< 1 >> without doing anything. If there is a problem, C<< !!error!! >> is returned.
 
 =cut
 sub configure_pgsql
@@ -221,11 +236,11 @@ sub configure_pgsql
 		# This is a minor error as it will be hit by every unpriviledged program that connects to the
 		# database(s).
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0113"});
-		return("!!error!!");
+		return(1);
 	}
 	
 	# First, is it running?
-	my $running = $anvil->System->check_daemon({daemon => "postgresql"});
+	my $running = $anvil->System->check_daemon({debug => $debug, daemon => "postgresql"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
 	
 	if (not $running)
@@ -234,7 +249,7 @@ sub configure_pgsql
 		if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 		{
 			# Initialize.
-			my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+			my $output = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 			
 			# Did it succeed?
@@ -250,14 +265,14 @@ sub configure_pgsql
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
 				
 				# Enable it on boot.
-				my $return_code = $anvil->System->enable_daemon({daemon => "postgresql"});
+				my $return_code = $anvil->System->enable_daemon({debug => $debug, daemon => "postgresql"});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 			}
 		}
 	}
 	
 	# Setup postgresql.conf, if needed
-	my $postgresql_conf        = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'postgresql.conf'}});
+	my $postgresql_conf        = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{configs}{'postgresql.conf'}});
 	my $update_postgresql_file = 1;
 	my $new_postgresql_conf    = "";
 	foreach my $line (split/\n/, $postgresql_conf)
@@ -288,6 +303,7 @@ sub configure_pgsql
 		if (not -e $postgresql_backup)
 		{
 			$anvil->Storage->copy_file({
+				debug       => $debug, 
 				source_file => $anvil->data->{path}{configs}{'postgresql.conf'}, 
 				target_file => $postgresql_backup,
 			});
@@ -295,6 +311,7 @@ sub configure_pgsql
 		
 		# Write the updated one.
 		$anvil->Storage->write_file({
+			debug     => $debug, 
 			file      => $anvil->data->{path}{configs}{'postgresql.conf'}, 
 			body      => $new_postgresql_conf,
 			user      => "postgres", 
@@ -306,7 +323,7 @@ sub configure_pgsql
 	}
 	
 	# Setup pg_hba.conf now, if needed.
-	my $pg_hba_conf        = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'pg_hba.conf'}});
+	my $pg_hba_conf        = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{configs}{'pg_hba.conf'}});
 	my $update_pg_hba_file = 1;
 	my $new_pg_hba_conf    = "";
 	foreach my $line (split/\n/, $pg_hba_conf)
@@ -631,7 +648,7 @@ sub connect
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "core";
 	my $sql_file   = defined $parameter->{sql_file}   ? $parameter->{sql_file}   : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $tables     = defined $parameter->{tables}     ? $parameter->{tables}     : "";
-	my $test_table = defined $parameter->{test_table} ? $parameter->{test_table} : $anvil->data->{defaults}{sql}{test_table};
+	my $test_table = defined $parameter->{test_table} ? $parameter->{test_table} : $anvil->data->{sys}{database}{test_table};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		source     => $source, 
 		sql_file   => $sql_file, 
@@ -730,6 +747,7 @@ sub connect
 		{
 			# Can I ping?
 			my ($pinged) = $anvil->System->ping({
+				debug   => $debug, 
 				ping    => $host, 
 				count   => 1,
 				timeout => $anvil->data->{database}{$uuid}{ping},
@@ -754,7 +772,7 @@ sub connect
 		}
 		
 		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
-		my $is_local = $anvil->System->is_local({host => $host});
+		my $is_local = $anvil->System->is_local({debug => $debug, host => $host});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
 		if ($is_local)
 		{
@@ -762,7 +780,7 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
 			
 			# Set it up (or update it) if needed. This method just returns if nothing is needed.
-			$anvil->Database->configure_pgsql({uuid => $uuid});
+			$anvil->Database->configure_pgsql({debug => $debug, uuid => $uuid});
 		}
 		elsif (not $anvil->data->{sys}{read_db_uuid})
 		{
@@ -775,6 +793,7 @@ sub connect
 		if (not $is_local)
 		{
 			my $remote_version = $anvil->Get->anvil_version({
+				debug    => $debug, 
 				target   => $host,
 				password => $password,
 			});
@@ -783,7 +802,7 @@ sub connect
 				"anvil->_anvil_version" => $anvil->_anvil_version,
 			}});
 			
-			if ($remote_version ne $anvil->_anvil_version)
+			if ($remote_version ne $anvil->_anvil_version({debug => $debug}))
 			{
 				# Version doesn't match, 
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0145", variables => { 
@@ -886,13 +905,13 @@ sub connect
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::use_db_fh' => $anvil->data->{sys}{use_db_fh} }});
 			}
 			
-			# If the '$test_table' isn't the same as 'defaults::sql::test_table', see if the core schema needs loading first.
-			if ($test_table ne $anvil->data->{defaults}{sql}{test_table})
+			# If the '$test_table' isn't the same as 'sys::database::test_table', see if the core schema needs loading first.
+			if ($test_table ne $anvil->data->{sys}{database}{test_table})
 			{
 				my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{defaults}{sql}{test_table})." AND schemaname='public';";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 				
 				if ($count < 1)
@@ -900,7 +919,7 @@ sub connect
 					### TODO: Create a version file/flag and don't sync with peers unless
 					###       they are the same version. Back-port this to v2.
 					# Need to load the database.
-					$anvil->Database->initialize({uuid => $uuid, sql_file => $anvil->data->{path}{sql}{'anvil.sql'}});
+					$anvil->Database->initialize({debug => $debug, uuid => $uuid, sql_file => $anvil->data->{path}{sql}{'anvil.sql'}});
 				}
 			}
 			
@@ -908,13 +927,13 @@ sub connect
 			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{use_db_fh}->quote($test_table)." AND schemaname='public';";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
-			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 			if ($count < 1)
 			{
 				# Need to load the database.
-				$anvil->Database->initialize({uuid => $uuid, sql_file => $sql_file});
+				$anvil->Database->initialize({debug => $debug, uuid => $uuid, sql_file => $sql_file});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -952,7 +971,7 @@ sub connect
 				my $query = "SELECT cast(now() AS timestamp with time zone)::timestamptz(0);";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				$anvil->data->{sys}{db_timestamp} = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$anvil->data->{sys}{db_timestamp} = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_timestamp" => $anvil->data->{sys}{db_timestamp} }});
 			}
 			
@@ -1002,6 +1021,7 @@ sub connect
 		
 		# If I've not sent an alert about this DB loss before, send one now.
 		my $set = $anvil->Alert->check_alert_sent({
+			debug          => $debug, 
 			type           => "set",
 			set_by         => $THIS_FILE,
 			record_locator => $uuid,
@@ -1025,11 +1045,12 @@ sub connect
 				
 				# These are warning level alerts.
 				$anvil->Alert->register_alert({
-					alert_level		=>	"warning", 
-					alert_set_by		=>	$THIS_FILE,
-					alert_title_key		=>	"alert_title_0003",
-					alert_message_key	=>	$message_key,
-					alert_message_variables	=>	$message_variables,
+					debug                   => $debug, 
+					alert_level             => "warning", 
+					alert_set_by            => $THIS_FILE,
+					alert_title_key         => "alert_title_0003",
+					alert_message_key       => $message_key,
+					alert_message_variables => $message_variables,
 				});
 			}
 		}
@@ -1055,29 +1076,31 @@ sub connect
 # 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{database}{$uuid}{host}).";";
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 # 
-# 		my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+# 		my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 # 		
 # 		if ($count > 0)
 # 		{
 			my $cleared = $anvil->Alert->check_alert_sent({
-				type		=>	"clear",
-				set_by		=>	$THIS_FILE,
-				record_locator	=>	$uuid,
-				name		=>	"connect_to_db",
-				modified_date	=>	$anvil->data->{sys}{db_timestamp},
+				debug          => $debug, 
+				type           => "clear",
+				set_by         => $THIS_FILE,
+				record_locator => $uuid,
+				name           => "connect_to_db",
+				modified_date  => $anvil->data->{sys}{db_timestamp},
 			});
 			if ($cleared)
 			{
 				$anvil->Alert->register_alert({
-					level			=>	"warning", 
-					agent_name		=>	"Anvil!",
-					title_key		=>	"an_title_0006",
-					message_key		=>	"cleared_log_0055",
-					message_variables	=>	{
-						name			=>	$database_name,
-						host			=>	$anvil->data->{database}{$uuid}{host},
-						port			=>	defined $anvil->data->{database}{$uuid}{port} ? $anvil->data->{database}{$uuid}{port} : 5432,
+					debug             => $debug, 
+					level             => "warning", 
+					agent_name        => "Anvil!",
+					title_key         => "an_title_0006",
+					message_key       => "cleared_log_0055",
+					message_variables => {
+						name => $database_name,
+						host => $anvil->data->{database}{$uuid}{host},
+						port => defined $anvil->data->{database}{$uuid}{port} ? $anvil->data->{database}{$uuid}{port} : 5432,
 					},
 				});
 			}
@@ -1091,7 +1114,7 @@ sub connect
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0103"});
 		
 		# Disconnect and set the connection count to '0'.
-		$anvil->Database->disconnect();
+		$anvil->Database->disconnect({debug => $debug});
 		$connections = 0;
 	}
 	
@@ -1100,25 +1123,29 @@ sub connect
 	if ($connections > 1)
 	{
 		$anvil->Database->_find_behind_databases({
+			debug  => $debug, 
 			source => $source, 
 			tables => $tables,
 		});
 	}
 	
 	# Hold if a lock has been requested.
-	$anvil->Database->locking();
+	$anvil->Database->locking({debug => $debug});
 	
 	# Mark that we're not active.
-	$anvil->Database->mark_active({set => 1});
+	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Archive old data.
-	$anvil->Database->archive_database({});
+	$anvil->Database->archive_database({debug => $debug});
 	
 	# Sync the database, if needed.
-	$anvil->Database->resync_databases;
+	$anvil->Database->resync_databases({debug => $debug});
 	
 	# Add ourselves to the database, if needed.
-	$anvil->Database->insert_or_update_hosts;
+	$anvil->Database->insert_or_update_hosts({debug => $debug});
+	
+	# We'll store the number of connections in the hash.
+	$anvil->data->{sys}{db_connections} = $connections;
 	
 	return($connections);
 }
@@ -1158,6 +1185,9 @@ sub disconnect
 	delete $anvil->data->{sys}{db_timestamp};
 	delete $anvil->data->{sys}{use_db_fh};
 	delete $anvil->data->{sys}{read_db_uuid};
+	
+	# Set the connection count to 0.
+	$anvil->data->{sys}{db_connections} = 0;
 	
 	return(0);
 }
@@ -5160,20 +5190,6 @@ sub _archive_table
 		return("!!error!!");
 	}
 	
-	# Has the user disabled archiving?
-	my $trigger = $anvil->data->{sys}{database}{archive}{trigger};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { trigger => $trigger }});
-	if ((exists $anvil->data->{sys}{database}{archive}{tables}{$table}{division}) && ($anvil->data->{sys}{database}{archive}{tables}{$table}{division} =~ /^\d+$/))
-	{
-		$trigger = $anvil->data->{sys}{database}{archive}{tables}{$table}{division};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { trigger => $trigger }});
-	}
-	if ($trigger)
-	{
-		# Archiving is disabled.
-		return(0);
-	}
-	
 	# First, if this table doesn't have a history schema, exit.
 	my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table).";";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -5191,8 +5207,11 @@ sub _archive_table
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	$count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-	if ($count <= $trigger)
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"s1:count"                           => $count,
+		"s2:sys::database::archive::trigger" => $anvil->data->{sys}{database}{archive}{trigger},
+	}});
+	if ($count <= $anvil->data->{sys}{database}{archive}{trigger})
 	{
 		# History table doesn't exist, we're done.
 		return(0);

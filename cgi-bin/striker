@@ -24,13 +24,11 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new();
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 
 ### NOTE: We'll print the headers only when we need to. If we print them hear, it will block cookies being set.
 
 # Set the log level to 2. Setting 3 slows he program down a LOT.
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 
 # Read the config and then connect to the database.
 $anvil->Storage->read_config();
@@ -53,12 +51,12 @@ if (not -e $anvil->data->{path}{data}{host_uuid})
 	print_and_exit($anvil);
 }
 
-my $connections = $anvil->Database->connect({
+$anvil->Database->connect({
 	sql_file   => $anvil->data->{sys}{database}{schema},
 	test_table => "network_interfaces", 
 });
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132", variables => { connections => $connections }});
-if (not $connections)
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132", variables => { "sys::db_connections" => $anvil->data->{sys}{db_connections} }});
+if (not $anvil->data->{sys}{db_connections})
 {
 	# No databases, exit.
 	print $anvil->Words->string({key => "error_0003"});
@@ -575,6 +573,7 @@ sub add_sync_peer
 		if ($anvil->data->{cgi}{confirm}{value})
 		{
 			# OK, save!
+			
 		}
 		else
 		{

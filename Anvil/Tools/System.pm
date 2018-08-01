@@ -9,6 +9,7 @@ use Data::Dumper;
 use Net::SSH2;
 use Scalar::Util qw(weaken isweak);
 use Time::HiRes qw(gettimeofday tv_interval);
+use Proc::Simple;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
@@ -100,6 +101,10 @@ This method makes a system call and returns the output (with the last new-line r
 
 Parameters;
 
+=head3 background (optional, default '0')
+
+If set to C<< 1 >>, the program will be started in the background and the C<< Proc::Simple >> handle will be returned instead of the command's output.
+
 =head3 line (optional)
 
 This is the line number of the source file that called this method. Useful for logging and debugging.
@@ -120,6 +125,18 @@ This is the shell command to call.
 
 This is the name of the source file calling this method. Useful for logging and debugging.
 
+=head3 stderr_file (optional)
+
+B<NOTE>: This is only used when C<< background >> is set to C<< 1 >>.
+
+If set, the C<< STDERR >> output will be sent to the corresponding file. If this isn't a full path, the file will be placed under C<< /tmp/ >>.
+
+=head3 stdout_file (optional)
+
+B<NOTE>: This is only used when C<< background >> is set to C<< 1 >>.
+
+If set, the C<< STDOUT >> output will be sent to the corresponding file. If this isn't a full path, the file will be placed under C<< /tmp/ >>.
+
 =cut
 sub call
 {
@@ -128,16 +145,22 @@ sub call
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	my $background      = defined $parameter->{background}      ? $parameter->{background}      : 0;
 	my $line            = defined $parameter->{line}            ? $parameter->{line}            : __LINE__;
 	my $redirect_stderr = defined $parameter->{redirect_stderr} ? $parameter->{redirect_stderr} : 1;
 	my $shell_call      = defined $parameter->{shell_call}      ? $parameter->{shell_call}      : "";
 	my $secure          = defined $parameter->{secure}          ? $parameter->{secure}          : 0;
 	my $source          = defined $parameter->{source}          ? $parameter->{source}          : $THIS_FILE;
+	my $stderr_file     = defined $parameter->{stderr_file}     ? $parameter->{stderr_file}     : "";
+	my $stdout_file     = defined $parameter->{stdout_file}     ? $parameter->{stdout_file}     : "";
 	my $redirect        = $redirect_stderr ? " 2>&1" : "";
 	$anvil->Log->variables({source => $source, line => $line, level => $debug, secure => $secure, list => { 
+		background      => $background, 
 		shell_call      => $shell_call,
 		redirect        => $redirect, 
 		redirect_stderr => $redirect_stderr, 
+		stderr_file     => $stderr_file, 
+		stdout_file     => $stdout_file, 
 	}});
 	
 	my $output = "#!error!#";
@@ -175,21 +198,74 @@ sub call
 		if ($found)
 		{
 			# Make the system call
-			$output = "";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0011", variables => { shell_call => $shell_call }});
-			open (my $file_handle, $shell_call.$redirect." |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
-			while(<$file_handle>)
+			### TODO: We should split the arguments off, which the below does, to pass arguments 
+			###       to the shell without having the shell expand the arguments
+			my $program   = $shell_call;
+			my $arguments = "";
+			if ($shell_call =~ /^(\/.*?) (.*)$/)
 			{
-				chomp;
-				my $line = $_;
-				$line =~ s/\n$//;
-				$line =~ s/\r$//;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0017", variables => { line => $line }});
-				$output .= $line."\n";
+				$program   = $1;
+				$arguments = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
+					"s1:program"   => $program,
+					"s2:arguments" => $arguments, 
+				}});
 			}
-			close $file_handle;
-			chomp($output);
-			$output =~ s/\n$//s;
+			if ($background)
+			{
+				# Prepend '/tmp/' to STDOUT and/or STDERR output files, if needed.
+				if (($stderr_file) && ($stderr_file !~ /^\//))
+				{
+					$stderr_file = "/tmp/".$stderr_file;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { stderr_file => $stderr_file }});
+				}
+				if (($stdout_file) && ($stdout_file !~ /^\//))
+				{
+					$stdout_file = "/tmp/".$stdout_file;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { stdout_file => $stdout_file }});
+				}
+				my $process = Proc::Simple->new();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { process => $process }});
+				
+				# Setup output files
+				if (($stderr_file) && ($stdout_file))
+				{
+					$process->($stdout_file, $stderr_file);
+				}
+				elsif ($stdout_file)
+				{
+					$process->($stdout_file, undef);
+				}
+				elsif ($stderr_file)
+				{
+					$process->(undef, $stderr_file);
+				}
+				
+				my $status = $process->start($shell_call);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { status => $status }});
+				
+				# We'll return the handle instead of output.
+				$output = $process;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { output => $output }});
+			}
+			else
+			{
+				$output = "";
+				open (my $file_handle, $shell_call.$redirect." |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+				while(<$file_handle>)
+				{
+					chomp;
+					my $line = $_;
+					$line =~ s/\n$//;
+					$line =~ s/\r$//;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0017", variables => { line => $line }});
+					$output .= $line."\n";
+				}
+				close $file_handle;
+				chomp($output);
+				$output =~ s/\n$//s;
+			}
 		}
 	}
 	

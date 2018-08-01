@@ -147,22 +147,6 @@ sub new
 	my $anvil = $self; 
 	weaken($anvil);	# Helps avoid memory leaks. See Scalar::Utils
 	
-	# Record the start time.
-	$anvil->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
-	
-	# Set passed parameters if needed.
-	if (ref($parameter) eq "HASH")
-	{
-		### TODO: Calls to allow the user to override defaults...
-		# Local parameters...
-	}
-	elsif ($parameter)
-	{
-		# Um...
-		print $THIS_FILE." ".__LINE__."; Anvil::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
-		exit(1);
-	}
-	
 	# Get a handle on the various submodules
 	$anvil->Account->parent($anvil);
 	$anvil->Alert->parent($anvil);
@@ -178,8 +162,38 @@ sub new
 	$anvil->Validate->parent($anvil);
 	
 	# Set some system paths and system default variables
-	$anvil->_set_paths;
-	$anvil->_set_defaults;
+	$anvil->_set_paths();
+	$anvil->_set_defaults();
+	
+	# Record the start time.
+	$anvil->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
+	
+	# Set passed parameters if needed.
+	my $debug = 3;
+	if (ref($parameter) eq "HASH")
+	{
+		# Local parameters...
+		if ($parameter->{debug})
+		{
+			$debug = $parameter->{debug};
+		}
+		if ($parameter->{log_secure})
+		{
+			$anvil->Log->secure({set => $parameter->{log_secure}});
+		}
+	}
+	elsif ($parameter)
+	{
+		# Um...
+		print $THIS_FILE." ".__LINE__."; Anvil::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
+		exit(1);
+	}
+	
+	# If the user passed a custom log level, sit it now.
+	if ($parameter->{log_level})
+	{
+		$anvil->Log->level({set => $parameter->{log_level}});
+	}
 	
 	# This will help clean up if we catch a signal.
 	$SIG{INT}  = sub { $anvil->catch_sig({signal => "INT"});  };
@@ -202,22 +216,33 @@ sub new
 	$anvil->data($parameter->{data}) if $parameter->{data};
 	
 	# Initialize the list of directories to seach.
-	$anvil->Storage->search_directories({initialize => 1});
+	$anvil->Storage->search_directories({debug => $debug, initialize => 1});
 	
 	# I need to read the initial words early.
-	$anvil->Words->read({file  => $anvil->data->{path}{words}{'words.xml'}});
+	$anvil->Words->read({debug => $debug, file  => $anvil->data->{path}{words}{'words.xml'}});
 	
 	# If the local './tools.conf' file exists, read it in.
 	if (-r $anvil->data->{path}{configs}{'anvil.conf'})
 	{
-		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+		$anvil->Storage->read_config({debug => $debug, file => $anvil->data->{path}{configs}{'anvil.conf'}});
+		
+		### TODO: Should anvil.conf override parameters?
+		# Let parameters override config file values.
+		if ($parameter->{log_level})
+		{
+			$anvil->Log->level({set => $parameter->{log_level}});
+		}
+		if ($parameter->{log_secure})
+		{
+			$anvil->Log->secure({set => $parameter->{log_secure}});
+		}
 	}
 	
 	# Get the local host UUID.
-	$anvil->Get->host_uuid;
+	$anvil->Get->host_uuid({debug => $debug});
 	
 	# Read in any command line switches.
-	$anvil->Get->switches;
+	$anvil->Get->switches({debug => $debug});
 	
 	# Read in the local Anvil! version.
 	#...
@@ -263,7 +288,7 @@ Data can be entered into or access by treating '$anvil->data' as a normal hash r
  # Set 'A thing' in 'foo'.
  $anvil->data->{foo} = "A thing";
 
-The C<$an> variable is set inside all modules and acts as shared storage for variables, values and references in all modules. It acts as the core storage for most applications using Anvil::Tools.
+The C<< $anvil >> variable is set inside all modules and acts as shared storage for variables, values and references in all modules. It acts as the core storage for most applications using Anvil::Tools.
 
 =cut
 sub data
@@ -717,6 +742,7 @@ sub _set_defaults
 			log_transactions		=>	0,
 			maximum_batch_size		=>	25000,
 			name				=>	"anvil",
+			test_table			=>	"hosts",
 			user				=>	"admin",
 		},
 		host_type			=>	"",
@@ -805,9 +831,6 @@ sub _set_defaults
 			secure		=>	0,
 			server		=>	"",
 			tag		=>	"anvil",
-		},
-		sql		=>	{
-			test_table	=>	"hosts",
 		},
 		template	=>	{
 			html		=>	"alteeve",

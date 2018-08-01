@@ -26,9 +26,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
+my $anvil = Anvil::Tools->new({log_level => 1, log_secure => 1});
 
 # Read switches
 $anvil->data->{switches}{'no-reboot'} = 0;
@@ -47,14 +45,10 @@ if (($< != 0) && ($> != 0))
 }
 
 # Connect
-my $connections = $anvil->Database->connect({
-	sql_file   => $anvil->data->{sys}{database}{schema},
-	test_table => "network_interfaces", 
-});
-
+$anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0031"});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132", variables => { connections => $connections }});
-if (not $connections)
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132", variables => { "sys::db_connections" => $anvil->data->{sys}{db_connections} }});
+if (not $anvil->data->{sys}{db_connections})
 {
 	# No databases, exit.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0003"});

@@ -462,25 +462,17 @@ sub host_uuid
 	if ($set)
 	{
 		$anvil->data->{HOST}{UUID} = $set;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
 	}
 	elsif (not $anvil->data->{HOST}{UUID})
 	{
-		# Read dmidecode if I am root, and the cache if not.
+		# Read dmidecode if I am root, otherwise, read the cache.
 		my $uuid = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { '$<' => $<, '$>' => $> }});
 		if (($< == 0) or ($> == 0))
 		{
-			my $shell_call = $anvil->data->{path}{exe}{dmidecode}." --string system-uuid";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-			open(my $file_handle, $shell_call." 2>&1 |") or warn $THIS_FILE." ".__LINE__."; [ Warning ] - Failed to call: [".$shell_call."], the error was: $!\n";
-			while(<$file_handle>)
-			{
-				# This should never be hit...
-				chomp;
-				$uuid = lc($_);
-				#print $THIS_FILE." ".__LINE__."; [ Debug ] - UUID: [$uuid]\n";
-			}
-			close $file_handle;
+			$uuid = lc($anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"}));
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 		}
 		else
 		{
@@ -495,7 +487,7 @@ sub host_uuid
 			}
 			else
 			{
-				$uuid = $anvil->Storage->read_file({ file => $anvil->data->{path}{data}{host_uuid} });
+				$uuid = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{data}{host_uuid}});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 			}
 		}
@@ -509,6 +501,7 @@ sub host_uuid
 				# Apache run scripts can't call the system UUID, so we'll write it to a text
 				# file.
 				$anvil->Storage->write_file({
+					debug     => $debug, 
 					file      => $anvil->data->{path}{data}{host_uuid}, 
 					body      => $uuid,
 					user      => "apache", 
@@ -524,6 +517,7 @@ sub host_uuid
 			# Bad UUID.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0134", variables => { uuid => $uuid }});
 			$anvil->data->{HOST}{UUID} = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
 		}
 	}
 	
@@ -534,6 +528,7 @@ sub host_uuid
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
 	return($anvil->data->{HOST}{UUID});
 }
 

@@ -286,6 +286,8 @@ The database connection error was:
 		<key name="log_0185"><![CDATA[<unknown>]]></key>	<!-- Used in some cases when a variable isn't known -->
 		<key name="log_0186"><![CDATA[<suppressed>]]></key>	<!-- Used in some cases when a variable isn't known -->
 		<key name="log_0187">UUID cache file: [#!data!path::data::host_uuid!#] doesn't exists and we're not running as root. Unable to proceed.</key>
+		<key name="log_0188">Database archive check skipped, not running as root.</key>
+		<key name="log_0189">Database archiving is disabled, skipping archive checks.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -419,6 +421,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_warning_0004">Accessing the peer over SSH worked, but a test connection to the database failed.</key>
 		<key name="striker_warning_0005">There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
 		<key name="striker_warning_0006">An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
+		<key name="striker_warning_0007">The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

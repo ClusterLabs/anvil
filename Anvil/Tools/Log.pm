@@ -173,7 +173,6 @@ This is the 'verbose' log level. It will generally generate a significant amount
 
 This is the highest log level, and it will generate a tremendous amount of log entries. This is generally used is loops or recursive functions where the output is significant, but the usefulness of the output is not.
 
-
 =head3 line (optional)
 
 When set, the string is prepended to the log entry, after 'C<< file >> if set, and should be set to C<< __LINE__ >>. It is used to show where in 'C<< file >>' the log entry was made and can assist with debugging.
@@ -317,8 +316,10 @@ sub entry
 			my $log_file           = $anvil->data->{sys}{log_file} =~ /^\// ? $anvil->data->{sys}{log_file} : "/var/log/".$anvil->data->{sys}{log_file};
 			my ($directory, $file) = ($log_file =~ /^(\/.*)\/(.*)$/);
 			
+			### WARNING: We MUST set the debug level really high, or else we'll go into a deep 
+			###          recursion!
 			# Make sure the log directory exists.
-			$anvil->Storage->make_directory({directory => $directory, group => 755});
+			$anvil->Storage->make_directory({debug => 99, directory => $directory, mode => 755});
 			
 			# Now open the log
 			my $shell_call = $log_file;
