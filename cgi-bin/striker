@@ -51,10 +51,7 @@ if (not -e $anvil->data->{path}{data}{host_uuid})
 	print_and_exit($anvil);
 }
 
-$anvil->Database->connect({
-	sql_file   => $anvil->data->{sys}{database}{schema},
-	test_table => "network_interfaces", 
-});
+$anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132", variables => { "sys::db_connections" => $anvil->data->{sys}{db_connections} }});
 if (not $anvil->data->{sys}{db_connections})
 {
@@ -572,8 +569,7 @@ sub add_sync_peer
 		# Things look good. Is the save confirmed?
 		if ($anvil->data->{cgi}{confirm}{value})
 		{
-			# OK, save!
-			
+			# OK, save the job!
 		}
 		else
 		{

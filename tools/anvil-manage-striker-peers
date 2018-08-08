@@ -1,0 +1,156 @@
+#!/usr/bin/perl
+# 
+# This program adds, edits and removes striker peers (for replicating Anvil! database data).
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Program not run as root.
+# 2 = A switch is missing or invalid.
+# 3 = 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+
+# Read switches
+$anvil->Get->switches;
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->nice_exit({code => 1});
+}
+
+# Paths
+$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+
+# Read in the anvil.conf, we're going to need it in any case.
+$anvil->data->{body}{'anvil.conf'} = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { anvil_conf_body => $anvil_conf_body }});
+
+# Am I adding, editing or deleting?
+if ($anvil->data->{switches}{add})
+{
+	# Add a new entry.
+	add_entry($anvil);
+}
+elsif ($anvil->data->{switches}{remove})
+{
+}
+elsif ($anvil->data->{switches}{modify})
+{
+}
+else
+{
+	# Bad call.
+}
+
+
+$anvil->nice_exit({code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub add_entry
+{
+	my ($anvil) = @_;
+	
+	my $host_uuid     = defined $anvil->data->{switches}{'host-uuid'}     ? $anvil->data->{switches}{'host-uuid'}     : "";
+	my $host          = defined $anvil->data->{switches}{'host'}          ? $anvil->data->{switches}{'host'}          : "";
+	my $port          = defined $anvil->data->{switches}{'port'}          ? $anvil->data->{switches}{'port'}          : 5432;
+	my $password_file = defined $anvil->data->{switches}{'password-file'} ? $anvil->data->{switches}{'password-file'} : "";
+	my $ping          = defined $anvil->data->{switches}{'ping'}          ? $anvil->data->{switches}{'ping'}          : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { 
+		host_uuid     => $host_uuid,
+		host          => $host,
+		port          => $port,
+		password_file => $password_file,
+		ping          => $ping, 
+	}});
+	
+	# Is anything missing?
+	if ((not $host_uuid) or (not $anvil->Validate->is_uuid({uuid => $host_uuid})))
+	{
+		# Invalid UUID.
+		print $anvil->Words->string({key => "error_0031", variables => { host_uuid => $host_uuid }})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0031", variables => { host_uuid => $host_uuid }});
+		$anvil->nice_exit({code => 2});
+	}
+	if (not $host)
+	{
+		# Invalid UUID.
+		print $anvil->Words->string({key => "error_0032", variables => { switch => "host" }})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0032", variables => { host_uuid => $host_uuid }});
+		$anvil->nice_exit({code => 2});
+	}
+	if (($port =~ /\D/) or ($port < 1) or ($port > 65535))
+	{
+		# Invalid port.
+		print $anvil->Words->string({key => "error_0033", variables => { port => $port }})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0033", variables => { port => $port }});
+		$anvil->nice_exit({code => 2});
+	}
+	
+	# Pull the password out of the file.
+	my $password = $anvil->Storage->read_file({file => $password_file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { password => $password }});
+	
+	# If we don't find the entry, or if the entry exists but has changed, this will be set to '1' so 
+	# we'll rewrite the file.
+	my $write = 0;
+	
+	# If the config already exists, we'll look at each of the values to see if any changed (or are not defaults). If so, we'll rewrite
+	my $host_variable      = "database::${host_uuid}::host";
+	my $host_different     = 1;
+	my $port_variable      = "database::${host_uuid}::port";
+	my $port_different     = 1;
+	my $password_variable  = "database::${host_uuid}::password";
+	my $password_different = 1;
+	my $ping_variable      = "database::${host_uuid}::ping";
+	my $ping_different     = 1;
+	
+	# Loop through the existing file.
+	my $new_body  = "";
+	my $test_line = "database::${host_uuid}::";
+	foreach my $line (split/\n/, $anvil->data->{body}{'anvil.conf'})
+	{
+		my $secure = (($line =~ /password/) && ($line !~ /^#/)) ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => $secure, level => 2, list => { line => $line }});
+		if ($line =~ /^$host_variable(\s*)=(\s*)(.*)$/)
+		{
+			my $left_space  = $1;
+			my $right_space = $2; 
+			my $variable    = $3;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				config_seen => $config_seen,
+				local_uuid  => $local_uuid, 
+			}});
+		}
+		if ($line eq "### end db list ###")
+		{
+			$new_body .= $insert;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { new_body => $new_body }});
+		}
+		$new_body .= $line."\n";
+	}
+	
+	return(0);
+}

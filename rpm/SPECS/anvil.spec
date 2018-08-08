@@ -379,6 +379,9 @@ systemctl stop postgresql.service
 
 
 %changelog
+* Thu Aug 02 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-12
+- Added perl-Proc-Simple to core dependencies.
+
 * Tue Jul 24 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-11
 - Added a check to enable the graphical target on boot.
 - Updated anvil-striker dependency list to pull in gnome.

@@ -454,6 +454,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!sys::log_file!#</span>] for details.]]></key>
 		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
 		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!sys::log_file!#</span>].]]></key>
+		<key name="error_0031">The 'host-uuid': [#!variable!host_uuid!#] is not valid.</key>
+		<key name="error_0032">The '#!variable!switch!#' switch is missing.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
