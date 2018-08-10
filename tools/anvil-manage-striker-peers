@@ -8,6 +8,8 @@
 # 2 = A switch is missing or invalid.
 # 3 = 
 # 
+# Calling this with --add, will insert an entry if it's not found. Calling it with no switch will update the 
+# entry if it exists. Calling it with --remove will delete it.
 
 use strict;
 use warnings;
@@ -45,21 +47,7 @@ $anvil->data->{body}{'anvil.conf'} = $anvil->Storage->read_file({file => $anvil-
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { anvil_conf_body => $anvil_conf_body }});
 
 # Am I adding, editing or deleting?
-if ($anvil->data->{switches}{add})
-{
-	# Add a new entry.
-	add_entry($anvil);
-}
-elsif ($anvil->data->{switches}{remove})
-{
-}
-elsif ($anvil->data->{switches}{modify})
-{
-}
-else
-{
-	# Bad call.
-}
+process_entry($anvil);
 
 
 $anvil->nice_exit({code => 0});
@@ -69,7 +57,7 @@ $anvil->nice_exit({code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-sub add_entry
+sub process_entry
 {
 	my ($anvil) = @_;
 	
@@ -126,30 +114,220 @@ sub add_entry
 	my $password_different = 1;
 	my $ping_variable      = "database::${host_uuid}::ping";
 	my $ping_different     = 1;
+	my $peer_seen          = 0;
+	
+	# If we don't see this peer, this will be inserted.
+	my $insert =  $host_variable."		=	".$host."\n";
+	   $insert .= $port_variable."		=	".$port."\n";
+	   $insert .= $password_variable."	=	".$password."\n";
+	   $insert .= $ping_variable."		=	".$ping."\n\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { insert => $insert }});
 	
 	# Loop through the existing file.
-	my $new_body  = "";
-	my $test_line = "database::${host_uuid}::";
+	my $new_body     = "";
+	my $just_deleted = 0;
+	my $test_line    = "database::${host_uuid}::";
 	foreach my $line (split/\n/, $anvil->data->{body}{'anvil.conf'})
 	{
+		# If I removed an entry, I also want to delete the white space after it.
+		if (($just_deleted) && ((not $line) or ($line eq =~ /^\s+$/))
+		{
+			$just_deleted = 0;
+			next;
+		}
+		$just_deleted = 0;
+		
+		# Secure password lines.
 		my $secure = (($line =~ /password/) && ($line !~ /^#/)) ? 1 : 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => $secure, level => 2, list => { line => $line }});
-		if ($line =~ /^$host_variable(\s*)=(\s*)(.*)$/)
+		if ($line =~ /^(.*)(\s*)=(\s*)(.*)$/)
 		{
-			my $left_space  = $1;
-			my $right_space = $2; 
-			my $variable    = $3;
+			my $variable    = $1;
+			my $left_space  = $2;
+			my $right_space = $3; 
+			my $value       = $4;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				config_seen => $config_seen,
-				local_uuid  => $local_uuid, 
+				variable    => $variable,
+				left_space  => $left_space, 
+				right_space => $right_space, 
+				value       => $value, 
 			}});
+			
+			if ($variable eq $host_variable)
+			{
+				$peer_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:value"     => $value,
+					"s2:host"      => $host, 
+					"s3:peer_seen" => $peer_seen, 
+				}});
+				if ($anvil->data->{switches}{remove})
+				{
+					$just_deleted = 1;
+					$write        = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						just_deleted => $just_deleted. 
+						'write'      => $write,
+					}});
+					next;
+				}
+				elsif ($value eq $host)
+				{
+					# No change.
+					$host_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_different => $host_different }});
+				}
+				else
+				{
+					$line  = $variable.$left_space."=".$right_space.$host;
+					$write = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						line    => $line,
+						'write' => $write, 
+					}});
+				}
+			}
+			elsif ($variable eq $port_variable)
+			{
+				$peer_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:value"     => $value,
+					"s2:port"      => $port, 
+					"s3:peer_seen" => $peer_seen, 
+				}});
+				if ($anvil->data->{switches}{remove})
+				{
+					$just_deleted = 1;
+					$write        = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						just_deleted => $just_deleted. 
+						'write'      => $write,
+					}});
+					next;
+				}
+				elsif ($value eq $port)
+				{
+					# No change.
+					$port_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port_different => $port_different }});
+				}
+				else
+				{
+					$line  = $variable.$left_space."=".$right_space.$port;
+					$write = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						line    => $line,
+						'write' => $write, 
+					}});
+				}
+			}
+			elsif ($variable eq $password_variable)
+			{
+				$peer_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
+					"s1:value"     => $value,
+					"s2:password"  => $password, 
+					"s3:peer_seen" => $peer_seen, 
+				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
+					value    => $value,
+					password => $password, 
+				}});
+				if ($anvil->data->{switches}{remove})
+				{
+					$just_deleted = 1;
+					$write        = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						just_deleted => $just_deleted. 
+						'write'      => $write,
+					}});
+					next;
+				}
+				elsif ($value eq $password)
+				{
+					# No change.
+					$password_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { password_different => $password_different }});
+				}
+				else
+				{
+					$line  = $variable.$left_space."=".$right_space.$password;
+					$write = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						line    => $anvil->Log->secure ? $line : $anvil->Words->string({key => "log_0186"}),
+						'write' => $write, 
+					}});
+				}
+			}
+			elsif ($variable eq $ping_variable)
+			{
+				$peer_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:value"     => $value,
+					"s2:ping"      => $ping, 
+					"s3:peer_seen" => $peer_seen, 
+				}});
+				if ($anvil->data->{switches}{remove})
+				{
+					$just_deleted = 1;
+					$write        = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						just_deleted => $just_deleted. 
+						'write'      => $write,
+					}});
+					next;
+				}
+				elsif ($value eq $ping)
+				{
+					# No change.
+					$ping_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ping_different => $ping_different }});
+				}
+				else
+				{
+					$line  = $variable.$left_space."=".$right_space.$ping;
+					$write = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						line    => $line,
+						'write' => $write, 
+					}});
+				}
+			}
 		}
 		if ($line eq "### end db list ###")
 		{
-			$new_body .= $insert;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { new_body => $new_body }});
+			# If I've not seen this DB, enter it.
+			if ((not $peer_seen) && ($anvil->data->{switches}{add}))
+			{
+				$new_body .= $insert;
+				$write    =  1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { 
+					new_body => $new_body,
+					'write'  => $write,
+				}});
+			}
 		}
 		$new_body .= $line."\n";
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'write' => $write }});
+	if ($write)
+	{
+		# Backup the original
+		my $backup_file = $anvil->Storage->backup({secure => 1, file => $anvil->data->{path}{configs}{'anvil.conf'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+		
+		# Now update!
+		$anvil->Storage->write_file({
+			secure    => 1, 
+			debug     => 2,
+			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
+			body      => $new_body, 
+			user      => "admin", 
+			group     => "admin", 
+			mode      => "0644",
+			overwrite => 1,
+		});
 	}
 	
 	return(0);
