@@ -57,7 +57,7 @@ NOTE: You must update the password of any other system using this host's
 		</key>
 		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
 		<key name="message_0031">Beginning configuration of local system.</key>
-		<key name="message_0032"></key>
+		<key name="message_0032">Peer: [#!variable!peer!#], database: [#!variable!name!#]</key>
 		<key name="message_0033"></key>
 		<key name="message_0034"><![CDATA[Logged in as: [<span class="fixed_width">#!data!sys::users::user_name!#</span>]]]></key>
 		<key name="message_0035"></key>
@@ -288,6 +288,7 @@ The database connection error was:
 		<key name="log_0187">UUID cache file: [#!data!path::data::host_uuid!#] doesn't exists and we're not running as root. Unable to proceed.</key>
 		<key name="log_0188">Database archive check skipped, not running as root.</key>
 		<key name="log_0189">Database archiving is disabled, skipping archive checks.</key>
+		<key name="log_0190">Peer: [#!variable!peer!#], database: [#!variable!name!#], password: [#!variable!password!#], host UUID: [#!variable!uuid!#]</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
