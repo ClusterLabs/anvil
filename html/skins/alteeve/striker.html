@@ -61,7 +61,65 @@
 						</table>
 					</td>
 				</tr>
+			</table>
 <!-- end confirm-new-peer -->
+
+<!-- start confirm-reconfig -->
+			<table align="center">
+				<form name="confirm-reconfig" action="" method="post">
+				<div id="confirm-reconfig">
+				<tr>
+					<td class="menu_title">
+						#!string!striker_0078!#
+					</td>
+				</tr>
+				<tr>
+					<td class="menu_details">
+						#!string!striker_0083!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td class="button_cell" colspan="2">
+						<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#">
+					</td>
+				</tr>
+				<input type="hidden" name="striker" id="striker" value="#!data!cgi::striker::value!#">
+				<input type="hidden" name="task"    id="task"    value="#!data!cgi::task::value!#">
+				<input type="hidden" name="save"    id="save"    value="#!data!cgi::save::value!#">
+				</form>
+				</div>
+			</table>
+<!-- end confirm-reconfig -->
+
+<!-- start reconfig-done -->
+			<table>
+				<tr>
+					<td class="menu_title">
+						#!string!striker_0084!#
+					</td>
+				</tr>
+				<tr>
+					<td class="menu_details">
+						#!string!striker_0085!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<a href="/" class="button">#!string!striker_0053!#</a>
+					</td>
+				</tr>
+			</table>
+<!-- end reconfig-done -->
 
 <!-- start striker-login -->
 			<table class="login">
@@ -156,10 +214,10 @@
 			</tr>
 			<tr>
 				<td rowspan="2" class="icon_button">
-					<a href="?striker=true&task=update"><img src="#!data!skin::url!#/images/striker_configure.png" class="top_icon" ></a>
+					<a href="?striker=true&task=reconfig"><img src="#!data!skin::url!#/images/striker_configure.png" class="top_icon" ></a>
 				</td>
 				<td class="menu_title">
-					<a href="?striker=true&task=update">#!string!striker_0058!#</a>
+					<a href="?striker=true&task=reconfig">#!string!striker_0058!#</a>
 				</td>
 			</tr>
 			<tr>

@@ -410,6 +410,9 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0080">Ping before connect</key>
 		<key name="striker_0081">The test connection was successful. When saved, the resynchronization process might take a few minutes, and cause maintenance periods where some features are offline until complete.</key>
 		<key name="striker_0082">Confirm</key>
+		<key name="striker_0083">Would you like to reconfigure this machine? If you confirm, Striker will re-run the initial configuration. Connections to peers and database data will be retained.</key>
+		<key name="striker_0084">Confirmed</key>
+		<key name="striker_0085">This Striker has been marked as reconfigured. Reload to start the confguration process.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

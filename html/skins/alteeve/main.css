@@ -269,6 +269,11 @@ td {
 	text-align: center;
 }
 
+.button {
+	padding:    10px 5px;
+	text-align: center;
+}
+
 .icon_button {
 	padding-top:    30px;
 	vertical-align: top;

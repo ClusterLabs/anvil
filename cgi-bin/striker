@@ -226,6 +226,14 @@ sub process_task
 		{
 			process_sync_page($anvil);
 		}
+		elsif ($anvil->data->{cgi}{task}{value} eq "reconfig")
+		{
+			process_reconfig_page($anvil);
+		}
+		elsif ($anvil->data->{cgi}{task}{value} eq "update")
+		{
+			process_update($anvil);
+		}
 		else
 		{
 			# The 'back' goes home
@@ -252,6 +260,67 @@ sub process_task
 # 	$anvil->data->{sys}{users}{user_is_admin}       = $user_is_admin,
 # 	$anvil->data->{sys}{users}{user_is_experienced} = $user_is_experienced,
 # 	$anvil->data->{sys}{users}{user_is_trusted}     = $user_is_trusted,
+	
+	return(0);
+}
+
+# This handles updating this Striker.
+sub process_update
+{
+	my ($anvil) = @_;
+	
+	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
+	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
+	if ($anvil->data->{cgi}{confirm}{value})
+	{
+		# Request the job and take the system offline until it's done.
+# 		$anvil->Database->insert_or_update_variables({
+# 			variable_name         => "system::configured", 
+# 			variable_source_uuid  => $anvil->Get->host_uuid, 
+# 			variable_source_table => "hosts", 
+# 			variable_value        => 0, 
+# 			update_value_only     => 1, 
+# 		});
+		
+		# Done.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "update-requested"});
+	}
+	else
+	{
+		# Show the screen the confirm the addition.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-update"});
+	}
+	
+	return(0);
+}
+
+# This handles reconfiguring the Striker system.
+sub process_reconfig_page
+{
+	my ($anvil) = @_;
+	
+	# Later, this will let each piece be recondigured. For now, it simple reset the "configured flag so 
+	# the next load will trigger the initial config again.
+	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
+	if ($anvil->data->{cgi}{confirm}{value})
+	{
+		# Update the configured variable
+		$anvil->Database->insert_or_update_variables({
+			variable_name         => "system::configured", 
+			variable_source_uuid  => $anvil->Get->host_uuid, 
+			variable_source_table => "hosts", 
+			variable_value        => 0, 
+			update_value_only     => 1, 
+		});
+		
+		# Done.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "reconfig-done"});
+	}
+	else
+	{
+		# Show the screen the confirm the addition.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-reconfig"});
+	}
 	
 	return(0);
 }
