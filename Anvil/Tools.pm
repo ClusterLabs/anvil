@@ -331,16 +331,16 @@ sub environment
 	# Pick up the passed in delimiter, if any.
 	if ($_[0])
 	{
-		$anvil->{ENV_VALUES}{ENVIRONMENT} = shift;
+		$anvil->data->{ENV_VALUES}{ENVIRONMENT} = shift;
 		
 		# Load the CGI stuff if we're in a browser
-		if ($anvil->{ENV_VALUES}{ENVIRONMENT} eq "html")
+		if ($anvil->data->{ENV_VALUES}{ENVIRONMENT} eq "html")
 		{
 			CGI::Carp->import(qw(fatalsToBrowser));
 		}
 	}
 	
-	return ($anvil->{ENV_VALUES}{ENVIRONMENT});
+	return ($anvil->data->{ENV_VALUES}{ENVIRONMENT});
 }
 
 =head2 nice_exit
@@ -376,10 +376,10 @@ sub nice_exit
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { runtime => $run_time }});
 	
 	# Close the log file.
-	if ($anvil->{HANDLE}{log_file})
+	if ($anvil->data->{HANDLE}{log_file})
 	{
-		close $anvil->{HANDLE}{log_file};
-		$anvil->{HANDLE}{log_file} = "";
+		close $anvil->data->{HANDLE}{log_file};
+		$anvil->data->{HANDLE}{log_file} = "";
 	}
 	
 	exit($exit_code);
@@ -585,13 +585,13 @@ sub _anvil_version
 	my $self  = shift;
 	my $anvil = $self;
 	
-	if ($anvil->{HOST}{ANVIL_VERSION} eq "")
+	if ($anvil->data->{HOST}{ANVIL_VERSION} eq "")
 	{
 		# Try to read the local Anvil! version.
-		$anvil->{HOST}{ANVIL_VERSION} = $anvil->Get->anvil_version();
+		$anvil->data->{HOST}{ANVIL_VERSION} = $anvil->Get->anvil_version();
 	}
 	
-	return($anvil->{HOST}{ANVIL_VERSION});
+	return($anvil->data->{HOST}{ANVIL_VERSION});
 }
 
 =head2 _hostname
@@ -852,100 +852,101 @@ sub _set_paths
 	# Executables
 	$anvil->data->{path} = {
 			configs			=>	{
-				'anvil.conf'		=>	"/etc/anvil/anvil.conf",
-				'anvil.version'		=>	"/etc/anvil/anvil.version",
-				'firewalld.conf'	=>	"/etc/firewalld/firewalld.conf",
-				'httpd.conf'		=>	"/etc/httpd/conf/httpd.conf", 
-				'journald_anvil'	=>	"/etc/systemd/journald.conf.d/anvil.conf",
-				'pg_hba.conf'		=>	"/var/lib/pgsql/data/pg_hba.conf",
-				'postgresql.conf'	=>	"/var/lib/pgsql/data/postgresql.conf",
-				ssh_config		=>	"/etc/ssh/ssh_config",
+				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
+				'anvil.version'			=>	"/etc/anvil/anvil.version",
+				'firewalld.conf'		=>	"/etc/firewalld/firewalld.conf",
+				'httpd.conf'			=>	"/etc/httpd/conf/httpd.conf", 
+				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
+				'pg_hba.conf'			=>	"/var/lib/pgsql/data/pg_hba.conf",
+				'postgresql.conf'		=>	"/var/lib/pgsql/data/postgresql.conf",
+				ssh_config			=>	"/etc/ssh/ssh_config",
 			},
 			data			=>	{
-				group			=>	"/etc/group",
-				'.htpasswd'		=>	"/etc/httpd/.htpasswd",
-				host_uuid		=>	"/etc/anvil/host.uuid",
-				passwd			=>	"/etc/passwd",
+				group				=>	"/etc/group",
+				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
+				host_uuid			=>	"/etc/anvil/host.uuid",
+				passwd				=>	"/etc/passwd",
 			},
 			directories		=>	{
-				backups			=>	"/root/anvil-backups",
-				'cgi-bin'		=>	"/var/www/cgi-bin",
-				firewalld_services	=>	"/usr/lib/firewalld/services",
-				firewalld_zones		=>	"/etc/firewalld/zones",
-				html			=>	"/var/www/html",
-				ifcfg			=>	"/etc/sysconfig/network-scripts",
-				skins			=>	"/var/www/html/skins",
-				tools			=>	"/usr/sbin",
-				units			=>	"/usr/lib/systemd/system",
+				backups				=>	"/root/anvil-backups",
+				'cgi-bin'			=>	"/var/www/cgi-bin",
+				firewalld_services		=>	"/usr/lib/firewalld/services",
+				firewalld_zones			=>	"/etc/firewalld/zones",
+				html				=>	"/var/www/html",
+				ifcfg				=>	"/etc/sysconfig/network-scripts",
+				skins				=>	"/var/www/html/skins",
+				tools				=>	"/usr/sbin",
+				units				=>	"/usr/lib/systemd/system",
 			},
 			exe			=>	{
-				'anvil-change-password'	=>	"/usr/sbin/anvil-change-password",
-				'anvil-prep-database'	=>	"/usr/sbin/anvil-prep-database",
-				'anvil-update-states'	=>	"/usr/sbin/anvil-update-states",
-				'anvil-report-memory'	=>	"/usr/sbin/anvil-report-memory",
-				'chmod'			=>	"/usr/bin/chmod",
-				'chown'			=>	"/usr/bin/chown",
-				cp			=>	"/usr/bin/cp",
-				createdb		=>	"/usr/bin/createdb",
-				createuser		=>	"/usr/bin/createuser",
-				dmidecode		=>	"/usr/sbin/dmidecode",
-				echo			=>	"/usr/bin/echo",
-				ethtool			=>	"/usr/sbin/ethtool",
-				expect			=>	"/usr/bin/expect", 
-				'firewall-cmd'		=>	"/usr/bin/firewall-cmd",
-				gethostip		=>	"/usr/bin/gethostip",
-				'grep'			=>	"/usr/bin/grep", 
-				head			=>	"/usr/bin/head",
-				hostname		=>	"/usr/bin/hostname",
-				hostnamectl		=>	"/usr/bin/hostnamectl",
-				htpasswd		=>	"/usr/bin/htpasswd",
-				ifdown			=>	"/sbin/ifdown",
-				ifup			=>	"/sbin/ifup",
-				ip			=>	"/usr/sbin/ip",
-				'iptables-save'		=>	"/usr/sbin/iptables-save",
-				journalctl		=>	"/usr/bin/journalctl",
-				logger			=>	"/usr/bin/logger",
-				md5sum			=>	"/usr/bin/md5sum",
-				'mkdir'			=>	"/usr/bin/mkdir",
-				nmcli			=>	"/bin/nmcli",
-				openssl			=>	"/usr/bin/openssl", 
-				passwd			=>	"/usr/bin/passwd",
-				ping			=>	"/usr/bin/ping",
-				pgrep			=>	"/usr/bin/pgrep",
-				ps			=>	"/usr/bin/ps",
-				psql			=>	"/usr/bin/psql",
-				'postgresql-setup'	=>	"/usr/bin/postgresql-setup",
-				pwd			=>	"/usr/bin/pwd",
-				rsync			=>	"/usr/bin/rsync",
-				sed			=>	"/usr/bin/sed", 
-				'shutdown'		=>	"/usr/sbin/shutdown",
-				'ssh-keyscan'		=>	"/usr/bin/ssh-keyscan",
-				strings			=>	"/usr/bin/strings",
-				stty			=>	"/usr/bin/stty",
-				su			=>	"/usr/bin/su",
-				systemctl		=>	"/usr/bin/systemctl",
-				timeout			=>	"/usr/bin/timeout",
-				touch			=>	"/usr/bin/touch",
-				tput			=>	"/usr/bin/tput", 
-				'tr'			=>	"/usr/bin/tr",
-				usermod			=>	"/usr/sbin/usermod",
-				uuidgen			=>	"/usr/bin/uuidgen",
-				virsh			=>	"/usr/bin/virsh",
+				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
+				'anvil-manage-striker-peers'		=>	"/usr/sbin/anvil-manage-striker-peers",
+				'anvil-prep-database'		=>	"/usr/sbin/anvil-prep-database",
+				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
+				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
+				'chmod'				=>	"/usr/bin/chmod",
+				'chown'				=>	"/usr/bin/chown",
+				cp				=>	"/usr/bin/cp",
+				createdb			=>	"/usr/bin/createdb",
+				createuser			=>	"/usr/bin/createuser",
+				dmidecode			=>	"/usr/sbin/dmidecode",
+				echo				=>	"/usr/bin/echo",
+				ethtool				=>	"/usr/sbin/ethtool",
+				expect				=>	"/usr/bin/expect", 
+				'firewall-cmd'			=>	"/usr/bin/firewall-cmd",
+				gethostip			=>	"/usr/bin/gethostip",
+				'grep'				=>	"/usr/bin/grep", 
+				head				=>	"/usr/bin/head",
+				hostname			=>	"/usr/bin/hostname",
+				hostnamectl			=>	"/usr/bin/hostnamectl",
+				htpasswd			=>	"/usr/bin/htpasswd",
+				ifdown				=>	"/sbin/ifdown",
+				ifup				=>	"/sbin/ifup",
+				ip				=>	"/usr/sbin/ip",
+				'iptables-save'			=>	"/usr/sbin/iptables-save",
+				journalctl			=>	"/usr/bin/journalctl",
+				logger				=>	"/usr/bin/logger",
+				md5sum				=>	"/usr/bin/md5sum",
+				'mkdir'				=>	"/usr/bin/mkdir",
+				nmcli				=>	"/bin/nmcli",
+				openssl				=>	"/usr/bin/openssl", 
+				passwd				=>	"/usr/bin/passwd",
+				ping				=>	"/usr/bin/ping",
+				pgrep				=>	"/usr/bin/pgrep",
+				ps				=>	"/usr/bin/ps",
+				psql				=>	"/usr/bin/psql",
+				'postgresql-setup'		=>	"/usr/bin/postgresql-setup",
+				pwd				=>	"/usr/bin/pwd",
+				rsync				=>	"/usr/bin/rsync",
+				sed				=>	"/usr/bin/sed", 
+				'shutdown'			=>	"/usr/sbin/shutdown",
+				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
+				strings				=>	"/usr/bin/strings",
+				stty				=>	"/usr/bin/stty",
+				su				=>	"/usr/bin/su",
+				systemctl			=>	"/usr/bin/systemctl",
+				timeout				=>	"/usr/bin/timeout",
+				touch				=>	"/usr/bin/touch",
+				tput				=>	"/usr/bin/tput", 
+				'tr'				=>	"/usr/bin/tr",
+				usermod				=>	"/usr/sbin/usermod",
+				uuidgen				=>	"/usr/bin/uuidgen",
+				virsh				=>	"/usr/bin/virsh",
 			},
 			'lock'			=>	{
-				database		=>	"/tmp/anvil-tools.database.lock",
+				database			=>	"/tmp/anvil-tools.database.lock",
 			},
 			secure			=>	{
-				postgres_pgpass		=>	"/var/lib/pgsql/.pgpass",
+				postgres_pgpass			=>	"/var/lib/pgsql/.pgpass",
 			},
 			sql			=>	{
-				'anvil.sql'		=>	"/usr/share/anvil/anvil.sql",
+				'anvil.sql'			=>	"/usr/share/anvil/anvil.sql",
 			},
 			urls		=>	{
-				skins			=>	"/skins",
+				skins				=>	"/skins",
 			},
 			words		=>	{
-				'words.xml'		=>	"/usr/share/anvil/words.xml",
+				'words.xml'			=>	"/usr/share/anvil/words.xml",
 			},
 	};
 	

@@ -1099,7 +1099,7 @@ sub read_config
 	{
 		# Find the file, if possible. If not found, we'll not alter what the user passed in and hope
 		# it is relative to where we are.
-		my $path = $anvil->Storage->find({ file => $file });
+		my $path = $anvil->Storage->find({debug => $debug, file => $file});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { path => $path }});
 		if ($path ne "#!not_found!#")
 		{
@@ -1131,11 +1131,11 @@ sub read_config
 		{
 			# Read it in! 
 			my $count = 0;
-			my $body  = $anvil->Storage->read_file({file => $file});
+			my $body  = $anvil->Storage->read_file({force_read => 1, debug => $debug, file => $file});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
 			foreach my $line (split/\n/, $body)
 			{
-				$line = $anvil->Words->clean_spaces({ string => $line });
+				$line = $anvil->Words->clean_spaces({string => $line});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 				$count++;
 				

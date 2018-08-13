@@ -310,7 +310,7 @@ sub entry
 		}
 		
 		# Open the file?
-		if (not $anvil->{HANDLE}{log_file})
+		if (not $anvil->data->{HANDLE}{log_file})
 		{
 			# If the file doesn't start with a '/', we'll put it under /var/log.
 			my $log_file           = $anvil->data->{sys}{log_file} =~ /^\// ? $anvil->data->{sys}{log_file} : "/var/log/".$anvil->data->{sys}{log_file};
@@ -326,20 +326,20 @@ sub entry
 			# NOTE: Don't call '$anvil->Log->entry()' here, it will cause a loop!
 			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
 			$file_handle->autoflush(1);
-			$anvil->{HANDLE}{log_file} = $file_handle;
+			$anvil->data->{HANDLE}{log_file} = $file_handle;
 			
 			# Make sure it can be written to by apache.
 			$anvil->Storage->change_mode({target => $log_file, mode => "0666"});
 		}
 		
-		if (not $anvil->{HANDLE}{log_file})
+		if (not $anvil->data->{HANDLE}{log_file})
 		{
 			# NOTE: This can't be a normal error because we can't write to the logs.
 			die $THIS_FILE." ".__LINE__."; log file handle doesn't exist, but it should by now.\n";
 		}
 		
 		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
-		print { $anvil->{HANDLE}{log_file} } $string;
+		print { $anvil->data->{HANDLE}{log_file} } $string;
 	}
 	else
 	{

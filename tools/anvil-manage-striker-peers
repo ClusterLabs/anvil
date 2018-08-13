@@ -10,6 +10,16 @@
 # 
 # Calling this with --add, will insert an entry if it's not found. Calling it with no switch will update the 
 # entry if it exists. Calling it with --remove will delete it.
+# 
+### Show existing entries
+# /usr/sbin/anvil-manage-striker-peers --list
+### Add a new entry, or edit an existing one
+# /usr/sbin/anvil-manage-striker-peers --add --host-uuid e20c3f10-c35d-4543-b5e6-8a373f27977a --host localhost --port 5432 --password-file /tmp/anvil-manage-striker-peers.2e410b43-42a0-4eaf-985c-670f92c482b8 --ping 0
+### Edit an existing entry, but don't add it if it wasn't found.
+# /usr/sbin/anvil-manage-striker-peers --host-uuid e20c3f10-c35d-4543-b5e6-8a373f27977a --host localhost --port 5432 --password-file /tmp/anvil-manage-striker-peers.2e410b43-42a0-4eaf-985c-670f92c482b8 --ping 0
+### Remove an entry
+# /usr/sbin/anvil-manage-striker-peers --remove --host-uuid e20c3f10-c35d-4543-b5e6-8a373f27977a 
+
 
 use strict;
 use warnings;
@@ -29,6 +39,7 @@ my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 
 # Read switches
 $anvil->data->{switches}{list} = "";
+$anvil->data->{switches}{add}  = 0;
 $anvil->Get->switches;
 
 # Make sure we're running as 'root'
@@ -43,22 +54,10 @@ if (($< != 0) && ($> != 0))
 # Paths
 $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 
-# Read in the anvil.conf, we're going to need it in any case.
-$anvil->data->{body}{'anvil.conf'} = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.conf'}});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 3, list => { "body::anvil.conf" => $anvil->data->{body}{'anvil.conf'} }});
-
-# If we don't find the entry, or if the entry exists but has changed, this will be set to '1' so we'll 
-# rewrite the file.
-$anvil->data->{config}{rewrite} = 0;
-
 # Am I adding, editing or deleting?
-process_entry($anvil) if not $anvil->data->{switches}{list};
-
-# Re-read the (new) config
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "config::rewrite" => $anvil->data->{config}{rewrite} }});
-if ($anvil->data->{config}{rewrite})
+if (not $anvil->data->{switches}{list})
 {
-	$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+	process_entry($anvil) ;
 }
 
 ### Report the peers.
@@ -83,6 +82,7 @@ foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{sorted}{db}})
 	print $anvil->Words->string({key => "message_0032", variables => { 
 		peer => $user."\@".$host.":".$port,
 		name => $name, 
+		uuid => $uuid,
 	}})."\n";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0190", variables => { 
 		peer     => $user."\@".$host.":".$port,
@@ -115,6 +115,14 @@ sub process_entry
 		password_file => $password_file,
 		ping          => $ping, 
 	}});
+
+	# Read in the anvil.conf, we're going to need it in any case.
+	$anvil->data->{body}{'anvil.conf'} = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 3, list => { "body::anvil.conf" => $anvil->data->{body}{'anvil.conf'} }});
+
+	# If we don't find the entry, or if the entry exists but has changed, this will be set to '1' so we'll 
+	# rewrite the file.
+	$anvil->data->{config}{rewrite} = 0;
 	
 	# Is anything missing?
 	if ((not $host_uuid) or (not $anvil->Validate->is_uuid({uuid => $host_uuid})))
@@ -124,11 +132,11 @@ sub process_entry
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0031", variables => { host_uuid => $host_uuid }});
 		$anvil->nice_exit({code => 2});
 	}
-	if (not $host)
+	if ((not $host) && (not $anvil->data->{switches}{remove}))
 	{
 		# Invalid UUID.
 		print $anvil->Words->string({key => "error_0032", variables => { switch => "host" }})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0032", variables => { host_uuid => $host_uuid }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0032", variables => { host => $host }});
 		$anvil->nice_exit({code => 2});
 	}
 	if (($port =~ /\D/) or ($port < 1) or ($port > 65535))
@@ -177,18 +185,44 @@ sub process_entry
 		
 		# Secure password lines.
 		my $secure = (($line =~ /password/) && ($line !~ /^#/)) ? 1 : 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => $secure, level => 2, list => { line => $line }});
-		if ($line =~ /^(.*)(\s*)=(\s*)(.*)$/)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => $secure, level => 3, list => { line => $line }});
+		
+		# If we've hit the end of the DB list, see if we need to insert a new entry.
+		if ($line eq "### end db list ###")
+		{
+			# If I've not seen this DB, enter it.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { 
+				peer_seen       => $peer_seen,
+				"switches::add" => $anvil->data->{switches}{add},
+			}});
+			if ((not $peer_seen) && ($anvil->data->{switches}{add}))
+			{
+				$new_body                       .= $insert."\n";
+				$anvil->data->{config}{rewrite} =  1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { 
+					new_body          => $new_body,
+					"config::rewrite" => $anvil->data->{config}{rewrite},
+				}});
+			}
+		}
+		
+		# Skip comments.
+		if ($line =~ /^#/)
+		{
+			$new_body .= $line."\n";
+			next;
+		}
+		if ($line =~ /^(.*?)(\s*)=(\s*)(.*)$/)
 		{
 			my $variable    = $1;
 			my $left_space  = $2;
 			my $right_space = $3; 
 			my $value       = $4;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				variable    => $variable,
-				left_space  => $left_space, 
-				right_space => $right_space, 
-				value       => $value, 
+				"s1:variable"    => $variable,
+				"s2:value"       => $value, 
+				"s3:left_space"  => $left_space, 
+				"s4:right_space" => $right_space, 
 			}});
 			
 			if ($variable eq $host_variable)
@@ -204,7 +238,7 @@ sub process_entry
 					$just_deleted                   = 1;
 					$anvil->data->{config}{rewrite} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						just_deleted      => $just_deleted. 
+						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
 					next;
@@ -238,7 +272,7 @@ sub process_entry
 					$just_deleted                   = 1;
 					$anvil->data->{config}{rewrite} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						just_deleted      => $just_deleted. 
+						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
 					next;
@@ -276,7 +310,7 @@ sub process_entry
 					$just_deleted                   = 1;
 					$anvil->data->{config}{rewrite} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						just_deleted      => $just_deleted. 
+						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
 					next;
@@ -310,7 +344,7 @@ sub process_entry
 					$just_deleted                   = 1;
 					$anvil->data->{config}{rewrite} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						just_deleted      => $just_deleted. 
+						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
 					next;
@@ -332,19 +366,6 @@ sub process_entry
 				}
 			}
 		}
-		if ($line eq "### end db list ###")
-		{
-			# If I've not seen this DB, enter it.
-			if ((not $peer_seen) && ($anvil->data->{switches}{add}))
-			{
-				$new_body                       .= $insert."\n";
-				$anvil->data->{config}{rewrite} =  1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { 
-					new_body          => $new_body,
-					"config::rewrite" => $anvil->data->{config}{rewrite},
-				}});
-			}
-		}
 		$new_body .= $line."\n";
 	}
 	
@@ -358,7 +379,6 @@ sub process_entry
 		# Now update!
 		$anvil->Storage->write_file({
 			secure    => 1, 
-			debug     => 2,
 			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
 			body      => $new_body, 
 			user      => "admin", 
@@ -366,6 +386,13 @@ sub process_entry
 			mode      => "0644",
 			overwrite => 1,
 		});
+		
+		# Delete any databases I new about, the we'll reload from the config.
+		delete $anvil->data->{database};
+		
+		# Re-read the config.
+		sleep 1;
+		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	}
 	
 	return(0);
