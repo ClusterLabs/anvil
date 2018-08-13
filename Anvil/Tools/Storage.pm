@@ -1129,9 +1129,10 @@ sub read_config
 		}
 		else
 		{
-			# Read it in! 
+			# Read it in! And force the issue so we don't use a cached version in case it's 
+			# changed on disk.
 			my $count = 0;
-			my $body  = $anvil->Storage->read_file({force_read => 1, debug => $debug, file => $file});
+			my $body  = $anvil->Storage->read_file({cache => 0, force_read => 1, debug => $debug, file => $file});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
 			foreach my $line (split/\n/, $body)
 			{
