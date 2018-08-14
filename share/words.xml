@@ -230,7 +230,7 @@ The database connection error was:
 		<key name="log_0129">all</key>	<!-- Used when logging DB writes to all DBs -->
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
 		<key name="log_0131">Entering function: [#!variable!function!#]</key>
-		<key name="log_0132">Connected to: [#!variable!connections!#] database(s).</key>
+		<key name="log_0132">Connected to: [#!data!sys::db_connections!#] database(s).</key>
 		<key name="log_0133">Failed to read the system UUID. Received a non-UUID string: [#!variable!uuid!#]. Is the user: [#!variable!user!#] in the 'kmem' group?</key>
 		<key name="log_0134">The read host UUID: [#!variable!uuid!#] does not appear to be a valid UUID.</key>
 		<key name="log_0135">Runtime was approximately: [#!variable!runtime!#] seconds.</key>
@@ -460,6 +460,14 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!sys::log_file!#</span>].]]></key>
 		<key name="error_0031">The 'host-uuid': [#!variable!host_uuid!#] is not valid.</key>
 		<key name="error_0032">The '#!variable!switch!#' switch is missing.</key>
+		<key name="error_0033">The job UUID was passed via '--job-uuid' but the passed in value: [#!variable!uuid!#] is not a valid UUID.</key>
+		<key name="error_0034">The job UUID was passed via '--job-uuid': [#!variable!uuid!#] doesn't match a job in the database.</key>
+		<key name="error_0035">
+The update appears to have not completed successfully. The output was:
+====
+#!variable!output!#
+====
+		</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

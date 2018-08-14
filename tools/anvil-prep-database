@@ -56,7 +56,7 @@ if ($local_uuid)
 	{
 		# Not installed.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0144"});
-		exit(5);
+		$anvil->nice_exit({code => 5});
 	}
 	elsif (not $running)
 	{
@@ -91,7 +91,7 @@ if ($local_uuid)
 				{
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
 				}
-				exit(1);
+				$anvil->nice_exit({code => 1});
 			}
 			else
 			{
@@ -203,7 +203,7 @@ if ($local_uuid)
 		{
 			# Failed to start
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0094"});
-			exit(2);
+			$anvil->nice_exit({code => 2});
 		}
 	}
 	
@@ -241,7 +241,7 @@ if ($local_uuid)
 	{
 		# No database user defined
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { uuid => $local_uuid }});
-		exit(3);
+		$anvil->nice_exit({code => 3});
 	}
 	my $user_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user_list => $user_list }});
@@ -278,7 +278,7 @@ if ($local_uuid)
 		if (not $user_exists)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0096", variables => { user => $database_user }});
-			exit(4);
+			$anvil->nice_exit({code => 4});
 		}
 		
 		# Update/set the passwords.
@@ -340,7 +340,7 @@ if ($local_uuid)
 		if (not $database_exists)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0109", variables => { database => $database_name }});
-			exit(5);
+			$anvil->nice_exit({code => 5});
 		}
 	}
 	

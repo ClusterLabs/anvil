@@ -890,6 +890,7 @@ sub _set_paths
 				createdb			=>	"/usr/bin/createdb",
 				createuser			=>	"/usr/bin/createuser",
 				dmidecode			=>	"/usr/sbin/dmidecode",
+				dnf				=>	"/usr/bin/dnf",
 				echo				=>	"/usr/bin/echo",
 				ethtool				=>	"/usr/sbin/ethtool",
 				expect				=>	"/usr/bin/expect", 

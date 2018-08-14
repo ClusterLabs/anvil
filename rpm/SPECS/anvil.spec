@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        12%{?dist}
+Release:        13%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -343,18 +343,20 @@ sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config
 setenforce 1
 
 %postun striker
+### TODO: Stopping postgres breaks the Anvil! during OS updates. Need to find a
+###       way to run this only during uninstalls, and not during updates.
 ### TODO: This breaks the repos
-rm -rf /usr/share/anvil
-echo "Closing the postgresql ports."
+# rm -rf /usr/share/anvil
+# echo "Closing the postgresql ports."
 #firewall-cmd --zone=public --remove-service=http
 #firewall-cmd --zone=public --remove-service=http --permanent
-firewall-cmd --zone=public --remove-service=postgresql
-firewall-cmd --zone=public --remove-service=postgresql --permanent
-echo "Disabling and stopping postgresql-9.6."
+# firewall-cmd --zone=public --remove-service=postgresql
+# firewall-cmd --zone=public --remove-service=postgresql --permanent
+# echo "Disabling and stopping postgresql-9.6."
 # systemctl disable httpd.service
 # systemctl stop httpd.service
-systemctl disable postgresql.service
-systemctl stop postgresql.service
+# systemctl disable postgresql.service
+# systemctl stop postgresql.service
 
 
 %files core
@@ -379,6 +381,9 @@ systemctl stop postgresql.service
 
 
 %changelog
+* Tue Aug 14 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-13
+- Disabled the postun as it breaks connections to the DB during updates.
+
 * Thu Aug 02 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-12
 - Added perl-Proc-Simple to core dependencies.
 

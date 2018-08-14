@@ -357,7 +357,7 @@ CREATE TABLE jobs (
     job_uuid           uuid                        not null    primary key,    -- 
     job_host_uuid      uuid                        not null,                   -- This is the host that requested the job
     job_command        text                        not null,                   -- This is the command to run (usually a shell call).
-    job_data           text                        not null,                   -- This is optional data to be used by anvil-data 
+    job_data           text                        not null,                   -- 
     job_picked_up_by   numeric                     not null    default 0,      -- This is the PID of the 'anvil-jobs' script that picked up the job.
     job_picked_up_at   numeric                     not null    default 0,      -- This is unix timestamp of when the job was picked up.
     job_updated        numeric                     not null    default 0,      -- This is unix timestamp that is perdiodically updated for jobs that take a long time. It is used to help determine when a job is hung.
