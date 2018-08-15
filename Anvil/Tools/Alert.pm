@@ -85,7 +85,7 @@ Parameters;
 
 =head3 modified_date (optional)
 
-By default, this is set to C<< sys::db_timestamp >>. If you want to force a different timestamp, you can do so with this parameter.
+By default, this is set to C<< sys::database::timestamp >>. If you want to force a different timestamp, you can do so with this parameter.
 
 =head3 name (required)
 
@@ -115,7 +115,7 @@ sub check_alert_sent
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $anvil     = $self->parent;
 	
-	my $modified_date  = defined $parameter->{modified_date}  ? $parameter->{modified_date}  : $anvil->data->{sys}{db_timestamp};
+	my $modified_date  = defined $parameter->{modified_date}  ? $parameter->{modified_date}  : $anvil->data->{sys}{database}{timestamp};
 	my $name           = defined $parameter->{name}           ? $parameter->{name}           : "";
 	my $record_locator = defined $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = defined $parameter->{set_by}         ? $parameter->{set_by}         : "";
@@ -177,13 +177,13 @@ SELECT
 FROM 
     alert_sent 
 WHERE 
-    alert_sent_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid})." 
+    alert_sent_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})." 
 AND 
-    alert_set_by         = ".$anvil->data->{sys}{use_db_fh}->quote($set_by)." 
+    alert_set_by         = ".$anvil->data->{sys}{database}{use_handle}->quote($set_by)." 
 AND 
-    alert_record_locator = ".$anvil->data->{sys}{use_db_fh}->quote($record_locator)." 
+    alert_record_locator = ".$anvil->data->{sys}{database}{use_handle}->quote($record_locator)." 
 AND 
-    alert_name           = ".$anvil->data->{sys}{use_db_fh}->quote($name)."
+    alert_name           = ".$anvil->data->{sys}{database}{use_handle}->quote($name)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -209,7 +209,7 @@ SELECT
 FROM 
     hosts 
 WHERE 
-    host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid})."
+    host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 
@@ -247,12 +247,12 @@ INSERT INTO
     alert_name, 
     modified_date
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($set_by).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($record_locator).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($set_by).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($record_locator).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -269,7 +269,7 @@ INSERT INTO
 DELETE FROM 
     alert_sent 
 WHERE 
-    alert_sent_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($alert_sent_uuid)." 
+    alert_sent_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($alert_sent_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			query => $query,
@@ -425,17 +425,17 @@ INSERT INTO
     alert_header, 
     modified_date
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->uuid()).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($set_by).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($level).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($title_key).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($title_variables).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($message_key).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($message_variables).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($sort).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($header).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->uuid()).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($set_by).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($level).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($title_key).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($title_variables).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($message_key).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($message_variables).",
+    ".$anvil->data->{sys}{database}{use_handle}->quote($sort).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($header).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});

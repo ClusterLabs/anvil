@@ -53,7 +53,7 @@ if (not -e $anvil->data->{path}{data}{host_uuid})
 
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
-if (not $anvil->data->{sys}{db_connections})
+if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
 	print $anvil->Words->string({key => "error_0003"});
@@ -750,7 +750,7 @@ WHERE
 AND 
     job_progress  != 100 
 AND 
-    job_host_uuid =  ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)."
+    job_host_uuid =  ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -844,7 +844,7 @@ WHERE
 AND 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)." 
+    variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
 ORDER BY 
     variable_name ASC;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
@@ -994,7 +994,7 @@ WHERE
 AND 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->Get->host_uuid)." 
+    variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
 ORDER BY 
     variable_name ASC;";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});

@@ -162,12 +162,12 @@ The database connection error was:
 		<key name="log_0069">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] was refused. Is the database server running?</key>
 		<key name="log_0070">The connection to the database: [#!variable!name!#] on host: [#!variable!host!#:#!variable!port!#] failed because the name could not be translated to an IP address. Is this database server's host name in '/etc/hosts'?</key>
 		<key name="log_0071">Successfully Connected to the database: [#!variable!name!#] (id: [#!variable!uuid!#]) on host: [#!variable!host!#:#!variable!port!#].</key>
-		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::read_db_uuid' doesn't contain a database ID, either. Are any databases available?]]></key>
+		<key name="log_0072"><![CDATA[[ Error ] - The method Database->query() was called without a database ID to query and 'sys::database::read_uuid' doesn't contain a database ID, either. Are any databases available?]]></key>
 		<key name="log_0073"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with ID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0074">About to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
-		<key name="log_0077"><![CDATA[[ Error ] - The method Database->initialize() was called without a database ID to query and 'sys::read_db_uuid' doesn't contain a database ID, either. Are any databases available?]]></key>
+		<key name="log_0077"><![CDATA[[ Error ] - The method Database->initialize() was called without a database ID to query and 'sys::database::read_uuid' doesn't contain a database ID, either. Are any databases available?]]></key>
 		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with ID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!uuid!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
 		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
@@ -183,7 +183,7 @@ The database connection error was:
 		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0091">Failed to connect to any database.</key>
 		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!uuid!#]).]]></key>
-		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'modified_date' parameter was not passed and/or 'sys::db_timestamp' is not set. Did the program fail to connect to any databases?]]></key>
+		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'modified_date' parameter was not passed and/or 'sys::database::timestamp' is not set. Did the program fail to connect to any databases?]]></key>
 		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
 		<key name="log_0095">The database user: [#!variable!user!#] was created with ID: [#!variable!id!#].</key>
 		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
@@ -230,7 +230,7 @@ The database connection error was:
 		<key name="log_0129">all</key>	<!-- Used when logging DB writes to all DBs -->
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
 		<key name="log_0131">Entering function: [#!variable!function!#]</key>
-		<key name="log_0132">Connected to: [#!data!sys::db_connections!#] database(s).</key>
+		<key name="log_0132">Connected to: [#!data!sys::database::connections!#] database(s).</key>
 		<key name="log_0133">Failed to read the system UUID. Received a non-UUID string: [#!variable!uuid!#]. Is the user: [#!variable!user!#] in the 'kmem' group?</key>
 		<key name="log_0134">The read host UUID: [#!variable!uuid!#] does not appear to be a valid UUID.</key>
 		<key name="log_0135">Runtime was approximately: [#!variable!runtime!#] seconds.</key>
@@ -289,6 +289,12 @@ The database connection error was:
 		<key name="log_0188">Database archive check skipped, not running as root.</key>
 		<key name="log_0189">Database archiving is disabled, skipping archive checks.</key>
 		<key name="log_0190">Peer: [#!variable!peer!#], database: [#!variable!name!#], password: [#!variable!password!#], host UUID: [#!variable!uuid!#]</key>
+		<key name="log_0191">Connection only to: [#!variable!db_uuid!#], skipping: [#!variable!uuid!#].</key>
+		<key name="log_0192">The connection to the database: [#!variable!server!#] has failed. Will attempt to reconnect.</key>
+		<key name="log_0193">Switching the default database handle to use the database: [#!variable!server!#] prior to reconnect attempt.</key>
+		<key name="log_0194">Switching the default database to read from to the database: [#!variable!server!#] prior to reconnect attempt.</key>
+		<key name="log_0195">Ready to try to reconnect to: [#!variable!server!#], but delaying for: [#!variable!delay!#] seconds to give the database a chance to come back online in case this is a transient issue.</key>
+		<key name="log_0196">Failed to reconnect to the database, and now no connections remail. Exiting.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -413,6 +419,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0083">Would you like to reconfigure this machine? If you confirm, Striker will re-run the initial configuration. Connections to peers and database data will be retained.</key>
 		<key name="striker_0084">Confirmed</key>
 		<key name="striker_0085">This Striker has been marked as reconfigured. Reload to start the confguration process.</key>
+		<key name="striker_0086">Would you like to update the operating system on this machine? This Striker will be placed into maintenance mode until the update completes.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

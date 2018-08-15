@@ -598,6 +598,10 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
+=head3 db_uuid (optional)
+
+If set, the connection will be made only to the database server matching the UUID.
+
 =head3 source (optional)
 
 The C<< source >> parameter is used to check the special C<< updated >> table one all connected databases to see when that source (program name, usually) last updated a given database. If the date stamp is the same on all connected databases, nothing further happens. If one of the databases differ, however, a resync will be requested.
@@ -649,17 +653,19 @@ sub connect
 	my $sql_file   = defined $parameter->{sql_file}   ? $parameter->{sql_file}   : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $tables     = defined $parameter->{tables}     ? $parameter->{tables}     : "";
 	my $test_table = defined $parameter->{test_table} ? $parameter->{test_table} : $anvil->data->{sys}{database}{test_table};
+	my $db_uuid    = defined $parameter->{db_uuid}    ? $parameter->{db_uuid}    : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		source     => $source, 
 		sql_file   => $sql_file, 
 		tables     => $tables, 
 		test_table => $test_table, 
+		db_uuid    => $db_uuid,
 	}});
 	
 	my $start_time = [gettimeofday];
 	#print "Start time: [".$start_time->[0].".".$start_time->[1]."]\n";
 	
-	$anvil->data->{sys}{db_timestamp} = "" if not defined $anvil->data->{sys}{db_timestamp};
+	$anvil->data->{sys}{database}{timestamp} = "" if not defined $anvil->data->{sys}{database}{timestamp};
 	
 	# We need the host_uuid before we connect.
 	if (not $anvil->data->{sys}{host_uuid})
@@ -670,18 +676,23 @@ sub connect
 	
 	# This will be used in a few cases where the local DB ID is needed (or the lack of it being set 
 	# showing we failed to connect to the local DB).
-	$anvil->data->{sys}{local_db_uuid} = "";
+	$anvil->data->{sys}{database}{local_uuid} = "";
 	
 	# This will be set to '1' if either DB needs to be initialized or if the last_updated differs on any node.
 	$anvil->data->{sys}{database}{resync_needed} = 0;
 	
 	# Now setup or however-many connections
 	my $seen_connections       = [];
-	my $connections            = 0;
 	my $failed_connections     = [];
 	my $successful_connections = [];
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
+		if (($db_uuid) && ($db_uuid ne $uuid))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0191", variables => { db_uuid => $db_uuid, uuid => $uuid }});
+			next;
+		}
+		
 		my $driver   = "DBI:Pg";
 		my $host     = $anvil->data->{database}{$uuid}{host}     ? $anvil->data->{database}{$uuid}{host}     : ""; # This should fail
 		my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
@@ -698,12 +709,17 @@ sub connect
 		
 		# Some places will want to pull up the database user, so in case it isn't set (which is 
 		# usual), set it as if we had read it from the config file using the default.
-		$anvil->data->{database}{$uuid}{name} = $anvil->data->{sys}{database}{name} if not $anvil->data->{database}{$uuid}{name};
+		if (not $anvil->data->{database}{$uuid}{name})
+		{
+			$anvil->data->{database}{$uuid}{name} = $anvil->data->{sys}{database}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "database::${uuid}::name" => $anvil->data->{database}{$uuid}{name} }});
+		}
 		
 		# If not set, we will always ping before connecting.
 		if ((not exists $anvil->data->{database}{$uuid}{ping}) or (not defined $anvil->data->{database}{$uuid}{ping}))
 		{
 			$anvil->data->{database}{$uuid}{ping} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "database::${uuid}::ping" => $anvil->data->{database}{$uuid}{ping} }});
 		}
 		
 		# Make sure the user didn't specify the same target twice.
@@ -776,16 +792,16 @@ sub connect
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
 		if ($is_local)
 		{
-			$anvil->data->{sys}{read_db_uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
+			$anvil->data->{sys}{database}{read_uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 			
 			# Set it up (or update it) if needed. This method just returns if nothing is needed.
 			$anvil->Database->configure_pgsql({debug => $debug, uuid => $uuid});
 		}
-		elsif (not $anvil->data->{sys}{read_db_uuid})
+		elsif (not $anvil->data->{sys}{database}{read_uuid})
 		{
-			$anvil->data->{sys}{read_db_uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
+			$anvil->data->{sys}{database}{read_uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 		}
 		
 		# If this isn't a local database, read the target's Anvil! version (if available) and make 
@@ -888,9 +904,9 @@ sub connect
 		elsif ($dbh =~ /^DBI::db=HASH/)
 		{
 			# Woot!
-			$connections++;
+			$anvil->data->{sys}{database}{connections}++;
 			push @{$successful_connections}, $uuid;
-			$anvil->data->{cache}{db_fh}{$uuid} = $dbh;
+			$anvil->data->{cache}{database_handle}{$uuid} = $dbh;
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0071", variables => { 
 				host => $host,
@@ -899,16 +915,16 @@ sub connect
 				uuid => $uuid,
 			}});
 			
-			if (not $anvil->data->{sys}{use_db_fh})
+			if (not $anvil->data->{sys}{database}{use_handle})
 			{
-				$anvil->data->{sys}{use_db_fh} = $dbh;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::use_db_fh' => $anvil->data->{sys}{use_db_fh} }});
+				$anvil->data->{sys}{database}{use_handle} = $dbh;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::use_handle' => $anvil->data->{sys}{database}{use_handle} }});
 			}
 			
 			# If the '$test_table' isn't the same as 'sys::database::test_table', see if the core schema needs loading first.
 			if ($test_table ne $anvil->data->{sys}{database}{test_table})
 			{
-				my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{defaults}{sql}{test_table})." AND schemaname='public';";
+				my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{defaults}{sql}{test_table})." AND schemaname='public';";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
 				my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -924,7 +940,7 @@ sub connect
 			}
 			
 			# Now that I have connected, see if my 'hosts' table exists.
-			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{use_db_fh}->quote($test_table)." AND schemaname='public';";
+			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->data->{sys}{database}{use_handle}->quote($test_table)." AND schemaname='public';";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -937,8 +953,8 @@ sub connect
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::read_db_uuid"   => $anvil->data->{sys}{read_db_uuid}, 
-				"cache::db_fh::$uuid" => $anvil->data->{cache}{db_fh}{$uuid}, 
+				"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid}, 
+				"cache::db_fh::$uuid"      => $anvil->data->{cache}{database_handle}{$uuid}, 
 			}});
 			
 			# Set the first ID to be the one I read from later. Alternatively, if this host is 
@@ -947,38 +963,38 @@ sub connect
 			    ($host eq $anvil->_short_hostname) or 
 			    ($host eq "localhost")             or 
 			    ($host eq "127.0.0.1")             or 
-			    (not $anvil->data->{sys}{read_db_uuid}))
+			    (not $anvil->data->{sys}{database}{read_uuid}))
 			{
-				$anvil->data->{sys}{read_db_uuid}  = $uuid;
-				$anvil->data->{sys}{local_db_uuid} = $uuid;
-				$anvil->data->{sys}{use_db_fh}     = $anvil->data->{cache}{db_fh}{$uuid};
+				$anvil->data->{sys}{database}{read_uuid}  = $uuid;
+				$anvil->data->{sys}{database}{local_uuid} = $uuid;
+				$anvil->data->{sys}{database}{use_handle} = $anvil->data->{cache}{database_handle}{$uuid};
 				
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid}, 
-					"sys::use_db_fh"    => $anvil->data->{sys}{use_db_fh}
+					"sys::database::read_uuid"  => $anvil->data->{sys}{database}{read_uuid}, 
+					"sys::database::use_handle" => $anvil->data->{sys}{database}{use_handle}
 				}});
 			}
 			
 			# Get a time stamp for this run, if not yet gotten.
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"cache::db_fh::$uuid" => $anvil->data->{cache}{db_fh}{$uuid}, 
-				"sys::db_timestamp"   => $anvil->data->{sys}{db_timestamp},
+				"cache::db_fh::$uuid"      => $anvil->data->{cache}{database_handle}{$uuid}, 
+				"sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp},
 			}});
 			
 			# Pick a timestamp for this run, if we haven't yet.
-			if (not $anvil->data->{sys}{db_timestamp})
+			if (not $anvil->data->{sys}{database}{timestamp})
 			{
 				my $query = "SELECT cast(now() AS timestamp with time zone)::timestamptz(0);";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				$anvil->data->{sys}{db_timestamp} = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_timestamp" => $anvil->data->{sys}{db_timestamp} }});
+				$anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp} }});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::read_db_uuid"   => $anvil->data->{sys}{read_db_uuid},
-				"sys::use_db_fh"    => $anvil->data->{sys}{use_db_fh},
-				"sys::db_timestamp" => $anvil->data->{sys}{db_timestamp},
+				"sys::database::read_uuid"  => $anvil->data->{sys}{database}{read_uuid},
+				"sys::database::use_handle" => $anvil->data->{sys}{database}{use_handle},
+				"sys::database::timestamp"  => $anvil->data->{sys}{database}{timestamp},
 			}});
 		}
 	}
@@ -987,12 +1003,12 @@ sub connect
 	#print "Total runtime: [".$total."]\n";
 	
 	# Do I have any connections? Don't die, if not, just return.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connections => $connections }});
-	if (not $connections)
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
+	if (not $anvil->data->{sys}{database}{connections})
 	{
 		# Failed to connect to any database. Log this, print to the caller and return.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0091"});
-		return($connections);
+		return($anvil->data->{sys}{database}{connections});
 	}
 	
 	# Report any failed DB connections
@@ -1026,7 +1042,7 @@ sub connect
 			set_by         => $THIS_FILE,
 			record_locator => $uuid,
 			name           => "connect_to_db",
-			modified_date  => $anvil->data->{sys}{db_timestamp},
+			modified_date  => $anvil->data->{sys}{database}{timestamp},
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 		
@@ -1073,7 +1089,7 @@ sub connect
 		###       matches the actual hostname (dumb) or find another way of mapping the host name.
 		# Query to see if the newly connected host is in the DB yet. If it isn't, don't send an
 		# alert as it'd cause a duplicate UUID error.
-# 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{database}{$uuid}{host}).";";
+# 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{database}{$uuid}{host}).";";
 # 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 # 
 # 		my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -1087,7 +1103,7 @@ sub connect
 				set_by         => $THIS_FILE,
 				record_locator => $uuid,
 				name           => "connect_to_db",
-				modified_date  => $anvil->data->{sys}{db_timestamp},
+				modified_date  => $anvil->data->{sys}{database}{timestamp},
 			});
 			if ($cleared)
 			{
@@ -1115,12 +1131,11 @@ sub connect
 		
 		# Disconnect and set the connection count to '0'.
 		$anvil->Database->disconnect({debug => $debug});
-		$connections = 0;
 	}
 	
 	# For now, we just find which DBs are behind and let each agent deal with bringing their tables up to
 	# date.
-	if ($connections > 1)
+	if ($anvil->data->{sys}{database}{connections} > 1)
 	{
 		$anvil->Database->_find_behind_databases({
 			debug  => $debug, 
@@ -1144,10 +1159,7 @@ sub connect
 	# Add ourselves to the database, if needed.
 	$anvil->Database->insert_or_update_hosts({debug => $debug});
 	
-	# We'll store the number of connections in the hash.
-	$anvil->data->{sys}{db_connections} = $connections;
-	
-	return($connections);
+	return($anvil->data->{sys}{database}{connections});
 }
 
 =head2
@@ -1167,7 +1179,7 @@ sub disconnect
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		# Don't do anything if there isn't an active file handle for this DB.
-		next if ((not $anvil->data->{cache}{db_fh}{$uuid}) or ($anvil->data->{cache}{db_fh}{$uuid} !~ /^DBI::db=HASH/));
+		next if ((not $anvil->data->{cache}{database_handle}{$uuid}) or ($anvil->data->{cache}{database_handle}{$uuid} !~ /^DBI::db=HASH/));
 		
 		# Clear locks and mark that we're done running.
 		if (not $marked_inactive)
@@ -1177,17 +1189,17 @@ sub disconnect
 			$marked_inactive = 1;
 		}
 		
-		$anvil->data->{cache}{db_fh}{$uuid}->disconnect;
-		delete $anvil->data->{cache}{db_fh}{$uuid};
+		$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+		delete $anvil->data->{cache}{database_handle}{$uuid};
 	}
 	
 	# Delete the stored DB-related values.
-	delete $anvil->data->{sys}{db_timestamp};
-	delete $anvil->data->{sys}{use_db_fh};
-	delete $anvil->data->{sys}{read_db_uuid};
+	delete $anvil->data->{sys}{database}{timestamp};
+	delete $anvil->data->{sys}{database}{use_handle};
+	delete $anvil->data->{sys}{database}{read_uuid};
 	
 	# Set the connection count to 0.
-	$anvil->data->{sys}{db_connections} = 0;
+	$anvil->data->{sys}{database}{connections} = 0;
 	
 	return(0);
 }
@@ -1358,7 +1370,7 @@ sub initialize
 	my $say_server    = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_server => $say_server }});
 	
-	if (not defined $anvil->data->{cache}{db_fh}{$uuid})
+	if (not defined $anvil->data->{cache}{database_handle}{$uuid})
 	{
 		# Database handle is gone.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0078", variables => { uuid => $uuid }});
@@ -1512,9 +1524,9 @@ SELECT
 FROM 
     bridges 
 WHERE 
-    bridge_name      = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_name)." 
+    bridge_name      = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_name)." 
 AND 
-    bridge_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_host_uuid)." 
+    bridge_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -1572,12 +1584,12 @@ INSERT INTO
     bridge_stp_enabled, 
     modified_date 
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_host_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_id).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bridge_stp_enabled).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_id).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_stp_enabled).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -1595,7 +1607,7 @@ SELECT
 FROM 
     bridges 
 WHERE 
-    bridge_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_uuid)." 
+    bridge_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -1629,13 +1641,13 @@ WHERE
 UPDATE 
     bridges 
 SET 
-    bridge_host_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_host_uuid).",  
-    bridge_name        = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_name).", 
-    bridge_id          = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_id).", 
-    bridge_stp_enabled = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_stp_enabled).", 
-    modified_date      = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    bridge_host_uuid   = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_host_uuid).",  
+    bridge_name        = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_name).", 
+    bridge_id          = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_id).", 
+    bridge_stp_enabled = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_stp_enabled).", 
+    modified_date      = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    bridge_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($bridge_uuid)." 
+    bridge_uuid        = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -1782,9 +1794,9 @@ SELECT
 FROM 
     bonds 
 WHERE 
-    bond_name      = ".$anvil->data->{sys}{use_db_fh}->quote($bond_name)." 
+    bond_name      = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_name)." 
 AND 
-    bond_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid)." 
+    bond_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -1850,20 +1862,20 @@ INSERT INTO
     bond_operational, 
     modified_date 
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mode).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mtu).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_slave).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_reselect).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_active_slave).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_mac_address).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($bond_operational).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mode).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mtu).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_primary_slave).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_primary_reselect).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_active_slave).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mii_polling_interval).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_up_delay).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_down_delay).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mac_address).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($bond_operational).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -1889,7 +1901,7 @@ SELECT
 FROM 
     bonds 
 WHERE 
-    bond_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 
+    bond_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -1947,21 +1959,21 @@ WHERE
 UPDATE 
     bonds 
 SET 
-    bond_host_uuid            = ".$anvil->data->{sys}{use_db_fh}->quote($bond_host_uuid).",  
-    bond_name                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_name).", 
-    bond_mode                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mode).", 
-    bond_mtu                  = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mtu).", 
-    bond_primary_slave        = ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_slave).", 
-    bond_primary_reselect     = ".$anvil->data->{sys}{use_db_fh}->quote($bond_primary_reselect).", 
-    bond_active_slave         = ".$anvil->data->{sys}{use_db_fh}->quote($bond_active_slave).", 
-    bond_mii_polling_interval = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mii_polling_interval).", 
-    bond_up_delay             = ".$anvil->data->{sys}{use_db_fh}->quote($bond_up_delay).", 
-    bond_down_delay           = ".$anvil->data->{sys}{use_db_fh}->quote($bond_down_delay).", 
-    bond_mac_address          = ".$anvil->data->{sys}{use_db_fh}->quote($bond_mac_address).", 
-    bond_operational          = ".$anvil->data->{sys}{use_db_fh}->quote($bond_operational).", 
-    modified_date             = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    bond_host_uuid            = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_host_uuid).",  
+    bond_name                 = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_name).", 
+    bond_mode                 = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mode).", 
+    bond_mtu                  = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mtu).", 
+    bond_primary_slave        = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_primary_slave).", 
+    bond_primary_reselect     = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_primary_reselect).", 
+    bond_active_slave         = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_active_slave).", 
+    bond_mii_polling_interval = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mii_polling_interval).", 
+    bond_up_delay             = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_up_delay).", 
+    bond_down_delay           = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_down_delay).", 
+    bond_mac_address          = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mac_address).", 
+    bond_operational          = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_operational).", 
+    modified_date             = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    bond_uuid                 = ".$anvil->data->{sys}{use_db_fh}->quote($bond_uuid)." 
+    bond_uuid                 = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -2051,7 +2063,7 @@ SELECT
 FROM 
     hosts 
 WHERE 
-    host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($host_uuid)."
+    host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -2082,10 +2094,10 @@ INSERT INTO
     host_type, 
     modified_date
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($host_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($host_name).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($host_type).",
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_name).",
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_type).",
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -2098,11 +2110,11 @@ INSERT INTO
 UPDATE 
     hosts
 SET 
-    host_name     = ".$anvil->data->{sys}{use_db_fh}->quote($host_name).", 
-    host_type     = ".$anvil->data->{sys}{use_db_fh}->quote($host_type).", 
-    modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    host_name     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_name).", 
+    host_type     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_type).", 
+    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE
-    host_uuid     = ".$anvil->data->{sys}{use_db_fh}->quote($host_uuid)."
+    host_uuid     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -2238,9 +2250,9 @@ SELECT
 FROM 
     ip_addresses 
 WHERE 
-    ip_address_address   = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address)." 
+    ip_address_address   = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_address)." 
 AND 
-    ip_address_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_host_uuid)." 
+    ip_address_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -2302,16 +2314,16 @@ INSERT INTO
     ip_address_dns, 
     modified_date 
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_host_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_type).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet_mask).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_default_gateway).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_on_type).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_on_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_address).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_subnet_mask).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_gateway).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_default_gateway).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_dns).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -2333,7 +2345,7 @@ SELECT
 FROM 
     ip_addresses 
 WHERE 
-    ip_address_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_uuid)." 
+    ip_address_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -2379,17 +2391,17 @@ WHERE
 UPDATE 
     ip_addresses 
 SET 
-    ip_address_host_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_host_uuid).",  
-    ip_address_on_type         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_type).",  
-    ip_address_on_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_on_uuid).", 
-    ip_address_address         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_address).", 
-    ip_address_subnet_mask     = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_subnet_mask).", 
-    ip_address_gateway         = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_gateway).", 
-    ip_address_default_gateway = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_default_gateway).", 
-    ip_address_dns             = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_dns).", 
-    modified_date              = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    ip_address_host_uuid       = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_host_uuid).",  
+    ip_address_on_type         = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_on_type).",  
+    ip_address_on_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_on_uuid).", 
+    ip_address_address         = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_address).", 
+    ip_address_subnet_mask     = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_subnet_mask).", 
+    ip_address_gateway         = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_gateway).", 
+    ip_address_default_gateway = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_default_gateway).", 
+    ip_address_dns             = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_dns).", 
+    modified_date              = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    ip_address_uuid            = ".$anvil->data->{sys}{use_db_fh}->quote($ip_address_uuid)." 
+    ip_address_uuid            = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -2595,9 +2607,9 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_name      = ".$anvil->data->{sys}{use_db_fh}->quote($job_name)." 
+    job_name      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_name)." 
 AND 
-    job_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid)." 
+    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -2660,19 +2672,19 @@ INSERT INTO
     job_status, 
     modified_date 
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_command).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_data).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_picked_up_by).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_picked_up_at).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_updated).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_title).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_description).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($job_status).", 
-   ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_command).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_data).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_by).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_at).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_updated).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_progress).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_title).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_description).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
+   ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -2697,7 +2709,7 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+    job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -2744,10 +2756,10 @@ WHERE
 UPDATE 
     jobs 
 SET 
-    job_progress  = ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
-    modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    job_progress  = ".$anvil->data->{sys}{database}{use_handle}->quote($job_progress).", 
+    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    job_uuid      = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+    job_uuid      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
 					if ($job_status)
 					{
@@ -2755,11 +2767,11 @@ WHERE
 UPDATE 
     jobs 
 SET 
-    job_progress  = ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
-    job_status    = ".$anvil->data->{sys}{use_db_fh}->quote($job_status).", 
-    modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    job_progress  = ".$anvil->data->{sys}{database}{use_handle}->quote($job_progress).", 
+    job_status    = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
+    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    job_uuid      = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+    job_uuid      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
 					}
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -2785,20 +2797,20 @@ WHERE
 UPDATE 
     jobs 
 SET 
-    job_host_uuid    = ".$anvil->data->{sys}{use_db_fh}->quote($job_host_uuid).",  
-    job_command      = ".$anvil->data->{sys}{use_db_fh}->quote($job_command).", 
-    job_data         = ".$anvil->data->{sys}{use_db_fh}->quote($job_data).", 
-    job_picked_up_by = ".$anvil->data->{sys}{use_db_fh}->quote($job_picked_up_by).", 
-    job_picked_up_at = ".$anvil->data->{sys}{use_db_fh}->quote($job_picked_up_at).", 
-    job_updated      = ".$anvil->data->{sys}{use_db_fh}->quote($job_updated).", 
-    job_name         = ".$anvil->data->{sys}{use_db_fh}->quote($job_name).", 
-    job_progress     = ".$anvil->data->{sys}{use_db_fh}->quote($job_progress).", 
-    job_title        = ".$anvil->data->{sys}{use_db_fh}->quote($job_title).", 
-    job_description  = ".$anvil->data->{sys}{use_db_fh}->quote($job_description).", 
-    job_status       = ".$anvil->data->{sys}{use_db_fh}->quote($job_status).", 
-    modified_date    = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    job_host_uuid    = ".$anvil->data->{sys}{database}{use_handle}->quote($job_host_uuid).",  
+    job_command      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_command).", 
+    job_data         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_data).", 
+    job_picked_up_by = ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_by).", 
+    job_picked_up_at = ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_at).", 
+    job_updated      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_updated).", 
+    job_name         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_name).", 
+    job_progress     = ".$anvil->data->{sys}{database}{use_handle}->quote($job_progress).", 
+    job_title        = ".$anvil->data->{sys}{database}{use_handle}->quote($job_title).", 
+    job_description  = ".$anvil->data->{sys}{database}{use_handle}->quote($job_description).", 
+    job_status       = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
+    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    job_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($job_uuid)." 
+    job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -2955,7 +2967,7 @@ sub insert_or_update_network_interfaces
 	if (not $network_interface_uuid)
 	{
 		# See if I know this NIC by referencing it's MAC.
-		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mac_address).";";
+		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_mac_address).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		$network_interface_uuid = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__})->[0]->[0];
@@ -2983,7 +2995,7 @@ SELECT
 FROM 
     network_interfaces 
 WHERE 
-    network_interface_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_uuid).";
+    network_interface_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_uuid).";
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3041,20 +3053,20 @@ WHERE
 UPDATE 
     network_interfaces
 SET 
-    network_interface_host_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_host_uuid).", 
-    network_interface_bond_uuid   = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bond_uuid).", 
-    network_interface_bridge_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bridge_uuid).", 
-    network_interface_name        = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_name).", 
-    network_interface_duplex      = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_duplex).", 
-    network_interface_link_state  = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_link_state).", 
-    network_interface_operational = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_operational).", 
-    network_interface_mac_address = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mac_address).", 
-    network_interface_medium      = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_medium).", 
-    network_interface_mtu         = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mtu).", 
-    network_interface_speed       = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_speed).", 
-    modified_date                 = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    network_interface_host_uuid   = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_host_uuid).", 
+    network_interface_bond_uuid   = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_bond_uuid).", 
+    network_interface_bridge_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_bridge_uuid).", 
+    network_interface_name        = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_name).", 
+    network_interface_duplex      = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_duplex).", 
+    network_interface_link_state  = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_link_state).", 
+    network_interface_operational = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_operational).", 
+    network_interface_mac_address = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_mac_address).", 
+    network_interface_medium      = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_medium).", 
+    network_interface_mtu         = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_mtu).", 
+    network_interface_speed       = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_speed).", 
+    modified_date                 = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE
-    network_interface_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_uuid)."
+    network_interface_uuid        = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_uuid)."
 ;";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -3086,19 +3098,19 @@ INSERT INTO
     network_interface_speed, 
     modified_date
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_uuid).",  
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bond_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_bridge_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_duplex).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_host_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_link_state).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_operational).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mac_address).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_medium).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_mtu).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($network_interface_speed).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_uuid).",  
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_bond_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_bridge_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_duplex).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_link_state).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_operational).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_mac_address).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_medium).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_mtu).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_speed).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
@@ -3195,9 +3207,9 @@ SELECT
 FROM 
     states 
 WHERE 
-    state_name      = ".$anvil->data->{sys}{use_db_fh}->quote($state_name)." 
+    state_name      = ".$anvil->data->{sys}{database}{use_handle}->quote($state_name)." 
 AND 
-    state_host_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($state_host_uuid)." 
+    state_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($state_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3252,11 +3264,11 @@ INSERT INTO
     state_note, 
     modified_date 
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($state_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($state_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($state_host_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($state_note).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($state_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($state_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($state_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($state_note).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -3273,7 +3285,7 @@ SELECT
 FROM 
     states 
 WHERE 
-    state_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($state_uuid)." 
+    state_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($state_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3304,12 +3316,12 @@ WHERE
 UPDATE 
     states 
 SET 
-    state_name       = ".$anvil->data->{sys}{use_db_fh}->quote($state_name).", 
-    state_host_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($state_host_uuid).",  
-    state_note       = ".$anvil->data->{sys}{use_db_fh}->quote($state_note).", 
-    modified_date    = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    state_name       = ".$anvil->data->{sys}{database}{use_handle}->quote($state_name).", 
+    state_host_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($state_host_uuid).",  
+    state_note       = ".$anvil->data->{sys}{database}{use_handle}->quote($state_note).", 
+    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    state_uuid       = ".$anvil->data->{sys}{use_db_fh}->quote($state_uuid)." 
+    state_uuid       = ".$anvil->data->{sys}{database}{use_handle}->quote($state_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -3480,7 +3492,7 @@ SELECT
 FROM 
     users 
 WHERE 
-    user_name = ".$anvil->data->{sys}{use_db_fh}->quote($user_name)." 
+    user_name = ".$anvil->data->{sys}{database}{use_handle}->quote($user_name)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3542,18 +3554,18 @@ INSERT INTO
     user_session_salt, 
     modified_date 
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_password_hash).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_salt).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_language).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_is_admin).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_is_experienced).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_is_trusted).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($user_session_salt).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_password_hash).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_salt).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_algorithm).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_hash_count).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_language).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_admin).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_experienced).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_trusted).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($user_session_salt).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -3577,7 +3589,7 @@ SELECT
 FROM 
     users 
 WHERE 
-    user_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)." 
+    user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3630,19 +3642,19 @@ WHERE
 UPDATE 
     users 
 SET 
-    user_name           = ".$anvil->data->{sys}{use_db_fh}->quote($user_name).", 
-    user_password_hash  = ".$anvil->data->{sys}{use_db_fh}->quote($user_password_hash).",  
-    user_salt           = ".$anvil->data->{sys}{use_db_fh}->quote($user_salt).",  
-    user_algorithm      = ".$anvil->data->{sys}{use_db_fh}->quote($user_algorithm).",  
-    user_hash_count     = ".$anvil->data->{sys}{use_db_fh}->quote($user_hash_count).",  
-    user_language       = ".$anvil->data->{sys}{use_db_fh}->quote($user_language).",  
-    user_is_admin       = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_admin).", 
-    user_is_experienced = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_experienced).", 
-    user_is_trusted     = ".$anvil->data->{sys}{use_db_fh}->quote($user_is_trusted).", 
-    user_session_salt   = ".$anvil->data->{sys}{use_db_fh}->quote($user_session_salt).", 
-    modified_date       = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    user_name           = ".$anvil->data->{sys}{database}{use_handle}->quote($user_name).", 
+    user_password_hash  = ".$anvil->data->{sys}{database}{use_handle}->quote($user_password_hash).",  
+    user_salt           = ".$anvil->data->{sys}{database}{use_handle}->quote($user_salt).",  
+    user_algorithm      = ".$anvil->data->{sys}{database}{use_handle}->quote($user_algorithm).",  
+    user_hash_count     = ".$anvil->data->{sys}{database}{use_handle}->quote($user_hash_count).",  
+    user_language       = ".$anvil->data->{sys}{database}{use_handle}->quote($user_language).",  
+    user_is_admin       = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_admin).", 
+    user_is_experienced = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_experienced).", 
+    user_is_trusted     = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_trusted).", 
+    user_session_salt   = ".$anvil->data->{sys}{database}{use_handle}->quote($user_session_salt).", 
+    modified_date       = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    user_uuid           = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)." 
+    user_uuid           = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
@@ -3770,7 +3782,7 @@ SELECT
 FROM 
     variables 
 WHERE 
-    variable_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid);
+    variable_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 		
 		$variable_name = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__})->[0]->[0];
@@ -3786,14 +3798,14 @@ SELECT
 FROM 
     variables 
 WHERE 
-    variable_name = ".$anvil->data->{sys}{use_db_fh}->quote($variable_name);
+    variable_name = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_name);
 		if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 		{
 			$query .= "
 AND 
-    variable_source_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_uuid)." 
+    variable_source_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_uuid)." 
 AND 
-    variable_source_table = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_table)." 
+    variable_source_table = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_table)." 
 ";
 		}
 		$query .= ";";
@@ -3832,15 +3844,15 @@ INSERT INTO
     variable_source_table, 
     modified_date 
 ) VALUES (
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_name).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_value).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_default).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_description).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_section).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_uuid).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_table).", 
-    ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_value).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_default).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_description).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_section).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_table).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
@@ -3858,14 +3870,14 @@ SELECT
 FROM 
     variables 
 WHERE 
-    variable_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid);
+    variable_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid);
 			if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 			{
 				$query .= "
 AND 
-    variable_source_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_uuid)." 
+    variable_source_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_uuid)." 
 AND 
-    variable_source_table = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_table)." 
+    variable_source_table = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_table)." 
 ";
 			}
 			$query .= ";";
@@ -3890,17 +3902,17 @@ AND
 UPDATE 
     variables 
 SET 
-    variable_value = ".$anvil->data->{sys}{use_db_fh}->quote($variable_value).", 
-    modified_date  = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    variable_value = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_value).", 
+    modified_date  = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    variable_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid);
+    variable_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid);
 					if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 					{
 						$query .= "
 AND 
-    variable_source_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_uuid)." 
+    variable_source_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_uuid)." 
 AND 
-    variable_source_table = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_table)." 
+    variable_source_table = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_table)." 
 ";
 					}
 					$query .= ";";
@@ -3923,7 +3935,7 @@ SELECT
 FROM 
     variables 
 WHERE 
-    variable_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid)." 
+    variable_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid)." 
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 			
@@ -3960,14 +3972,14 @@ WHERE
 UPDATE 
     variables 
 SET 
-    variable_name        = ".$anvil->data->{sys}{use_db_fh}->quote($variable_name).", 
-    variable_value       = ".$anvil->data->{sys}{use_db_fh}->quote($variable_value).", 
-    variable_default     = ".$anvil->data->{sys}{use_db_fh}->quote($variable_default).", 
-    variable_description = ".$anvil->data->{sys}{use_db_fh}->quote($variable_description).", 
-    variable_section     = ".$anvil->data->{sys}{use_db_fh}->quote($variable_section).", 
-    modified_date        = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    variable_name        = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_name).", 
+    variable_value       = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_value).", 
+    variable_default     = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_default).", 
+    variable_description = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_description).", 
+    variable_section     = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_section).", 
+    modified_date        = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    variable_uuid        = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid)." 
+    variable_uuid        = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid)." 
 ";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
 					
@@ -4282,7 +4294,7 @@ sub mark_active
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
 	# If I haven't connected to a database yet, why am I here?
-	if (not $anvil->data->{sys}{read_db_uuid})
+	if (not $anvil->data->{sys}{database}{read_uuid})
 	{
 		return(0);
 	}
@@ -4345,7 +4357,7 @@ Parameters;
 
 =head3 uuid (optional)
 
-By default, the local database will be queried (if run on a machine with a database). Otherwise, the first database successfully connected to will be used for queries (as stored in C<< $anvil->data->{sys}{read_db_uuid} >>).
+By default, the local database will be queried (if run on a machine with a database). Otherwise, the first database successfully connected to will be used for queries (as stored in C<< $anvil->data->{sys}{database}{read_uuid} >>).
 
 If you want to read from a specific database, though, you can set this parameter to the ID of the database (C<< database::<id>::host). If you specify a read from a database that isn't available, C<< !!error!! >> will be returned.
 
@@ -4357,7 +4369,7 @@ To help with logging the source of a query, C<< line >> can be set to the line n
 
 This is the SQL query to perform.
 
-B<NOTE>: ALWAYS use C<< $anvil->data->{sys}{use_db_fh}->quote(...)>> when preparing data coming from ANY external source! Otherwise you'll end up XKCD 327'ing your database eventually...
+B<NOTE>: ALWAYS use C<< $anvil->data->{sys}{database}{use_handle}->quote(...)>> when preparing data coming from ANY external source! Otherwise you'll end up XKCD 327'ing your database eventually...
 
 =head3 secure (optional, defaul '0')
 
@@ -4376,18 +4388,18 @@ sub query
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->query()" }});
 	
-	my $uuid   = $parameter->{uuid}   ? $parameter->{uuid}   : $anvil->data->{sys}{read_db_uuid};
+	my $uuid   = $parameter->{uuid}   ? $parameter->{uuid}   : $anvil->data->{sys}{database}{read_uuid};
 	my $line   = $parameter->{line}   ? $parameter->{line}   : __LINE__;
 	my $query  = $parameter->{query}  ? $parameter->{query}  : "";
 	my $secure = $parameter->{secure} ? $parameter->{secure} : 0;
 	my $source = $parameter->{source} ? $parameter->{source} : $THIS_FILE;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid                  => $uuid, 
-		"cache::db_fh::${uuid}" => $anvil->data->{cache}{db_fh}{$uuid}, 
-		line                  => $line, 
-		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
-		secure                => $secure, 
-		source                => $source, 
+		uuid                              => $uuid, 
+		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
+		line                              => $line, 
+		query                             => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
+		secure                            => $secure, 
+		source                            => $source, 
 	}});
 	
 	# Make logging code a little cleaner
@@ -4400,7 +4412,7 @@ sub query
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0072"});
 		return("!!error!!");
 	}
-	elsif (not defined $anvil->data->{cache}{db_fh}{$uuid})
+	elsif (not defined $anvil->data->{cache}{database_handle}{$uuid})
 	{
 		# Database handle is gone.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0073", variables => { uuid => $uuid }});
@@ -4415,6 +4427,9 @@ sub query
 		return("!!error!!");
 	}
 	
+	# Test access to the DB before we do the actual query
+	$anvil->Database->_test_access({debug => $debug, uuid => $uuid});
+	
 	# If I am still alive check if any locks need to be renewed.
 	$anvil->Database->check_lock_age;
 	
@@ -4427,11 +4442,8 @@ sub query
 		}});
 	}
 	
-	# Test access to the DB before we do the actual query
-	$anvil->Database->_test_access({uuid => $uuid});
-	
 	# Do the query.
-	my $DBreq = $anvil->data->{cache}{db_fh}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
+	my $DBreq = $anvil->data->{cache}{database_handle}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
 			query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
@@ -4477,7 +4489,7 @@ sub read_variable
 	my $variable_name         = $parameter->{variable_name}         ? $parameter->{variable_name}         : "";
 	my $variable_source_uuid  = $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "";
 	my $variable_source_table = $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "";
-	my $uuid                  = $parameter->{uuid}                  ? $parameter->{uuid}                  : $anvil->data->{sys}{read_db_uuid};
+	my $uuid                  = $parameter->{uuid}                  ? $parameter->{uuid}                  : $anvil->data->{sys}{database}{read_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		variable_uuid         => $variable_uuid, 
 		variable_name         => $variable_name, 
@@ -4505,19 +4517,19 @@ WHERE ";
 	if ($variable_uuid)
 	{
 		$query .= "
-    variable_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($variable_uuid);
+    variable_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid);
 	}
 	else
 	{
 		$query .= "
-    variable_name = ".$anvil->data->{sys}{use_db_fh}->quote($variable_name);
+    variable_name = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_name);
 		if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
 		{
 			$query .= "
 AND 
-    variable_source_uuid  = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_uuid)." 
+    variable_source_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_uuid)." 
 AND 
-    variable_source_table = ".$anvil->data->{sys}{use_db_fh}->quote($variable_source_table)." 
+    variable_source_table = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_table)." 
 ";
 		}
 	}
@@ -4597,10 +4609,10 @@ sub resync_databases
 		{
 			$column2 = $1."_uuid";
 		}
-		my $query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column1).";";
+		my $query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column1).";";
 		if ($column2)
 		{
-			$query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND (column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column1)." OR column_name = ".$anvil->data->{sys}{use_db_fh}->quote($column2).");";
+			$query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND (column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column1)." OR column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column2).");";
 		}
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 		my $uuid_column = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -4609,7 +4621,7 @@ sub resync_databases
 		next if not $uuid_column;
 		
 		# Get all the columns in this table.
-		$query = "SELECT column_name, is_nullable, data_type FROM information_schema.columns WHERE table_schema = ".$anvil->data->{sys}{use_db_fh}->quote($schema)." AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND column_name != 'history_id';";
+		$query = "SELECT column_name, is_nullable, data_type FROM information_schema.columns WHERE table_schema = ".$anvil->data->{sys}{database}{use_handle}->quote($schema)." AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND column_name != 'history_id';";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 		
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -4667,7 +4679,7 @@ sub resync_databases
 			# Restrict to this host if a host column was found.
 			if ($host_column)
 			{
-				$query .= " WHERE ".$host_column." = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid});
+				$query .= " WHERE ".$host_column." = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid});
 			}
 			$query .= " ORDER BY modified_date DESC;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
@@ -4795,7 +4807,7 @@ sub resync_databases
 								my $query = "UPDATE public.$table SET ";
 								foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
 								{
-									my $column_value =  $anvil->data->{sys}{use_db_fh}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+									my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
 									   $column_value =  "NULL" if not defined $column_value;
 									   $column_value =~ s/'NULL'/NULL/g;
 									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -4805,7 +4817,7 @@ sub resync_databases
 									
 									$query .= "$column_name = ".$column_value.", ";
 								}
-								$query .= "modified_date = ".$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).";";
+								$query .= "modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).";";
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 								
 								# Now record the query in the array
@@ -4822,7 +4834,7 @@ sub resync_databases
 							my $values  = "";
 							foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
 							{
-								my $column_value =  $anvil->data->{sys}{use_db_fh}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+								my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
 								   $column_value =~ s/'NULL'/NULL/g;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 									column_name  => $column_name, 
@@ -4836,11 +4848,11 @@ sub resync_databases
 								'values' => $values, 
 							}});
 							
-							my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							if ($host_column)
 							{
 								# Add the host column.
-								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 							
@@ -4870,7 +4882,7 @@ sub resync_databases
 							my $values  = "";
 							foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
 							{
-								my $column_value =  $anvil->data->{sys}{use_db_fh}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+								my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
 									$column_value =~ s/'NULL'/NULL/g;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 									column_name  => $column_name, 
@@ -4884,11 +4896,11 @@ sub resync_databases
 								'values' => $values, 
 							}});
 							
-							my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							if ($host_column)
 							{
 								# Add the host column.
-								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{use_db_fh}->quote($row_uuid).", ".$values.$anvil->data->{sys}{use_db_fh}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 							
@@ -4954,13 +4966,13 @@ sub write
 	my $source  = $parameter->{source}  ? $parameter->{source} : $THIS_FILE;
 	my $reenter = $parameter->{reenter} ? $parameter->{reenter} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid                  => $uuid, 
-		"cache::db_fh::${uuid}" => $anvil->data->{cache}{db_fh}{$uuid}, 
-		line                  => $line, 
-		query                 => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
-		secure                => $secure, 
-		source                => $source, 
-		reenter               => $reenter,
+		uuid                              => $uuid, 
+		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
+		line                              => $line, 
+		query                             => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
+		secure                            => $secure, 
+		source                            => $source, 
+		reenter                           => $reenter,
 	}});
 	
 	# Make logging code a little cleaner
@@ -5075,7 +5087,7 @@ sub write
 	{
 		# Test access to the DB before we do the actual query
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
-		$anvil->Database->_test_access({uuid => $uuid});
+		$anvil->Database->_test_access({debug => $debug, uuid => $uuid});
 		
 		# Do the actual query(ies)
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -5085,7 +5097,7 @@ sub write
 		if ($count)
 		{
 			# More than one query, so start a transaction block.
-			$anvil->data->{cache}{db_fh}{$uuid}->begin_work;
+			$anvil->data->{cache}{database_handle}{$uuid}->begin_work;
 		}
 		
 		foreach my $query (@{$query_set})
@@ -5098,14 +5110,14 @@ sub write
 				}});
 			}
 			
-			if (not $anvil->data->{cache}{db_fh}{$uuid})
+			if (not $anvil->data->{cache}{database_handle}{$uuid})
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0089", variables => { uuid => $uuid }});
 				next;
 			}
 			
 			# Do the do.
-			$anvil->data->{cache}{db_fh}{$uuid}->do($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
+			$anvil->data->{cache}{database_handle}{$uuid}->do($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 
 					query    => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
 					server   => $say_server,
 					db_error => $DBI::errstr, 
@@ -5116,7 +5128,7 @@ sub write
 		if ($count)
 		{
 			# Commit the changes.
-			$anvil->data->{cache}{db_fh}{$uuid}->commit();
+			$anvil->data->{cache}{database_handle}{$uuid}->commit();
 		}
 	}
 	
@@ -5191,7 +5203,7 @@ sub _archive_table
 	}
 	
 	# First, if this table doesn't have a history schema, exit.
-	my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table).";";
+	my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table).";";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -5219,7 +5231,7 @@ sub _archive_table
 	
 	# There is enough data to trigger an archive, so lets get started with a list of columns in this 
 	# table.
-	$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
+	$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	
 	my $columns      = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -5322,7 +5334,7 @@ sub _find_behind_databases
 		foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
 		{
 			# Does this table exist yet?
-			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table).";";
+			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table).";";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -5331,7 +5343,7 @@ sub _find_behind_databases
 			if ($count == 1)
 			{
 				# Does this table have a '*_host_uuid' column?
-				my $query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name LIKE '\%_host_uuid' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table).";";
+				my $query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name LIKE '\%_host_uuid' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
 				# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
@@ -5342,7 +5354,7 @@ sub _find_behind_databases
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
 				
 				# Does this table have a history schema version?
-				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->data->{sys}{use_db_fh}->quote($table).";";
+				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
 				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -5358,7 +5370,7 @@ FROM
 				{
 					$query .= "
 WHERE 
-    $host_column = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{host_uuid}) ;
+    $host_column = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}) ;
 				}
 				$query .= "
 ORDER BY 
@@ -5456,18 +5468,18 @@ sub _mark_database_as_behind
 	# We can't trust this database for reads, so switch to another database for reads if
 	# necessary.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid              => $uuid, 
-		"sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid}, 
+		uuid                       => $uuid, 
+		"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid}, 
 	}});
-	if ($uuid eq $anvil->data->{sys}{read_db_uuid})
+	if ($uuid eq $anvil->data->{sys}{database}{read_uuid})
 	{
 		# Switch.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 		foreach my $this_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 		{
 			next if $this_uuid eq $uuid;
-			$anvil->data->{sys}{read_db_uuid} = $this_uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sys::read_db_uuid" => $anvil->data->{sys}{read_db_uuid} }});
+			$anvil->data->{sys}{database}{read_uuid} = $this_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 			last;
 		}
 	}
@@ -5477,7 +5489,7 @@ sub _mark_database_as_behind
 
 =head2 _test_access
 
-This method takes a database ID and performs a simple C<< SELECT 1 >> query, wrapped in a ten second C<< alarm >>. If the database has died, the query will hang and the C<< alarm >> will fire, killing this program. If the call returns, the C<< alarm >> is cancelled.
+This method takes a database UUID and tests the connection to it using the DBD 'ping' method. If it fails, open references to the database are removed or replaced, then an attempt to reconnect is made.
 
 This exists to handle the loss of a database mid-run where a normal query, which isn't wrapped in a query, could hang indefinately.
 
@@ -5500,22 +5512,120 @@ sub _test_access
 	# Log our test
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0087", variables => { server => $say_server }});
 	
-	my $query = "SELECT 1";
-	my $DBreq = $anvil->data->{cache}{db_fh}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
-			query    => $query, 
-			server   => $say_server,
-			db_error => $DBI::errstr, 
-		}});
+	# TODO: Is there a use for this anymore?
+	if (0)
+	{
+		# Ping works. Try a quick test query.
+		my $query = "SELECT 1";
+		my $DBreq = $anvil->data->{cache}{database_handle}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
+				query    => $query, 
+				server   => $say_server,
+				db_error => $DBI::errstr, 
+			}});
+		
+		# Give the test query a few seconds to respond, just in case we have some latency to a remote DB.
+		alarm(10);
+		$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
+				query    => $query, 
+				server   => $say_server,
+				db_error => $DBI::errstr, 
+			}});
+		# If we're here, we made contact.
+		alarm(0);
+	}
 	
-	# Give the test query a few seconds to respond, just in case we have some latency to a remote DB.
-	alarm(10);
-	$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
-			query    => $query, 
-			server   => $say_server,
-			db_error => $DBI::errstr, 
+	# Check using ping. Returns '1' on success, '0' on fail.
+	my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
+	if (not $connected)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0192", variables => { server => $say_server }});
+		
+		# Try to reconnect.
+		$anvil->data->{sys}{database}{connections}--;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
+		
+		# If this was the DB we were reading from or that the use_db_handle matches, and another DB 
+		# appears to still be up, switch to one of the others.
+		if ($anvil->data->{sys}{database}{connections})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::use_handle"       => $anvil->data->{sys}{database}{use_handle},
+				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
+			}});
+			if ($anvil->data->{sys}{database}{use_handle} eq $anvil->data->{cache}{database_handle}{$uuid})
+			{
+				foreach my $this_uuid (keys %{$anvil->data->{cache}{database_handle}})
+				{
+					# We don't test this connection because, if it's down, we'll know 
+					# when it is tested.
+					my $database_name = defined $anvil->data->{database}{$this_uuid}{name} ? $anvil->data->{database}{$this_uuid}{name} : $anvil->data->{sys}{database}{name};
+					my $say_server    = $anvil->data->{database}{$this_uuid}{host}.":".$anvil->data->{database}{$this_uuid}{port}." -> ".$database_name;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0193", variables => { server => $say_server }});
+
+					$anvil->data->{sys}{database}{use_handle} = $anvil->data->{cache}{database_handle}{$this_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::use_handle" => $anvil->data->{sys}{database}{use_handle} }});
+					last;
+				}
+			}
+
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				uuid                       => $uuid,
+				"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
+			}});
+			if ($uuid eq $anvil->data->{sys}{database}{read_uuid})
+			{
+				# We were reading from this DB, switch.
+				foreach my $this_uuid (keys %{$anvil->data->{cache}{database_handle}})
+				{
+					# We don't test this connection because, if it's down, we'll know 
+					# when it is tested.
+					my $database_name = defined $anvil->data->{database}{$this_uuid}{name} ? $anvil->data->{database}{$this_uuid}{name} : $anvil->data->{sys}{database}{name};
+					my $say_server    = $anvil->data->{database}{$this_uuid}{host}.":".$anvil->data->{database}{$this_uuid}{port}." -> ".$database_name;
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0194", variables => { server => $say_server }});
+
+					$anvil->data->{sys}{database}{read_uuid} = $this_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
+					last;
+				}
+			}
+			
+		}
+		else
+		{
+			# We're in trouble if we don't reconnect...
+			$anvil->data->{sys}{database}{use_handle} = "";
+			$anvil->data->{sys}{database}{read_uuid}  = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::use_handle" => $anvil->data->{sys}{database}{use_handle}, 
+				"sys::database::read_uuid"  => $anvil->data->{sys}{database}{read_uuid},
+			}});
+			
+		}
+		
+		# Delete the old handle and then try to reconnect. If the reconnect succeeds, and this is the
+		# local database, this database will be re-selected as default for reads.
+		delete $anvil->data->{cache}{database_handle}{$uuid};
+		
+		my $delay = 5;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0195", variables => { 
+			delay  => $delay,
+			server => $say_server,
 		}});
-	# If we're here, we made contact.
-	alarm(0);
+		sleep $delay;
+		$anvil->Database->connect({debug => $debug, db_uuid => $uuid});
+		
+		# If we're down to '0' databases, error out.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
+		if (not $anvil->data->{sys}{database}{connections})
+		{
+			# No connections are left, die.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0196"});
+			$anvil->nice_exit({code => 1});
+			# In case we're still alive, die.
+			die $THIS_FILE." ".__LINE__."; exiting on DB connection error.\n";
+		}
+	}
 	
 	# Success!
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0088"});

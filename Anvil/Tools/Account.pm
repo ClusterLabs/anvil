@@ -273,7 +273,7 @@ FROM
 WHERE 
     user_algorithm != 'DELETED' 
 AND 
-    user_name = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{cgi}{username}{value})."
+    user_name = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cgi}{username}{value})."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -339,10 +339,10 @@ AND
 UPDATE 
     users 
 SET 
-    user_session_salt = ".$anvil->data->{sys}{use_db_fh}->quote($session_salt).", 
-    modified_date     = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    user_session_salt = ".$anvil->data->{sys}{database}{use_handle}->quote($session_salt).", 
+    modified_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    user_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)."
+    user_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -399,9 +399,9 @@ UPDATE
     users 
 SET 
     user_session_salt = '', 
-    modified_date     = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{sys}{db_timestamp})." 
+    modified_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    user_uuid         = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{cookie}{anvil_user_uuid})."
+    user_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cookie}{anvil_user_uuid})."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -488,7 +488,7 @@ sub read_cookies
 	}});
 	
 	# Validate the cookie if there is a User UUID. Pick the random number up from the database.
-	my $query = "SELECT user_session_salt FROM users WHERE user_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($anvil->data->{cookie}{anvil_user_uuid}).";";
+	my $query = "SELECT user_session_salt FROM users WHERE user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cookie}{anvil_user_uuid}).";";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -612,7 +612,7 @@ SELECT
 FROM 
     users 
 WHERE 
-    user_uuid = ".$anvil->data->{sys}{use_db_fh}->quote($user_uuid)." 
+    user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -735,7 +735,7 @@ SELECT
 FROM 
     users 
 WHERE 
-    user_name = ".$anvil->data->{sys}{use_db_fh}->quote($user)." 
+    user_name = ".$anvil->data->{sys}{database}{use_handle}->quote($user)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
