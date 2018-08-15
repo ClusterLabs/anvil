@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        13%{?dist}
+Release:        14%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -39,7 +39,7 @@ Requires:       perl-JSON
 Requires:       perl-Log-Journald 
 Requires:       perl-Net-SSH2 
 Requires:       perl-NetAddr-IP 
-Requires:       perl-Proc-Simple;
+Requires:       perl-Proc-Simple
 Requires:       perl-Sys-Syslog
 Requires:       perl-Time-HiRes
 Requires:       perl-XML-Simple 
@@ -381,6 +381,10 @@ setenforce 1
 
 
 %changelog
+* Wed Aug 15 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-14
+- The new requirement for perl-Proc-Simple had a trailing semi-colon that 
+  slipped past the -13 release tests. Fixed here.
+
 * Tue Aug 14 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-13
 - Disabled the postun as it breaks connections to the DB during updates.
 

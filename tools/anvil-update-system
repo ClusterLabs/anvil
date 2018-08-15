@@ -216,30 +216,21 @@ sub run_os_update
 			update_progress($anvil, $progress);
 			
 			# The total (reliable) count of events is (to_update * 3), counting '(x/y): ' 
-			# (download), 'Upgrading ', 'Installing ' and 'Verifying '. We ignore the scriplet
+			# (download), 'Upgrading '/'Installing ' and 'Verifying '. We ignore the scriplet
 			# and other lines as it's hard to predict how many there will be, and they pass fast
 			# enough to not really matter for a progress bar.
-			$to_update    *= 3;
-			$percent_step =  $to_update / 90;
+			$to_update    *= 4;
+			$percent_step =  $anvil->Convert->round({number => ($to_update / 90)});
+			$next_step    =  $percent_step;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				to_update    => $to_update, 
 				percent_step => $percent_step, 
+				next_step    => $next_step, 
 			}});
-			
-			if ($percent_step =~ /\d+\.\d+/)
-			{
-				# Round up.
-				$percent_step += 1;
-				$percent_step =  int($percent_step);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { percent_step => $percent_step }});
-			}
-			
-			$next_step = $percent_step;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_step => $next_step }});
 		}
 		
 		# If 'percent_step' is set, we're ready to start counting lines.
-		if (($percent_step) && (($line =~ /\(\d+\/\d+\): /) or ($line =~ /Upgrading /i) or ($line =~ /Installing /) or ($line =~ /Cleanup /)))
+		if (($percent_step) && (($line =~ /\(\d+\/\d+\): /) or ($line =~ /^Upgrading /i) or ($line =~ /^Installing /) or ($line =~ /^Cleanup /i) or ($line =~ /^Verifying /i)))
 		{
 			$counted_lines++;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { counted_lines => $counted_lines }});
@@ -249,10 +240,11 @@ sub run_os_update
 				# Step up the progress.
 				$next_step += $percent_step;
 				$progress++;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					next_step => $next_step,
 					progress  => $progress, 
 				}});
+				next if $progress > 95;
 				
 				update_progress($anvil, $progress);
 			}
