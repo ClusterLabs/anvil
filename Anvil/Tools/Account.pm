@@ -306,6 +306,7 @@ AND
 	
 	# Test the passed-in password.
 	my $test_password_answer = $anvil->Account->encrypt_password({
+		debug      => 2,
 		password   => $anvil->data->{cgi}{password}{value}, 
 		salt       => $user_salt, 
 		algorithm  => $user_algorithm, 
@@ -345,7 +346,7 @@ WHERE
     user_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $anvil->data->{cgi}{username}{value} }});
 			$anvil->Account->_write_cookies({
@@ -404,9 +405,9 @@ WHERE
     user_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cookie}{anvil_user_uuid})."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $anvil->data->{cgi}{username}{value} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0198", variables => { user => $anvil->data->{cgi}{username}{value} }});
 	}
 	
 	# Log that they're out

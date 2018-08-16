@@ -227,7 +227,7 @@ The database connection error was:
 		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
 		<key name="log_0127">Firewalld was not running, re-enabling it. If you do not want this behaviour, please set 'sys::daemons::restart_firewalld = 0' in the configuration file for this program (or in 'tools.conf').</key>
 		<key name="log_0128">Firewalld was not running, and 'sys::daemons::restart_firewalld = 0' is set. NOT starting it.</key>
-		<key name="log_0129">all</key>	<!-- Used when logging DB writes to all DBs -->
+		<key name="log_0129"><![CDATA[<all>]]></key>	<!-- Used when logging DB writes to all DBs -->
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
 		<key name="log_0131">Entering function: [#!variable!function!#]</key>
 		<key name="log_0132">Connected to: [#!data!sys::database::connections!#] database(s).</key>
@@ -296,6 +296,7 @@ The database connection error was:
 		<key name="log_0195">Ready to try to reconnect to: [#!variable!server!#], but delaying for: [#!variable!delay!#] seconds to give the database a chance to come back online in case this is a transient issue.</key>
 		<key name="log_0196">Failed to reconnect to the database, and now no connections remail. Exiting.</key>
 		<key name="log_0197"><![CDATA[System->maintenance_mode() was passed an invalid 'set' value: [#!variable!set!#]. No action taken.]]></key>
+		<key name="log_0198">The user: [#!variable!user!#] logged out successfully.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

@@ -772,12 +772,18 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
-	my $debug     = 2;
+	my $debug     = 3;
 	my $available = 1;
 	
 	# Set maintenance mode.
-	$available = $anvil->System->maintenance_mode({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
+	my $maintenance_mode = $anvil->System->maintenance_mode({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { maintenance_mode => $maintenance_mode }});
+	
+	if ($maintenance_mode)
+	{
+		$available = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
+	}
 	
 	# TODO: Phase this out
 	if ($available)

@@ -953,8 +953,8 @@ sub connect
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid}, 
-				"cache::db_fh::$uuid"      => $anvil->data->{cache}{database_handle}{$uuid}, 
+				"sys::database::read_uuid"        => $anvil->data->{sys}{database}{read_uuid}, 
+				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
 			}});
 			
 			# Set the first ID to be the one I read from later. Alternatively, if this host is 
@@ -977,8 +977,8 @@ sub connect
 			
 			# Get a time stamp for this run, if not yet gotten.
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"cache::db_fh::$uuid"      => $anvil->data->{cache}{database_handle}{$uuid}, 
-				"sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp},
+				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
+				"sys::database::timestamp"        => $anvil->data->{sys}{database}{timestamp},
 			}});
 			
 			# Pick a timestamp for this run, if we haven't yet.
@@ -4431,7 +4431,7 @@ sub query
 	$anvil->Database->_test_access({debug => $debug, uuid => $uuid});
 	
 	# If I am still alive check if any locks need to be renewed.
-	$anvil->Database->check_lock_age;
+	$anvil->Database->check_lock_age({debug => $debug});
 	
 	# Do I need to log the transaction?
 	if ($anvil->data->{sys}{database}{log_transactions})
@@ -4650,7 +4650,7 @@ sub resync_databases
 		}
 		
 		# Now read in the data from the different databases.
-		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
 			# ...
 			$anvil->data->{db_resync}{$uuid}{public}{sql}  = [];
@@ -4768,7 +4768,7 @@ sub resync_databases
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
 				
-				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 					
@@ -4916,7 +4916,7 @@ sub resync_databases
 		delete $anvil->data->{db_data};
 		
 		# Do the INSERTs now and then release the memory.
-		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
 			# Merge the queries for both schemas into one array, with public schema 
 			# queries being first, then delete the arrays holding them to free memory
@@ -4966,19 +4966,29 @@ sub write
 	my $source  = $parameter->{source}  ? $parameter->{source} : $THIS_FILE;
 	my $reenter = $parameter->{reenter} ? $parameter->{reenter} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid                              => $uuid, 
-		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
-		line                              => $line, 
-		query                             => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
-		secure                            => $secure, 
-		source                            => $source, 
-		reenter                           => $reenter,
+		uuid    => $uuid, 
+		line    => $line, 
+		query   => ((not $secure) or (($secure) && (not $anvil->Log->secure))) ? $query : $anvil->Words->string({key => "log_0186"}), 
+		secure  => $secure, 
+		source  => $source, 
+		reenter => $reenter,
 	}});
+	
+	if ($uuid)
+	{
+		$anvil->data->{cache}{database_handle}{$uuid} = "" if not defined $anvil->data->{cache}{database_handle}{$uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
+		}});
+	}
 	
 	# Make logging code a little cleaner
 	my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
-	my $say_server    = $uuid eq "" ? "#!string!log_0129!#" : $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
-	#print "uuid: [$uuid], say_server: [$say_server]\n";
+	my $say_server    = $uuid eq "" ? $anvil->Words->string({key => "log_0129"}) : $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		database_name => $database_name, 
+		say_server    => $say_server,
+	}});
 	
 	# We don't check if ID is set here because not being set simply means to write to all available DBs.
 	if (not $query)
@@ -4989,7 +4999,7 @@ sub write
 	}
 	
 	# If I am still alive check if any locks need to be renewed.
-	$anvil->Database->check_lock_age;
+	$anvil->Database->check_lock_age({debug => $debug});
 	
 	# This array will hold either just the passed DB ID or all of them, if no ID was specified.
 	my @db_uuids;
@@ -5000,7 +5010,7 @@ sub write
 	}
 	else
 	{
-		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{db_fh}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 			push @db_uuids, $uuid;
@@ -5082,7 +5092,12 @@ sub write
 	else
 	{
 		push @{$query_set}, $query;
+		my $query_set_count = @{$query_set};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query_set_count => $query_set_count }});
 	}
+	
+	my $db_uuids_count = @db_uuids;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { db_uuids_count => $db_uuids_count }});
 	foreach my $uuid (@db_uuids)
 	{
 		# Test access to the DB before we do the actual query

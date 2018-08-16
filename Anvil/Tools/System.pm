@@ -947,7 +947,7 @@ sub maintenance_mode
 	
 	if ($maintenance_mode eq "")
 	{
-		$maintenance_mode = 1;
+		$maintenance_mode = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { maintenance_mode => $maintenance_mode }});
 	}
 	
