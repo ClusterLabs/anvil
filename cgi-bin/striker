@@ -63,7 +63,7 @@ if (not $anvil->data->{sys}{database}{connections})
 # If any jobs are pending/running, show the "unavailable" option.
 my $available  = check_availability($anvil);
 my $configured = $available ? check_if_configured($anvil) : 0;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	available  => $available,
 	configured => $configured,
 }});
@@ -195,7 +195,7 @@ sub process_task
 		#     cookies were deleted (via C<< Account->logout() >>. The user needs to log back in.
 		# 3 - There user's hash is invalid, it is probably expired. The user has been logged out and
 		#     needs to log back in.
-		my $cookie_problem = $anvil->Account->read_cookies({debug => 3});
+		my $cookie_problem = $anvil->Account->read_cookies({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cookie_problem => $cookie_problem }});
 		if (not $cookie_problem)
 		{
@@ -273,17 +273,31 @@ sub process_update
 	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
 	if ($anvil->data->{cgi}{confirm}{value})
 	{
-		# Request the job and take the system offline until it's done.
-# 		$anvil->Database->insert_or_update_variables({
-# 			variable_name         => "system::configured", 
-# 			variable_source_uuid  => $anvil->Get->host_uuid, 
-# 			variable_source_table => "hosts", 
-# 			variable_value        => 0, 
-# 			update_value_only     => 1, 
-# 		});
+		# Record the job!
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_command     => "anvil-update-system --uuid ".$anvil->Get->host_uuid, 
+			job_data        => "", 
+			job_name        => "update::system", 
+			job_title       => "job_0003", 
+			job_description => "job_0004", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
-		# Done.
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "update-requested"});
+		# We don't need to store anything as hidden variables, we'll read it back from the database 
+		# later.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
+			title_id    => "",
+			message_id  => "",
+			title       => "#!string!striker_0044!#",
+			description => "#!string!striker_0088!#",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+		
+		# Set maintenance mode.
+		$anvil->System->maintenance_mode({debug => 2, set => 1});
 	}
 	else
 	{
@@ -699,7 +713,29 @@ sub configure_striker
 	elsif ($anvil->data->{cgi}{step}{value} eq "step3")
 	{
 		# User has confirmed, update the system!
-		$anvil->data->{form}{body} = save_job($anvil);
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_command     => "anvil-configure-striker", 
+			job_data        => "form::config_step2", 
+			job_name        => "configure::network", 
+			job_title       => "job_0001", 
+			job_description => "job_0002", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		# Set maintenance mode.
+		$anvil->System->maintenance_mode({debug => 2, set => 1});
+		
+		# We don't need to store anything as hidden variables, we'll read it back from the database later.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "network_job_recorded", variables => {
+			title_id    => "",
+			message_id  => "",
+			title       => "#!string!striker_0044!#",
+			description => "#!string!striker_0045!#",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
 	}
 	else
 	{
@@ -736,9 +772,17 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
-	my $debug     = 3;
+	my $debug     = 2;
 	my $available = 1;
-	my $query     = "
+	
+	# Set maintenance mode.
+	$available = $anvil->System->maintenance_mode({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
+	
+	# TODO: Phase this out
+	if ($available)
+	{
+		my $query     = "
 SELECT 
     job_progress, 
     modified_date, 
@@ -752,76 +796,42 @@ AND
 AND 
     job_host_uuid =  ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	if ($count)
-	{
-		# We're waiting for the network configuration
-		my $percent     = $results->[0]->[0];
-		my $timestamp   = $results->[0]->[1];
-		my $unixtime    = $results->[0]->[2];
-		my $seconds_ago = $anvil->Convert->add_commas({number => (time - $unixtime)});
-		   $available   = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			available   => $available,
-			percent     => $percent,
-			seconds_ago => $seconds_ago, 
-			timestamp   => $timestamp, 
-			unixtime    => $unixtime, 
-		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "striker.html", name => "striker-offline", variables => {
-			title_id    => "",
-			message_id  => "",
-			title       => "#!string!striker_0046!#",
-			description => $anvil->Words->string({key => "striker_0047", variables => { percent => $percent, timestamp => $timestamp, seconds_ago => $seconds_ago }}),
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
 		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+		if ($count)
+		{
+			# We're waiting for the network configuration
+			my $percent     = $results->[0]->[0];
+			my $timestamp   = $results->[0]->[1];
+			my $unixtime    = $results->[0]->[2];
+			my $seconds_ago = $anvil->Convert->add_commas({number => (time - $unixtime)});
+			$available   = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				available   => $available,
+				percent     => $percent,
+				seconds_ago => $seconds_ago, 
+				timestamp   => $timestamp, 
+				unixtime    => $unixtime, 
+			}});
+			
+			$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "striker.html", name => "striker-offline", variables => {
+				title_id    => "",
+				message_id  => "",
+				title       => "#!string!striker_0046!#",
+				description => $anvil->Words->string({key => "striker_0047", variables => { percent => $percent, timestamp => $timestamp, seconds_ago => $seconds_ago }}),
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+		}
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
 	return($available);
-}
-
-# This requests the job to reconfigure the network be run
-sub save_job
-{
-	my ($anvil) = @_;
-	
-	# Record the job!
-	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-		debug           => 2,
-		file            => $THIS_FILE, 
-		line            => __LINE__, 
-		job_command     => "anvil-configure-striker", 
-		job_data        => "form::config_step2", 
-		job_name        => "configure::network", 
-		job_title       => "job_0001", 
-		job_description => "job_0002", 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-	
-	# TODO: Check that a job_uuid was returned and warn of a problem if not.
-	my $say_title      = "#!string!striker_0044!#";
-	my $say_desciption = "#!string!striker_0045!#";
-	
-	# We don't need to store anything as hidden variables, we'll read it back from the database later.
-	my $job_recorded_body = $anvil->Template->get({file => "main.html", name => "network_job_recorded", variables => {
-		title_id    => "",
-		message_id  => "",
-		title       => $say_title,
-		description => $say_desciption,
-	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_recorded_body => $job_recorded_body }});
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-	return($job_recorded_body);
 }
 
 # This shows the user what is about to be done and asks the user to confirm.

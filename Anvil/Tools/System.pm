@@ -24,6 +24,7 @@ my $THIS_FILE = "System.pm";
 # get_ips
 # hostname
 # is_local
+# maintenance_mode
 # manage_firewall
 # ping
 # read_ssh_config
@@ -874,6 +875,83 @@ sub is_local
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
 	return($is_local);
+}
+
+=head2 maintenance_mode
+
+This sets, clears or checks if the local system is in maintenance mode. Any system in maintenance mode will not be used by normal Anvil! tasks.
+
+This returns C<< 1 >> if maintenance mode is enabled and C<< 0 >> if disabled.
+
+Parameters;
+
+=head3 set (optional)
+
+If this is set to C<< 1 >>, maintenance mode is enabled. If this is set to C<< 0 >>, maintenance mode is disabled.
+
+=cut
+sub maintenance_mode
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	
+	if ($set)
+	{
+		# Am I enabling or disabling?
+		if ($set eq "1")
+		{
+			# Enabling
+			$anvil->Database->insert_or_update_variables({
+				variable_name         => "maintenance_mode", 
+				variable_value        => "1", 
+				variable_default      => "0", 
+				variable_description  => "striker_0087", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
+		}
+		elsif ($set eq "0")
+		{
+			# Disabling
+			$anvil->Database->insert_or_update_variables({
+				variable_name         => "maintenance_mode", 
+				variable_value        => "0", 
+				variable_default      => "0", 
+				variable_description  => "striker_0087", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
+		}
+		else
+		{
+			# Called with an invalid value.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0197", variables => { set => $set }});
+			$set = "";
+		}
+	}
+	
+	my ($maintenance_mode, $variable_uuid, $modified_date) = $anvil->Database->read_variable({debug => $debug, variable_name => "maintenance_mode"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		maintenance_mode => $maintenance_mode, 
+		variable_uuid    => $variable_uuid, 
+		modified_date    => $modified_date, 
+	}});
+	
+	if ($maintenance_mode eq "")
+	{
+		$maintenance_mode = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { maintenance_mode => $maintenance_mode }});
+	}
+	
+	return($maintenance_mode);
 }
 
 =head2 manage_firewall

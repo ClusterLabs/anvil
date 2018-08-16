@@ -78,6 +78,8 @@ $anvil->Database->insert_or_update_variables({
 	variable_source_uuid  => $anvil->Get->host_uuid, 
 	variable_source_table => "hosts", 
 });
+# Clear maintenance mode.
+$anvil->System->maintenance_mode({debug => 2, set => 0});
 
 ### TODO: This is only until we can get the damn networking stable on reconfigure.
 if (not $anvil->data->{switches}{'no-reboot'})

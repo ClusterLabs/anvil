@@ -2439,7 +2439,7 @@ This is the command (usually a shell call) to run.
 
 =head3 job_data (optional)
 
-This is optional data used by C<< anvil-job >> when running a job.
+This is used to pass information or store special progress data on a job. 
 
 =head3 job_description (required*)
 
@@ -2461,11 +2461,11 @@ This is the C<< job_name >> to INSERT or UPDATE. If a C<< job_uuid >> is passed,
 
 =head3 job_picked_up_at (optional)
 
-When C<< anvil-jobs >> picks uup a job, it will record the (unix) time that it started.
+When C<< anvil-daemon >> picks uup a job, it will record the (unix) time that it started.
 
 =head3 job_picked_up_by (optional)
 
-When C<< anvil-jobs >> picks up a job, it will record it's PID here.
+When C<< anvil-daemon >> picks up a job, it will record it's PID here.
 
 =head3 job_progress (required)
 

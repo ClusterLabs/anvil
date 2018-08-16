@@ -280,7 +280,7 @@ The database connection error was:
 		<key name="log_0179">The user has been logged out.</key>
 		<key name="log_0180">The user hash in the user's cookie is valid.</key>
 		<key name="log_0181">The user hash in the user's cookie was valid yesterday, updating the stored hash and allowing the user to proceed.</key>
-		<key name="log_0182">The user hash in the user's coolkie is invalid. It is probably expired.</key>
+		<key name="log_0182">The user hash in the user's cookie is invalid. It is probably expired.</key>
 		<key name="log_0183">The user: [#!variable!user!#] logged in successfully.</key>
 		<key name="log_0184">Theew was a failed login attempt from: [#!variable!user_agent!#], trying to log in as: [#!variable!user!#]. log in rejected.</key>
 		<key name="log_0185"><![CDATA[<unknown>]]></key>	<!-- Used in some cases when a variable isn't known -->
@@ -295,6 +295,7 @@ The database connection error was:
 		<key name="log_0194">Switching the default database to read from to the database: [#!variable!server!#] prior to reconnect attempt.</key>
 		<key name="log_0195">Ready to try to reconnect to: [#!variable!server!#], but delaying for: [#!variable!delay!#] seconds to give the database a chance to come back online in case this is a transient issue.</key>
 		<key name="log_0196">Failed to reconnect to the database, and now no connections remail. Exiting.</key>
+		<key name="log_0197"><![CDATA[System->maintenance_mode() was passed an invalid 'set' value: [#!variable!set!#]. No action taken.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -420,10 +421,14 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0084">Confirmed</key>
 		<key name="striker_0085">This Striker has been marked as reconfigured. Reload to start the confguration process.</key>
 		<key name="striker_0086">Would you like to update the operating system on this machine? This Striker will be placed into maintenance mode until the update completes.</key>
+		<key name="striker_0087">When enabled on a Striker dashboard, the web interface will be disabled and ScanCore will not record to the local database. When enabled on a node, no servers will be allowed to run on it, and any already running on it will be migrated. When run on a DR node, that node will be disconnected from storage and no servers will be allowed to run on it. When disabled, all normal functions are available</key>
+		<key name="striker_0088">The system will be updated momentarily. This system will now be in maintenance mode until the update is complete.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
 		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
+		<key name="job_0003">Update Striker</key>
+		<key name="job_0004">This system is now scheduled to be updated.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
