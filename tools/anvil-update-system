@@ -114,16 +114,8 @@ my ($reboot) = run_os_update($anvil);
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot => $reboot }});
 
 # We're done updating
-my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
-	variable_name         => "reboot::needed",
-	variable_source_uuid  => $anvil->Get->host_uuid, 
-	variable_source_table => "hosts", 
-});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-	reboot_needed => $reboot_needed, 
-	variable_uuid => $variable_uuid, 
-	modified_date => $modified_date, 
-}});
+my $reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 if ($reboot_needed)
 {
 	update_progress($anvil, 100, "message_0039");
@@ -220,17 +212,9 @@ sub run_os_update
 		{
 			# Reboot will be needed.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0199"});
-			$anvil->Database->insert_or_update_variables({
-				variable_name         => "reboot::needed", 
-				variable_value        => "1", 
-				variable_default      => "0", 
-				variable_description  => "striker_0089", 
-				variable_section      => "system", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
-				variable_source_table => "hosts", 
-				update_value_only     => 1, 
-			});
 			
+			my $reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 		}
 		
 		if ((not $verifying) && ($line =~ /^Verifying /i))

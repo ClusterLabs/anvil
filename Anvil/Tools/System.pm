@@ -29,6 +29,7 @@ my $THIS_FILE = "System.pm";
 # ping
 # read_ssh_config
 # reload_daemon
+# reboot_needed
 # start_daemon
 # stop_daemon
 # stty_echo
@@ -1692,6 +1693,87 @@ sub reload_daemon
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
 	return($return);
+}
+
+=head2 reboot_needed
+
+This sets, clears or checks if the local system needs to be restart.
+
+This returns C<< 1 >> if a reset is currently needed and C<< 0 >> if not.
+
+Parameters;
+
+=head3 set (optional)
+
+If this is set to C<< 1 >>, the reset needed variable is set. If this is set to C<< 0 >>, reset needed is cleared.
+
+=cut
+sub reboot_needed
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
+	
+	if (($set) or ($set eq "0"))
+	{
+		### TODO: stop other systems from using this database.
+		# Am I enabling or disabling?
+		if ($set eq "1")
+		{
+			# Set
+			$anvil->Database->insert_or_update_variables({
+				debug                 => 2,
+				variable_name         => "reboot::needed", 
+				variable_value        => "1", 
+				variable_default      => "0", 
+				variable_description  => "striker_0089", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
+		}
+		elsif ($set eq "0")
+		{
+			# Clear
+			$anvil->Database->insert_or_update_variables({
+				debug                 => 2,
+				variable_name         => "reboot::needed", 
+				variable_value        => "0", 
+				variable_default      => "0", 
+				variable_description  => "striker_0089", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
+		}
+		else
+		{
+			# Called with an invalid value.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0197", variables => { set => $set }});
+			$set = "";
+		}
+	}
+	
+	my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({debug => $debug, variable_name => "reboot::needed"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		reboot_needed => $reboot_needed, 
+		variable_uuid => $variable_uuid, 
+		modified_date => $modified_date, 
+	}});
+	
+	if ($reboot_needed eq "")
+	{
+		$reboot_needed = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reboot_needed => $reboot_needed }});
+	}
+	
+	return($reboot_needed);
 }
 
 =head2 start_daemon

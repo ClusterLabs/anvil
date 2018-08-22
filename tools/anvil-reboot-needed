@@ -1,11 +1,11 @@
 #!/usr/bin/perl
 # 
-# This set, clear and report if the host is in mainentance mode or not.
+# This set, clear and report if the host needs to be rebooted.
 # 
 # Examples;
-# - Enable  - anvil-maintenance-mode --set 1
-# - Disable - anvil-maintenance-mode --set 0
-# - Report  - anvil-maintenance-mode
+# - Enable  - anvil-reboot-needed --set 1
+# - Disable - anvil-reboot-needed --set 0
+# - Report  - anvil-reboot-needed
 # 
 # Exit codes;
 # 0 = Normal exit.
@@ -44,57 +44,57 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
-my $maintenance_mode = $anvil->System->maintenance_mode({debug => 3});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { maintenance_mode => $maintenance_mode }});
+my $reboot_needed = $anvil->System->reboot_needed({debug => 2});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::set" => $anvil->data->{switches}{set} }});
 if ($anvil->data->{switches}{set} eq "1")
 {
 	# Enable
-	if (not $maintenance_mode)
+	if (not $reboot_needed)
 	{
-		$maintenance_mode = $anvil->System->maintenance_mode({debug => 3, set => 1});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { maintenance_mode => $maintenance_mode }});
-		print $anvil->Words->string({key => "message_0041"})."\n";
+		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
+		print $anvil->Words->string({key => "message_0048"})."\n";
 	}
 	else
 	{
 		# Was already set, do nothing
-		print $anvil->Words->string({key => "message_0042"})."\n";
+		print $anvil->Words->string({key => "message_0049"})."\n";
 	}
 }
 elsif ($anvil->data->{switches}{set} eq "0")
 {
 	# Disabled
-	if ($maintenance_mode)
+	if ($reboot_needed)
 	{
-		$maintenance_mode = $anvil->System->maintenance_mode({debug => 3, set => 0});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { maintenance_mode => $maintenance_mode }});
-		print $anvil->Words->string({key => "message_0043"})."\n";
+		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 0});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
+		print $anvil->Words->string({key => "message_0050"})."\n";
 	}
 	else
 	{
 		# Was already disabled, do nothing
-		print $anvil->Words->string({key => "message_0044"})."\n";
+		print $anvil->Words->string({key => "message_0051"})."\n";
 	}
 }
 elsif ($anvil->data->{switches}{set})
 {
 	# Bad call
-	print $anvil->Words->string({key => "message_0045", variables => { program => $THIS_FILE }})."\n";
+	print $anvil->Words->string({key => "message_0052", variables => { program => $THIS_FILE }})."\n";
 }
 
 # Get the current state
 
-if ($maintenance_mode)
+if ($reboot_needed)
 {
 	# Report that we're in mainteance mode
-	print $anvil->Words->string({key => "message_0046"})."\n";
+	print $anvil->Words->string({key => "message_0053"})."\n";
 }
 else
 {
 	# Report that we're not.
-	print $anvil->Words->string({key => "message_0047"})."\n";
+	print $anvil->Words->string({key => "message_0054"})."\n";
 }
 
 # We're done

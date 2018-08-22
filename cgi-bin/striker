@@ -238,6 +238,7 @@ sub process_task
 		{
 			# The 'back' goes home
 			$anvil->data->{form}{back_link} = "?";
+			my $reset_icon = 
 			$anvil->data->{form}{body}      = $anvil->Template->get({file => "striker.html", name => "striker-setup"});
 		}
 	}
