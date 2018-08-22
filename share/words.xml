@@ -66,6 +66,17 @@ NOTE: You must update the password of any other system using this host's
 		<key name="message_0038">Updates finished. Verifying now.</key>
 		<key name="message_0039">System update complete! The kernel was updated, so a reboot is required.</key>
 		<key name="message_0040">System update complete! A reboot is not required.</key>
+		<key name="message_0041">This system has been placed into maintenance mode.</key>
+		<key name="message_0042">This system was already in maintenance mode, nothing changed.</key>
+		<key name="message_0043">This system has been removed from maintenance mode.</key>
+		<key name="message_0044">This system was not in maintenance mode, nothing changed.</key>
+		<key name="message_0045">Bad call. Usage: 
+Set maintenance mode:    #!variable!program!# --set 1
+Clear maintenance mode:  #!variable!program!# --set 0
+Report maintenance mode: #!variable!program!#
+		</key>
+		<key name="message_0046">This system is in maintenance mode.</key>
+		<key name="message_0047">This system is NOT in maintenance mode.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

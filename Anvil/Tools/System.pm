@@ -898,8 +898,9 @@ sub maintenance_mode
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
-	if ($set)
+	if (($set) or ($set eq "0"))
 	{
 		### TODO: stop other systems from using this database.
 		# Am I enabling or disabling?
@@ -907,6 +908,7 @@ sub maintenance_mode
 		{
 			# Enabling
 			$anvil->Database->insert_or_update_variables({
+				debug                 => $debug, 
 				variable_name         => "maintenance_mode", 
 				variable_value        => "1", 
 				variable_default      => "0", 
@@ -921,6 +923,7 @@ sub maintenance_mode
 		{
 			# Disabling
 			$anvil->Database->insert_or_update_variables({
+				debug                 => $debug, 
 				variable_name         => "maintenance_mode", 
 				variable_value        => "0", 
 				variable_default      => "0", 
