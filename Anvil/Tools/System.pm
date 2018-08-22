@@ -901,6 +901,7 @@ sub maintenance_mode
 	
 	if ($set)
 	{
+		### TODO: stop other systems from using this database.
 		# Am I enabling or disabling?
 		if ($set eq "1")
 		{

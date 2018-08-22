@@ -788,6 +788,29 @@ sub _set_defaults
 		},
 	};
 	$anvil->data->{defaults} = {
+		database	=>	{
+			locking		=>	{
+				reap_age	=>	300,
+			}
+		},
+		language	=>	{
+			# Default language for all output shown to a user.
+			output		=>	'en_CA',
+		},
+		limits		=>	{
+			# This is the maximum number of times we're allow to loop when injecting variables 
+			# into a string being processed in Anvil::Tools::Words->string();
+			string_loops	=>	1000,
+		},
+		'log'		=>	{
+			db_transactions	=>	0,
+			facility	=>	"local0",
+			language	=>	"en_CA",
+			level		=>	1,
+			secure		=>	0,
+			server		=>	"",
+			tag		=>	"anvil",
+		},
 		## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such,
 		##                  we need to use a wider spread between the BCNs, SNs and IFNs than we had
 		##                  in v2.
@@ -813,29 +836,6 @@ sub _set_defaults
 				subnet		=>	"10.50.0.0",
 				netmask		=>	"255.255.0.0",
 			},
-		},
-		database	=>	{
-			locking		=>	{
-				reap_age	=>	300,
-			}
-		},
-		language	=>	{
-			# Default language for all output shown to a user.
-			output		=>	'en_CA',
-		},
-		limits		=>	{
-			# This is the maximum number of times we're allow to loop when injecting variables 
-			# into a string being processed in Anvil::Tools::Words->string();
-			string_loops	=>	1000,
-		},
-		'log'		=>	{
-			db_transactions	=>	0,
-			facility	=>	"local0",
-			language	=>	"en_CA",
-			level		=>	1,
-			secure		=>	0,
-			server		=>	"",
-			tag		=>	"anvil",
 		},
 		template	=>	{
 			html		=>	"alteeve",
@@ -941,6 +941,9 @@ sub _set_paths
 			},
 			'lock'			=>	{
 				database			=>	"/tmp/anvil-tools.database.lock",
+			},
+			proc			=>	{
+				uptime				=>	"/proc/uptime",
 			},
 			secure			=>	{
 				postgres_pgpass			=>	"/var/lib/pgsql/.pgpass",

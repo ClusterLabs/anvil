@@ -108,22 +108,33 @@ WHERE
 }
 
 # Mark that we're starting
-update_progress($anvil, 1);
+update_progress($anvil, 1, "message_0033");
 
 my ($reboot) = run_os_update($anvil);
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot => $reboot }});
 
 # We're done updating
-update_progress($anvil, 100);
-
-# Reboot if needed.
-if (($reboot) && (not $anvil->data->{switches}{'no-reboot'}))
+my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+	variable_name         => "reboot::needed",
+	variable_source_uuid  => $anvil->Get->host_uuid, 
+	variable_source_table => "hosts", 
+});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	reboot_needed => $reboot_needed, 
+	variable_uuid => $variable_uuid, 
+	modified_date => $modified_date, 
+}});
+if ($reboot_needed)
 {
-	# Reboot.
-	$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
+	update_progress($anvil, 100, "message_0039");
+}
+else
+{
+	update_progress($anvil, 100, "message_0040");
 }
 
 $anvil->nice_exit({exit_code => 0});
+
 
 #############################################################################################################
 # Functions                                                                                                 #
@@ -132,13 +143,35 @@ $anvil->nice_exit({exit_code => 0});
 # This updates the progress if we were called with a job UUID.
 sub update_progress
 {
-	my ($anvil, $progress) = @_;
+	my ($anvil, $progress, $message) = @_;
 	
 	# Log the progress percentage.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { progress => $progress }});
 	
 	if ($anvil->data->{jobs}{job_uuid})
 	{
+		# Get the current job_status and append this new one.
+		my $query = "
+SELECT 
+    job_status 
+FROM 
+    jobs 
+WHERE 
+    job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{jobs}{job_uuid})."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $job_status = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		   $job_status = "" if not defined $old_job_status;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_status => $job_status }});
+			
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message }});
+		if ($message)
+		{
+			$job_status .= $message."\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_status => $job_status }});
+		}
+		
 		my $query = "
 UPDATE 
     jobs 
@@ -146,6 +179,7 @@ SET
     job_picked_up_by = ".$anvil->data->{sys}{database}{use_handle}->quote($$).", 
     job_updated      = now(),
     job_progress     = ".$progress.", 
+    job_status       = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
     modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{jobs}{job_uuid})." 
@@ -169,7 +203,7 @@ sub run_os_update
 	my $progress      = 5;
 	my $counted_lines = 0;
 	my $next_step     = 0;
-	my $reboot        = 0;
+	my $verifying     = 0;
 	my $output        = "";
 	my $shell_call = $anvil->data->{path}{exe}{dnf}." clean expire-cache && ".$anvil->data->{path}{exe}{dnf}." -y update; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -185,8 +219,31 @@ sub run_os_update
 		if ($line =~ /^kernel /)
 		{
 			# Reboot will be needed.
-			$reboot = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot => $reboot }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0199"});
+			$anvil->Database->insert_or_update_variables({
+				variable_name         => "reboot::needed", 
+				variable_value        => "1", 
+				variable_default      => "0", 
+				variable_description  => "striker_0089", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+				update_value_only     => 1, 
+			});
+			
+		}
+		
+		if ((not $verifying) && ($line =~ /^Verifying /i))
+		{
+			# Update done, verifying now.
+			$verifying = 1;
+			update_progress($anvil, $progress, "message_0038");
+		}
+		
+		if ($line =~ /Running transaction/i)
+		{
+			# Done downloading
+			update_progress($anvil, $progress, "message_0037");
 		}
 		
 		if ($line =~ /return_code:(\d+)$/)
@@ -210,10 +267,13 @@ sub run_os_update
 			}});
 		}
 		
-		if ($line =~ /Total download size/i)
+		if ($line =~ /Total download size: (.*)$/i)
 		{
+			my $update_size = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_size => $update_size }});
+			
 			# Ready to install, update to 5%. The next step will count up to 95%.
-			update_progress($anvil, $progress);
+			update_progress($anvil, $progress, "message_0035,!!size!$update_size!!");
 			
 			# The total (reliable) count of events is (to_update * 3), counting '(x/y): ' 
 			# (download), 'Upgrading '/'Installing ' and 'Verifying '. We ignore the scriplet
@@ -246,7 +306,7 @@ sub run_os_update
 				}});
 				next if $progress > 95;
 				
-				update_progress($anvil, $progress);
+				update_progress($anvil, $progress, "");
 			}
 		}
 	}
@@ -256,13 +316,11 @@ sub run_os_update
 	if (not $success)
 	{
 		# Nope.
-		update_progress($anvil, 0);
+		update_progress($anvil, 0, "message_0036");
 		
-		print $anvil->Words->string({key => "error_0035", variables => { output => $output }})."\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0035", variables => { output => $output } });
 		$anvil->nice_exit({code => 3});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot => $reboot }});
-	return($reboot);
+	return(0);
 };

@@ -58,12 +58,14 @@ NOTE: You must update the password of any other system using this host's
 		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
 		<key name="message_0031">Beginning configuration of local system.</key>
 		<key name="message_0032">Peer: [#!variable!peer!#], database: [#!variable!name!#], UUID: [#!variable!uuid!#]</key>
-		<key name="message_0033"></key>
+		<key name="message_0033">Clearing update cache and checking for available updates.</key>
 		<key name="message_0034"><![CDATA[Logged in as: [<span class="fixed_width">#!data!sys::users::user_name!#</span>]]]></key>
-		<key name="message_0035"></key>
-		<key name="message_0036"></key>
-		<key name="message_0037"></key>
-		<key name="message_0038"></key>
+		<key name="message_0035">Downloading approximately: [#!variable!size!#] worth of updates.</key>
+		<key name="message_0036">ERROR: There was a problem with the OS update process. Please check the system logs for more details.</key>
+		<key name="message_0037">Downloading complete. Installation of updates now underway.</key>
+		<key name="message_0038">Updates finished. Verifying now.</key>
+		<key name="message_0039">System update complete! The kernel was updated, so a reboot is required.</key>
+		<key name="message_0040">System update complete! A reboot is not required.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -297,6 +299,8 @@ The database connection error was:
 		<key name="log_0196">Failed to reconnect to the database, and now no connections remail. Exiting.</key>
 		<key name="log_0197"><![CDATA[System->maintenance_mode() was passed an invalid 'set' value: [#!variable!set!#]. No action taken.]]></key>
 		<key name="log_0198">The user: [#!variable!user!#] logged out successfully.</key>
+		<key name="log_0199">A system reboot is required, setting the database flag.</key>
+		<key name="log_0200">A system reboot is required, setting the database flag.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -424,6 +428,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0086">Would you like to update the operating system on this machine? This Striker will be placed into maintenance mode until the update completes.</key>
 		<key name="striker_0087">When enabled on a Striker dashboard, the web interface will be disabled and ScanCore will not record to the local database. When enabled on a node, no servers will be allowed to run on it, and any already running on it will be migrated. When run on a DR node, that node will be disconnected from storage and no servers will be allowed to run on it. When disabled, all normal functions are available</key>
 		<key name="striker_0088">The system will be updated momentarily. This system will now be in maintenance mode until the update is complete.</key>
+		<key name="striker_0089">This indicates whether this system needs to be rebooted or not.</key>
+		<key name="striker_0090">This system is in maintenance mode and is not currently available.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

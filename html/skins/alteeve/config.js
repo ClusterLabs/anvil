@@ -133,4 +133,11 @@ $( window ).on( "load", function()
 			}
 		});
 	});
+	
+	$.getJSON('/status/jobs.json', { get_param: 'value' }, function(data) {
+		$.each(data.ips, function(index, element) {
+			//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
+			//console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
+		});
+	});
 })

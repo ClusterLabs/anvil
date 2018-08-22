@@ -278,7 +278,7 @@ sub process_update
 			debug           => 2,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => "anvil-update-system --uuid ".$anvil->Get->host_uuid, 
+			job_command     => "anvil-update-system --host-uuid ".$anvil->Get->host_uuid, 
 			job_data        => "", 
 			job_name        => "update::system", 
 			job_title       => "job_0003", 
@@ -772,10 +772,10 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
-	my $debug     = 3;
+	my $debug     = 2;
 	my $available = 1;
 	
-	# Set maintenance mode.
+	# Check maintenance mode.
 	my $maintenance_mode = $anvil->System->maintenance_mode({debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { maintenance_mode => $maintenance_mode }});
 	
@@ -783,6 +783,14 @@ sub check_availability
 	{
 		$available = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
+		
+		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "striker.html", name => "striker-offline", variables => {
+			title_id    => "",
+			message_id  => "",
+			title       => "#!string!striker_0046!#",
+			description => $anvil->Words->string({key => "striker_0090", variables => {  }}),
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	}
 	
 	# TODO: Phase this out

@@ -1,0 +1,13 @@
+[Unit]
+Description=Anvil! Intelligent Availability Platform - Boot-time tasks
+# Don't run until we can talk to our and our peer's databases.
+Wants=network.target
+Wants=postgresql.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/anvil-clear-reboot
+ExecStop=/bin/kill -WINCH ${MAINPID}
+
+[Install]
+WantedBy=default.target
