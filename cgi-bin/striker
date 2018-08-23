@@ -236,10 +236,17 @@ sub process_task
 		}
 		else
 		{
+			# What we show for the reboot icon and text depends on if a reboot is pending.
+			my $reboot_needed   = $anvil->System->reboot_needed();
+			my $reboot_icon     = $reboot_needed ? "reboot_needed_icon.png" : "reboot_icon.png";
+			my $reboot_message  = $reboot_needed ? "#!string!striker_0093!#" : "#!string!striker_0092!#";
+			
 			# The 'back' goes home
 			$anvil->data->{form}{back_link} = "?";
-			my $reset_icon = 
-			$anvil->data->{form}{body}      = $anvil->Template->get({file => "striker.html", name => "striker-setup"});
+			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-setup", variables => {
+				reboot_icon    => $reboot_icon, 
+				reboot_message => $reboot_message, 
+			}});
 		}
 	}
 	elsif (0)

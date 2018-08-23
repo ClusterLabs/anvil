@@ -77,7 +77,6 @@ Report maintenance mode: #!variable!program!#
 		</key>
 		<key name="message_0046">This system is in maintenance mode.</key>
 		<key name="message_0047">This system is NOT in maintenance mode.</key>
-		
 		<key name="message_0048">This system has been set to need a reboot.</key>
 		<key name="message_0049">This system was already set to need a reboot, nothing changed.</key>
 		<key name="message_0050">This system has has been set to no longer need a reboot.</key>
@@ -453,9 +452,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0088">The system will be updated momentarily. This system will now be in maintenance mode until the update is complete.</key>
 		<key name="striker_0089">This indicates whether this system needs to be rebooted or not.</key>
 		<key name="striker_0090">This system is in maintenance mode and is not currently available.</key>
-		<key name="striker_0091">Reset this Striker</key>
+		<key name="striker_0091">Reboot this Striker</key>
 		<key name="striker_0092">This option will restart the host operating system. This is not currently needed.</key>
 		<key name="striker_0093">This machine needs to be rebooted. This option will restart the host operating system.</key>
+		<key name="striker_0094">Power off this Striker</key>
+		<key name="striker_0095">This will power off the Striker machine and leave it off. To power it back on, you will need physical access or cycle the power of the PDU feeding this Striker.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
