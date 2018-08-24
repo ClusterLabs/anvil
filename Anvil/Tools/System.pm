@@ -233,15 +233,15 @@ sub call
 				# Setup output files
 				if (($stderr_file) && ($stdout_file))
 				{
-					$process->($stdout_file, $stderr_file);
+					$process->redirect_output($stdout_file, $stderr_file);
 				}
 				elsif ($stdout_file)
 				{
-					$process->($stdout_file, undef);
+					$process->redirect_output($stdout_file, undef);
 				}
 				elsif ($stderr_file)
 				{
-					$process->(undef, $stderr_file);
+					$process->redirect_output(undef, $stderr_file);
 				}
 				
 				my $status = $process->start($shell_call);

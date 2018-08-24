@@ -687,6 +687,9 @@ sub connect
 	my $successful_connections = [];
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
+		# Periodically, autovivication causes and empty key to appear.
+		next if ((not $uuid) or (not $anvil->Validate->is_uuid({uuid => $uuid})));
+		
 		if (($db_uuid) && ($db_uuid ne $uuid))
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0191", variables => { db_uuid => $db_uuid, uuid => $uuid }});
@@ -1197,6 +1200,9 @@ sub disconnect
 	delete $anvil->data->{sys}{database}{timestamp};
 	delete $anvil->data->{sys}{database}{use_handle};
 	delete $anvil->data->{sys}{database}{read_uuid};
+	
+	# Delete any database information (reconnects should re-read anvil.conf anyway).
+	delete $anvil->data->{database};
 	
 	# Set the connection count to 0.
 	$anvil->data->{sys}{database}{connections} = 0;
@@ -4095,13 +4101,13 @@ sub locking
 	}});
 	
 	# Make sure we have a sane lock age
-	if ((not defined $anvil->data->{database}{locking}{reap_age}) or 
-	    (not $anvil->data->{database}{locking}{reap_age})         or 
-	    ($anvil->data->{database}{locking}{reap_age} =~ /\D/)
+	if ((not defined $anvil->data->{sys}{database}{locking}{reap_age}) or 
+	    (not $anvil->data->{sys}{database}{locking}{reap_age})         or 
+	    ($anvil->data->{sys}{database}{locking}{reap_age} =~ /\D/)
 	)
 	{
-		$anvil->data->{database}{locking}{reap_age} = $anvil->data->{defaults}{database}{locking}{reap_age};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "database::locking::reap_age" => $anvil->data->{database}{locking}{reap_age} }});
+		$anvil->data->{sys}{database}{locking}{reap_age} = $anvil->data->{defaults}{database}{locking}{reap_age};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::locking::reap_age" => $anvil->data->{sys}{database}{locking}{reap_age} }});
 	}
 	
 	# If I have been asked to check, we will return the variable_uuid if a lock is set.
@@ -4180,7 +4186,7 @@ sub locking
 	}
 	
 	# We always check for, and then wait for, locks. Read in the locks, if any. If any are set and they are 
-	# younger than database::locking::reap_age, we'll hold.
+	# younger than sys::database::locking::reap_age, we'll hold.
 	my $waiting = 1;
 	while ($waiting)
 	{
@@ -4201,7 +4207,7 @@ sub locking
 			my $lock_source_uuid = $2;
 			my $lock_time        = $3;
 			my $current_time     = time;
-			my $timeout_time     = $lock_time + $anvil->data->{database}{locking}{reap_age};
+			my $timeout_time     = $lock_time + $anvil->data->{sys}{database}{locking}{reap_age};
 			my $lock_age         = $current_time - $lock_time;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				lock_source_name => $lock_source_name, 

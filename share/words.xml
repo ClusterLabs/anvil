@@ -88,6 +88,7 @@ Report if a reboot is needed:  #!variable!program!#
 		</key>
 		<key name="message_0053">This system needs to be rebooted.</key>
 		<key name="message_0054">This system does NOT need to be rebooted.</key>
+		<key name="message_0055">Exiting to '--run-once' switch.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -166,7 +167,7 @@ Connecting to Database with configuration ID: [#!variable!uuid!#]
 		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!uuid!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
-		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the ID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.</key>
+		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.</key>
 		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with ID: [#!variable!uuid!#] can not be used, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
@@ -323,6 +324,9 @@ The database connection error was:
 		<key name="log_0198">The user: [#!variable!user!#] logged out successfully.</key>
 		<key name="log_0199">A system reboot is required, setting the database flag.</key>
 		<key name="log_0200">A system reboot is required, setting the database flag.</key>
+		<key name="log_0201">Unable to connect to any database. Will try to initialize the local system and then try again.</key>
+		<key name="log_0202">Failed to connect to any databases. Skipping the loop of the daemon.</key>
+		<key name="log_0203">Disconnected from all databases. Will reconnect when entering the main loop.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -514,6 +518,7 @@ The update appears to have not completed successfully. The output was:
 #!variable!output!#
 ====
 		</key>
+		<key name="error_0036"></key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

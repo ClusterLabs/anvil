@@ -35,7 +35,6 @@ my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 $anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
 
 # Read switches
-$anvil->data->{switches}{'no-reboot'} = 0;
 $anvil->data->{switches}{'job-uuid'}  = "";
 $anvil->Get->switches;
 
@@ -110,8 +109,11 @@ WHERE
 # Mark that we're starting
 update_progress($anvil, 1, "message_0033");
 
-my ($reboot) = run_os_update($anvil);
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot => $reboot }});
+print $THIS_FILE." running with PID: [".$$."]\n"
+sleep 60;
+exit;
+
+run_os_update($anvil);
 
 # We're done updating
 my $reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
