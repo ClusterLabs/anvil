@@ -244,8 +244,13 @@ sub call
 					$process->redirect_output(undef, $stderr_file);
 				}
 				
+				# Start the process
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0204", variables => { call => $shell_call }});
 				my $status = $process->start($shell_call);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { status => $status }});
+				
+				# Report that it started with PID.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0205", variables => { call => $shell_call, pid => $process->pid }});
 				
 				# We'll return the handle instead of output.
 				$output = $process;

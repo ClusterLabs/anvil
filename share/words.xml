@@ -327,6 +327,8 @@ The database connection error was:
 		<key name="log_0201">Unable to connect to any database. Will try to initialize the local system and then try again.</key>
 		<key name="log_0202">Failed to connect to any databases. Skipping the loop of the daemon.</key>
 		<key name="log_0203">Disconnected from all databases. Will reconnect when entering the main loop.</key>
+		<key name="log_0204">Starting the background process: [#!variable!call!#] now.</key>
+		<key name="log_0205">Background process: [#!variable!call!#] running with PID: [#!variable!pid!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
