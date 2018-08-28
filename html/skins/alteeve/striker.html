@@ -186,20 +186,44 @@
 <!-- end striker-login -->
 
 <!-- start striker-offline -->
-			<table>
+			<table class="centered">
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
 				<div id="striker-offline">
 				<tr>
 					<td>
 						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
-						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
+						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header3">#!variable!description!#</span>
 						<br />
 						<hr>
 						<a href="/" class="button">#!string!striker_0053!#</a>
 					</td>
 				</tr>
 				</div>
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+				<div id="running-jobs">
+				<tr>
+					<td>
+						<span name="jobs-title" id="jobs-title" class="config_header2">#!string!header_0011!#</span><br />
+						<span name="jobs-message" id="jobs-message" class="config_header3">#!string!striker_0096!#</span>
+						<br />
+						<hr>
+						#!variable!job_list!#
+					</td>
+				</tr>
+				</div>
 			</table>
 <!-- end striker-offline -->
+
+<!-- start job-details -->
+<!-- end job-details -->
 
 <!-- start striker-setup -->
 		<table align="center" class="striker_welcome">

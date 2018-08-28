@@ -242,37 +242,27 @@ sub run_jobs
 	my $jobs_file = "{\"jobs\":[\n";
 	
 	# Get a list of pending or incomplete jobs.
-	my $query = "
-SELECT 
-    job_uuid, 
-    job_command, 
-    job_data, 
-    job_picked_up_by, 
-    job_picked_up_at, 
-    job_updated, 
-    job_progress 
-FROM 
-    jobs 
-WHERE 
-    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $return = $anvil->Database->get_jobs({debug => 2, ended_within => 300});
+	my $count  = @{$return};
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		results => $results, 
-		count   => $count,
+		'return' => $return, 
+		count    => $count,
 	}});
-	foreach my $row (@{$results})
+	foreach my $hash_ref (@{$return})
 	{
-		my $job_uuid            =         $row->[0];
-		my $job_command         =         $row->[1];
-		my $job_data            = defined $row->[2] ? $row->[2] : "";
-		my $job_picked_up_by    =         $row->[3];
-		my $job_picked_up_at    =         $row->[4]; 
-		my $job_updated         =         $row->[5];
-		my $job_progress        =         $row->[6];
+		my $job_uuid            = $hash_ref->{job_uuid};
+		my $job_command         = $hash_ref->{job_command};
+		my $job_data            = $hash_ref->{job_data};
+		my $job_picked_up_by    = $hash_ref->{job_picked_up_by};
+		my $job_picked_up_at    = $hash_ref->{job_picked_up_at};
+		my $job_updated         = $hash_ref->{job_updated};
+		my $job_name            = $hash_ref->{job_name};
+		my $job_progress        = $hash_ref->{job_progress};
+		my $job_title           = $hash_ref->{job_title};
+		my $job_description     = $hash_ref->{job_description};
+		my $job_status          = $hash_ref->{job_status};
 		my $started_seconds_ago = $job_picked_up_at ? (time - $job_picked_up_at) : 0;
 		my $updated_seconds_ago = $job_updated      ? (time - $job_updated)      : 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -287,22 +277,64 @@ WHERE
 			updated_seconds_ago => $updated_seconds_ago, 
 		}});
 		
-		# This will be appended to the json file
-		my $json_string = "{ \"job_uuid\":\"".$job_uuid."\", \"job_command\":\"".$job_command."\", \"job_data\":\"".$job_data."\", \"job_picked_up_at\":\"".$job_picked_up_at."\", \"job_updated\":\"".$job_updated."\", \"job_progress\":\"".$job_progress."\", \"job_progress\":\"".$job_progress."\", \"started_seconds_ago\":\"".$started_seconds_ago."\", \"updated_seconds_ago\":\"".$updated_seconds_ago."\" }, \n";
-		
-		# If the job is done, see if it was recently enough to record in the jobs.json file.
-		if ($job_progress eq "100") 
+		# TODO: Make this a Words->decypher_string() method
+		my $say_progress = "";
+		if ($job_progress)
 		{
-			# Record in JSON if it wass last updated less than 5 minutes ago.
-			if ($updated_seconds_ago < 300)
+			foreach my $message (split/\n/, $job_progress)
 			{
-				$jobs_file .= $json_string;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { message => $message }});
+				if ($message =~ /^(.*?),(.*)$/)
+				{
+					my $key             = $1;
+					my $variable_string = $2;
+					my $variables       = {};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						key             => $key,
+						variable_string => $variable_string, 
+					}});
+					foreach my $pair (split/,/, $variable_string)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pair => $pair }});
+						my $name  = "";
+						my $value = "";
+						if ($pair =~ /^!!(.*?)!(.*)!!$/)
+						{
+							$name  = $1;
+							$value = $2;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								name  => $name,
+								value => $value,
+							}});
+						}
+						elsif ($pair =~ /^!!(.*?)!!!$/)
+						{
+							$name = $1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name }});
+						}
+						else
+						{
+							# what?!
+						}
+						$variables->{$name} = $value;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "variables->$name" => $variables->{$name} }});
+					}
+					
+					$say_progress = $anvil->Words->string({key => $key, variables => $variables}),
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "say_progress" => $say_progress }});
+				}
 			}
-			next;
 		}
 		
-		# If we're here, the job isn't done. So first, record it.
-		$jobs_file .= $json_string;
+		# Add this to the jobs.json file
+		$jobs_file .= "{ \"job_uuid\":\"".$job_uuid."\", 
+		                 \"job_command\":\"".$job_command."\", 
+		                 \"job_data\":\"".$job_data."\", 
+		                 \"job_picked_up_at\":\"".$job_picked_up_at."\", 
+		                 \"job_updated\":\"".$job_updated."\", 
+		                 \"job_progress\":\"".$job_progress."\", 
+				 \"started_seconds_ago\":\"".$started_seconds_ago."\", 
+				 \"updated_seconds_ago\":\"".$updated_seconds_ago."\" }, \n";
 		
 		# See if the job was picked up by another running instance.
 		if ($job_picked_up_by)
@@ -336,20 +368,9 @@ WHERE
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid} }});
 			
-			# Record the PID
+			# Log the PID (the job should update the database).
 			my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
-			my $query = "
-UPDATE 
-    jobs 
-SET 
-    job_picked_up_by = ".$anvil->data->{sys}{database}{use_handle}->quote($pid).", 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
-WHERE 
-    job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
-";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 		}
 	}
 	

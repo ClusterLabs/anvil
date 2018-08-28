@@ -20,6 +20,7 @@ my $THIS_FILE = "Database.pm";
 # connect
 # disconnect
 # get_hosts
+# get_jobs
 # get_local_uuid
 # initialize
 # insert_or_update_bridges
@@ -1275,6 +1276,122 @@ FROM
 		$anvil->data->{sys}{hosts}{by_name}{$host_name} = $host_uuid;
 	}
 	
+	my $return_count = @{$return};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_count => $return_count }});
+	return($return);
+}
+
+=head2 get_jobs
+
+This gets the list of running jobs.
+
+Parameters;
+
+=head3 ended_within (optional, default 300)
+
+Jobs that reached 100% within this number of seconds ago will be included. If this is set to C<< 0 >>, only in-progress and not-yet-picked-up jobs will be included.
+
+=head3 job_host_uuid (default $anvil->Get->host_uuid)
+
+This is the host that we're getting a list of jobs from.
+
+=cut
+sub get_jobs
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $return        = [];
+	my $ended_within  = defined $parameter->{ended_within}  ? $parameter->{ended_within}  : 300;
+	my $job_host_uuid = defined $parameter->{job_host_uuid} ? $parameter->{job_host_uuid} : $anvil->Get->host_uuid;
+	
+	my $query = "
+SELECT 
+    job_uuid, 
+    job_command, 
+    job_data, 
+    job_picked_up_by, 
+    job_picked_up_at, 
+    job_updated, 
+    job_name, 
+    job_progress, 
+    job_title, 
+    job_description, 
+    job_status, 
+    modified_date
+FROM 
+    jobs 
+WHERE 
+    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_host_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $job_uuid            =         $row->[0];
+		my $job_command         =         $row->[1];
+		my $job_data            = defined $row->[2] ? $row->[2] : "";
+		my $job_picked_up_by    =         $row->[3];
+		my $job_picked_up_at    =         $row->[4]; 
+		my $job_updated         =         $row->[5];
+		my $job_name            =         $row->[6];
+		my $job_progress        =         $row->[7];
+		my $job_title           =         $row->[8];
+		my $job_description     =         $row->[9];
+		my $job_status          =         $row->[10];
+		my $modified_date       =         $row->[11];
+		my $started_seconds_ago = $job_picked_up_at ? (time - $job_picked_up_at) : 0;
+		my $updated_seconds_ago = $job_updated      ? (time - $job_updated)      : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			job_uuid            => $job_uuid,
+			job_command         => $job_command,
+			job_data            => $job_data,
+			job_picked_up_by    => $job_picked_up_by,
+			job_picked_up_at    => $job_picked_up_at,
+			job_updated         => $job_updated,
+			job_name            => $job_name, 
+			job_progress        => $job_progress,
+			job_title           => $job_title, 
+			job_description     => $job_description,
+			job_status          => $job_status, 
+			modified_date       => $modified_date, 
+			started_seconds_ago => $started_seconds_ago, 
+			updated_seconds_ago => $updated_seconds_ago, 
+		}});
+		
+		# If the job is done, see if it was recently enough to care about it.
+		if (($job_progress eq "100") && ($updated_seconds_ago > $ended_within))
+		{
+			# Skip it
+			next;
+		}
+		
+		push @{$return}, {
+			job_uuid            => $job_uuid,
+			job_command         => $job_command,
+			job_data            => $job_data,
+			job_picked_up_by    => $job_picked_up_by,
+			job_picked_up_at    => $job_picked_up_at,
+			job_updated         => $job_updated,
+			job_name            => $job_name, 
+			job_progress        => $job_progress,
+			job_title           => $job_title, 
+			job_description     => $job_description,
+			job_status          => $job_status, 
+			modified_date       => $modified_date, 
+		};
+	}
+	
+	my $return_count = @{$return};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_count => $return_count }});
 	return($return);
 }
 
