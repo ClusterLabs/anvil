@@ -8,6 +8,7 @@ use warnings;
 use Data::Dumper;
 use XML::Simple qw(:strict);
 use Scalar::Util qw(weaken isweak);
+use JSON;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Words.pm";
@@ -255,10 +256,6 @@ Parameters;
 
 This is the double-banged string to process. It can take and process multiple lines at once, so long as each line is in the above format, broken by a simple new line (C<< \n >>).
 
-=head3 json_escape (optional, default '0')
-
-If set to C<< 1 >>, and double-quote (C<< " >>) characters will be escaped (ie: for use in JSON files).
-
 =cut
 sub parse_banged_string
 {
@@ -268,13 +265,9 @@ sub parse_banged_string
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Setup default values
-	my $out_string  = "";
-	my $key_string  = defined $parameter->{key_string}  ? $parameter->{key_string}  : 0;
-	my $json_escape = defined $parameter->{json_escape} ? $parameter->{json_escape} : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		json_escape => $json_escape, 
-		key_string  => $key_string,
-	}});
+	my $out_string = "";
+	my $key_string = defined $parameter->{key_string}  ? $parameter->{key_string}  : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
 	
 	# There might be multiple keys, split by newlines.
 	foreach my $message (split/\n/, $key_string)
@@ -335,15 +328,6 @@ sub parse_banged_string
 			$out_string .= $anvil->Words->string({key => $message});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
 		}
-	}
-	
-	if ($json_escape)
-	{
-		# Escape characters needed for use in json.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> out_string" => $out_string }});
-		$out_string =~ s/\"/\\\"/msg;
-		$out_string =~ s/\n/<br \/>/msg;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< out_string" => $out_string }});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});

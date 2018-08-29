@@ -16,6 +16,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Proc::Simple;
+use JSON;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -53,10 +54,6 @@ if (not $anvil->data->{sys}{database}{connections})
 		$anvil->nice_exit({exit_code => 2});
 	}
 }
-
-my $say_description = $anvil->Words->parse_banged_string({json_escape => 1, key_string => "job_0004"});
-print "say_description: [".$say_description."]\n";
-die;
 
 # Read switches
 $anvil->data->{switches}{'run-once'}      = "";
@@ -282,9 +279,9 @@ sub run_jobs
 		}});
 		
 		# Convert the double-banged strings into a proper message.
-		my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({debug => 2, json_escape => 1, key_string => $job_title})       : "";
-		my $say_description = $job_description ? $anvil->Words->parse_banged_string({debug => 2, json_escape => 1, key_string => $job_description}) : "";
-		my $say_status      = $job_progress    ? $anvil->Words->parse_banged_string({debug => 2, json_escape => 1, key_string => $job_status})      : "";
+		my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
+		my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
+		my $say_status      = $job_progress    ? $anvil->Words->parse_banged_string({key_string => $job_status})      : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			job_title       => $job_title, 
 			say_description => $say_description, 
@@ -292,18 +289,22 @@ sub run_jobs
 		}});
 		
 		# Add this to the jobs.json file
-		$jobs_file .= "{ \"job_uuid\":\"".$job_uuid."\", 
-		                 \"job_command\":\"".$job_command."\", 
-		                 \"job_data\":\"".$job_data."\", 
-		                 \"job_picked_up_at\":\"".$job_picked_up_at."\", 
-		                 \"job_updated\":\"".$job_updated."\", 
-		                 \"job_name\":\"".$job_name."\",
-		                 \"job_progress\":\"".$job_progress."\", 
-		                 \"job_title\":\"".$say_title."\", 
-				 \"job_description\":\"".$say_description."\", 
-				 \"job_status\":\"".$say_status."\", 
-				 \"started_seconds_ago\":\"".$started_seconds_ago."\", 
-				 \"updated_seconds_ago\":\"".$updated_seconds_ago."\" }, \n";
+		my $json_string = to_json ({
+			job_uuid            => $job_uuid,
+			job_command         => $job_command, 
+			job_data            => $job_data, 
+			job_picked_up_at    => $job_picked_up_at, 
+			job_updated         => $job_updated, 
+			job_name            => $job_name,
+			job_progress        => $job_progress, 
+			job_title           => $say_title, 
+			job_description     => $say_description,
+			job_status          => $say_status,
+			started_seconds_ago => $started_seconds_ago,
+			updated_seconds_ago => $updated_seconds_ago,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { json_string => $json_string }});
+		$jobs_file .= $json_string."\n";
 		
 		# If the job is done, move on.
 		next if $job_progress eq "100";

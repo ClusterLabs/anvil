@@ -470,11 +470,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0001">Configure Network</key>
 		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
 		<key name="job_0003">Update Striker</key>
-		<key name="job_0004">
-This "system" is now scheduled to be updated.
-Here's a "multi" quoted "multi" line.
-OK, go!
-		</key>
+		<key name="job_0004">This system is now scheduled to be updated.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
