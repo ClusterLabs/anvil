@@ -208,7 +208,8 @@
 						&nbsp;
 					</td>
 				</tr>
-				<div id="running-jobs">
+				<div id="running_jobs">
+				<script type="text/javascript" src="/skins/alteeve/jobs.js"></script>
 				<tr>
 					<td>
 						<span name="jobs-title" id="jobs-title" class="config_header2">#!string!header_0011!#</span><br />
@@ -223,6 +224,29 @@
 <!-- end striker-offline -->
 
 <!-- start job-details -->
+						<div id="#!variable!div_id!#">
+						<br />
+						<table style="border: 1px solid white">
+							<tr>
+								<td width="50%">
+									<span class="column_header">#!variable!title!#</span>
+								</td>
+								<td width="50%">
+									<div id="#!variable!progress_bar!#"></div>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2">
+									<span class="column_row_name">#!variable!description!#</span>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2">
+									<div id="#!variable!status!#"></div>
+								</td>
+							</tr>
+						</table>
+						</div>
 <!-- end job-details -->
 
 <!-- start striker-setup -->

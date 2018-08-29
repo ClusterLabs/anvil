@@ -89,6 +89,7 @@ Report if a reboot is needed:  #!variable!program!#
 		<key name="message_0053">This system needs to be rebooted.</key>
 		<key name="message_0054">This system does NOT need to be rebooted.</key>
 		<key name="message_0055">Exiting to '--run-once' switch.</key>
+		<key name="message_0056">Previous run exited early. Restarting momentarily.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

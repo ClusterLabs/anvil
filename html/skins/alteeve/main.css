@@ -301,3 +301,11 @@ td {
 	padding-left:  10px;
 	padding-right: 10px;
 }
+
+/* This is used by HTML::FromText when converting a text string to HTML */
+.hft-lines {
+	text-align:  left;
+	font-family: 'Dejavu Sans Mono', Courier;
+	padding:     0.2em;
+	font-size:   0.9em;
+}

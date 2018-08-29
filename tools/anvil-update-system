@@ -144,14 +144,9 @@ WHERE
 update_progress($anvil, 0, "clear");
 
 # Mark that we're starting
-print $THIS_FILE."; time: [".time."], running with PID: [".$$."]\n";
 update_progress($anvil, 1, "message_0033");
-sleep 10;
-print $THIS_FILE."; time: [".time."], exiting\n";
-update_progress($anvil, 2, "message_0035,!!size!42M!!");
-update_progress($anvil, 3, "message_0017,!!hostname!neutron!!,!!bad_hostname!mermaid!!");
-exit;
 
+# Run the update
 run_os_update($anvil);
 
 # We're done updating
@@ -226,7 +221,7 @@ WHERE
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { message => $message }});
-			if ($job_status)
+			if (($message) && ($job_status))
 			{
 				$job_status .= "\n";
 			}
@@ -263,14 +258,15 @@ sub run_os_update
 	my ($anvil) = @_;
 	
 	# NOTE: We run this directly to better monitor progress and update the progress.
-	my $success       = 0;
-	my $to_update     = 0;
-	my $percent_step  = 0;
-	my $progress      = 5;
-	my $counted_lines = 0;
-	my $next_step     = 0;
-	my $verifying     = 0;
-	my $output        = "";
+	my $transaction_shown = 0;
+	my $success           = 0;
+	my $to_update         = 0;
+	my $percent_step      = 0;
+	my $progress          = 5;
+	my $counted_lines     = 0;
+	my $next_step         = 0;
+	my $verifying         = 0;
+	my $output            = "";
 	my $shell_call = $anvil->data->{path}{exe}{dnf}." clean expire-cache && ".$anvil->data->{path}{exe}{dnf}." -y update; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
@@ -301,7 +297,11 @@ sub run_os_update
 		if ($line =~ /Running transaction/i)
 		{
 			# Done downloading
-			update_progress($anvil, $progress, "message_0037");
+			if (not $transaction_shown)
+			{
+				update_progress($anvil, $progress, "message_0037");
+				$transaction_shown = 1;
+			}
 		}
 		
 		if ($line =~ /return_code:(\d+)$/)

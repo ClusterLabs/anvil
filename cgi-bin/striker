@@ -792,7 +792,61 @@ sub check_availability
 		$available = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
 		
+		# If we have any running or recently finished jobs, we'll desplay them below.
 		my $jobs_list = "#!string!striker_0097!#";
+		my $return = $anvil->Database->get_jobs({debug => 2, ended_within => 300});
+		my $count  = @{$return};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		if ($count)
+		{
+			$jobs_list = "";
+			foreach my $hash_ref (@{$return})
+			{
+				my $job_uuid            = $hash_ref->{job_uuid};
+				my $job_command         = $hash_ref->{job_command};
+				my $job_data            = $hash_ref->{job_data};
+				my $job_picked_up_by    = $hash_ref->{job_picked_up_by};
+				my $job_picked_up_at    = $hash_ref->{job_picked_up_at};
+				my $job_updated         = $hash_ref->{job_updated};
+				my $job_name            = $hash_ref->{job_name};
+				my $job_progress        = $hash_ref->{job_progress};
+				my $job_title           = $hash_ref->{job_title};
+				my $job_description     = $hash_ref->{job_description};
+				my $job_status          = $hash_ref->{job_status};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					job_uuid            => $job_uuid,
+					job_command         => $job_command,
+					job_data            => $job_data,
+					job_picked_up_by    => $job_picked_up_by,
+					job_picked_up_at    => $job_picked_up_at,
+					job_updated         => $job_updated,
+					job_name            => $job_name, 
+					job_progress        => $job_progress,
+					job_title           => $job_title, 
+				}});
+				
+				# Convert the double-banged strings into a proper message.
+				my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
+				my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					job_title       => $job_title, 
+					say_description => $say_description, 
+				}});
+				
+				### TODO: left off here
+				my $job_template = $anvil->Template->get({file => "striker.html", name => "job-details", variables => {
+					div_id       => "job_".$job_uuid, 
+					title        => $say_title, 
+					description  => $say_description, 
+					progress_bar => "job_progress_".$job_uuid, 
+					status       => "job_status_".$job_uuid,
+				}});
+				
+				$jobs_list .= $job_template."\n";
+			}
+		}
+		
+		# 
 		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "striker.html", name => "striker-offline", variables => {
 			title_id    => "",
 			message_id  => "",
