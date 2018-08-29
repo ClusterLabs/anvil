@@ -53,8 +53,37 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# Did we get called with a job UUID?
+# Did we get called with a job UUID? If not, try to find a pending job and take it.
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+if (not $anvil->data->{switches}{'job-uuid'})
+{
+	# See if a job is waiting to run.
+	my $query = "
+SELECT 
+    job_uuid 
+FROM 
+    jobs 
+WHERE 
+    job_command LIKE '".$THIS_FILE."%'
+AND 
+    job_progress != '100'
+AND 
+    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count == 1)
+	{
+		# Found it
+		$anvil->data->{jobs}{job_uuid} = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+	}
+}
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Is it set and valid?
@@ -119,7 +148,8 @@ print $THIS_FILE."; time: [".time."], running with PID: [".$$."]\n";
 update_progress($anvil, 1, "message_0033");
 sleep 10;
 print $THIS_FILE."; time: [".time."], exiting\n";
-update_progress($anvil, 2, "message_0034");
+update_progress($anvil, 2, "message_0035,!!size!42M!!");
+update_progress($anvil, 3, "message_0017,!!hostname!neutron!!,!!bad_hostname!mermaid!!");
 exit;
 
 run_os_update($anvil);

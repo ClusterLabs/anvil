@@ -20,6 +20,7 @@ my $THIS_FILE = "Words.pm";
 # clean_spaces
 # key
 # language
+# parse_banged_string
 # read
 # string
 # _wrap_string
@@ -242,6 +243,111 @@ sub language
 	}
 	
 	return($self->{WORDS}{LANGUAGE});
+}
+
+=head2 parse_banged_string
+
+This takes a string (usually from a DB record) in the format C<< <string_key>[,!!var1!value1!!,!!var2!value2!!,...,!!varN!valueN!! >> and converts it into an actual string.
+
+Parameters;
+
+=head3 key_string (required)
+
+This is the double-banged string to process. It can take and process multiple lines at once, so long as each line is in the above format, broken by a simple new line (C<< \n >>).
+
+=head3 json_escape (optional, default '0')
+
+If set to C<< 1 >>, and double-quote (C<< " >>) characters will be escaped (ie: for use in JSON files).
+
+=cut
+sub parse_banged_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Setup default values
+	my $out_string  = "";
+	my $key_string  = defined $parameter->{key_string}  ? $parameter->{key_string}  : 0;
+	my $json_escape = defined $parameter->{json_escape} ? $parameter->{json_escape} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		json_escape => $json_escape, 
+		key_string  => $key_string,
+	}});
+	
+	# There might be multiple keys, split by newlines.
+	foreach my $message (split/\n/, $key_string)
+	{
+		# If we've looped, there will be data in 'out_string" already so append a newline to separate
+		# this key from the previous one.
+		if ($out_string)
+		{
+			# Already processed a line, so prepend a newline.
+			$out_string .= "\n";
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message }});
+		if ($message =~ /^(.*?),(.*)$/)
+		{
+			# This key has insertion variables.
+			my $key             = $1;
+			my $variable_string = $2;
+			my $variables       = {};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				key             => $key,
+				variable_string => $variable_string, 
+			}});
+			foreach my $pair (split/,/, $variable_string)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pair => $pair }});
+				my $name  = "";
+				my $value = "";
+				if ($pair =~ /^!!(.*?)!(.*)!!$/)
+				{
+					$name  = $1;
+					$value = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						name  => $name,
+						value => $value,
+					}});
+				}
+				elsif ($pair =~ /^!!(.*?)!!!$/)
+				{
+					$name = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
+				}
+				else
+				{
+					# what?!
+				}
+				$variables->{$name} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "variables->$name" => $variables->{$name} }});
+			}
+			
+			# Parse the line now.
+			$out_string .= $anvil->Words->string({key => $key, variables => $variables});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
+		}
+		else
+		{
+			# This key is just a key, no variables.
+			$out_string .= $anvil->Words->string({key => $message});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
+		}
+	}
+	
+	if ($json_escape)
+	{
+		# Escape characters needed for use in json.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> out_string" => $out_string }});
+		$out_string =~ s/\"/\\\"/msg;
+		$out_string =~ s/\n/<br \/>/msg;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< out_string" => $out_string }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
+	return($out_string);
 }
 
 =head2 read
