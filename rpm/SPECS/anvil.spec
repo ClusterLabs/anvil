@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        14%{?dist}
+Release:        15%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -297,7 +297,10 @@ mv %{buildroot}/%{_sbindir}/anvil.sql %{buildroot}/%{_datadir}/anvil/anvil.sql
 
 
 %pre core
-mkdir /usr/share/anvil
+if [ ! -d /usr/share/anvil ];
+then
+    mkdir /usr/share/anvil
+fi
 getent group %{anvilgroup} >/dev/null || groupadd -r %{anvilgroup}
 getent passwd %{anviluser} >/dev/null || useradd --create-home \
     --gid %{anvilgroup}  --comment "Anvil! user account" %{anviluser}
@@ -383,6 +386,10 @@ setenforce 1
 
 
 %changelog
+* Wed Aug 29 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-15
+- Added perl-HTML-FromText and perl-HTML-Strip to anvil-core requires list.
+- Added a check to see if /usr/share/anvil exists before trying to create it.
+
 * Wed Aug 15 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-14
 - The new requirement for perl-Proc-Simple had a trailing semi-colon that 
   slipped past the -13 release tests. Fixed here.
