@@ -1,6 +1,7 @@
 $.ajaxSetup({
     cache: false
 });
+// TODO: Loop through jobs found on HTML and hide and divs that aren't found in jobs.json.
 $(function() { 
 	if($("#running_jobs").length) {
 		console.log('Looking for running jobs.');

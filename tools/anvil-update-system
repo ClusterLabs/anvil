@@ -293,6 +293,12 @@ sub run_os_update
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 		}
 		
+		# If there were no updates, let the user know.
+		if ($line =~ /^Nothing to do/i)
+		{
+			update_progress($anvil, 95, "message_0057");
+		}
+		
 		if ((not $verifying) && ($line =~ /^Verifying /i))
 		{
 			# Update done, verifying now.
