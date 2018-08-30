@@ -286,7 +286,7 @@ sub process_update
 			debug           => 2,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => "anvil-update-system --host-uuid ".$anvil->Get->host_uuid, 
+			job_command     => "anvil-update-system", 
 			job_data        => "", 
 			job_name        => "update::system", 
 			job_title       => "job_0003", 

@@ -339,13 +339,15 @@ firewall-cmd --add-service=https --permanent
 firewall-cmd --add-service=postgresql
 firewall-cmd --add-service=postgresql --permanent
 
-### Remove stuff
+### Remove stuff - Disabled for now, messes things up during upgrades
 %postun core
-getent passwd %{anviluser} >/dev/null && userdel %{anviluser}
-getent group %{anvilgroup} >/dev/null && groupdel %{anvilgroup}
-echo "NOTE: Re-enabling SELinux."
-sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config 
-setenforce 1
+## This is breaking on upgrades - (note: switch back to single percent sign 
+##                                       when re-enabling)
+#getent passwd %%{anviluser} >/dev/null && userdel %%{anviluser}
+#getent group %%{anvilgroup} >/dev/null && groupdel %%{anvilgroup}
+# echo "NOTE: Re-enabling SELinux."
+# sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config 
+# setenforce 1
 
 %postun striker
 ### TODO: Stopping postgres breaks the Anvil! during OS updates. Need to find a
@@ -386,9 +388,11 @@ setenforce 1
 
 
 %changelog
-* Wed Aug 29 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-15
+* Thu Aug 30 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-15
 - Added perl-HTML-FromText and perl-HTML-Strip to anvil-core requires list.
 - Added a check to see if /usr/share/anvil exists before trying to create it.
+- Disabled postun until we can sort out how not to cause issues during 
+  upgrades.
 
 * Wed Aug 15 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-14
 - The new requirement for perl-Proc-Simple had a trailing semi-colon that 
