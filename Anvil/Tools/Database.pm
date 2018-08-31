@@ -1207,6 +1207,7 @@ sub disconnect
 	
 	# Set the connection count to 0.
 	$anvil->data->{sys}{database}{connections} = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 	
 	return(0);
 }

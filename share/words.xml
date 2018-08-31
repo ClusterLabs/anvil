@@ -467,6 +467,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0095">This will power off the Striker machine and leave it off. To power it back on, you will need physical access or cycle the power of the PDU feeding this Striker.</key>
 		<key name="striker_0096">Recent and Running Jobs</key>
 		<key name="striker_0097">There are no jobs currently running or recently completed.</key>
+		<key name="striker_0098">Back</key>
+		<key name="striker_0099">Job</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -535,6 +537,7 @@ The update appears to have not completed successfully. The output was:
 		<key name="js_0001">Up</key>
 		<key name="js_0002">Down</key>
 		<key name="js_0003">Mbps</key>
+		<key name="js_0004">waiting for job output...</key>
 		
 	</language>
 	<!-- 日本語 -->

@@ -45,8 +45,11 @@
 								</td>
 							</tr>
 							<tr>
-								<td class="button_cell" colspan="2">
-									<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#">
+								<td class="button_cell" style="text-align: left;">
+									<a href="/cgi-bin/striker?striker=true" class="button">#!string!striker_0098!#</a>
+								</td>
+								<td class="button_cell" style="text-align: right;">
+									<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
 								</td>
 							</tr>
 							<input type="hidden" name="new_peer_access"      id="new_peer_access"      value="#!data!cgi::new_peer_access::value!#">
@@ -69,23 +72,26 @@
 				<form name="confirm-reconfig" action="" method="post">
 				<div id="confirm-reconfig">
 				<tr>
-					<td class="menu_title">
+					<td class="menu_title" colspan="2">
 						#!string!striker_0078!#
 					</td>
 				</tr>
 				<tr>
-					<td class="menu_details">
+					<td class="menu_details" colspan="2">
 						#!string!striker_0083!#
 					</td>
 				</tr>
 				<tr>
-					<td>
+					<td colspan="2">
 						&nbsp;
 					</td>
 				</tr>
 				<tr>
-					<td class="button_cell" colspan="2">
-						<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#">
+					<td class="button_cell" style="text-align: left;">
+						<a href="/cgi-bin/striker?striker=true" class="button">#!string!striker_0098!#</a>
+					</td>
+					<td class="button_cell" style="text-align: right;">
+						<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
 					</td>
 				</tr>
 				<input type="hidden" name="striker" id="striker" value="#!data!cgi::striker::value!#">
@@ -101,23 +107,26 @@
 				<form name="confirm-update" action="" method="post">
 				<div id="confirm-update">
 				<tr>
-					<td class="menu_title">
+					<td class="menu_title" colspan="2">
 						#!string!striker_0078!#
 					</td>
 				</tr>
 				<tr>
-					<td class="menu_details">
+					<td class="menu_details" colspan="2">
 						#!string!striker_0086!#
 					</td>
 				</tr>
 				<tr>
-					<td>
+					<td colspan="2">
 						&nbsp;
 					</td>
 				</tr>
 				<tr>
-					<td class="button_cell" colspan="2">
-						<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#">
+					<td class="button_cell" style="text-align: left;">
+						<a href="/cgi-bin/striker?striker=true" class="button">#!string!striker_0098!#</a>
+					</td>
+					<td class="button_cell" style="text-align: right;">
+						<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
 					</td>
 				</tr>
 				<input type="hidden" name="striker" id="striker" value="#!data!cgi::striker::value!#">
@@ -147,7 +156,7 @@
 				</tr>
 				<tr>
 					<td>
-						<a href="/" class="button">#!string!striker_0053!#</a>
+						<a href="/cgi-bin/striker" class="button">#!string!striker_0053!#</a>
 					</td>
 				</tr>
 			</table>
@@ -171,7 +180,7 @@
 						&nbsp;
 					</td>
 					<td>
-						<input type="submit" name="login" id="login" value="#!string!striker_0049!#">
+						<input type="submit" name="login" id="login" class="button" value="#!string!striker_0049!#">
 					</td>
 				</tr>
 				<tr>
@@ -186,7 +195,7 @@
 <!-- end striker-login -->
 
 <!-- start striker-offline -->
-			<table class="centered">
+			<table class="centered" width="90%">
 				<tr>
 					<td>
 						&nbsp;
@@ -198,8 +207,8 @@
 						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
 						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header3">#!variable!description!#</span>
 						<br />
-						<hr>
-						<a href="/" class="button">#!string!striker_0053!#</a>
+						<hr />
+						<a href="/cgi-bin/striker" class="button">#!string!striker_0053!#</a>
 					</td>
 				</tr>
 				</div>
@@ -212,10 +221,11 @@
 				<script type="text/javascript" src="/skins/alteeve/jobs.js"></script>
 				<tr>
 					<td>
+						<input type="hidden" name="status_waiting" id="status_waiting" value="#!string!js_0004!#">
 						<span name="jobs-title" id="jobs-title" class="config_header2">#!string!header_0011!#</span><br />
 						<span name="jobs-message" id="jobs-message" class="config_header3">#!string!striker_0096!#</span>
 						<br />
-						<hr>
+						<hr />
 						#!variable!job_list!#
 					</td>
 				</tr>
@@ -226,26 +236,32 @@
 <!-- start job-details -->
 						<div id="#!variable!div_id!#">
 						<br />
-						<table style="border: 1px solid white">
+						<table class="job_table" width="90%">
 							<tr>
-								<td width="50%">
-									<span class="column_header">#!variable!title!#</span>
+								<td width="48%" style="padding-left: 4px;">
+									<span class="column_header">#!string!striker_0099!#:</span> #!variable!title!#
 								</td>
-								<td width="50%">
+								<td width="4%" class="subtle_text" style="text-align: center; white-space: nowrap;">
+									<div id="#!variable!progress_percent!#"></div>
+								</td>
+								<td width="48%">
 									<div id="#!variable!progress_bar!#"></div>
 								</td>
 							</tr>
 							<tr>
-								<td colspan="2">
+								<td colspan="3" style="padding-left: 4px;">
 									<span class="column_row_name">#!variable!description!#</span>
 								</td>
 							</tr>
 							<tr>
-								<td colspan="2">
-									<div id="#!variable!status!#"></div>
+								<td colspan="3" style="padding: 6px;">
+									<div class="job_status" id="#!variable!status!#"></div>
 								</td>
 							</tr>
 						</table>
+						<br />
+						<hr />
+						<br />
 						</div>
 <!-- end job-details -->
 
@@ -399,7 +415,7 @@
 						</tr>
 						<tr>
 							<td class="button_cell" colspan="4" align="center">
-								<input type="submit" id="save" name="save" value="#!string!striker_0067!#" />
+								<input type="submit" id="save" name="save" class="button" value="#!string!striker_0067!#" />
 							</td>
 						</tr>
 						<input type="hidden" name="striker" value="true" />
@@ -530,7 +546,7 @@
 						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
 						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
 						<br />
-						<hr>
+						<hr />
 						<a href="/" class="button">Reload</a>
 					</td>
 				</tr>
@@ -546,7 +562,7 @@
 						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
 						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
 						<br />
-						<hr>
+						<hr />
 						<a href="/" class="button">Reload</a>
 					</td>
 				</tr>

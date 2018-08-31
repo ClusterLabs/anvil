@@ -121,6 +121,11 @@ td.column_header {
 	color:      #9ba0a5;
 	padding:    0.15em;
 }
+.column_header {
+	text-align: left;
+	color:      #9ba0a5;
+	padding:    0.15em;
+}
 
 td.column_row_name {
 	text-align:     left;
@@ -172,15 +177,15 @@ td.column_row_value_fixed_centered {
 }
 
 .config_header2 {
-	color: #f2f2f2;
+	color:      #f2f2f2;
 	text-align: center;
-	font-size: 1.5em;
+	font-size:  1.5em;
 }
 
 .config_header3 {
-	color: #f2f2f2;
+	color:      #f2f2f2;
 	text-align: center;
-	font-size: 1em;
+	font-size:  1em;
 }
 
 .form_group_header1 {
@@ -190,8 +195,8 @@ td.column_row_value_fixed_centered {
 }
 
 .form_group_header2 {
-	text-align:  left;
-	font-size:   1.1em;
+	text-align: left;
+	font-size:  1.1em;
 }
 
 table {
@@ -281,8 +286,13 @@ td {
 }
 
 .button {
-	padding:    10px 5px;
-	text-align: center;
+	color:            #343434;
+	font:             0.9em 'Dejavu Sans', Arial, Helvetica, Verdana, Sans-Serif;
+	text-decoration:  none;
+	background-color: #f2f2f2;
+	padding:          5px 10px 5px 10px;
+	border:           1px solid #343434;
+	border-radius:    3px;
 }
 
 .icon_button {
@@ -308,4 +318,18 @@ td {
 	font-family: 'Dejavu Sans Mono', Courier;
 	padding:     0.2em;
 	font-size:   0.9em;
+}
+
+.job_table {
+	border-left: 1px dotted #d02724;
+}
+
+.job_status {
+	border: 1px solid #9ba0a5;
+}
+
+.job_output {
+	font:        0.8em 'Dejavu Sans Mono', Courier;
+	color:       #d2e2d2;
+	white-space: nowrap;
 }

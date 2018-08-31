@@ -147,7 +147,7 @@ update_progress($anvil, 0, "clear");
 update_progress($anvil, 1, "message_0033");
 
 # Make sure maintenance mode is enabled.
-$anvil->System->maintenance_mode({debug => 2, set => 1});
+$anvil->System->maintenance_mode({debug => 3, set => 1});
 
 # Run the update
 run_os_update($anvil);
@@ -165,7 +165,7 @@ else
 }
 
 # Clear maintenance mode.
-$anvil->System->maintenance_mode({debug => 2, set => 0});
+$anvil->System->maintenance_mode({debug => 3, set => 0});
 
 $anvil->nice_exit({exit_code => 0});
 

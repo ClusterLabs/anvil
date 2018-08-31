@@ -888,6 +888,7 @@ sub _set_paths
 				'anvil-manage-striker-peers'		=>	"/usr/sbin/anvil-manage-striker-peers",
 				'anvil-prep-database'		=>	"/usr/sbin/anvil-prep-database",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
+				'anvil-reboot-needed'		=>	"/usr/sbin/anvil-reboot-needed",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",

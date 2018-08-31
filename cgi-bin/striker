@@ -835,11 +835,12 @@ sub check_availability
 				
 				### TODO: left off here
 				my $job_template = $anvil->Template->get({file => "striker.html", name => "job-details", variables => {
-					div_id       => "job_".$job_uuid, 
-					title        => $say_title, 
-					description  => $say_description, 
-					progress_bar => "job_progress_".$job_uuid, 
-					status       => "job_status_".$job_uuid,
+					div_id           => "job_".$job_uuid, 
+					title            => $say_title, 
+					description      => $say_description, 
+					progress_bar     => "job_progress_".$job_uuid, 
+					progress_percent => "job_progress_percent_".$job_uuid, 
+					status           => "job_status_".$job_uuid,
 				}});
 				
 				$jobs_list .= $job_template."\n";
