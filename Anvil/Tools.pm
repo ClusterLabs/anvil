@@ -885,7 +885,7 @@ sub _set_paths
 			},
 			exe			=>	{
 				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
-				'anvil-manage-striker-peers'		=>	"/usr/sbin/anvil-manage-striker-peers",
+				'anvil-manage-striker-peers'	=>	"/usr/sbin/anvil-manage-striker-peers",
 				'anvil-prep-database'		=>	"/usr/sbin/anvil-prep-database",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-reboot-needed'		=>	"/usr/sbin/anvil-reboot-needed",
