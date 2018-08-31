@@ -4,10 +4,12 @@ $.ajaxSetup({
 // TODO: Loop through jobs found on HTML and hide and divs that aren't found in jobs.json.
 $(function() { 
 	var say_status_waiting = $('input#status_waiting').val();
+	//console.log('say_status_waiting: ['+say_status_waiting+']');
 	if($("#running_jobs").length) {
 		//console.log('Looking for running jobs.');
 		setInterval(function() {
 			$.getJSON('/status/jobs.json', { get_param: 'value' }, function(data) {
+				//console.log('"/status/jobs.json" read.');
 				$.each(data.jobs, function(index, element) {
 					
 					var progress      = element.job_progress;
@@ -40,6 +42,6 @@ $(function() {
 	}
 	else
 	{
-		//console.log('Jobs status not loaded.');
+		//console.log('"running_jobs" div not found.');
 	}
 });

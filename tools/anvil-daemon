@@ -58,8 +58,9 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Read switches
-$anvil->data->{switches}{'run-once'}      = "";
+$anvil->data->{switches}{'run-once'}       = "";
 $anvil->data->{switches}{'main-loop-only'} = "";
+$anvil->data->{switches}{'no-start'}       = 0;
 $anvil->Get->switches;
 
 # There are some things we only want to run on (re)start and don't need to always run.
@@ -362,13 +363,13 @@ sub run_jobs
 			updated_seconds_ago => $updated_seconds_ago,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { json_string => $json_string }});
-		$jobs_file .= $json_string."\n";
+		$jobs_file .= $json_string.",\n";
 		
 		# If the job is done, move on.
 		next if $job_progress eq "100";
 		
 		# If the job is not running, start it.
-		if (not $job_picked_up_by)
+		if ((not $job_picked_up_by) && (not $anvil->data->{switches}{'no-start'}))
 		{
 			# Start the job, appending '--job-uuid' to the command.
 			$anvil->data->{jobs}{handles}{$job_uuid} = $anvil->System->call({
@@ -389,6 +390,7 @@ sub run_jobs
 	}
 	
 	# Close the jobs file.
+	$jobs_file =~ s/,\n$/\n/ms;
 	$jobs_file .= "]}\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jobs_file => $jobs_file }});
 	
