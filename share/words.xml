@@ -91,6 +91,8 @@ Report if a reboot is needed:  #!variable!program!#
 		<key name="message_0055">Exiting to '--run-once' switch.</key>
 		<key name="message_0056">Previous run exited early. Restarting momentarily.</key>
 		<key name="message_0057">No updates were found or needed.</key>
+		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
+		<key name="message_0058">Packages downloaded: [#!variable!downloaded!#], Installed/Updates: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

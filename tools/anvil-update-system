@@ -143,8 +143,15 @@ WHERE
 # Clea any old runs.
 update_progress($anvil, 0, "clear");
 
+# We'll keep a count of lines and packages to show the user.
+$anvil->data->{counts}{downloaded} = 0;
+$anvil->data->{counts}{installed}  = 0;
+$anvil->data->{counts}{verified}   = 0;
+$anvil->data->{counts}{lines}      = 0;
+
 # Mark that we're starting
 update_progress($anvil, 1, "message_0033");
+update_progress($anvil, 2, "message_0058,!!downloaded!0!!,!!installed!0!!,!!verified!0!!,!!lines!0!!");
 
 # Make sure maintenance mode is enabled.
 $anvil->System->maintenance_mode({debug => 3, set => 1});
@@ -238,6 +245,19 @@ WHERE
 			}
 		}
 		
+		# Insert counts
+		if ($job_status =~ /message_0058/gs)
+		{
+			my $downloaded   = $anvil->Convert->add_commas({number => $anvil->data->{counts}{downloaded}});
+			my $installed    = $anvil->Convert->add_commas({number => $anvil->data->{counts}{installed}});
+			my $verified     = $anvil->Convert->add_commas({number => $anvil->data->{counts}{verified}});
+			my $lines        = $anvil->Convert->add_commas({number => $anvil->data->{counts}{lines}});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> job_status" => $job_status }});
+			$job_status =~ s/message_0058,!!downloaded!\d+!!,!!installed!\d+!!,!!verified!\d+!!,!!lines!\d+!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< job_status" => $job_status }});
+		}
+		
 		my $query = "
 UPDATE 
     jobs 
@@ -282,7 +302,8 @@ sub run_os_update
 		my $line   =  $_;
 		   $output .= $line."\n";
 		   $line   =  $anvil->Words->clean_spaces({string => $line});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		   $anvil->data->{counts}{lines}++;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "counts::lines" => $anvil->data->{counts}{lines}, line => $line }});
 		
 		if ($line =~ /^kernel /)
 		{
@@ -365,6 +386,22 @@ sub run_os_update
 			$counted_lines++;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { counted_lines => $counted_lines }});
 			
+			if ($line =~ /\(\d+\/\d+\): /)
+			{
+				$anvil->data->{counts}{downloaded}++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "counts::downloaded" => $anvil->data->{counts}{downloaded} }});
+			}
+			if (($line =~ /^Upgrading /i) or ($line =~ /^Installing /))
+			{
+				$anvil->data->{counts}{installed}++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "counts::installed" => $anvil->data->{counts}{installed} }});
+			}
+			if ($line =~ /^Verifying /i)
+			{
+				$anvil->data->{counts}{verified}++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "counts::verified" => $anvil->data->{counts}{verified} }});
+			}
+			
 			if ($counted_lines > $next_step)
 			{
 				# Step up the progress.
@@ -383,8 +420,8 @@ sub run_os_update
 	close $file_handle;
 	
 	# Reload daemons to pick up any changed systemctl daemons.
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." daemon-reload", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	my $systemctl_output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{systemctl}." daemon-reload", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { systemctl_output => $systemctl_output }});
 	
 	# Did it work?
 	if (not $success)
