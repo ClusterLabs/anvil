@@ -825,6 +825,20 @@ sub check_availability
 					job_title           => $job_title, 
 				}});
 				
+				# Skip jobs that finished more than five minutes ago.
+				my $job_finished = time - $job_updated;
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:time'         => time,
+					's2:job_updated'  => $job_updated,
+					's3:job_finished' => $job_finished,
+				}});
+				if (($job_progress eq "100") && ($job_finished > 600))
+				{
+					# Skip it
+					next;
+				}
+				
 				# Convert the double-banged strings into a proper message.
 				my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
 				my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
@@ -855,7 +869,7 @@ sub check_availability
 			description => $anvil->Words->string({key => "striker_0090", variables => {  }}),
 			job_list    => $jobs_list
 		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	}
 	
 	# TODO: Phase this out

@@ -73,12 +73,15 @@ $anvil->Storage->record_md5sums;
 $anvil->Database->disconnect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0203"});
 
+# This will prevent restarting while jobs are running.
+$anvil->data->{sys}{jobs_running} = 0;
+
 # These are the things we always want running.
 while(1)
 {
 	# Connect to the database(s)
 	$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
-	$anvil->Database->connect();
+	$anvil->Database->connect({debug => 2});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 	
 	if ($anvil->data->{sys}{database}{connections})
@@ -98,7 +101,7 @@ while(1)
 	}
 	
 	# Has the file on disk changed?
-	if ($anvil->Storage->check_md5sums)
+	if ((not $anvil->data->{sys}{jobs_running}) && ($anvil->Storage->check_md5sums))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "message_0014"});
 		$anvil->nice_exit({code => 1});
@@ -112,7 +115,7 @@ while(1)
 	}
 	
 	# Disconnect from the database(s) and sleep now.
-	$anvil->Database->disconnect();
+	$anvil->Database->disconnect({debug => 2});
 	sleep 2;
 }
 
@@ -243,6 +246,10 @@ sub run_jobs
 {
 	my ($anvil) = @_;
 	
+	# This will be set to 1 if any jobs are not complete, preventing a restart of the daemon if it's 
+	# changed on disk.
+	$anvil->data->{sys}{jobs_running} = 0;
+	
 	# We'll also update the jobs.json file.
 	my $jobs_file = "{\"jobs\":[\n";
 	
@@ -283,6 +290,12 @@ sub run_jobs
 			started_seconds_ago => $started_seconds_ago, 
 			updated_seconds_ago => $updated_seconds_ago, 
 		}});
+		
+		if ($job_progress ne "100")
+		{
+			$anvil->data->{sys}{jobs_running} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::jobs_running" => $anvil->data->{sys}{jobs_running} }});
+		}
 		
 		# See if the job was picked up by a now-dead instance.
 		if ($job_picked_up_by)
