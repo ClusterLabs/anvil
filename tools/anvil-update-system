@@ -141,6 +141,7 @@ WHERE
 }
 
 # Clea any old runs.
+$anvil->data->{sys}{last_update} = time;
 update_progress($anvil, 0, "clear");
 
 # We'll keep a count of lines and packages to show the user.
@@ -150,8 +151,8 @@ $anvil->data->{counts}{verified}   = 0;
 $anvil->data->{counts}{lines}      = 0;
 
 # Mark that we're starting
-update_progress($anvil, 1, "message_0033");
-update_progress($anvil, 2, "message_0058,!!downloaded!0!!,!!installed!0!!,!!verified!0!!,!!lines!0!!");
+update_progress($anvil, 1, "message_0058,!!downloaded!0!!,!!installed!0!!,!!verified!0!!,!!lines!0!!");
+update_progress($anvil, 2, "message_0033");
 
 # Make sure maintenance mode is enabled.
 $anvil->System->maintenance_mode({debug => 3, set => 1});
@@ -248,13 +249,23 @@ WHERE
 		# Insert counts
 		if ($job_status =~ /message_0058/gs)
 		{
-			my $downloaded   = $anvil->Convert->add_commas({number => $anvil->data->{counts}{downloaded}});
-			my $installed    = $anvil->Convert->add_commas({number => $anvil->data->{counts}{installed}});
-			my $verified     = $anvil->Convert->add_commas({number => $anvil->data->{counts}{verified}});
-			my $lines        = $anvil->Convert->add_commas({number => $anvil->data->{counts}{lines}});
+			my $downloaded = $anvil->data->{counts}{downloaded} ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{downloaded}}) : 0;
+			my $installed  = $anvil->data->{counts}{installed}  ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{installed}})  : 0;
+			my $verified   = $anvil->data->{counts}{verified}   ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{verified}})   : 0;
+			my $lines      = $anvil->data->{counts}{lines}      ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{lines}})      : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:counts::downloaded" => $anvil->data->{counts}{downloaded},
+				"s2:downloaded"         => $downloaded, 
+				"s3:counts::installed"  => $anvil->data->{counts}{installed},
+				"s4:installed"          => $installed, 
+				"s5:counts::verified"   => $anvil->data->{counts}{verified},
+				"s6:verified"           => $verified, 
+				"s7:counts::lines"      => $anvil->data->{counts}{lines},
+				"s8:lines"              => $lines, 
+			}});
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> job_status" => $job_status }});
-			$job_status =~ s/message_0058,!!downloaded!\d+!!,!!installed!\d+!!,!!verified!\d+!!,!!lines!\d+!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
+			$job_status =~ s/message_0058,!!downloaded!.*?!!,!!installed!.*?!!,!!verified!.*?!!,!!lines!.*?!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< job_status" => $job_status }});
 		}
 		
@@ -273,6 +284,9 @@ WHERE
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		# Note this update time
+		$anvil->data->{sys}{last_update} = time;
 	}
 	
 	return(0);
@@ -415,6 +429,12 @@ sub run_os_update
 				
 				update_progress($anvil, $progress, "");
 			}
+		}
+		
+		# Update the progress if it's been more than a second since the last update.
+		if (time > $anvil->data->{sys}{last_update})
+		{
+			update_progress($anvil, $progress, "");
 		}
 	}
 	close $file_handle;

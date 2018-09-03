@@ -250,6 +250,8 @@ sub language
 
 This takes a string (usually from a DB record) in the format C<< <string_key>[,!!var1!value1!!,!!var2!value2!!,...,!!varN!valueN!! >> and converts it into an actual string.
 
+If there is a problem processing the string, C<< !!error!! >> is returned.
+
 Parameters;
 
 =head3 key_string (required)
@@ -291,31 +293,42 @@ sub parse_banged_string
 				key             => $key,
 				variable_string => $variable_string, 
 			}});
-			foreach my $pair (split/,/, $variable_string)
+			my $loop = 0;
+			while ($variable_string)
 			{
+				my $pair = ($variable_string =~ /^(!!.*?!.*?!!).*$/)[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pair => $pair }});
-				my $name  = "";
-				my $value = "";
-				if ($pair =~ /^!!(.*?)!(.*)!!$/)
+				
+				my ($variable, $value) = ($pair =~ /^!!(.*?)!(.*?)!!$/);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable => $variable,
+					value    => $value, 
+				}});
+				
+				# Remove this pair
+				$variable_string =~ s/^$pair//;
+				$variable_string =~ s/^,//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_string => $variable_string }});
+				
+				if (not $variable)
 				{
-					$name  = $1;
-					$value = $2;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						name  => $name,
-						value => $value,
-					}});
-				}
-				elsif ($pair =~ /^!!(.*?)!!!$/)
-				{
-					$name = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
+					# Variable missing, nothing we can do with this.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0206", variables => { message => $message }});
 				}
 				else
 				{
-					# what?!
+					# Record the variable/value pair
+					$variables->{$variable} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "variables->$variable" => $variables->{$variable} }});
 				}
-				$variables->{$name} = $value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "variables->$name" => $variables->{$name} }});
+				
+				$loop++;
+				if ($loop > 10000)
+				{
+					# Stuck in an infinite loop.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0037", variables => { message => $message }});
+					return("!!error!!");
+				}
 			}
 			
 			# Parse the line now.

@@ -92,7 +92,7 @@ Report if a reboot is needed:  #!variable!program!#
 		<key name="message_0056">Previous run exited early. Restarting momentarily.</key>
 		<key name="message_0057">No updates were found or needed.</key>
 		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
-		<key name="message_0058">Packages downloaded: [#!variable!downloaded!#], Installed/Updates: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
+		<key name="message_0058">* Packages downloaded: [#!variable!downloaded!#], Installed or updated: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -333,6 +333,7 @@ The database connection error was:
 		<key name="log_0203">Disconnected from all databases. Will reconnect when entering the main loop.</key>
 		<key name="log_0204">Starting the background process: [#!variable!call!#] now.</key>
 		<key name="log_0205">Background process: [#!variable!call!#] running with PID: [#!variable!pid!#].</key>
+		<key name="log_0206">In Words->parse_banged_string(), while processing: [#!variable!message!#], a variable name was found to be missing.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -529,6 +530,7 @@ The update appears to have not completed successfully. The output was:
 ====
 		</key>
 		<key name="error_0036"></key>
+		<key name="error_0037">In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
