@@ -10,6 +10,7 @@
 # 
 # TODO: 
 # - Need to check what kind of machine this is and not prep the database unless its a dashboard.
+# - Add a "running: pending,yes,done,dead" and show an appropriate icon beside jobs
 # 
 
 use strict;
