@@ -43,6 +43,7 @@ use Anvil::Tools::Alert;
 use Anvil::Tools::Database;
 use Anvil::Tools::Convert;
 use Anvil::Tools::Get;
+use Anvil::Tools::Job;
 use Anvil::Tools::Log;
 use Anvil::Tools::Remote;
 use Anvil::Tools::Storage;
@@ -120,6 +121,7 @@ sub new
 			CONVERT				=>	Anvil::Tools::Convert->new(),
 			GET				=>	Anvil::Tools::Get->new(),
 			LOG				=>	Anvil::Tools::Log->new(),
+			JOB				=>	Anvil::Tools::Job->new(),
 			REMOTE				=>	Anvil::Tools::Remote->new(),
 			STORAGE				=>	Anvil::Tools::Storage->new(),
 			SYSTEM				=>	Anvil::Tools::System->new(),
@@ -154,6 +156,7 @@ sub new
 	$anvil->Convert->parent($anvil);
 	$anvil->Get->parent($anvil);
 	$anvil->Log->parent($anvil);
+	$anvil->Job->parent($anvil);
 	$anvil->Remote->parent($anvil);
 	$anvil->Storage->parent($anvil);
 	$anvil->System->parent($anvil);
@@ -454,6 +457,18 @@ sub Get
 	my $self = shift;
 	
 	return ($self->{HANDLE}{GET});
+}
+
+=head2 Job
+
+Access the C<Job.pm> methods via 'C<< $anvil->Log->method >>'.
+
+=cut
+sub Job
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{JOB});
 }
 
 =head2 Log
@@ -888,7 +903,7 @@ sub _set_paths
 				'anvil-manage-striker-peers'	=>	"/usr/sbin/anvil-manage-striker-peers",
 				'anvil-prep-database'		=>	"/usr/sbin/anvil-prep-database",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
-				'anvil-reboot-needed'		=>	"/usr/sbin/anvil-reboot-needed",
+				'anvil-manage-power'		=>	"/usr/sbin/anvil-reboot-needed",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",

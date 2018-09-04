@@ -141,7 +141,6 @@ WHERE
 }
 
 # Clea any old runs.
-$anvil->data->{sys}{last_update} = time;
 update_progress($anvil, 0, "clear");
 
 # We'll keep a count of lines and packages to show the user.
@@ -196,97 +195,12 @@ sub update_progress
 	
 	if ($anvil->data->{jobs}{job_uuid})
 	{
-		# Get the current job_status and append this new one.
-		my $job_picked_up_by = $$;
-		my $job_picked_up_at = 0;
-		my $job_status       = "";
-		if ($message eq "clear")
-		{
-			$job_picked_up_by = 0;
-		}
-		else
-		{
-			my $query = "
-SELECT 
-    job_status, 
-    job_picked_up_at
-FROM 
-    jobs 
-WHERE 
-    job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{jobs}{job_uuid})."
-;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-			
-			$job_status       = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$job_picked_up_at = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[1];
-			$job_status       = "" if not defined $job_status;
-			$job_picked_up_at = 0  if not defined $job_picked_up_at;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				job_status       => $job_status,
-				job_picked_up_at => $job_picked_up_at,
-			}});
-			
-			# Set that the job is now picked up if the progress is '1' or it 'job_picked_up_at' 
-			# is not set yet.
-			if ((not $job_picked_up_at) or ($progress eq "1"))
-			{
-				$job_picked_up_at = time;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_picked_up_at => $job_picked_up_at }});
-			}
-			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { message => $message }});
-			if (($message) && ($job_status))
-			{
-				$job_status .= "\n";
-			}
-			if ($message)
-			{
-				$job_status .= $message;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_status => $job_status }});
-			}
-		}
-		
-		# Insert counts
-		if ($job_status =~ /message_0058/gs)
-		{
-			my $downloaded = $anvil->data->{counts}{downloaded} ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{downloaded}}) : 0;
-			my $installed  = $anvil->data->{counts}{installed}  ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{installed}})  : 0;
-			my $verified   = $anvil->data->{counts}{verified}   ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{verified}})   : 0;
-			my $lines      = $anvil->data->{counts}{lines}      ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{lines}})      : 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s1:counts::downloaded" => $anvil->data->{counts}{downloaded},
-				"s2:downloaded"         => $downloaded, 
-				"s3:counts::installed"  => $anvil->data->{counts}{installed},
-				"s4:installed"          => $installed, 
-				"s5:counts::verified"   => $anvil->data->{counts}{verified},
-				"s6:verified"           => $verified, 
-				"s7:counts::lines"      => $anvil->data->{counts}{lines},
-				"s8:lines"              => $lines, 
-			}});
-			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> job_status" => $job_status }});
-			$job_status =~ s/message_0058,!!downloaded!.*?!!,!!installed!.*?!!,!!verified!.*?!!,!!lines!.*?!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< job_status" => $job_status }});
-		}
-		
-		my $query = "
-UPDATE 
-    jobs 
-SET 
-    job_picked_up_by = ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_by).", 
-    job_picked_up_at = ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_at).",
-    job_updated      = ".$anvil->data->{sys}{database}{use_handle}->quote(time).",
-    job_progress     = ".$anvil->data->{sys}{database}{use_handle}->quote($progress).", 
-    job_status       = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
-WHERE 
-    job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{jobs}{job_uuid})." 
-";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
-		
-		# Note this update time
-		$anvil->data->{sys}{last_update} = time;
+		$anvil->Job->update_progress({
+			debug    => 2, 
+			progress => $progress, 
+			message  => $message, 
+			job_uuid => $anvil->data->{jobs}{job_uuid}},
+		);
 	}
 	
 	return(0);

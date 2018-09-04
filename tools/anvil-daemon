@@ -162,7 +162,7 @@ sub run_once
 		# Clear the reboot request.
 		my $output = $anvil->System->call({
 			debug      => 2,
-			shell_call => $anvil->data->{path}{exe}{'anvil-reboot-needed'}." --set 0", 
+			shell_call => $anvil->data->{path}{exe}{'anvil-reboot-needed'}." --reboot-needed 0", 
 			source     => $THIS_FILE, 
 			line       => __LINE__,
 		});

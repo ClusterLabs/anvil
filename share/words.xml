@@ -82,9 +82,12 @@ Report maintenance mode: #!variable!program!#
 		<key name="message_0050">This system has has been set to no longer need a reboot.</key>
 		<key name="message_0051">This system was not in maintenance mode, nothing changed.</key>
 		<key name="message_0052">Bad call. Usage: 
-Set that a reboot is required: #!variable!program!# --set 1
-Clear the need for a reboot:   #!variable!program!# --set 0
+Set that a reboot is required: #!variable!program!# --reboot-needed 1
+Clear the need for a reboot:   #!variable!program!# --reboot-neededset 0
 Report if a reboot is needed:  #!variable!program!#
+Reboot the system:             #!variable!program!# --reboot [-y]
+Poweroff the system:           #!variable!program!# --poweroff [-y]
+The '-y' option prevents a confirmation prompt.
 		</key>
 		<key name="message_0053">This system needs to be rebooted.</key>
 		<key name="message_0054">This system does NOT need to be rebooted.</key>
@@ -93,6 +96,9 @@ Report if a reboot is needed:  #!variable!program!#
 		<key name="message_0057">No updates were found or needed.</key>
 		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
 		<key name="message_0058">* Packages downloaded: [#!variable!downloaded!#], Installed or updated: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
+		<key name="message_0059">Are you sure you want to reboot this system? [y/N].</key>
+		<key name="message_0060">Are you sure you want to power off this system? [y/N].</key>
+		<key name="message_0061">Aborting.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -171,7 +177,7 @@ Connecting to Database with configuration ID: [#!variable!uuid!#]
 		<key name="log_0060">Database user: [#!variable!user!#] already exists with ID: [#!variable!uuid!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
 		<key name="log_0062">SSH session opened without a password to: [#!variable!target!#].</key>
-		<key name="log_0063">The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.</key>
+		<key name="log_0063"><![CDATA[The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.]]></key>
 		<key name="log_0064">[ Warning ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with ID: [#!variable!uuid!#] can not be used, skipping it.</key>
 		<key name="log_0065">
 The database connection error was:
@@ -277,10 +283,10 @@ The database connection error was:
 		<key name="log_0147">A job to configure the network was found, and it was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Taking the job.</key>
 		<key name="log_0148">The network: [#!variable!network!#] has something set for the IP [#!variable!ip!#], but it appears to be invalid. Ignoring this network.</key>
 		<key name="log_0149">The network: [#!variable!network!#] is not set to be configured. Skipping it.</key>
-		<key name="log_0150">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which does not appear to be a full path and file name (should start with '/').</key>
-		<key name="log_0151">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which does not appear to exist.</key>
-		<key name="log_0152">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which can not be read (please check permissions and SELinux).</key>
-		<key name="log_0153">The Storage->backup() method was called with the source file: [#!variable!source_file!#], which isn't actually a file.</key>
+		<key name="log_0150"><![CDATA[The Storage->backup() method was called with the source file: [#!variable!source_file!#], which does not appear to be a full path and file name (should start with '/').]]></key>
+		<key name="log_0151"><![CDATA[The Storage->backup() method was called with the source file: [#!variable!source_file!#], which does not appear to exist.]]></key>
+		<key name="log_0152"><![CDATA[The Storage->backup() method was called with the source file: [#!variable!source_file!#], which can not be read (please check permissions and SELinux).]]></key>
+		<key name="log_0153"><![CDATA[The Storage->backup() method was called with the source file: [#!variable!source_file!#], which isn't actually a file.]]></key>
 		<key name="log_0154">The file: [#!variable!source_file!#] has been backed up as: [#!variable!target_file!#].</key>
 		<key name="log_0155">Removing the old network configuration file: [#!variable!file!#] as part of the network reconfiguration.</key>
 		<key name="log_0156"><![CDATA[[ Error ] - The method: [#!variable!method!#] must be called with root-level priviledges.]]></key>
@@ -292,7 +298,7 @@ The database connection error was:
 		<key name="log_0162"><![CDATA[[ Error ] - The method Storage->read_file() tried to rsync the remote file: [#!variable!remote_file!#] to the local temporary file: [#!variable!local_file!#], but it did not arrive. There might be more information above.]]></key>
 		<key name="log_0163">The file: [#!variable!file!#] does not exist.</key>
 		<key name="log_0164"><![CDATA[[ Warning ] - Storage->read_config()' was called without a file name to read.]]></key>
-		<key name="log_0165">The Storage->backup() method was asked to backup the file: [#!variable!source_file!#] on: [#!variable!target!#], but it looks like there was a problem connecting to the target.</key>
+		<key name="log_0165"><![CDATA[The Storage->backup() method was asked to backup the file: [#!variable!source_file!#] on: [#!variable!target!#], but it looks like there was a problem connecting to the target.]]></key>
 		<key name="log_0166">About to run the shell command: [#!variable!shell_call!#] on: [#!variable!target!#] as: [#!variable!remote_user!#]</key>
 		<key name="log_0167">Failed to create the directory: [#!variable!directory!#] on: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0168">Failed to create the directory: [#!variable!directory!#]. The error (if any) was: [#!variable!error!#].</key>
@@ -333,7 +339,10 @@ The database connection error was:
 		<key name="log_0203">Disconnected from all databases. Will reconnect when entering the main loop.</key>
 		<key name="log_0204">Starting the background process: [#!variable!call!#] now.</key>
 		<key name="log_0205">Background process: [#!variable!call!#] running with PID: [#!variable!pid!#].</key>
-		<key name="log_0206">In Words->parse_banged_string(), while processing: [#!variable!message!#], a variable name was found to be missing.</key>
+		<key name="log_0206"><![CDATA[In Words->parse_banged_string(), while processing: [#!variable!message!#], a variable name was found to be missing.]]></key>
+		<key name="log_0207"><![CDATA[Job->update_progress() called without 'job_uuid' being set, and 'jobs::job_uuid' was also not set. Unable to find the job to update.]]></key>
+		<key name="log_0208"><![CDATA[Job->update_progress() called with the 'job_uuid': [#!variable!job_uuid!#], which was not found. Unable to find the job to update.]]></key>
+		<key name="log_0209"><![CDATA[Job->update_progress() called with 'progress' set to an invalid value: [#!variable!progress!#]. This must be a whole number between '0' and '100' (fractions not allowed).]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -513,8 +522,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0022">The: [#!variable!field!#] must be a positive integer.</key>
 		<key name="error_0023">There was a problem reading your session details. To be safe, you have been logged out. Please try logging back in.</key>
 		<key name="error_0024">It appears that your session has expired. To be safe, you have been logged out. Please try logging back in.</key>
-		<key name="error_0025">The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.</key>
-		<key name="error_0026">The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.</key>
+		<key name="error_0025"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.]]></key>
+		<key name="error_0026"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.]]></key>
 		<key name="error_0027">Login failed, please try again.</key>
 		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!sys::log_file!#</span>] for details.]]></key>
 		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
@@ -530,7 +539,7 @@ The update appears to have not completed successfully. The output was:
 ====
 		</key>
 		<key name="error_0036"></key>
-		<key name="error_0037">In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].</key>
+		<key name="error_0037"><![CDATA[In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].]]></key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

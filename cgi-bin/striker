@@ -234,6 +234,14 @@ sub process_task
 		{
 			process_update($anvil);
 		}
+		elsif ($anvil->data->{cgi}{task}{value} eq "reboot")
+		{
+			process_reboot($anvil);
+		}
+		elsif ($anvil->data->{cgi}{task}{value} eq "poweroff")
+		{
+			process_poweroff($anvil);
+		}
 		else
 		{
 			# What we show for the reboot icon and text depends on if a reboot is pending.
@@ -268,6 +276,50 @@ sub process_task
 # 	$anvil->data->{sys}{users}{user_is_admin}       = $user_is_admin,
 # 	$anvil->data->{sys}{users}{user_is_experienced} = $user_is_experienced,
 # 	$anvil->data->{sys}{users}{user_is_trusted}     = $user_is_trusted,
+	
+	return(0);
+}
+
+# This handles updating this Striker.
+sub process_reboot
+{
+	my ($anvil) = @_;
+	
+	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
+	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
+	if ($anvil->data->{cgi}{confirm}{value})
+	{
+		# Record the job!
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_command     => "anvil-manage-power --reboot -y", 
+			job_data        => "", 
+			job_name        => "reboot::system", 
+			job_title       => "job_0003", 
+			job_description => "job_0004", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		# We don't need to store anything as hidden variables, we'll read it back from the database 
+		# later.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
+			title_id    => "",
+			message_id  => "",
+			title       => "#!string!striker_0044!#",
+			description => "#!string!striker_0088!#",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+		
+		# Set maintenance mode.
+		$anvil->System->maintenance_mode({debug => 2, set => 1});
+	}
+	else
+	{
+		# Show the screen the confirm the addition.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-update"});
+	}
 	
 	return(0);
 }
