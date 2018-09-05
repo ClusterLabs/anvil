@@ -903,7 +903,7 @@ sub _set_paths
 				'anvil-manage-striker-peers'	=>	"/usr/sbin/anvil-manage-striker-peers",
 				'anvil-prep-database'		=>	"/usr/sbin/anvil-prep-database",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
-				'anvil-manage-power'		=>	"/usr/sbin/anvil-reboot-needed",
+				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",
@@ -967,10 +967,10 @@ sub _set_paths
 			sql			=>	{
 				'anvil.sql'			=>	"/usr/share/anvil/anvil.sql",
 			},
-			urls		=>	{
+			urls			=>	{
 				skins				=>	"/skins",
 			},
-			words		=>	{
+			words			=>	{
 				'words.xml'			=>	"/usr/share/anvil/words.xml",
 			},
 	};

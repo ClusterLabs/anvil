@@ -99,6 +99,8 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0059">Are you sure you want to reboot this system? [y/N].</key>
 		<key name="message_0060">Are you sure you want to power off this system? [y/N].</key>
 		<key name="message_0061">Aborting.</key>
+		<key name="message_0062">Powering off the local system now.</key>
+		<key name="message_0063">Rebooting the local system now.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -481,12 +483,20 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0097">There are no jobs currently running or recently completed.</key>
 		<key name="striker_0098">Back</key>
 		<key name="striker_0099">Job</key>
+		<key name="striker_0100">Reboot this system? If you proceed, this system will be withdrawn from the Anvil! and rebooted. Please be sure you have access in the rare chance that the system fails to boot back up.</key>
+		<key name="striker_0101">Power off this system? If you proceed, this system will be withdrawn from the Anvil! and powered off. You will need physical access to the machine to turn it back on in most cases. A properly condigured Striker dashboard will power on after a power cycle (via a PDU) or any machine with IPMI if you have access to a machine on the BCN.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
 		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
 		<key name="job_0003">Update Striker</key>
 		<key name="job_0004">This system is now scheduled to be updated.</key>
+		<key name="job_0005">Reboot Striker</key>
+		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
+		<key name="job_0007">Poweroff Striker</key>
+		<key name="job_0008">This system will be powered off momentarily. It will not respond until it has turned back on.</key>
+		<key name="job_0009">Reboot..</key>
+		<key name="job_0010">Powering off...</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

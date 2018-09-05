@@ -236,11 +236,11 @@ sub process_task
 		}
 		elsif ($anvil->data->{cgi}{task}{value} eq "reboot")
 		{
-			process_reboot($anvil);
+			process_power($anvil, "reboot");
 		}
 		elsif ($anvil->data->{cgi}{task}{value} eq "poweroff")
 		{
-			process_poweroff($anvil);
+			process_power($anvil, "poweroff");
 		}
 		else
 		{
@@ -280,10 +280,11 @@ sub process_task
 	return(0);
 }
 
-# This handles updating this Striker.
-sub process_reboot
+# This handles powering off or rebooting this machine
+sub process_power
 {
-	my ($anvil) = @_;
+	my ($anvil, $task) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
 	
 	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
 	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
@@ -294,11 +295,11 @@ sub process_reboot
 			debug           => 2,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => "anvil-manage-power --reboot -y", 
+			job_command     => $task eq "poweroff" ? "anvil-manage-power --poweroff -y" : "anvil-manage-power --reboot -y", 
 			job_data        => "", 
 			job_name        => "reboot::system", 
-			job_title       => "job_0003", 
-			job_description => "job_0004", 
+			job_title       => $task eq "poweroff" ? "job_0010" : "job_0009", 
+			job_description => $task eq "poweroff" ? "job_0008" : "job_0006", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
@@ -307,18 +308,18 @@ sub process_reboot
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
 			title_id    => "",
 			message_id  => "",
-			title       => "#!string!striker_0044!#",
-			description => "#!string!striker_0088!#",
+			title       => $task eq "poweroff" ? "#!string!job_0007!#" : "#!string!job_0005!#",
+			description => $task eq "poweroff" ? "#!string!job_0008!#" : "#!string!job_0006!#",
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
-		
-		# Set maintenance mode.
-		$anvil->System->maintenance_mode({debug => 2, set => 1});
 	}
 	else
 	{
 		# Show the screen the confirm the addition.
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-update"});
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-action", variables => { 
+			title   => $task eq "poweroff" ? "#!string!job_0007!#"     : "#!string!job_0005!#", 
+			message => $task eq "poweroff" ? "#!string!striker_0101!#" : "#!string!striker_0100!#",
+		}});
 	}
 	
 	return(0);
@@ -362,7 +363,10 @@ sub process_update
 	else
 	{
 		# Show the screen the confirm the addition.
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-update"});
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-action", variables => {
+			title   => "#!string!striker_0078!#",
+			message => "#!string!striker_0086!#",
+		}});
 	}
 	
 	return(0);

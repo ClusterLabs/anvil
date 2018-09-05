@@ -43,6 +43,7 @@ $anvil->data->{switches}{'reboot'}        = "";
 $anvil->data->{switches}{'y'}             = "";
 $anvil->data->{switches}{'yes'}           = "";
 $anvil->data->{switches}{'reboot-needed'} = "";
+$anvil->data->{switches}{'job-uuid'}      = "";
 $anvil->Get->switches;
 
 if ($anvil->data->{switches}{'power-off'})
@@ -71,7 +72,7 @@ if ($anvil->data->{switches}{'reboot'})
 	# Did the user confirm?
 	if ($anvil->data->{switches}{'reboot'} =~ /^y/i)
 	{
-		do_reboot($anvil);
+		do_poweroff($anvil, "reboot");
 	}
 	else
 	{
@@ -81,7 +82,7 @@ if ($anvil->data->{switches}{'reboot'})
 		chomp($answer);
 		if ($answer =~ /^y/i)
 		{
-			do_reboot($anvil);
+			do_poweroff($anvil, "reboot");
 		}
 		else
 		{
@@ -96,7 +97,7 @@ if ($anvil->data->{switches}{'poweroff'})
 	# Did the user confirm?
 	if ($anvil->data->{switches}{'poweroff'} =~ /^y/i)
 	{
-		do_poweroff($anvil);
+		do_poweroff($anvil, "poweroff");
 	}
 	else
 	{
@@ -106,7 +107,7 @@ if ($anvil->data->{switches}{'poweroff'})
 		chomp($answer);
 		if ($answer =~ /^y/i)
 		{
-			do_poweroff($anvil);
+			do_poweroff($anvil, "poweroff");
 		}
 		else
 		{
@@ -126,7 +127,7 @@ if ($anvil->data->{switches}{'reboot-needed'} eq "1")
 	# Enable
 	if (not $reboot_needed)
 	{
-		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
+		$reboot_needed = $anvil->System->reboot_needed({set => 1});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 		print $anvil->Words->string({key => "message_0048"})."\n";
 	}
@@ -141,7 +142,7 @@ elsif ($anvil->data->{switches}{'reboot-needed'} eq "0")
 	# Disabled
 	if ($reboot_needed)
 	{
-		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 0});
+		$reboot_needed = $anvil->System->reboot_needed({set => 0});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 		print $anvil->Words->string({key => "message_0050"})."\n";
 	}
@@ -178,11 +179,18 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 
 # This does a reboot, clearing the flag indicating a reboot is required in the process.
-sub do_reboot
+sub do_poweroff
 {
-	my ($anvil) = @_;
+	my ($anvil, $task) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
 	
+	my $say_task = $task eq "poweroff" ? "message_0062" : "message_0063";
+	print $anvil->Words->string({key => $say_task})."\n";
 	
+	# Clear the "reboot needed" flag.
+	$reboot_needed = $anvil->System->reboot_needed({set => 0});
+	
+	# Set the progress to '50%' (anvil-daemon will set it to 100% when it starts post-boot).
 	
 	$anvil->nice_exit({exit_code => 0});
 }

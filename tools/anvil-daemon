@@ -143,6 +143,17 @@ sub run_once
 	# Check that the database is ready.
 	prep_database($anvil);
 	
+	# Check to see if we need to do boot-time tasks. We only run these if we've just booted
+	boot_time_tasks($anvil);
+	
+	return(0);
+}
+
+# This handles tasks that need to run on boot (if any)
+sub boot_time_tasks
+{
+	my ($anvil) = @_;
+	
 	# If the uptime is less than ten minutes, clear the reboot flag.
 	my $uptime = $anvil->Storage->read_file({
 		debug      => 2,
@@ -157,16 +168,52 @@ sub run_once
 	$uptime =~ s/^(\d+)\..*$/$1/;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
 	
-	if ($uptime < 600)
+	# Now find out if a reboot is needed and when it was last changed.
+	my $reboot_needed       = 0;
+	my $changed_seconds_ago = 0;
+	my $query               = "
+SELECT 
+    variable_value, 
+    (SELECT extract(epoch from now()) - extract(epoch from modified_date)) AS changed_seconds_ago 
+FROM 
+    variables 
+WHERE 
+    variable_source_table = 'hosts' 
+AND 
+    variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})." 
+AND 
+    variable_name = 'reboot::needed'
+;";
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		$reboot_needed       =  $results->[0]->[0];
+		$changed_seconds_ago =  $results->[0]->[1];
+		$changed_seconds_ago =~ s/^(\d+)\..*$/$1/;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			reboot_needed       => $reboot_needed,
+			changed_seconds_ago => $changed_seconds_ago, 
+		}});
+	}
+	
+	# If a reboot is needed, see if the uptime is less than the time since the reboot needed flag was 
+	# set. If the uptime is less, then the system rebooted since it was requested so clear it. h/t to
+	# Lisa Seelye (@thedoh) for this idea!
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		reboot_needed       => $reboot_needed,
+		changed_seconds_ago => $changed_seconds_ago, 
+		uptime              => $uptime,
+	}});
+	if (($reboot_needed) && ($uptime < $changed_seconds_ago))
 	{
 		# Clear the reboot request.
-		my $output = $anvil->System->call({
-			debug      => 2,
-			shell_call => $anvil->data->{path}{exe}{'anvil-reboot-needed'}." --reboot-needed 0", 
-			source     => $THIS_FILE, 
-			line       => __LINE__,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+		$reboot_needed = $anvil->System->reboot_needed({set => 0});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 	}
 	
 	return(0);
