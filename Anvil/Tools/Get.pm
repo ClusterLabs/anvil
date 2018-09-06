@@ -45,7 +45,7 @@ Provides all methods related to getting access to frequently used data.
  # Access to methods using '$anvil->Get->X'. 
  # 
  # Example using 'date_and_time()';
- my $foo_path = $anvil->Get->date_and_time({...});
+ my $date = $anvil->Get->date_and_time({...});
 
 =head1 METHODS
 
@@ -384,7 +384,7 @@ sub date_and_time
 	my $time_only = defined $parameter->{time_only} ? $parameter->{time_only} : 0;
 	my $date_only = defined $parameter->{date_only} ? $parameter->{date_only} : 0;
 	
-	# NOTE: This is used too early for normal error handling.
+	### NOTE: This is used too early for normal error handling.
 	# Are things sane?
 	if ($use_time =~ /D/)
 	{

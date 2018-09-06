@@ -12,7 +12,9 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Job.pm";
 
 ### Methods;
-# 
+# clear
+# get_job_uuid
+# update_progress
 
 =pod
 
@@ -75,6 +77,120 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+=head2 clear
+
+This clears the C<< job_picked_up_by >> value for the given job.
+
+Parameters;
+
+=head3 job_uuid (required)
+
+This is the C<< job_uuid >> of the job to clear.
+
+=cut
+sub clear
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+	
+	# Return if we don't have a program name.
+	if ($job_uuid eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Job->clear()", parameter => "job_uuid" }});
+		return(1);
+	}
+	
+	my $query = "
+UPDATE 
+    jobs 
+SET 
+    job_picked_up_by = '0', 
+    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	
+	return(0);
+}
+
+=head2 get_job_uuid
+
+This takes the name of a program and looks in jobs for a pending job with the same command. If it is found, C<< jobs::job_uuid >> is set and the C<< job_uuid >> is returned. If no job is found, and empty string is returned.
+
+Parameters;
+
+=head3 host_uuid (optional, default Get->host_uuid())
+
+If set, this will search for the job on a specific host.
+
+=head3 program (required)
+
+This is the program name to look for. Specifically, this string is used to search C<< job_command >> (anchored to the start of the column and a wild-card end, ie: C<< program => foo >> would find C<< foobar >> or C<< foo --bar >>). Be as specific as possible. If two or more results are found, no C<< job_uuid >> will be returned. There must be only one match for this method to work properly.
+
+=cut
+sub get_job_uuid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	my $job_uuid  = "";
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	my $program   = defined $parameter->{program}   ? $parameter->{program}   : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+		program   => $program,
+	}});
+	
+	# Return if we don't have a program name.
+	if ($program eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Job->get_job_uuid()", parameter => "program" }});
+		return(1);
+	}
+	
+	my $query = "
+SELECT 
+    job_uuid 
+FROM 
+    jobs 
+WHERE 
+    job_command LIKE ".$anvil->data->{sys}{database}{use_handle}->quote($program."%")." 
+AND 
+    job_progress != '100'
+AND 
+    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count == 1)
+	{
+		# Found it
+		$job_uuid                      = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$anvil->data->{jobs}{job_uuid} = $job_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			job_uuid         => $job_uuid, 
+			"jobs::job-uuid" => $anvil->data->{jobs}{'job-uuid'},
+		}});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	return($job_uuid);
+}
+
 =head2 update_progress
 
 This updates the progress if we were called with a job UUID.
@@ -107,7 +223,6 @@ sub update_progress
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 
-	my $salt     = "";
 	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
 	my $message  = defined $parameter->{message}  ? $parameter->{message}  : "";
 	my $progress = defined $parameter->{progress} ? $parameter->{progress} : "";
@@ -125,7 +240,7 @@ sub update_progress
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
 	}
 	
-	# Exit if we still don't have a job_uuid
+	# Return if we still don't have a job_uuid
 	if (not $job_uuid)
 	{
 		# Nothing we can do.
@@ -133,7 +248,7 @@ sub update_progress
 		return(1);
 	}
 	
-	# Exit if we don't have a progress.
+	# Return if we don't have a progress.
 	if ($progress eq "")
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Job->update_progress()", parameter => "progress" }});

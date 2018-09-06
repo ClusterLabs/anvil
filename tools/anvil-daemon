@@ -11,6 +11,11 @@
 # TODO: 
 # - Need to check what kind of machine this is and not prep the database unless its a dashboard.
 # - Add a "running: pending,yes,done,dead" and show an appropriate icon beside jobs
+# - Decide if holding before the main loop until 'systemctl is-system-running' returns 'running' is a good
+#   idea or not.
+# 
+# NOTE:
+# - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the power button. Might be useful in ScanCore down the road.
 # 
 
 use strict;
@@ -63,6 +68,7 @@ $anvil->data->{switches}{'refresh-json'}   = "";
 $anvil->data->{switches}{'run-once'}       = 0;
 $anvil->data->{switches}{'main-loop-only'} = 0;
 $anvil->data->{switches}{'no-start'}       = 0;
+$anvil->data->{switches}{'startup-only'}   = 0;
 $anvil->Get->switches;
 
 if ($anvil->data->{switches}{'refresh-json'})
@@ -90,7 +96,7 @@ while(1)
 {
 	# Connect to the database(s)
 	$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
-	$anvil->Database->connect({debug => 2});
+	$anvil->Database->connect();
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 	
 	if ($anvil->data->{sys}{database}{connections})
@@ -124,11 +130,12 @@ while(1)
 	}
 	
 	# Disconnect from the database(s) and sleep now.
-	$anvil->Database->disconnect({debug => 2});
+	$anvil->Database->disconnect();
 	sleep 2;
 }
 
 $anvil->nice_exit({code => 0});
+
 
 #############################################################################################################
 # Functions                                                                                                 #
@@ -145,6 +152,11 @@ sub run_once
 	
 	# Check to see if we need to do boot-time tasks. We only run these if we've just booted
 	boot_time_tasks($anvil);
+	
+	if ($anvil->data->{switches}{'startup-only'})
+	{
+		$anvil->nice_exit({code => 0});
+	}
 	
 	return(0);
 }
@@ -214,6 +226,26 @@ AND
 		# Clear the reboot request.
 		$reboot_needed = $anvil->System->reboot_needed({set => 0});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
+		
+		# Check to see if there was a reboot job in progress. If so, finish it off.
+		my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => "anvil-manage-power"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		if ($job_uuid)
+		{
+			# Update the percentage to '100' and then clear the old PID.
+			my $date_time = $anvil->Get->date_and_time();
+			if ($anvil->data->{jobs}{job_uuid})
+			{
+				$anvil->Job->update_progress({
+					debug    => 2, 
+					progress => 100, 
+					message  => "message_0064,!!date_and_time!".$date_time."!!", 
+					job_uuid => $job_uuid
+				});
+			}
+			$anvil->Job->clear({job_uuid => $job_uuid});
+		}
 	}
 	
 	return(0);
@@ -261,7 +293,7 @@ sub keep_running
 				# Free up memory
 				$anvil->data->{jobs}{handles}{$job_uuid}->cleanup();
 				
-				clear_job($anvil, $job_uuid);
+				$anvil->Job->clear({job_uuid => $job_uuid});
 			}
 		}
 	}
@@ -271,26 +303,6 @@ sub keep_running
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
 	run_jobs($anvil);
-	
-	return(0);
-}
-
-# This clears the 'job_picked_up_by'.
-sub clear_job
-{
-	my ($anvil, $job_uuid) = @_;
-	
-	my $query = "
-UPDATE 
-    jobs 
-SET 
-    job_picked_up_by = '0', 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
-WHERE 
-    job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
-";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	
 	return(0);
 }
@@ -310,7 +322,7 @@ sub run_jobs
 	my $jobs_file = "{\"jobs\":[\n";
 	
 	# Get a list of pending or incomplete jobs.
-	my $return = $anvil->Database->get_jobs({debug => 2, ended_within => 300});
+	my $return = $anvil->Database->get_jobs({ended_within => 300});
 	my $count  = @{$return};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'return' => $return, 
@@ -364,7 +376,7 @@ sub run_jobs
 			if (not exists $anvil->data->{pids}{$job_picked_up_by})
 			{
 				# If the job is done, just clear the 'job_picked_up_by' and be done.
-				clear_job($anvil, $job_uuid);
+				$anvil->Job->clear({job_uuid => $job_uuid});
 				if ($job_progress ne "100")
 				{
 					# The previous job is gone, but the job isn't finished. Start it again.

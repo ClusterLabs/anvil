@@ -58,31 +58,8 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 if (not $anvil->data->{switches}{'job-uuid'})
 {
 	# See if a job is waiting to run.
-	my $query = "
-SELECT 
-    job_uuid 
-FROM 
-    jobs 
-WHERE 
-    job_command LIKE '".$THIS_FILE."%'
-AND 
-    job_progress != '100'
-AND 
-    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	if ($count == 1)
-	{
-		# Found it
-		$anvil->data->{jobs}{job_uuid} = defined $results->[0]->[0] ? $results->[0]->[0] : "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
-	}
+	$anvil->data->{switches}{job_uuid} = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
 }
 if ($anvil->data->{switches}{'job-uuid'})
 {
@@ -199,8 +176,8 @@ sub update_progress
 			debug    => 2, 
 			progress => $progress, 
 			message  => $message, 
-			job_uuid => $anvil->data->{jobs}{job_uuid}},
-		);
+			job_uuid => $anvil->data->{jobs}{job_uuid},
+		});
 	}
 	
 	return(0);

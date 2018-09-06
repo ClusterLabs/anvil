@@ -70,7 +70,7 @@ if (not $anvil->data->{sys}{database}{connections})
 if ($anvil->data->{switches}{'reboot'})
 {
 	# Did the user confirm?
-	if ($anvil->data->{switches}{'reboot'} =~ /^y/i)
+	if ($anvil->data->{switches}{'y'})
 	{
 		do_poweroff($anvil, "reboot");
 	}
@@ -95,7 +95,7 @@ if ($anvil->data->{switches}{'reboot'})
 if ($anvil->data->{switches}{'poweroff'})
 {
 	# Did the user confirm?
-	if ($anvil->data->{switches}{'poweroff'} =~ /^y/i)
+	if ($anvil->data->{switches}{'y'})
 	{
 		do_poweroff($anvil, "poweroff");
 	}
@@ -178,19 +178,51 @@ $anvil->nice_exit({exit_code => 0});
 # Private functions.                                                                                        #
 #############################################################################################################
 
-# This does a reboot, clearing the flag indicating a reboot is required in the process.
+# This does a reboot or power off
 sub do_poweroff
 {
 	my ($anvil, $task) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
 	
 	my $say_task = $task eq "poweroff" ? "message_0062" : "message_0063";
+	my $percent  = $task eq "poweroff" ? 100            : 50;
 	print $anvil->Words->string({key => $say_task})."\n";
 	
-	# Clear the "reboot needed" flag.
-	$reboot_needed = $anvil->System->reboot_needed({set => 0});
+	# If I don't have a job_uuid, try to find one.
+	my $job_uuid = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+	if ($anvil->data->{switches}{'job-uuid'})
+	{
+		$job_uuid = $anvil->data->{switches}{'job-uuid'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	}
+	else
+	{
+		$job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	}
 	
-	# Set the progress to '50%' (anvil-daemon will set it to 100% when it starts post-boot).
+	if ($job_uuid)
+	{
+		$anvil->Job->clear({job_uuid => $job_uuid});
+		$anvil->Job->update_progress({
+			debug    => 2, 
+			progress => $percent, 
+			message  => $say_task, 
+			job_uuid => $job_uuid,
+		});
+	}
 	
+	# Make sure the 'reboot needed' flag is set. When 'anvil-daemon' starts, it will use this to confirm
+	# that it is starting post-reboot and clear it.
+	$reboot_needed = $anvil->System->reboot_needed({set => 1});
+	
+	# Now do the deed.
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." ".$task;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my $output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	
+	# Unlikely we're still alive, but 'poweroff' and 'reboot' do return once enqueued, so...
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
 	$anvil->nice_exit({exit_code => 0});
 }

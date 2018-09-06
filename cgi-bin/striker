@@ -184,7 +184,7 @@ sub process_task
 	elsif ((defined $anvil->data->{cgi}{logout}) && ($anvil->data->{cgi}{logout}{value}))
 	{
 		# Bye now!
-		$anvil->Account->logout({debug => 3});
+		$anvil->Account->logout();
 	}
 	else
 	{
@@ -312,6 +312,9 @@ sub process_power
 			description => $task eq "poweroff" ? "#!string!job_0008!#" : "#!string!job_0006!#",
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+		
+		# Log the user out, just to be safe.
+		$anvil->Account->logout();
 	}
 	else
 	{
@@ -850,7 +853,7 @@ sub check_availability
 		
 		# If we have any running or recently finished jobs, we'll desplay them below.
 		my $jobs_list = "#!string!striker_0097!#";
-		my $return = $anvil->Database->get_jobs({debug => 2, ended_within => 300});
+		my $return = $anvil->Database->get_jobs({ended_within => 300});
 		my $count  = @{$return};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 		if ($count)

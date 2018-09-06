@@ -361,7 +361,7 @@ sub nice_exit
 {
 	my $self      = shift;
 	my $parameter = shift;
-	my $anvil        = $self;
+	my $anvil     = $self;
 	
 	my $exit_code = defined $parameter->{exit_code} ? $parameter->{exit_code} : 0;
 	
@@ -371,12 +371,21 @@ sub nice_exit
 	# Report the runtime.
 	my $end_time = Time::HiRes::time;
 	my $run_time = $end_time - $anvil->data->{ENV_VALUES}{START_TIME};
+	my $caller   = ($0 =~ /^.*\/(.*)$/)[0];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		's1:ENV_VALUES::START_TIME' => $anvil->data->{ENV_VALUES}{START_TIME}, 
 		's2:end_time'               => $end_time, 
 		's3:run_time'               => $run_time, 
+		's4:caller'                 => $caller,
 	}});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { runtime => $run_time }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { 'caller' => $caller, runtime => $run_time }});
+	
+	my ($package, $filename, $line) = caller;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		's1:package'  => $package, 
+		's2:filename' => $filename, 
+		's3:line'     => $line,
+	}});
 	
 	# Close the log file.
 	if ($anvil->data->{HANDLE}{log_file})
@@ -1056,7 +1065,7 @@ sub catch_sig
 	
 	if ($signal)
 	{
-		print "Process with PID: [$$] exiting on SIG".$signal.".\n";
+		print "\n\nProcess with PID: [$$] exiting on SIG".$signal.".\n";
 		
 		if ($anvil->data->{sys}{terminal}{stty})
 		{

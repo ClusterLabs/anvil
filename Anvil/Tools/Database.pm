@@ -1307,6 +1307,10 @@ sub get_jobs
 	my $return        = [];
 	my $ended_within  = defined $parameter->{ended_within}  ? $parameter->{ended_within}  : 300;
 	my $job_host_uuid = defined $parameter->{job_host_uuid} ? $parameter->{job_host_uuid} : $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ended_within  => $ended_within, 
+		job_host_uuid => $job_host_uuid, 
+	}});
 	
 	my $query = "
 SELECT 
@@ -1327,11 +1331,11 @@ FROM
 WHERE 
     job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_host_uuid)."
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -1351,7 +1355,7 @@ WHERE
 		my $modified_date       =         $row->[11];
 		my $started_seconds_ago = $job_picked_up_at ? (time - $job_picked_up_at) : 0;
 		my $updated_seconds_ago = $job_updated      ? (time - $job_updated)      : 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			job_uuid            => $job_uuid,
 			job_command         => $job_command,
 			job_data            => $job_data,

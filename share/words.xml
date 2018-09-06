@@ -101,6 +101,7 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0061">Aborting.</key>
 		<key name="message_0062">Powering off the local system now.</key>
 		<key name="message_0063">Rebooting the local system now.</key>
+		<key name="message_0064">The Anvil! has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -270,7 +271,7 @@ The database connection error was:
 		<key name="log_0132">Connected to: [#!data!sys::database::connections!#] database(s).</key>
 		<key name="log_0133">Failed to read the system UUID. Received a non-UUID string: [#!variable!uuid!#]. Is the user: [#!variable!user!#] in the 'kmem' group?</key>
 		<key name="log_0134">The read host UUID: [#!variable!uuid!#] does not appear to be a valid UUID.</key>
-		<key name="log_0135">Runtime was approximately: [#!variable!runtime!#] seconds.</key>
+		<key name="log_0135">- #!variable!caller!# runtime was approximately: [#!variable!runtime!#] seconds.</key>
 		<key name="log_0136"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called with either 'job_uuid': [#!variable!job_uuid!#] not being passed (or was not a valid UUID), or 'job_name': [#!variable!job_name!#] not being passed.]]></key>
 		<key name="log_0137"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called with an invalid value for: [#!variable!variable_name!#]: -> [#!variable!variable_value!#]. See 'perldoc Anvil::Tools::#!variable!module!#' for valid options.]]></key>
 		<key name="log_0138"><![CDATA[[ Error ] - The method: [#!variable!method!#] was with an invalid 'job_progress': [#!variable!job_progress!#]. It needs to be a whole-number value between 0 and 100, inclusive.]]></key>
@@ -483,8 +484,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0097">There are no jobs currently running or recently completed.</key>
 		<key name="striker_0098">Back</key>
 		<key name="striker_0099">Job</key>
-		<key name="striker_0100">Reboot this system? If you proceed, this system will be withdrawn from the Anvil! and rebooted. Please be sure you have access in the rare chance that the system fails to boot back up.</key>
-		<key name="striker_0101">Power off this system? If you proceed, this system will be withdrawn from the Anvil! and powered off. You will need physical access to the machine to turn it back on in most cases. A properly condigured Striker dashboard will power on after a power cycle (via a PDU) or any machine with IPMI if you have access to a machine on the BCN.</key>
+		<key name="striker_0100">Reboot this system? If you proceed, you will be logged out and this system will be rebooted. Please be sure you have access in the rare chance that the system fails to boot back up.</key>
+		<key name="striker_0101">Power off this system? If you proceed, you will be logged out and this system will be powered off. You will need physical access to the machine to turn it back on in most cases. A properly condigured Striker dashboard will power on after a power cycle (via a PDU) or any machine with IPMI if you have access to a machine on the BCN.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
