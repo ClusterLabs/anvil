@@ -120,7 +120,7 @@ sub archive_database
 	# Is archiving disabled?
 	if (not $anvil->data->{sys}{database}{archive}{trigger})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0189"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0189"});
 		return(1);
 	}
 	
@@ -128,7 +128,7 @@ sub archive_database
 	if (($< != 0) && ($> != 0))
 	{
 		# Not root
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0188"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0188"});
 		return(1);
 	}
 	
@@ -1373,7 +1373,7 @@ WHERE
 		}});
 		
 		# If the job is done, see if it was recently enough to care about it.
-		if (($job_progress eq "100") && ($updated_seconds_ago > $ended_within))
+		if (($job_progress eq "100") && (($updated_seconds_ago == 0) or ($updated_seconds_ago > $ended_within)))
 		{
 			# Skip it
 			next;

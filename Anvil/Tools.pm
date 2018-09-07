@@ -362,26 +362,27 @@ sub nice_exit
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $exit_code = defined $parameter->{exit_code} ? $parameter->{exit_code} : 0;
 	
 	# Close database connections (if any).
-	$anvil->Database->disconnect();
+	$anvil->Database->disconnect({debug => $debug});
 	
 	# Report the runtime.
 	my $end_time = Time::HiRes::time;
 	my $run_time = $end_time - $anvil->data->{ENV_VALUES}{START_TIME};
 	my $caller   = ($0 =~ /^.*\/(.*)$/)[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		's1:ENV_VALUES::START_TIME' => $anvil->data->{ENV_VALUES}{START_TIME}, 
 		's2:end_time'               => $end_time, 
 		's3:run_time'               => $run_time, 
 		's4:caller'                 => $caller,
 	}});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0135", variables => { 'caller' => $caller, runtime => $run_time }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0135", variables => { 'caller' => $caller, runtime => $run_time }});
 	
 	my ($package, $filename, $line) = caller;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		's1:package'  => $package, 
 		's2:filename' => $filename, 
 		's3:line'     => $line,

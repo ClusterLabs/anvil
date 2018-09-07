@@ -346,6 +346,7 @@ The database connection error was:
 		<key name="log_0207"><![CDATA[Job->update_progress() called without 'job_uuid' being set, and 'jobs::job_uuid' was also not set. Unable to find the job to update.]]></key>
 		<key name="log_0208"><![CDATA[Job->update_progress() called with the 'job_uuid': [#!variable!job_uuid!#], which was not found. Unable to find the job to update.]]></key>
 		<key name="log_0209"><![CDATA[Job->update_progress() called with 'progress' set to an invalid value: [#!variable!progress!#]. This must be a whole number between '0' and '100' (fractions not allowed).]]></key>
+		<key name="log_0210"><![CDATA[Requesting the job: [#!variable!command!#] be run by 'anvil-daemon'.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

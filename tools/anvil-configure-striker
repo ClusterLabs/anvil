@@ -26,7 +26,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-my $anvil = Anvil::Tools->new({log_level => 1, log_secure => 1});
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 
 # Read switches
 $anvil->data->{switches}{'no-reboot'} = 0;
@@ -34,6 +34,7 @@ $anvil->Get->switches;
 
 # Paths
 $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -55,17 +56,19 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 2});
 }
 
+# Set maintenance mode
+$anvil->System->maintenance_mode({set => 1});
+
 pickup_job_details($anvil);
 
 reconfigure_network($anvil);
 
 update_passwords($anvil);
 
-$anvil->Database->insert_or_update_jobs({
-	job_uuid             => $anvil->data->{job}{uuid}, 
-	update_progress_only => 1, 
-	job_progress         => 100, 
-	job_status           => $anvil->data->{job}{status},
+$anvil->Job->update_progress({
+	debug    => 3, 
+	progress => 100, 
+	job_uuid => $anvil->data->{job}{uuid},
 });
 
 # Record that we've configured this machine.
@@ -79,16 +82,22 @@ $anvil->Database->insert_or_update_variables({
 	variable_source_table => "hosts", 
 });
 # Clear maintenance mode.
-$anvil->System->maintenance_mode({debug => 2, set => 0});
+$anvil->System->maintenance_mode({set => 0});
+
+# Clear maintenance mode
+$anvil->System->maintenance_mode({set => 0});
 
 ### TODO: This is only until we can get the damn networking stable on reconfigure.
+# Set reboot needed so that things clean up properly on reboot.
+$anvil->System->reboot_needed({set => 1});
 if (not $anvil->data->{switches}{'no-reboot'})
 {
 	# Reboot.
-	$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'shutdown'}." --reboot now"});
+	$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manager-power'}." --reboot -y"});
 }
 
 $anvil->nice_exit({code => 0});
+
 
 #############################################################################################################
 # Functions                                                                                                 #
@@ -102,12 +111,11 @@ sub update_passwords
 	# Set the passwords
 	my $password  = $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
 	my $temp_file = "/tmp/anvil-".$anvil->Get->uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
 	
 	# Write the password into a temporary file.
 	my $error = $anvil->Storage->write_file({
 		body      => $password,
-		debug     => 2,
 		file      => $temp_file,
 		group     => "root", 
 		mode      => "0600",
@@ -126,15 +134,15 @@ sub update_passwords
 	else
 	{
 		my $return_code = "";
-		my $output      = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$!" });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output }});
+		my $output      = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$!" });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { output => $output }});
 		foreach my $line (split/\n/, $output)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { line => $line }});
 			if ($line =~ /return_code:(\d+)$/)
 			{
 				$return_code = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { return_code => $return_code }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { return_code => $return_code }});
 			}
 		}
 		
@@ -148,11 +156,9 @@ sub update_passwords
 		}
 	}
 	
-	$anvil->Database->insert_or_update_jobs({
-		job_uuid             => $anvil->data->{job}{uuid}, 
-		update_progress_only => 1, 
-		job_progress         => 95, 
-		job_status           => $anvil->data->{job}{status},
+	$anvil->Job->update_progress({
+		progress => 95, 
+		job_uuid => $anvil->data->{job}{uuid},
 	});
 	
 	return(0);
@@ -172,7 +178,7 @@ sub reconfigure_network
 	my $ifn_count       = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
 	my $new_hostname    = defined $anvil->data->{variables}{form}{config_step2}{hostname}{value} ? $anvil->data->{variables}{form}{config_step2}{hostname}{value} : $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
 	my $pretty_hostname = $organization." - Striker ".sprintf("%02d", $sequence);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { 
 		prefix          => $prefix, 
 		sequence        => $sequence,
 		domain          => $domain, 
@@ -184,30 +190,25 @@ sub reconfigure_network
 	}});
 	
 	# Set the hostname
-	my $hostname = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 2});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hostname => $hostname }});
+	my $hostname = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { hostname => $hostname }});
 	if ($hostname eq $new_hostname)
 	{
 		# Success
-		$anvil->data->{job}{status} .= "message_0016,!!hostname!$new_hostname!!\n";
-		$anvil->Database->insert_or_update_jobs({
-			job_uuid             => $anvil->data->{job}{uuid}, 
-			update_progress_only => 1, 
-			job_progress         => 10, 
-			job_status           => $anvil->data->{job}{status},
+		$anvil->Job->update_progress({
+			progress => 10, 
+			message  => "message_0016,!!hostname!$new_hostname!!", 
+			job_uuid => $anvil->data->{job}{uuid},
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0016", variables => { hostname => $new_hostname }});
 	}
 	else
 	{
 		# Failed
-		$anvil->data->{job}{status} .= "message_0017,!!hostname!$new_hostname!!,!!bad_hostname!$hostname!!\n";
-		$anvil->data->{job}{status} .= "failed\n";
-		$anvil->Database->insert_or_update_jobs({
-			job_uuid             => $anvil->data->{job}{uuid}, 
-			update_progress_only => 1, 
-			job_progress         => 100, 
-			job_status           => $anvil->data->{job}{status},
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "message_0017,!!hostname!$new_hostname!!,!!bad_hostname!$hostname!!", 
+			job_uuid => $anvil->data->{job}{uuid},
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0017", variables => { 
 			hostname     => $new_hostname,
@@ -221,28 +222,28 @@ sub reconfigure_network
 	
 	# Now configure the network.
 	my $dns = defined $anvil->data->{variables}{form}{config_step2}{dns}{value} ? [split/,/, $anvil->data->{variables}{form}{config_step2}{dns}{value}] : [];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns => $dns }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dns => $dns }});
 	for (my $i = 0; $i < @{$dns}; $i++)
 	{
 		$dns->[$i] = $anvil->Words->clean_spaces({ string => $dns->[$i] });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "dns->[$i]" => $dns->[$i] }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "dns->[$i]" => $dns->[$i] }});
 	}
 	
 	my $gateway           = defined $anvil->data->{variables}{form}{config_step2}{gateway}{value}           ? $anvil->data->{variables}{form}{config_step2}{gateway}{value}           : "";
 	my $gateway_interface = defined $anvil->data->{variables}{form}{config_step2}{gateway_interface}{value} ? $anvil->data->{variables}{form}{config_step2}{gateway_interface}{value} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		gateway           => $gateway, 
 		gateway_interface => $gateway_interface, 
 	}});
 	foreach my $network_type ("bcn", "sn", "ifn")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_type => $network_type }});
 		
 		my $count = 0;
 		if    ($network_type eq "bcn") { $count = $bcn_count; }
 		elsif ($network_type eq "sn")  { $count = $sn_count;  }
 		elsif ($network_type eq "ifn") { $count = $ifn_count; }
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { count => $count }});
 		
 		next if not $count;
 		foreach my $network_count (1..$count)
@@ -257,7 +258,7 @@ sub reconfigure_network
 			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} : "";
 			my $old_link1_iface =         $anvil->data->{sys}{mac}{$link1_mac}{iface} ? $anvil->data->{sys}{mac}{$link1_mac}{iface} : "";
 			my $old_link2_iface = defined $anvil->data->{sys}{mac}{$link2_mac}{iface} ? $anvil->data->{sys}{mac}{$link2_mac}{iface} : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				ip_key          => $ip_key, 
 				is_gateway      => $is_gateway, 
 				link1_key       => $link1_key, 
@@ -278,7 +279,7 @@ sub reconfigure_network
 			}
 			else
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "variables::form::config_step2::${ip_key}::value" => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "variables::form::config_step2::${ip_key}::value" => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value} }});
 			}
 			if (($anvil->data->{variables}{form}{config_step2}{$ip_key}{value}) and (not $anvil->Validate->is_ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
 			{
@@ -292,7 +293,7 @@ sub reconfigure_network
 			
 			my $ip     = $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
 			my $subnet = $anvil->data->{variables}{form}{config_step2}{$subnet_key}{value};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				ip     => $ip, 
 				subnet => $subnet, 
 			}});
@@ -341,7 +342,7 @@ sub reconfigure_network
 				{
 					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link2_mac}{iface};
 				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					say_defroute    => $say_defroute, 
 					cidr            => $cidr, 
 					bond_file       => $bond_file, 
@@ -358,7 +359,7 @@ sub reconfigure_network
 				my $bond_uuid  = get_uuid_from_interface_file($anvil, $bond_file);
 				my $link1_uuid = get_uuid_from_interface_file($anvil, $old_link1_file);
 				my $link2_uuid = get_uuid_from_interface_file($anvil, $old_link2_file);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					bond_uuid  => $bond_uuid, 
 					link1_uuid => $link1_uuid, 
 					link2_uuid => $link2_uuid, 
@@ -525,7 +526,7 @@ sub reconfigure_network
 			{
 				# Single interface, set it up
 				my $link1_mac = $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_mac => $link1_mac }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { link1_mac => $link1_mac }});
 				
 				my $say_network      = "";
 				my $say_interface    = "";
@@ -557,7 +558,7 @@ sub reconfigure_network
 				{
 					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link1_mac}{iface};
 				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					say_defroute    => $say_defroute, 
 					cidr            => $cidr, 
 					new_link1_file  => $new_link1_file,
@@ -567,7 +568,7 @@ sub reconfigure_network
 				
 				# Gather (or create) UUIDs
 				my $link1_uuid = get_uuid_from_interface_file($anvil, $old_link1_file);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_uuid => $link1_uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { link1_uuid => $link1_uuid }});
 				
 				my $link1_config =  "# $say_network - Link 1\n";
 				   $link1_config .= "HWADDR=\"".uc($link1_mac)."\"\n";
@@ -638,48 +639,46 @@ sub reconfigure_network
 		}
 	}
 	
-	$anvil->Database->insert_or_update_jobs({
-		job_uuid             => $anvil->data->{job}{uuid}, 
-		update_progress_only => 1, 
-		job_progress         => 50, 
-		job_status           => $anvil->data->{job}{status},
+	$anvil->Job->update_progress({
+		progress => 50, 
+		job_uuid => $anvil->data->{job}{uuid},
 	});
 	
 	# If any virtio bridges exist, remove it/them.
 	my $start   = 0;
 	my $bridges = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridges => $bridges }});
 	foreach my $line (split/\n/, $bridges)
 	{
-		$line = $anvil->Words->clean_spaces({ string => $line });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /^----------/)
 		{
 			$start = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start => $start }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { start => $start }});
 			next;
 		}
 		next if not $start;
 		my $bridge = ($line =~ /(.*?)\s/)[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge => $bridge }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridge => $bridge }});
 		
 		$anvil->data->{virsh}{bridge}{$bridge} = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "virsh::bridge::$bridge" => $anvil->data->{virsh}{bridge}{$bridge} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "virsh::bridge::$bridge" => $anvil->data->{virsh}{bridge}{$bridge} }});
 	}
 	
 	foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{virsh}{bridge}})
 	{
 		# Destroy (stop) it.
 		my $destroy = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { destroy => $destroy }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { destroy => $destroy }});
 		
 		# Disable it from auto-start.
 		my $disable = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disable => $disable }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { disable => $disable }});
 		
 		# Undefine (delete)
 		my $undefine = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { undefine => $undefine }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { undefine => $undefine }});
 	}
 	
 	### TODO: This isn't working... The route table won't set the IFN as the default route properly and 
@@ -689,11 +688,9 @@ sub reconfigure_network
 	#print "reloading nmcli\n";
 	#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
 	
-	$anvil->Database->insert_or_update_jobs({
-		job_uuid             => $anvil->data->{job}{uuid}, 
-		update_progress_only => 1, 
-		job_progress         => 75, 
-		job_status           => $anvil->data->{job}{status},
+	$anvil->Job->update_progress({
+		progress => 75, 
+		job_uuid => $anvil->data->{job}{uuid},
 	});
 
 	return(0);
@@ -704,8 +701,8 @@ sub reconfigure_network
 sub get_uuid_from_interface_file
 {
 	my ($anvil, $file) = @_;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0131", variables => { function => "get_uuid_from_interface_file" }});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0131", variables => { function => "get_uuid_from_interface_file" }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	my $uuid = "";
 	if (-e $file)
@@ -713,16 +710,16 @@ sub get_uuid_from_interface_file
 		my $body = $anvil->Storage->read_file({file => $file});
 		foreach my $line (split/\n/, $body)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 			$line =~ s/#.*//;
 			if ($line =~ /UUID=\"(.*?)\"/)
 			{
 				my $test_uuid = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_uuid => $test_uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { test_uuid => $test_uuid }});
 				if ($anvil->Validate->is_uuid({uuid => $test_uuid}))
 				{
 					$uuid = $test_uuid;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
 				}
 				last;
 			}
@@ -731,10 +728,10 @@ sub get_uuid_from_interface_file
 	if (not $uuid)
 	{
 		$uuid = $anvil->Get->uuid();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});
 	return($uuid);
 }
 
@@ -764,11 +761,11 @@ AND
 AND 
     job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
 LIMIT 1;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -779,7 +776,7 @@ LIMIT 1;";
 	my $job_picked_up_at =         $results->[0]->[4]; 
 	my $job_updated      =         $results->[0]->[5];
 	my $job_progress     =         $results->[0]->[6];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		job_uuid         => $job_uuid,
 		job_command      => $job_command,
 		job_data         => $job_data,
@@ -832,11 +829,11 @@ AND
 AND 
     variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -845,7 +842,7 @@ AND
 		my $this_variable = $row->[0];
 		my $this_value    = $row->[1];
 		my $secure        = $this_variable =~ /passw/ ? 1 : 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			this_variable => $this_variable, 
 			this_value    => (($anvil->Log->secure) or (not $secure)) ? $this_value : $anvil->Words->string({key => "log_0186"}), 
 		}});
@@ -854,15 +851,13 @@ AND
 	}
 	
 	# This will be used when updating the job
-	$anvil->data->{job}{uuid}   = $job_uuid;
-	$anvil->data->{job}{status} = "message_0015\n";
+	$anvil->data->{job}{uuid} = $job_uuid;
 	
 	# Record that we've picked up this job.
-	$anvil->Database->insert_or_update_jobs({
-		job_uuid             => $anvil->data->{job}{uuid}, 
-		update_progress_only => 1, 
-		job_progress         => 1, 
-		job_status           => $anvil->data->{job}{status},
+	$anvil->Job->update_progress({
+		progress => 1, 
+		message  => "message_0015", 
+		job_uuid => $anvil->data->{job}{uuid},
 	});
 	
 	return(0);

@@ -291,7 +291,8 @@ sub entry
 	elsif ($key)
 	{
 		# Build the string from the key/variables.
-		my $message .= $anvil->Words->string({	
+		my $message .= $anvil->Words->string({
+			debug     => $debug, 
 			language  => $language,
 			key       => $key,
 			variables => $variables,
@@ -329,7 +330,7 @@ sub entry
 			$anvil->data->{HANDLE}{log_file} = $file_handle;
 			
 			# Make sure it can be written to by apache.
-			$anvil->Storage->change_mode({target => $log_file, mode => "0666"});
+			$anvil->Storage->change_mode({debug => $debug, target => $log_file, mode => "0666"});
 		}
 		
 		if (not $anvil->data->{HANDLE}{log_file})

@@ -1008,11 +1008,11 @@ fi;";
 				
 				if ($mode)
 				{
-					$anvil->Storage->change_mode({target => $working_directory, mode => $mode});
+					$anvil->Storage->change_mode({debug => $debug, target => $working_directory, mode => $mode});
 				}
 				if (($user) or ($group))
 				{
-					$anvil->Storage->change_owner({target => $working_directory, user => $user, group => $group});
+					$anvil->Storage->change_owner({debug => $debug, target => $working_directory, user => $user, group => $group});
 				}
 				
 				if (not -e $working_directory)
@@ -2260,11 +2260,8 @@ fi";
 			# the mode before writing it.
 			if ($secure)
 			{
-				my $shell_call = $anvil->data->{path}{exe}{touch}." ".$file;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-				
-				$anvil->System->call({shell_call => $shell_call});
-				$anvil->Storage->change_mode({target => $file, mode => $mode});
+				$anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{touch}." ".$file});
+				$anvil->Storage->change_mode({debug => $debug, target => $file, mode => $mode});
 			}
 			
 			# Now write the file.
@@ -2276,11 +2273,11 @@ fi";
 			
 			if ($mode)
 			{
-				$anvil->Storage->change_mode({target => $file, mode => $mode});
+				$anvil->Storage->change_mode({debug => $debug, target => $file, mode => $mode});
 			}
 			if (($user) or ($group))
 			{
-				$anvil->Storage->change_owner({target => $file, user => $user, group => $group});
+				$anvil->Storage->change_owner({debug => $debug, target => $file, user => $user, group => $group});
 			}
 		}
 	}

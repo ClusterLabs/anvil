@@ -52,7 +52,7 @@ if (not -e $anvil->data->{path}{data}{host_uuid})
 }
 
 $anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -63,7 +63,7 @@ if (not $anvil->data->{sys}{database}{connections})
 # If any jobs are pending/running, show the "unavailable" option.
 my $available  = check_availability($anvil);
 my $configured = $available ? check_if_configured($anvil) : 0;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	available  => $available,
 	configured => $configured,
 }});
@@ -140,7 +140,7 @@ sub print_and_exit
 	}});
 
 	# Display the page.
-	my $body = $anvil->Template->get({debug => 3, file => "main.html", name => "master", variables => {
+	my $body = $anvil->Template->get({file => "main.html", name => "master", variables => {
 		header            => $header,
 		skin_url          => $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin,
 		center_top_bar    => $anvil->data->{form}{error_massage} ? $anvil->data->{form}{error_massage} : "&nbsp;",
@@ -173,7 +173,7 @@ sub process_task
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::login::value" => $anvil->data->{cgi}{login}{value} }});
 		
 		# Woot!
-		my $failed = $anvil->Account->login({debug => 3});
+		my $failed = $anvil->Account->login();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
 		if (not $failed)
 		{
@@ -195,7 +195,7 @@ sub process_task
 		#     cookies were deleted (via C<< Account->logout() >>. The user needs to log back in.
 		# 3 - There user's hash is invalid, it is probably expired. The user has been logged out and
 		#     needs to log back in.
-		my $cookie_problem = $anvil->Account->read_cookies({debug => 2});
+		my $cookie_problem = $anvil->Account->read_cookies();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cookie_problem => $cookie_problem }});
 		if (not $cookie_problem)
 		{
@@ -292,7 +292,6 @@ sub process_power
 	{
 		# Record the job!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 2,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => $task eq "poweroff" ? "anvil-manage-power --poweroff -y" : "anvil-manage-power --reboot -y", 
@@ -339,7 +338,6 @@ sub process_update
 	{
 		# Record the job!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 2,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => "anvil-update-system", 
@@ -361,7 +359,7 @@ sub process_update
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
 		
 		# Set maintenance mode.
-		$anvil->System->maintenance_mode({debug => 2, set => 1});
+		$anvil->System->maintenance_mode({set => 1});
 	}
 	else
 	{
@@ -638,7 +636,6 @@ sub add_sync_peer
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 		my ($error, $output) = $anvil->Remote->call({
-			debug      => 2,
 			password   => $anvil->data->{cgi}{new_peer_password}{value}, 
 			target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
 			shell_call => $shell_call,
@@ -662,7 +659,6 @@ sub add_sync_peer
 			else
 			{
 				my ($error, $output) = $anvil->Remote->call({
-					debug      => 2,
 					password   => $anvil->data->{cgi}{new_peer_password}{value}, 
 					target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
 					shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
@@ -781,7 +777,6 @@ sub configure_striker
 	{
 		# User has confirmed, update the system!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 2,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => "anvil-configure-striker", 
@@ -793,7 +788,7 @@ sub configure_striker
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
 		# Set maintenance mode.
-		$anvil->System->maintenance_mode({debug => 2, set => 1});
+		$anvil->System->maintenance_mode({set => 1});
 		
 		# We don't need to store anything as hidden variables, we'll read it back from the database later.
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "network_job_recorded", variables => {
@@ -839,7 +834,7 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
-	my $debug     = 2;
+	my $debug     = 3;
 	my $available = 1;
 	
 	# Check maintenance mode.
@@ -2335,7 +2330,7 @@ sub get_network_details_form
 sub generate_ip
 {
 	my ($anvil, $network, $network_sequence, $device_sequence) = @_;
-	my $debug = 2;
+	my $debug = 3;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		network          => $network,
 		network_sequence => $network_sequence, 
