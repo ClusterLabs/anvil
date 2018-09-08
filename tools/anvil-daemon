@@ -133,7 +133,7 @@ while(1)
 	
 	# Disconnect from the database(s) and sleep now.
 	$anvil->Database->disconnect();
-	sleep(0.5);
+	sleep(1);
 }
 
 $anvil->nice_exit({code => 0});
@@ -301,8 +301,13 @@ sub keep_running
 		}
 	}
 	
-	# Update hardware state files.
-	update_state_file($anvil);
+	# Update hardware state files if the system isn't configured. Running it always is too intensive.
+	my $configured = $anvil->System->check_if_configured;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+	if (not $configured)
+	{
+		update_state_file($anvil);
+	}
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
 	run_jobs($anvil);

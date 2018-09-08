@@ -62,7 +62,7 @@ if (not $anvil->data->{sys}{database}{connections})
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $available  = check_availability($anvil);
-my $configured = $available ? check_if_configured($anvil) : 0;
+my $configured = $available ? $anvil->System->check_if_configured : 0;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	available  => $available,
 	configured => $configured,
@@ -805,27 +805,6 @@ sub configure_striker
 	}
 	
 	return(0);
-}
-
-# This checks to see if the local machine has been configured after initial install. If not, it will present
-# the configuration menu.
-sub check_if_configured
-{
-	my ($anvil) = @_;
-	
-	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
-		variable_name         => "system::configured", 
-		variable_source_uuid  => $anvil->Get->host_uuid, 
-		variable_source_table => "hosts", 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		configured    => $configured, 
-		variable_uuid => $variable_uuid, 
-		modified_date => $modified_date, 
-	}});
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
-	return($configured);
 }
 
 # This checks to see if anything is running that requires Striker being unavailable. If not, this returns

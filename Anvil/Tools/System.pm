@@ -18,6 +18,7 @@ my $THIS_FILE = "System.pm";
 # call
 # change_shell_user_password
 # check_daemon
+# check_if_configured
 # check_memory
 # determine_host_type
 # enable_daemon
@@ -458,6 +459,35 @@ sub check_daemon
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
 	return($return);
+}
+
+=head2 check_if_configured
+
+This returns C<< 1 >> is the system has finished initial configuration, and C<< 0 >> if not.
+
+This method takes no parameters.
+
+=cut
+sub check_if_configured
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+		variable_name         => "system::configured", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		configured    => $configured, 
+		variable_uuid => $variable_uuid, 
+		modified_date => $modified_date, 
+	}});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+	return($configured);
 }
 
 =head2 check_memory
