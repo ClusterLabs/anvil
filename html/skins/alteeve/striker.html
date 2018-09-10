@@ -1,3 +1,38 @@
+<!-- start confirm-action -->
+			<table align="center">
+				<form name="confirm-update" action="" method="post">
+				<div id="confirm-update">
+				<tr>
+					<td class="menu_title" colspan="2">
+						#!variable!title!#
+					</td>
+				</tr>
+				<tr>
+					<td class="menu_details" colspan="2">
+						#!variable!message!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td class="button_cell" style="text-align: left;">
+						<a href="/cgi-bin/striker?striker=true" class="button">#!string!striker_0098!#</a>
+					</td>
+					<td class="button_cell" style="text-align: right;">
+						<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
+					</td>
+				</tr>
+				<input type="hidden" name="striker" id="striker" value="#!data!cgi::striker::value!#">
+				<input type="hidden" name="task"    id="task"    value="#!data!cgi::task::value!#">
+				<input type="hidden" name="save"    id="save"    value="#!data!cgi::save::value!#">
+				</form>
+				</div>
+			</table>
+<!-- end confirm-action -->
+
 <!-- start confirm-new-peer -->
 			<table align="center">
 				<tr>
@@ -101,41 +136,6 @@
 				</div>
 			</table>
 <!-- end confirm-reconfig -->
-
-<!-- start confirm-action -->
-			<table align="center">
-				<form name="confirm-update" action="" method="post">
-				<div id="confirm-update">
-				<tr>
-					<td class="menu_title" colspan="2">
-						#!variable!title!#
-					</td>
-				</tr>
-				<tr>
-					<td class="menu_details" colspan="2">
-						#!variable!message!#
-					</td>
-				</tr>
-				<tr>
-					<td colspan="2">
-						&nbsp;
-					</td>
-				</tr>
-				<tr>
-					<td class="button_cell" style="text-align: left;">
-						<a href="/cgi-bin/striker?striker=true" class="button">#!string!striker_0098!#</a>
-					</td>
-					<td class="button_cell" style="text-align: right;">
-						<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
-					</td>
-				</tr>
-				<input type="hidden" name="striker" id="striker" value="#!data!cgi::striker::value!#">
-				<input type="hidden" name="task"    id="task"    value="#!data!cgi::task::value!#">
-				<input type="hidden" name="save"    id="save"    value="#!data!cgi::save::value!#">
-				</form>
-				</div>
-			</table>
-<!-- end confirm-action -->
 
 <!-- start reconfig-done -->
 			<table>

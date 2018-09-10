@@ -572,6 +572,7 @@ sub add_sync_peer
 	my $user      = $anvil->data->{sys}{database}{user};
 	my $host      = $anvil->data->{cgi}{new_peer_access}{value};
 	my $name      = $anvil->data->{sys}{database}{name};
+	my $ping      = $anvil->data->{cgi}{new_peer_ping}{value} eq "on" 1 : 0;
 	my $port      = 5432;
 	my $ssh_tcp   = 22;
 	my $peer_uuid = "";
@@ -716,6 +717,42 @@ sub add_sync_peer
 		if ($anvil->data->{cgi}{confirm}{value})
 		{
 			# OK, save the job!
+			my $job_command =  "anvil-manage-striker-peers --add ";
+			   $job_command .= "--host-uuid ".$peer_uuid." ";
+			   $job_command .= "--host ".$host." ";
+			   $job_command .= "--port ".$port." ";
+			   $job_command .= "--ping ".$ping;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_command => $job_command }});
+			
+# 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+# 				file            => $THIS_FILE, 
+# 				line            => __LINE__, 
+# 				job_command     => $job_command, 
+# 				job_data        => "password=".$anvil->data->{cgi}{new_peer_password}{value}, 
+# 				job_name        => "striker-peer::add", 
+# 				job_title       => "job_0011", 
+# 				job_description => "job_0012", 
+# 			});
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			
+			# Are we adding ourselves to the peer?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
+			if ($anvil->data->{cgi}{new_peer_bidirection}{value} eq "on")
+			{
+				my $use_ip = $anvil->System->find_matching_ip({debug => 2, host => $host});
+				# See which of our IPs match theirs. If the peer is a hostname, first 
+			}
+			
+			# We don't need to store anything as hidden variables, we'll read it back from the database 
+			# later.
+			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
+				title_id    => "",
+				message_id  => "",
+				title       => "#!string!striker_0044!#",
+				description => $ping ? "#!string!striker_0103!#" : "#!string!striker_0102!#",
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+			
 		}
 		else
 		{

@@ -348,6 +348,7 @@ The database connection error was:
 		<key name="log_0208"><![CDATA[Job->update_progress() called with the 'job_uuid': [#!variable!job_uuid!#], which was not found. Unable to find the job to update.]]></key>
 		<key name="log_0209"><![CDATA[Job->update_progress() called with 'progress' set to an invalid value: [#!variable!progress!#]. This must be a whole number between '0' and '100' (fractions not allowed).]]></key>
 		<key name="log_0210"><![CDATA[Requesting the job: [#!variable!command!#] be run by 'anvil-daemon'.]]></key>
+		<key name="log_0211"><![CDATA[The host: [#!variable!host!#] was passed to System->find_matching_ip(), but it failed to resolve to an IP address.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -488,6 +489,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0099">Job</key>
 		<key name="striker_0100">Reboot this system? If you proceed, you will be logged out and this system will be rebooted. Please be sure you have access in the rare chance that the system fails to boot back up.</key>
 		<key name="striker_0101">Power off this system? If you proceed, you will be logged out and this system will be powered off. You will need physical access to the machine to turn it back on in most cases. A properly condigured Striker dashboard will power on after a power cycle (via a PDU) or any machine with IPMI if you have access to a machine on the BCN.</key>
+		<key name="striker_0102">The peer will be added to the local configuration shortly. Expect slight performance impacts if there is a lot of data to synchronize.</key>
+		<key name="striker_0103">The peer will be added to the local configuration shortly, and we will be added to their configuration as well. Expect slight performance impacts if there is a lot of data to synchronize.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -500,6 +503,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0008">This system will be powered off momentarily. It will not respond until it has turned back on.</key>
 		<key name="job_0009">Reboot..</key>
 		<key name="job_0010">Powering off...</key>
+		<key name="job_0011">Add a Striker Peer</key>
+		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

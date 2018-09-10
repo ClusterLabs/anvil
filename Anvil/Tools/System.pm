@@ -10,6 +10,7 @@ use Net::SSH2;
 use Scalar::Util qw(weaken isweak);
 use Time::HiRes qw(gettimeofday tv_interval);
 use Proc::Simple;
+use NetAddr::IP;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
@@ -22,6 +23,7 @@ my $THIS_FILE = "System.pm";
 # check_memory
 # determine_host_type
 # enable_daemon
+# find_matching_ip
 # get_ips
 # hostname
 # is_local
@@ -618,6 +620,88 @@ sub enable_daemon
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
 	return($return);
+}
+
+=head2 find_matching_ip
+
+This takes an IP (or hostname, which is translated to an IP using local resources), and tries to figure out which local IP address is on the same subnet.
+
+If no match is found, an empty string is returned. If there is an error, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 host (required)
+
+This is the IP address or host name we're going to use when searching for a local IP address that can reach it.
+
+=cut
+sub find_matching_ip
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $local_ip = "";
+	my $host     = defined $parameter->{host} ? $parameter->{host} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	
+	# Do I have a host?
+	if (not $host)
+	{
+		# Woops!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->find_matching_ip()", parameter => "host" }});
+		return("!!error!!");
+	}
+	
+	# Translate the host name to an IP address, if it isn't already an IP address.
+	if (not $anvil->Validate->is_ipv4({ip => $host}))
+	{
+		# This will be '0' if it failed, and pre-validated if it returns an IP.
+		$host = $anvil->Convert->hostname_to_ip({hostname => $host});
+		if (not $host)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0211", variables => { host => $parameter->{host} }});
+			return(0);
+		}
+	}
+	
+	# Get my local IPs
+	$anvil->System->get_ips({debug => $debug});
+	
+	my $ip = NetAddr::IP->new($host);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+	
+	# Look through our IPs. First match wins.
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
+		next if not $anvil->data->{sys}{network}{interface}{$interface}{ip};
+		my $this_ip     = $anvil->data->{sys}{network}{interface}{$interface}{ip};
+		my $this_subnet = $anvil->data->{sys}{network}{interface}{$interface}{subnet};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:this_ip"     => $this_ip,
+			"s2:this_subnet" => $this_subnet, 
+		}});
+		
+		my $network_range = $this_ip."/".$this_subnet;
+		my $network       = NetAddr::IP->new($network_range);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:network_range" => $network_range,
+			"s2:network"       => $network, 
+		}});
+		
+		if ($ip->within($network))
+		{
+			$local_ip = $this_ip;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_ip => $local_ip }});
+			last;
+		}
+		
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_ip => $local_ip }});
+	return($local_ip);
 }
 
 =head2 get_ips

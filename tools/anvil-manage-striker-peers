@@ -13,12 +13,16 @@
 # 
 ### Show existing entries
 # /usr/sbin/anvil-manage-striker-peers --list
+# 
 ### Add a new entry, or edit an existing one
 # /usr/sbin/anvil-manage-striker-peers --add --host-uuid e20c3f10-c35d-4543-b5e6-8a373f27977a --host localhost --port 5432 --password-file /tmp/anvil-manage-striker-peers.2e410b43-42a0-4eaf-985c-670f92c482b8 --ping 0
+#
 ### Edit an existing entry, but don't add it if it wasn't found.
 # /usr/sbin/anvil-manage-striker-peers --host-uuid e20c3f10-c35d-4543-b5e6-8a373f27977a --host localhost --port 5432 --password-file /tmp/anvil-manage-striker-peers.2e410b43-42a0-4eaf-985c-670f92c482b8 --ping 0
+# 
 ### Remove an entry
 # /usr/sbin/anvil-manage-striker-peers --remove --host-uuid e20c3f10-c35d-4543-b5e6-8a373f27977a 
+# 
 
 
 use strict;

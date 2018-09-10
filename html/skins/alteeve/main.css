@@ -301,7 +301,8 @@ td {
 }
 
 .menu_title {
-	font-size:      1.1em;
+	color:          #dbe0e5;
+	font-size:      2em;
 	padding-top:    30px;
 	padding-left:   20px;
 	padding-bottom: 10px;
