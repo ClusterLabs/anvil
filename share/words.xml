@@ -102,6 +102,7 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0062">Powering off the local system now.</key>
 		<key name="message_0063">Rebooting the local system now.</key>
 		<key name="message_0064">The Anvil! has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
+		<key name="message_0065">You will now be logged out and this machine will now be rebooted so that the new configuration can take effect.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

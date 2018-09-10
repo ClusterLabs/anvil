@@ -63,14 +63,6 @@ pickup_job_details($anvil);
 
 reconfigure_network($anvil);
 
-update_passwords($anvil);
-
-$anvil->Job->update_progress({
-	debug    => 3, 
-	progress => 100, 
-	job_uuid => $anvil->data->{job}{uuid},
-});
-
 # Record that we've configured this machine.
 $anvil->Database->insert_or_update_variables({
 	variable_name         => "system::configured", 
@@ -81,10 +73,16 @@ $anvil->Database->insert_or_update_variables({
 	variable_source_uuid  => $anvil->Get->host_uuid, 
 	variable_source_table => "hosts", 
 });
-# Clear maintenance mode.
-$anvil->System->maintenance_mode({set => 0});
 
-# Clear maintenance mode
+update_passwords($anvil);
+$anvil->Job->update_progress({
+	debug    => 3, 
+	progress => 100, 
+	message  => $anvil->data->{switches}{'no-reboot'} ? "message_0065" : "",
+	job_uuid => $anvil->data->{job}{uuid},
+});
+
+# Clear maintenance mode.
 $anvil->System->maintenance_mode({set => 0});
 
 ### TODO: This is only until we can get the damn networking stable on reconfigure.
@@ -92,8 +90,11 @@ $anvil->System->maintenance_mode({set => 0});
 $anvil->System->reboot_needed({set => 1});
 if (not $anvil->data->{switches}{'no-reboot'})
 {
-	# Reboot.
-	$anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manager-power'}." --reboot -y"});
+	# Reboot, after waiting a few seconds to let the user's browser pick up the last messages in 
+	# jobs.json. We'll also log the user out, in case we were re-configuring.
+	sleep 5;
+	$anvil->Account->logout;
+	$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y"});
 }
 
 $anvil->nice_exit({code => 0});

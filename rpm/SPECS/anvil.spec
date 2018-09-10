@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        15%{?dist}
+Release:        16%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -30,6 +30,7 @@ Requires:       fence-agents-all
 Requires:       fence-agents-virsh 
 Requires:       firewalld
 Requires:       gpm 
+Requires:       htop
 Requires:       mlocate 
 Requires:       perl-Data-Dumper 
 Requires:       perl-DBD-Pg 
@@ -312,6 +313,10 @@ echo "WARNING: Setting SELinux to 'permissive' during development."
 sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config 
 setenforce 0
 sed -i "1s/^.*$/%{version}-%{release}/" /%{_sysconfdir}/anvil/anvil.version
+# Enable and start the anvil-daemon
+systemctl enable anvil-daemon.service
+systemctl start anvil-daemon.service
+
 
 %post striker
 ### NOTE: PostgreSQL is initialized and enabled by anvil-prep-database later.
