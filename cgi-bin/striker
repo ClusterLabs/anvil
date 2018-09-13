@@ -168,7 +168,13 @@ sub process_task
 	
 	# Is the user trying to log in?
 	my $logged_in = 0;
-	if ((defined $anvil->data->{cgi}{login}) && ($anvil->data->{cgi}{login}{value}))
+	$anvil->data->{cgi}{login}{value}  = "" if not defined $anvil->data->{cgi}{login}{value};
+	$anvil->data->{cgi}{logout}{value} = "" if not defined $anvil->data->{cgi}{logout}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cgi::login::value"  => $anvil->data->{cgi}{login}{value},
+		"cgi::logout::value" => $anvil->data->{cgi}{logout}{value},
+	}});
+	if ($anvil->data->{cgi}{login}{value})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::login::value" => $anvil->data->{cgi}{login}{value} }});
 		
@@ -181,9 +187,10 @@ sub process_task
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { logged_in => $logged_in }});
 		}
 	}
-	elsif ((defined $anvil->data->{cgi}{logout}) && ($anvil->data->{cgi}{logout}{value}))
+	elsif ($anvil->data->{cgi}{logout}{value})
 	{
 		# Bye now!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
 		$anvil->Account->logout();
 	}
 	else
@@ -313,6 +320,7 @@ sub process_power
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
 		
 		# Log the user out, just to be safe.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
 		$anvil->Account->logout();
 	}
 	else

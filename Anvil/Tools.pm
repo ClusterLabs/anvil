@@ -610,6 +610,7 @@ sub _anvil_version
 	my $self  = shift;
 	my $anvil = $self;
 	
+	$anvil->data->{HOST}{ANVIL_VERSION} = "" if not defined $anvil->data->{HOST}{ANVIL_VERSION};
 	if ($anvil->data->{HOST}{ANVIL_VERSION} eq "")
 	{
 		# Try to read the local Anvil! version.

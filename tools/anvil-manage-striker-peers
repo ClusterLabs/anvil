@@ -24,7 +24,6 @@
 # /usr/sbin/anvil-manage-striker-peers --remove --host-uuid e20c3f10-c35d-4543-b5e6-8a373f27977a 
 # 
 
-
 use strict;
 use warnings;
 use Anvil::Tools;
@@ -569,10 +568,10 @@ sub process_entry
 		}
 		
 		# Now add the job.
-		my $host_uuid    = $anvil->Get->host_uuid;
-		my $sql_password = $anvil->data->{database}{$host_uuid}{password};
-		my $job_command  = $add_peer_command;
-		my $job_data     = "password=".$sql_password;
+		my $our_host_uuid = $anvil->Get->host_uuid;
+		my $sql_password  = $anvil->data->{database}{$our_host_uuid}{password};
+		my $job_command   = $add_peer_command;
+		my $job_data      = "password=".$sql_password;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { job_command => $job_command }});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data    => $job_data    }});
 		

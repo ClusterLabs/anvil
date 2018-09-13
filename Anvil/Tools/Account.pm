@@ -501,6 +501,7 @@ sub read_cookies
 	if ($count < 1)
 	{
 		# The user in the cookie isn't in the database. The user was deleted?
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
 		$anvil->Account->logout();
 		
 		# Record the error message for the user.
@@ -560,6 +561,7 @@ sub read_cookies
 		#die;
 		
 		# The user's cookie is invalid, log the user out.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
 		$anvil->Account->logout();
 		
 		# Record the error message for the user.

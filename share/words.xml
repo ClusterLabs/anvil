@@ -363,6 +363,7 @@ The database connection error was:
 		<key name="log_0212">We've been asked to have the new peer add us. We will now wait for the peer to show up in the 'hosts' table and then request the job for it to add us.</key>
 		<key name="log_0213">The peer: [#!variable!peer_uuid!#] is not yet in 'hosts', continuing to wait.</key>
 		<key name="log_0214">The peer: [#!variable!peer_name!#] is now in 'hosts', proceeding.</key>
+		<key name="log_0215">Logging the user: [#!data!sys::users::user_name!#] out.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

@@ -93,6 +93,7 @@ if (not $anvil->data->{switches}{'no-reboot'})
 	# Reboot, after waiting a few seconds to let the user's browser pick up the last messages in 
 	# jobs.json. We'll also log the user out, in case we were re-configuring.
 	sleep 5;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
 	$anvil->Account->logout;
 	$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y"});
 }

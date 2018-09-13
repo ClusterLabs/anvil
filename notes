@@ -1,3 +1,14 @@
+DB stuff;
+
+Dump;
+su - postgres -c "pg_dump anvil" > /anvil.out
+
+Reload the DB;
+su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /anvil.out"
+su - postgres -c "psql anvil"
+
+
+
 All systems have a UUID, even VMs. Use that for system UUID in the future.
 
 https://access.redhat.com/solutions/2841131 - How to write a NetworkManager dispatcher script to apply ethtool commands?

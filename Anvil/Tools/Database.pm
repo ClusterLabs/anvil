@@ -5436,8 +5436,12 @@ sub _find_behind_databases
 	# 'modified_date' entries, or no entries in one DB with entries in the other (as can happen with a 
 	# newly setup db).
 	$anvil->data->{sys}{database}{check_tables} = [];
+	
+	# The 'hosts' table always has to be the first table sync'ed as just about everything else references it.
+	push @{$anvil->data->{sys}{database}{check_tables}}, "hosts";
 	foreach my $table (@{$anvil->data->{sys}{database}{core_tables}})
 	{
+		next if $table eq "hosts";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
 		push @{$anvil->data->{sys}{database}{check_tables}}, $table;
 	}
@@ -5449,6 +5453,8 @@ sub _find_behind_databases
 			push @{$anvil->data->{sys}{database}{check_tables}}, $table;
 		}
 	}
+	
+	
 	
 	# Preset all tables to have an initial 'modified_date' of 0.
 	foreach my $table (sort {$a cmp $b} @{$anvil->data->{sys}{database}{check_tables}})
@@ -5571,7 +5577,7 @@ ORDER BY
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { uuid => $uuid }});
 				
 				# Mark it as behind.
-				$anvil->Database->_mark_database_as_behind({uuid => $uuid});
+				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
 				last;
 			}
 		}
