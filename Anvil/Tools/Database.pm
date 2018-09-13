@@ -2726,7 +2726,7 @@ sub insert_or_update_jobs
 		return("");
 	}
 	
-	# If we don't have a UUID, see if we can find one for the given job server name.
+	# If we don't have a UUID, see if we can find one for the given job name.
 	if (not $job_uuid)
 	{
 		my $query = "
@@ -2736,6 +2736,8 @@ FROM
     jobs 
 WHERE 
     job_name      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_name)." 
+AND 
+    job_command   = ".$anvil->data->{sys}{database}{use_handle}->quote($job_command)." 
 AND 
     job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_host_uuid)." 
 ;";

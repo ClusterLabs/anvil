@@ -42,8 +42,9 @@ $| = 1;
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 
 # Read switches
-$anvil->data->{switches}{list} = "";
-$anvil->data->{switches}{add}  = 0;
+$anvil->data->{switches}{list}   = "";
+$anvil->data->{switches}{add}    = 0;
+$anvil->data->{switches}{remove} = 0;
 $anvil->Get->switches;
 
 # Make sure we're running as 'root'
@@ -58,6 +59,10 @@ if (($< != 0) && ($> != 0))
 # Paths
 $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 
+# We'll try to connect in case we're adding additional peers.
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+
 # Am I adding, editing or deleting?
 if (not $anvil->data->{switches}{list})
 {
@@ -68,6 +73,7 @@ if (not $anvil->data->{switches}{list})
 # First sort by host name/ip
 foreach my $uuid (keys %{$anvil->data->{database}})
 {
+	next if not $uuid;
 	my $host = $anvil->data->{database}{$uuid}{host};
 	$anvil->data->{sorted}{db}{$host} = $uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { 
@@ -103,22 +109,67 @@ $anvil->nice_exit({code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This updates the progress if we were called with a job UUID.
+sub update_progress
+{
+	my ($anvil, $progress, $message) = @_;
+	$message = "" if not defined $message;
+	
+	# Log the progress percentage.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		progress                     => $progress,
+		message                      => $message, 
+		"jobs::job_uuid"             => $anvil->data->{jobs}{job_uuid}, 
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
+	
+	if (($anvil->data->{jobs}{job_uuid}) && ($anvil->data->{sys}{database}{connections}))
+	{
+		$anvil->Job->update_progress({
+			debug    => 2, 
+			progress => $progress, 
+			message  => $message, 
+			job_uuid => $anvil->data->{jobs}{job_uuid},
+		});
+	}
+	
+	return(0);
+}
+
 sub process_entry
 {
 	my ($anvil) = @_;
 	
+	my $job_uuid      = defined $anvil->data->{switches}{'job-uuid'}      ? $anvil->data->{switches}{'job-uuid'}      : "";
 	my $host_uuid     = defined $anvil->data->{switches}{'host-uuid'}     ? $anvil->data->{switches}{'host-uuid'}     : "";
 	my $host          = defined $anvil->data->{switches}{'host'}          ? $anvil->data->{switches}{'host'}          : "";
 	my $port          = defined $anvil->data->{switches}{'port'}          ? $anvil->data->{switches}{'port'}          : 5432;
 	my $password_file = defined $anvil->data->{switches}{'password-file'} ? $anvil->data->{switches}{'password-file'} : "";
 	my $ping          = defined $anvil->data->{switches}{'ping'}          ? $anvil->data->{switches}{'ping'}          : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { 
+		job_uuid      => $job_uuid, 
 		host_uuid     => $host_uuid,
 		host          => $host,
 		port          => $port,
 		password_file => $password_file,
 		ping          => $ping, 
 	}});
+	
+	# If I have a job_uuid, store it in the data hash for 'update_progress'.
+	if ($job_uuid)
+	{
+		$anvil->data->{jobs}{job_uuid} = $job_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { "jobs::job_uuid" => $anvil->data->{jobs}{job_uuid} }});
+		
+		my $message = $anvil->data->{switches}{remove} ? "message_0067" : "message_0066";
+		update_progress($anvil, 0, "clear");
+		update_progress($anvil, 1, $message);
+	}
+	else
+	{
+		$anvil->data->{jobs}{job_uuid} = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { "jobs::job_uuid" => $anvil->data->{jobs}{job_uuid} }});
+	}
 
 	# Read in the anvil.conf, we're going to need it in any case.
 	$anvil->data->{body}{'anvil.conf'} = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.conf'}});
@@ -133,27 +184,83 @@ sub process_entry
 	{
 		# Invalid UUID.
 		print $anvil->Words->string({key => "error_0031", variables => { host_uuid => $host_uuid }})."\n";
+		update_progress($anvil, 100, "error_0031,!!host_uuid!".$host_uuid."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0031", variables => { host_uuid => $host_uuid }});
 		$anvil->nice_exit({code => 2});
 	}
 	if ((not $host) && (not $anvil->data->{switches}{remove}))
 	{
-		# Invalid UUID.
+		# Invalid Host name.
 		print $anvil->Words->string({key => "error_0032", variables => { switch => "host" }})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0032", variables => { host => $host }});
+		update_progress($anvil, 100, "error_0032,!!switch!host!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0032", variables => { switch => "host" }});
 		$anvil->nice_exit({code => 2});
 	}
 	if (($port =~ /\D/) or ($port < 1) or ($port > 65535))
 	{
 		# Invalid port.
-		print $anvil->Words->string({key => "error_0033", variables => { port => $port }})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0033", variables => { port => $port }});
+		print $anvil->Words->string({key => "error_0038", variables => { port => $port }})."\n";
+		update_progress($anvil, 100, "error_0038,!!port!".$port."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0038", variables => { port => $port }});
 		$anvil->nice_exit({code => 2});
 	}
 	
-	# Pull the password out of the file.
-	my $password = $anvil->Storage->read_file({file => $password_file});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { password => $password }});
+	# The password might be in 'job_data' or a password file.
+	my $password         = "";
+	my $add_peer_command = "";
+	if ($password_file)
+	{
+		# Pull the password out of the file.
+		update_progress($anvil, 100, "message_0070,!!port!".$port."!!");
+		$password = $anvil->Storage->read_file({file => $password_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { password => $password }});
+	}
+	if ((not $password) && ($job_uuid))
+	{
+		# Do we have a database connection?
+		if ($anvil->data->{sys}{database}{connections})
+		{
+			# See if the password is in job_data.
+			my $query = "SELECT job_data FROM jobs WHERE job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid).";";
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $job_data = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data => $job_data }});
+				
+				foreach my $line (split/\n/, $job_data)
+				{
+					my $secure = $line =~ /password/ ? 1 : 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { line => $line }});
+					if ($line =~ /password=(.*)$/)
+					{
+						$password = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
+					}
+					if ($line =~ /job_command=(.*)$/)
+					{
+						$add_peer_command = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { add_peer_command => $add_peer_command }});
+					}
+				}
+			}
+		}
+	}
+	
+	# If I am not removing, I need a password.
+	if ((not $anvil->data->{switches}{remove}) && (not $password))
+	{
+		print $anvil->Words->string({key => "error_0039"})."\n";
+		update_progress($anvil, 100, "error_0039");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0039"});
+		$anvil->nice_exit({code => 2});
+	}
+	update_progress($anvil, 25, "message_0068");
 	
 	# If the config already exists, we'll look at each of the values to see if any changed (or are not defaults). If so, we'll rewrite
 	my $host_variable      = "database::${host_uuid}::host";
@@ -174,9 +281,11 @@ sub process_entry
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { insert => $insert }});
 	
 	# Loop through the existing file.
-	my $new_body     = "";
-	my $just_deleted = 0;
-	my $test_line    = "database::${host_uuid}::";
+	my $delete_reported = 0;
+	my $update_reported = 0;
+	my $new_body        = "";
+	my $just_deleted    = 0;
+	my $test_line       = "database::${host_uuid}::";
 	foreach my $line (split/\n/, $anvil->data->{body}{'anvil.conf'})
 	{
 		# If I removed an entry, I also want to delete the white space after it.
@@ -207,6 +316,7 @@ sub process_entry
 					new_body          => $new_body,
 					"config::rewrite" => $anvil->data->{config}{rewrite},
 				}});
+				update_progress($anvil, 50, "message_0069");
 			}
 		}
 		
@@ -245,6 +355,8 @@ sub process_entry
 						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
+					update_progress($anvil, 50, "message_0070") if not $delete_reported;
+					$delete_reported = 1;
 					next;
 				}
 				elsif ($value eq $host)
@@ -279,6 +391,8 @@ sub process_entry
 						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
+					update_progress($anvil, 50, "message_0070") if not $delete_reported;
+					$delete_reported = 1;
 					next;
 				}
 				elsif ($value eq $port)
@@ -295,6 +409,8 @@ sub process_entry
 						line              => $line,
 						"config::rewrite" => $anvil->data->{config}{rewrite}, 
 					}});
+					update_progress($anvil, 50, "message_0071") if not $update_reported;
+					$update_reported = 1;
 				}
 			}
 			elsif ($variable eq $password_variable)
@@ -317,6 +433,8 @@ sub process_entry
 						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
+					update_progress($anvil, 50, "message_0070") if not $delete_reported;
+					$delete_reported = 1;
 					next;
 				}
 				elsif ($value eq $password)
@@ -333,6 +451,8 @@ sub process_entry
 						line              => $anvil->Log->secure ? $line : $anvil->Words->string({key => "log_0186"}),
 						"config::rewrite" => $anvil->data->{config}{rewrite}, 
 					}});
+					update_progress($anvil, 50, "message_0071") if not $update_reported;
+					$update_reported = 1;
 				}
 			}
 			elsif ($variable eq $ping_variable)
@@ -351,6 +471,8 @@ sub process_entry
 						just_deleted      => $just_deleted, 
 						"config::rewrite" => $anvil->data->{config}{rewrite},
 					}});
+					update_progress($anvil, 50, "message_0070") if not $delete_reported;
+					$delete_reported = 1;
 					next;
 				}
 				elsif ($value eq $ping)
@@ -367,6 +489,8 @@ sub process_entry
 						line              => $line,
 						"config::rewrite" => $anvil->data->{config}{rewrite}, 
 					}});
+					update_progress($anvil, 50, "message_0071") if not $update_reported;
+					$update_reported = 1;
 				}
 			}
 		}
@@ -379,6 +503,7 @@ sub process_entry
 		# Backup the original
 		my $backup_file = $anvil->Storage->backup({secure => 1, file => $anvil->data->{path}{configs}{'anvil.conf'}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+		update_progress($anvil, 75, "message_0072,!!backup!".$backup_file."!!");
 		
 		# Now update!
 		$anvil->Storage->write_file({
@@ -390,14 +515,82 @@ sub process_entry
 			mode      => "0644",
 			overwrite => 1,
 		});
+		update_progress($anvil, 80, "message_0073");
 		
-		# Delete any databases I new about, the we'll reload from the config.
-		delete $anvil->data->{database};
+		# Disconnect (if no connections exist, will still clear out known databases).
+		$anvil->Database->disconnect;
 		
 		# Re-read the config.
 		sleep 1;
 		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	}
 	
+	# If I've been asked to have the peer add us, disconnect from the database, re-read the new config 
+	# and then reconnect. This should cause a sync of 'hosts' and allow us to insert a job for the peer 
+	# to add us.
+	if ($add_peer_command)
+	{
+		update_progress($anvil, 85, "message_0074");
+		
+		# Reconnect
+		$anvil->Database->connect;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+		
+		# Now loop until we see the peer's host_uuid show up
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0212"});
+		my $peer_host_name = "";
+		my $host_seen      = 0;
+		until($host_seen)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0212"});
+			my $query = "SELECT host_name FROM hosts WHERE host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).";";
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				$peer_host_name = $results->[0]->[0];
+				$host_seen      = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					peer_host_name => $peer_host_name, 
+					host_seen      => $host_seen, 
+				}});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0214", variables => { peer_name => $peer_host_name }});
+				update_progress($anvil, 90, "message_0075,!!host!".$peer_host_name."!!");
+			}
+			else
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0213", variables => { peer_uuid => $host_uuid }});
+				sleep(1);
+			}
+		}
+		
+		# Now add the job.
+		my $host_uuid    = $anvil->Get->host_uuid;
+		my $sql_password = $anvil->data->{database}{$host_uuid}{password};
+		my $job_command  = $add_peer_command;
+		my $job_data     = "password=".$sql_password;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { job_command => $job_command }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data    => $job_data    }});
+		
+		# Store the job
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_host_uuid   => $host_uuid, 
+			job_command     => $job_command, 
+			job_data        => $job_data, 
+			job_name        => "striker-peer::add", 
+			job_title       => "job_0011", 
+			job_description => "job_0012", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		update_progress($anvil, 95, "message_0076");
+	}
+	
+	update_progress($anvil, 100, "message_0025");
 	return(0);
 }

@@ -103,6 +103,17 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0063">Rebooting the local system now.</key>
 		<key name="message_0064">The Anvil! has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
 		<key name="message_0065">You will now be logged out and this machine will now be rebooted so that the new configuration can take effect.</key>
+		<key name="message_0066">Starting the job to add or update an Anvil! database peer.</key>
+		<key name="message_0067">Starting the job to remove an Anvil! database peer.</key>
+		<key name="message_0068">Sanity checkes passed.</key>
+		<key name="message_0069">Added the peer to the config file.</key>
+		<key name="message_0070">Old peer found and removed from the config file.</key>
+		<key name="message_0071">Existing peer found and update needed and made.</key>
+		<key name="message_0072">Configuration changed, existing config backed up as: [#!variable!backup!#].</key>
+		<key name="message_0073">New config written to disk.</key>
+		<key name="message_0074">Reconnecting to the database(s) to ask the peer to add us. Will hold here until the peer is added to the 'hosts' table. Please be patient.</key>
+		<key name="message_0075">The peer: [#!variable!host!#] is now in the database. Proceeding.</key>
+		<key name="message_0076">The job the peer add us has been registered. It should add us as soon as it looks for new jobs (generally within a second or two).</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -243,7 +254,7 @@ The database connection error was:
 		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">The database with ID: [#!variable!uuid!#] for: [#!variable!file!#] is behind.</key>
 		<key name="log_0105">Anvil! database: [#!variable!database!#] already exists.</key>
-		<key name="log_0106">The database with ID: [#!variable!uuid!#] is behind. A database esync will be requested.</key>
+		<key name="log_0106">The database with ID: [#!variable!uuid!#] is behind. A database resync will be requested.</key>
 		<key name="log_0107">[ Warning ] - Failed to delete the temporary postgres password.</key>
 		<key name="log_0108"><![CDATA[[ Error ] - The method Database->insert_or_update_states() was called but the 'state_host_uuid' parameter was not passed or it is empty. Normally this is set to 'sys::data_uuid'.]]></key>
 		<key name="log_0109">[ Error ] - Failed to create the Anvil! database: [#!variable!database!#]</key>
@@ -349,6 +360,9 @@ The database connection error was:
 		<key name="log_0209"><![CDATA[Job->update_progress() called with 'progress' set to an invalid value: [#!variable!progress!#]. This must be a whole number between '0' and '100' (fractions not allowed).]]></key>
 		<key name="log_0210"><![CDATA[Requesting the job: [#!variable!command!#] be run by 'anvil-daemon'.]]></key>
 		<key name="log_0211"><![CDATA[The host: [#!variable!host!#] was passed to System->find_matching_ip(), but it failed to resolve to an IP address.]]></key>
+		<key name="log_0212">We've been asked to have the new peer add us. We will now wait for the peer to show up in the 'hosts' table and then request the job for it to add us.</key>
+		<key name="log_0213">The peer: [#!variable!peer_uuid!#] is not yet in 'hosts', continuing to wait.</key>
+		<key name="log_0214">The peer: [#!variable!peer_name!#] is now in 'hosts', proceeding.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -514,6 +528,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_warning_0005">There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
 		<key name="striker_warning_0006">An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
 		<key name="striker_warning_0007">The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
+		<key name="striker_warning_0008">Unable to find a local IP on the same subnet as the IP/host: [#!variable!host!#] given for the target. Bi-directional setup not currently possible.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -558,6 +573,8 @@ The update appears to have not completed successfully. The output was:
 		</key>
 		<key name="error_0036"></key>
 		<key name="error_0037"><![CDATA[In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].]]></key>
+		<key name="error_0038">The TCP port: [#!variable!port!#] is not a valid.</key>
+		<key name="error_0039"><![CDATA[The password for the host was not provided by '--password-file' or in 'job_data' (as 'password=<secret>').]]></key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

@@ -571,12 +571,14 @@ sub add_sync_peer
 	# Break up the user, host and port. If anything goes wrong, we'll set an error and send it back.
 	my $user      = $anvil->data->{sys}{database}{user};
 	my $host      = $anvil->data->{cgi}{new_peer_access}{value};
+	my $password  = $anvil->data->{cgi}{new_peer_password}{value};
 	my $name      = $anvil->data->{sys}{database}{name};
-	my $ping      = $anvil->data->{cgi}{new_peer_ping}{value} eq "on" 1 : 0;
+	my $ping      = $anvil->data->{cgi}{new_peer_ping}{value} eq "on" ? 1 : 0;
 	my $port      = 5432;
 	my $ssh_tcp   = 22;
 	my $peer_uuid = "";
 	my $peer_host = "";
+	my $use_ip    = ""; # This will contain the local IP to use for the peer to setup comms with us
 	if ($host =~ /,ssh=(\d+)$/)
 	{
 		$ssh_tcp =  $1;
@@ -637,7 +639,7 @@ sub add_sync_peer
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 		my ($error, $output) = $anvil->Remote->call({
-			password   => $anvil->data->{cgi}{new_peer_password}{value}, 
+			password   => $password, 
 			target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
 			shell_call => $shell_call,
 		});
@@ -660,13 +662,28 @@ sub add_sync_peer
 			else
 			{
 				my ($error, $output) = $anvil->Remote->call({
-					password   => $anvil->data->{cgi}{new_peer_password}{value}, 
+					password   => $password, 
 					target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
 					shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
 				});
 				
 				$peer_host = $output->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host => $peer_host }});
+				
+				# Lastly, if bi-directional is set, make sure we have a way to talk to it.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
+				if ($anvil->data->{cgi}{new_peer_bidirection}{value} eq "on")
+				{
+					# See which of our IPs match theirs. If the peer is a hostname, first 
+					$use_ip = $anvil->System->find_matching_ip({host => $host});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
+					
+					if ((not $use_ip) or ($use_ip eq "!!error!!"))
+					{
+						# Can't do bi-directional
+						$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0008", variables => { host => $host }}) }});
+					}
+				}
 			}
 		}
 	}
@@ -675,9 +692,8 @@ sub add_sync_peer
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
 	if (not $anvil->data->{form}{error_massage})
 	{
-		my $pgpass_file = "/tmp/.pgpass"; 
-		my $password    =  $anvil->data->{cgi}{new_peer_password}{value};
-		$password    =~ s/:/\:/g;
+		my $pgpass_file =  "/tmp/.pgpass"; 
+		   $password    =~ s/:/\:/g;
 		my $body        =  $host.":".$port.":".$name.":".$user.":".$password;
 		$anvil->Storage->write_file({
 			file      => $pgpass_file, 
@@ -717,34 +733,46 @@ sub add_sync_peer
 		if ($anvil->data->{cgi}{confirm}{value})
 		{
 			# OK, save the job!
-			my $job_command =  "anvil-manage-striker-peers --add ";
-			   $job_command .= "--host-uuid ".$peer_uuid." ";
-			   $job_command .= "--host ".$host." ";
-			   $job_command .= "--port ".$port." ";
-			   $job_command .= "--ping ".$ping;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_command => $job_command }});
+			my $job_command = "anvil-manage-striker-peers --add --host-uuid ".$peer_uuid." --host ".$host." --port ".$port." --ping ".$ping;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				job_command => $job_command,
+				password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+			}});
 			
-# 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-# 				file            => $THIS_FILE, 
-# 				line            => __LINE__, 
-# 				job_command     => $job_command, 
-# 				job_data        => "password=".$anvil->data->{cgi}{new_peer_password}{value}, 
-# 				job_name        => "striker-peer::add", 
-# 				job_title       => "job_0011", 
-# 				job_description => "job_0012", 
-# 			});
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			# The job data will always contain the password for the peer, but also contain the 
+			# command for the peer to add us if 'bidirectional' was selected. This has to be 
+			# stored separately and not added directly as a job, because the peer is likely not
+			# in 'hosts' yet, and thus we can't reference it in 'job_host_uuid' at this point.
+			my $job_data = "password=".$password; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data => $job_data }});
 			
 			# Are we adding ourselves to the peer?
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
-			if ($anvil->data->{cgi}{new_peer_bidirection}{value} eq "on")
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
+			if ($use_ip)
 			{
-				my $use_ip = $anvil->System->find_matching_ip({debug => 2, host => $host});
-				# See which of our IPs match theirs. If the peer is a hostname, first 
+				# See which of our IPs match theirs. If the peer is a hostname, first
+				my $host_uuid    =  $anvil->Get->host_uuid;
+				my $sql_port     =  $anvil->data->{database}{$host_uuid}{port};
+				my $job_command  =  "anvil-manage-striker-peers --add --host-uuid ".$host_uuid." --host ".$use_ip." --port ".$sql_port." --ping ".$ping;
+				   $job_data     .= "\npeer_job_command=".$job_command;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { job_command => $job_command }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data    => $job_data    }});
 			}
 			
-			# We don't need to store anything as hidden variables, we'll read it back from the database 
-			# later.
+			# Store the job
+			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+				file            => $THIS_FILE, 
+				line            => __LINE__, 
+				job_command     => $job_command, 
+				job_data        => $job_data, 
+				job_name        => "striker-peer::add", 
+				job_title       => "job_0011", 
+				job_description => "job_0012", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			
+			# We don't need to store anything as hidden variables, we'll read it back from the 
+			# database later.
 			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
 				title_id    => "",
 				message_id  => "",
@@ -752,7 +780,6 @@ sub add_sync_peer
 				description => $ping ? "#!string!striker_0103!#" : "#!string!striker_0102!#",
 			}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
-			
 		}
 		else
 		{
