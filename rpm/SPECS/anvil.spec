@@ -393,6 +393,11 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+* Fri Sep 14 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-16
+- Added htop as a -core dependency.
+- Now enables anvil-daemon.
+- Disabled 'postun' for now.
+
 * Thu Aug 30 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-15
 - Added perl-HTML-FromText and perl-HTML-Strip to anvil-core requires list.
 - Added a check to see if /usr/share/anvil exists before trying to create it.

@@ -61,21 +61,20 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # If any jobs are pending/running, show the "unavailable" option.
-my $available  = check_availability($anvil);
-my $configured = $available ? $anvil->System->check_if_configured : 0;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-	available  => $available,
-	configured => $configured,
-}});
-if (not $available)
-{
-	# Set the body to 'say::maintenance'.
-	$anvil->data->{form}{body} = $anvil->data->{say}{maintenance};
-}
-elsif (not $configured)
+my $configured = $anvil->System->check_if_configured;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+
+my $available = $configured ? check_availability($anvil) : 0;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {available => $available }});
+if (not $configured)
 {
 	# If there is no user account yet, then the system is new and needs to be reconfigured.
 	configure_striker($anvil);
+}
+elsif (not $available)
+{
+	# Set the body to 'say::maintenance'.
+	$anvil->data->{form}{body} = $anvil->data->{say}{maintenance};
 }
 else
 {
@@ -170,7 +169,7 @@ sub process_task
 	my $logged_in = 0;
 	$anvil->data->{cgi}{login}{value}  = "" if not defined $anvil->data->{cgi}{login}{value};
 	$anvil->data->{cgi}{logout}{value} = "" if not defined $anvil->data->{cgi}{logout}{value};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"cgi::login::value"  => $anvil->data->{cgi}{login}{value},
 		"cgi::logout::value" => $anvil->data->{cgi}{logout}{value},
 	}});
@@ -190,6 +189,7 @@ sub process_task
 	elsif ($anvil->data->{cgi}{logout}{value})
 	{
 		# Bye now!
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::logout::value" => $anvil->data->{cgi}{logout}{value} }});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
 		$anvil->Account->logout();
 	}
@@ -901,7 +901,7 @@ sub check_availability
 		my $jobs_list = "#!string!striker_0097!#";
 		my $return = $anvil->Database->get_jobs({ended_within => 300});
 		my $count  = @{$return};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 		if ($count)
 		{
 			$jobs_list = "";
@@ -918,7 +918,7 @@ sub check_availability
 				my $job_title           = $hash_ref->{job_title};
 				my $job_description     = $hash_ref->{job_description};
 				my $job_status          = $hash_ref->{job_status};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					job_uuid            => $job_uuid,
 					job_command         => $job_command,
 					job_data            => $job_data,
@@ -933,7 +933,7 @@ sub check_availability
 				# Skip jobs that finished more than five minutes ago.
 				my $job_finished = time - $job_updated;
 				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					's1:time'         => time,
 					's2:job_updated'  => $job_updated,
 					's3:job_finished' => $job_finished,
@@ -947,7 +947,7 @@ sub check_availability
 				# Convert the double-banged strings into a proper message.
 				my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
 				my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					job_title       => $job_title, 
 					say_description => $say_description, 
 				}});

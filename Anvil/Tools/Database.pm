@@ -830,6 +830,10 @@ sub connect
 					local_version  => $anvil->_anvil_version, 
 					target_version => $remote_version,
 				}});
+				
+				# Delete the information about this database. We'll try again on nexy 
+				# ->connect().
+				delete $anvil->data->{database}{$uuid};
 				next;
 			}
 		}
@@ -4731,16 +4735,28 @@ sub resync_databases
 		}});
 		
 		# If there is a column name that is '<table>_uuid', or the same with the table's name minus 
-		# the last 's', this will be the UUID column to keep records linked in history. We'll need to
-		# know this off the bat. Tables where we don't find a UUID column won't be sync'ed.
+		# the last 's' or 'es', this will be the UUID column to keep records linked in history. We'll
+		# need to know this off the bat. Tables where we don't find a UUID column won't be sync'ed.
 		my $column1 = $table."_uuid";
 		my $column2 = "";
+		my $column3 = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column1 => $column1 }});
 		if ($table =~ /^(.*)s$/)
 		{
 			$column2 = $1."_uuid";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column2 => $column2 }});
+		}
+		if ($table =~ /^(.*)es$/)
+		{
+			$column3 = $1."_uuid";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column3 => $column3 }});
 		}
 		my $query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column1).";";
-		if ($column2)
+		if ($column3)
+		{
+			$query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND (column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column1)." OR column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column2)." OR column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column3).");";
+		}
+		elsif ($column2)
 		{
 			$query = "SELECT column_name FROM information_schema.columns WHERE table_catalog = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{name})." AND table_schema = 'public' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND data_type = 'uuid' AND is_nullable = 'NO' AND (column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column1)." OR column_name = ".$anvil->data->{sys}{database}{use_handle}->quote($column2).");";
 		}
@@ -5454,8 +5470,6 @@ sub _find_behind_databases
 		}
 	}
 	
-	
-	
 	# Preset all tables to have an initial 'modified_date' of 0.
 	foreach my $table (sort {$a cmp $b} @{$anvil->data->{sys}{database}{check_tables}})
 	{
@@ -5610,10 +5624,10 @@ sub _mark_database_as_behind
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
 	$anvil->data->{sys}{database}{to_update}{$uuid}{behind} = 1;
-	$anvil->data->{sys}{database}{resync_needed}          = 1;
+	$anvil->data->{sys}{database}{resync_needed}            = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::to_update::${uuid}::behind" => $anvil->data->{sys}{database}{to_update}{$uuid}{behind}, 
-		"sys::database::resync_needed"            => $anvil->data->{sys}{database}{resync_needed}, 
+		"sys::database::resync_needed"              => $anvil->data->{sys}{database}{resync_needed}, 
 	}});
 		
 	# We can't trust this database for reads, so switch to another database for reads if

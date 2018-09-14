@@ -1062,8 +1062,14 @@ sub maintenance_mode
 		}
 	}
 	
-	my ($maintenance_mode, $variable_uuid, $modified_date) = $anvil->Database->read_variable({debug => $debug, variable_name => "maintenance_mode"});
+	my ($maintenance_mode, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+		debug                 => $debug, 
+		variable_name         => "maintenance_mode",
+		variable_source_table => "hosts",
+		variable_source_uuid  => $anvil->Get->host_uuid,
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		debug            => $debug, 
 		maintenance_mode => $maintenance_mode, 
 		variable_uuid    => $variable_uuid, 
 		modified_date    => $modified_date, 
@@ -1879,7 +1885,12 @@ sub reboot_needed
 		}
 	}
 	
-	my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({debug => $debug, variable_name => "reboot::needed"});
+	my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+		debug                 => $debug, 
+		variable_name         => "reboot::needed",
+		variable_source_table => "hosts",
+		variable_source_uuid  => $anvil->Get->host_uuid,
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		reboot_needed => $reboot_needed, 
 		variable_uuid => $variable_uuid, 
