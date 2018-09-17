@@ -44,7 +44,6 @@ CREATE TABLE users (
     user_uuid            uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     user_name            text                        not null,
     user_password_hash   text                        not null,                   -- A user without a password is disabled.
-    user_session_salt    text                        not null,                   -- This is used when generating a session hash for a user when they log in.
     user_salt            text                        not null,                   -- This is used to enhance the security of the user's password.
     user_algorithm       text                        not null,                   -- This is the algorithm used to encrypt the password and salt.
     user_hash_count      text                        not null,                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
@@ -61,7 +60,6 @@ CREATE TABLE history.users (
     user_uuid            uuid,
     user_name            text,
     user_password_hash   text,
-    user_session_salt    text, 
     user_salt            text,
     user_algorithm       text,
     user_hash_count      text,
@@ -83,7 +81,6 @@ BEGIN
         (user_uuid, 
          user_name, 
          user_password_hash, 
-         user_session_salt, 
          user_salt, 
          user_algorithm, 
          user_hash_count, 
@@ -96,7 +93,6 @@ BEGIN
         (history_users.user_uuid,
          history_users.user_name,
          history_users.user_password_hash, 
-         history_users.user_session_salt, 
          history_users.user_salt, 
          history_users.user_algorithm, 
          history_users.user_hash_count, 
@@ -114,6 +110,62 @@ ALTER FUNCTION history_users() OWNER TO #!variable!user!#;
 CREATE TRIGGER trigger_users
     AFTER INSERT OR UPDATE ON users
     FOR EACH ROW EXECUTE PROCEDURE history_users();
+
+
+-- This stores user session information on a per-dashboard basis.
+CREATE TABLE sessions (
+    session_uuid          uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    session_host_uuid     uuid                        not null,                   -- This is the host uuid for this session.
+    session_user_uuid     uuid                        not null,                   -- This is the user uuid for the user logging in.
+    session_session_salt  text                        not null,                   -- This is used when generating a session hash for a session when they log in.
+    session_user_agent    text,
+    modified_date         timestamp with time zone    not null
+    
+    FOREIGN KEY(session_host_uuid) REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(session_user_uuid) REFERENCES users(user_uuid) 
+);
+ALTER TABLE sessions OWNER TO #!variable!session!#;
+
+CREATE TABLE history.sessions (
+    history_id            bigserial, 
+    session_uuid          uuid, 
+    session_host_uuid     uuid, 
+    session_user_uuid     uuid, 
+    session_session_salt  text, 
+    session_user_agent    text, 
+    modified_date         timestamp with time zone    not null
+);
+ALTER TABLE history.sessions OWNER TO #!variable!session!#;
+
+CREATE FUNCTION history_sessions() RETURNS trigger
+AS $$
+DECLARE
+    history_sessions RECORD;
+BEGIN
+    SELECT INTO history_sessions * FROM sessions WHERE session_uuid = new.session_uuid;
+    INSERT INTO history.sessions
+        (session_uuid, 
+         session_host_uuid, 
+         session_user_uuid, 
+         session_session_salt, 
+         session_user_agent, 
+         modified_date)
+    VALUES
+        (history_sessions.session_uuid,
+         history_sessions.session_host_uuid, 
+         history_sessions.session_user_uuid, 
+         history_sessions.session_session_salt, 
+         history_sessions.session_user_agent, 
+         history_sessions.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_sessions() OWNER TO #!variable!session!#;
+
+CREATE TRIGGER trigger_sessions
+    AFTER INSERT OR UPDATE ON sessions
+    FOR EACH ROW EXECUTE PROCEDURE history_sessions();
 
 
 

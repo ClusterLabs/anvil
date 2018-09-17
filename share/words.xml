@@ -576,6 +576,7 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0037"><![CDATA[In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].]]></key>
 		<key name="error_0038">The TCP port: [#!variable!port!#] is not a valid.</key>
 		<key name="error_0039"><![CDATA[The password for the host was not provided by '--password-file' or in 'job_data' (as 'password=<secret>').]]></key>
+		<key name="error_0040">Logging out failed. The user's UUID wasn't passed and 'sys::users::user_uuid' wasn't set. Was the user already logged out?</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

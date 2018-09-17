@@ -338,12 +338,14 @@ AND
 		{
 			my $query = "
 UPDATE 
-    users 
+    sessions 
 SET 
-    user_session_salt = ".$anvil->data->{sys}{database}{use_handle}->quote($session_salt).", 
+    session_salt      = ".$anvil->data->{sys}{database}{use_handle}->quote($session_salt).", 
     modified_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    user_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)."
+    session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
+AND 
+    session_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
@@ -379,7 +381,17 @@ WHERE
 
 This deletes the user's UUID and hash cookies, which effectively logs them out.
 
-This methods takes no parameters and always returns C<< 0 >>.
+If there is no C<< user_uuid >>, this will return C<< 1 >>. Otherwise, C<< 0 >> is returned.
+
+Parameters;
+
+=head3 user_uuid (optional, default 'cookie::anvil_user_uuid')
+
+This is the user to log out.
+
+=head3 host_uuid (optional, default 'Get->host_uuid')
+
+This is the host to log out of. This takes the special C<< all >> value which logs the user out of all hosts sessions.
 
 =cut
 sub logout
@@ -392,23 +404,45 @@ sub logout
 	# Delete the user's cookie data. Sending nothing to '_write_cookies' does this.
 	$anvil->Account->_write_cookies({debug => $debug});
 	
-	# Delete the user's session salt.
-	if ($anvil->data->{cookie}{anvil_user_uuid})
+	my $user_uuid = defined $parameter->{user_uuid} ? $parameter->{user_uuid} : $anvil->data->{cookie}{anvil_user_uuid};
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		user_uuid => $user_uuid. 
+		host_uuid => $host_uuid, 
+	}});
+	
+	# If I don't have a user UUID, we can't proceed.
+	if (not $user_uuid)
 	{
-		my $query = "
+		# User not found.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0040"});
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0040"}) }});
+		return(1);
+	}
+	
+	# If the host_uuid is 'all', we're logging out all sessions.
+	
+	# Delete the user's session salt.
+	my $query = "
 UPDATE 
-    users 
+    sessions 
 SET 
-    user_session_salt = '', 
+    session_salt      = '', 
     modified_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    user_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cookie}{anvil_user_uuid})."
-;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
-
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0198", variables => { user => $anvil->data->{cgi}{username}{value} }});
+    session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." ";
+	if ($host_uuid ne "all")
+	{
+		$query .= "
+AND 
+    session_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)." ";
 	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0198", variables => { user => $anvil->data->{cgi}{username}{value} }});
 	
 	# Log that they're out
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0179"});
@@ -489,7 +523,16 @@ sub read_cookies
 	}});
 	
 	# Validate the cookie if there is a User UUID. Pick the random number up from the database.
-	my $query = "SELECT user_session_salt FROM users WHERE user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cookie}{anvil_user_uuid}).";";
+	my $query = "
+SELECT 
+    session_salt 
+FROM 
+    sessions 
+WHERE 
+    session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cookie}{anvil_user_uuid})."
+AND 
+    session_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
+;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -513,21 +556,21 @@ sub read_cookies
 	}
 	
 	# Read in their "rand" value
-	$anvil->data->{users}{user_session_salt} = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->data->{users}{user_session_salt} = "" if not defined $anvil->data->{users}{user_session_salt};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "users::user_session_salt" => $anvil->data->{users}{user_session_salt} }});
+	$anvil->data->{sessions}{session_salt} = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->data->{sessions}{session_salt} = "" if not defined $anvil->data->{sessions}{session_salt};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sessions::session_salt" => $anvil->data->{sessions}{session_salt} }});
 	
 	# Generate a hash using today and yesterday's date.
 	my ($today_hash) = $anvil->Account->_build_cookie_hash({
 		debug  => $debug, 
 		uuid   => $anvil->data->{cookie}{anvil_user_uuid}, 
-		salt   => $anvil->data->{users}{user_session_salt}, 
+		salt   => $anvil->data->{sessions}{session_salt}, 
 		offset => 0,
 	});
 	my ($yesterday_hash) = $anvil->Account->_build_cookie_hash({
 		debug  => $debug,
 		uuid   => $anvil->data->{cookie}{anvil_user_uuid}, 
-		salt   => $anvil->data->{users}{user_session_salt}, 
+		salt   => $anvil->data->{sessions}{session_salt}, 
 		offset => -86400,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

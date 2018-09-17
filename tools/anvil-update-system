@@ -270,7 +270,7 @@ sub run_os_update
 		if ($line =~ /Total download size: (.*)$/i)
 		{
 			my $update_size = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_size => $update_size }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_size => $update_size }});
 			
 			# Ready to install, update to 5%. The next step will count up to 95%.
 			update_progress($anvil, $progress, "message_0035,!!size!$update_size!!");
@@ -282,7 +282,7 @@ sub run_os_update
 			$to_update    *= 4;
 			$percent_step =  $anvil->Convert->round({number => ($to_update / 90)});
 			$next_step    =  $percent_step;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				to_update    => $to_update, 
 				percent_step => $percent_step, 
 				next_step    => $next_step, 
