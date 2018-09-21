@@ -56,6 +56,8 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure =
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
+	print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
+	print $anvil->Template->get({file => "main.html", name => "header", variables => { language => $anvil->Words->language }});
 	print $anvil->Words->string({key => "error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
@@ -178,7 +180,7 @@ sub process_task
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::login::value" => $anvil->data->{cgi}{login}{value} }});
 		
 		# Woot!
-		my $failed = $anvil->Account->login();
+		my $failed = $anvil->Account->login({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
 		if (not $failed)
 		{
@@ -191,7 +193,7 @@ sub process_task
 		# Bye now!
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::logout::value" => $anvil->data->{cgi}{logout}{value} }});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
-		$anvil->Account->logout();
+		$anvil->Account->logout({debug => 2});
 	}
 	else
 	{
@@ -202,7 +204,7 @@ sub process_task
 		#     cookies were deleted (via C<< Account->logout() >>. The user needs to log back in.
 		# 3 - There user's hash is invalid, it is probably expired. The user has been logged out and
 		#     needs to log back in.
-		my $cookie_problem = $anvil->Account->read_cookies();
+		my $cookie_problem = $anvil->Account->read_cookies({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cookie_problem => $cookie_problem }});
 		if (not $cookie_problem)
 		{
@@ -321,7 +323,7 @@ sub process_power
 		
 		# Log the user out, just to be safe.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
-		$anvil->Account->logout();
+		$anvil->Account->logout({debug => 2});
 	}
 	else
 	{

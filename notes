@@ -506,3 +506,64 @@ pcs resource manage srv01-c7
 
 
 ====
+
+BEGIN TRANSACTION;
+DROP FUNCTION history_sessions() CASCADE;
+DROP TABLE history.sessions;
+DROP TABLE sessions;
+
+CREATE TABLE sessions (
+    session_uuid          uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    session_host_uuid     uuid                        not null,                   -- This is the host uuid for this session.
+    session_user_uuid     uuid                        not null,                   -- This is the user uuid for the user logging in.
+    session_salt  text                        not null,                   -- This is used when generating a session hash for a session when they log in.
+    session_user_agent    text,
+    modified_date         timestamp with time zone    not null, 
+    
+    FOREIGN KEY(session_host_uuid) REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(session_user_uuid) REFERENCES users(user_uuid) 
+);
+ALTER TABLE sessions OWNER TO admin;
+
+CREATE TABLE history.sessions (
+    history_id            bigserial, 
+    session_uuid          uuid, 
+    session_host_uuid     uuid, 
+    session_user_uuid     uuid, 
+    session_salt  text, 
+    session_user_agent    text, 
+    modified_date         timestamp with time zone    not null
+);
+ALTER TABLE history.sessions OWNER TO admin;
+
+CREATE FUNCTION history_sessions() RETURNS trigger
+AS $$
+DECLARE
+    history_sessions RECORD;
+BEGIN
+    SELECT INTO history_sessions * FROM sessions WHERE session_uuid = new.session_uuid;
+    INSERT INTO history.sessions
+        (session_uuid, 
+         session_host_uuid, 
+         session_user_uuid, 
+         session_salt, 
+         session_user_agent, 
+         modified_date)
+    VALUES
+        (history_sessions.session_uuid,
+         history_sessions.session_host_uuid, 
+         history_sessions.session_user_uuid, 
+         history_sessions.session_salt, 
+         history_sessions.session_user_agent, 
+         history_sessions.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_sessions() OWNER TO admin;
+
+CREATE TRIGGER trigger_sessions
+    AFTER INSERT OR UPDATE ON sessions
+    FOR EACH ROW EXECUTE PROCEDURE history_sessions();
+
+COMMIT;

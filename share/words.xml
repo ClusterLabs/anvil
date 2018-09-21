@@ -364,6 +364,8 @@ The database connection error was:
 		<key name="log_0213">The peer: [#!variable!peer_uuid!#] is not yet in 'hosts', continuing to wait.</key>
 		<key name="log_0214">The peer: [#!variable!peer_name!#] is now in 'hosts', proceeding.</key>
 		<key name="log_0215">Logging the user: [#!data!sys::users::user_name!#] out.</key>
+		<key name="log_0216">The #!variable!uuid_name!#: [#!variable!uuid!#] was passed in, but no record with that UUID was found in the database.</key>
+		<key name="log_0217">The variable with variable_uuid: [#!variable!variable_uuid!#], variable_source_table: [#!variable!variable_source_table!#] and variable_source_uuid: [#!variable!variable_source_uuid!#] was not found in the database, so unable to update.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -534,7 +536,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
 		<key name="error_0002">The local system UUID can't be read yet. This might be because the system is brand new and/or ScanCore hasn't run yet. Please try again in a minute.</key>
-		<key name="error_0003">None of the databases are accessible, unable to proceed.</key>
+		<key name="error_0003">None of the databases are accessible, unable to proceed. Please be sure that 'anvil-daemon' is enabled and running on the database machine(s).</key>
 		<key name="error_0004">The gateway address doesn't match any of your networks.</key>
 		<key name="error_0005">This program must run with 'root' level privileges.</key>
 		<key name="error_0006">No password was given, exiting.</key>

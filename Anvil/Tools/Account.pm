@@ -336,19 +336,12 @@ AND
 		}
 		else
 		{
-			my $query = "
-UPDATE 
-    sessions 
-SET 
-    session_salt      = ".$anvil->data->{sys}{database}{use_handle}->quote($session_salt).", 
-    modified_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
-WHERE 
-    session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
-AND 
-    session_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
-;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $session_uuid = $anvil->Database->insert_or_update_sessions({
+				debug             => $debug,
+				session_user_uuid => $user_uuid, 
+				session_salt      => $session_salt, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { session_uuid => $session_uuid }});
 
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0183", variables => { user => $anvil->data->{cgi}{username}{value} }});
 			$anvil->Account->_write_cookies({
@@ -404,12 +397,18 @@ sub logout
 	# Delete the user's cookie data. Sending nothing to '_write_cookies' does this.
 	$anvil->Account->_write_cookies({debug => $debug});
 	
-	my $user_uuid = defined $parameter->{user_uuid} ? $parameter->{user_uuid} : $anvil->data->{cookie}{anvil_user_uuid};
+	my $user_uuid = defined $parameter->{user_uuid} ? $parameter->{user_uuid} : "";
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		user_uuid => $user_uuid. 
 		host_uuid => $host_uuid, 
 	}});
+	
+	if (($anvil->data->{cookie}{anvil_user_uuid}) && (not $user_uuid))
+	{
+		$user_uuid = $anvil->data->{cookie}{anvil_user_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
+	}
 	
 	# If I don't have a user UUID, we can't proceed.
 	if (not $user_uuid)
@@ -422,7 +421,8 @@ sub logout
 	
 	# If the host_uuid is 'all', we're logging out all sessions.
 	
-	# Delete the user's session salt.
+	# Delete the user's session salt. We don't use Database->insert_or_update_sessions() to not 
+	# complicate handling 'all' hosts.
 	my $query = "
 UPDATE 
     sessions 

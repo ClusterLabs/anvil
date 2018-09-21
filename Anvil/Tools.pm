@@ -759,6 +759,7 @@ sub _set_defaults
 									"ip_addresses", 
 									"jobs",
 									"network_interfaces",
+									"sessions", 
 									"states",
 									"updated",
 									"users", 
@@ -803,7 +804,6 @@ sub _set_defaults
 		users				=>	{
 			user_name			=>	"",
 			user_password_hash		=>	"", 
-			user_session_salt		=>	"",  
 			user_salt			=>	"", 
 			user_algorithm			=>	"", 
 			user_hash_count			=>	"", 

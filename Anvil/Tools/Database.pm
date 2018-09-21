@@ -29,6 +29,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
 # insert_or_update_network_interfaces
+# insert_or_update_sessions
 # insert_or_update_states
 # insert_or_update_users
 # insert_or_update_variables
@@ -1749,6 +1750,12 @@ WHERE
 			results => $results, 
 			count   => $count, 
 		}});
+		if (not $count)
+		{
+			# I have a bridge_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "bridge_uuid", uuid => $bridge_uuid }});
+			return("");
+		}
 		foreach my $row (@{$results})
 		{
 			my $old_bridge_host_uuid   = $row->[0];
@@ -2043,6 +2050,12 @@ WHERE
 			results => $results, 
 			count   => $count, 
 		}});
+		if (not $count)
+		{
+			# I have a bond_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "bond_uuid", uuid => $bond_uuid }});
+			return("");
+		}
 		foreach my $row (@{$results})
 		{
 			my $old_bond_host_uuid            = $row->[0];
@@ -2487,6 +2500,12 @@ WHERE
 			results => $results, 
 			count   => $count, 
 		}});
+		if (not $count)
+		{
+			# I have an ip_address_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "ip_address_uuid", uuid => $ip_address_uuid }});
+			return("");
+		}
 		foreach my $row (@{$results})
 		{
 			my $old_ip_address_host_uuid       = $row->[0];
@@ -2853,6 +2872,12 @@ WHERE
 			results => $results, 
 			count   => $count, 
 		}});
+		if (not $count)
+		{
+			# I have a job_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "job_uuid", uuid => $job_uuid }});
+			return("");
+		}
 		foreach my $row (@{$results})
 		{
 			my $old_job_host_uuid    = $row->[0];
@@ -3139,6 +3164,12 @@ WHERE
 			results => $results, 
 			count   => $count,
 		}});
+		if (not $count)
+		{
+			# I have a network_interface_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "network_interface_uuid", uuid => $network_interface_uuid }});
+			return("");
+		}
 		foreach my $row (@{$results})
 		{
 			my $old_network_interface_host_uuid   =         $row->[0];
@@ -3256,6 +3287,195 @@ INSERT INTO
 	return($network_interface_uuid);
 }
 
+=head2 insert_or_update_sessions
+
+This updates (or inserts) a record in the 'sessions' table. The C<< session_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 session_uuid (optional)
+
+If passed, the column with that specific C<< session_uuid >> will be updated, if it exists.
+
+=head3 session_host_uuid (optional, default Get->host_uuid)
+
+This is the host connected to the user's session.
+
+=head3 session_user_uuid (optional, default 'cookie::anvil_user_uuid')
+
+This is the user whose session is being manipulated. If this is not passed and C<< cookie::anvil_user_uuid >> is not set, this method will fail and return an empty string. This is only optional in so far as, most times, the appropriate cookie data is available.
+
+=head3 session_salt (optional)
+
+The session salt is appended to a session hash stored on the user's browser and used to authenticate a user session. If this is not passed, the existing salt will be removed, effectively (and literally) logging the user out of the host.
+
+=head3 session_user_agent (optional, default '$ENV{HTTP_USER_AGENT})
+
+This is the browser user agent string to record. If nothing is passed, and the C<< HTTP_USER_AGENT >> environment variable is set, that is used. 
+
+=cut 
+sub insert_or_update_sessions
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
+	
+	my $uuid               = defined $parameter->{uuid}               ? $parameter->{uuid}               : "";
+	my $file               = defined $parameter->{file}               ? $parameter->{file}               : "";
+	my $line               = defined $parameter->{line}               ? $parameter->{line}               : "";
+	my $session_uuid       = defined $parameter->{session_uuid}       ? $parameter->{session_uuid}       : "";
+	my $session_host_uuid  = defined $parameter->{session_host_uuid}  ? $parameter->{session_host_uuid}  : $anvil->Get->host_uuid;
+	my $session_user_uuid  = defined $parameter->{session_user_uuid}  ? $parameter->{session_user_uuid}  : $anvil->data->{cookie}{anvil_user_uuid};
+	my $session_salt       = defined $parameter->{session_salt}       ? $parameter->{session_salt}       : "";
+	my $session_user_agent = defined $parameter->{session_user_agent} ? $parameter->{session_user_agent} : $ENV{HTTP_USER_AGENT};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid               => $uuid, 
+		file               => $file, 
+		line               => $line, 
+		session_uuid       => $session_uuid, 
+		session_host_uuid  => $session_host_uuid, 
+		session_user_uuid  => $session_user_uuid, 
+		session_salt       => $session_salt, 
+		session_user_agent => $session_user_agent, 
+	}});
+	
+	if (not $session_user_uuid)
+	{
+		# No user_uuid Throw an error and return.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_sessions()", parameter => "session_user_uuid" }});
+		return("");
+	}
+	
+	# If we don't have a session UUID, look for one using the host and user UUID.
+	if (not $session_uuid)
+	{
+		my $query = "
+SELECT 
+    session_uuid 
+FROM 
+    sessions 
+WHERE 
+    session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($session_user_uuid)." 
+AND 
+    session_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($session_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$session_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { session_uuid => $session_uuid }});
+		}
+	}
+	
+	# If we have a session UUID, check for changes before updating. If we still don't have a session 
+	# UUID, we're INSERT'ing.
+	if ($session_uuid)
+	{
+		# Read back the old data
+		my $query = "
+SELECT 
+    session_host_uuid, 
+    session_user_uuid, 
+    session_salt, 
+    session_user_agent 
+FROM 
+    sessions 
+WHERE 
+    session_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($session_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a session_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "session_uuid", uuid => $session_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_session_host_uuid  =         $row->[0];
+			my $old_session_user_uuid  =         $row->[1];
+			my $old_session_salt       =         $row->[2];
+			my $old_session_user_agent = defined $row->[3] ? $row->[3] : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_session_host_uuid  => $old_session_host_uuid, 
+				old_session_user_uuid  => $old_session_user_uuid, 
+				old_session_salt       => $old_session_salt, 
+				old_session_user_agent => $old_session_user_agent, 
+			}});
+			
+			# Anything change?
+			if (($old_session_host_uuid  ne $session_host_uuid) or 
+			    ($old_session_user_uuid  ne $session_user_uuid) or 
+			    ($old_session_salt       ne $session_salt)      or 
+			    ($old_session_user_agent ne $session_user_agent))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    sessions 
+SET 
+    session_host_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($session_host_uuid).",  
+    session_user_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($session_user_uuid).", 
+    session_salt       = ".$anvil->data->{sys}{database}{use_handle}->quote($session_salt).", 
+    session_user_agent = ".$anvil->data->{sys}{database}{use_handle}->quote($session_user_agent).", 
+    modified_date      = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    session_uuid       = ".$anvil->data->{sys}{database}{use_handle}->quote($session_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		$session_uuid = $anvil->Get->uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { session_uuid => $session_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    sessions 
+(
+    session_uuid, 
+    session_host_uuid, 
+    session_user_uuid, 
+    session_salt, 
+    session_user_agent, 
+    modified_date
+) VALUES (
+    ".$anvil->data->{sys}{database}{use_handle}->quote($session_uuid).",  
+    ".$anvil->data->{sys}{database}{use_handle}->quote($session_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($session_user_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($session_salt).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($session_user_agent).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file : $THIS_FILE, line => $line ? $line : __LINE__});
+	}
+	
+	return($session_uuid);
+}
 
 =head2 insert_or_update_states
 
@@ -3429,6 +3649,12 @@ WHERE
 			results => $results, 
 			count   => $count, 
 		}});
+		if (not $count)
+		{
+			# I have a state_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "state_uuid", uuid => $state_uuid }});
+			return("");
+		}
 		foreach my $row (@{$results})
 		{
 			my $old_state_name         = $row->[0];
@@ -3541,7 +3767,6 @@ sub insert_or_update_users
 	my $user_name           = defined $parameter->{user_name}           ? $parameter->{user_name}           : "";
 	my $user_password_hash  = defined $parameter->{user_password_hash}  ? $parameter->{user_password_hash}  : "";
 	my $user_salt           = defined $parameter->{user_salt}           ? $parameter->{user_salt}           : "";
-	my $user_session_salt   = defined $parameter->{user_session_salt}   ? $parameter->{user_session_salt}   : "";
 	my $user_algorithm      = defined $parameter->{user_algorithm}      ? $parameter->{user_algorithm}      : "";
 	my $user_hash_count     = defined $parameter->{user_hash_count}     ? $parameter->{user_hash_count}     : "";
 	my $user_language       = defined $parameter->{user_language}       ? $parameter->{user_language}       : $anvil->data->{sys}{language};
@@ -3685,7 +3910,6 @@ INSERT INTO
     user_is_admin, 
     user_is_experienced, 
     user_is_trusted, 
-    user_session_salt, 
     modified_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid).", 
@@ -3698,7 +3922,6 @@ INSERT INTO
     ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_admin).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_experienced).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_trusted).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($user_session_salt).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -3718,8 +3941,7 @@ SELECT
     user_language, 
     user_is_admin, 
     user_is_experienced, 
-    user_is_trusted, 
-    user_session_salt 
+    user_is_trusted 
 FROM 
     users 
 WHERE 
@@ -3733,6 +3955,12 @@ WHERE
 			results => $results, 
 			count   => $count, 
 		}});
+		if (not $count)
+		{
+			# I have a user_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "user_uuid", uuid => $user_uuid }});
+			return("");
+		}
 		foreach my $row (@{$results})
 		{
 			my $old_user_name           = $row->[0];
@@ -3744,7 +3972,6 @@ WHERE
 			my $old_user_is_admin       = $row->[6];
 			my $old_user_is_experienced = $row->[7];
 			my $old_user_is_trusted     = $row->[8];
-			my $old_user_session_salt   = $row->[9];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_user_name           => $old_user_name, 
 				old_user_password_hash  => $old_user_password_hash,
@@ -3755,7 +3982,6 @@ WHERE
 				old_user_is_admin       => $old_user_is_admin,
 				old_user_is_experienced => $old_user_is_experienced,
 				old_user_is_trusted     => $old_user_is_trusted,
-				old_user_session_salt   => $old_user_session_salt
 			}});
 			
 			# Anything change?
@@ -3768,8 +3994,7 @@ WHERE
 			    ($old_user_language       ne $user_language)       or 
 			    ($old_user_is_admin       ne $user_is_admin)       or 
 			    ($old_user_is_experienced ne $user_is_experienced) or 
-			    ($old_user_is_trusted     ne $user_is_trusted)     or 
-			    ($old_user_session_salt   ne $user_session_salt))
+			    ($old_user_is_trusted     ne $user_is_trusted))
 			{
 				# Something changed, save.
 				my $query = "
@@ -3785,7 +4010,6 @@ SET
     user_is_admin       = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_admin).", 
     user_is_experienced = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_experienced).", 
     user_is_trusted     = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_trusted).", 
-    user_session_salt   = ".$anvil->data->{sys}{database}{use_handle}->quote($user_session_salt).", 
     modified_date       = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     user_uuid           = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
@@ -4009,9 +4233,9 @@ WHERE
 			{
 				$query .= "
 AND 
-    variable_source_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_uuid)." 
-AND 
     variable_source_table = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_table)." 
+AND 
+    variable_source_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_source_uuid)." 
 ";
 			}
 			$query .= ";";
@@ -4023,6 +4247,16 @@ AND
 				results => $results, 
 				count   => $count,
 			}});
+			if (not $count)
+			{
+				# I have a variable_uuid, source table and source uuid but no matching record. Probably an error.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0217", variables => { 
+					variable_uuid         => $variable_uuid, 
+					variable_source_table => $variable_source_table, 
+					variable_source_uuid  => $variable_source_uuid, 
+				}});
+				return("");
+			}
 			foreach my $row (@{$results})
 			{
 				my $old_variable_value = $row->[0];
@@ -4079,6 +4313,12 @@ WHERE
 				results => $results, 
 				count   => $count,
 			}});
+			if (not $count)
+			{
+				# I have a variable_uuid but no matching record. Probably an error.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "variable_uuid", uuid => $variable_uuid }});
+				return("");
+			}
 			foreach my $row (@{$results})
 			{
 				my $old_variable_name        = $row->[0];
