@@ -45,8 +45,6 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure =
 $anvil->Database->connect({debug => 2});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 
-exit;
-
 # If I have no databases, sleep for a second and then exit (systemd will restart us).
 if (not $anvil->data->{sys}{database}{connections})
 {
