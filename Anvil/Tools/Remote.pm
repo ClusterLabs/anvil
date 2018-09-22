@@ -412,7 +412,7 @@ sub call
 		###       'sys::timeout::{all|host} = x'
 # 		my $start_time = [gettimeofday];
 		$ssh_fh = Net::SSH2->new(timeout => 1000);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			ssh_fh => $ssh_fh,
 			target => $target, 
 			port   => $port, 

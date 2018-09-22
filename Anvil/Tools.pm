@@ -748,22 +748,25 @@ sub _set_defaults
 				trigger				=>	100000,
 			},
 			connections				=>	0,
-			# grep 'CREATE TABLE' tools/anvil.sql | grep -v history. | awk '{print $3}' | sort
+			### WARNING: The order the tables are resync'ed is important! Any table that has a 
+			###          foreign key needs to resync *AFTER* the tables with the primary keys.
+			# NOTE: Check that this list is complete with;
+			#       grep 'CREATE TABLE' shared/anvil.sql | grep -v history. | awk '{print $3}'
 			core_tables			=>	[
+									"hosts",		# Always has to be first.
+									"users", 
+									"host_variable", 
+									"sessions", 		# Has to come after users and hosts
 									"alerts",
-									"alert_sent",
-									"bonds",
-									"bridges",
-									"hosts",
-									"host_variable",
-									"ip_addresses", 
+									"variables",
 									"jobs",
 									"network_interfaces",
-									"sessions", 
-									"states",
+									"bonds",
+									"bridges",
+									"ip_addresses", 
 									"updated",
-									"users", 
-									"variables",
+									"alert_sent",
+									"states",
 								],
 			local_lock_active		=>	0,
 			local_uuid			=>	"",

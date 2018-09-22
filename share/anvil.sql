@@ -38,6 +38,53 @@ BEGIN
 END
 $$;
 
+
+-- This stores information about the host machine. This is the master table that everything will be linked 
+-- to. 
+CREATE TABLE hosts (
+    host_uuid        uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    host_name        text                        not null,
+    host_type        text                        not null,            -- Either 'node' or 'dashboard'.
+    modified_date    timestamp with time zone    not null
+);
+ALTER TABLE hosts OWNER TO #!variable!user!#;
+
+CREATE TABLE history.hosts (
+    history_id       bigserial,
+    host_uuid        uuid                        not null,
+    host_name        text                        not null,
+    host_type        text                        not null,
+    modified_date    timestamp with time zone    not null
+);
+ALTER TABLE history.hosts OWNER TO #!variable!user!#;
+
+CREATE FUNCTION history_hosts() RETURNS trigger
+AS $$
+DECLARE
+    history_hosts RECORD;
+BEGIN
+    SELECT INTO history_hosts * FROM hosts WHERE host_uuid = new.host_uuid;
+    INSERT INTO history.hosts
+        (host_uuid,
+         host_name,
+         host_type,
+         modified_date)
+    VALUES
+        (history_hosts.host_uuid,
+         history_hosts.host_name,
+         history_hosts.host_type,
+         history_hosts.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_hosts() OWNER TO #!variable!user!#;
+
+CREATE TRIGGER trigger_hosts
+    AFTER INSERT OR UPDATE ON hosts
+    FOR EACH ROW EXECUTE PROCEDURE history_hosts();
+
+
 -- This stores information about users. 
 -- Note that is all permissions are left false, the user can still interact with the Anvil! doing safe things, like changing optical media, perform migrations, start servers (but not stop them), etc. 
 CREATE TABLE users (
@@ -110,52 +157,6 @@ ALTER FUNCTION history_users() OWNER TO #!variable!user!#;
 CREATE TRIGGER trigger_users
     AFTER INSERT OR UPDATE ON users
     FOR EACH ROW EXECUTE PROCEDURE history_users();
-
-
--- This stores information about the host machine. This is the master table that everything will be linked 
--- to. 
-CREATE TABLE hosts (
-    host_uuid        uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
-    host_name        text                        not null,
-    host_type        text                        not null,            -- Either 'node' or 'dashboard'.
-    modified_date    timestamp with time zone    not null
-);
-ALTER TABLE hosts OWNER TO #!variable!user!#;
-
-CREATE TABLE history.hosts (
-    history_id       bigserial,
-    host_uuid        uuid                        not null,
-    host_name        text                        not null,
-    host_type        text                        not null,
-    modified_date    timestamp with time zone    not null
-);
-ALTER TABLE history.hosts OWNER TO #!variable!user!#;
-
-CREATE FUNCTION history_hosts() RETURNS trigger
-AS $$
-DECLARE
-    history_hosts RECORD;
-BEGIN
-    SELECT INTO history_hosts * FROM hosts WHERE host_uuid = new.host_uuid;
-    INSERT INTO history.hosts
-        (host_uuid,
-         host_name,
-         host_type,
-         modified_date)
-    VALUES
-        (history_hosts.host_uuid,
-         history_hosts.host_name,
-         history_hosts.host_type,
-         history_hosts.modified_date);
-    RETURN NULL;
-END;
-$$
-LANGUAGE plpgsql;
-ALTER FUNCTION history_hosts() OWNER TO #!variable!user!#;
-
-CREATE TRIGGER trigger_hosts
-    AFTER INSERT OR UPDATE ON hosts
-    FOR EACH ROW EXECUTE PROCEDURE history_hosts();
 
 
 -- This stores special variables for a given host that programs may want to record.
