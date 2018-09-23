@@ -110,7 +110,7 @@ UPDATE
     jobs 
 SET 
     job_picked_up_by = '0', 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
@@ -367,7 +367,7 @@ SET
     job_updated      = ".$anvil->data->{sys}{database}{use_handle}->quote(time).",
     job_progress     = ".$anvil->data->{sys}{database}{use_handle}->quote($progress).", 
     job_status       = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";

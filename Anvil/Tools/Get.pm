@@ -8,6 +8,7 @@ use warnings;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 use Encode;
+use UUID::Tiny qw(:std);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
@@ -787,7 +788,7 @@ sub users_home
 
 =head2 uuid
 
-This method returns a new UUID (using 'uuidgen' from the system). It takes no parameters.
+This method returns a new v4 UUID (using 'UUID::Tiny'). It takes no parameters.
 
 =cut
 sub uuid
@@ -797,8 +798,7 @@ sub uuid
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	### TODO: System calls are slow, find a pure-perl UUID generator
-	my $uuid = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{uuidgen}." --random"});
+	my $uuid = create_uuid_as_string(UUID_RANDOM);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	
 	return($uuid);

@@ -618,7 +618,7 @@ This is the SQL schema file that will be used to initialize the database, if the
 
 =head3 tables (optional)
 
-This is an optional array reference of of tables to specifically check when connecting to databases. Each entry is treated as a table name, and that table's most recent C<< modified_date >> time stamp will be read. If a column name in the table ends in C<< _host_uuid >>, then the check and resync will be restricted to entries in that column matching the current host's C<< sys::host_uuid >>. If the table does not have a corresponding table in the C<< history >> schema, then only the public table will be synced. 
+This is an optional array reference of of tables to specifically check when connecting to databases. Each entry is treated as a table name, and that table's most recent C<< change_date >> time stamp will be read. If a column name in the table ends in C<< _host_uuid >>, then the check and resync will be restricted to entries in that column matching the current host's C<< sys::host_uuid >>. If the table does not have a corresponding table in the C<< history >> schema, then only the public table will be synced. 
 
 Note; The array order is used to allow you to ensure tables with primary keys are synchronyzed before tables with foreign keys. As such, please be aware of the order the table hash references are put into the array reference.
 
@@ -1058,7 +1058,7 @@ sub connect
 			set_by         => $THIS_FILE,
 			record_locator => $uuid,
 			name           => "connect_to_db",
-			modified_date  => $anvil->data->{sys}{database}{timestamp},
+			change_date  => $anvil->data->{sys}{database}{timestamp},
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 		
@@ -1119,7 +1119,7 @@ sub connect
 				set_by         => $THIS_FILE,
 				record_locator => $uuid,
 				name           => "connect_to_db",
-				modified_date  => $anvil->data->{sys}{database}{timestamp},
+				change_date  => $anvil->data->{sys}{database}{timestamp},
 			});
 			if ($cleared)
 			{
@@ -1235,7 +1235,7 @@ Each anonymous hash is structured as:
  host_uuid     => $host_uuid, 
  host_name     => $host_name, 
  host_type     => $host_type, 
- modified_date => $modified_date, 
+ change_date => $change_date, 
 
 It also sets the variables C<< sys::hosts::by_uuid::<host_uuid> = <host_name> >> and C<< sys::hosts::by_name::<host_name> = <host_uuid> >> per host read, for quick reference.
 
@@ -1253,7 +1253,7 @@ SELECT
     host_uuid, 
     host_name, 
     host_type, 
-    modified_date 
+    change_date 
 FROM 
     hosts
 ;";
@@ -1271,18 +1271,18 @@ FROM
 		my $host_uuid     = $row->[0];
 		my $host_name     = $row->[1];
 		my $host_type     = $row->[2];
-		my $modified_date = $row->[3];
+		my $change_date = $row->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host_uuid     => $host_uuid, 
 			host_name     => $host_name, 
 			host_type     => $host_type, 
-			modified_date => $modified_date, 
+			change_date => $change_date, 
 		}});
 		push @{$return}, {
 			host_uuid     => $host_uuid,
 			host_name     => $host_name, 
 			host_type     => $host_type, 
-			modified_date => $modified_date, 
+			change_date => $change_date, 
 		};
 		
 		# Record the host_uuid in a hash so that the name can be easily retrieved.
@@ -1338,7 +1338,7 @@ SELECT
     job_title, 
     job_description, 
     job_status, 
-    modified_date
+    change_date
 FROM 
     jobs 
 WHERE 
@@ -1365,7 +1365,7 @@ WHERE
 		my $job_title           =         $row->[8];
 		my $job_description     =         $row->[9];
 		my $job_status          =         $row->[10];
-		my $modified_date       =         $row->[11];
+		my $change_date       =         $row->[11];
 		my $started_seconds_ago = $job_picked_up_at ? (time - $job_picked_up_at) : 0;
 		my $updated_seconds_ago = $job_updated      ? (time - $job_updated)      : 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1380,7 +1380,7 @@ WHERE
 			job_title           => $job_title, 
 			job_description     => $job_description,
 			job_status          => $job_status, 
-			modified_date       => $modified_date, 
+			change_date       => $change_date, 
 			started_seconds_ago => $started_seconds_ago, 
 			updated_seconds_ago => $updated_seconds_ago, 
 		}});
@@ -1404,7 +1404,7 @@ WHERE
 			job_title           => $job_title, 
 			job_description     => $job_description,
 			job_status          => $job_status, 
-			modified_date       => $modified_date, 
+			change_date       => $change_date, 
 		};
 	}
 	
@@ -1723,7 +1723,7 @@ INSERT INTO
     bridge_name, 
     bridge_id, 
     bridge_stp_enabled, 
-    modified_date 
+    change_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_host_uuid).", 
@@ -1792,7 +1792,7 @@ SET
     bridge_name        = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_name).", 
     bridge_id          = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_id).", 
     bridge_stp_enabled = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_stp_enabled).", 
-    modified_date      = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date      = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     bridge_uuid        = ".$anvil->data->{sys}{database}{use_handle}->quote($bridge_uuid)." 
 ";
@@ -2007,7 +2007,7 @@ INSERT INTO
     bond_down_delay, 
     bond_mac_address, 
     bond_operational, 
-    modified_date 
+    change_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($bond_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($bond_host_uuid).", 
@@ -2124,7 +2124,7 @@ SET
     bond_down_delay           = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_down_delay).", 
     bond_mac_address          = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_mac_address).", 
     bond_operational          = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_operational).", 
-    modified_date             = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date             = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     bond_uuid                 = ".$anvil->data->{sys}{database}{use_handle}->quote($bond_uuid)." 
 ";
@@ -2245,7 +2245,7 @@ INSERT INTO
     host_uuid, 
     host_name, 
     host_type, 
-    modified_date
+    change_date
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($host_name).",
@@ -2265,7 +2265,7 @@ UPDATE
 SET 
     host_name     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_name).", 
     host_type     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_type).", 
-    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+    change_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE
     host_uuid     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)."
 ;";
@@ -2465,7 +2465,7 @@ INSERT INTO
     ip_address_gateway, 
     ip_address_default_gateway, 
     ip_address_dns, 
-    modified_date 
+    change_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_host_uuid).", 
@@ -2558,7 +2558,7 @@ SET
     ip_address_gateway         = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_gateway).", 
     ip_address_default_gateway = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_default_gateway).", 
     ip_address_dns             = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_dns).", 
-    modified_date              = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date              = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     ip_address_uuid            = ".$anvil->data->{sys}{database}{use_handle}->quote($ip_address_uuid)." 
 ";
@@ -2831,7 +2831,7 @@ INSERT INTO
     job_title, 
     job_description, 
     job_status, 
-    modified_date 
+    change_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($job_host_uuid).", 
@@ -2924,7 +2924,7 @@ UPDATE
     jobs 
 SET 
     job_progress  = ".$anvil->data->{sys}{database}{use_handle}->quote($job_progress).", 
-    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     job_uuid      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
@@ -2936,7 +2936,7 @@ UPDATE
 SET 
     job_progress  = ".$anvil->data->{sys}{database}{use_handle}->quote($job_progress).", 
     job_status    = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
-    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     job_uuid      = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
@@ -2975,7 +2975,7 @@ SET
     job_title        = ".$anvil->data->{sys}{database}{use_handle}->quote($job_title).", 
     job_description  = ".$anvil->data->{sys}{database}{use_handle}->quote($job_description).", 
     job_status       = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
@@ -3237,7 +3237,7 @@ SET
     network_interface_medium      = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_medium).", 
     network_interface_mtu         = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_mtu).", 
     network_interface_speed       = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_speed).", 
-    modified_date                 = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date                 = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE
     network_interface_uuid        = ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_uuid)."
 ;";
@@ -3269,7 +3269,7 @@ INSERT INTO
     network_interface_medium, 
     network_interface_mtu, 
     network_interface_speed, 
-    modified_date
+    change_date
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_uuid).",  
     ".$anvil->data->{sys}{database}{use_handle}->quote($network_interface_bond_uuid).", 
@@ -3444,7 +3444,7 @@ SET
     session_user_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($session_user_uuid).", 
     session_salt       = ".$anvil->data->{sys}{database}{use_handle}->quote($session_salt).", 
     session_user_agent = ".$anvil->data->{sys}{database}{use_handle}->quote($session_user_agent).", 
-    modified_date      = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date      = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     session_uuid       = ".$anvil->data->{sys}{database}{use_handle}->quote($session_uuid)." 
 ";
@@ -3467,7 +3467,7 @@ INSERT INTO
     session_user_uuid, 
     session_salt, 
     session_user_agent, 
-    modified_date
+    change_date
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($session_uuid).",  
     ".$anvil->data->{sys}{database}{use_handle}->quote($session_host_uuid).", 
@@ -3624,7 +3624,7 @@ INSERT INTO
     state_name,
     state_host_uuid, 
     state_note, 
-    modified_date 
+    change_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($state_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($state_name).", 
@@ -3687,7 +3687,7 @@ SET
     state_name       = ".$anvil->data->{sys}{database}{use_handle}->quote($state_name).", 
     state_host_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($state_host_uuid).",  
     state_note       = ".$anvil->data->{sys}{database}{use_handle}->quote($state_note).", 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     state_uuid       = ".$anvil->data->{sys}{database}{use_handle}->quote($state_uuid)." 
 ";
@@ -3918,7 +3918,7 @@ INSERT INTO
     user_is_admin, 
     user_is_experienced, 
     user_is_trusted, 
-    modified_date 
+    change_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($user_name).", 
@@ -4018,7 +4018,7 @@ SET
     user_is_admin       = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_admin).", 
     user_is_experienced = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_experienced).", 
     user_is_trusted     = ".$anvil->data->{sys}{database}{use_handle}->quote($user_is_trusted).", 
-    modified_date       = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date       = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     user_uuid           = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
 ";
@@ -4208,7 +4208,7 @@ INSERT INTO
     variable_section, 
     variable_source_uuid, 
     variable_source_table, 
-    modified_date 
+    change_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($variable_name).", 
@@ -4279,7 +4279,7 @@ UPDATE
     variables 
 SET 
     variable_value = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_value).", 
-    modified_date  = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date  = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     variable_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid);
 					if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
@@ -4359,7 +4359,7 @@ SET
     variable_default     = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_default).", 
     variable_description = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_description).", 
     variable_section     = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_section).", 
-    modified_date        = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    change_date        = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     variable_uuid        = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid)." 
 ";
@@ -4489,11 +4489,11 @@ sub locking
 	# If I have been asked to check, we will return the variable_uuid if a lock is set.
 	if ($check)
 	{
-		my ($lock_value, $variable_uuid, $modified_date) = $anvil->Database->read_variable({variable_name => $variable_name});
+		my ($lock_value, $variable_uuid, $change_date) = $anvil->Database->read_variable({variable_name => $variable_name});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			lock_value    => $lock_value, 
 			variable_uuid => $variable_uuid, 
-			modified_date => $modified_date, 
+			change_date => $change_date, 
 		}});
 		
 		return($lock_value);
@@ -4504,11 +4504,11 @@ sub locking
 	{
 		# We check to see if there is a lock before we clear it. This way we don't log that we 
 		# released a lock unless we really released a lock.
-		my ($lock_value, $variable_uuid, $modified_date) = $anvil->Database->read_variable({variable_name => $variable_name});
+		my ($lock_value, $variable_uuid, $change_date) = $anvil->Database->read_variable({variable_name => $variable_name});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			lock_value    => $lock_value, 
 			variable_uuid => $variable_uuid, 
-			modified_date => $modified_date, 
+			change_date => $change_date, 
 		}});
 		
 		if ($lock_value)
@@ -4570,12 +4570,12 @@ sub locking
 		$waiting = 0;
 		
 		# See if we had a lock.
-		my ($lock_value, $variable_uuid, $modified_date) = $anvil->Database->read_variable({variable_name => $variable_name});
+		my ($lock_value, $variable_uuid, $change_date) = $anvil->Database->read_variable({variable_name => $variable_name});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			waiting       => $waiting, 
 			lock_value    => $lock_value, 
 			variable_uuid => $variable_uuid, 
-			modified_date => $modified_date, 
+			change_date => $change_date, 
 		}});
 		if ($lock_value =~ /^(.*?)::(.*?)::(\d+)/)
 		{
@@ -4892,7 +4892,7 @@ sub read_variable
 SELECT 
     variable_value, 
     variable_uuid, 
-    round(extract(epoch from modified_date)) AS mtime
+    round(extract(epoch from change_date)) AS mtime
 FROM 
     variables 
 WHERE ";
@@ -4919,7 +4919,7 @@ AND
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	
 	my $variable_value = "";
-	my $modified_date  = "";
+	my $change_date  = "";
 	my $results        = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count          = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -4930,20 +4930,20 @@ AND
 	{
 		$variable_value = $row->[0];
 		$variable_uuid  = $row->[1];
-		$modified_date  = $row->[2];
+		$change_date  = $row->[2];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			variable_value => $variable_value, 
 			variable_uuid  => $variable_uuid, 
-			modified_date  => $modified_date, 
+			change_date  => $change_date, 
 		}});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		variable_value => $variable_value, 
 		variable_uuid  => $variable_uuid, 
-		modified_date  => $modified_date, 
+		change_date  => $change_date, 
 	}});
-	return($variable_value, $variable_uuid, $modified_date);
+	return($variable_value, $variable_uuid, $change_date);
 }
 
 =head2 resync_databases
@@ -4966,6 +4966,9 @@ sub resync_databases
 		return(0);
 	}
 	
+	### TODO: Multiple updates to a column with the same change_date don't resync properly. Use 
+	###       history_id? It has to become a UUID, as histpry_id will conflict across DBs given it simply
+	###       increments per-DB currently
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.
 	# We're going to use the array of tables assembles by _find_behind_databases() stored in 
@@ -5050,15 +5053,21 @@ sub resync_databases
 			$anvil->data->{db_resync}{$uuid}{public}{sql}  = [];
 			$anvil->data->{db_resync}{$uuid}{history}{sql} = [];
 			
-			# Read in the data, modified_date first as we'll need that for all entries we record.
-			my $query        = "SELECT modified_date AT time zone 'UTC', $uuid_column, ";
+			# Read in the data, change_date first as we'll need that for all entries we record.
 			my $read_columns = [];
-			push @{$read_columns}, "modified_date";
+			my $query        = "SELECT change_date AT time zone 'UTC', $uuid_column, ";
+			push @{$read_columns}, "change_date";
+			if ($schema eq "history")
+			{
+				$query = "SELECT change_date AT time zone 'UTC', history_id, $uuid_column, ";
+				push @{$read_columns}, "history_id";
+			}
 			push @{$read_columns}, $uuid_column;
 			foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}{$table}{column}})
 			{
 				# We'll skip the host column as we'll use it in the conditional.
-				next if $column_name eq "modified_date";
+				next if $column_name eq "change_date";
+				next if $column_name eq "history_id";
 				next if $column_name eq $host_column;
 				next if $column_name eq $uuid_column;
 				$query .= $column_name.", ";
@@ -5075,7 +5084,11 @@ sub resync_databases
 			{
 				$query .= " WHERE ".$host_column." = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid});
 			}
-			$query .= " ORDER BY modified_date DESC;";
+			$query .= " ORDER BY change_date DESC;";
+			if ($schema eq "history")
+			{
+				$query .= " ORDER BY change_date DESC, history_id ASC;";
+			}
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
@@ -5090,7 +5103,7 @@ sub resync_databases
 			foreach my $row (@{$results})
 			{
 				   $row_number++;
-				my $modified_date = "";
+				my $change_date = "";
 				my $row_uuid      = "";
 				for (my $column_number = 0; $column_number < @{$read_columns}; $column_number++)
 				{
@@ -5098,7 +5111,7 @@ sub resync_databases
 					my $column_value = defined $row->[$column_number] ? $row->[$column_number] : "NULL";
 					my $not_null     = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{not_null};
 					my $data_type    = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{data_type};
-					$anvil->Log->variables({source => 2, line => __LINE__, level => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"s1:id"            => $uuid,
 						"s2:row_number"    => $row_number,
 						"s3:column_number" => $column_number,
@@ -5113,11 +5126,11 @@ sub resync_databases
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { column_value => $column_value }});
 					}
 					
-					# The modified_date should be the first row.
-					if ($column_name eq "modified_date")
+					# The change_date should be the first row.
+					if ($column_name eq "change_date")
 					{
-						$modified_date = $column_value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
+						$change_date = $column_value;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { change_date => $change_date }});
 						next;
 					}
 					
@@ -5139,26 +5152,26 @@ sub resync_databases
 					}
 					
 					# TODO: Remove these or make them proper errors
-					die $THIS_FILE." ".__LINE__."; This row's modified_date wasn't the first column returned in query: [$query]\n" if not $modified_date;
+					die $THIS_FILE." ".__LINE__."; This row's change_date wasn't the first column returned in query: [$query]\n" if not $change_date;
 					die $THIS_FILE." ".__LINE__."; This row's UUID column: [$uuid_column] wasn't the second column returned in query: [$query]\n" if not $row_uuid;
 					
-					# Record this in the unified and local hashes. 						# This table isn't restricted to given hosts.
-					$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
-					$anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}     = $column_value;
+					# Record this in the unified and db hashes.
+					$anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
+					$anvil->data->{db_data}{$uuid}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}{$column_name}   = $column_value;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"db_data::unified::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}" => $anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
-						"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}"   => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
+						"db_data::unified::${table}::change_date::${change_date}::${uuid_column}::${row_uuid}::${column_name}" => $anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}{$column_name}, 
+						"db_data::${uuid}::${table}::change_date::${change_date}::${uuid_column}::${row_uuid}::${column_name}" => $anvil->data->{db_data}{$uuid}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}{$column_name}, 
 					}});
 				}
 			}
 		}
 		
 		# Now all the data is read in, we can see what might be missing from each DB.
-		foreach my $modified_date (sort {$b cmp $a} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}})
+		foreach my $change_date (sort {$b cmp $a} keys %{$anvil->data->{db_data}{unified}{$table}{change_date}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { change_date => $change_date }});
 			
-			foreach my $row_uuid (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}})
+			foreach my $row_uuid (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}})
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
 				
@@ -5193,15 +5206,15 @@ sub resync_databases
 						{
 							# It exists, but does it exist at this time stamp?
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-								"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
+								"db_data::${uuid}::${table}::change_date::${change_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$uuid}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}, 
 							}});
-							if (not $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
+							if (not $anvil->data->{db_data}{$uuid}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid})
 							{
 								# No, so UPDATE it. We'll build the query now...
 								my $query = "UPDATE public.$table SET ";
-								foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
+								foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}})
 								{
-									my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+									my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}{$column_name});
 									   $column_value =  "NULL" if not defined $column_value;
 									   $column_value =~ s/'NULL'/NULL/g;
 									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -5211,7 +5224,7 @@ sub resync_databases
 									
 									$query .= "$column_name = ".$column_value.", ";
 								}
-								$query .= "modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).";";
+								$query .= "change_date = ".$anvil->data->{sys}{database}{use_handle}->quote($change_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).";";
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 								
 								# Now record the query in the array
@@ -5226,9 +5239,9 @@ sub resync_databases
 							# they're in the same order.
 							my $columns = "";
 							my $values  = "";
-							foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
+							foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}})
 							{
-								my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+								my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}{$column_name});
 								   $column_value =~ s/'NULL'/NULL/g;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 									column_name  => $column_name, 
@@ -5242,11 +5255,11 @@ sub resync_databases
 								'values' => $values, 
 							}});
 							
-							my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							my $query = "INSERT INTO public.$table (".$uuid_column.", ".$columns."change_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($change_date)."::timestamp AT TIME ZONE 'UTC');";
 							if ($host_column)
 							{
 								# Add the host column.
-								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."change_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($change_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 							
@@ -5264,9 +5277,9 @@ sub resync_databases
 						# question of whether the entry for the current 
 						# timestamp exists in the history schema.
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
+							"db_data::${uuid}::${table}::change_date::${change_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$uuid}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}, 
 						}});
-						if (not $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid})
+						if (not $anvil->data->{db_data}{$uuid}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid})
 						{
 							# It hasn't been seen, so INSERT it. We need 
 							# to build entries for the column names and 
@@ -5274,9 +5287,9 @@ sub resync_databases
 							# they're in the same order.
 							my $columns = "";
 							my $values  = "";
-							foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}})
+							foreach my $column_name (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}})
 							{
-								my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name});
+								my $column_value =  $anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{db_data}{unified}{$table}{change_date}{$change_date}{$uuid_column}{$row_uuid}{$column_name});
 									$column_value =~ s/'NULL'/NULL/g;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 									column_name  => $column_name, 
@@ -5290,11 +5303,11 @@ sub resync_databases
 								'values' => $values, 
 							}});
 							
-							my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+							my $query = "INSERT INTO history.$table (".$uuid_column.", ".$columns."change_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($change_date)."::timestamp AT TIME ZONE 'UTC');";
 							if ($host_column)
 							{
 								# Add the host column.
-								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
+								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."change_date) VALUES (".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->data->{sys}{database}{use_handle}->quote($row_uuid).", ".$values.$anvil->data->{sys}{database}{use_handle}->quote($change_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 							
@@ -5304,7 +5317,7 @@ sub resync_databases
 					} # if seen
 				} # foreach $id
 			} # foreach $row_uuid
-		} # foreach $modified_date ...
+		} # foreach $change_date ...
 		
 		# Free up memory by deleting the DB data from the main hash.
 		delete $anvil->data->{db_data};
@@ -5448,6 +5461,7 @@ sub write
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, 'next' => $next }});
 			foreach my $this_query (@{$query})
 			{
+				$anvil->Database->_split_query({query => $query});
 				push @{$query_set}, $this_query;
 				$i++;
 				
@@ -5503,11 +5517,9 @@ sub write
 			uuid  => $uuid, 
 			count => $count, 
 		}});
-		if ($count)
-		{
-			# More than one query, so start a transaction block.
-			$anvil->data->{cache}{database_handle}{$uuid}->begin_work;
-		}
+
+		# More than one query, so start a transaction block.
+		$anvil->data->{cache}{database_handle}{$uuid}->begin_work;
 		
 		foreach my $query (@{$query_set})
 		{
@@ -5533,12 +5545,8 @@ sub write
 				}});
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-		if ($count)
-		{
-			# Commit the changes.
-			$anvil->data->{cache}{database_handle}{$uuid}->commit();
-		}
+		# Commit the changes.
+		$anvil->data->{cache}{database_handle}{$uuid}->commit();
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
@@ -5640,7 +5648,7 @@ sub _archive_table
 	
 	# There is enough data to trigger an archive, so lets get started with a list of columns in this 
 	# table.
-	$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
+	$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->data->{sys}{database}{use_handle}->quote($table)." AND column_name != 'history_id' AND column_name != 'change_date';";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	
 	my $columns      = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -5704,7 +5712,7 @@ sub _find_behind_databases
 	}
 	
 	# Now, look through the core tables, plus any tables the user might have passed, for differing 
-	# 'modified_date' entries, or no entries in one DB with entries in the other (as can happen with a 
+	# 'change_date' entries, or no entries in one DB with entries in the other (as can happen with a 
 	# newly setup db).
 	$anvil->data->{sys}{database}{check_tables} = [];
 	
@@ -5716,7 +5724,7 @@ sub _find_behind_databases
 		# resync methods.
 		push @{$anvil->data->{sys}{database}{check_tables}}, $table;
 		
-		# Preset all tables to have an initial 'modified_date' and 'row_count' of 0.
+		# Preset all tables to have an initial 'change_date' and 'row_count' of 0.
 		$anvil->data->{sys}{database}{table}{$table}{last_updated} = 0;
 		$anvil->data->{sys}{database}{table}{$table}{row_count}    = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -5773,7 +5781,7 @@ sub _find_behind_databases
 				my $schema = $count ? "history" : "public";
 				   $query  =  "
 SELECT 
-    round(extract(epoch from modified_date)) 
+    round(extract(epoch from change_date)) 
 FROM 
     ".$schema.".".$table." ";
 				if ($host_column)
@@ -5784,7 +5792,7 @@ WHERE
 				}
 				$query .= "
 ORDER BY 
-    modified_date DESC
+    change_date DESC
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					uuid  => $uuid, 
@@ -5802,7 +5810,7 @@ ORDER BY
 				my $last_updated = $results->[0]->[0];
 				   $last_updated = 0 if not defined $last_updated;
 				
-				# Record this table's last modified_date for later comparison. We'll also 
+				# Record this table's last change_date for later comparison. We'll also 
 				# record the schema and host column, if found, to save looking the same thing
 				# up later if we do need a resync.
 				$anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated} = $last_updated;
@@ -5871,7 +5879,6 @@ ORDER BY
 		}
 		last if $anvil->data->{sys}{database}{resync_needed};
 	}
-	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed}, 
 	}});
@@ -5928,6 +5935,29 @@ sub _mark_database_as_behind
 	}
 	
 	return(0);
+}
+
+=head2 _split_query
+
+This method takes a query and examines it to see if a copy is needed for the history schema. 
+
+It will return two variables; The original query and, if applicable, the query needed to write to the history schema. A UUID will be generated as needed for the 'change_uuid' columns.
+
+Pa
+
+=cut
+sub _split_query
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_test_access()" }});
+	
+	my $uuid = $parameter->{uuid} ? $parameter->{uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+	
+	return($public_query, $history_query);
 }
 
 =head2 _test_access

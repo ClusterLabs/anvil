@@ -477,7 +477,7 @@ sub check_if_configured
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+	my ($configured, $variable_uuid, $change_date) = $anvil->Database->read_variable({
 		variable_name         => "system::configured", 
 		variable_source_uuid  => $anvil->Get->host_uuid, 
 		variable_source_table => "hosts", 
@@ -485,7 +485,7 @@ sub check_if_configured
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		configured    => $configured, 
 		variable_uuid => $variable_uuid, 
-		modified_date => $modified_date, 
+		change_date => $change_date, 
 	}});
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
@@ -1062,7 +1062,7 @@ sub maintenance_mode
 		}
 	}
 	
-	my ($maintenance_mode, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+	my ($maintenance_mode, $variable_uuid, $change_date) = $anvil->Database->read_variable({
 		debug                 => $debug, 
 		variable_name         => "maintenance_mode",
 		variable_source_table => "hosts",
@@ -1072,7 +1072,7 @@ sub maintenance_mode
 		debug            => $debug, 
 		maintenance_mode => $maintenance_mode, 
 		variable_uuid    => $variable_uuid, 
-		modified_date    => $modified_date, 
+		change_date    => $change_date, 
 	}});
 	
 	if ($maintenance_mode eq "")
@@ -1885,7 +1885,7 @@ sub reboot_needed
 		}
 	}
 	
-	my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+	my ($reboot_needed, $variable_uuid, $change_date) = $anvil->Database->read_variable({
 		debug                 => $debug, 
 		variable_name         => "reboot::needed",
 		variable_source_table => "hosts",
@@ -1894,7 +1894,7 @@ sub reboot_needed
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		reboot_needed => $reboot_needed, 
 		variable_uuid => $variable_uuid, 
-		modified_date => $modified_date, 
+		change_date => $change_date, 
 	}});
 	
 	if ($reboot_needed eq "")

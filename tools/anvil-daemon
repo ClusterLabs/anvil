@@ -213,7 +213,7 @@ sub boot_time_tasks
 	my $query               = "
 SELECT 
     variable_value, 
-    (SELECT extract(epoch from now()) - extract(epoch from modified_date)) AS changed_seconds_ago 
+    (SELECT extract(epoch from now()) - extract(epoch from change_date)) AS changed_seconds_ago 
 FROM 
     variables 
 WHERE 

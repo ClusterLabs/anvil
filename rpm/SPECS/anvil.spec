@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        16%{?dist}
+Release:        17%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -45,6 +45,7 @@ Requires:       perl-NetAddr-IP
 Requires:       perl-Proc-Simple
 Requires:       perl-Sys-Syslog
 Requires:       perl-Time-HiRes
+Requires:       perl-UUID-Tiny
 Requires:       perl-XML-Simple 
 Requires:       postgresql-contrib 
 Requires:       postgresql-plperl 
@@ -393,6 +394,9 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+* Madison Kelly <mkelly@alteeve.ca> 3.0-17
+- Added 'perl-UUID-Tiny' to core dependencies.
+
 * Fri Sep 14 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-16
 - Added htop as a -core dependency.
 - Now enables anvil-daemon.

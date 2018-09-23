@@ -233,7 +233,7 @@ The database connection error was:
 		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0091">Failed to connect to any database.</key>
 		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!uuid!#]).]]></key>
-		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'modified_date' parameter was not passed and/or 'sys::database::timestamp' is not set. Did the program fail to connect to any databases?]]></key>
+		<key name="log_0093"><![CDATA[[ Error ] - The method Alert->check_alert_sent() was called but the 'change_date' parameter was not passed and/or 'sys::database::timestamp' is not set. Did the program fail to connect to any databases?]]></key>
 		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
 		<key name="log_0095">The database user: [#!variable!user!#] was created with UUID: [#!variable!id!#].</key>
 		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
@@ -245,7 +245,7 @@ The database connection error was:
 - Set By: ....... [#!variable!set_by!#]
 - Record Locator: [#!variable!record_locator!#]
 - Name: ......... [#!variable!name!#]
-- Timestamp: .... [#!variable!modified_date!#]
+- Timestamp: .... [#!variable!change_date!#]
 		</key>
 		<key name="log_0099">[ Error ] - There is no Anvil! database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#].</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
