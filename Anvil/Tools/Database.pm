@@ -5943,7 +5943,11 @@ This method takes a query and examines it to see if a copy is needed for the his
 
 It will return two variables; The original query and, if applicable, the query needed to write to the history schema. A UUID will be generated as needed for the 'change_uuid' columns.
 
-Pa
+Parameters;
+
+=head3 query (required)
+
+This is the query to process.
 
 =cut
 sub _split_query
@@ -5954,8 +5958,88 @@ sub _split_query
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_test_access()" }});
 	
-	my $uuid = $parameter->{uuid} ? $parameter->{uuid} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+	my $query = $parameter->{query} ? $parameter->{query} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	# Flatten the query to make it easier to parse
+	my $public_query  = "";
+	my $history_query = "";
+	
+	my $type   = "";
+	my $schema = "";
+	my $table  = "";
+	foreach my $line (split/\n/, $query)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if (not $type)
+		{
+			if ($line =~ /INSERT INTO/i)
+			{
+				$type = "insert";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+			}
+			elsif ($line =~ /UPDATE/i)
+			{
+				$type = "update";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+			}
+		}
+		if (($type) && (not $table))
+		{
+			# The table could be the next line, or it could be after the INSERT or UPDATE.
+			if ($type eq "insert")
+			{
+				if ($line =~ /INSERT INTO (.*?) \(/i)
+				{
+					$table = $anvil->Words->clean_spaces({string => $1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+				}
+				elsif ($line !~ /INSERT INTO/i)
+				{
+					$table = $anvil->Words->clean_spaces({string => $line});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+				}
+			}
+			elsif ($type eq "update")
+			{
+				if ($line =~ /UPDATE (.*?) /i)
+				{
+					$table = $anvil->Words->clean_spaces({string => $1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+				}
+				elsif ($line !~ /UPDATE/i)
+				{
+					$table = $anvil->Words->clean_spaces({string => $line});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+				}
+			}
+		}
+		if ($table)
+		{
+			if ($table =~ /(.*?)\.(.*)$/)
+			{
+				$schema = $1;
+				$table  = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					schema => $schema, 
+					table  => $table,
+				}});
+			}
+			else
+			{
+				$schema = "public";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema => $schema }});
+			}
+		}
+		last if $table;
+	}
+	
+	# If the query is not an INSERT or UPDATE, we're done.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		type   => $type, 
+		schema => $schema, 
+		table  => $table, 
+	}});
 	
 	return($public_query, $history_query);
 }
