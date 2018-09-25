@@ -38,6 +38,7 @@ my $THIS_FILE = "Database.pm";
 # mark_active
 # query
 # read_variable
+# refresh_timestamp
 # resync_databases
 # write
 # _archive_table
@@ -1000,11 +1001,7 @@ sub connect
 			# Pick a timestamp for this run, if we haven't yet.
 			if (not $anvil->data->{sys}{database}{timestamp})
 			{
-				my $query = "SELECT cast(now() AS timestamp with time zone)::timestamptz(0);";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				
-				$anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp} }});
+				$anvil->Database->refresh_timestamp({debug => $debug});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2959,7 +2956,9 @@ WHERE
 				    ($old_job_description  ne $job_description)  or 
 				    ($old_job_status       ne $job_status))
 				{
-					# Something changed, save.
+					# Something changed, save. Before I do though, refresh the database 
+					# timestamp as it's likely this isn't the only update that will 
+					# happen on this pass.
 					my $query = "
 UPDATE 
     jobs 
@@ -2975,7 +2974,7 @@ SET
     job_title        = ".$anvil->data->{sys}{database}{use_handle}->quote($job_title).", 
     job_description  = ".$anvil->data->{sys}{database}{use_handle}->quote($job_description).", 
     job_status       = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Database->refresh_timestamp({debug => $debug}))." 
 WHERE 
     job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
 ";
@@ -4944,6 +4943,30 @@ AND
 		modified_date  => $modified_date, 
 	}});
 	return($variable_value, $variable_uuid, $modified_date);
+}
+
+=head2 refresh_timestamp
+
+This refreshes C<< sys::database::timestamp >>. It returns C<< sys::database::timestamp >> as well.
+
+This method takes no parameters.
+
+=cut
+sub refresh_timestamp
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_test_access()" }});
+	
+	my $query = "SELECT cast(now() AS timestamp with time zone);";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	$anvil->data->{sys}{database}{timestamp} = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp} }});
+	
+	return($anvil->data->{sys}{database}{timestamp});
 }
 
 =head2 resync_databases
