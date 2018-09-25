@@ -110,6 +110,7 @@ sub clear
 		line                 => __LINE__, 
 		debug                => $debug,
 		update_progress_only => 1,
+		job_uuid             => $job_uuid,
 		job_picked_up_by     => 0, 
 		job_progress         => 0, 
 	});
