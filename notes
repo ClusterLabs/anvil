@@ -1,3 +1,5 @@
+What if I simply add a flag to Database->write to refresh 'sys::database::timestamp' and not round it? Then things like 'update_job' could ask for the date to be updated and keep all the records unique?
+
 DB stuff;
 
 Dump;

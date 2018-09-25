@@ -9,6 +9,7 @@ use DBI;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 use Time::HiRes qw(gettimeofday tv_interval);
+use SQL::Parser;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
@@ -5965,82 +5966,130 @@ sub _split_query
 	my $public_query  = "";
 	my $history_query = "";
 	
-	my $type   = "";
-	my $schema = "";
-	my $table  = "";
-	foreach my $line (split/\n/, $query)
+	# Find out if we're doing an INSERT or UPDATE, which schema we're writing to, and if we have or need 
+	# to inject the change_uuid.
+	my $parser      = SQL::Parser->new();
+	my $schema      = "public";
+	my $table       = "";
+	my $command     = "";
+	my $change_date = "";
+	my $change_uuid = "";
+	my $success = $parser->parse($query);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
+	if ($success)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if (not $type)
+		#print Dumper $parser->structure;
+		$table   = $parser->structure->{org_table_names}->[0];
+		$command = $parser->structure->{command};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			table   => $table,
+			command => $command, 
+		}});
+		if ($table =~ /^(.*?)\.(.*)$/)
 		{
-			if ($line =~ /INSERT INTO/i)
+			$table  = $1;
+			$schema = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				table  => $table,
+				schema => $schema, 
+			}});
+		}
+		
+		for (my $i = 0; $i < @{$parser->structure->{column_defs}}; $i++)
+		{
+			my $column_name  = $parser->structure->{column_defs}->[$i]->{value};
+			my $column_value = $parser->structure->{'values'}->[0]->[$i]->{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				column_name  => $column_name,
+				column_value => $column_value, 
+			}});
+			if ($column_name eq "change_date")
 			{
-				$type = "insert";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+				$change_date = $column_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { change_date => $change_date }});
 			}
-			elsif ($line =~ /UPDATE/i)
+			elsif ($column_name eq "change_uuid")
 			{
-				$type = "update";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+				$change_uuid = $column_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { change_uuid => $change_uuid }});
 			}
 		}
-		if (($type) && (not $table))
-		{
-			# The table could be the next line, or it could be after the INSERT or UPDATE.
-			if ($type eq "insert")
-			{
-				if ($line =~ /INSERT INTO (.*?) \(/i)
-				{
-					$table = $anvil->Words->clean_spaces({string => $1});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
-				}
-				elsif ($line !~ /INSERT INTO/i)
-				{
-					$table = $anvil->Words->clean_spaces({string => $line});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
-				}
-			}
-			elsif ($type eq "update")
-			{
-				if ($line =~ /UPDATE (.*?) /i)
-				{
-					$table = $anvil->Words->clean_spaces({string => $1});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
-				}
-				elsif ($line !~ /UPDATE/i)
-				{
-					$table = $anvil->Words->clean_spaces({string => $line});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
-				}
-			}
-		}
-		if ($table)
-		{
-			if ($table =~ /(.*?)\.(.*)$/)
-			{
-				$schema = $1;
-				$table  = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					schema => $schema, 
-					table  => $table,
-				}});
-			}
-			else
-			{
-				$schema = "public";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema => $schema }});
-			}
-		}
-		last if $table;
+	}
+	else
+	{
+		print "Failed to parse: [".$query."]\n";
 	}
 	
-	# If the query is not an INSERT or UPDATE, we're done.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		type   => $type, 
-		schema => $schema, 
-		table  => $table, 
-	}});
+	# Inject the $change_uuid, if needed.
+	my $new_query = "";
+	if ($change_uuid)
+	{
+		# Just strait copy the query to new_query
+		$new_query = $query;
+	}
+	else
+	{
+		my $column_end_seen = 0;
+		   $change_uuid     = $anvil->Get->uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { change_uuid => $change_uuid }});
+		
+		foreach my $line (split/\n/, $query)
+		{
+			if ((not $column_end_seen) && ($command eq "INSERT") && ($line =~ /\)/))
+			{
+				$column_end_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> line" => $line }});
+				$line =~ s/\)/, change_uuid = '$change_uuid')/;
+				$line =~ s/ ,/,/gs;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< line" => $line }});
+			}
+			elsif ((not $column_end_seen) && ($command eq "UPDATE") && ($line =~ /WHERE/i))
+			{
+				$column_end_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> line" => $line }});
+				$line =~ s/WHERE/, change_uuid = '$change_uuid' WHERE/gs;
+				$line =~ s/ ,/,/gs;
+				$line =~ s/ WHERE $/ \nWHERE /;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< line" => $line }});
+			}
+			$new_query .= $line."\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_query => $new_query }});
+		}
+		$new_query =~ s/\n$//gs;
+		
+		if ($new_query =~ /\n, change_uuid/gs)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> new_query" => $new_query }});
+			$new_query =~ s/\n, change_uuid/, \n    change_uuid/gs;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< new_query" => $new_query }});
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_query => $new_query }});
+	}
 	
+	if ($schema eq "history")
+	{
+		# Nothing more to do.
+		$history_query = $new_query;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_query => $history_query }});
+	}
+	else
+	{
+		# Create a copy and prepend 'history.' to the table name
+		$public_query  = $new_query;
+		$history_query = $new_query;
+		$history_query =~ s/ $table/ history.$table/gs;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			public_query  => $public_query, 
+			history_query => $history_query,
+		}});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		query         => $query,
+		public_query  => $public_query, 
+		history_query => $history_query,
+	}});
 	return($public_query, $history_query);
 }
 
