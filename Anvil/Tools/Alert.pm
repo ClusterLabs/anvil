@@ -83,7 +83,7 @@ If there is a problem, C<< !!error!! >> is returned.
 
 Parameters;
 
-=head3 change_date (optional)
+=head3 modified_date (optional)
 
 By default, this is set to C<< sys::database::timestamp >>. If you want to force a different timestamp, you can do so with this parameter.
 
@@ -115,13 +115,13 @@ sub check_alert_sent
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $anvil     = $self->parent;
 	
-	my $change_date  = defined $parameter->{change_date}  ? $parameter->{change_date}  : $anvil->data->{sys}{database}{timestamp};
+	my $modified_date  = defined $parameter->{modified_date}  ? $parameter->{modified_date}  : $anvil->data->{sys}{database}{timestamp};
 	my $name           = defined $parameter->{name}           ? $parameter->{name}           : "";
 	my $record_locator = defined $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = defined $parameter->{set_by}         ? $parameter->{set_by}         : "";
 	my $type           = defined $parameter->{type}           ? $parameter->{type}           : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		change_date  => $change_date, 
+		modified_date  => $modified_date, 
 		name           => $name, 
 		record_locator => $record_locator, 
 		set_by         => $set_by, 
@@ -129,7 +129,7 @@ sub check_alert_sent
 	}});
 	
 	# Do we have a timestamp?
-	if (not $change_date)
+	if (not $modified_date)
 	{
 		# Nope
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0093"});
@@ -224,7 +224,7 @@ WHERE
 					set_by         => $set_by, 
 					record_locator => $record_locator, 
 					name           => $name, 
-					change_date  => $change_date,
+					modified_date  => $modified_date,
 				}});
 				return("!!error!!");
 			}
@@ -245,7 +245,7 @@ INSERT INTO
     alert_set_by, 
     alert_record_locator, 
     alert_name, 
-    change_date
+    modified_date
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", 
@@ -423,7 +423,7 @@ INSERT INTO
     alert_message_variables, 
     alert_sort, 
     alert_header, 
-    change_date
+    modified_date
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->uuid()).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", 

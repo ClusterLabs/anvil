@@ -428,7 +428,7 @@ UPDATE
     sessions 
 SET 
     session_salt      = '', 
-    change_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." ";
 	if ($host_uuid ne "all")

@@ -43,7 +43,6 @@ Requires:       perl-Log-Journald
 Requires:       perl-Net-SSH2 
 Requires:       perl-NetAddr-IP 
 Requires:       perl-Proc-Simple
-Requires:       perl-SQL-Statement
 Requires:       perl-Sys-Syslog
 Requires:       perl-Time-HiRes
 Requires:       perl-UUID-Tiny
@@ -396,7 +395,7 @@ firewall-cmd --add-service=postgresql --permanent
 
 %changelog
 *  Madison Kelly <mkelly@alteeve.ca> 3.0-17
-- Added 'perl-UUID-Tiny' and 'perl-SQL-Statement' to core dependencies.
+- Added 'perl-UUID-Tiny' to core dependencies.
 
 * Fri Sep 14 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-16
 - Added htop as a -core dependency.

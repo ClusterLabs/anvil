@@ -985,8 +985,8 @@ sub check_availability
 		my $query     = "
 SELECT 
     job_progress, 
-    change_date, 
-    extract(epoch from change_date) 
+    modified_date, 
+    extract(epoch from modified_date) 
 FROM 
     jobs 
 WHERE 
