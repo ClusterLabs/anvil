@@ -105,17 +105,15 @@ sub clear
 		return(1);
 	}
 	
-	my $query = "
-UPDATE 
-    jobs 
-SET 
-    job_picked_up_by = '0', 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
-WHERE 
-    job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
-";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	$job_uuid = $anvil->Database->insert_or_update_jobs({
+		file                 => $THIS_FILE, 
+		line                 => __LINE__, 
+		debug                => $debug,
+		update_progress_only => 1,
+		job_picked_up_by     => 0, 
+		job_progress         => 0, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 	
 	return(0);
 }
@@ -358,21 +356,18 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< job_status" => $job_status }});
 	}
 	
-	my $query = "
-UPDATE 
-    jobs 
-SET 
-    job_picked_up_by = ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_by).", 
-    job_picked_up_at = ".$anvil->data->{sys}{database}{use_handle}->quote($job_picked_up_at).",
-    job_updated      = ".$anvil->data->{sys}{database}{use_handle}->quote(time).",
-    job_progress     = ".$anvil->data->{sys}{database}{use_handle}->quote($progress).", 
-    job_status       = ".$anvil->data->{sys}{database}{use_handle}->quote($job_status).", 
-    modified_date    = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
-WHERE 
-    job_uuid         = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)." 
-";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	$job_uuid = $anvil->Database->insert_or_update_jobs({
+		file                 => $THIS_FILE, 
+		line                 => __LINE__, 
+		debug                => $debug,
+		update_progress_only => 1,
+		job_uuid             => $job_uuid, 
+		job_picked_up_by     => $job_picked_up_by, 
+		job_picked_up_at     => $job_picked_up_at,
+		job_progress         => $progress, 
+		job_status           => $job_status, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
 	
 	# Note this update time
 	$anvil->data->{sys}{last_update} = time;

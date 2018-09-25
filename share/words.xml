@@ -368,6 +368,7 @@ The database connection error was:
 		<key name="log_0217">The variable with variable_uuid: [#!variable!variable_uuid!#], variable_source_table: [#!variable!variable_source_table!#] and variable_source_uuid: [#!variable!variable_source_uuid!#] was not found in the database, so unable to update.</key>
 		<key name="log_0218">The variable: [#!variable!name!#] was expected to be an array reference, but it wasn't. It contained (if anything): [#!variable!value!#].</key>
 		<key name="log_0219">The database with UUID: [#!variable!uuid!#] is missing rows. A database resync will be requested.</key>
+		<key name="log_0220"><![CDATA[Database->insert_or_update_jobs() was called with 'update_progress_only' but without a 'job_uuid' being set.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
