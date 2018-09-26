@@ -884,7 +884,18 @@ sub get_ips
 
 =head2 hostname
 
-Get our set the local hostname. The current host name (or the new hostname if C<< set >> was used) is returned as a string.
+Get or set the local hostname. The current (or new) "static" (traditional) host name and the "pretty" (descriptive) host names are returned.
+
+ # Get the current host name.
+ my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname();
+
+ # Set the traditional host name.
+ my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname({set => "an-striker01.alteeve.com");
+
+ # Set the traditional and descriptive host names.
+ my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname({set => "an-striker01.alteeve.com", pretty => "Alteeve - Striker 01");
+
+The current host name (or the new hostname if C<< set >> was used) is returned as a string.
 
 Parameters;
 
@@ -935,14 +946,15 @@ sub hostname
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	}
 	
-	# Get
-	my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." --static";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-	
-	my $hostname = $anvil->System->call({shell_call => $shell_call});
+	# Get the static (traditional) hostname
+	my $hostname = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hostname => $hostname }});
 	
-	return($hostname);
+	# Get the pretty (descriptive) hostname
+	my $descriptive = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostnamectl}." --pretty"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { descriptive => $descriptive }});
+	
+	return($hostname, $descriptive);
 }
 
 =head2 is_local

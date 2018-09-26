@@ -2118,7 +2118,7 @@ sub config_step1
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			organization => $organization, 
 			prefix       => $prefix, 
 			domain       => $domain, 
@@ -2129,15 +2129,83 @@ sub config_step1
 		$anvil->data->{cgi}{organization}{value} = $organization ne "" ? $organization : "";
 		$anvil->data->{cgi}{prefix}{value}       = $prefix       ne "" ? $prefix       : "";
 		$anvil->data->{cgi}{domain}{value}       = $domain       ne "" ? $domain       : "";
-		$anvil->data->{cgi}{sequence}{value}     = $sequence     ne "" ? $sequence     : 1;
+		$anvil->data->{cgi}{sequence}{value}     = $sequence     ne "" ? $sequence     : "";
 		$anvil->data->{cgi}{ifn_count}{value}    = $ifn_count    ne "" ? $ifn_count    : 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			'cgi::organization::value' => $anvil->data->{cgi}{organization}{value}, 
 			'cgi::prefix::value'       => $anvil->data->{cgi}{prefix}{value}, 
 			'cgi::domain::value'       => $anvil->data->{cgi}{domain}{value}, 
 			'cgi::sequence::value'     => $anvil->data->{cgi}{sequence}{value}, 
 			'cgi::ifn_count::value'    => $anvil->data->{cgi}{ifn_count}{value}, 
 		}});
+		
+		# If we don't have an organization name, prefix, domain name or sequence number, try to parse it from
+		# the current static and pretty hostnames.
+		my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			traditional_hostname => $traditional_hostname, 
+			descriptive_hostname => $descriptive_hostname, 
+		}});
+		if ($descriptive_hostname =~ /^(.*?) - Striker (\d+)/)
+		{
+			my $organization = $1;
+			my $sequence     = $2;
+			   $sequence     =~ s/^0+//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				organization => $organization, 
+				sequence     => $sequence, 
+			}});
+			
+			if (($organization) && ($anvil->data->{cgi}{organization}{value} eq ""))
+			{
+				$anvil->data->{cgi}{organization}{value} = $organization;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'cgi::organization::value' => $anvil->data->{cgi}{organization}{value}, 
+				}});
+			}
+			
+			if (($sequence =~ /^\d+$/) && ($anvil->data->{cgi}{sequence}{value} eq ""))
+			{
+				$anvil->data->{cgi}{sequence}{value} = $sequence;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'cgi::sequence::value' => $anvil->data->{cgi}{sequence}{value}, 
+				}});
+			}
+		}
+		if ($traditional_hostname =~ /^(.*?)-striker\d+\.(.*)$/)
+		{
+			my $prefix = $1;
+			my $domain = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				prefix => $prefix, 
+				domain => $domain, 
+			}});
+			
+			if (($prefix) && ($anvil->data->{cgi}{prefix}{value} eq ""))
+			{
+				$anvil->data->{cgi}{prefix}{value} = $prefix;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'cgi::prefix::value' => $anvil->data->{cgi}{prefix}{value}, 
+				}});
+			}
+			
+			if (($domain) && ($anvil->data->{cgi}{domain}{value} eq ""))
+			{
+				$anvil->data->{cgi}{domain}{value} = $domain;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'cgi::domain::value' => $anvil->data->{cgi}{domain}{value}, 
+				}});
+			}
+		}
+		
+		# If I still don't have a sequence number, set '1'.
+		if ($anvil->data->{cgi}{sequence}{value} eq "")
+		{
+			$anvil->data->{cgi}{sequence}{value} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'cgi::sequence::value' => $anvil->data->{cgi}{sequence}{value}, 
+			}});
+		}
 	}
 	
 	my $organization_class = $anvil->data->{cgi}{organization}{alert} ? "input_alert" : "input_clear";
