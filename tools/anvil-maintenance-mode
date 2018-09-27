@@ -45,9 +45,9 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 my $maintenance_mode = $anvil->System->maintenance_mode({debug => 3});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { maintenance_mode => $maintenance_mode }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { maintenance_mode => $maintenance_mode }});
 
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::set" => $anvil->data->{switches}{set} }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::set" => $anvil->data->{switches}{set} }});
 if ($anvil->data->{switches}{set} eq "1")
 {
 	# Enable

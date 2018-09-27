@@ -489,8 +489,8 @@ sub run_jobs
 			# Start the job, appending '--job-uuid' to the command.
 			my $command = $job_command." --job-uuid ".$job_uuid;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0210", variables => { command => $command }});
-			die;
 			$anvil->data->{jobs}{handles}{$job_uuid} = $anvil->System->call({
+				debug       => 3,
 				background  => 1, 
 				stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
 				stderr_file => "/tmp/anvil.job.".$job_uuid.".stderr", 
@@ -498,11 +498,11 @@ sub run_jobs
 				source      => $THIS_FILE, 
 				line        => __LINE__,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid} }});
 			
 			# Log the PID (the job should update the database).
 			my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pid => $pid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
 		}
 	}
 	

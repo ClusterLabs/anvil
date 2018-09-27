@@ -192,8 +192,11 @@ sub reconfigure_network
 	}});
 	
 	# Set the hostname
-	my ($hostname, $descriptive_hostname) =  = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { hostname => $hostname }});
+	my ($hostname, $descriptive_hostname) = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		hostname             => $hostname,
+		descriptive_hostname => $descriptive_hostname, 
+	}});
 	if ($hostname eq $new_hostname)
 	{
 		# Success
