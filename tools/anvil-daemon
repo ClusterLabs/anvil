@@ -356,7 +356,7 @@ sub run_jobs
 	my $jobs_file = "{\"jobs\":[\n";
 	
 	# Get a list of pending or incomplete jobs.
-	my $return = $anvil->Database->get_jobs({ended_within => 300});
+	my $return = $anvil->Database->get_jobs({debug => 3, ended_within => 300});
 	my $count  = @{$return};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		'return' => $return, 
@@ -410,7 +410,6 @@ sub run_jobs
 			if (not exists $anvil->data->{pids}{$job_picked_up_by})
 			{
 				# If the job is done, just clear the 'job_picked_up_by' and be done.
-				$anvil->Job->clear({job_uuid => $job_uuid});
 				if ($job_progress ne "100")
 				{
 					# The previous job is gone, but the job isn't finished. Start it again.
@@ -427,6 +426,9 @@ sub run_jobs
 						job_progress => $job_progress,
 						job_status   => $job_status,
 					}});
+					
+					# Clear the job.
+					$anvil->Job->clear({debug => 3, job_uuid => $job_uuid});
 				}
 				
 				# Clear the PID 
@@ -484,7 +486,7 @@ sub run_jobs
 		next if $job_progress eq "100";
 		
 		# If the job is not running, start it.
-		if ((not $job_picked_up_by) && (not $anvil->data->{switches}{'no-start'}))
+		if ((not $job_picked_up_by) && ($job_progress ne "100") && (not $anvil->data->{switches}{'no-start'}))
 		{
 			# Start the job, appending '--job-uuid' to the command.
 			my $command = $job_command." --job-uuid ".$job_uuid;

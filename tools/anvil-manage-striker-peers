@@ -101,6 +101,8 @@ foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{sorted}{db}})
 	}});
 }
 
+# We're done!
+update_progress($anvil, 100, "message_0025");
 $anvil->nice_exit({code => 0});
 
 
@@ -125,7 +127,7 @@ sub update_progress
 	if (($anvil->data->{jobs}{job_uuid}) && ($anvil->data->{sys}{database}{connections}))
 	{
 		$anvil->Job->update_progress({
-			debug    => 2, 
+			debug    => 3, 
 			progress => $progress, 
 			message  => $message, 
 			job_uuid => $anvil->data->{jobs}{job_uuid},
@@ -536,7 +538,6 @@ sub process_entry
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 		
 		# Now loop until we see the peer's host_uuid show up
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0212"});
 		my $peer_host_name = "";
 		my $host_seen      = 0;
 		until($host_seen)
@@ -577,6 +578,7 @@ sub process_entry
 		
 		# Store the job
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_host_uuid   => $host_uuid, 
@@ -585,11 +587,11 @@ sub process_entry
 			job_name        => "striker-peer::add", 
 			job_title       => "job_0011", 
 			job_description => "job_0012", 
+			job_progress    => 0,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		update_progress($anvil, 95, "message_0076");
 	}
 	
-	update_progress($anvil, 100, "message_0025");
 	return(0);
 }

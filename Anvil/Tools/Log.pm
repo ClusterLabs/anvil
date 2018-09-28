@@ -270,6 +270,11 @@ sub entry
 	
 	# Log the file and line, if passed.
 	my $string = "";
+	if ($anvil->data->{sys}{log_date})
+	{
+		# Keep the debug level super high to avoid Get->date_and_time() going into an infinite loop.
+		$string .= $anvil->Get->date_and_time({debug => 99}).":";
+	}
 	if (($source) && ($line))
 	{
 		$string .= "$source:$line; ";

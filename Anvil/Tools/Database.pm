@@ -1363,8 +1363,9 @@ WHERE
 		my $job_description     =         $row->[9];
 		my $job_status          =         $row->[10];
 		my $modified_date       =         $row->[11];
-		my $started_seconds_ago = $job_picked_up_at ? (time - $job_picked_up_at) : 0;
-		my $updated_seconds_ago = $job_updated      ? (time - $job_updated)      : 0;
+		my $now_time            = time;
+		my $started_seconds_ago = $job_picked_up_at ? ($now_time - $job_picked_up_at) : 0;
+		my $updated_seconds_ago = $job_updated      ? ($now_time - $job_updated)      : 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			job_uuid            => $job_uuid,
 			job_command         => $job_command,
@@ -1378,6 +1379,7 @@ WHERE
 			job_description     => $job_description,
 			job_status          => $job_status, 
 			modified_date       => $modified_date, 
+			now_time            => $now_time, 
 			started_seconds_ago => $started_seconds_ago, 
 			updated_seconds_ago => $updated_seconds_ago, 
 		}});
@@ -2671,7 +2673,7 @@ sub insert_or_update_jobs
 	my $job_picked_up_at     = defined $parameter->{job_picked_up_at}     ? $parameter->{job_picked_up_at}     : 0;
 	my $job_updated          = defined $parameter->{job_updated}          ? $parameter->{job_updated}          : time;
 	my $job_name             = defined $parameter->{job_name}             ? $parameter->{job_name}             : "";
-	my $job_progress         = defined $parameter->{job_progress}         ? $parameter->{job_progress}         : 0;
+	my $job_progress         = defined $parameter->{job_progress}         ? $parameter->{job_progress}         : "";
 	my $job_title            = defined $parameter->{job_title}            ? $parameter->{job_title}            : "";
 	my $job_description      = defined $parameter->{job_description}      ? $parameter->{job_description}      : "";
 	my $job_status           = defined $parameter->{job_status}           ? $parameter->{job_status}           : "";
@@ -5395,8 +5397,13 @@ sub resync_databases
 			undef $anvil->data->{db_resync}{$uuid}{history}{sql};
 			
 			# If the merged array has any entries, push them in.
-			if (@{$merged} > 0)
+			my $to_write_count = @{$merged};
+			if ($to_write_count > 0)
 			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0221", variables => { 
+					to_write  => $to_write_count,
+					host_name => $anvil->Get->host_name({debug => 2, host_uuid => $uuid}), 
+				}});
 				$anvil->Database->write({uuid => $uuid, query => $merged, source => $THIS_FILE, line => __LINE__});
 				undef $merged;
 			}
@@ -5879,29 +5886,29 @@ ORDER BY
 				# Record this table's last modified_date for later comparison. We'll also 
 				# record the schema and host column, if found, to save looking the same thing
 				# up later if we do need a resync.
-				$anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated} = $last_updated;
-				$anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{row_count}    = $row_count;
+				$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} = $last_updated;
+				$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}    = $row_count;
 				$anvil->data->{sys}{database}{table}{$table}{schema}                  = $schema;
 				$anvil->data->{sys}{database}{table}{$table}{host_column}             = $host_column;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::database::table::${table}::id::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated}, 
-					"sys::database::table::${table}::id::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{row_count}, 
-					"sys::database::table::${table}::last_updated"              => $anvil->data->{sys}{database}{table}{$table}{last_updated},
-					"sys::database::table::${table}::schema"                    => $anvil->data->{sys}{database}{table}{$table}{schema},
-					"sys::database::table::${table}::host_column"               => $anvil->data->{sys}{database}{table}{$table}{host_column},
+					"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
+					"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
+					"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated},
+					"sys::database::table::${table}::schema"                      => $anvil->data->{sys}{database}{table}{$table}{schema},
+					"sys::database::table::${table}::host_column"                 => $anvil->data->{sys}{database}{table}{$table}{host_column},
 				}});
 				
-				if ($anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{row_count} > $anvil->data->{sys}{database}{table}{$table}{row_count})
+				if ($anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count} > $anvil->data->{sys}{database}{table}{$table}{row_count})
 				{
-					$anvil->data->{sys}{database}{table}{$table}{row_count} = $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{row_count};
+					$anvil->data->{sys}{database}{table}{$table}{row_count} = $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"sys::database::table::${table}::row_count" => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
 					}});
 				}
 				
-				if ($anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{last_updated})
+				if ($anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{last_updated})
 				{
-					$anvil->data->{sys}{database}{table}{$table}{last_updated} = $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated};
+					$anvil->data->{sys}{database}{table}{$table}{last_updated} = $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 					}});
@@ -5918,25 +5925,39 @@ ORDER BY
 			"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 			"sys::database::table::${table}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
 		}});
-		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}{$table}{id}})
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}{$table}{uuid}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::database::table::${table}::id::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated}, 
-				"sys::database::table::${table}::id::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{row_count}, 
+				"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
+				"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 			}});
-			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{last_updated})
+			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
 			{
 				# Resync needed.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { uuid => $uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
+					"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
+				}});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
+					uuid => $uuid,
+					host => $anvil->Get->host_name({debug => 2, host_uuid => $uuid}),
+				}});
 				
 				# Mark it as behind.
 				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
 				last;
 			}
-			elsif ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{id}{$uuid}{row_count})
+			elsif ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
 			{
 				# Resync needed.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { uuid => $uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"sys::database::table::${table}::row_count"                => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
+					"sys::database::table::${table}::uuid::${uuid}::row_count" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
+				}});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
+					uuid => $uuid,
+					host => $anvil->Get->host_name({debug => 2, host_uuid => $uuid}),
+				}});
 				
 				# Mark it as behind.
 				$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});

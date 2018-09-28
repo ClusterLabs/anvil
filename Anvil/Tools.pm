@@ -783,6 +783,7 @@ sub _set_defaults
 		host_type			=>	"",
 		host_uuid			=>	"",
 		language			=>	"en_CA",
+		log_date			=>	1,
 		log_file			=>	"/var/log/anvil.log",
 		password			=>	{
 			algorithm			=>	"sha512",

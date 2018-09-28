@@ -439,6 +439,54 @@ sub date_and_time
 	return($return_string);
 }
 
+=head2 host_name
+
+This takes a host UUID and returns the host name (as recorded in the C<< hosts >> table). If the entry is not found, an empty string is returned.
+
+Parameters;
+
+=head3 host_uuid (required)
+
+This is the C<< host_uuid >> to translate into a host name.
+
+=cut
+sub host_name
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $host_name = "";
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	
+	my $query = "
+SELECT 
+    host_name 
+FROM 
+    hosts 
+WHERE 
+    host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).";
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count == 1)
+	{
+		# Found it
+		$host_name = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+	return($host_name);
+}
+
 =head2 host_uuid
 
 This returns the local host's system UUID (as reported by 'dmidecode'). If the host UUID isn't available, and the program is not running with root priviledges, C<< #!error!# >> is returned.

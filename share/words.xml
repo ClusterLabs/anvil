@@ -254,7 +254,7 @@ The database connection error was:
 		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">The database with UUID: [#!variable!uuid!#] for: [#!variable!file!#] is behind.</key>
 		<key name="log_0105">Anvil! database: [#!variable!database!#] already exists.</key>
-		<key name="log_0106">The database with UUID: [#!variable!uuid!#] is behind. A database resync will be requested.</key>
+		<key name="log_0106">The database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) is behind. A database resync will be requested.</key>
 		<key name="log_0107">[ Warning ] - Failed to delete the temporary postgres password.</key>
 		<key name="log_0108"><![CDATA[[ Error ] - The method Database->insert_or_update_states() was called but the 'state_host_uuid' parameter was not passed or it is empty. Normally this is set to 'sys::data_uuid'.]]></key>
 		<key name="log_0109">[ Error ] - Failed to create the Anvil! database: [#!variable!database!#]</key>
@@ -367,8 +367,9 @@ The database connection error was:
 		<key name="log_0216">The #!variable!uuid_name!#: [#!variable!uuid!#] was passed in, but no record with that UUID was found in the database.</key>
 		<key name="log_0217">The variable with variable_uuid: [#!variable!variable_uuid!#], variable_source_table: [#!variable!variable_source_table!#] and variable_source_uuid: [#!variable!variable_source_uuid!#] was not found in the database, so unable to update.</key>
 		<key name="log_0218">The variable: [#!variable!name!#] was expected to be an array reference, but it wasn't. It contained (if anything): [#!variable!value!#].</key>
-		<key name="log_0219">The database with UUID: [#!variable!uuid!#] is missing rows. A database resync will be requested.</key>
+		<key name="log_0219">The database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) is missing rows. A database resync will be requested.</key>
 		<key name="log_0220"><![CDATA[Database->insert_or_update_jobs() was called with 'update_progress_only' but without a 'job_uuid' being set.]]></key>
+		<key name="log_0221">Writing: [#!variable!to_write!#] record(s) to resync the database on: [#!variable!host_name!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
