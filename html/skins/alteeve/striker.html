@@ -265,6 +265,22 @@
 						</div>
 <!-- end job-details -->
 
+<!-- start job recorded -->
+			<table>
+				<div id="job recorded_div">
+				<tr>
+					<td>
+						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
+						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
+						<br />
+						<hr />
+						<a href="#!variable!reload_url!#" class="button">#!string!striker_0053!#</a>
+					</td>
+				</tr>
+				</div>
+			</table>
+<!-- end job recorded -->
+
 <!-- start striker-setup -->
 		<table align="center" class="striker_welcome">
 			<tr>
@@ -472,10 +488,10 @@
 								#!variable!password!#
 							</td>
 							<td width="25%" class="padded_cell">
-								#!string!striker_0071!# <input type="checkbox" id="#!variable!access!#_ping" name="#!variable!access!#_ping" #!variable!ping_checked!# />
+								#!string!striker_0071!#: <span class="form_answer">#!variable!say_ping!#</span>
 							</td>
-							<td width="25%" class="padded_cell" align="center">
-								<a href="striker=true&task=sync&delete=#!variable!access!#" id="#!variable!access!#_delete" class="button">#!string!striker_0068!#<a/>
+							<td width="25%" class="padded_cell" align="right">
+								<a href="?striker=true&task=sync&delete=#!variable!uuid!#" id="#!variable!uuid!#_delete" class="button">#!string!striker_0068!#<a/>
 							</td>
 						</tr>
 <!-- end striker-sync-entry -->
@@ -553,19 +569,3 @@
 				</div>
 			</table>
 <!-- end network_job_recorded -->
-
-<!-- start system_update_recorded -->
-			<table>
-				<div id="system_update_recorded_div">
-				<tr>
-					<td>
-						<span name="#!variable!title_id!#" id="#!variable!title_id!#" class="config_header1">#!variable!title!#</span><br />
-						<span name="#!variable!message_id!#" id="#!variable!message_id!#" class="config_header2">#!variable!description!#</span>
-						<br />
-						<hr />
-						<a href="#!variable!reload_url!#" class="button">#!string!striker_0053!#</a>
-					</td>
-				</tr>
-				</div>
-			</table>
-<!-- end system_update_recorded -->

@@ -204,7 +204,7 @@ sub process_task
 		#     cookies were deleted (via C<< Account->logout() >>. The user needs to log back in.
 		# 3 - There user's hash is invalid, it is probably expired. The user has been logged out and
 		#     needs to log back in.
-		my $cookie_problem = $anvil->Account->read_cookies({debug => 2});
+		my $cookie_problem = $anvil->Account->read_cookies();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cookie_problem => $cookie_problem }});
 		if (not $cookie_problem)
 		{
@@ -315,7 +315,7 @@ sub process_power
 		
 		# We don't need to store anything as hidden variables, we'll read it back from the database 
 		# later.
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
 			title_id    => "",
 			message_id  => "",
 			reload_url  => "/cgi-bin/".$THIS_FILE,
@@ -365,7 +365,7 @@ sub process_update
 		
 		# We don't need to store anything as hidden variables, we'll read it back from the database 
 		# later.
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
 			title_id    => "",
 			message_id  => "",
 			reload_url  => "/cgi-bin/".$THIS_FILE,
@@ -453,22 +453,23 @@ sub process_sync_page
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
 	}
 	
-	# Are we adding a new peer?
-	if (($anvil->data->{cgi}{new_peer_access}{value}) && ($anvil->data->{cgi}{new_peer_password}{value} ne ""))
+	# Are we deleting or adding a new peer?
+	if ($anvil->data->{cgi}{'delete'}{value})
+	{
+		delete_sync_peer($anvil);
+	}
+	elsif (($anvil->data->{cgi}{new_peer_access}{value}) && ($anvil->data->{cgi}{new_peer_password}{value} ne ""))
 	{
 		add_sync_peer($anvil);
-		
-		if ($anvil->data->{form}{body})
-		{
-			# We're done
-			return(0);
-		}
-	}
-	elsif ($anvil->data->{cgi}{action}{value} eq "remove")
-	{
-		#remove_sync_peer($anvil);
 	}
 	
+	# If we've got a body now, return.
+	if ($anvil->data->{form}{body})
+	{
+		# We're done
+		return(0);
+	}
+
 	my $host_uuid = $anvil->Get->host_uuid;
 	$anvil->System->get_ips();
 	
@@ -536,11 +537,13 @@ sub process_sync_page
 		$anvil->data->{peers}{$host}{name}     = $name;
 		$anvil->data->{peers}{$host}{user}     = $user;
 		$anvil->data->{peers}{$host}{ping}     = $ping;
+		$anvil->data->{peers}{$host}{uuid}     = $uuid;
 		$anvil->data->{peers}{$host}{password} = $password;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"peers::${host}::port"     => $anvil->data->{peers}{$host}{port},
 			"peers::${host}::name"     => $anvil->data->{peers}{$host}{name},
 			"peers::${host}::ping"     => $anvil->data->{peers}{$host}{ping}, 
+			"peers::${host}::uuid"     => $anvil->data->{peers}{$host}{uuid}, 
 			"peers::${host}::password" => $anvil->Log->secure ? $anvil->data->{peers}{$host}{password} : $anvil->Words->string({key => "log_0186"}), 
 		}});
 	}
@@ -552,6 +555,7 @@ sub process_sync_page
 		my $name     = $anvil->data->{peers}{$host}{name};
 		my $user     = $anvil->data->{peers}{$host}{user};
 		my $ping     = $anvil->data->{peers}{$host}{ping};
+		my $uuid     = $anvil->data->{peers}{$host}{uuid};
 		my $password = $anvil->data->{peers}{$host}{password};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host     => $host,
@@ -559,14 +563,16 @@ sub process_sync_page
 			name     => $name,
 			user     => $user, 
 			ping     => $ping, 
+			uuid     => $uuid,
 			password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
 		}});
 		
 		$anvil->data->{cgi}{new_peer_password}{value} = "" if not defined $anvil->data->{cgi}{new_peer_password}{value};
 		$peer_table .= $anvil->Template->get({file => "striker.html", name => "striker-sync-entry", variables => {
-			access       => $port eq 5432 ? $user."\@".$host : $user."\@".$host.":".$port,
-			password     => $anvil->data->{cgi}{new_peer_password}{value},
-			ping_checked => $ping ? "checked" : "",
+			uuid     => $uuid,
+			access   => $port eq 5432 ? $user."\@".$host : $user."\@".$host.":".$port,
+			password => $anvil->data->{cgi}{new_peer_password}{value},
+			say_ping => $ping ? "#!string!unit_0001!#" : "#!string!unit_0002!#",
 		}});
 	}
 	
@@ -577,6 +583,64 @@ sub process_sync_page
 		new_peer_access   => defined $anvil->data->{cgi}{new_peer_access}{value}   ? $anvil->data->{cgi}{new_peer_access}{value} : "", 
 		new_peer_password => defined $anvil->data->{cgi}{new_peer_password}{value} ? $anvil->data->{cgi}{new_peer_password}{value} : "", 
 	}});
+	
+	return(0);
+}
+
+# This deletes a sync peer.
+sub delete_sync_peer
+{
+	my ($anvil) = @_;
+	
+	my $uuid      = $anvil->data->{cgi}{'delete'}{value};
+	my $host_name = $anvil->Get->host_name({host_uuid => $uuid});
+	my $host      = $anvil->data->{database}{$uuid}{host} ? $anvil->data->{database}{$uuid}{host} : ""; # This should fail
+	my $name      = $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
+	my $user      = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : $anvil->data->{sys}{database}{user};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		uuid      => $uuid,
+		host_name => $host_name, 
+		host      => $host,
+		name      => $name,
+		user      => $user, 
+	}});
+
+	# Is the delete confirmed?
+	if ($anvil->data->{cgi}{confirm}{value})
+	{
+		# OK, save the job!
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_command     => "anvil-manage-striker-peers --remove --host-uuid ".$uuid, 
+			job_data        => "", 
+			job_name        => "striker-peer::remove", 
+			job_title       => "job_0013", 
+			job_description => "job_0014", 
+			job_progress    => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		# Show the use that the job has been saved.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
+			title_id    => "",
+			message_id  => "",
+			reload_url  => "/cgi-bin/".$THIS_FILE,
+			title       => "#!string!striker_0044!#",
+			description => "#!string!striker_0104!#",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+	}
+	else
+	{
+		# Show the screen the confirm the addition.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-action", variables => { 
+			title   => "#!string!job_0013!#", 
+			message => $anvil->Words->string({key => "striker_0105", variables => { peer => $user."\@".$host_name }}),
+		}});
+	}
+	
 	
 	return(0);
 }
@@ -793,7 +857,7 @@ sub add_sync_peer
 			
 			# We don't need to store anything as hidden variables, we'll read it back from the 
 			# database later.
-			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "system_update_recorded", variables => {
+			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
 				title_id    => "",
 				message_id  => "",
 				reload_url  => "/cgi-bin/".$THIS_FILE,

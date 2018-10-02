@@ -334,3 +334,9 @@ td {
 	color:       #d2e2d2;
 	white-space: nowrap;
 }
+
+.form_answer {
+	font:        1em 'Dejavu Sans Mono', Courier;
+	color:       #dba0a5;
+	white-space: nowrap;
+}

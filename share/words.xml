@@ -512,6 +512,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0101">Power off this system? If you proceed, you will be logged out and this system will be powered off. You will need physical access to the machine to turn it back on in most cases. A properly condigured Striker dashboard will power on after a power cycle (via a PDU) or any machine with IPMI if you have access to a machine on the BCN.</key>
 		<key name="striker_0102">The peer will be added to the local configuration shortly. Expect slight performance impacts if there is a lot of data to synchronize.</key>
 		<key name="striker_0103">The peer will be added to the local configuration shortly, and we will be added to their configuration as well. Expect slight performance impacts if there is a lot of data to synchronize.</key>
+		<key name="striker_0104">The peer will be removed from to the local configuration shortly. Any existing data will remain but no further data will be shared.</key>
+		<key name="striker_0105"><![CDATA[Are you sure that you want to remove the peer: [<span class="code">#!variable!peer!#</span>]? If so, no further data from this system will be written to the peer. Do note that any existing data will remain and will be reused if you add the peer back again.]]></key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -526,6 +528,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0010">Powering off...</key>
 		<key name="job_0011">Add a Striker Peer</key>
 		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
+		<key name="job_0013">Remove a Striker Peer</key>
+		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

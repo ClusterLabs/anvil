@@ -601,6 +601,12 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
+=head3 check_if_configured (optional, default '0')
+
+If set to C<< 1 >>, and if this is a locally hosted database, a check will be made to see if the database is configured. If it isn't, it will be configured.
+
+B<< Note >>: This is expensive, so should only be called periodically. This will do nothing if not called with C<< root >> access, or if the database is not local.
+
 =head3 db_uuid (optional)
 
 If set, the connection will be made only to the database server matching the UUID.
@@ -652,17 +658,19 @@ sub connect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->connect()" }});
 	
-	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "core";
-	my $sql_file   = defined $parameter->{sql_file}   ? $parameter->{sql_file}   : $anvil->data->{path}{sql}{'anvil.sql'};
-	my $tables     = defined $parameter->{tables}     ? $parameter->{tables}     : "";
-	my $test_table = defined $parameter->{test_table} ? $parameter->{test_table} : $anvil->data->{sys}{database}{test_table};
-	my $db_uuid    = defined $parameter->{db_uuid}    ? $parameter->{db_uuid}    : "";
+	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
+	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
+	my $source              = defined $parameter->{source}              ? $parameter->{source}              : "core";
+	my $sql_file            = defined $parameter->{sql_file}            ? $parameter->{sql_file}            : $anvil->data->{path}{sql}{'anvil.sql'};
+	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
+	my $test_table          = defined $parameter->{test_table}          ? $parameter->{test_table}          : $anvil->data->{sys}{database}{test_table};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		source     => $source, 
-		sql_file   => $sql_file, 
-		tables     => $tables, 
-		test_table => $test_table, 
-		db_uuid    => $db_uuid,
+		check_if_configured => $check_if_configured, 
+		db_uuid             => $db_uuid,
+		source              => $source, 
+		sql_file            => $sql_file, 
+		tables              => $tables, 
+		test_table          => $test_table, 
 	}});
 	
 	# If I wasn't passed an array reference of tables, use the core tables.
@@ -808,8 +816,17 @@ sub connect
 			$anvil->data->{sys}{database}{read_uuid} = $uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
 			
-			# Set it up (or update it) if needed. This method just returns if nothing is needed.
-			$anvil->Database->configure_pgsql({debug => $debug, uuid => $uuid});
+			# If requested, and if running with root access, set it up (or update it) if needed. 
+			# This method just returns if nothing is needed.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				check_if_configured => $check_if_configured,
+				real_uid            => $<,
+				effective_uid       => $>,
+			}});
+			if (($check_if_configured) && ($< == 0) && ($> == 0))
+			{
+				$anvil->Database->configure_pgsql({debug => $debug, uuid => $uuid});
+			}
 		}
 		elsif (not $anvil->data->{sys}{database}{read_uuid})
 		{
