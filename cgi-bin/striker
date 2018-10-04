@@ -301,7 +301,7 @@ sub process_power
 	{
 		# Record the job!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 2,
+			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => $task eq "poweroff" ? "anvil-manage-power --poweroff -y" : "anvil-manage-power --reboot -y", 
@@ -332,8 +332,9 @@ sub process_power
 	{
 		# Show the screen the confirm the addition.
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-action", variables => { 
-			title   => $task eq "poweroff" ? "#!string!job_0007!#"     : "#!string!job_0005!#", 
-			message => $task eq "poweroff" ? "#!string!striker_0101!#" : "#!string!striker_0100!#",
+			title         => $task eq "poweroff" ? "#!string!job_0007!#"     : "#!string!job_0005!#", 
+			message       => $task eq "poweroff" ? "#!string!striker_0101!#" : "#!string!striker_0100!#",
+			hidden_fields => "",
 		}});
 	}
 	
@@ -351,7 +352,7 @@ sub process_update
 	{
 		# Record the job!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 2,
+			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => "anvil-update-system", 
@@ -381,8 +382,9 @@ sub process_update
 	{
 		# Show the screen the confirm the addition.
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-action", variables => {
-			title   => "#!string!striker_0078!#",
-			message => "#!string!striker_0086!#",
+			title         => "#!string!striker_0078!#",
+			message       => "#!string!striker_0086!#",
+			hidden_fields => "",
 		}});
 	}
 	
@@ -610,7 +612,7 @@ sub delete_sync_peer
 	{
 		# OK, save the job!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 2,
+			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => "anvil-manage-striker-peers --remove --host-uuid ".$uuid, 
@@ -626,7 +628,7 @@ sub delete_sync_peer
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
 			title_id    => "",
 			message_id  => "",
-			reload_url  => "/cgi-bin/".$THIS_FILE,
+			reload_url  => "/cgi-bin/".$THIS_FILE."?striker=true&task=sync",
 			title       => "#!string!striker_0044!#",
 			description => "#!string!striker_0104!#",
 		}});
@@ -636,8 +638,9 @@ sub delete_sync_peer
 	{
 		# Show the screen the confirm the addition.
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-action", variables => { 
-			title   => "#!string!job_0013!#", 
-			message => $anvil->Words->string({key => "striker_0105", variables => { peer => $user."\@".$host_name }}),
+			title         => "#!string!job_0013!#", 
+			message       => $anvil->Words->string({key => "striker_0105", variables => { peer => $user."\@".$host_name }}),
+			hidden_fields => "<input type=\"hidden\" name=\"delete\" id=\"delete\" value=\"".$uuid."\" />",
 		}});
 	}
 	
@@ -843,7 +846,7 @@ sub add_sync_peer
 			
 			# Store the job
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-				debug           => 2,
+				debug           => 3,
 				file            => $THIS_FILE, 
 				line            => __LINE__, 
 				job_command     => $job_command, 
@@ -860,7 +863,7 @@ sub add_sync_peer
 			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
 				title_id    => "",
 				message_id  => "",
-				reload_url  => "/cgi-bin/".$THIS_FILE,
+				reload_url  => "/cgi-bin/".$THIS_FILE."?striker=true&task=sync",
 				title       => "#!string!striker_0044!#",
 				description => $ping ? "#!string!striker_0103!#" : "#!string!striker_0102!#",
 			}});
@@ -926,7 +929,7 @@ sub configure_striker
 	{
 		# User has confirmed, update the system!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 2,
+			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => "anvil-configure-striker", 

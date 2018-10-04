@@ -86,6 +86,10 @@ This takes an integer and inserts commas to make it more readable by people.
 
 If the input string isn't a string of digits, it is simply returned as-is. 
 
+ my $string = $anvil->Convert->add_commas({number => 123456789});
+ 
+ # string = 123,456,789
+
 Parameters;
 
 =head3 number (required)

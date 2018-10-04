@@ -706,6 +706,7 @@ sub connect
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		# Periodically, autovivication causes and empty key to appear.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 		next if ((not $uuid) or (not $anvil->Validate->is_uuid({uuid => $uuid})));
 		
 		if (($db_uuid) && ($db_uuid ne $uuid))
@@ -1190,6 +1191,7 @@ sub connect
 	# Add ourselves to the database, if needed.
 	$anvil->Database->insert_or_update_hosts({debug => $debug});
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 	return($anvil->data->{sys}{database}{connections});
 }
 
@@ -1587,11 +1589,11 @@ sub initialize
 	});
 	
 	$anvil->data->{sys}{db_initialized}{$uuid} = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_initialized::${uuid}" => $anvil->data->{sys}{db_initialized}{$uuid} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::db_initialized::${uuid}" => $anvil->data->{sys}{db_initialized}{$uuid} }});
 	
 	# Mark that we need to update the DB.
 	$anvil->data->{sys}{database}{resync_needed} = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 	return($success);
@@ -3399,7 +3401,7 @@ sub insert_or_update_sessions
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_sessions()" }});
 	
 	my $uuid               = defined $parameter->{uuid}               ? $parameter->{uuid}               : "";
 	my $file               = defined $parameter->{file}               ? $parameter->{file}               : "";
@@ -3732,6 +3734,7 @@ WHERE
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "state_uuid", uuid => $state_uuid }});
 			return("");
 		}
+	
 		foreach my $row (@{$results})
 		{
 			my $old_state_name         = $row->[0];
@@ -4763,7 +4766,6 @@ sub mark_active
 		state_note      => $value,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
-	
 	return($state_uuid);
 }
 
@@ -5191,7 +5193,7 @@ sub resync_databases
 					my $column_value = defined $row->[$column_number] ? $row->[$column_number] : "NULL";
 					my $not_null     = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{not_null};
 					my $data_type    = $anvil->data->{sys}{database}{table}{$table}{column}{$column_name}{data_type};
-					$anvil->Log->variables({source => 2, line => __LINE__, level => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"s1:id"            => $uuid,
 						"s2:row_number"    => $row_number,
 						"s3:column_number" => $column_number,
@@ -5419,13 +5421,17 @@ sub resync_databases
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0221", variables => { 
 					to_write  => $to_write_count,
-					host_name => $anvil->Get->host_name({debug => 2, host_uuid => $uuid}), 
+					host_name => $anvil->Get->host_name({host_uuid => $uuid}), 
 				}});
 				$anvil->Database->write({uuid => $uuid, query => $merged, source => $THIS_FILE, line => __LINE__});
 				undef $merged;
 			}
 		}
 	} # foreach my $table
+	
+	# Clear the variable that indicates we need a resync.
+	$anvil->data->{sys}{database}{resync_needed} = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
 	
 	# Show tables;
 	# SELECT table_schema, table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY table_name ASC, table_schema DESC;
@@ -5474,9 +5480,15 @@ sub write
 		}});
 	}
 	
+	### NOTE: The careful checks below are to avoid autovivication biting our arses later.
 	# Make logging code a little cleaner
-	my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
-	my $say_server    = $uuid eq "" ? $anvil->Words->string({key => "log_0129"}) : $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
+	my $database_name = $anvil->data->{sys}{database}{name};
+	my $say_server    = $anvil->Words->string({key => "log_0129"});
+	if (($uuid) && (exists $anvil->data->{database}{$uuid}) && (defined $anvil->data->{database}{$uuid}{name}) && ($anvil->data->{database}{$uuid}{name}))
+	{
+		$database_name = $anvil->data->{database}{$uuid}{name};
+		$say_server    = $anvil->data->{database}{$uuid}{host}.":".$anvil->data->{database}{$uuid}{port}." -> ".$database_name;
+	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		database_name => $database_name, 
 		say_server    => $say_server,
@@ -5951,13 +5963,16 @@ ORDER BY
 			if ($anvil->data->{sys}{database}{table}{$table}{last_updated} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated})
 			{
 				# Resync needed.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 					"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 				}});
+				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}) });;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
-					uuid => $uuid,
-					host => $anvil->Get->host_name({debug => 2, host_uuid => $uuid}),
+					seconds => $difference, 
+					table   => $table, 
+					uuid    => $uuid,
+					host    => $anvil->Get->host_name({host_uuid => $uuid}),
 				}});
 				
 				# Mark it as behind.
@@ -5967,13 +5982,16 @@ ORDER BY
 			elsif ($anvil->data->{sys}{database}{table}{$table}{row_count} > $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count})
 			{
 				# Resync needed.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"sys::database::table::${table}::row_count"                => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
 					"sys::database::table::${table}::uuid::${uuid}::row_count" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 				}});
+				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}) });;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
-					uuid => $uuid,
-					host => $anvil->Get->host_name({debug => 2, host_uuid => $uuid}),
+					missing => $difference, 
+					table   => $table, 
+					uuid    => $uuid,
+					host    => $anvil->Get->host_name({host_uuid => $uuid}),
 				}});
 				
 				# Mark it as behind.
@@ -5983,10 +6001,7 @@ ORDER BY
 		}
 		last if $anvil->data->{sys}{database}{resync_needed};
 	}
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed}, 
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
 	
 	return(0);
 }

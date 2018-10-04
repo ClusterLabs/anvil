@@ -398,11 +398,17 @@ sub logout
 	$anvil->Account->_write_cookies({debug => $debug});
 	
 	my $user_uuid = defined $parameter->{user_uuid} ? $parameter->{user_uuid} : "";
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		user_uuid => $user_uuid. 
+		user_uuid => $user_uuid, 
 		host_uuid => $host_uuid, 
 	}});
+	
+	if (not $host_uuid)
+	{
+		$host_uuid = $anvil->Get->host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	}
 	
 	if (($anvil->data->{cookie}{anvil_user_uuid}) && (not $user_uuid))
 	{

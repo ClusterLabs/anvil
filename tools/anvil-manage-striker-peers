@@ -41,9 +41,15 @@ $| = 1;
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 
 # Read switches
-$anvil->data->{switches}{list}   = "";
-$anvil->data->{switches}{add}    = 0;
-$anvil->data->{switches}{remove} = 0;
+$anvil->data->{switches}{list}            = "";
+$anvil->data->{switches}{add}             = 0;
+$anvil->data->{switches}{remove}          = 0;
+$anvil->data->{switches}{'job-uuid'}      = "";
+$anvil->data->{switches}{'host-uuid'}     = "";
+$anvil->data->{switches}{'host'}          = "";
+$anvil->data->{switches}{'port'}          = 5432;
+$anvil->data->{switches}{'password-file'} = "";
+$anvil->data->{switches}{'ping'}          = 0;
 $anvil->Get->switches;
 
 # Make sure we're running as 'root'
@@ -63,9 +69,9 @@ $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 
 # Am I adding, editing or deleting?
-if (not $anvil->data->{switches}{list})
+if ((not $anvil->data->{switches}{list}) && ($anvil->data->{switches}{'host-uuid'}))
 {
-	process_entry($anvil) ;
+	process_entry($anvil);
 }
 
 ### Report the peers.
@@ -141,12 +147,12 @@ sub process_entry
 {
 	my ($anvil) = @_;
 	
-	my $job_uuid      = defined $anvil->data->{switches}{'job-uuid'}      ? $anvil->data->{switches}{'job-uuid'}      : "";
-	my $host_uuid     = defined $anvil->data->{switches}{'host-uuid'}     ? $anvil->data->{switches}{'host-uuid'}     : "";
-	my $host          = defined $anvil->data->{switches}{'host'}          ? $anvil->data->{switches}{'host'}          : "";
-	my $port          = defined $anvil->data->{switches}{'port'}          ? $anvil->data->{switches}{'port'}          : 5432;
-	my $password_file = defined $anvil->data->{switches}{'password-file'} ? $anvil->data->{switches}{'password-file'} : "";
-	my $ping          = defined $anvil->data->{switches}{'ping'}          ? $anvil->data->{switches}{'ping'}          : 0;
+	my $job_uuid      = $anvil->data->{switches}{'job-uuid'};
+	my $host_uuid     = $anvil->data->{switches}{'host-uuid'};
+	my $host          = $anvil->data->{switches}{'host'};
+	my $port          = $anvil->data->{switches}{'port'};
+	my $password_file = $anvil->data->{switches}{'password-file'};
+	my $ping          = $anvil->data->{switches}{'ping'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { 
 		job_uuid      => $job_uuid, 
 		host_uuid     => $host_uuid,
@@ -537,7 +543,35 @@ sub process_entry
 		$anvil->Database->connect;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 		
-		# Now loop until we see the peer's host_uuid show up
+		# Now loop until we see the peer's host_uuid show up and we have a connection to the peer's
+		# database.
+		my $peer_connected = 0;
+		until($peer_connected)
+		{
+			my $say_host = $anvil->Get->host_name({host_uuid => $host_uuid});
+			   $say_host = $host_uuid if not $say_host;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				say_host                               => $say_host, 
+				"cache::database_handle::${host_uuid}" => $anvil->data->{cache}{database_handle}{$host_uuid},
+			}});
+			if ($anvil->data->{cache}{database_handle}{$host_uuid} =~ /^DBI::db=HASH/)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0223", variables => { host => $say_host }});
+				$peer_connected = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_connected => $peer_connected }});
+			}
+			else
+			{
+				# Sleep and then try again to connect.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0222", variables => { host => $say_host }});
+				
+				sleep 1;
+				
+				$anvil->Database->connect({db_uuid => $host_uuid});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+			}
+		}
+		
 		my $peer_host_name = "";
 		my $host_seen      = 0;
 		until($host_seen)
