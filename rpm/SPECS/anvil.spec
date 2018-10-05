@@ -394,8 +394,9 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
-*  Madison Kelly <mkelly@alteeve.ca> 3.0-17
+* Thu Oct 04 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-17
 - Added 'perl-UUID-Tiny' to core dependencies.
+- Updated source.
 
 * Fri Sep 14 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-16
 - Added htop as a -core dependency.
