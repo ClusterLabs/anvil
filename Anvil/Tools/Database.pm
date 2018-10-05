@@ -942,6 +942,7 @@ sub connect
 			$anvil->data->{sys}{database}{connections}++;
 			push @{$successful_connections}, $uuid;
 			$anvil->data->{cache}{database_handle}{$uuid} = $dbh;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid} }});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0071", variables => { 
 				host => $host,
@@ -5058,6 +5059,8 @@ sub resync_databases
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
 	if (not $anvil->data->{sys}{database}{resync_needed})
 	{
+		# We don't need table data, clear it.
+		delete $anvil->data->{sys}{database}{table};
 		return(0);
 	}
 	
@@ -5428,6 +5431,9 @@ sub resync_databases
 			}
 		}
 	} # foreach my $table
+	
+	# We're done with the table data, clear it.
+	delete $anvil->data->{sys}{database}{table};
 	
 	# Clear the variable that indicates we need a resync.
 	$anvil->data->{sys}{database}{resync_needed} = 0;

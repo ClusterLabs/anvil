@@ -112,22 +112,10 @@ my $check_if_database_is_configured = 0;
 # These are the things we always want running.
 while(1)
 {
-	# Connect to the database(s)
+	# Reload defaults, re-read the config and then connect to the database(s)
 	$anvil->Storage->read_config({force_read => 1, file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-	
-	### DEBUG:
-	my $db_count = keys %{$anvil->data->{database}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_count => $db_count }});
-	foreach my $uuid (keys %{$anvil->data->{database}})
-	{
-		my $host = $anvil->data->{database}{$uuid}{host};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:uuid" => $uuid, 
-			"s2:host" => $host,
-		}});
-	}
 	
 	# Mark that we don't want to check the database now.
 	$check_if_database_is_configured = 0;
@@ -182,22 +170,7 @@ while(1)
 	}
 	
 	# Disconnect from the database(s) and sleep now.
-	$anvil->Database->disconnect({debug => 2});
-	
-	### DEBUG:
-	$db_count = 0;
-	$db_count = keys %{$anvil->data->{database}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_count => $db_count }});
-	foreach my $uuid (keys %{$anvil->data->{database}})
-	{
-		my $host = $anvil->data->{database}{$uuid}{host};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:uuid" => $uuid, 
-			"s2:host" => $host,
-		}});
-	}
-	
-	die;
+	$anvil->Database->disconnect();
 	sleep(1);
 }
 
