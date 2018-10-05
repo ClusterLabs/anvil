@@ -156,7 +156,7 @@ while(1)
 		
 		# Update the next check time.
 		$next_check = $now_time + $system_check;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"s1:system_check" => $system_check,
 			"s2:next_check"   => $next_check, 
 		}});

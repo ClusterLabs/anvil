@@ -295,7 +295,6 @@ cp -R -p tools/* %{buildroot}/%{_sbindir}
 cp -R -p anvil.conf %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p anvil.version %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p share/* %{buildroot}/%{_usr}/share/anvil/
-mv %{buildroot}/%{_sbindir}/anvil.sql %{buildroot}/%{_datadir}/anvil/anvil.sql
 
 
 %pre core
