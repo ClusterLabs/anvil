@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        17%{?dist}
+Release:        18%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -393,6 +393,10 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+* Sat Oct 06 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-18
+- Updated the source to resolve a major bug introduced by the code in the .17
+  release. 
+
 * Thu Oct 04 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-17
 - Added 'perl-UUID-Tiny' to core dependencies.
 - Updated source.
