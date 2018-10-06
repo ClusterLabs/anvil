@@ -372,6 +372,10 @@ The database connection error was:
 		<key name="log_0221">Writing: [#!variable!to_write!#] record(s) to resync the database on: [#!variable!host_name!#].</key>
 		<key name="log_0222">The connection to the database on: [#!variable!host!#] isn't established, trying again...</key>
 		<key name="log_0223">The connection to the database on: [#!variable!host!#] has been successfully established.</key>
+		<key name="log_0224">The system has only been running for: [#!variable!uptime!#] seconds. To minimize the impact of a bug causing a rapid reboot cycle, the request to: [#!variable!task!#] will be paused until the system has been running for at least ten minutes. We will proceed in: [#!variable!difference!#] seconds (at #!variable!say_time!#).</key>
+		<key name="log_0225">power off</key>
+		<key name="log_0226">reboot</key>
+		<key name="log_0227">Delay complete, proceeding with the #!variable!task!# operation now.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

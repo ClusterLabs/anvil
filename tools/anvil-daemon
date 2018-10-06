@@ -207,19 +207,10 @@ sub boot_time_tasks
 	my ($anvil) = @_;
 	
 	# If the uptime is less than ten minutes, clear the reboot flag.
-	my $uptime = $anvil->Storage->read_file({
-		force_read => 1,
-		cache      => 0,
-		file       => $anvil->data->{path}{proc}{uptime},
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
+	my $uptime = $anvil->System->get_uptime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
 	
-	# Clean it up. We'll have gotten two numbers, the uptime in seconds (to two decimal places) and the 
-	# total idle time. We only care about the int number.
-	$uptime =~ s/^(\d+)\..*$/$1/;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
-	
-	# Now find out if a reboot is needed and when it was last changed.
+	# Now find out if a reboot is listed as needed and when it was last changed.
 	my $reboot_needed       = 0;
 	my $changed_seconds_ago = 0;
 	my $query               = "
@@ -235,9 +226,10 @@ AND
 AND 
     variable_name = 'reboot::needed'
 ;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -246,7 +238,7 @@ AND
 		$reboot_needed       =  $results->[0]->[0];
 		$changed_seconds_ago =  $results->[0]->[1];
 		$changed_seconds_ago =~ s/^(\d+)\..*$/$1/;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			reboot_needed       => $reboot_needed,
 			changed_seconds_ago => $changed_seconds_ago, 
 		}});
@@ -255,34 +247,36 @@ AND
 	# If a reboot is needed, see if the uptime is less than the time since the reboot needed flag was 
 	# set. If the uptime is less, then the system rebooted since it was requested so clear it. h/t to
 	# Lisa Seelye (@thedoh) for this idea!
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		reboot_needed       => $reboot_needed,
-		changed_seconds_ago => $changed_seconds_ago, 
-		uptime              => $uptime,
+	my $difference = ($changed_seconds_ago - $uptime);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s1:reboot_needed"       => $reboot_needed,
+		"s2:changed_seconds_ago" => $changed_seconds_ago, 
+		"s3:uptime"              => $uptime,
+		"s4:difference"          => $difference,
 	}});
 	if (($reboot_needed) && ($uptime < $changed_seconds_ago))
 	{
 		# Clear the reboot request.
-		$reboot_needed = $anvil->System->reboot_needed({set => 0});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
+		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 0});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 		
 		# Check to see if there was a reboot job in progress. If so, finish it off.
-		my $job_uuid = $anvil->Job->get_job_uuid({program => "anvil-manage-power"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+		my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => "anvil-manage-power"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		
 		if ($job_uuid)
 		{
 			# Update the percentage to '100' and then clear the old PID.
 			my $date_time = $anvil->Get->date_and_time();
-			if ($anvil->data->{jobs}{job_uuid})
-			{
-				$anvil->Job->update_progress({
-					progress => 100, 
-					message  => "message_0064,!!date_and_time!".$date_time."!!", 
-					job_uuid => $job_uuid
-				});
-			}
-			$anvil->Job->clear({job_uuid => $job_uuid});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { date_time => $date_time }});
+			
+			$anvil->Job->update_progress({
+				debug        => 2,
+				progress     => 100, 
+				message      => "message_0064,!!date_and_time!".$date_time."!!", 
+				job_uuid     => $job_uuid,
+				picked_up_by => 0,
+			});
 		}
 	}
 	

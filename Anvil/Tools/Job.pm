@@ -210,6 +210,10 @@ This is the UUID of the job to update. If it isn't set, but C<< jobs::job_uuid >
 
 If set, this message will be appended to C<< job_status >>. If set to 'C<< clear >>', previous records will be removed.
 
+=head3 picked_up_by (optional, default '$$' (caller's PID))
+
+If set, this is used for the C<< job_picked_up_by >> column. If it isn't set, the process ID of the caller is used.
+
 =head3 progress (required)
 
 This is a number to set the current progress to. 
@@ -222,15 +226,22 @@ sub update_progress
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 
-	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
-	my $message  = defined $parameter->{message}  ? $parameter->{message}  : "";
-	my $progress = defined $parameter->{progress} ? $parameter->{progress} : "";
+	my $job_uuid     = defined $parameter->{job_uuid}     ? $parameter->{job_uuid}     : "";
+	my $message      = defined $parameter->{message}      ? $parameter->{message}      : "";
+	my $picked_up_by = defined $parameter->{picked_up_by} ? $parameter->{picked_up_by} : "";
+	my $progress     = defined $parameter->{progress}     ? $parameter->{progress}     : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		picked_up_by     => $picked_up_by, 
 		progress         => $progress,
 		message          => $message, 
 		job_uuid         => $job_uuid, 
 		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid}, 
 	}});
+	if ($picked_up_by eq "")
+	{
+		$picked_up_by = $$;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { picked_up_by => $picked_up_by }});
+	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
 	if ((not $job_uuid) && ($anvil->data->{jobs}{job_uuid}))
@@ -269,14 +280,13 @@ sub update_progress
 	}
 	
 	# Get the current job_status and append this new one.
-	my $job_picked_up_by = $$;
 	my $job_picked_up_at = 0;
 	my $job_status       = "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message, job_picked_up_by => $job_picked_up_by }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message, picked_up_by => $picked_up_by }});
 	if ($message eq "clear")
 	{
-		$job_picked_up_by = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_picked_up_by => $job_picked_up_by }});
+		$picked_up_by = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { picked_up_by => $picked_up_by }});
 	}
 	else
 	{
@@ -363,7 +373,7 @@ WHERE
 		debug                => $debug,
 		update_progress_only => 1,
 		job_uuid             => $job_uuid, 
-		job_picked_up_by     => $job_picked_up_by, 
+		job_picked_up_by     => $picked_up_by, 
 		job_picked_up_at     => $job_picked_up_at,
 		job_progress         => $progress, 
 		job_status           => $job_status, 

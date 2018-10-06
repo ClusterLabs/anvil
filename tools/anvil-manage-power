@@ -34,7 +34,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 
-$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
+$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
@@ -45,6 +45,7 @@ $anvil->data->{switches}{'y'}             = "";
 $anvil->data->{switches}{'yes'}           = "";
 $anvil->data->{switches}{'reboot-needed'} = "";
 $anvil->data->{switches}{'job-uuid'}      = "";
+$anvil->data->{switches}{'no-delay'}      = "";
 $anvil->Get->switches;
 
 if ($anvil->data->{switches}{'power-off'})
@@ -58,7 +59,7 @@ if ($anvil->data->{switches}{'yes'})
 
 # Connect to DBs.
 $anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -128,7 +129,7 @@ if ($anvil->data->{switches}{'reboot-needed'} eq "1")
 	# Enable
 	if (not $reboot_needed)
 	{
-		$reboot_needed = $anvil->System->reboot_needed({set => 1});
+		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 		print $anvil->Words->string({key => "message_0048"})."\n";
 	}
@@ -143,7 +144,7 @@ elsif ($anvil->data->{switches}{'reboot-needed'} eq "0")
 	# Disabled
 	if ($reboot_needed)
 	{
-		$reboot_needed = $anvil->System->reboot_needed({set => 0});
+		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 0});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 		print $anvil->Words->string({key => "message_0050"})."\n";
 	}
@@ -162,7 +163,7 @@ elsif ($anvil->data->{switches}{'reboot-needed'})
 # Get the current state
 if ($reboot_needed)
 {
-	# Report that we're in mainteance mode
+	# Report that we need to reboot
 	print $anvil->Words->string({key => "message_0053"})."\n";
 }
 else
@@ -185,9 +186,36 @@ sub do_poweroff
 	my ($anvil, $task) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
 	
+	# We'll wait until the system has at least 10 minutes of uptime, unless '--no-wait' was given.
+	my $uptime = $anvil->data->{switches}{'no-wait'} ? 0 : $anvil->System->get_uptime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::no-wait" => $anvil->data->{switches}{'no-delay'}, 
+		uptime              => $uptime,
+	}});
+	
 	my $say_task = $task eq "poweroff" ? "message_0062" : "message_0063";
 	my $percent  = $task eq "poweroff" ? 100            : 50;
 	print $anvil->Words->string({key => $say_task})."\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => $say_task});
+	
+	# To minimize the trouble of a problem where the reboot needed flag isn't cleared, and so the system 
+	# wants to repeatedly reboot, we need to add a delay to not let anvil-daemon ask us to 
+	# reboot/power-off until the system uptime is more than ten minutes.
+	if (($uptime) && ($uptime < 600))
+	{
+		# We'll wait until the system has been running for ten minutes.
+		my $difference = 600 - $uptime;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0224", variables => {
+			task       => $task eq "poweroff" ? "#!string!log_0225!#" : "#!string!log_0226!#",
+			difference => $difference, 
+			uptime     => $uptime,
+			say_time   => $anvil->Get->date_and_time({offset => $difference, time_only => 1}),
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => $say_task});
+		
+		sleep $difference;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0227", variables => { task => $task eq "poweroff" ? "#!string!log_0225!#" : "#!string!log_0226!#" }});
+	}
 	
 	# If I don't have a job_uuid, try to find one.
 	my $job_uuid = "";

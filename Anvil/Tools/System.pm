@@ -882,6 +882,36 @@ sub get_ips
 	return(0);
 }
 
+=head2 get_uptime
+
+This returns, in seconds, how long the host has been up and running for. 
+
+This method takes no parameters.
+
+=cut
+sub get_uptime
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_is_local()" }});
+	
+	my $uptime = $anvil->Storage->read_file({
+		force_read => 1,
+		cache      => 0,
+		file       => $anvil->data->{path}{proc}{uptime},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
+	
+	# Clean it up. We'll have gotten two numbers, the uptime in seconds (to two decimal places) and the 
+	# total idle time. We only care about the int number.
+	$uptime =~ s/^(\d+)\..*$/$1/;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
+	
+	return($uptime);
+}
+
 =head2 hostname
 
 Get or set the local hostname. The current (or new) "static" (traditional) host name and the "pretty" (descriptive) host names are returned.
