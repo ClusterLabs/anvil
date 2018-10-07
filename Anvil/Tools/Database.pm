@@ -5047,6 +5047,7 @@ sub refresh_timestamp
 This will resync the database data on this and peer database(s) if needed. It takes no arguments and will immediately return unless C<< sys::database::resync_needed >> was set.
 
 =cut
+### TODO - BUG: This is, somehow, writing existing records into the history schema of databases.
 sub resync_databases
 {
 	my $self      = shift;
@@ -5149,7 +5150,7 @@ sub resync_databases
 			$anvil->data->{db_resync}{$uuid}{history}{sql} = [];
 			
 			# Read in the data, modified_date first as we'll need that for all entries we record.
-			my $query        = "SELECT modified_date AT time zone 'UTC', $uuid_column, ";
+			my $query        = "SELECT DISTINCT modified_date AT time zone 'UTC' AS utc_modified_date, $uuid_column, ";
 			my $read_columns = [];
 			push @{$read_columns}, "modified_date";
 			push @{$read_columns}, $uuid_column;
@@ -5173,7 +5174,7 @@ sub resync_databases
 			{
 				$query .= " WHERE ".$host_column." = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid});
 			}
-			$query .= " ORDER BY modified_date DESC;";
+			$query .= " ORDER BY utc_modified_date DESC;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
@@ -5888,8 +5889,8 @@ sub _find_behind_databases
 				
 				my $schema = $count ? "history" : "public";
 				   $query  =  "
-SELECT 
-    round(extract(epoch from modified_date)) 
+SELECT DISTINCT 
+    round(extract(epoch from modified_date)) AS unix_modified_date 
 FROM 
     ".$schema.".".$table." ";
 				if ($host_column)
@@ -5900,7 +5901,7 @@ WHERE
 				}
 				$query .= "
 ORDER BY 
-    modified_date DESC
+    unix_modified_date DESC
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					uuid  => $uuid, 
