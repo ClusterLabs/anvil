@@ -799,7 +799,8 @@ sub connect
 			{
 				# Didn't ping and 'database::<uuid>::ping' not set. Record this 
 				# in the failed connections array.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0063", variables => { 
+				my $debug_level = $anvil->data->{sys}{database}{failed_connection_log_level} ? $anvil->data->{sys}{database}{failed_connection_log_level} : 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug_level, priority => "alert", key => "log_0063", variables => { 
 					host => $port ? $host.":".$port : $host,
 					name => $name, 
 					uuid => $uuid,

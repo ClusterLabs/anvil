@@ -768,6 +768,7 @@ sub _set_defaults
 									"alert_sent",
 									"states",
 								],
+			failed_connection_log_level	=>	1,
 			local_lock_active		=>	0,
 			local_uuid			=>	"",
 			locking_reap_age		=>	300,

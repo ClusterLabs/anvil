@@ -1,0 +1,16 @@
+function load_video {
+	insmod efi_gop
+	insmod efi_uga
+	insmod video_bochs
+	insmod video_cirrus
+	insmod all_video
+}
+
+load_video
+set gfxpayload=keep
+insmod gzio
+
+menuentry 'Install Anvil! M3 - Striker'  --class fedora --class gnu-linux --class gnu --class os {
+	linuxefi fedora28/vmlinuz ip=dhcp inst.repo=http://10.1.4.1/fedora28/x86_64/iso/
+	initrdefi fedora28/initrd.img
+}

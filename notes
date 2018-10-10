@@ -1,3 +1,143 @@
+Firewall config stuff.
+====
+---- Files
+[root@f28-striker01 zones]# cat /etc/firewalld/zones/BCN1.xml
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>BCN1</short>
+  <description>Back-Channel Network #1 - Used for all inter-machine communication in the Anvil!, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</description>
+  <service name="ssh"/>
+  <service name="dhcpv6-client"/>
+  <service name="cockpit"/>
+  <service name="postgresql"/>
+  <service name="http"/>
+  <service name="https"/>
+  <port port="80" protocol="tcp"/>
+  <port port="443" protocol="tcp"/>
+</zone>
+
+[root@f28-striker01 zones]# cat /etc/firewalld/zones/IFN1.xml 
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>IFN1</short>
+  <description>Internet/Intranet-Facing Network #1 - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</description>
+  <service name="ssh"/>
+  <service name="postgresql"/>
+  <service name="http"/>
+  <service name="https"/>
+  <port port="80" protocol="tcp"/>
+  <port port="443" protocol="tcp"/>
+</zone>
+
+[root@f28-striker01 zones]# cat /etc/firewalld/zones/SN1.xml
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>SN1</short>
+  <description>Storage Network #1 - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</description>
+  <service name="ssh"/>
+</zone>
+----
+Reload;
+firewall-cmd --reload
+
+### These are permanent
+# Put the interfaces under the appropriate zones.
+firewall-cmd --zone=IFN1 --change-interface=ifn1_bond1 
+firewall-cmd --zone=BCN1 --change-interface=bcn1_bond1 
+firewall-cmd --set-default-zone=IFN1
+
+### These are temporary unless --permanent is used
+# Allow routing/masq'ing through the IFN
+firewall-cmd --zone=IFN1 --add-masquerade
+
+# Check
+firewall-cmd --zone=IFN1 --query-masquerade
+yes
+
+# Disable 
+# NOTE: Doesn't break existing connections
+firewall-cmd --zone=IFN1 --remove-masquerade
+
+
+
+- Notes;
+firewall-cmd --state  [running (rc: 0),not running (rc:252)]
+
+- Paths
+If we want to create services or helpers later, look under - /usr/lib/firewalld/
+Core firewalld configs, including defaults zones, etc      - /etc/firewalld/
+
+- https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+
+* Zones are meant to deal with dynamic environments and aren't that useful in mostly static server environments
+** Seem to be pre-configured sets of what is/isn't allowed. 'public' for IFN, 'work' for SN/BCN? 'external/internal' are for routing
+** Configured in /etc/firewalld/zones/<zone>.xml - Create 'BCN', 'SN' and 'IFN'?
+* Use 'firewall-cmd' WITHOUT '--permanent' for things like enabling the VNC port for a server. Use '--permanent' for everything else. 
+
+====
+
+
+Striker as PXE server
+====
+
+dnf install dhcp tftp-server syslinux kernel-core
+----
+cat /etc/dhcp/dhcpd.conf 
+### Global options
+option domain-name "alteeve.com";			# domain name
+option domain-name-servers 8.8.8.8, 8.8.4.4;		# 
+authoritative;
+ddns-update-style none;
+
+subnet 10.1.0.0 netmask 255.255.0.0 {
+	default-lease-time 600;
+	max-lease-time     7200;
+	range              10.1.14.1 10.1.14.254;
+	option routers     10.1.4.1;
+}
+----
+
+# NOTE: We DON'T enable DHCP. We'll turn it on as needed.
+
+systemctl start tftp.socket
+systemctl enable tftp.socket
+
+# Bootloader for BIOS
+OS="fedora28"
+mkdir /var/lib/tftpboot/
+cp $(anvil source)/pxe/tftpboot/bios/* /var/lib/tftpboot/
+
+# Bootloader for UEFI
+cp $(anvil source)/pxe/tftpboot/uefi/* /var/lib/tftpboot/uefi/
+
+# Copy kernel images for tftpboot downloads
+mkdir -p /var/lib/tftpboot/${OS}
+cp /lib/modules/$(uname -r)/vmlinuz /var/lib/tftpboot/${OS}/
+mkinitrd /var/lib/tftpboot/${OS}/initrd.img $(uname -r)
+
+# Configs from anvil source
+rsync -av pxe/tftpboot/pxelinux.cfg/default root@f28-striker01:/var/lib/tftpboot/pxelinux.cfg/
+rsync -av pxe/tftpboot/pxelinux/uefi        root@f28-striker01:/var/lib/tftpboot/pxelinux/
+
+====
+
+Forewalld Router config
+====
+# Allow routing/masq'ing through the IFN
+firewall-cmd --zone=IFN --add-masquerade
+success
+
+# Check
+firewall-cmd --zone=IFN --query-masquerade
+yes
+
+# Disable 
+# NOTE: Doesn't break existing connections
+firewall-cmd --zone=IFN --remove-masquerade
+success
+====
+
+
 DB stuff;
 
 Dump;
@@ -508,4 +648,112 @@ crm_resource --reprobe
 pcs resource manage srv01-c7
 
 
+https://pykickstart.readthedocs.io/en/latest/kickstart-docs.html#chapter-1-introduction
+
+==== Sample kickstart for Fedora28 netinstall
+#version=DEVEL
+ignoredisk --only-use=vda
+# Partition clearing information
+clearpart --none --initlabel
+# Use graphical install
+graphical
+# Use network installation
+url --url="http://10.1.4.1/fedora28/x86_64/iso/"
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+# System language
+lang en_CA.UTF-8
+
+# Network information
+network  --bootproto=dhcp --device=ens3 --ipv6=auto --activate
+network  --hostname=localhost.localdomain
+# Root password
+rootpw --iscrypted $6$fyAht.3wBVlRGgqG$5dqIv2NrBD87uA51fxuoic/t2G93pXPUjVlh27Avg20ZGY409SK8cMVgABswF.krJSVIyoHfIChXNfpP/qTjI1
+# Run the Setup Agent on first boot
+firstboot --enable
+# Do not configure the X Window System
+skipx
+# System services
+services --enabled="chronyd"
+# System timezone
+timezone Etc/GMT --isUtc
+# System bootloader configuration
+bootloader --location=mbr --boot-drive=vda
+
+%packages
+@^server-product-environment
+
+%end
+
+%addon com_redhat_kdump --disable --reserve-mb='128'
+
+%end
+
+%anaconda
+pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+%end
 ====
+
+==== M3 Striker Kickstart
+# Setion 1 
+# Command section – Refer to Chapter 2 for a list of kickstart options. You must include the required options.
+
+
+### NOTE: The %packages, %pre, %pre-install, %post, %onerror, and %traceback sections are all required to be closed with %end
+# Section 2
+# The %packages section – Refer to Chapter 3 for details.
+
+
+# Section 3:
+# The %pre, %pre-install, %post, %onerror, and %traceback sections – These sections can be in any order and are not required. Refer to Chapter 4, Chapter 5, and Chapter 6 for details.
+====
+
+  0 root@pulsar:/var/lib/libvirt/images# dev_PATH=$(udevadm info /dev/sdb | grep -e ID_PATH=)
+  0 root@pulsar:/var/lib/libvirt/images# if  [[ $dev_PATH == *"usb"* ]]; then echo "USB drive"; elif [[ $dev_PATH == *"nvme"* ]]; then echo "NVMe drive"; elif [[ $dev_PATH == *"ata"* ]]; then echo "SATA drive"; elif [[ $dev_PATH == *"scsi"* ]]; then echo "SCSI drive"; fi
+USB drive
+  0 root@pulsar:/var/lib/libvirt/images# dev_PATH=$(udevadm info /dev/sda | grep -e ID_PATH=)
+  0 root@pulsar:/var/lib/libvirt/images# if  [[ $dev_PATH == *"usb"* ]]; then echo "USB drive"; elif [[ $dev_PATH == *"nvme"* ]]; then echo "NVMe drive"; elif [[ $dev_PATH == *"ata"* ]]; then echo "SATA drive"; elif [[ $dev_PATH == *"scsi"* ]]; then echo "SCSI drive"; fi
+SATA drive
+  0 root@pulsar:/var/lib/libvirt/images# dev_PATH=$(udevadm info /dev/nvme0n1 | grep -e ID_PATH=)
+  0 root@pulsar:/var/lib/libvirt/images# if  [[ $dev_PATH == *"usb"* ]]; then echo "USB drive"; elif [[ $dev_PATH == *"nvme"* ]]; then echo "NVMe drive"; elif [[ $dev_PATH == *"ata"* ]]; then echo "SATA drive"; elif [[ $dev_PATH == *"scsi"* ]]; then echo "SCSI drive"; fi
+NVMe drive
+[root@localhost ~]# dev_PATH=$(udevadm info /dev/sda | grep -e ID_PATH=)
+[root@localhost ~]# if  [[ $dev_PATH == *"usb"* ]]; then echo "USB drive"; elif [[ $dev_PATH == *"nvme"* ]]; then echo "NVMe drive"; elif [[ $dev_PATH == *"ata"* ]]; then echo "SATA drive"; elif [[ $dev_PATH == *"scsi"* ]]; then echo "SCSI drive"; fi
+SCSI drive
+
+
+0 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sdb/device/model 
+Flash Disk      
+  0 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sda/device/model 
+SanDisk SDSSDXPS
+  0 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/nvme0n1/device/model 
+INTEL SSDPEKKW512G7                     
+
+### Stuff only NVMe has
+ 1 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/nvme0n1/device/subsysnqn 
+nqn.2014.08.org.nvmexpress:80868086BTPY63650FPG512F    INTEL SSDPEKKW512G7                     
+  0 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sda/device/subsysnqn 
+cat: /sys/class/block/sda/device/subsysnqn: No such file or directory
+  1 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sdb/device/subsysnqn 
+cat: /sys/class/block/sdb/device/subsysnqn: No such file or directory
+
+  0 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/nvme0n1/device/serial 
+BTPY63650FPG512F    
+  0 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sda/device/serial 
+cat: /sys/class/block/sda/device/serial: No such file or directory
+  1 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sdb/device/serial 
+cat: /sys/class/block/sdb/device/serial: No such file or directory
+
+  1 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/nvme0n1/device/transport 
+pcie
+  0 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sda/device/transport 
+cat: /sys/class/block/sda/device/transport: No such file or directory
+  1 root@pulsar:/var/lib/libvirt/images# cat /sys/class/block/sdb/device/transport 
+cat: /sys/class/block/sdb/device/transport: No such file or directory
+
+
+
+Disk size:
+/sys/class/block/sda/size * <block size>

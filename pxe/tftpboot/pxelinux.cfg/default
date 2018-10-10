@@ -1,0 +1,9 @@
+default vesamenu.c32
+prompt 1
+timeout 600
+
+label linux
+menu label ^Install Anvil! M3 - Striker
+menu default
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img inst.stage2=http://10.1.4.1/fedora28/x86_64/iso/ ip=dhcp ks=http://10.1.4.1/fedora28/x86_64/kickstart/striker.ks

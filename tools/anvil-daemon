@@ -113,6 +113,8 @@ my $check_if_database_is_configured = 0;
 while(1)
 {
 	# Reload defaults, re-read the config and then connect to the database(s)
+	$anvil->_set_paths();
+	$anvil->_set_defaults();
 	$anvil->Storage->read_config({force_read => 1, file => $anvil->data->{path}{configs}{'anvil.conf'}});
 	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});

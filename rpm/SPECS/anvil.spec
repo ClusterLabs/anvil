@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        18%{?dist}
+Release:        19%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -63,13 +63,17 @@ Common base libraries required for the Anvil! system.
 
 %package striker
 Summary:        Alteeve's Anvil! Striker dashboard package
-Requires:       httpd
 Requires:	anvil-core
+Requires:       createrepo
+Requires:       dhcp
+Requires:       firefox
 Requires:       httpd
+Requires:       kernel-core
 Requires:       nmap
 Requires:       perl-CGI 
 Requires:       postgresql-server 
-Requires:       firefox
+Requires:       syslinux
+Requires:       tftp-server
 Requires:       virt-manager
 ### Desktop stuff
 Requires:       aajohan-comfortaa-fonts
@@ -393,6 +397,11 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+*  Madison Kelly <mkelly@alteeve.ca> 3.0-19
+- Added packages to anvil-striker to support PXE server / install target 
+  functions.
+- 
+
 * Sat Oct 06 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-18
 - Updated the source to resolve a major bug introduced by the code in the .17
   release. 
