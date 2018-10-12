@@ -30,7 +30,9 @@ Requires:       fence-agents-all
 Requires:       fence-agents-virsh 
 Requires:       firewalld
 Requires:       gpm 
+Requires:       hdparm
 Requires:       htop
+Requires:       lsscsi
 Requires:       mlocate 
 Requires:       perl-Data-Dumper 
 Requires:       perl-DBD-Pg 

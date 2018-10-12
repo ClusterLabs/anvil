@@ -266,9 +266,9 @@ sub call
 				while(<$file_handle>)
 				{
 					chomp;
-					my $line = $_;
-					$line =~ s/\n$//;
-					$line =~ s/\r$//;
+					my $line =  $_;
+					   $line =~ s/\n$//;
+					   $line =~ s/\r$//;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0017", variables => { line => $line }});
 					$output .= $line."\n";
 				}
