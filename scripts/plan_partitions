@@ -11,6 +11,7 @@
 # NOTE: This is restricted to what is available during an anaconda install session. That is to same, bare 
 #       minimum.
 # TODO: If multiple matching drives are found (same medium and size, build an appropriate RAID array.
+# TODO: in pre, wipefs on all disks to clear old LVM and DRBD data
 # 
 
 use strict;
@@ -174,31 +175,25 @@ if (not $use_drive)
 
 # Finally, we've got our output.
 my $partition_file = "/tmp/partition_plan";
-my $partition_body = "";
+my $partition_body = "zerombr
+clearpart --all --drives=".$use_drive."
+ignoredisk --only-use=".$use_drive."
+bootloader --location=mbr --driveorder=".$use_drive." --boot-drive=".$use_drive."
+
+part  biosboot --fstype=biosboot --size=1
+part  /boot    --fstype=ext4     --size=1024  --asprimary --ondisk=".$use_drive."
+part  swap     --fstype=swap     --size=4096  --asprimary --ondisk=".$use_drive."
+";
 if ($type eq "striker")
 {
 	$partition_body = "
-zerombr
-clearpart --all --drives=".$use_drive."
-ignoredisk --only-use=".$use_drive."
-bootloader --location=mbr --driveorder=".$use_drive."
-
-part     /boot --fstype ext4 --size=1024  --asprimary --ondisk=".$use_drive."
-part     swap  --fstype swap --size=4096  --asprimary --ondisk=".$use_drive."
-part     /     --fstype ext4 --size=100   --asprimary --ondisk=".$use_drive." --grow
+part  /        --fstype xfs      --size=100   --asprimary --ondisk=".$use_drive." --grow
 ";
 }
 else
 {
 	$partition_body = "
-zerombr
-clearpart --all --drives=".$use_drive."
-ignoredisk --only-use=".$use_drive."
-bootloader --location=mbr --driveorder=".$use_drive."
-
-part     /boot --fstype ext4 --size=1024  --asprimary --ondisk=".$use_drive."
-part     swap  --fstype swap --size=4096  --asprimary --ondisk=".$use_drive."
-part     /     --fstype ext4 --size=100   --asprimary --ondisk=".$use_drive."
+part  /        --fstype xfs      --size=100   --asprimary --ondisk=".$use_drive."
 ";
 }
 
