@@ -1,9 +1,67 @@
+# Tradional BIOS based PXE menu
+# 
+# Useful docs;
+# - https://anaconda-installer.readthedocs.io/en/latest/boot-options.html
+# - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/installation_guide/chap-anaconda-boot-options
+#
+# Notes:
+# - Use the 'vmlinuz' and 'initrd.img' from the Netinstall ISO. The others don't find the NIC, so can't net install.
+#
+# Use the high-colour menu system.
 default vesamenu.c32
-prompt 1
-timeout 600
 
-label linux
-menu label ^Install Anvil! M3 - Striker
+# Time out and use the default menu option. Defined as tenths of a second.
+TIMEOUT 600
+
+# Prompt the user. Set to '1' to automatically choose the default option. This
+# is really meant for files matched to MAC addresses.
+PROMPT 0
+
+# Set the boot menu to be 1024x768 with a nice background image. Be careful to
+# ensure that all your user's can see this resolution! Default is 640x480.
+MENU RESOLUTION 1024 768
+
+# The background image
+MENU BACKGROUND splash.jpg
+
+MENU TITLE    Anvil! - Install Target Menu
+
+# Below, the hash (#) character is replaced with the countdown timer. The
+# '{,s}' allows for pluralizing a word and is used when the value is >= '2'.
+MENU AUTOBOOT Will boot the next device as configured in your BIOS in # second{,s}.
+MENU TABMSG   Press the <tab> key to edit the boot parameters of the highlighted option.
+MENU NOTABMSG Editing of this option is disabled.
+
+# inst.repo is the image of the install media, looks for .treeinfo
+
+
+label fedora
+menu label Install ^Fedora 28 64-bit
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img
+
+label striker
+menu label Install a ^Striker dashboard (Fedora 28)
 menu default
 kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img inst.stage2=http://10.1.4.1/fedora28/x86_64/iso/ ip=dhcp ks=http://10.1.4.1/fedora28/x86_64/kickstart/striker.ks
+append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img inst.stage2=http://10.1.4.1/fedora28/x86_64/os/ ip=dhcp inst.ks=http://10.1.4.1/fedora28/x86_64/kickstart/striker.ks inst.sshd rd.debug
+
+label node
+menu label Install a Anvil! ^Node (Fedora 28)
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img inst.stage2=http://10.1.4.1/fedora28/x86_64/os/ ip=dhcp inst.ks=http://10.1.4.1/fedora28/x86_64/kickstart/node.ks inst.sshd rd.debug
+
+label node
+menu label Install a ^Disaster Recover Host (Fedora 28)
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img inst.stage2=http://10.1.4.1/fedora28/x86_64/os/ ip=dhcp inst.ks=http://10.1.4.1/fedora28/x86_64/kickstart/dr.ks inst.sshd rd.debug
+
+label rescue
+menu label ^Rescue installed system
+kernel fedora28/vmlinuz
+append initrd=fedora28initrd.img ip=dhcp root=live:http://10.1.4.1/fedora28/x86_64/os/LiveOS/squashfs.img rescue
+
+label next
+#menu default
+menu label Boot from Next ^Boot Device
+localboot 0xffff

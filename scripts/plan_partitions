@@ -17,9 +17,11 @@
 use strict;
 use warnings;
 
+# Set to '1' for verbose output 
 my $debug = 0;
-my $type  = defined $ARGV[0] ? $ARGV[0] : "";
-#print "Type: [".$type."]\n";
+
+### NOTE: This must be set to 'striker', 'node' or 'dr' when incorporated into a kickstart %pre script!
+my $type  = "";
 if ($type =~ /striker/i)
 {
 	print "Finding install drive for a Striker dashboard.\n";
@@ -37,8 +39,11 @@ elsif ($type =~ /dr/i)
 }
 else
 {
-	print "Error: Target type not specified.\n";
-	print "Usage: ".$0." [striker,node,dr]\n";
+	print "
+Error: Target type not specified.
+Be sure that '\$type' is set to 'striker', 'node' or 'dr' in the \%pre section 
+of the kickstart script
+";
 	exit(1);
 }
 
@@ -55,6 +60,9 @@ foreach my $line (split/\n/, $lsblk)
 	print __LINE__."; [ Debug ] - lsblk: [".$line."]\n" if $debug;
 	my ($path, $removable, $hotplug, $type, $size, $transport, $rotational) = ($line =~ /NAME="(.*?)" RM="(\d)" HOTPLUG="(\d)" TYPE="(.*?)" SIZE="(\d+)" TRAN="(.*?)" ROTA="(\d)"/);
 	print __LINE__."; [ Debug ] - Device: [".$path."], type: [".$type."], remvoable? [".$removable."], hotplug? [".$hotplug."], rotational? [".$rotational."], transport: [".$transport."], size: [".$size."]\n" if $debug;
+	# Skip 'zramX' devices
+	next if ($path =~ /^\/dev\/zram\d/);
+	# Skip removable disks and anything that just isn't a disk at all.
 	next if (($removable) or ($hotplug) or ($type ne "disk"));
 	$device->{$path} = {
 		type       => $type,
@@ -174,7 +182,7 @@ if (not $use_drive)
 }
 
 # Finally, we've got our output.
-my $partition_file = "/tmp/partition_plan";
+my $partition_file = "/tmp/plan_partitions.out";
 my $partition_body = "zerombr
 clearpart --all --drives=".$use_drive."
 ignoredisk --only-use=".$use_drive."
@@ -182,27 +190,36 @@ bootloader --location=mbr --driveorder=".$use_drive." --boot-drive=".$use_drive.
 
 part  biosboot --fstype=biosboot --size=1
 part  /boot    --fstype=ext4     --size=1024  --asprimary --ondisk=".$use_drive."
-part  swap     --fstype=swap     --size=4096  --asprimary --ondisk=".$use_drive."
-";
+part  swap     --fstype=swap     --size=4096  --asprimary --ondisk=".$use_drive;
 if ($type eq "striker")
 {
-	$partition_body = "
+	$partition_body .= "
 part  /        --fstype xfs      --size=100   --asprimary --ondisk=".$use_drive." --grow
 ";
 }
 else
 {
-	$partition_body = "
+	$partition_body .= "
 part  /        --fstype xfs      --size=100   --asprimary --ondisk=".$use_drive."
 ";
 }
-
+print __LINE__."; [ Debug ] - partition_body: [".$partition_body."]\n" if $debug;
 print "Writing out the partition plan to: [".$partition_file."]\n";
-#print __LINE__."; [ Debug ] - partition_body: [".$partition_body."]\n" if $debug;
-print __LINE__."; [ Debug ] - partition_body: [".$partition_body."]\n";
 
+# Write it to the temp file that the kickstart's %include will look for.
+my $shell_call = $partition_file;
+print __LINE__."; [ Debug ] - shell_call: [".$shell_call."]\n" if $debug;
+open (my $file_handle, ">", $shell_call) or die "Failed to write: [".$shell_call."], the error was: ".$!."\n";
+print $file_handle $partition_body;
+close $file_handle;
+print "Completed successfully, exiting.\n";
+
+# We're done.
 exit(0);
 
+
+### Functions
+# Make the size easier to read for users
 sub hr_size
 {
 	my ($size) = @_;

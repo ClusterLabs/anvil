@@ -99,6 +99,22 @@ subnet 10.1.0.0 netmask 255.255.0.0 {
 
 # NOTE: We DON'T enable DHCP. We'll turn it on as needed.
 
+# NOTE: Apache needs to show dot-files! (anaconda looks for .treeinfo)
+====
+[root@f28-striker01 conf.d]# pwd
+/etc/httpd/conf.d
+[root@f28-striker01 conf.d]# diff -u autoindex.conf.original autoindex.conf
+--- autoindex.conf.original	2018-10-13 03:37:00.084687783 -0400
++++ autoindex.conf	2018-10-13 03:37:41.479635314 -0400
+@@ -89,5 +89,6 @@
+ # IndexIgnore is a set of filenames which directory indexing should ignore
+ # and not include in the listing.  Shell-style wildcarding is permitted.
+ #
+-IndexIgnore .??* *~ *# HEADER* README* RCS CVS *,v *,t
++#IndexIgnore .??* *~ *# HEADER* README* RCS CVS *,v *,t
++IndexIgnore *~ *# HEADER* README* RCS CVS *,v *,t
+====
+
 systemctl start tftp.socket
 systemctl enable tftp.socket
 
