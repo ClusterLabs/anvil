@@ -10,7 +10,13 @@ load_video
 set gfxpayload=keep
 insmod gzio
 
-menuentry 'Install Anvil! M3 - Striker'  --class fedora --class gnu-linux --class gnu --class os {
-	linuxefi fedora28/vmlinuz ip=dhcp inst.repo=http://10.1.4.1/fedora28/x86_64/iso/
+
+menuentry 'Install Fedora 28'  --class fedora --class gnu-linux --class gnu --class os {
+	linuxefi fedora28/vmlinuz ip=dhcp inst.repo=http://10.1.4.1/fedora28/x86_64/iso/ 
+	initrdefi fedora28/initrd.img
+}
+
+menuentry 'Install Striker'  --class fedora --class gnu-linux --class gnu --class os {
+	linuxefi fedora28/vmlinuz ip=dhcp inst.repo=http://10.1.4.1/fedora28/x86_64/iso/ root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img inst.ks=http://10.1.4.1/fedora28/x86_64/kickstart/striker.ks inst.sshd rd.debug
 	initrdefi fedora28/initrd.img
 }
