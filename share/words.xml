@@ -114,6 +114,13 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0074">Reconnecting to the database(s) to ask the peer to add us. Will hold here until the peer is added to the 'hosts' table. Please be patient.</key>
 		<key name="message_0075">The peer: [#!variable!host!#] is now in the database. Proceeding.</key>
 		<key name="message_0076">The job the peer add us has been registered. It should add us as soon as it looks for new jobs (generally within a second or two).</key>
+		<key name="message_0077">
+About to try to download packages needed for installing Anvil! machines to:
+- [#!variable!directory!#].
+Please be patient! This could take a while to resolve dependencies and start downloading.
+		</key>
+		<key name="message_0078">Output: [#!variable!line!#].</key>
+		<key name="message_0079">Error:  [#!variable!line!#].</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

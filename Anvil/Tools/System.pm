@@ -25,6 +25,8 @@ my $THIS_FILE = "System.pm";
 # enable_daemon
 # find_matching_ip
 # get_ips
+# get_uptime
+# get_os_type
 # hostname
 # is_local
 # maintenance_mode
@@ -149,6 +151,7 @@ sub call
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->call()" }});
 	
 	my $background      = defined $parameter->{background}      ? $parameter->{background}      : 0;
 	my $line            = defined $parameter->{line}            ? $parameter->{line}            : __LINE__;
@@ -324,6 +327,7 @@ sub change_shell_user_password
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->change_shell_user_password()" }});
 	
 	my $new_password = defined $parameter->{new_password} ? $parameter->{new_password} : "";
 	my $password     = defined $parameter->{password}     ? $parameter->{password}     : "";
@@ -428,6 +432,7 @@ sub check_daemon
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_daemon()" }});
 	
 	my $return     = 2;
 	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
@@ -476,6 +481,7 @@ sub check_if_configured
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_if_configured()" }});
 	
 	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
 		variable_name         => "system::configured", 
@@ -503,6 +509,7 @@ sub check_memory
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_memory()" }});
 	
 	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { program_name => $program_name }});
@@ -548,6 +555,7 @@ sub determine_host_type
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->determine_host_type()" }});
 	
 	my $host_type = "";
 	my $host_name = $anvil->_short_hostname;
@@ -600,6 +608,7 @@ sub enable_daemon
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->enable_daemon()" }});
 	
 	my $return     = undef;
 	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
@@ -641,6 +650,7 @@ sub find_matching_ip
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->find_matching_ip()" }});
 	
 	my $local_ip = "";
 	my $host     = defined $parameter->{host} ? $parameter->{host} : "";
@@ -895,7 +905,7 @@ sub get_uptime
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_is_local()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_uptime()" }});
 	
 	my $uptime = $anvil->Storage->read_file({
 		force_read => 1,
@@ -910,6 +920,76 @@ sub get_uptime
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
 	
 	return($uptime);
+}
+
+=head2 get_os_type
+
+This returns the operating system type and the system architecture as two separate string variables.
+
+ # Run on RHEL 7, on a 64-bit system
+ my ($os_type, $os_arch) = $anvil->System->get_os_type();
+ 
+ # '$os_type' holds 'rhel7'  ('rhel', 'centos' or 'fedora' + release version) 
+ # '$os_arch' holds 'x86_64' (specifically, 'uname --hardware-platform')
+
+If either can not be determined, C<< unknown >> will be returned.
+
+This method takes no parameters.
+
+=cut
+sub get_os_type
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_os_type()" }});
+	
+	my $os_type = "unknown";
+	my $os_arch = "unknown";
+	
+	### NOTE: Examples;
+	# Red Hat Enterprise Linux Server release 6.10 (Santiago)
+	# Red Hat Enterprise Linux Server release 7.5 (Maipo)
+	# CentOS release 6.10 (Final)
+	# CentOS Linux release 7.5.1804 (Core) 
+	# Fedora release 28 (Twenty Eight)
+	# 
+	# Read in the /etc/redhat-release file
+	my $release = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'redhat-release'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { release => $release }});
+	if ($release =~ /Red Hat Enterprise Linux .* (\d+)\./)
+	{
+		# RHEL, with the major version number appended
+		$os_type = "rhel".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
+	}
+	elsif ($release =~ /CentOS .*? (\d+)\./)
+	{
+		# CentOS, with the major version number appended
+		$os_type = "centos".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
+	}
+	elsif ($release =~ /Fedora .*? (\d+) /)
+	{
+		# Fedora, with the version number appended
+		$os_type = "fedora".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
+	}
+	
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uname}." --hardware-platform"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	if ($output)
+	{
+		$os_arch = $output;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_arch => $os_arch }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		os_type => $os_type, 
+		os_arch => $os_arch,
+	}});
+	return($os_type, $os_arch);
 }
 
 =head2 hostname
@@ -944,7 +1024,7 @@ sub hostname
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_is_local()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->hostname()" }});
 	
 	my $pretty = $parameter->{pretty} ? $parameter->{pretty} : "";
 	my $set    = $parameter->{set}    ? $parameter->{set}    : "";
@@ -1058,6 +1138,7 @@ sub maintenance_mode
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->maintenance_mode()" }});
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
@@ -1159,6 +1240,7 @@ sub manage_firewall
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->manage_firewall()" }});
 	
 	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "check";
 	my $port_number = defined $parameter->{port_number} ? $parameter->{port_number} : "";
@@ -1454,6 +1536,7 @@ sub pids
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->pids()" }});
 	
 	my $ignore_me    = defined $parameter->{ignore_me}    ? $parameter->{ignore_me}    : "";
 	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
@@ -1640,6 +1723,7 @@ sub ping
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->ping()" }});
 	
 # 	my $start_time = [gettimeofday];
 # 	print "Start time: [".$start_time->[0].".".$start_time->[1]."]\n";
@@ -1793,6 +1877,7 @@ sub read_ssh_config
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->read_ssh_config()" }});
 	
 	# This will hold the raw contents of the file.
 	my $this_host                   = "";
@@ -1881,6 +1966,7 @@ sub reboot_needed
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->reboot_needed()" }});
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
@@ -1967,6 +2053,7 @@ sub start_daemon
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->start_daemon()" }});
 	
 	my $return     = undef;
 	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
@@ -2008,6 +2095,7 @@ sub stop_daemon
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->stop_daemon()" }});
 	
 	my $return     = undef;
 	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
@@ -2048,6 +2136,7 @@ sub stty_echo
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->stty_echo()" }});
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { set => $set }});
@@ -2089,6 +2178,7 @@ sub _load_firewalld_zones
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_load_firewalld_zones()" }});
 	
 	my $directory = $anvil->data->{path}{directories}{firewalld_services};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
@@ -2151,6 +2241,7 @@ sub _load_specific_firewalld_zone
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_load_specific_firewalld_zone()" }});
 	
 	my $service = defined $parameter->{service} ? $parameter->{service} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service => $service }});
@@ -2266,6 +2357,7 @@ sub _match_port_to_service
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_match_port_to_service()" }});
 	
 	my $port     = defined $parameter->{port}     ? $parameter->{port}     : "";
 	my $protocol = defined $parameter->{protocol} ? $parameter->{protocol} : "tcp";

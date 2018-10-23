@@ -1,3 +1,8 @@
+# Add to /etc/dnf/dnf.conf
+keepcache=1
+skip_if_unavailable=1
+
+
 # Tradional BIOS based PXE menu
 # 
 # Useful docs;

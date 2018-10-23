@@ -902,6 +902,7 @@ sub _set_paths
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
 				host_uuid			=>	"/etc/anvil/host.uuid",
 				passwd				=>	"/etc/passwd",
+				'redhat-release'		=>	"/etc/redhat-release",
 			},
 			directories		=>	{
 				backups				=>	"/root/anvil-backups",
@@ -967,6 +968,7 @@ sub _set_paths
 				touch				=>	"/usr/bin/touch",
 				tput				=>	"/usr/bin/tput", 
 				'tr'				=>	"/usr/bin/tr",
+				uname				=>	"/usr/bin/uname",
 				usermod				=>	"/usr/sbin/usermod",
 				uuidgen				=>	"/usr/bin/uuidgen",
 				virsh				=>	"/usr/bin/virsh",
