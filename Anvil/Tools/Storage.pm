@@ -1185,9 +1185,9 @@ This is an optional parameter that controls whether the file is cached in case s
 
 This is the name of the file to read. When reading from a remote machine, it must be a full path and file name.
 
-=head3 force_read (optional)
+=head3 force_read (optional, default '1')
 
-This is an otpional parameter that, if set, forces the file to be read, bypassing cache if it exists. Set this to C<< 1 >> to bypass the cache.
+This is an otpional parameter that, if set to C<< 0 >>, will allow an existing cached copy of the file to be used instead of actually reading the file from disk (again).
 
 =head3 password (optional)
 
@@ -1224,7 +1224,7 @@ sub read_file
 	my $body        = "";
 	my $cache       = defined $parameter->{cache}       ? $parameter->{cache}       : 1;
 	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
-	my $force_read  = defined $parameter->{force_read}  ? $parameter->{force_read}  : 0;
+	my $force_read  = defined $parameter->{force_read}  ? $parameter->{force_read}  : 1;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "";

@@ -956,6 +956,7 @@ sub _set_paths
 				psql				=>	"/usr/bin/psql",
 				'postgresql-setup'		=>	"/usr/bin/postgresql-setup",
 				pwd				=>	"/usr/bin/pwd",
+				rpm				=>	"/usr/bin/rpm",
 				rsync				=>	"/usr/bin/rsync",
 				sed				=>	"/usr/bin/sed", 
 				'shutdown'			=>	"/usr/sbin/shutdown",

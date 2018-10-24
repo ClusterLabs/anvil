@@ -115,9 +115,14 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0075">The peer: [#!variable!host!#] is now in the database. Proceeding.</key>
 		<key name="message_0076">The job the peer add us has been registered. It should add us as soon as it looks for new jobs (generally within a second or two).</key>
 		<key name="message_0077">
-About to try to download packages needed for installing Anvil! machines to:
+About to try to download aproximately: [#!variable!packages!#] packages needed for installing Anvil! machines to:
 - [#!variable!directory!#].
-Please be patient! This could take a while to resolve dependencies and start downloading.
+
+NOTE: Please be patient! 
+      The 'dnf' cache will be cleared to ensure the freshest RPMs are download. This will cause a delay 
+      before output starts to appear. Once started, each RPM will be reported after it is downloaded. Large
+      RPMs may cause the output to appear stalled. You can verify that the download it proceeding by using
+      'df -s #!variable!directory!#' to verify the number is increasing.
 		</key>
 		<key name="message_0078">Output: [#!variable!line!#].</key>
 		<key name="message_0079">Error:  [#!variable!line!#].</key>

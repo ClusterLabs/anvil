@@ -12,6 +12,7 @@
 # 
 # Exit codes;
 # 0 = Normal exit.
+# 1 = Alteeve repo not installed and not installable.
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -45,6 +46,9 @@ $anvil->Get->switches;
 # load the list of packages;
 load_packages($anvil);
 
+# Make sure our repo is installed. If not, install it or fail out.
+#check_alteeve_repo($anvil);
+
 # Store the RPMs in repo directory.
 update_install_source($anvil);
 
@@ -55,6 +59,58 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+sub check_alteeve_repo
+{
+	my ($anvil) = @_;
+	
+	my ($os_type, $os_arch) = $anvil->System->get_os_type({debug => 2});
+	my $version = ($os_type =~ /(\d+)$/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		os_type => $os_type, 
+		os_arch => $os_arch, 
+		version => $version, 
+	}});
+	
+	my $repo_url  = "";
+	my $repo_file = "";
+	if ($os_type eq "fedora")
+	{
+		$repo_file = "/etc/yum.repos.d/alteeve-f".$version.".repo";
+		$repo_url  = "https://alteeve.com/an-repo/f".$version."/alteeve-f".$version."-repo-latest.noarch.rpm";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			repo_file => $repo_file,
+			repo_url  => $repo_url, 
+		}});
+	}
+	else
+	{
+		### TODO: Update this when rhel8 is out
+		$repo_file = "/etc/yum.repos.d/alteeve-el".$version.".repo";
+		$repo_url  = "https://alteeve.com/an-repo/el".$version."/alteeve-el".$version."-repo-latest.noarch.rpm";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			repo_file => $repo_file,
+			repo_url  => $repo_url, 
+		}});
+	}
+	
+	# If the repo file doesn't exist, try to install it.
+	if (not -e $repo_file)
+	{
+		# Install the repo
+		my $handle = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{rpm}." -Uvh ".$repo_url });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle }});
+	}
+	
+	# If it still doesn't exist, we're done.
+	if (not -e $repo_file)
+	{
+		# Die
+		die "Failed to install the Alteeve repo, unable to proceed.\n";
+	}
+	
+	return(0);
+}
 
 # This uses yumdownloader to push the files into '/var/www/html/<os_name>/<arch>/os
 sub update_install_source
@@ -69,77 +125,79 @@ sub update_install_source
 	
 	### TODO: Make sure this path exists.
 	my $download_path = "/var/www/html/".$os_type."/".$os_arch."/os/Packages/";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { download_path => $download_path }});
+	my $array_size    = @{$anvil->data->{packages}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		download_path => $download_path, 
+		array_size    => $array_size,
+	}});
 	if (not -e $download_path)
 	{
 		$anvil->Storage->make_directory({debug => 2, directory => $download_path, mode => "0775"});
 	}
-	print $anvil->Words->string({key => "message_0077", variables => { directory => $download_path }})."\n";
+	print $anvil->Words->string({key => "message_0077", variables => { 
+		directory => $download_path, 
+		packages  => $anvil->Convert->add_commas({number => $array_size}), 
+	}})."\n";
 	
-	# Assemble the download command.
-	my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." --resolve";
+	# Clear the dnf cache
+	my $handle = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	foreach my $package (sort {$a cmp $b} @{$anvil->data->{packages}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'package' => $package }});
+		# Append the package to the active shell call.
 		$shell_call .= " ".$package;
 	}
 	
 	# Now call the command in the background, then we'll track the output.
 	my $stdout_file = "/tmp/".$THIS_FILE."_update_install_source.stdout";
-	my $stderr_file = "/tmp/".$THIS_FILE."_update_install_source.stderr";
+	if (-e $stdout_file)
+	{
+		unlink $stdout_file;
+	}
 	my $handle = $anvil->System->call({
 		debug       => 2,
 		shell_call  => $shell_call, 
 		background  => 1, 
 		stdout_file => $stdout_file, 
-		stderr_file => $stderr_file, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle }});
 	
 	# Now we'll loop, printing output, until the handle dies.
-	my $alive       = 1;
-	my $stdout_line = 0;
-	my $stderr_line = 0;
+	my $alive            = 1;
+	my $last_stdout_line = 0;
 	while($alive)
 	{
-		# read the stdout and stderr files and print any lines we've not seen yet.
-		my $stdout = $anvil->Storage->read_file({file => $stdout_file});
-		my $stderr = $anvil->Storage->read_file({file => $stderr_file});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			stdout => $stdout,
-			stderr => $stderr, 
-		}});
-		my $this_stdout_line = 0;
-		my $this_stderr_line = 0;
-		foreach my $line (split/\n/, $stdout)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			$this_stdout_line++;
-			if ($this_stdout_line > $stdout_line)
-			{
-				$this_stdout_line = $stdout_line;
-				print $anvil->Words->string({key => "message_0078", variables => { line => $line }})."\n";
-			}
-		}
-		foreach my $line (split/\n/, $stderr)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			$this_stderr_line++;
-			if ($this_stderr_line > $stderr_line)
-			{
-				$this_stderr_line = $stderr_line;
-				print $anvil->Words->string({key => "message_0079", variables => { line => $line }})."\n";
-			}
-		}
-		
 		# Are we still alive?
 		$alive = $handle->poll();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alive => $alive }});
 		
-		if ($alive)
+		# Sleep (even if we're dead now, we want to give a second for the stdout file to be updated 
+		# before processing it).
+		sleep 1;
+		
+		# print any new STDOUT lines
+		my $stdout = $anvil->Storage->read_file({force_read => 1, file => $stdout_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { stdout => $stdout }});
+		
+		my $this_stdout_line = 0;
+		foreach my $line (split/\n/, $stdout)
 		{
-			sleep 1;
+			$this_stdout_line++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				's1:this_stdout_line' => $this_stdout_line, 
+				's2:last_stdout_line' => $last_stdout_line, 
+				's3:line'             => $line,
+			}});
+			if ($this_stdout_line > $last_stdout_line)
+			{
+				print $anvil->Words->string({key => "message_0078", variables => { line => $line }})."\n";
+				
+				$last_stdout_line = $this_stdout_line;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_stdout_line => $last_stdout_line }});
+			}
 		}
 	}
 	
@@ -203,7 +261,6 @@ sub load_packages
 		"alsa-plugins-pulseaudio.x86_64",
 		"alsa-ucm.x86_64",
 		"alsa-utils.x86_64",
-		"alteeve-f28-repo.noarch",
 		"amtterm.x86_64",
 		"anvil-core.noarch",
 		"anvil-dr.noarch",

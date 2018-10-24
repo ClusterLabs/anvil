@@ -207,6 +207,18 @@ sub key
 		}
 	}
 	
+	if ($string eq "#!not_found!#")
+	{
+		my $message = "[ Error ] - Failed to find the string key: [".$key."]!!";
+		print $THIS_FILE." ".__LINE__."; ".$message."\n";
+		$anvil->Log->entry({
+			level    => 0,
+			line     => __LINE__,
+			raw      => $message,
+			source   => $THIS_FILE,
+		})
+	}
+	
 	#print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n";
 	return($string);
 }
