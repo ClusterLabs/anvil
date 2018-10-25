@@ -140,8 +140,8 @@ sub update_install_source
 	}})."\n";
 	
 	# Clear the dnf cache
-	my $handle = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle }});
+	my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
 	
 	my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
