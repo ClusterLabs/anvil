@@ -13,6 +13,7 @@
 # Exit codes;
 # 0 = Normal exit.
 # 1 = Alteeve repo not installed and not installable.
+# 2 = BCN IP not found, unable to configure yet.
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -43,6 +44,16 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure =
 $anvil->data->{switches}{'y'} = "";
 $anvil->Get->switches;
 
+my ($os_type, $os_arch) = $anvil->System->get_os_type({debug => 2});
+$anvil->data->{host_os}{os_type} = $os_type;
+$anvil->data->{host_os}{os_arch} = $os_arch;
+$anvil->data->{host_os}{version} = ($os_type =~ /(\d+)$/)[0];
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"host_os::os_type" => $anvil->data->{host_os}{os_type}, 
+	"host_os::os_arch" => $anvil->data->{host_os}{os_arch}, 
+	"host_os::version" => $anvil->data->{host_os}{version}, 
+}});
+
 # load the list of packages;
 load_packages($anvil);
 
@@ -50,7 +61,10 @@ load_packages($anvil);
 #check_alteeve_repo($anvil);
 
 # Store the RPMs in repo directory.
-update_install_source($anvil);
+#update_install_source($anvil);
+
+# Setup PXE/tftp/dhcpd config.
+setup_boot_environment($anvil);
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -60,24 +74,56 @@ $anvil->nice_exit({exit_code => 0});
 # Private functions.                                                                                        #
 #############################################################################################################
 
+sub setup_boot_environment
+{
+	my ($anvil) = @_;
+	
+	# Get my BCN IP and active OS.
+	my $network = $anvil->Get->network_details();
+	my $bcn_ip = "";
+	foreach my $in_interface (sort {$a cmp $b} keys %{$network->{interface}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_interface => $in_interface }});
+		next if $in_interface !~ /^bcn/;
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "interface::${in_interface}::ip" => $network->{interface}{$in_interface}{ip} }});
+		if ($anvil->Validate->is_ipv4({ip => $network->{interface}{$in_interface}{ip} }))
+		{
+			$bcn_ip = $network->{interface}{$in_interface}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_ip => $bcn_ip }});
+		}
+		last if $bcn_ip;
+	}
+	
+	if (not $bcn_ip)
+	{
+		# Can't set this up yet.
+		print $anvil->Words->string({key => "error_0042"})."\n";
+		$anvil->nice_exit({code => 2});
+	}
+	
+	my $base_url = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { base_url => $base_url }});
+	
+	# Setup the BIOS boot menu.
+	my $bios_default_file = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bios_default_file => $bios_default_file }});
+	
+	die;
+	
+	return(0);
+}
+
 sub check_alteeve_repo
 {
 	my ($anvil) = @_;
 	
-	my ($os_type, $os_arch) = $anvil->System->get_os_type({debug => 2});
-	my $version = ($os_type =~ /(\d+)$/)[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		os_type => $os_type, 
-		os_arch => $os_arch, 
-		version => $version, 
-	}});
-	
 	my $repo_url  = "";
 	my $repo_file = "";
-	if ($os_type eq "fedora")
+	if ($anvil->data->{host_os}{os_type} eq "fedora")
 	{
-		$repo_file = "/etc/yum.repos.d/alteeve-f".$version.".repo";
-		$repo_url  = "https://alteeve.com/an-repo/f".$version."/alteeve-f".$version."-repo-latest.noarch.rpm";
+		$repo_file = "/etc/yum.repos.d/alteeve-f".$anvil->data->{host_os}{version}.".repo";
+		$repo_url  = "https://alteeve.com/an-repo/f".$anvil->data->{host_os}{version}."/alteeve-f".$anvil->data->{host_os}{version}."-repo-latest.noarch.rpm";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			repo_file => $repo_file,
 			repo_url  => $repo_url, 
@@ -86,8 +132,8 @@ sub check_alteeve_repo
 	else
 	{
 		### TODO: Update this when rhel8 is out
-		$repo_file = "/etc/yum.repos.d/alteeve-el".$version.".repo";
-		$repo_url  = "https://alteeve.com/an-repo/el".$version."/alteeve-el".$version."-repo-latest.noarch.rpm";
+		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}.".repo";
+		$repo_url  = "https://alteeve.com/an-repo/el".$anvil->data->{host_os}{version}."/alteeve-el".$anvil->data->{host_os}{version}."-repo-latest.noarch.rpm";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			repo_file => $repo_file,
 			repo_url  => $repo_url, 
@@ -106,7 +152,8 @@ sub check_alteeve_repo
 	if (not -e $repo_file)
 	{
 		# Die
-		die "Failed to install the Alteeve repo, unable to proceed.\n";
+		print $anvil->Words->string({key => "error_0041"})."\n";
+		$anvil->nice_exit({code => 1});
 	}
 	
 	return(0);
@@ -117,14 +164,8 @@ sub update_install_source
 {
 	my ($anvil) = @_;
 	
-	my ($os_type, $os_arch) = $anvil->System->get_os_type({debug => 2});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		os_type => $os_type, 
-		os_arch => $os_arch,
-	}});
-	
 	### TODO: Make sure this path exists.
-	my $download_path = "/var/www/html/".$os_type."/".$os_arch."/os/Packages/";
+	my $download_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/";
 	my $array_size    = @{$anvil->data->{packages}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		download_path => $download_path, 

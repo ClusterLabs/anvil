@@ -1,0 +1,105 @@
+<!-- start tftp_bios -->
+# Tradional BIOS based PXE menu
+# 
+# Notes:
+# - Use the 'vmlinuz' and 'initrd.img' from the Netinstall ISO. The others don't find the NIC, so can't net 
+#   install.
+#
+# Use the high-colour menu system.
+default vesamenu.c32
+
+# Time out and use the default menu option. Defined as tenths of a second.
+TIMEOUT 600
+
+# Prompt the user. Set to '1' to automatically choose the default option. This
+# is really meant for files matched to MAC addresses.
+PROMPT 0
+
+# Set the boot menu to be 1024x768 with a nice background image. Be careful to
+# ensure that all your user's can see this resolution! Default is 640x480.
+MENU RESOLUTION 1024 768
+
+# The background image
+MENU BACKGROUND splash.jpg
+
+MENU TITLE #!string!message_0080!#
+
+# Below, the hash (#) character is replaced with the countdown timer. The
+# '{,s}' allows for pluralizing a word and is used when the value is >= '2'.
+MENU AUTOBOOT #!string!message_0081!#
+MENU TABMSG   #!string!message_0082!#
+MENU NOTABMSG #!string!message_0083!#
+
+# The following options set the various colours used in the menu. All possible
+# options are specified except for F# help options. The colour is expressed as
+# two hex characters between '00' and 'ff' for alpha, red, green and blue
+# respectively (#AARRGGBB).
+# Format is: MENU COLOR <Item> <ANSI Seq.> <foreground> <background> <shadow type>
+MENU COLOR screen      0  #00000000 #00000000 std      # background colour not covered by the splash image
+MENU COLOR border      0  #bbd02724 #ee000000 std      # The wire-frame border
+MENU COLOR title       0  #fff2f2f2 #ee000000 std      # Menu title text
+MENU COLOR sel	       0  #fff2f2f2 #ee000000 std      # Selected menu option
+MENU COLOR hotsel      0  #fffff2f2 #ee000000 std      # The selected hotkey (set with ^ in MENU LABEL)
+MENU COLOR unsel       0  #ffc2c2c2 #ee000000 std      # Unselected menu options
+MENU COLOR hotkey      0  #ffffc2c2 #ee000000 std      # Unselected hotkeys (set with ^ in MENU LABEL)
+MENU COLOR tabmsg      0  #c0a2a2a2 #00000000 std      # Tab text
+MENU COLOR timeout_msg 0  #ffc2c2c2 #00000000 std      # Timout text
+MENU COLOR timeout     0  #ffffc2c2 #00000000 std      # Timout counter
+MENU COLOR disabled    0  #80515151 #ee000000 std      # Disabled menu options, including SEPARATORs
+MENU COLOR cmdmark     0  #c0444444 #ee000000 std      # Command line marker - The '> ' on the left when editing an option
+MENU COLOR cmdline     0  #c0f2f2f2 #ee000000 std      # Command line - The text being edited
+# Options below haven't been tested, descriptions may be lacking.
+MENU COLOR scrollbar   0  #407f7f7f #00000000 std      # Scroll bar
+MENU COLOR pwdborder   0  #80d02724 #20ffffff std      # Password box wire-frame border
+MENU COLOR pwdheader   0  #80f7f7f7 #20ffffff std      # Password box header
+MENU COLOR pwdentry    0  #80f2f2f2 #20ffffff std      # Password entry field
+MENU COLOR help	       0  #c0f2f2f2 #c0000000 std      # Help text, if set via 'TEXT HELP ... ENDTEXT'
+
+
+### NOTE: inst.repo is the image of the install media, looks for .treeinfo
+
+label striker
+menu label #!string!message_0084!#
+TEXT HELP
+#!string!message_0085!#
+ENDTEXT
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.sshd rd.debug
+
+label node
+menu label #!string!message_0086!#
+TEXT HELP
+#!string!message_0087!#
+ENDTEXT
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.sshd rd.debug
+
+label node
+menu label #!string!message_0088!#
+TEXT HELP
+#!string!message_0089!#
+ENDTEXT
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.sshd rd.debug
+
+label rescue
+menu label #!string!message_0090!#
+TEXT HELP
+#!string!message_0091!#
+ENDTEXT
+kernel fedora28/vmlinuz
+append initrd=fedora28initrd.img ip=dhcp root=live:#!variable!base_url!#/os/LiveOS/squashfs.img rescue
+
+label fedora
+menu label #!string!message_0092!#
+TEXT HELP
+#!string!message_0093!#
+ENDTEXT
+kernel fedora28/vmlinuz
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img
+
+label next
+menu default
+menu label #!string!message_0094!#
+localboot 0xffff
+<!-- end tftp_bios -->
