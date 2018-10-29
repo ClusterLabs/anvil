@@ -456,6 +456,17 @@ The database connection error was:
 		<key name="log_0225">power off</key>
 		<key name="log_0226">reboot</key>
 		<key name="log_0227">Delay complete, proceeding with the #!variable!task!# operation now.</key>
+		<key name="log_0228">Failed to read the file: [#!variable!file!#]. It might not exist, so we will try to write it now.</key>
+		<key name="log_0229">The body of the file: [#!variable!file!#] does not match the new body. The file will be updated.</key>
+		<key name="log_0230">
+The body of the file: [#!variable!file!#] does not match the new body. The file will be updated. The changes are:
+==========
+#!variable!diff!#
+==========
+		</key>
+		<key name="log_0231">The file: [#!variable!file!#] is already the same as the passed in body, so no update is needed.</key>
+		<key name="log_0232">The file: [#!variable!file!#] will now be updated.</key>
+		<key name="log_0233">There was a problem updating file: [#!variable!file!#], expected the write to return '0' but got: [#!variable!return!#]. Please check the logs for details.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -675,6 +686,7 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0040">Logging out failed. The user's UUID wasn't passed and 'sys::users::user_uuid' wasn't set. Was the user already logged out?</key>
 		<key name="error_0041">Failed to install the Alteeve repo, unable to proceed.</key>
 		<key name="error_0042">No BCN IP address found. Unable to configure the install target feature yet.</key>
+		<key name="error_0043">Failed to write or update the file: [#!variable!file!#]. Please see the system log for more information.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

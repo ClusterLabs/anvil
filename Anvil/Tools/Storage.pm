@@ -7,6 +7,8 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
+use Text::Diff;
+use utf8;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Storage.pm";
@@ -26,6 +28,7 @@ my $THIS_FILE = "Storage.pm";
 # rsync
 # search_directories
 # update_config
+# update_file
 # write_file
 # _create_rsync_wrapper
 
@@ -1968,6 +1971,161 @@ sub update_config
 	}
 	
 	return($error);
+}
+
+=head2 update_file
+
+This reads in a file (if it already exists), compares it against a new body and updates it if there is a difference. This can work on remote files as well as local ones.
+
+C<< 0 >> is returns on success (either the new file was written or the old file was not changed). Any problem will cause C<< 1 >> to be returned.
+
+Parameters;
+
+=head3 body (optional)
+
+This is the new body of the file. It should always be set, of course, but it is optional in case the new file is supposed to be empty.
+
+=head3 file (required) 
+
+This is the full path and file name of the file being updated.
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 secure (optional)
+
+If set to 'C<< 1 >>', the C<< body >> is treated as containing secure data for logging purposes.
+
+=head3 target (optional)
+
+If set, the config file will be updated on the target machine. This must be either an IP address or a resolvable host name. 
+
+=cut
+sub update_file
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
+	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $update      = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		body        => ((not $body) or ($anvil->Log->secure)) ? $body : $anvil->Words->string({key => "log_0186"}),
+		file        => $file, 
+		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		port        => $port, 
+		secure      => $secure,
+		target      => $target,
+		remote_user => $remote_user, 
+	}});
+	
+	if (not $file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->update_file()", parameter => "file" }});
+		return(1);
+	}
+	
+	# Read the old file...
+	my $old_body = $anvil->Storage->read_file({
+		debug       => $debug,
+		file        => $file, 
+		password    => $password, 
+		port        => $port, 
+		target      => $target, 
+		remote_user => $remote_user, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { old_body => $old_body }});
+	
+	if ($old_body eq "!!error!!")
+	{
+		# File doesn't exist? Lets try writing it.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0228", variables => { file => $file }});
+		$update = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { update => $update }});
+	}
+	elsif ($old_body ne $body)
+	{
+		# Something has changed. If we can get a reasonable diff, we'll show it.
+		# Credit: https://stackoverflow.com/questions/2047996/how-can-i-guess-if-a-string-has-text-or-binary-data-in-perl
+		my $is_utf8 = utf8::is_utf8($old_body);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { is_utf8 => $is_utf8 }});
+		if (($is_utf8) or ($old_body =~ m/\A [[:ascii:]]* \Z/xms))
+		{
+			# $old_body is a text, so we're likely looking at a text file and can Diff it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0230", variables => { 
+				file => $file,
+				diff => diff \$old_body, \$body, { STYLE => 'Unified' },
+			}});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0229", variables => { file => $file }});
+		}
+		$update = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { update => $update }});
+		
+		# Backup the file now.
+		my $backup_file = $anvil->Storage->backup({
+			file        => $file,
+			debug       => $debug, 
+			target      => $target,
+			port        => $port, 
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+	}
+	else
+	{
+		# Update not needed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0231", variables => { file => $file }});
+	}
+	
+	# Update/write?
+	if ($update)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0232", variables => { file => $file }});
+		
+		my $return = $anvil->Storage->write_file({
+			body        => $body,
+			debug       => $debug,
+			file        => $file,
+			overwrite   => 1,
+			secure      => $secure,
+			target      => $target,
+			port        => $port, 
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
+		
+		if ($return)
+		{
+			# Something went wrong.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $file, 'return' => $return }});
+			return(1);
+		}
+	}
+	
+	return(0);
 }
 
 =head2 write_file

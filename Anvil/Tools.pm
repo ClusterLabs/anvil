@@ -895,6 +895,7 @@ sub _set_paths
 				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
 				'pg_hba.conf'			=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'		=>	"/var/lib/pgsql/data/postgresql.conf",
+				pxe_default			=>	"/var/lib/tftpboot/pxelinux.cfg/default",
 				ssh_config			=>	"/etc/ssh/ssh_config",
 			},
 			data			=>	{

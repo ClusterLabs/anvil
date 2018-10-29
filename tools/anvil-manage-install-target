@@ -14,6 +14,7 @@
 # 0 = Normal exit.
 # 1 = Alteeve repo not installed and not installable.
 # 2 = BCN IP not found, unable to configure yet.
+# 3 = Failed to write or update a configuration file.
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -102,12 +103,27 @@ sub setup_boot_environment
 		$anvil->nice_exit({code => 2});
 	}
 	
+	# Build and update the PXE BIOS 'default' menu.
 	my $base_url = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { base_url => $base_url }});
 	
 	# Setup the BIOS boot menu.
-	my $bios_default_file = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bios_default_file => $bios_default_file }});
+	my $bios_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bios_default_body => $bios_default_body }});
+	
+	# Read in the existing default file, if it exists, and compare it to the one we just generated.
+	my $bios_default_return_code = $anvil->Storage->update_file({
+		debug => 3,
+		body  => $bios_default_body, 
+		file  => $anvil->data->{path}{configs}{pxe_default},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bios_default_body => $bios_default_body }});
+	if ($bios_default_return_code)
+	{
+		# Failed.
+		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
+		$anvil->nice_exit({code => 3});
+	}
 	
 	die;
 	

@@ -47,6 +47,7 @@ Requires:       perl-Net-SSH2
 Requires:       perl-NetAddr-IP 
 Requires:       perl-Proc-Simple
 Requires:       perl-Sys-Syslog
+Requires:       perl-Text-Diff
 Requires:       perl-Time-HiRes
 Requires:       perl-UUID-Tiny
 Requires:       perl-XML-Simple 
