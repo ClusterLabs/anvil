@@ -299,7 +299,8 @@ fi";
 		}
 		else
 		{
-			die;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0234", variables => { source => $source_file, destination => $target_file }});
+			$target_file = "";
 		}
 	}
 	
@@ -1308,13 +1309,12 @@ sub read_file
 				open (my $file_handle, "<", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
 				while(<$file_handle>)
 				{
-					chomp;
+					### NOTE: Don't chop this, we want to record exactly what we read
 					my $line = $_;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
-					$body .= $line."\n";
+					$body .= $line;
 				}
 				close $file_handle;
-				$body =~ s/\n$//s;
 				
 				if ($cache)
 				{
@@ -1359,19 +1359,18 @@ sub read_file
 		}
 		else
 		{
-			# Read from disk.
+			# Read from storage.
 			my $shell_call = $file;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0012", variables => { shell_call => $shell_call }});
 			open (my $file_handle, "<", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
 			while(<$file_handle>)
 			{
-				chomp;
+				### NOTE: Don't chop this, we want to record exactly what we read
 				my $line = $_;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0023", variables => { line => $line }});
-				$body .= $line."\n";
+				$body .= $line;
 			}
 			close $file_handle;
-			$body =~ s/\n$//s;
 			
 			if ($cache)
 			{
@@ -1977,7 +1976,7 @@ sub update_config
 
 This reads in a file (if it already exists), compares it against a new body and updates it if there is a difference. This can work on remote files as well as local ones.
 
-C<< 0 >> is returns on success (either the new file was written or the old file was not changed). Any problem will cause C<< 1 >> to be returned.
+The return code indicates success; C<< 0 >> is returns if anything goes wrong. C<< 1 >> is returned if the file was updated and C<< 2 >> is returned if the file did not need to be updated.
 
 Parameters;
 
@@ -2096,6 +2095,7 @@ sub update_file
 	{
 		# Update not needed.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0231", variables => { file => $file }});
+		return(2);
 	}
 	
 	# Update/write?
@@ -2121,11 +2121,11 @@ sub update_file
 		{
 			# Something went wrong.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $file, 'return' => $return }});
-			return(1);
+			return(0);
 		}
 	}
 	
-	return(0);
+	return(1);
 }
 
 =head2 write_file

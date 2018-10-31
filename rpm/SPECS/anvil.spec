@@ -44,6 +44,7 @@ Requires:       perl-HTML-Strip
 Requires:       perl-JSON 
 Requires:       perl-Log-Journald 
 Requires:       perl-Net-SSH2 
+Requires:       perl-Net-Netmask
 Requires:       perl-NetAddr-IP 
 Requires:       perl-Proc-Simple
 Requires:       perl-Sys-Syslog

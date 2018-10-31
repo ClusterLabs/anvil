@@ -189,9 +189,9 @@ NOTE: Please be patient!
 		</key>
 <!--    \-----------------------------------------------------------------------------------------------------------/ -->
 		<key name="message_0094">Boot from Next ^Boot Device</key>
-		<key name="message_0095"></key>
-		<key name="message_0096"></key>
-		<key name="message_0097"></key>
+		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
+		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
+		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>
 		<key name="message_0098"></key>
 		<key name="message_0099"></key>
 		
@@ -467,6 +467,7 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0231">The file: [#!variable!file!#] is already the same as the passed in body, so no update is needed.</key>
 		<key name="log_0232">The file: [#!variable!file!#] will now be updated.</key>
 		<key name="log_0233">There was a problem updating file: [#!variable!file!#], expected the write to return '0' but got: [#!variable!return!#]. Please check the logs for details.</key>
+		<key name="log_0234">Failed to backup the file: [#!variable!source!#] to: [#!variable!destination!#]. Details may be found in the logs above.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -685,8 +686,9 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0039"><![CDATA[The password for the host was not provided by '--password-file' or in 'job_data' (as 'password=<secret>').]]></key>
 		<key name="error_0040">Logging out failed. The user's UUID wasn't passed and 'sys::users::user_uuid' wasn't set. Was the user already logged out?</key>
 		<key name="error_0041">Failed to install the Alteeve repo, unable to proceed.</key>
-		<key name="error_0042">No BCN IP address found. Unable to configure the install target feature yet.</key>
+		<key name="error_0042">No BCN interface found. Unable to configure the install target feature yet.</key>
 		<key name="error_0043">Failed to write or update the file: [#!variable!file!#]. Please see the system log for more information.</key>
+		<key name="error_0044">This is not a configured Striker dashboard, exiting.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

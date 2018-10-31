@@ -35,6 +35,7 @@ my $THIS_FILE = "System.pm";
 # read_ssh_config
 # reload_daemon
 # reboot_needed
+# restart_daemon
 # start_daemon
 # stop_daemon
 # stty_echo
@@ -2032,6 +2033,49 @@ sub reboot_needed
 	}
 	
 	return($reboot_needed);
+}
+
+=head2 restart_daemon
+
+This method restarts a daemon (typically to pick up a change in configuration). The return code from the start request will be returned.
+
+If the return code for the restart command wasn't read, C<< !!error!! >> is returned. If it did restart, C<< 0 >> is returned. If the restart failed, a non-0 return code will be returned.
+
+Parameters;
+
+=head3 daemon (required)
+
+This is the name of the daemon to restart.
+
+=cut
+sub restart_daemon
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $return     = undef;
+	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my $output = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		if ($line =~ /return_code:(\d+)/)
+		{
+			$return = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
+	return($return);
 }
 
 =head2 start_daemon

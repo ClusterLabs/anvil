@@ -15,6 +15,7 @@
 # 1 = Alteeve repo not installed and not installable.
 # 2 = BCN IP not found, unable to configure yet.
 # 3 = Failed to write or update a configuration file.
+# 4 = Not a striker dashboard (or isn't yet).
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -25,6 +26,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Data::Dumper;
 
 # Disable buffering
 $| = 1;
@@ -45,15 +47,22 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure =
 $anvil->data->{switches}{'y'} = "";
 $anvil->Get->switches;
 
-my ($os_type, $os_arch) = $anvil->System->get_os_type({debug => 2});
+my ($os_type, $os_arch) = $anvil->System->get_os_type();
 $anvil->data->{host_os}{os_type} = $os_type;
 $anvil->data->{host_os}{os_arch} = $os_arch;
 $anvil->data->{host_os}{version} = ($os_type =~ /(\d+)$/)[0];
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	"host_os::os_type" => $anvil->data->{host_os}{os_type}, 
 	"host_os::os_arch" => $anvil->data->{host_os}{os_arch}, 
 	"host_os::version" => $anvil->data->{host_os}{version}, 
 }});
+
+# If this isn't a Striker dashboard, exit.
+if ($anvil->_short_hostname !~ /striker/)
+{
+	print $anvil->Words->string({key => "error_0044"})."\n";
+	$anvil->nice_exit({code => 4});
+}
 
 # load the list of packages;
 load_packages($anvil);
@@ -80,49 +89,132 @@ sub setup_boot_environment
 	my ($anvil) = @_;
 	
 	# Get my BCN IP and active OS.
-	my $network = $anvil->Get->network_details();
-	my $bcn_ip = "";
-	foreach my $in_interface (sort {$a cmp $b} keys %{$network->{interface}})
+	$anvil->System->get_ips();
+	my $bcn_interface = "";
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_interface => $in_interface }});
-		next if $in_interface !~ /^bcn/;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface => $interface }});
+		next if $interface !~ /^bcn/;
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "interface::${in_interface}::ip" => $network->{interface}{$in_interface}{ip} }});
-		if ($anvil->Validate->is_ipv4({ip => $network->{interface}{$in_interface}{ip} }))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::network::${interface}::ip" => $anvil->data->{sys}{network}{interface}{$interface}{ip} }});
+		if ($anvil->Validate->is_ipv4({ip => $anvil->data->{sys}{network}{interface}{$interface}{ip} }))
 		{
-			$bcn_ip = $network->{interface}{$in_interface}{ip};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_ip => $bcn_ip }});
+			$bcn_interface = $interface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_interface => $bcn_interface }});
 		}
-		last if $bcn_ip;
+		last if $bcn_interface;
 	}
 	
-	if (not $bcn_ip)
+	if (not $bcn_interface)
 	{
 		# Can't set this up yet.
 		print $anvil->Words->string({key => "error_0042"})."\n";
 		$anvil->nice_exit({code => 2});
 	}
 	
-	# Build and update the PXE BIOS 'default' menu.
-	my $base_url = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { base_url => $base_url }});
+	my $bcn_ip      = $anvil->data->{sys}{network}{interface}{$bcn_interface}{ip};
+	my $bcn_subnet  = $anvil->data->{sys}{network}{interface}{$bcn_interface}{subnet};
+	my $bcn_network = $anvil->Get->network({ip => $bcn_ip, subnet => $bcn_subnet});
+	my $dns         = $anvil->data->{sys}{network}{interface}{$bcn_interface}{dns} ? $anvil->data->{sys}{network}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
+	my $domain      = "localdomain";
+	my $base_url    = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
+	if ($anvil->_hostname =~ /\./)
+	{
+		$domain =  $anvil->_hostname;
+		$domain =~ s/^.*?\.//;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		bcn_interface => $bcn_interface,
+		bcn_ip        => $bcn_ip,
+		bcn_subnet    => $bcn_subnet, 
+		bcn_network   => $bcn_network, 
+		dns           => $dns,
+		domain        => $domain,
+		base_url      => $base_url, 
+	}});
 	
+	### NOTE: The DNS range is a bit tricky, so for now, we'll assume that the BCN is always a /16 
+	###       network. Someday this might change, and if so, we'll need to make this a lot smarter.
+	my $striker_number =  ($anvil->_short_hostname =~ /striker(\d+)/)[0];
+	   $striker_number =  1 if not $striker_number;
+	   $striker_number =~ s/^0//;
+	my $third_octet    =  (10 * $striker_number) + 4;
+	   $third_octet    = 254 if $third_octet > 254;
+	my $first_part     = ($bcn_network =~ /^(\d+\.\d+)\./)[0].".".$third_octet;
+	my $range          = $first_part.".10 ".$first_part.".250";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:striker_number' => $striker_number,
+		's2:third_octet'    => $third_octet,
+		's3:first_part'     => $first_part,
+		's4:range'          => $range, 
+	}});
+	
+	### DHCP server config
+	my $dhcpd_conf_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "dhcpd_conf", variables => { 
+		dns     => $dns,
+		domain  => $domain, 
+		network => $bcn_network,
+		range   => $range,
+		router  => $bcn_ip,
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_body => $dhcpd_conf_body }});
+	
+	# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means something 
+	# went wrong.
+	my $dhcpd_conf_success = $anvil->Storage->update_file({
+		body  => $dhcpd_conf_body, 
+		file  => $anvil->data->{path}{configs}{dhcpd_conf},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_success => $dhcpd_conf_success }});
+	if (not $dhcpd_conf_success)
+	{
+		# Failed.
+		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{dhcpd_conf} }})."\n";
+		$anvil->nice_exit({code => 3});
+	}
+	elsif ($dhcpd_conf_success eq "1")
+	{
+		# Restart dhcpd.
+		print $anvil->Words->string({key => "message_0095", variables => { 
+			daemon => "dhcpd", 
+			file   => $anvil->data->{path}{configs}{dhcpd_conf}, 
+		}})."\n";
+		$anvil->System->restart_daemon({daemon => "dhcpd"});
+	}
+	elsif ($dhcpd_conf_success eq "2")
+	{
+		# Update not needed.
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{dhcpd_conf} }})."\n";
+	}
+
+	
+	### PXE BIOD 'default' file.
 	# Setup the BIOS boot menu.
 	my $bios_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bios_default_body => $bios_default_body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bios_default_body => $bios_default_body }});
 	
-	# Read in the existing default file, if it exists, and compare it to the one we just generated.
-	my $bios_default_return_code = $anvil->Storage->update_file({
-		debug => 3,
+	# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means something 
+	# went wrong.
+	my $bios_default_success = $anvil->Storage->update_file({
 		body  => $bios_default_body, 
 		file  => $anvil->data->{path}{configs}{pxe_default},
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bios_default_body => $bios_default_body }});
-	if ($bios_default_return_code)
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bios_default_success => $bios_default_success }});
+	if (not $bios_default_success)
 	{
 		# Failed.
 		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 		$anvil->nice_exit({code => 3});
+	}
+	elsif ($dhcpd_conf_success eq "1")
+	{
+		# Updated
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
+	}
+	elsif ($dhcpd_conf_success eq "2")
+	{
+		# Update not needed.
+		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 	}
 	
 	die;

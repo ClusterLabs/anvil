@@ -9,6 +9,7 @@ use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 use Encode;
 use UUID::Tiny qw(:std);
+use Net::Netmask;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
@@ -19,6 +20,7 @@ my $THIS_FILE = "Get.pm";
 # date_and_time
 # host_uuid
 # md5sum
+# network
 # network_details
 # switches
 # users_home
@@ -618,6 +620,62 @@ sub md5sum
 	return($sum);
 }
 
+=head2 network
+
+This takes an IP address and subnet and returns the network it belongs too. For example;
+
+ my $network = $anvil->Get->network({ip => "10.2.4.1", subnet => "255.255.0.0"});
+
+This would set C<< $network >> to C<< 10.2.0.0 >>.
+
+If the network can't be caluclated for any reason, and empty string will be returned.
+
+Parameters;
+
+=head3 ip (required)
+
+This is the IPv4 IP address being calculated.
+
+=head3 subnet (optional)
+
+This is the subnet of the IP address being calculated.
+
+=cut
+sub network
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $network = "";
+	my $ip      = defined $parameter->{ip}     ? $parameter->{ip}     : "";
+	my $subnet  = defined $parameter->{subnet} ? $parameter->{subnet} : "";
+	
+	if (not $ip)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->network()", parameter => "ip" }});
+	}
+	if (not $subnet)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->network()", parameter => "subnet" }});
+	}
+	
+	my $block = Net::Netmask->new($ip."/".$subnet);
+	my $base  = $block->base();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base => $base }});
+	
+	if ($anvil->Validate->is_ipv4({ip => $base}))
+	{
+		$network = $base;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network => $network }});
+	}
+	
+	return($network);
+}
+
+ 
+### TODO: Is this a waste of time / duplicate of System->get_ips()?
 =head2 network_details
 
 This method returns the local hostname and IP addresses.

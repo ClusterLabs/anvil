@@ -1,3 +1,28 @@
+<!-- start dhcpd_conf -->
+### Global options
+option domain-name "#!variable!domain!#";
+option domain-name-servers #!variable!dns!#;
+authoritative;
+ddns-update-style none;
+
+# refer to RFC4758 for possible arch option values
+option arch code 93 = unsigned integer 16;
+
+subnet #!variable!network!# netmask 255.255.0.0 {
+	default-lease-time 600;
+	max-lease-time     1200;
+	range              #!variable!range!#;
+	option routers     #!variable!router!#;
+
+	if option arch = 00:07 {
+		filename "uefi/shim.efi";
+	} else {
+		filename "pxelinux.0";
+	}
+	next-server #!variable!router!#;
+}
+<!-- end dhcpd_conf -->
+
 <!-- start tftp_bios -->
 # Tradional BIOS based PXE menu
 # 

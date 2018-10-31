@@ -890,6 +890,7 @@ sub _set_paths
 			configs			=>	{
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
+				dhcpd_conf			=>	"/etc/dhcp/dhcpd.conf",
 				'firewalld.conf'		=>	"/etc/firewalld/firewalld.conf",
 				'httpd.conf'			=>	"/etc/httpd/conf/httpd.conf", 
 				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
