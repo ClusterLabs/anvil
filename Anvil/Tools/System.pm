@@ -424,7 +424,7 @@ Parameters;
 
 =head3 daemon (required)
 
-This is the name of the daemon to check.
+This is the name of the daemon to check. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
 =cut
 sub check_daemon
@@ -435,12 +435,11 @@ sub check_daemon
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_daemon()" }});
 	
-	my $return     = 2;
-	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	my $return = 2;
+	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?"});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
@@ -600,7 +599,7 @@ Parameters;
 
 =head3 daemon (required)
 
-This is the name of the daemon to enable.
+This is the name of the daemon to enable. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
 =cut
 sub enable_daemon
@@ -613,10 +612,9 @@ sub enable_daemon
 	
 	my $return     = undef;
 	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." enable ".$say_daemon." 2>&1; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?"});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." enable ".$daemon." 2>&1; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
@@ -1294,14 +1292,14 @@ sub manage_firewall
 	}
 	
 	# Make sure firewalld is running.
-	my $firewalld_running = $anvil->System->check_daemon({daemon => "firewalld"});
+	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
 	if (not $firewalld_running)
 	{
 		if ($anvil->data->{sys}{daemons}{restart_firewalld})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0127"});
-			my $return_code = $anvil->System->start_daemon({daemon => "firewalld"});
+			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 			if ($return_code)
 			{
@@ -1507,7 +1505,7 @@ sub manage_firewall
 	# If we made a change, reload.
 	if ($changed)
 	{
-		$anvil->System->reload_daemon({daemon => "firewalld"});
+		$anvil->System->reload_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'open' => $open }});
@@ -1915,7 +1913,7 @@ Parameters;
 
 =head3 daemon (required)
 
-This is the name of the daemon to reload.
+This is the name of the daemon to reload. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
 =cut
 sub reload_daemon
@@ -1925,12 +1923,11 @@ sub reload_daemon
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $return     = undef;
-	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	my $return = undef;
+	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my $shell_call = $anvil->data->{path}{exe}{systemctl}." reload ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." reload ".$daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
 	my $output = $anvil->System->call({shell_call => $shell_call});
@@ -2045,7 +2042,7 @@ Parameters;
 
 =head3 daemon (required)
 
-This is the name of the daemon to restart.
+This is the name of the daemon to restart. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
 =cut
 sub restart_daemon
@@ -2055,12 +2052,11 @@ sub restart_daemon
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $return     = undef;
-	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	my $return = undef;
+	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart ".$daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
 	my $output = $anvil->System->call({shell_call => $shell_call});
@@ -2088,7 +2084,7 @@ Parameters;
 
 =head3 daemon (required)
 
-This is the name of the daemon to start.
+This is the name of the daemon to start. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
 =cut
 sub start_daemon
@@ -2099,12 +2095,11 @@ sub start_daemon
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->start_daemon()" }});
 	
-	my $return     = undef;
-	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	my $return = undef;
+	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?", debug => $debug});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?", debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
@@ -2130,7 +2125,7 @@ Parameters;
 
 =head3 daemon (required)
 
-This is the name of the daemon to stop.
+This is the name of the daemon to stop. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
 
 =cut
 sub stop_daemon
@@ -2141,12 +2136,11 @@ sub stop_daemon
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->stop_daemon()" }});
 	
-	my $return     = undef;
-	my $daemon     = defined $parameter->{daemon} ? $parameter->{daemon} : "";
-	my $say_daemon = $daemon =~ /\.service$/ ? $daemon : $daemon.".service";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon, say_daemon => $say_daemon }});
+	my $return = undef;
+	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$say_daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?"});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{

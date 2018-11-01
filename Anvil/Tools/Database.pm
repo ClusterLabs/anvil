@@ -243,7 +243,7 @@ sub configure_pgsql
 	}
 	
 	# First, is it running?
-	my $running = $anvil->System->check_daemon({debug => $debug, daemon => "postgresql"});
+	my $running = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
 	
 	if (not $running)
@@ -268,7 +268,7 @@ sub configure_pgsql
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0055"});
 				
 				# Enable it on boot.
-				my $return_code = $anvil->System->enable_daemon({debug => $debug, daemon => "postgresql"});
+				my $return_code = $anvil->System->enable_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 			}
 		}
@@ -380,7 +380,7 @@ sub configure_pgsql
 	if (not $running)
 	{
 		# Start the daemon.
-		my $return_code = $anvil->System->start_daemon({daemon => "postgresql"});
+		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 		if ($return_code eq "0")
 		{
@@ -397,7 +397,7 @@ sub configure_pgsql
 	elsif (($update_postgresql_file) or ($update_pg_hba_file))
 	{
 		# Reload
-		my $return_code = $anvil->System->start_daemon({daemon => "postgresql"});
+		my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 		if ($return_code eq "0")
 		{

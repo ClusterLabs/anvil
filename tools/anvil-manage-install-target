@@ -70,11 +70,11 @@ load_packages($anvil);
 # Make sure our repo is installed. If not, install it or fail out.
 #check_alteeve_repo($anvil);
 
-# Store the RPMs in repo directory.
-#update_install_source($anvil);
-
 # Setup PXE/tftp/dhcpd config.
 setup_boot_environment($anvil);
+
+# Store the RPMs in repo directory.
+update_install_source($anvil);
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -100,7 +100,7 @@ sub setup_boot_environment
 		if ($anvil->Validate->is_ipv4({ip => $anvil->data->{sys}{network}{interface}{$interface}{ip} }))
 		{
 			$bcn_interface = $interface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_interface => $bcn_interface }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bcn_interface => $bcn_interface }});
 		}
 		last if $bcn_interface;
 	}
@@ -123,7 +123,7 @@ sub setup_boot_environment
 		$domain =  $anvil->_hostname;
 		$domain =~ s/^.*?\.//;
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		bcn_interface => $bcn_interface,
 		bcn_ip        => $bcn_ip,
 		bcn_subnet    => $bcn_subnet, 
@@ -142,7 +142,7 @@ sub setup_boot_environment
 	   $third_octet    = 254 if $third_octet > 254;
 	my $first_part     = ($bcn_network =~ /^(\d+\.\d+)\./)[0].".".$third_octet;
 	my $range          = $first_part.".10 ".$first_part.".250";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		's1:striker_number' => $striker_number,
 		's2:third_octet'    => $third_octet,
 		's3:first_part'     => $first_part,
@@ -157,19 +157,19 @@ sub setup_boot_environment
 		range   => $range,
 		router  => $bcn_ip,
 	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_body => $dhcpd_conf_body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_conf_body => $dhcpd_conf_body }});
 	
 	# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means something 
 	# went wrong.
 	my $dhcpd_conf_success = $anvil->Storage->update_file({
 		body  => $dhcpd_conf_body, 
-		file  => $anvil->data->{path}{configs}{dhcpd_conf},
+		file  => $anvil->data->{path}{configs}{'dhcpd.conf'},
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_success => $dhcpd_conf_success }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_conf_success => $dhcpd_conf_success }});
 	if (not $dhcpd_conf_success)
 	{
 		# Failed.
-		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{dhcpd_conf} }})."\n";
+		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{'dhcpd.conf'} }})."\n";
 		$anvil->nice_exit({code => 3});
 	}
 	elsif ($dhcpd_conf_success eq "1")
@@ -177,14 +177,14 @@ sub setup_boot_environment
 		# Restart dhcpd.
 		print $anvil->Words->string({key => "message_0095", variables => { 
 			daemon => "dhcpd", 
-			file   => $anvil->data->{path}{configs}{dhcpd_conf}, 
+			file   => $anvil->data->{path}{configs}{'dhcpd.conf'}, 
 		}})."\n";
-		$anvil->System->restart_daemon({daemon => "dhcpd"});
+		$anvil->System->restart_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
 	}
 	elsif ($dhcpd_conf_success eq "2")
 	{
 		# Update not needed.
-		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{dhcpd_conf} }})."\n";
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{'dhcpd.conf'} }})."\n";
 	}
 
 	
@@ -209,15 +209,150 @@ sub setup_boot_environment
 	elsif ($dhcpd_conf_success eq "1")
 	{
 		# Updated
-		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
+		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 	}
 	elsif ($dhcpd_conf_success eq "2")
 	{
 		# Update not needed.
-		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 	}
 	
-	die;
+	# Configure apache to show hidden (dot) files.
+	my $old_autoindex_conf    = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'autoindex.conf'}});
+	my $new_autoindex_conf    = "";
+	my $update_autoindex_conf = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_autoindex_conf => $old_autoindex_conf }});
+	foreach my $line (split/\n/, $old_autoindex_conf)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if (($line =~ /^IndexIgnore /) && ($line =~ / \.\?\?\* /))
+		{
+			$line                  =~ s/ \.\?\?\* / /;
+			$update_autoindex_conf =  1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"<< line"             => $line,
+				update_autoindex_conf => $update_autoindex_conf, 
+			}});
+		}
+		$new_autoindex_conf .= $line."\n";
+	}
+	if ($update_autoindex_conf)
+	{
+		# Update and reload apache
+		$anvil->Storage->backup({debug => 2, file => $anvil->data->{path}{configs}{'autoindex.conf'}});
+		my $return = $anvil->Storage->write_file({
+			debug       => 2,
+			body        => $new_autoindex_conf,
+			file        => $anvil->data->{path}{configs}{'autoindex.conf'},
+			overwrite   => 1,
+			mode        => "0644", 
+			user        => "root", 
+			group       => "root"
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		
+		if ($return)
+		{
+			# Something went wrong.
+			print $anvil->Words->string({key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'}, 'return' => $return }})."\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'}, 'return' => $return }});
+			$anvil->nice_exit({code => 3});
+		}
+		
+		print $anvil->Words->string({key => "message_0095", variables => { daemon => "httpd", file => $anvil->data->{path}{configs}{'autoindex.conf'} }})."\n";
+		$anvil->System->reloadt_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
+	}
+	else
+	{
+		# Update not needed.
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'} }})."\n";
+	}
+	
+	# Update dnf to save downloaded files for later repo building efficiency and to skip upstream repos 
+	# that aren't available at a given time.
+	my $keepcache_seen = 0;
+	my $skip_seen      = 0;
+	my $old_dnf_conf   = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'dnf.conf'}});
+	my $new_dnf_conf   = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_dnf_conf => $old_dnf_conf }});
+	foreach my $line (split/\n/, $old_dnf_conf)
+	{
+		### NOTE: We don't examin the value on purpose. If the user changes these, we'll respect it.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /^keepcache=/)
+		{
+			$keepcache_seen = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { keepcache_seen => $keepcache_seen }});
+		}
+		elsif ($line =~ /^skip_if_unavailable=/)
+		{
+			$skip_seen = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { skip_seen => $skip_seen }});
+		}
+		$new_dnf_conf .= $line."\n";
+	}
+	
+	if ((not $keepcache_seen) or (not $skip_seen))
+	{
+		# Update needed.
+		if (not $keepcache_seen)
+		{
+			$new_dnf_conf .= "keepcache=1\n";
+		}
+		if (not $skip_seen)
+		{
+			$new_dnf_conf .= "skip_if_unavailable=1\n";
+		}
+		$anvil->Storage->backup({debug => 2, file => $anvil->data->{path}{configs}{'dnf.conf'}});
+		my $return = $anvil->Storage->write_file({
+			debug       => 2,
+			body        => $new_dnf_conf,
+			file        => $anvil->data->{path}{configs}{'dnf.conf'},
+			overwrite   => 1,
+			mode        => "0644", 
+			user        => "root", 
+			group       => "root"
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
+		
+		if ($return)
+		{
+			# Something went wrong.
+			print $anvil->Words->string({key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }})."\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }});
+			$anvil->nice_exit({code => 3});
+		}
+		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'} }})."\n";
+	}
+	else
+	{
+		# Update not needed.
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'} }})."\n";
+	}
+	
+	### Check that daemons are enabled/disabled.
+	### NOTE: We don't manage dhcpd. We leave it off, but if the user enabled it, respect that.
+	# Make sure tftp is enabled.
+	if (-e $anvil->data->{path}{systemd}{tftp_enabled_symlink})
+	{
+		print $anvil->Words->string({key => "message_0099", variables => { daemon => $anvil->data->{sys}{daemon}{tftp} }})."\n";
+	}
+	else
+	{
+		print $anvil->Words->string({key => "message_0098", variables => { daemon => $anvil->data->{sys}{daemon}{tftp} }})."\n";
+		$anvil->System->enable_daemon({daemon => $anvil->data->{sys}{daemon}{tftp}});
+		$anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{tftp}});
+	}
+	if (-e $anvil->data->{path}{systemd}{httpd_enabled_symlink})
+	{
+		print $anvil->Words->string({key => "message_0099", variables => { daemon => $anvil->data->{sys}{daemon}{httpd} }})."\n";
+	}
+	else
+	{
+		print $anvil->Words->string({key => "message_0098", variables => { daemon => $anvil->data->{sys}{daemon}{httpd} }})."\n";
+		$anvil->System->enable_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
+		$anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
+	}
 	
 	return(0);
 }

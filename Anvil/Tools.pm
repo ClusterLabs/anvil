@@ -736,6 +736,13 @@ sub _set_defaults
 		apache				=>	{
 			user				=>	"admin",
 		},
+		daemon				=>	{
+			dhcpd				=>	"dhcpd.service",
+			firewalld			=>	"firewalld.service",
+			httpd				=>	"httpd.service",
+			postgresql			=>	"postgresql.service",
+			tftp				=>	"tftp.socket",
+		},
 		daemons				=>	{
 			restart_firewalld		=>	1,
 		},
@@ -790,9 +797,6 @@ sub _set_defaults
 			algorithm			=>	"sha512",
 			hash_count			=>	500000,
 			salt_length			=>	16,
-		},
-		service			=>	{
-			postgresql		=>	"postgresql",
 		},
 		terminal			=>	{
 			columns				=>	80,
@@ -890,7 +894,9 @@ sub _set_paths
 			configs			=>	{
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
-				dhcpd_conf			=>	"/etc/dhcp/dhcpd.conf",
+				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
+				'dhcpd.conf'			=>	"/etc/dhcp/dhcpd.conf",
+				'dnf.conf'			=>	"/etc/dnf/dnf.conf",
 				'firewalld.conf'		=>	"/etc/firewalld/firewalld.conf",
 				'httpd.conf'			=>	"/etc/httpd/conf/httpd.conf", 
 				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
@@ -987,6 +993,10 @@ sub _set_paths
 			},
 			sql			=>	{
 				'anvil.sql'			=>	"/usr/share/anvil/anvil.sql",
+			},
+			systemd			=>	{
+				httpd_enabled_symlink		=>	"/etc/systemd/system/multi-user.target.wants/httpd.service",
+				tftp_enabled_symlink		=>	"/etc/systemd/system/sockets.target.wants/tftp.socket",
 			},
 			urls			=>	{
 				skins				=>	"/skins",

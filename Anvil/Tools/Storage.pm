@@ -2123,9 +2123,10 @@ sub update_file
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $file, 'return' => $return }});
 			return(0);
 		}
+		return(1);
 	}
 	
-	return(1);
+	return(2);
 }
 
 =head2 write_file

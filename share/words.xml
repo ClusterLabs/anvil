@@ -192,8 +192,8 @@ NOTE: Please be patient!
 		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
 		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
 		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>
-		<key name="message_0098"></key>
-		<key name="message_0099"></key>
+		<key name="message_0098">Enabling and starting: [#!variable!daemon!#]</key>
+		<key name="message_0099">The daemon: [#!variable!daemon!#] is already enabled, skipping.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
