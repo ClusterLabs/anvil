@@ -194,6 +194,10 @@ NOTE: Please be patient!
 		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>
 		<key name="message_0098">Enabling and starting: [#!variable!daemon!#]</key>
 		<key name="message_0099">The daemon: [#!variable!daemon!#] is already enabled, skipping.</key>
+		<key name="message_0100">Copying the syslinux files: [#!data!path::directories::syslinux!#/*] into the tftpboot directory: [#!data!path::directories::tftpboot!#].</key>
+		<key name="message_0101">The syslinux files from: [#!data!path::directories::syslinux!#] appear to already be in the tftpboot directory: [#!data!path::directories::tftpboot!#], skipping.</key>
+		<key name="message_0102">Checking that the "Install Target" function is configured and updated.</key>
+		<key name="message_0103"></key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

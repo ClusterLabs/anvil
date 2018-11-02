@@ -1,3 +1,5 @@
+dnf -y install perl-Net-Netmask perl-Text-Diff dnf-utils hdparm lsscsi createrepo dhcp kernel-core syslinux tftp-server
+
 Firewall config stuff.
 ====
 ---- Files
@@ -58,8 +60,6 @@ yes
 # NOTE: Doesn't break existing connections
 firewall-cmd --zone=IFN1 --remove-masquerade
 
-
-
 - Notes;
 firewall-cmd --state  [running (rc: 0),not running (rc:252)]
 
@@ -75,6 +75,9 @@ Core firewalld configs, including defaults zones, etc      - /etc/firewalld/
 * Use 'firewall-cmd' WITHOUT '--permanent' for things like enabling the VNC port for a server. Use '--permanent' for everything else. 
 
 ====
+
+
+
 
 
 Striker as PXE server

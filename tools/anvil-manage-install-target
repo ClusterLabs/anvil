@@ -65,10 +65,8 @@ if ($anvil->_short_hostname !~ /striker/)
 }
 
 # load the list of packages;
+print $anvil->Words->string({key => "message_0102"})."\n";
 load_packages($anvil);
-
-# Make sure our repo is installed. If not, install it or fail out.
-#check_alteeve_repo($anvil);
 
 # Setup PXE/tftp/dhcpd config.
 setup_boot_environment($anvil);
@@ -88,6 +86,11 @@ sub setup_boot_environment
 {
 	my ($anvil) = @_;
 	
+	### TODO: We don't yet support UEFI, though we will need to soon. Note that the 'shim.efi' and 
+	###       'grubx64.efi' files should be added to 'anvil-striker-extras'. We'll also need to create
+	###       '/var/lib/tftpboot/pxelinux/uefi' as well.
+	###       We;re going to need the '.treeinfo' as well in anvil-striker-extra
+	###       - https://docs.fedoraproject.org/en-US/fedora/f28/install-guide/advanced/Network_based_Installations/
 	# Get my BCN IP and active OS.
 	$anvil->System->get_ips();
 	my $bcn_interface = "";
@@ -234,6 +237,36 @@ sub setup_boot_environment
 				update_autoindex_conf => $update_autoindex_conf, 
 			}});
 		}
+		if (($line =~ /^IndexOptions /) && ($line !~ / NameWidth=/))
+		{
+			# Allow long file names to show without being truncated
+			$line                  .= " NameWidth=*";
+			$update_autoindex_conf =  1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"<< line"             => $line,
+				update_autoindex_conf => $update_autoindex_conf, 
+			}});
+		}
+		if (($line =~ /^IndexOptions /) && ($line !~ / FoldersFirst/))
+		{
+			# Sort folders before files
+			$line                  .= " FoldersFirst";
+			$update_autoindex_conf =  1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"<< line"             => $line,
+				update_autoindex_conf => $update_autoindex_conf, 
+			}});
+		}
+		if (($line =~ /^IndexOptions /) && ($line !~ / IgnoreCase/))
+		{
+			# Sort filenames without putting capitalized first letters at the start of the list.
+			$line                  .= " IgnoreCase";
+			$update_autoindex_conf =  1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"<< line"             => $line,
+				update_autoindex_conf => $update_autoindex_conf, 
+			}});
+		}
 		$new_autoindex_conf .= $line."\n";
 	}
 	if ($update_autoindex_conf)
@@ -260,7 +293,7 @@ sub setup_boot_environment
 		}
 		
 		print $anvil->Words->string({key => "message_0095", variables => { daemon => "httpd", file => $anvil->data->{path}{configs}{'autoindex.conf'} }})."\n";
-		$anvil->System->reloadt_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
+		$anvil->System->reload_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
 	}
 	else
 	{
@@ -354,9 +387,26 @@ sub setup_boot_environment
 		$anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
 	}
 	
+	# Make sure the syslinux files needed for creating the PXE boot menu are in place.
+	if (not -e $anvil->data->{path}{directories}{tftpboot}."/vesamenu.c32")
+	{
+		# Copy the syslinux files
+		print $anvil->Words->string({key => "message_0100"})."\n";
+		$anvil->Storage->rsync({
+			debug       => 2, 
+			source      => $anvil->data->{path}{directories}{syslinux}."/*",
+			destination => $anvil->data->{path}{directories}{tftpboot}."/",
+		});
+	}
+	else
+	{
+		print $anvil->Words->string({key => "message_0101"})."\n";
+	}
+	
 	return(0);
 }
 
+### NOTE: This will probably be removed...
 sub check_alteeve_repo
 {
 	my ($anvil) = @_;

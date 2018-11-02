@@ -920,6 +920,8 @@ sub _set_paths
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
 				skins				=>	"/var/www/html/skins",
+				syslinux			=>	"/usr/share/syslinux",
+				tftpboot			=>	"/var/lib/tftpboot",
 				tools				=>	"/usr/sbin",
 				units				=>	"/usr/lib/systemd/system",
 			},

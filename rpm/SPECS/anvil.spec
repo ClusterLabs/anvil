@@ -69,6 +69,7 @@ Common base libraries required for the Anvil! system.
 %package striker
 Summary:        Alteeve's Anvil! Striker dashboard package
 Requires:	anvil-core
+Requires:	anvil-striker-extra
 Requires:       createrepo
 Requires:       dhcp
 Requires:       firefox
@@ -78,6 +79,7 @@ Requires:       nmap
 Requires:       perl-CGI 
 Requires:       postgresql-server 
 Requires:       syslinux
+Requires:       syslinux-nonlinux
 Requires:       tftp-server
 Requires:       virt-manager
 ### Desktop stuff
