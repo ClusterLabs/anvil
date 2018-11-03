@@ -197,7 +197,32 @@ NOTE: Please be patient!
 		<key name="message_0100">Copying the syslinux files: [#!data!path::directories::syslinux!#/*] into the tftpboot directory: [#!data!path::directories::tftpboot!#].</key>
 		<key name="message_0101">The syslinux files from: [#!data!path::directories::syslinux!#] appear to already be in the tftpboot directory: [#!data!path::directories::tftpboot!#], skipping.</key>
 		<key name="message_0102">Checking that the "Install Target" function is configured and updated.</key>
-		<key name="message_0103"></key>
+		<!-- The strings below are printed in bash, so be mindful of escaping characters. The strings are wrapped in double-quotes ("), so escape them with a back-slash (\") -->
+		<key name="message_0103">Finding install drive for a Striker dashboard.</key>
+		<key name="message_0104">Finding install drive for an Anvil! node.</key>
+		<key name="message_0105">Finding install drive for a DR (disaster recovery) host.</key>
+		<key name="message_0106">
+[ Error ] - Target type not specified. Be sure that '\$type' is set to 
+            'striker', 'node' or 'dr' in the \%pre section of the kickstart
+            script.
+		</key>
+		<!-- These are injected into the perl script in the kickstart files. Leave the string variables and function calls in place! -->
+		<key name="message_0107"><![CDATA[Analyzing platter drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".hr_size($device->{$path}{size}).")]]]></key>
+		<key name="message_0108"><![CDATA[Analyzing solid-state drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".hr_size($device->{$path}{size}).")]]]></key>
+		<key name="message_0109"><![CDATA[Selected the largest disk: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]]]></key>
+		<key name="message_0110"><![CDATA[Selected the smallest platter drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]]]></key>
+		<key name="message_0111"><![CDATA[Selected the smallest solid-state drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."] (no platter drives found)]]></key>
+		<key name="message_0112"><![CDATA[[ Error ] - Failed to find any fixed drives (platter or USB, not removable) to install onto. Unable to proceed.]]></key>
+		<key name="message_0113"><![CDATA[Writing out the partition plan to: [".$partition_file."]]]></key>
+		<key name="message_0114"><![CDATA[Completed successfully, exiting.]]></key>
+		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
+		<key name="message_0115">Striker Dashboard</key>
+		<key name="message_0116">Anvil! Node</key>
+		<key name="message_0117">Dsaster Recovery (DR) Host</key>
+		<key name="message_0118"></key>
+		<key name="message_0119"></key>
+		<key name="message_0120"></key>
+		<key name="message_0121"></key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

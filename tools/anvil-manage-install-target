@@ -16,6 +16,7 @@
 # 2 = BCN IP not found, unable to configure yet.
 # 3 = Failed to write or update a configuration file.
 # 4 = Not a striker dashboard (or isn't yet).
+# 5 = Not running as the 'root' user.
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -46,6 +47,15 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure =
 # Read switches
 $anvil->data->{switches}{'y'} = "";
 $anvil->Get->switches;
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0005"});
+	$anvil->nice_exit({code => 5});
+}
 
 my ($os_type, $os_arch) = $anvil->System->get_os_type();
 $anvil->data->{host_os}{os_type} = $os_type;
@@ -191,8 +201,7 @@ sub setup_boot_environment
 	}
 
 	
-	### PXE BIOD 'default' file.
-	# Setup the BIOS boot menu.
+	### PXE BIOS 'default' file.
 	my $bios_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bios_default_body => $bios_default_body }});
 	
@@ -218,6 +227,62 @@ sub setup_boot_environment
 	{
 		# Update not needed.
 		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
+	}
+	
+	### Generate kickstart files.
+	foreach my $type ("striker", "node", "dr")
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+		my $say_type = "#!string!message_0115!#";
+		if ($type eq "node")
+		{
+			$say_type = "#!string!message_0116!#";
+		}
+		elsif ($type eq "dr")
+		{
+			$say_type = "#!string!message_0117!#";
+		}
+		my $kickstart_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "kickstart", variables => { 
+			type     => $type,
+			say_type => $say_type, 
+			hostname => "new-".$type.".".$domain,
+			date     => $anvil->Get->date_and_time({date_only => 1}),
+			os       => $anvil->data->{host_os}{os_type},
+			url      => $base_url."/os/",
+			keyboard => $anvil->data->{kickstart}{keyboard} ? $anvil->data->{kickstart}{keyboard} : $anvil->data->{defaults}{kickstart}{keyboard},
+			timezone => $anvil->data->{kickstart}{timezone} ? $anvil->data->{kickstart}{timezone} : $anvil->data->{defaults}{kickstart}{timezone},
+			password => $anvil->data->{kickstart}{password} ? $anvil->data->{kickstart}{password} : $anvil->data->{defaults}{kickstart}{password},
+			debug    => 0,	# This isn't the same as the rest of our code, just '1' or '0'.
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { kickstart_body => $kickstart_body }});
+		
+		# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means 
+		# something went wrong.
+		my $kickstart_file    = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/kickstart/".$type.".ks";
+		my $kickstart_success = $anvil->Storage->update_file({
+			body  => $kickstart_body, 
+			file  => $kickstart_file,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { kickstart_success => $kickstart_success }});
+		if (not $kickstart_success)
+		{
+			# Failed.
+			print $anvil->Words->string({key => "error_0043", variables => { file => $kickstart_file }})."\n";
+			$anvil->nice_exit({code => 3});
+		}
+		elsif ($dhcpd_conf_success eq "1")
+		{
+			# Updated
+			$anvil->Storage->change_mode({target => $kickstart_file, mode => "0664"});
+			$anvil->Storage->change_owner({target => $kickstart_file, user => "apache", group => "apache" });
+
+			print $anvil->Words->string({key => "message_0097", variables => { file => $kickstart_file }})."\n";
+		}
+		elsif ($dhcpd_conf_success eq "2")
+		{
+			# Update not needed.
+			print $anvil->Words->string({key => "message_0096", variables => { file => $kickstart_file }})."\n";
+		}
 	}
 	
 	# Configure apache to show hidden (dot) files.
@@ -403,6 +468,20 @@ sub setup_boot_environment
 		print $anvil->Words->string({key => "message_0101"})."\n";
 	}
 	
+	### TODO: Add UEFI
+	# Copy the background splash image for the PXE boot images.
+	my $bios_splash = $anvil->data->{path}{directories}{skins}."/".$anvil->Template->skin."/images/bios-splash.jpg";
+	if (-e $bios_splash)
+	{
+		# We don't bother checking if this needs to be updated because rsync can figure it out more 
+		# efficiently.
+		$anvil->Storage->rsync({
+			debug       => 2, 
+			source      => $bios_splash,
+			destination => $anvil->data->{path}{directories}{tftpboot}."/splash.jpg",
+		});
+	}
+	
 	return(0);
 }
 
@@ -456,6 +535,9 @@ sub check_alteeve_repo
 sub update_install_source
 {
 	my ($anvil) = @_;
+	
+	### TODO: Make this only run once every 24 hours (track in the database; 
+	###       'system::install-target::source-updated').
 	
 	### TODO: Make sure this path exists.
 	my $download_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/";

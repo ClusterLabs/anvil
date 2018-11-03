@@ -383,7 +383,7 @@ sub change_mode
 
 This changes the owner and/or group of a file or directory.
 
- $anvil->Storage->change_owner({target => "/tmp/foo", mode => "0644"});
+ $anvil->Storage->change_owner({target => "/tmp/foo", user => "apache", group => "apache" });
 
 If it fails to write the file, an alert will be logged and 'C<< 1 >>' will be returned. Otherwise, 'C<< 0 >>' will be returned.
 

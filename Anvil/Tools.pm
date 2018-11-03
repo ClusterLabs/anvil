@@ -846,6 +846,12 @@ sub _set_defaults
 			server		=>	"",
 			tag		=>	"anvil",
 		},
+		# NOTE: These are here to allow foreign users to override western defaults in anvil.conf.
+		kickstart	=>	{
+			keyboard	=>	"--vckeymap=us --xlayouts='us'",
+			password	=>	"Initial1",
+			timezone	=>	"Etc/GMT --isUtc",
+		},
 		## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such,
 		##                  we need to use a wider spread between the BCNs, SNs and IFNs than we had
 		##                  in v2.
