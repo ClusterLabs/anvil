@@ -115,14 +115,11 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0075">The peer: [#!variable!host!#] is now in the database. Proceeding.</key>
 		<key name="message_0076">The job the peer add us has been registered. It should add us as soon as it looks for new jobs (generally within a second or two).</key>
 		<key name="message_0077">
-About to try to download aproximately: [#!variable!packages!#] packages needed for installing Anvil! machines to:
-- [#!variable!directory!#].
-
 NOTE: Please be patient! 
       The 'dnf' cache will be cleared to ensure the freshest RPMs are download. This will cause a delay 
       before output starts to appear. Once started, each RPM will be reported after it is downloaded. Large
       RPMs may cause the output to appear stalled. You can verify that the download it proceeding by using
-      'df -s #!variable!directory!#' to verify the number is increasing.
+      'df -hs #!variable!directory!#' to verify the numbers are increasing.
 		</key>
 		<key name="message_0078">Output: [#!variable!line!#].</key>
 		<key name="message_0079">Error:  [#!variable!line!#].</key>
@@ -131,7 +128,7 @@ NOTE: Please be patient!
 		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
 		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
 		<key name="message_0083">Editing of this option is disabled.</key>
-		<key name="message_0084">Install a ^Striker dashboard (Fedora 28 64-bit)</key>
+		<key name="message_0084">^1. Install a Striker dashboard (Fedora 28 64-bit)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /-----------------------------------------------------------------------------------------------------------\ -->
 		<key name="message_0085">
@@ -143,7 +140,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \-----------------------------------------------------------------------------------------------------------/ -->
-		<key name="message_0086">Install an Anvil! ^Node (Fedora 28 64-bit)</key>
+		<key name="message_0086">^2. Install an Anvil! Node (Fedora 28 64-bit)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /-----------------------------------------------------------------------------------------------------------\ -->
 		<key name="message_0087">
@@ -156,7 +153,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \-----------------------------------------------------------------------------------------------------------/ -->
-		<key name="message_0088">Install an Anvil! ^Disaster Recover Host (Fedora 28 64-bit)</key>
+		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (Fedora 28 64-bit)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /-----------------------------------------------------------------------------------------------------------\ -->
@@ -219,9 +216,12 @@ NOTE: Please be patient!
 		<key name="message_0115">Striker Dashboard</key>
 		<key name="message_0116">Anvil! Node</key>
 		<key name="message_0117">Dsaster Recovery (DR) Host</key>
-		<key name="message_0118"></key>
-		<key name="message_0119"></key>
-		<key name="message_0120"></key>
+		<key name="message_0118">Regenerating the source repository metadata.</key>
+		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is 'anvil-striker-extra' installed?</key>
+		<key name="message_0120">
+About to try to download aproximately: [#!variable!packages!#] packages needed to:
+- [#!variable!directory!#].
+		</key>
 		<key name="message_0121"></key>
 		
 		<!-- Log entries -->
@@ -718,6 +718,12 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0042">No BCN interface found. Unable to configure the install target feature yet.</key>
 		<key name="error_0043">Failed to write or update the file: [#!variable!file!#]. Please see the system log for more information.</key>
 		<key name="error_0044">This is not a configured Striker dashboard, exiting.</key>
+		<key name="error_0045">
+[ Error ] - There was a problem downloading packages. The error was:
+====
+#!variable!error!#
+====
+		</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

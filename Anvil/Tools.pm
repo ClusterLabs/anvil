@@ -942,6 +942,7 @@ sub _set_paths
 				'chown'				=>	"/usr/bin/chown",
 				cp				=>	"/usr/bin/cp",
 				createdb			=>	"/usr/bin/createdb",
+				createrepo			=>	"/usr/bin/createrepo",
 				createuser			=>	"/usr/bin/createuser",
 				dmidecode			=>	"/usr/sbin/dmidecode",
 				dnf				=>	"/usr/bin/dnf",

@@ -433,7 +433,7 @@ sub system_call
 default vesamenu.c32
 
 # Time out and use the default menu option. Defined as tenths of a second.
-TIMEOUT 600
+TIMEOUT 6000
 
 # Prompt the user. Set to '1' to automatically choose the default option. This
 # is really meant for files matched to MAC addresses.

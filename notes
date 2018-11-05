@@ -1,5 +1,7 @@
 NEXT; - Copy os/isolinux/* stuff from syslinux-nonlinux
 
+Explanation of 'comps.xml' (package grouping) - https://pagure.io/fedora-comps
+
 dnf -y install perl-Net-Netmask perl-Text-Diff dnf-utils hdparm lsscsi createrepo dhcp kernel-core syslinux tftp-server
 
 Firewall config stuff.
