@@ -1,9 +1,21 @@
 #!/usr/bin/perl
 # 
-# This manages the firewall on the host. 
+# This manages does two main tasks;
+# - On Striker dashboards, it enables and disabled the "Install Target" feauter.
+# - On nodes and DR hosts, it opens and closes VNC ports as servers are booted or stopped.
 # 
 # Examples;
-# 
+# - Call without any arguments and it will check for running servers and, for each it will open the VNC port 
+#   on both the BCN and IFN. Before doing so, it will check 'servers::<server_name>::vnc::<network>'. If that
+#   is found and set to '0', the port will not be opened on the network. For example, to prevent a server 
+#   named 'foo' from being accessible over 'ifn1', set 'servers::foo::vnc::ifn1 = 0'. The network name comes
+#   from the first part of the interface name with the IP address. So for 'ifn1_bond1', the network is 
+#   'ifn1'.
+# - Call it with '--enable-install-target' or '--disable-install-target' to enable or disable the "Install 
+#   Target" feature. This also enables or disables the dhcpd daemon. This can also be called as an Anvil jobs
+#   to enable or disable the Install Target by setting the 'job_data' to 'install-target::enable' or 
+#   'install-target::disable'.
+#  
 # 
 # Exit codes;
 # 0 = Normal exit.

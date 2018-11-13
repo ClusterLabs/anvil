@@ -1,28 +1,34 @@
-NEXT; - Copy os/isolinux/* stuff from syslinux-nonlinux
+NEXT; - 
 
-Explanation of 'comps.xml' (package grouping) - https://pagure.io/fedora-comps
 
-dnf -y install perl-Net-Netmask perl-Text-Diff dnf-utils hdparm lsscsi createrepo dhcp kernel-core syslinux tftp-server
+DOCS; -
+- Explanation of 'comps.xml' (package grouping) - https://pagure.io/fedora-comps
+- Firewalld
+  - https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
+- PXE;
+  - https://docs.fedoraproject.org/en-US/fedora/f28/install-guide/advanced/Network_based_Installations/
+  - https://docs.fedoraproject.org/en-US/Fedora/26/html/Installation_Guide/chap-pxe-server-setup.html
+  - UEFI PXE notes - https://www.syslinux.org/wiki/index.php?title=PXELINUX#UEFI
+- How to write a NetworkManager dispatcher script to apply ethtool commands? - https://access.redhat.com/solutions/2841131
+- Setup nodes to log to striker? - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec-configuring_netconsole
+- Pacemaker can be monitored via SNMP - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-snmpandpacemaker-HAAR
+- corosync.conf - https://access.redhat.com/articles/3185291
 
-Firewall config stuff.
 ====
----- Files
-[root@f28-striker01 zones]# cat /etc/firewalld/zones/BCN1.xml
+
+### Create our zones (skip SN on striker)
+# /etc/firewalld/zones/BCN1.xml
 <?xml version="1.0" encoding="utf-8"?>
 <zone>
   <short>BCN1</short>
   <description>Back-Channel Network #1 - Used for all inter-machine communication in the Anvil!, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</description>
   <service name="ssh"/>
-  <service name="dhcpv6-client"/>
-  <service name="cockpit"/>
   <service name="postgresql"/>
   <service name="http"/>
   <service name="https"/>
-  <port port="80" protocol="tcp"/>
-  <port port="443" protocol="tcp"/>
 </zone>
 
-[root@f28-striker01 zones]# cat /etc/firewalld/zones/IFN1.xml 
+# /etc/firewalld/zones/IFN1.xml 
 <?xml version="1.0" encoding="utf-8"?>
 <zone>
   <short>IFN1</short>
@@ -31,66 +37,80 @@ Firewall config stuff.
   <service name="postgresql"/>
   <service name="http"/>
   <service name="https"/>
-  <port port="80" protocol="tcp"/>
-  <port port="443" protocol="tcp"/>
 </zone>
 
-[root@f28-striker01 zones]# cat /etc/firewalld/zones/SN1.xml
+### NOTE: Only on nodes and DR, not on Striker
+# /etc/firewalld/zones/SN1.xml
 <?xml version="1.0" encoding="utf-8"?>
 <zone>
   <short>SN1</short>
   <description>Storage Network #1 - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</description>
   <service name="ssh"/>
 </zone>
-----
-Reload;
-firewall-cmd --reload
 
-### These are permanent
+
 # Put the interfaces under the appropriate zones.
 firewall-cmd --zone=IFN1 --change-interface=ifn1_bond1 
 firewall-cmd --zone=BCN1 --change-interface=bcn1_bond1 
+
+# Set the IFN as the default zone (as that is what will most likely be edited by a user)
 firewall-cmd --set-default-zone=IFN1
 
-### These are temporary unless --permanent is used
-# Allow routing/masq'ing through the IFN
+
+# Allow routing/masq'ing through the IFN1 (provide net access to the BCN)
 firewall-cmd --zone=IFN1 --add-masquerade
 
 # Check
 firewall-cmd --zone=IFN1 --query-masquerade
-yes
+[yes|no]
 
 # Disable 
 # NOTE: Doesn't break existing connections
 firewall-cmd --zone=IFN1 --remove-masquerade
 
-- Notes;
+
+### Example shell calls 
+# Firewall
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=postgresql
+firewall-cmd --reload
 firewall-cmd --state  [running (rc: 0),not running (rc:252)]
+
+
+Ports we care about
+
+Porto	Number		Used by		Nets		Description
+TCP	2224		pcsd 		bcn		It is crucial to open port 2224 in such a way that pcs from any node can talk to all nodes in the cluster, including itself.
+UDP	5404		corosync	bcn		Required on corosync nodes if corosync is configured for multicast UDP
+UDP	5405		corosync	bcn		Required on all corosync nodes (needed by corosync)
+TCP	7788+		drbd		sn		1 port per resource
+TCP	49152-49215	virsh		bcn		live migration - migration_port_min and migration_port_max attributes in the /etc/libvirt/qemu.conf
+
+
+NOTE: DHCP listens to raw sockets and ignores firewalld rules. We need to stop dhcpd directly - https://kb.isc.org/docs/aa-00378
+
+
+* After all changes;
+firewall-cmd --zone=public --add-port=49152-49215/tcp --permanent
+firewall-cmd --reload
 
 - Paths
 If we want to create services or helpers later, look under - /usr/lib/firewalld/
 Core firewalld configs, including defaults zones, etc      - /etc/firewalld/
 
-- https://www.digitalocean.com/community/tutorials/how-to-set-up-a-firewall-using-firewalld-on-centos-7
 
 * Zones are meant to deal with dynamic environments and aren't that useful in mostly static server environments
 ** Seem to be pre-configured sets of what is/isn't allowed. 'public' for IFN, 'work' for SN/BCN? 'external/internal' are for routing
 ** Configured in /etc/firewalld/zones/<zone>.xml - Create 'BCN', 'SN' and 'IFN'?
 * Use 'firewall-cmd' WITHOUT '--permanent' for things like enabling the VNC port for a server. Use '--permanent' for everything else. 
-
 ====
-
-
 
 
 
 Striker as PXE server
 ====
-https://docs.fedoraproject.org/en-US/fedora/f28/install-guide/advanced/Network_based_Installations/
 
-UEFI PXE notes - https://www.syslinux.org/wiki/index.php?title=PXELINUX#UEFI
 
-dnf install dhcp tftp-server syslinux kernel-core
 
 # NOTE: We DON'T enable DHCP. We'll turn it on as needed.
 # NOTE: Apache needs to show dot-files! (anaconda looks for .treeinfo)
@@ -151,23 +171,6 @@ FXSAVE_STATE - 000000007FF7E310
 
 ====
 
-Forewalld Router config
-====
-# Allow routing/masq'ing through the IFN
-firewall-cmd --zone=IFN --add-masquerade
-success
-
-# Check
-firewall-cmd --zone=IFN --query-masquerade
-yes
-
-# Disable 
-# NOTE: Doesn't break existing connections
-firewall-cmd --zone=IFN --remove-masquerade
-success
-====
-
-
 DB stuff;
 
 Dump;
@@ -181,17 +184,9 @@ su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvi
 su - postgres -c "psql anvil"
 
 
-
 All systems have a UUID, even VMs. Use that for system UUID in the future.
 
-https://access.redhat.com/solutions/2841131 - How to write a NetworkManager dispatcher script to apply ethtool commands?
 
-
-Setup nodes to log to striker?
-https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/networking_guide/sec-configuring_netconsole
-
-* Pacemaker can be monitored via SNMP; https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-snmpandpacemaker-HAAR
-* corosync.conf; https://access.redhat.com/articles/3185291
 
 Changes made using tools such as nmcli do not require a reload but do require the associated interface to be put down and then up again. That can be done by using commands in the following format:
 * nmcli dev disconnect interface-name
@@ -293,11 +288,6 @@ systemctl start httpd.service
 # Post install
 systemctl daemon-reload
 
-# Firewall
-firewall-cmd --permanent --add-service=http
-firewall-cmd --permanent --add-service=postgresql
-firewall-cmd --reload
-
 # SELinux
 restorecon -rv /var/www
 
@@ -374,20 +364,6 @@ pcs resource clone drbd clone-max=2 notify="false"
 
 stonith_admin --fence m3-a01n02 --verbose; crm_error $?
 
-==== (configured via https)
-
-Ports we care about
-
-Porto	Number		Used by		Nets		Description
-TCP	2224		pcsd 		bcn		It is crucial to open port 2224 in such a way that pcs from any node can talk to all nodes in the cluster, including itself.
-UDP	5404		corosync	bcn		Required on corosync nodes if corosync is configured for multicast UDP
-UDP	5405		corosync	bcn		Required on all corosync nodes (needed by corosync)
-TCP	7788+		drbd		sn		1 port per resource
-TCP	49152-49215	virsh		bcn		live migration - migration_port_min and migration_port_max attributes in the /etc/libvirt/qemu.conf
-
-* After all changes;
-firewall-cmd --zone=public --add-port=49152-49215/tcp --permanent
-firewall-cmd --reload
 
 ==== DRBD notes
 

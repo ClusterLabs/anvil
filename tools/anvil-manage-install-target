@@ -8,7 +8,9 @@
 # Alternatively, /mnt/files/ will be checked for a 
 # 
 # Examples;
-# 
+# - Call with '--enable' to enable the install target.
+# - Call with '--disable' to disable the install target.
+# - Call with '--refresh' to check for updates from upstream repositories.
 # 
 # Exit codes;
 # 0 = Normal exit.
@@ -19,6 +21,8 @@
 # 5 = Not running as the 'root' user.
 # 6 = The 'comps,xml' file provided by anvil-striker-extra was not found.
 # 7 = A package failed to download to our repo
+# 8 = No database connection available.
+# 9 = The system isn't configured yet.
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -59,6 +63,28 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({code => 5});
 }
 
+# Connect to the database(s).
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	print $anvil->Words->string({key => "error_0003"})."\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0003"});
+	$anvil->nice_exit({exit_code => 8});
+}
+
+# Exit if we're not configured yet
+my $configured = $anvil->System->check_if_configured;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+if (not $configured)
+{
+	print $anvil->Words->string({key => "error_0046"})."\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0046"});
+	$anvil->nice_exit({exit_code => 9});
+}
+
+# Figure out what this machine is
 my ($os_type, $os_arch) = $anvil->System->get_os_type();
 $anvil->data->{host_os}{os_type} = $os_type;
 $anvil->data->{host_os}{os_arch} = $os_arch;
@@ -93,6 +119,101 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+sub check_refresh
+{
+	my ($anvil) = @_;
+	
+	# Setup the packages directory
+	$anvil->data->{path}{directories}{packages} = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::directories::packages" => $anvil->data->{path}{directories}{packages} }});
+	
+	# Default to 'no'
+	$anvil->data->{switches}{refresh} = 0 if not defined $anvil->data->{switches}{refresh};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
+	
+	# It it's set, the user asked for it.
+	if ($anvil->data->{switches}{refresh})
+	{
+		return(0);
+	}
+	
+	# If it's been disabled in anvil.conf, exit.
+	$anvil->data->{'install-manifest'}{'refresh-packages'} = 1 if not defined $anvil->data->{'install-manifest'}{'refresh-packages'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "install-manifest::refresh-packages" => $anvil->data->{'install-manifest'}{'refresh-packages'} }});
+	if (not $anvil->data->{'install-manifest'}{'refresh-packages'})
+	{
+		# We're out.
+		return(0);
+	}
+	
+	# If the Packages directory doesn't exist, we'll need to refresh.
+	if (not -e $anvil->data->{path}{directories}{packages})
+	{
+		# Source isn't configured, set it up
+		$anvil->data->{switches}{refresh} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
+		return(0);
+	}
+	
+	# See when the last time we refreshed the local package cache
+	my ($unixtime, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+		variable_name         => "install-target::refreshed", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		unixtime      => $unixtime, 
+		variable_uuid => $variable_uuid, 
+		modified_date => $modified_date, 
+	}});
+	
+	### TODO: Allow the user to set a "refresh time" that will wait until the local time is after a
+	###       certain time before refreshing. Also, allow the user to disable auto-refresh entirely.
+	# If the database variable 'install-target::refresh' is not set, or is more than 24 hours old, 
+	# refresh.
+	$anvil->data->{'install-manifest'}{'refresh-period'} =  86400 if not defined $anvil->data->{'install-manifest'}{'refresh-period'};
+	$anvil->data->{'install-manifest'}{'refresh-period'} =~ s/,//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'install-manifest::refresh-period' => $anvil->data->{'install-manifest'}{'refresh-period'}, 
+	}});
+	if ($anvil->data->{'install-manifest'}{'refresh-period'} =~ /\D/)
+	{
+		$anvil->data->{'install-manifest'}{'refresh-period'} =  86400;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'install-manifest::refresh-period' => $anvil->data->{'install-manifest'}{'refresh-period'}, 
+		}});
+	}
+	my $time_now  = time;
+	my $next_scan = $unixtime + $anvil->data->{'install-manifest'}{'refresh-period'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:time_now'  => $time_now, 
+		's2:next_scan' => $next_scan, 
+	}});
+	if ((not $variable_uuid) or ($unixtime =~ /^\d+/) or ($time_now > $next_scan))
+	{
+		$anvil->data->{switches}{refresh} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
+		return(0);
+	}
+	
+	# If the refresh fails, we'll update the last unixtime to be 24 hours from now, so that we can try 
+	# again. We intentionally ignore 'install-manifest::refresh-period', that's only used when the 
+	# refresh succeeded.
+	if ($unixtime =~ /^\d+$/)
+	{
+		$anvil->data->{sys}{retry_time} = $unixtime + 86400;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::retry_time" => $anvil->data->{sys}{retry_time} }});
+	}
+	else
+	{
+		# No previous time, so start with the current time
+		$anvil->data->{sys}{retry_time} = time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::retry_time" => $anvil->data->{sys}{retry_time} }});
+	}
+	
+	return(0);
+}
 
 sub setup_boot_environment
 {
@@ -537,12 +658,18 @@ sub check_alteeve_repo
 sub update_install_source
 {
 	my ($anvil) = @_;
-	
-	### TODO: Make this only run once every 24 hours (track in the database; 
-	###       'system::install-target::source-updated').
+
+	# Should we refresh the local repo?
+	check_refresh($anvil);
+	if (not $anvil->data->{switches}{refresh})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0235", variables => { program => $THIS_FILE }});
+		return(0);
+	}
 	
 	# Clear the dnf cache
-	my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+	my $success = 1;
+	my $output  = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
 	print $anvil->Words->string({key => "message_0077", variables => { 
 		directory => "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*", 
@@ -635,6 +762,17 @@ sub update_install_source
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error_out => $error_out }});
 		if ($error_out)
 		{
+			# Bump the last successful time by 24 hours.
+			$anvil->Database->insert_or_update_variables({
+				variable_name         => "install-target::refreshed", 
+				variable_value        => $anvil->data->{sys}{retry_time}, 
+				variable_default      => "", 
+				variable_description  => "striker_0106", 
+				variable_section      => "system", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+			});
+
 			# Something went wrong, exit.
 			print $anvil->Words->string({key => "error_0045", variables => { error => $error_out }})."\n";
 			$anvil->nice_exit({code => 7});
@@ -667,6 +805,18 @@ sub update_install_source
 	$output = "";
 	$output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo}." -g ".$comps_xml." ".$repo_path });
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	
+	# Update the refresh time to now.
+	$anvil->Database->insert_or_update_variables({
+		variable_name         => "install-target::refreshed", 
+		variable_value        => time, 
+		variable_default      => "", 
+		variable_description  => "striker_0106", 
+		variable_section      => "system", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+	});
+
 	
 	return(0);
 }

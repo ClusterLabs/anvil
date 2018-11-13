@@ -393,7 +393,7 @@ sub reconfigure_network
 					}
 				}
 				$bond_config .= "DEFROUTE=\"".$say_defroute."\"\n";
-				$bond_config .= "ZONE=\"".$say_interface."\"";
+				$bond_config .= "ZONE=\"".uc($say_interface)."\"";
 				   
 				my $link1_config =  "# $say_network - Link 1\n";
 				   $link1_config .= "HWADDR=\"".uc($link1_mac)."\"\n";
@@ -409,7 +409,7 @@ sub reconfigure_network
 				   $link1_config .= "NM_CONTROLLED=\"yes\"\n";
 				   $link1_config .= "SLAVE=\"yes\"\n";
 				   $link1_config .= "MASTER=\"".$say_interface."_bond1\"\n";
-				   $link1_config .= "ZONE=\"".$say_interface."\"";
+				   $link1_config .= "ZONE=\"".uc($say_interface)."\"";
 				   
 				my $link2_config =  "# $say_network - Link 2\n";
 				   $link2_config .= "HWADDR=\"".uc($link2_mac)."\"\n";
@@ -425,7 +425,7 @@ sub reconfigure_network
 				   $link2_config .= "NM_CONTROLLED=\"yes\"\n";
 				   $link2_config .= "SLAVE=\"yes\"\n";
 				   $link2_config .= "MASTER=\"".$say_interface."_bond1\"\n";
-				   $link2_config .= "ZONE=\"".$say_interface."\"";
+				   $link2_config .= "ZONE=\"".uc($say_interface)."\"";
 				   
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					bond_config  => $bond_config, 
@@ -598,7 +598,7 @@ sub reconfigure_network
 				   $link1_config .= "USERCTL=\"no\"\n";
 				   $link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
 				   $link1_config .= "NM_CONTROLLED=\"yes\"\n";
-				   $link1_config .= "ZONE=\"".$say_interface."\"";
+				   $link1_config .= "ZONE=\"".uc($say_interface)."\"";
 				   
 				# Backup the existing link1 file, if it exists.
 				if (-e $old_link1_file)
