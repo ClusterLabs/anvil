@@ -13,16 +13,18 @@
 # - Call with '--refresh' to check for updates from upstream repositories.
 # 
 # Exit codes;
-# 0 = Normal exit.
-# 1 = Alteeve repo not installed and not installable.
-# 2 = BCN IP not found, unable to configure yet.
-# 3 = Failed to write or update a configuration file.
-# 4 = Not a striker dashboard (or isn't yet).
-# 5 = Not running as the 'root' user.
-# 6 = The 'comps,xml' file provided by anvil-striker-extra was not found.
-# 7 = A package failed to download to our repo
-# 8 = No database connection available.
-# 9 = The system isn't configured yet.
+# 0  = Normal exit.
+# 1  = Alteeve repo not installed and not installable.
+# 2  = BCN IP not found, unable to configure yet.
+# 3  = Failed to write or update a configuration file.
+# 4  = Not a striker dashboard (or isn't yet).
+# 5  = Not running as the 'root' user.
+# 6  = The 'comps,xml' file provided by anvil-striker-extra was not found.
+# 7  = A package failed to download to our repo
+# 8  = No database connection available.
+# 9  = The system isn't configured yet.
+# 10 = Failed to start dhcpd.
+# 11 = Failed to stop dhcpd.
 # 
 # TODO:
 # - Support building the install target by mounting the ISO and checking /mnt/shared/incoming for needed 
@@ -61,6 +63,45 @@ if (($< != 0) && ($> != 0))
 	# Not root
 	print $anvil->Words->string({key => "error_0005"})."\n";
 	$anvil->nice_exit({code => 5});
+}
+
+# If the user just wants a status, check and exit.
+if ($anvil->data->{switches}{status})
+{
+	my $dhcpd_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_running => $dhcpd_running }});
+	if ($dhcpd_running)
+	{
+		print $anvil->Words->string({key => "message_0123"})."\n";
+		$anvil->nice_exit({code => 0});
+	}
+	else
+	{
+		print $anvil->Words->string({key => "message_0124"})."\n";
+		$anvil->nice_exit({code => 0});
+	}
+}
+
+### NOTE: Enabling is handled at the end, after checks/updates are applied
+# If we're being asked to disable, just do so and exit.
+if ($anvil->data->{switches}{disable})
+{
+	my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	if ($return_code)
+	{
+		# non-0 means something went wrong.
+		print $anvil->Words->string({key => "error_0047", variables => { rc => $return_code }})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0048", variables => { rc => $return_code }});
+		$anvil->nice_exit({exit_code => 8});
+	}
+	else
+	{
+		# Success!
+		print $anvil->Words->string({key => "message_0122"})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "message_0122"});
+		$anvil->nice_exit({code => 0});
+	}
 }
 
 # Connect to the database(s).
@@ -112,6 +153,26 @@ setup_boot_environment($anvil);
 # Store the RPMs in repo directory.
 update_install_source($anvil);
 
+# If we've been asked to enable or disable the install target, do so now.
+if ($anvil->data->{switches}{enable})
+{
+	my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	if ($return_code)
+	{
+		# non-0 means something went wrong.
+		print $anvil->Words->string({key => "error_0047", variables => { rc => $return_code }})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0047", variables => { rc => $return_code }});
+		$anvil->nice_exit({exit_code => 8});
+	}
+	else
+	{
+		# Success!
+		print $anvil->Words->string({key => "message_0121"})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "message_0121"});
+	}
+}
+
 # We're done
 $anvil->nice_exit({exit_code => 0});
 
@@ -156,6 +217,15 @@ sub check_refresh
 		return(0);
 	}
 	
+	# If the user has asked to enable or disable, skip.
+	$anvil->data->{switches}{enable}  = "" if not defined $anvil->data->{switches}{enable};
+	$anvil->data->{switches}{disable} = "" if not defined $anvil->data->{switches}{disable};
+	if (($anvil->data->{switches}{enable}) or ($anvil->data->{switches}{disable}))
+	{
+		# Skip.
+		return(0);
+	}
+	
 	# See when the last time we refreshed the local package cache
 	my ($unixtime, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
 		variable_name         => "install-target::refreshed", 
@@ -167,6 +237,12 @@ sub check_refresh
 		variable_uuid => $variable_uuid, 
 		modified_date => $modified_date, 
 	}});
+	
+	if (($unixtime eq "") or ($unixtime =~ /\D/))
+	{
+		$unixtime = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { unixtime => $unixtime }});
+	}
 	
 	### TODO: Allow the user to set a "refresh time" that will wait until the local time is after a
 	###       certain time before refreshing. Also, allow the user to disable auto-refresh entirely.
@@ -184,17 +260,24 @@ sub check_refresh
 			'install-manifest::refresh-period' => $anvil->data->{'install-manifest'}{'refresh-period'}, 
 		}});
 	}
-	my $time_now  = time;
-	my $next_scan = $unixtime + $anvil->data->{'install-manifest'}{'refresh-period'};
+	my $time_now   = time;
+	my $next_scan  = $unixtime + $anvil->data->{'install-manifest'}{'refresh-period'};
+	my $difference = ($next_scan - $time_now);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:time_now'  => $time_now, 
-		's2:next_scan' => $next_scan, 
+		's1:time_now'   => $time_now, 
+		's2:next_scan'  => $next_scan, 
+		's3:difference' => $difference, 
 	}});
-	if ((not $variable_uuid) or ($unixtime =~ /^\d+/) or ($time_now > $next_scan))
+	if ((not $variable_uuid) or ($unixtime =~ /^\d+/) or ($difference < 0))
 	{
 		$anvil->data->{switches}{refresh} = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
 		return(0);
+	}
+	elsif ($difference > 0)
+	{
+		# Log when the next scan will happen
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0236", variables => { next_refresh => $anvil->Convert->add_commas({number => $difference}) }});
 	}
 	
 	# If the refresh fails, we'll update the last unixtime to be 24 hours from now, so that we can try 
@@ -355,7 +438,7 @@ sub setup_boot_environment
 	### Generate kickstart files.
 	foreach my $type ("striker", "node", "dr")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
 		my $say_type = "#!string!message_0115!#";
 		if ($type eq "node")
 		{
@@ -377,7 +460,7 @@ sub setup_boot_environment
 			password => $anvil->data->{kickstart}{password} ? $anvil->data->{kickstart}{password} : $anvil->data->{defaults}{kickstart}{password},
 			debug    => 0,	# This isn't the same as the rest of our code, just '1' or '0'.
 		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { kickstart_body => $kickstart_body }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { kickstart_body => $kickstart_body }});
 		
 		# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means 
 		# something went wrong.
@@ -386,14 +469,14 @@ sub setup_boot_environment
 			body  => $kickstart_body, 
 			file  => $kickstart_file,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { kickstart_success => $kickstart_success }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { kickstart_success => $kickstart_success }});
 		if (not $kickstart_success)
 		{
 			# Failed.
 			print $anvil->Words->string({key => "error_0043", variables => { file => $kickstart_file }})."\n";
 			$anvil->nice_exit({code => 3});
 		}
-		elsif ($dhcpd_conf_success eq "1")
+		elsif ($kickstart_success eq "1")
 		{
 			# Updated
 			$anvil->Storage->change_mode({target => $kickstart_file, mode => "0664"});
@@ -401,7 +484,7 @@ sub setup_boot_environment
 
 			print $anvil->Words->string({key => "message_0097", variables => { file => $kickstart_file }})."\n";
 		}
-		elsif ($dhcpd_conf_success eq "2")
+		elsif ($kickstart_success eq "2")
 		{
 			# Update not needed.
 			print $anvil->Words->string({key => "message_0096", variables => { file => $kickstart_file }})."\n";
@@ -808,6 +891,7 @@ sub update_install_source
 	
 	# Update the refresh time to now.
 	$anvil->Database->insert_or_update_variables({
+		debug                 => 2,
 		variable_name         => "install-target::refreshed", 
 		variable_value        => time, 
 		variable_default      => "", 

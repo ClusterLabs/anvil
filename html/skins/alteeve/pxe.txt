@@ -44,7 +44,7 @@ eula --agreed
 firstboot --disable
 
 # Reboot when the install is done.
-reboot
+#reboot
 
 # Install from the source Striker
 url --url=#!variable!url!#
@@ -128,7 +128,7 @@ rsync -av /var/log     /mnt/sysimage/root/install_logs/var/
 # 1 - Target type not specified.
 # 2 - Failed to find a drive to install on.
 # 
-# NOTE: This is restricted to what is available during an anaconda install session. That is to same, bare 
+# NOTE: This is restricted to what is available during an anaconda install session. That is to say, bare 
 #       minimum.
 # TODO: If multiple matching drives are found (same medium and size, build an appropriate RAID array.
 # TODO: in pre, wipefs on all disks to clear old LVM and DRBD data
@@ -140,32 +140,42 @@ use warnings;
 # Set to '1' for verbose output 
 my $debug = #!variable!debug!#;
 
-### NOTE: This must be set to 'striker', 'node' or 'dr' when incorporated into a kickstart %pre script!
+### NOTE: This must be set to 'striker', 'node' or 'dr'! Wither set '$type' or use the appropriate argument.
 my $type  = "#!variable!type!#";
+if ((defined $ARGV[0]) && ((lc($ARGV[0]) eq "striker") or (lc($ARGV[0]) eq "node") or (lc($ARGV[0]) eq "dr")))
+{
+	$type  = $ARGV[0];
+}
 if ($type =~ /striker/i)
 {
-	print "#!string!message_0103!#\n";
+	print "-=] Finding install drive(s) for a Striker dashboard.\n";
 	$type = "striker";
 }
 elsif ($type =~ /node/i)
 {
-	print "#!string!message_0104!#\n";
+	print "-=] Finding install drive(s) for an Anvil! node.\n";
 	$type = "node";
 }
 elsif ($type =~ /dr/i)
 {
-	print "#!string!message_0105!#\n";
+	print "-=] Finding install drive(s) for a DR (disaster recovery) host.\n";
 	$type = "dr";
 }
 else
 {
-	print "#!string!message_0106!#\n";
+	print "
+[ Error ] - Target type not specified! 
+
+Usage: ".$0." {striker,node,dr}
+
+";
 	exit(1);
 }
 
 my $device = {};
 
 # We might want to add HCTL (Host:Channel:Target:Lun for SCSI) and/or SUBSYSTEMS later
+my $drives = {};
 my $target = "";
 my $lsblk  = system_call("/bin/lsblk --bytes --paths --pairs --output NAME,RM,HOTPLUG,TYPE,SIZE,TRAN,ROTA");
 foreach my $line (split/\n/, $lsblk)
@@ -186,14 +196,30 @@ foreach my $line (split/\n/, $lsblk)
 		transport  => $transport, 
 		rotational => $rotational, 
 	};
+	my $hr_size = hr_size($device->{$path}{size});
+	$device->{$path}{hr_size} = $hr_size;
+	
 	if ($device->{$path}{rotational})
 	{
-		print "#!string!message_0107!#\n";
+		if (not $device->{$path}{transport})
+		{
+			print "Analyzing platter or virtual drive: [".$path."] of the size: [".$device->{$path}{size}." (".$device->{$path}{hr_size}.")]\n";
+		}
+		else
+		{
+			print "Analyzing platter drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".$device->{$path}{hr_size}.")]\n";
+		}
 	}
 	else
 	{
-		print "#!string!message_0108!#\n";
+		print "Analyzing solid-state drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".$device->{$path}{hr_size}.")]\n";
 	}
+
+	if (not exists $drives->{by_hr_size}{$hr_size})
+	{
+		$drives->{by_hr_size}{$hr_size} = [];
+	}
+	push  @{$drives->{by_hr_size}{$hr_size}}, $path;
 }
 
 ### Usage selection priority
@@ -215,7 +241,7 @@ if ($type eq "striker")
 	}
 	if ($use_drive)
 	{
-		print "#!string!message_0109!#\n";
+		print "Selected the largest disk: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]\n";
 	}
 }
 else
@@ -281,11 +307,11 @@ else
 	{
 		if ($selected_is_platter)
 		{
-			print "#!string!message_0110!#\n";
+			print "Selected the smallest platter drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]\n";
 		}
 		else
 		{
-			print "#!string!message_0111!#\n";
+			print "Selected the smallest solid-state drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."] (no platter drives found)\n";
 		}
 	}
 }
@@ -293,7 +319,7 @@ else
 # Did we find a disk to use?
 if (not $use_drive)
 {
-	print "#!string!message_0112!#\n";
+	print "[ Error ] - Failed to find any fixed drives (platter or USB, not removable) to install onto. Unable to proceed.\n";
 	exit(2);
 }
 
@@ -322,29 +348,194 @@ if ((-e "/sys/class/dmi/id/product_uuid") && (-r "/sys/class/dmi/id/product_uuid
 	}
 }
 
-# Finally, we've got our output.
-my $say_grow       = $type eq "striker" ? "--grow " : "";
-my $vg_name        = $type."_".$id;
-my $partition_file = "/tmp/plan_partitions.out";
-my $partition_body = "zerombr
-clearpart --all --drives=".$use_drive."
-ignoredisk --only-use=".$use_drive."
-bootloader --location=mbr --driveorder=".$use_drive." --boot-drive=".$use_drive."
+### NOTE: RAID 0 is not RAID (literally or in this case). So '0' means 'no raid'
+# If I have 2+ drives of the same size as 'use_drive', I will create a RAID array.
+my $raid_level = 0;
+my $hr_size    = $device->{$use_drive}{hr_size};
+my $count      = @{$drives->{by_hr_size}{$hr_size}};
+print __LINE__."; [ Debug ] - Drives of size: [".$hr_size."]: [".$count."].\n" if $debug;
+if ($count == 0)
+{
+	$raid_level = 0;
+}
+elsif ($count == 2)
+{
+	$raid_level = 1;
+}
+elsif ($count == 4)
+{
+	$raid_level = 10;
+}
+elsif (($count == 3) or ($count == 5))
+{
+	$raid_level = 5;
+}
+elsif ($count > 5)
+{
+	$raid_level = 6;
+}
 
+my $say_use_drive = $use_drive;
+if (not $raid_level)
+{
+	print "Building a standard partition layout for: [".$use_drive."] which is: [".$hr_size."]\n";
+}
+else
+{
+	print "Building a software RAID level: [".$raid_level."] array using the: [".$count."x] [".$hr_size."] drives;\n";
+	$say_use_drive = "";
+	foreach my $path (sort {$a cmp $b} @{$drives->{by_hr_size}{$hr_size}})
+	{
+		print "- ".$path."\n";
+		$say_use_drive .= $path.",";
+	}
+	$say_use_drive =~ s/,$//;
+}
+
+### NOTE: kickstart sizes are in MiB
+# Prepare some variables
+my $swap_size = 8192;
+my $root_size = 0;
+my $vg_name   = $type."_".$id;
+
+# If this machine has a small size, we'll cut back the swap and root sizes.
+my $per_disk_space  = sprintf("%.2f", ($device->{$use_drive}{size} /= (2 ** 20)));
+my $available_space = $per_disk_space;
+print __LINE__."; [ Debug ] - per_disk_space: [".$per_disk_space." (".hr_size($per_disk_space * (2**20)).")], available_space: [".$available_space." (".hr_size($available_space * (2**20)).")]\n" if $debug;
+if ($raid_level == 10)
+{
+	# Total == 2 x single disk
+	$available_space *= 2;
+	print __LINE__."; [ Debug ] - available_space: [".$available_space."]\n" if $debug;
+}
+elsif ($raid_level == 5)
+{
+	# Total == count x Disks - 1
+	$available_space = ($per_disk_space * $count) - $per_disk_space;
+	print __LINE__."; [ Debug ] - available_space: [".$available_space."]\n" if $debug;
+}
+elsif ($raid_level == 6)
+{
+	# Total == count x Disks - 2
+	$available_space = ($per_disk_space * $count) - ($per_disk_space * 2);
+	print __LINE__."; [ Debug ] - available_space: [".$available_space."]\n" if $debug;
+}
+
+# Now, how much space is available after taking some for BIOSBOOT and /boot ?
+$available_space -= 2;
+print __LINE__."; [ Debug ] - available_space: [".$available_space." (".hr_size($available_space * (2**20)).")]\n" if $debug;
+if ($available_space < 40960)
+{
+	# Not enough space for the standard layout. 
+	$swap_size = 4096;
+	print __LINE__."; [ Debug ] - swap_size: [".$swap_size."]\n" if $debug;
+}
+
+# The left over space is for '/' (we'll shorten this up to 40GiB for nodes and DR hosts next)
+$root_size = $available_space - $swap_size;
+print __LINE__."; [ Debug ] - root_size: [".$root_size."]\n" if $debug;
+
+print __LINE__."; [ Debug ] - type: [".$type."], root_size: [".$root_size."]\n" if $debug;
+if (($type ne "striker") && ($root_size > 40960))
+{
+	$root_size = 40960;
+	print __LINE__."; [ Debug ] - root_size: [".$root_size."]\n" if $debug;
+}
+
+# Round down to an event integer.
+$root_size =~ s/\.\d+$//;
+print __LINE__."; Assigning: [".hr_size($swap_size * (2**20))." (".$swap_size." MiB)], root_size: [".hr_size($root_size * (2**20))." (".$root_size.") MiB]\n" if $debug;
+
+# Build the partition file.
+my $partition_file = "/tmp/plan_partitions.out";
+my $partition_body = "
+clearpart --all --drives=".$say_use_drive."
+ignoredisk --only-use=".$say_use_drive."
+bootloader --location=mbr --driveorder=".$say_use_drive." --boot-drive=".$use_drive;
+
+if (not $raid_level)
+{
+	# Finally, we've got our output.
+	$partition_body .= "
 # Partitions
-part biosboot --fstype=biosboot --size=1
-part /boot    --fstype=ext4     --size=1024 --asprimary --ondisk=".$use_drive."
-part pv.01    --fstype=lvmpv    --size=100  --asprimary --ondisk=".$use_drive." --grow
+part biosboot --fstype=biosboot --size=2
+part pv.01    --fstype=lvmpv    --size=100 --ondisk=".$use_drive." --grow
 
 # LVM Volume groups
 volgroup ".$vg_name." --pesize=4096 pv.01
 
 # LVM logical volumes
-logvol swap --fstype=swap --size=8188  --name=lv_swap --vgname=".$vg_name."
-logvol /    --fstype=xfs  --size=40960 --name=lv_root --vgname=".$vg_name." ".$say_grow."
+logvol swap --fstype=swap --size=".$swap_size."  --name=lv_swap --vgname=".$vg_name."
+logvol /    --fstype=xfs  --size=".$root_size." --name=lv_root --vgname=".$vg_name."
 ";
-print __LINE__."; [ Debug ] - partition_body: [".$partition_body."]\n" if $debug;
-print "#!string!message_0113!#\n";
+}
+else
+{
+	$partition_body .= "
+# LVM PV
+";
+	my $say_raid = "";
+	for (my $i = 0; $i < $count; $i++)
+	{
+		my $disk_number    =  $i + 1;
+		   $partition_body .= "part raid.1".$disk_number." --size 100 --grow --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
+		   $say_raid      .= "raid.1".$disk_number." ";
+	}
+	$partition_body .= "raid pv.01 --fstype=xfs --device=pv.01 --level=RAID".$raid_level." ".$say_raid."
+
+# LVM Volume groups
+volgroup ".$vg_name." pv.01
+
+# LVM logical volumes
+logvol swap --fstype=swap --size=".$swap_size." --name=lv_swap --vgname=".$vg_name."
+logvol /    --fstype=xfs  --size=".$root_size." --name=lv_root --vgname=".$vg_name."
+";
+}
+
+=cut
+# Wipe out the start of each disk and make it a GPT labelled disk.
+# See: https://access.redhat.com/solutions/55652
+foreach my $path (split/,/, $say_use_drive)
+{
+	print "[ NOTE ] - Wiping the boot sector of: [".$path."] and configuring it for a GPT label.\n";
+	my $dd_out      = system_call("/bin/dd bs=5120 count=1 if=/dev/zero of=".$path." oflag=dsync");
+	print __LINE__."; [ Debug ] - dd output:
+================================================================================
+".$dd_out."
+================================================================================\n" if $debug;
+	my $parted_out1 = system_call("/sbin/parted --script ".$path." mklabel gpt");
+	print __LINE__."; [ Debug ] - parted mklabel output
+================================================================================
+".$parted_out1."
+================================================================================\n" if $debug;
+	my $parted_out2 = system_call("/sbin/parted --script ".$path." print free");
+	print __LINE__."; [ Debug ] - parted print output showing new layout.
+================================================================================
+".$parted_out2."
+================================================================================\n" if $debug;
+	my $partprobe_out = system_call("/sbin/partprobe --summary ".$path);
+	print __LINE__."; [ Debug ] - partprobe summary.
+================================================================================
+".$partprobe_out."
+================================================================================\n" if $debug;
+	my $partx_out = system_call("/sbin/partx --update --verbose ".$path);
+	print __LINE__."; [ Debug ] - parted print output showing new layout.
+================================================================================
+".$partx_out."
+================================================================================\n" if $debug;
+}
+# Flush things out. The article says to blindly sleep 30, but it says to do so to make sure udev, partx and 
+# others have updated. We're forcing the issue, which should be faster and safer.
+system_call("/sbin/udevadm settle");
+system_call("/bin/sync");
+=cut
+
+# Write out the file.
+print __LINE__."; [ Debug ] - partition_body:
+================================================================================
+".$partition_body."
+================================================================================\n";
+print "Writing out the partition plan to: [".$partition_file."]\n";
 
 # Write it to the temp file that the kickstart's %include will look for.
 my $shell_call = $partition_file;
@@ -352,7 +543,7 @@ print __LINE__."; [ Debug ] - shell_call: [".$shell_call."]\n" if $debug;
 open (my $file_handle, ">", $shell_call) or die "Failed to write: [".$shell_call."], the error was: ".$!."\n";
 print $file_handle $partition_body;
 close $file_handle;
-print "#!string!message_0114!#\n";
+print "Completed successfully, exiting.\n";
 
 # We're done.
 exit(0);
@@ -489,7 +680,7 @@ TEXT HELP
 ENDTEXT
 kernel fedora28/vmlinuz
 # NOTE: add ' rd.debug' below for debugging
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.sshd
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
 
 label node
 menu label #!string!message_0086!#
@@ -497,7 +688,7 @@ TEXT HELP
 #!string!message_0087!#
 ENDTEXT
 kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.sshd
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.gpt inst.sshd
 
 label node
 menu label #!string!message_0088!#
@@ -505,7 +696,7 @@ TEXT HELP
 #!string!message_0089!#
 ENDTEXT
 kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.sshd
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.gpt inst.sshd
 
 label rescue
 menu label #!string!message_0090!#
@@ -513,7 +704,7 @@ TEXT HELP
 #!string!message_0091!#
 ENDTEXT
 kernel fedora28/vmlinuz
-append initrd=fedora28initrd.img ip=dhcp root=live:#!variable!base_url!#/os/LiveOS/squashfs.img rescue
+append initrd=fedora28/initrd.img ip=dhcp root=live:#!variable!base_url!#/os/LiveOS/squashfs.img rescue inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.sshd
 
 label fedora
 menu label #!string!message_0092!#
@@ -521,7 +712,7 @@ TEXT HELP
 #!string!message_0093!#
 ENDTEXT
 kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img
+append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.gpt inst.sshd
 
 label next
 menu default

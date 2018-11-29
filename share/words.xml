@@ -222,7 +222,10 @@ NOTE: Please be patient!
 About to try to download aproximately: [#!variable!packages!#] packages needed to:
 - [#!variable!directory!#].
 		</key>
-		<key name="message_0121"></key>
+		<key name="message_0121">Successfully enabled the Install Target function.</key>
+		<key name="message_0122">Successfully disabled the Install Target function.</key>
+		<key name="message_0123">The Install Target function is enabled.</key>
+		<key name="message_0124">The Install Target function is disabled.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -498,6 +501,7 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0233">There was a problem updating file: [#!variable!file!#], expected the write to return '0' but got: [#!variable!return!#]. Please check the logs for details.</key>
 		<key name="log_0234">Failed to backup the file: [#!variable!source!#] to: [#!variable!destination!#]. Details may be found in the logs above.</key>
 		<key name="log_0235">Not updating the local repository on this run. Use '#!variable!program!# --refresh' to force a refresh of the local repository.</key>
+		<key name="log_0236">Skipping the RPM repository refresh. The next scheduled refresh will be done in: [#!variable!next_refresh!#] second(s). Use '#!variable!program!# --refresh' to force an immediate refresh.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -727,6 +731,8 @@ The update appears to have not completed successfully. The output was:
 ====
 		</key>
 		<key name="error_0046">This Striker system is not configured yet. This tool will not be available until it is.</key>
+		<key name="error_0047">Failed to start the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
+		<key name="error_0048">Failed to stop the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

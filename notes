@@ -56,6 +56,9 @@ firewall-cmd --zone=BCN1 --change-interface=bcn1_bond1
 # Set the IFN as the default zone (as that is what will most likely be edited by a user)
 firewall-cmd --set-default-zone=IFN1
 
+# Allow tftpd
+firewall-cmd --zone=BCN1 --add-service=tftp --permanent
+
 
 # Allow routing/masq'ing through the IFN1 (provide net access to the BCN)
 firewall-cmd --zone=IFN1 --add-masquerade
@@ -75,6 +78,8 @@ firewall-cmd --permanent --add-service=http
 firewall-cmd --permanent --add-service=postgresql
 firewall-cmd --reload
 firewall-cmd --state  [running (rc: 0),not running (rc:252)]
+
+firewall-cmd --zone=BCN1 --add-service=tftp
 
 
 Ports we care about
