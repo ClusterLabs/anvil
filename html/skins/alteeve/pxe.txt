@@ -44,7 +44,7 @@ eula --agreed
 firstboot --disable
 
 # Reboot when the install is done.
-#reboot
+reboot
 
 # Install from the source Striker
 url --url=#!variable!url!#
@@ -117,6 +117,8 @@ rsync -av /var/log     /mnt/sysimage/root/install_logs/var/
 
 ### NOTE: This must be copied from 'scripts/plan_partitions', don't edit directly *EXCEPT* to set the '$type'
 ###       just below, which *MUST* be set, or the script will fail.
+# - #!variable!debug!#
+# - #!variable!type!#
 %pre --interpreter /bin/perl
 #!/bin/perl
 # 
@@ -448,7 +450,7 @@ print __LINE__."; Assigning: [".hr_size($swap_size * (2**20))." (".$swap_size." 
 
 # Build the partition file.
 my $partition_file = "/tmp/plan_partitions.out";
-my $partition_body = "
+my $partition_body = "zerombr
 clearpart --all --drives=".$say_use_drive."
 ignoredisk --only-use=".$say_use_drive."
 bootloader --location=mbr --driveorder=".$say_use_drive." --boot-drive=".$use_drive;
@@ -466,11 +468,20 @@ volgroup ".$vg_name." --pesize=4096 pv.01
 
 # LVM logical volumes
 logvol swap --fstype=swap --size=".$swap_size."  --name=lv_swap --vgname=".$vg_name."
-logvol /    --fstype=xfs  --size=".$root_size." --name=lv_root --vgname=".$vg_name."
+logvol /    --fstype=xfs  --size=100 --grow --maxsize=".$root_size." --name=lv_root --vgname=".$vg_name."
 ";
 }
 else
 {
+	$partition_body .= "
+# biosboot
+";
+
+	for (my $i = 0; $i < $count; $i++)
+	{
+		$partition_body .= "part biosboot --fstype=biosboot --size=2 --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
+	}
+
 	$partition_body .= "
 # LVM PV
 ";
@@ -488,13 +499,13 @@ volgroup ".$vg_name." pv.01
 
 # LVM logical volumes
 logvol swap --fstype=swap --size=".$swap_size." --name=lv_swap --vgname=".$vg_name."
-logvol /    --fstype=xfs  --size=".$root_size." --name=lv_root --vgname=".$vg_name."
+logvol /    --fstype=xfs  --size=100 --grow --maxsize=".$root_size." --name=lv_root --vgname=".$vg_name."
 ";
 }
 
-=cut
-# Wipe out the start of each disk and make it a GPT labelled disk.
-# See: https://access.redhat.com/solutions/55652
+
+# Wipe out the start of each disk so that the install doesn't puke if it sees, for example, an mdadm 
+# signature on the sole disk being used as an install target.
 foreach my $path (split/,/, $say_use_drive)
 {
 	print "[ NOTE ] - Wiping the boot sector of: [".$path."] and configuring it for a GPT label.\n";
@@ -502,16 +513,6 @@ foreach my $path (split/,/, $say_use_drive)
 	print __LINE__."; [ Debug ] - dd output:
 ================================================================================
 ".$dd_out."
-================================================================================\n" if $debug;
-	my $parted_out1 = system_call("/sbin/parted --script ".$path." mklabel gpt");
-	print __LINE__."; [ Debug ] - parted mklabel output
-================================================================================
-".$parted_out1."
-================================================================================\n" if $debug;
-	my $parted_out2 = system_call("/sbin/parted --script ".$path." print free");
-	print __LINE__."; [ Debug ] - parted print output showing new layout.
-================================================================================
-".$parted_out2."
 ================================================================================\n" if $debug;
 	my $partprobe_out = system_call("/sbin/partprobe --summary ".$path);
 	print __LINE__."; [ Debug ] - partprobe summary.
@@ -526,9 +527,9 @@ foreach my $path (split/,/, $say_use_drive)
 }
 # Flush things out. The article says to blindly sleep 30, but it says to do so to make sure udev, partx and 
 # others have updated. We're forcing the issue, which should be faster and safer.
-system_call("/sbin/udevadm settle");
 system_call("/bin/sync");
-=cut
+system_call("/sbin/udevadm settle");
+
 
 # Write out the file.
 print __LINE__."; [ Debug ] - partition_body:

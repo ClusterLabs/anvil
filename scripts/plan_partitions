@@ -346,7 +346,7 @@ volgroup ".$vg_name." --pesize=4096 pv.01
 
 # LVM logical volumes
 logvol swap --fstype=swap --size=".$swap_size."  --name=lv_swap --vgname=".$vg_name."
-logvol /    --fstype=xfs  --size=".$root_size." --name=lv_root --vgname=".$vg_name."
+logvol /    --fstype=xfs  --size=100 --grow --maxsize=".$root_size." --name=lv_root --vgname=".$vg_name."
 ";
 }
 else
@@ -377,13 +377,13 @@ volgroup ".$vg_name." pv.01
 
 # LVM logical volumes
 logvol swap --fstype=swap --size=".$swap_size." --name=lv_swap --vgname=".$vg_name."
-logvol /    --fstype=xfs  --size=".$root_size." --name=lv_root --vgname=".$vg_name."
+logvol /    --fstype=xfs  --size=100 --grow --maxsize=".$root_size." --name=lv_root --vgname=".$vg_name."
 ";
 }
 
-=cut
-# Wipe out the start of each disk and make it a GPT labelled disk.
-# See: https://access.redhat.com/solutions/55652
+### NOTE: This shouldn't be needed... See: https://bugzilla.redhat.com/show_bug.cgi?id=1654902
+# Wipe out the start of each disk so that the install doesn't puke if it sees, for example, an mdadm 
+# signature on the sole disk being used as an install target.
 foreach my $path (split/,/, $say_use_drive)
 {
 	print "[ NOTE ] - Wiping the boot sector of: [".$path."] and configuring it for a GPT label.\n";
@@ -391,16 +391,6 @@ foreach my $path (split/,/, $say_use_drive)
 	print __LINE__."; [ Debug ] - dd output:
 ================================================================================
 ".$dd_out."
-================================================================================\n" if $debug;
-	my $parted_out1 = system_call("/sbin/parted --script ".$path." mklabel gpt");
-	print __LINE__."; [ Debug ] - parted mklabel output
-================================================================================
-".$parted_out1."
-================================================================================\n" if $debug;
-	my $parted_out2 = system_call("/sbin/parted --script ".$path." print free");
-	print __LINE__."; [ Debug ] - parted print output showing new layout.
-================================================================================
-".$parted_out2."
 ================================================================================\n" if $debug;
 	my $partprobe_out = system_call("/sbin/partprobe --summary ".$path);
 	print __LINE__."; [ Debug ] - partprobe summary.
@@ -415,9 +405,9 @@ foreach my $path (split/,/, $say_use_drive)
 }
 # Flush things out. The article says to blindly sleep 30, but it says to do so to make sure udev, partx and 
 # others have updated. We're forcing the issue, which should be faster and safer.
-system_call("/sbin/udevadm settle");
 system_call("/bin/sync");
-=cut
+system_call("/sbin/udevadm settle");
+
 
 # Write out the file.
 print __LINE__."; [ Debug ] - partition_body:

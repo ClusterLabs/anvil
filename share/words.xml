@@ -500,7 +500,7 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0232">The file: [#!variable!file!#] will now be updated.</key>
 		<key name="log_0233">There was a problem updating file: [#!variable!file!#], expected the write to return '0' but got: [#!variable!return!#]. Please check the logs for details.</key>
 		<key name="log_0234">Failed to backup the file: [#!variable!source!#] to: [#!variable!destination!#]. Details may be found in the logs above.</key>
-		<key name="log_0235">Not updating the local repository on this run. Use '#!variable!program!# --refresh' to force a refresh of the local repository.</key>
+		<key name="log_0235">#!free!#</key>
 		<key name="log_0236">Skipping the RPM repository refresh. The next scheduled refresh will be done in: [#!variable!next_refresh!#] second(s). Use '#!variable!program!# --refresh' to force an immediate refresh.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->

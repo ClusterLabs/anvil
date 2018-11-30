@@ -1,5 +1,19 @@
 NEXT; - 
 
+==] UEFI Setup [======================================================================
+ignoredisk --only-use=vdb,vda
+clearpart --none --initlabel
+part raid.312 --fstype="mdmember" --ondisk=vda --size=19966
+part raid.293 --fstype="mdmember" --ondisk=vdb --size=512
+part raid.319 --fstype="mdmember" --ondisk=vdb --size=19966
+part raid.286 --fstype="mdmember" --ondisk=vda --size=512
+raid pv.326 --device=pv1 --fstype="lvmpv" --level=RAID1 raid.312 raid.319
+raid /boot/efi --device=efi --fstype="efi" --level=RAID1 --fsoptions="umask=0077,shortname=winnt" --label=efi raid.286 raid.293
+volgroup striker_vg0 --pesize=4096 pv.326
+logvol swap --fstype="swap" --size=4096 --name=lv_swap --vgname=striker_vg0
+logvol / --fstype="xfs" --size=15852 --label="lv_root" --name=lv_root --vgname=striker_vg0
+======================================================================================
+
 
 DOCS; -
 - Explanation of 'comps.xml' (package grouping) - https://pagure.io/fedora-comps

@@ -174,6 +174,7 @@ if ($anvil->data->{switches}{enable})
 }
 
 # We're done
+print $anvil->Words->string({key => "message_0025"})."\n";
 $anvil->nice_exit({exit_code => 0});
 
 
@@ -268,7 +269,7 @@ sub check_refresh
 		's2:next_scan'  => $next_scan, 
 		's3:difference' => $difference, 
 	}});
-	if ((not $variable_uuid) or ($unixtime =~ /^\d+/) or ($difference < 0))
+	if ((not $variable_uuid) or ($unixtime !~ /^\d+/) or ($difference < 0))
 	{
 		$anvil->data->{switches}{refresh} = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
@@ -277,7 +278,9 @@ sub check_refresh
 	elsif ($difference > 0)
 	{
 		# Log when the next scan will happen
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0236", variables => { next_refresh => $anvil->Convert->add_commas({number => $difference}) }});
+		my $variables = { next_refresh => $anvil->Convert->add_commas({number => $difference}) };
+		print $anvil->Words->string({key => "log_0236", variables => $variables})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0236", variables => $variables});
 	}
 	
 	# If the refresh fails, we'll update the last unixtime to be 24 hours from now, so that we can try 
@@ -746,7 +749,6 @@ sub update_install_source
 	check_refresh($anvil);
 	if (not $anvil->data->{switches}{refresh})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0235", variables => { program => $THIS_FILE }});
 		return(0);
 	}
 	
