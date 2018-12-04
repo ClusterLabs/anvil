@@ -44,3 +44,5 @@ power by Blair Adams from the Noun Project (https://thenounproject.com/search/?q
 reset by Mooms from the Noun Project (https://thenounproject.com/search/?q=reset&i=1033425)
 - reboot_icon.png
 
+Target by bezier master from the Noun Project (https://thenounproject.com/term/target/898037/)
+- install_target.png

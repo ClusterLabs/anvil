@@ -129,13 +129,8 @@ while(1)
 	}
 	else
 	{
+		# No databases available, we can't do anything this run.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "log_0202"});
-	}
-	
-	# Exit if called with '--run-once'
-	if ($anvil->data->{switches}{'run-once'})
-	{
-		$anvil->nice_exit({code => 0});
 	}
 	
 	# Has the file on disk changed?
@@ -183,6 +178,62 @@ $anvil->nice_exit({code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This calls anvil-manage-install-target to see if the dhcpd is running or not. If it is or isn't, the config
+# variable 'install-target::enabled' is set/updated. On non-Striker hosts, this simply returns without doing 
+# anything.
+sub check_install_target
+{
+	my ($anvil) = @_;
+	
+	my $system_type = $anvil->System->get_host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { system_type => $system_type }});
+	if ($system_type ne "dashboard")
+	{
+		# Not a dashboard, nothing to do.
+		return(0);
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-install-target'}." --status";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+	my $status = "unavailable";
+	my $output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		
+		if ($line =~ /status=(\d)/)
+		{
+			my $digit = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { digit => $digit }});
+			
+			if ($digit == 0)
+			{
+				$status = "disabled";
+			}
+			elsif ($digit == 1)
+			{
+				$status = "enabled";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { status => $status }});
+			last;
+		}
+	}
+	
+	# Record the status
+	$anvil->Database->insert_or_update_variables({
+		variable_name         => "install-target::enabled", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+		variable_value        => $status, 
+		variable_default      => "unavailable", 
+		variable_description  => "striker_0110", 
+		variable_section      => "system", 
+	});
+	
+	return(0);
+}
+
 # These are tools that don't need to constantly run. They'll typically run when the server starts up or the
 # daemon is restarted or reloaded.
 sub run_once
@@ -210,7 +261,7 @@ sub boot_time_tasks
 	
 	# If the uptime is less than ten minutes, clear the reboot flag.
 	my $uptime = $anvil->System->get_uptime;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uptime => $uptime }});
 	
 	# Now find out if a reboot is listed as needed and when it was last changed.
 	my $reboot_needed       = 0;
@@ -228,10 +279,10 @@ AND
 AND 
     variable_name = 'reboot::needed'
 ;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -240,7 +291,7 @@ AND
 		$reboot_needed       =  $results->[0]->[0];
 		$changed_seconds_ago =  $results->[0]->[1];
 		$changed_seconds_ago =~ s/^(\d+)\..*$/$1/;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			reboot_needed       => $reboot_needed,
 			changed_seconds_ago => $changed_seconds_ago, 
 		}});
@@ -250,7 +301,7 @@ AND
 	# set. If the uptime is less, then the system rebooted since it was requested so clear it. h/t to
 	# Lisa Seelye (@thedoh) for this idea!
 	my $difference = ($changed_seconds_ago - $uptime);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"s1:reboot_needed"       => $reboot_needed,
 		"s2:changed_seconds_ago" => $changed_seconds_ago, 
 		"s3:uptime"              => $uptime,
@@ -259,21 +310,20 @@ AND
 	if (($reboot_needed) && ($uptime < $changed_seconds_ago))
 	{
 		# Clear the reboot request.
-		$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 0});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
+		$reboot_needed = $anvil->System->reboot_needed({set => 0});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
 		
 		# Check to see if there was a reboot job in progress. If so, finish it off.
-		my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => "anvil-manage-power"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		my $job_uuid = $anvil->Job->get_job_uuid({program => "anvil-manage-power"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
 		
 		if ($job_uuid)
 		{
 			# Update the percentage to '100' and then clear the old PID.
 			my $date_time = $anvil->Get->date_and_time();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { date_time => $date_time }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { date_time => $date_time }});
 			
 			$anvil->Job->update_progress({
-				debug        => 2,
 				progress     => 100, 
 				message      => "message_0064,!!date_and_time!".$date_time."!!", 
 				job_uuid     => $job_uuid,
@@ -342,6 +392,9 @@ sub keep_running
 	{
 		update_state_file($anvil);
 	}
+	
+	# Is the Install Target enabled (if applicable)?
+	check_install_target($anvil);
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
 	run_jobs($anvil);

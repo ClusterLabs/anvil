@@ -73,6 +73,10 @@ body {
 	font-size:  1em;
 }
 
+.disabled {
+	color:      #9D9D9D;
+}
+
 .error_message {
 	border-left:   3px solid #d02724;
 	border-right:  3px solid #d02724;
@@ -321,7 +325,7 @@ td.top_padded_cell {
 }
 
 .title {
-	font-size:  1.2em;
+	font-size:  1.8em;
 	text-align: center;
 }
 

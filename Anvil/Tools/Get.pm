@@ -115,6 +115,7 @@ If C<< target >> is set, this will be the user we connect to the remote machine 
 This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
 
 =cut
+# NOTE: the version is set in anvil.spec by sed'ing the release and arch onto anvil.version in anvil-core's %post
 sub anvil_version
 {
 	my $self      = shift;
@@ -173,6 +174,9 @@ fi;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { version => $version }});
 		}
 	}
+	
+	# Clear off any newline.
+	$version =~ s/\n//gs;
 	
 	return($version);
 }
@@ -332,7 +336,7 @@ sub cgi
 				# This is a password and we're not logging sensitive data, obfuscate it.
 				$censored_value = $anvil->Words->string({key => "log_0186"});
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"cgi::${variable}::$say_value" => $censored_value,
 			}});
 		}

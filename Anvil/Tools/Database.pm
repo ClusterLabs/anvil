@@ -9,6 +9,7 @@ use DBI;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
 use Time::HiRes qw(gettimeofday tv_interval);
+use Text::Diff;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
@@ -840,17 +841,17 @@ sub connect
 		# sure it matches ours. If it doesn't, skip this database.
 		if (not $is_local)
 		{
+			my $local_version  = $anvil->_anvil_version({debug => $debug});
 			my $remote_version = $anvil->Get->anvil_version({
 				debug    => $debug, 
 				target   => $host,
 				password => $password,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				remote_version          => $remote_version, 
-				"anvil->_anvil_version" => $anvil->_anvil_version,
+				remote_version => $remote_version, 
+				local_version  => $local_version,
 			}});
-			
-			if ($remote_version ne $anvil->_anvil_version({debug => $debug}))
+			if ($remote_version ne $local_version)
 			{
 				# Version doesn't match, 
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0145", variables => { 
@@ -2183,7 +2184,7 @@ This default value is the local hostname.
 
 =head3 host_type (required)
 
-This default value is the value returned by C<< System->determine_host_type >>.
+This default value is the value returned by C<< System->get_host_type >>.
 
 =head3 host_uuid (required)
 
@@ -2202,7 +2203,7 @@ sub insert_or_update_hosts
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_hostname;
-	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->determine_host_type;
+	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->get_host_type;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid      => $uuid, 
@@ -4162,7 +4163,7 @@ This is an optional field to mark a source UUID that this variable belongs to. B
 
 This is an optional database table name that the variables relates to. Generally it is used along side C<< variable_source_uuid >>, but that isn't required.
 
-=head3 update_value_only (optional)
+=head3 update_value_only (optional, default '0')
 
 When set to C<< 1 >>, this method will only update the variable's C<< variable_value >> column. Any other parameters are used to help locate the variable to update only.
 
@@ -4186,9 +4187,8 @@ sub insert_or_update_variables
 	my $variable_section      = defined $parameter->{variable_section}      ? $parameter->{variable_section}      : "";
 	my $variable_source_uuid  = defined $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "";
 	my $variable_source_table = defined $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "";
-	my $update_value_only     = defined $parameter->{update_value_only}     ? $parameter->{update_value_only}     : 1;
-	my $log_level             = defined $parameter->{log_level}             ? $parameter->{log_level}             : 3;	# Undocumented for now.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
+	my $update_value_only     = defined $parameter->{update_value_only}     ? $parameter->{update_value_only}     : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                  => $uuid, 
 		file                  => $file, 
 		line                  => $line, 
@@ -4201,7 +4201,7 @@ sub insert_or_update_variables
 		variable_source_uuid  => $variable_source_uuid, 
 		variable_source_table => $variable_source_table, 
 		update_value_only     => $update_value_only, 
-		log_level             => $log_level, 
+		log_level             => $debug, 
 	}});
 	
 	# We'll need either the name or UUID.
@@ -4223,11 +4223,11 @@ FROM
     variables 
 WHERE 
     variable_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		$variable_name = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];
 		$variable_name = "" if not defined $variable_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_name => $variable_name }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_name => $variable_name }});
 	}
 	
 	if (($variable_name) && (not $variable_uuid))
@@ -4249,23 +4249,23 @@ AND
 ";
 		}
 		$query .= ";";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
 			count   => $count,
 		}});
 		foreach my $row (@{$results})
 		{
 			$variable_uuid = $row->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_uuid => $variable_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 		}
 	}
 	
 	# If I still don't have an variable_uuid, we're INSERT'ing .
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_uuid => $variable_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 	if (not $variable_uuid)
 	{
 		# INSERT
@@ -4295,7 +4295,7 @@ INSERT INTO
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
@@ -4321,11 +4321,11 @@ AND
 ";
 			}
 			$query .= ";";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				results => $results, 
 				count   => $count,
 			}});
@@ -4342,7 +4342,7 @@ AND
 			foreach my $row (@{$results})
 			{
 				my $old_variable_value = $row->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { old_variable_value => $old_variable_value }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_variable_value => $old_variable_value }});
 				
 				# Anything change?
 				if ($old_variable_value ne $variable_value)
@@ -4366,7 +4366,7 @@ AND
 ";
 					}
 					$query .= ";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					
 					$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
@@ -4387,11 +4387,11 @@ FROM
 WHERE 
     variable_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid)." 
 ;";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				results => $results, 
 				count   => $count,
 			}});
@@ -4408,7 +4408,7 @@ WHERE
 				my $old_variable_default     = $row->[2];
 				my $old_variable_description = $row->[3];
 				my $old_variable_section     = $row->[4];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					old_variable_name        => $old_variable_name, 
 					old_variable_value       => $old_variable_value, 
 					old_variable_default     => $old_variable_default, 
@@ -4437,7 +4437,7 @@ SET
 WHERE 
     variable_uuid        = ".$anvil->data->{sys}{database}{use_handle}->quote($variable_uuid)." 
 ";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { query => $query }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					
 					$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
@@ -4445,7 +4445,7 @@ WHERE
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { variable_uuid => $variable_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 	return($variable_uuid);
 }
 

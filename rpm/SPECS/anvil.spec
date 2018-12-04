@@ -404,10 +404,10 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
-*  Madison Kelly <mkelly@alteeve.ca> 3.0-19
+* Fri Nov 30 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-19
 - Added packages to anvil-striker to support PXE server / install target 
   functions.
-- 
+- Updated source.
 
 * Sat Oct 06 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-18
 - Updated the source to resolve a major bug introduced by the code in the .17

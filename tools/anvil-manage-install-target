@@ -47,14 +47,15 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+my $anvil = Anvil::Tools->new({log_level => 1, log_secure => 0});
 
 $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->data->{switches}{'y'} = "";
-$anvil->Get->switches;
+$anvil->data->{switches}{'y'}      = "";
+$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->Get->switches();
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -73,33 +74,13 @@ if ($anvil->data->{switches}{status})
 	if ($dhcpd_running)
 	{
 		print $anvil->Words->string({key => "message_0123"})."\n";
+		print "status=1\n";
 		$anvil->nice_exit({code => 0});
 	}
 	else
 	{
 		print $anvil->Words->string({key => "message_0124"})."\n";
-		$anvil->nice_exit({code => 0});
-	}
-}
-
-### NOTE: Enabling is handled at the end, after checks/updates are applied
-# If we're being asked to disable, just do so and exit.
-if ($anvil->data->{switches}{disable})
-{
-	my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-	if ($return_code)
-	{
-		# non-0 means something went wrong.
-		print $anvil->Words->string({key => "error_0047", variables => { rc => $return_code }})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0048", variables => { rc => $return_code }});
-		$anvil->nice_exit({exit_code => 8});
-	}
-	else
-	{
-		# Success!
-		print $anvil->Words->string({key => "message_0122"})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "message_0122"});
+		print "status=0\n";
 		$anvil->nice_exit({code => 0});
 	}
 }
@@ -113,6 +94,56 @@ if (not $anvil->data->{sys}{database}{connections})
 	print $anvil->Words->string({key => "error_0003"})."\n";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 8});
+}
+
+### NOTE: Enabling is handled at the end, after checks/updates are applied
+# If we're being asked to disable, just do so and exit.
+if ($anvil->data->{switches}{disable})
+{
+	my $exit_code   = 0;
+	my $job_message = "message_0125";
+	my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	if ($return_code)
+	{
+		# non-0 means something went wrong.
+		$job_message = "message_0126";
+		$exit_code   = 8;
+		print $anvil->Words->string({key => "error_0047", variables => { rc => $return_code }})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0048", variables => { rc => $return_code }});
+	}
+	else
+	{
+		# Success!
+		print $anvil->Words->string({key => "message_0122"})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "message_0122"});
+	}
+	
+	# Record the new state
+	$anvil->Database->insert_or_update_variables({
+		variable_name         => "install-target::enabled", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+		variable_value        => "disabled", 
+		variable_default      => "unavailable", 
+		variable_description  => "striker_0110", 
+		variable_section      => "system", 
+	});
+
+	### NOTE: There is no complex job processing here. If we've been asked to enable or disable, it only 
+	###       takes a second to do it.
+	# If we're being called as a job, mark that we've picked it up
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job_uuid" => $anvil->data->{switches}{'job-uuid'} }});
+	if ($anvil->data->{switches}{'job-uuid'})
+	{
+		$anvil->Job->update_progress({
+			debug    => 1, 
+			progress => 100, 
+			message  => $job_message,
+			job_uuid => $anvil->data->{switches}{'job-uuid'},
+		});
+	}
+	$anvil->nice_exit({exit_code => $exit_code});
 }
 
 # Exit if we're not configured yet
@@ -143,33 +174,69 @@ if ($anvil->_short_hostname !~ /striker/)
 	$anvil->nice_exit({code => 4});
 }
 
-# load the list of packages;
-print $anvil->Words->string({key => "message_0102"})."\n";
-load_packages($anvil);
+# If this isn't being called as a job, check/update the configuration and packages.
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job_uuid" => $anvil->data->{switches}{'job-uuid'} }});
+if (not $anvil->data->{switches}{'job-uuid'})
+{
+	print $anvil->Words->string({key => "message_0102"})."\n";
+	load_packages($anvil);
 
-# Setup PXE/tftp/dhcpd config.
-setup_boot_environment($anvil);
+	# Setup PXE/tftp/dhcpd config.
+	setup_boot_environment($anvil);
 
-# Store the RPMs in repo directory.
-update_install_source($anvil);
+	# Store the RPMs in repo directory.
+	update_install_source($anvil);
+}
 
 # If we've been asked to enable or disable the install target, do so now.
 if ($anvil->data->{switches}{enable})
 {
+	my $exit_code   = 0;
+	my $job_message = "message_0127";
 	my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	if ($return_code)
 	{
 		# non-0 means something went wrong.
+		$exit_code   = 8;
+		$job_message = "message_0128";
 		print $anvil->Words->string({key => "error_0047", variables => { rc => $return_code }})."\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0047", variables => { rc => $return_code }});
-		$anvil->nice_exit({exit_code => 8});
 	}
 	else
 	{
 		# Success!
 		print $anvil->Words->string({key => "message_0121"})."\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "message_0121"});
+	}
+	
+	# Record the new state
+	$anvil->Database->insert_or_update_variables({
+		variable_name         => "install-target::enabled", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+		variable_value        => "enabled", 
+		variable_default      => "unavailable", 
+		variable_description  => "striker_0110", 
+		variable_section      => "system", 
+	});
+
+	### NOTE: There is no complex job processing here. If we've been asked to enable or disable, it only 
+	###       takes a second to do it.
+	# If we're being called as a job, mark that we've picked it up
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job_uuid" => $anvil->data->{switches}{'job-uuid'} }});
+	if ($anvil->data->{switches}{'job-uuid'})
+	{
+		$anvil->Job->update_progress({
+			debug    => 1, 
+			progress => 100, 
+			message  => $job_message,
+			job_uuid => $anvil->data->{switches}{'job-uuid'},
+		});
+	}
+	if ($exit_code)
+	{
+		$anvil->nice_exit({exit_code => $exit_code});
 	}
 }
 

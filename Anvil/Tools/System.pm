@@ -21,7 +21,7 @@ my $THIS_FILE = "System.pm";
 # check_daemon
 # check_if_configured
 # check_memory
-# determine_host_type
+# get_host_type
 # enable_daemon
 # find_matching_ip
 # get_ips
@@ -536,7 +536,7 @@ sub check_memory
 	return($used_ram);
 }
 
-=head2 determine_host_type
+=head2 get_host_type
 
 This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
 
@@ -549,13 +549,13 @@ If that isn't set, it then looks at the short host name. The following rules are
 3. If the host name ends in C<< dr<digits> >>, C<< dr >> is returned.
 
 =cut
-sub determine_host_type
+sub get_host_type
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->determine_host_type()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_host_type()" }});
 	
 	my $host_type = "";
 	my $host_name = $anvil->_short_hostname;
@@ -916,6 +916,7 @@ sub get_uptime
 	# Clean it up. We'll have gotten two numbers, the uptime in seconds (to two decimal places) and the 
 	# total idle time. We only care about the int number.
 	$uptime =~ s/^(\d+)\..*$/$1/;
+	$uptime =~ s/\n//gs;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
 	
 	return($uptime);

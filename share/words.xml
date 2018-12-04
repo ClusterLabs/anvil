@@ -224,8 +224,12 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		</key>
 		<key name="message_0121">Successfully enabled the Install Target function.</key>
 		<key name="message_0122">Successfully disabled the Install Target function.</key>
-		<key name="message_0123">The Install Target function is enabled.</key>
-		<key name="message_0124">The Install Target function is disabled.</key>
+		<key name="message_0123">The 'Install Target' function is enabled.</key>
+		<key name="message_0124">The 'Install Target' function is disabled.</key>
+		<key name="message_0125">The 'Install Target' function has been disabled.</key>
+		<key name="message_0126">The attempt to disabled the 'Install Target' function failed! Please check the logs for details.</key>
+		<key name="message_0127">The 'Install Target' function has been enabled.</key>
+		<key name="message_0128">The attempt to enable the 'Install Target' function failed! Please check the logs for details.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -647,6 +651,12 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0104">The peer will be removed from to the local configuration shortly. Any existing data will remain but no further data will be shared.</key>
 		<key name="striker_0105"><![CDATA[Are you sure that you want to remove the peer: [<span class="code">#!variable!peer!#</span>]? If so, no further data from this system will be written to the peer. Do note that any existing data will remain and will be reused if you add the peer back again.]]></key>
 		<key name="striker_0106">Indicates when the last time the host system's RPM repository was refreshed. If the last refresh failed, this will be incremented by one day before another attempt is made (regardless of 'install-manifest::refresh-period' setting).</key>
+		<key name="striker_0107">Enable 'Install Target'</key>
+		<key name="striker_0108">Disable 'Install Target'</key>
+		<key name="striker_0109"><![CDATA[<span class="disabled">'Install Target' Not Available</span>]]></key>
+		<key name="striker_0110">The 'Install Target' feature is used to do base (stage 1) installs on new or rebuilt Striker dashboards, Anvil! nodes or Disaster Recivery hosts. Specifically, it allows machines to boot off their BCN network interface and install the base operating system.</key>
+		<key name="striker_0111">The 'Install Target' disable job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been enabled.</key>
+		<key name="striker_0112">The 'Install Target' enabled job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been disabled.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -663,6 +673,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
 		<key name="job_0013">Remove a Striker Peer</key>
 		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
+		<key name="job_0015">Manager Install Target.</key>
+		<key name="job_0016">Enable or disable the 'Install Target' feature.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -673,6 +685,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_warning_0006">An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
 		<key name="striker_warning_0007">The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
 		<key name="striker_warning_0008">Unable to find a local IP on the same subnet as the IP/host: [#!variable!host!#] given for the target. Bi-directional setup not currently possible.</key>
+		<key name="striker_warning_0009">The subtask request for manipulating the 'Install Target' feature is not valid. It should be 'enabled' or 'disabled'</key>	<!-- NOTE: 'enabled' and 'disabled' are variable values, don't translate them. -->
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
