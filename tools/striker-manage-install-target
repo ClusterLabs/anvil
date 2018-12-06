@@ -53,8 +53,10 @@ $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->data->{switches}{'y'}      = "";
+$anvil->data->{switches}{'y'}        = "";
 $anvil->data->{switches}{'job-uuid'} = "";
+$anvil->data->{switches}{refresh}    = 0;
+$anvil->data->{switches}{force}      = "";
 $anvil->Get->switches();
 
 # Make sure we're running as 'root'
@@ -95,8 +97,9 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 8});
 }
+update_progress($anvil, 1, "clear");
+update_progress($anvil, 2, "log_0239");
 
-### NOTE: Enabling is handled at the end, after checks/updates are applied
 # If we're being asked to disable, just do so and exit.
 if ($anvil->data->{switches}{disable})
 {
@@ -132,17 +135,8 @@ if ($anvil->data->{switches}{disable})
 
 	### NOTE: There is no complex job processing here. If we've been asked to enable or disable, it only 
 	###       takes a second to do it.
-	# If we're being called as a job, mark that we've picked it up
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job_uuid" => $anvil->data->{switches}{'job-uuid'} }});
-	if ($anvil->data->{switches}{'job-uuid'})
-	{
-		$anvil->Job->update_progress({
-			debug    => 1, 
-			progress => 100, 
-			message  => $job_message,
-			job_uuid => $anvil->data->{switches}{'job-uuid'},
-		});
-	}
+	update_progress($anvil, 100, $job_message);
+	
 	$anvil->nice_exit({exit_code => $exit_code});
 }
 
@@ -153,6 +147,8 @@ if (not $configured)
 {
 	print $anvil->Words->string({key => "error_0046"})."\n";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0046"});
+	
+	update_progress($anvil, 100, "log_0240");
 	$anvil->nice_exit({exit_code => 9});
 }
 
@@ -171,22 +167,19 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list
 if ($anvil->_short_hostname !~ /striker/)
 {
 	print $anvil->Words->string({key => "error_0044"})."\n";
+	update_progress($anvil, 100, "error_0044");
 	$anvil->nice_exit({code => 4});
 }
 
-# If this isn't being called as a job, check/update the configuration and packages.
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job_uuid" => $anvil->data->{switches}{'job-uuid'} }});
-if (not $anvil->data->{switches}{'job-uuid'})
-{
-	print $anvil->Words->string({key => "message_0102"})."\n";
-	load_packages($anvil);
+# Calling with 'refresh' takes time, so we only do it when asked.
+print $anvil->Words->string({key => "message_0102"})."\n";
+load_packages($anvil);
 
-	# Setup PXE/tftp/dhcpd config.
-	setup_boot_environment($anvil);
+# Setup PXE/tftp/dhcpd config.
+setup_boot_environment($anvil);
 
-	# Store the RPMs in repo directory.
-	update_install_source($anvil);
-}
+# Store the RPMs in repo directory.
+update_install_source($anvil);
 
 # If we've been asked to enable or disable the install target, do so now.
 if ($anvil->data->{switches}{enable})
@@ -223,31 +216,43 @@ if ($anvil->data->{switches}{enable})
 
 	### NOTE: There is no complex job processing here. If we've been asked to enable or disable, it only 
 	###       takes a second to do it.
-	# If we're being called as a job, mark that we've picked it up
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job_uuid" => $anvil->data->{switches}{'job-uuid'} }});
-	if ($anvil->data->{switches}{'job-uuid'})
-	{
-		$anvil->Job->update_progress({
-			debug    => 1, 
-			progress => 100, 
-			message  => $job_message,
-			job_uuid => $anvil->data->{switches}{'job-uuid'},
-		});
-	}
+	update_progress($anvil, 90, $job_message);
+
 	if ($exit_code)
 	{
+		update_progress($anvil, 100, "");
 		$anvil->nice_exit({exit_code => $exit_code});
 	}
 }
 
 # We're done
 print $anvil->Words->string({key => "message_0025"})."\n";
+update_progress($anvil, 100, "message_0025");
 $anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+# If this is being called as a job, this will allow the progress to be updated.
+sub update_progress
+{
+	my ($anvil, $progress, $message) = @_;
+
+	if (not $anvil->data->{switches}{'job-uuid'})
+	{
+		return(0);
+	}
+	
+	$anvil->Job->update_progress({
+		progress => $progress, 
+		message  => $message,
+		job_uuid => $anvil->data->{switches}{'job-uuid'},
+	});
+	
+	return(0);
+}
 
 sub check_refresh
 {
@@ -258,11 +263,19 @@ sub check_refresh
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::directories::packages" => $anvil->data->{path}{directories}{packages} }});
 	
 	# Default to 'no'
-	$anvil->data->{switches}{refresh} = 0 if not defined $anvil->data->{switches}{refresh};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::refresh" => $anvil->data->{switches}{refresh},
+		"switches::force"   => $anvil->data->{switches}{force},
+	}});
 	
-	# It it's set, the user asked for it.
-	if ($anvil->data->{switches}{refresh})
+	# If refresh isn't set, we're out.
+	if (not $anvil->data->{switches}{refresh})
+	{
+		return(0);
+	}
+	
+	# It it's forced, the user is insisting on it.
+	if ($anvil->data->{switches}{force})
 	{
 		return(0);
 	}
@@ -273,6 +286,9 @@ sub check_refresh
 	if (not $anvil->data->{'install-manifest'}{'refresh-packages'})
 	{
 		# We're out.
+		$anvil->data->{switches}{refresh} = 0;
+		print $anvil->Words->string({key => "log_0235"})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0235"});
 		return(0);
 	}
 	
@@ -281,16 +297,9 @@ sub check_refresh
 	{
 		# Source isn't configured, set it up
 		$anvil->data->{switches}{refresh} = 1;
+		print $anvil->Words->string({key => "log_0237"})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0237"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
-		return(0);
-	}
-	
-	# If the user has asked to enable or disable, skip.
-	$anvil->data->{switches}{enable}  = "" if not defined $anvil->data->{switches}{enable};
-	$anvil->data->{switches}{disable} = "" if not defined $anvil->data->{switches}{disable};
-	if (($anvil->data->{switches}{enable}) or ($anvil->data->{switches}{disable}))
-	{
-		# Skip.
 		return(0);
 	}
 	
@@ -323,7 +332,7 @@ sub check_refresh
 	}});
 	if ($anvil->data->{'install-manifest'}{'refresh-period'} =~ /\D/)
 	{
-		$anvil->data->{'install-manifest'}{'refresh-period'} =  86400;
+		$anvil->data->{'install-manifest'}{'refresh-period'} = 86400;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			'install-manifest::refresh-period' => $anvil->data->{'install-manifest'}{'refresh-period'}, 
 		}});
@@ -338,13 +347,17 @@ sub check_refresh
 	}});
 	if ((not $variable_uuid) or ($unixtime !~ /^\d+/) or ($difference < 0))
 	{
+		# It's been long enough (or it's the first time), refresh.
 		$anvil->data->{switches}{refresh} = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
+		my $variables = { seconds => $anvil->Convert->add_commas({number => $anvil->data->{'install-manifest'}{'refresh-period'}}) };
+		print $anvil->Words->string({key => "log_0239", variables => $variables})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0239", variables => $variables});
 		return(0);
 	}
 	elsif ($difference > 0)
 	{
 		# Log when the next scan will happen
+		$anvil->data->{switches}{refresh} = 0;
 		my $variables = { next_refresh => $anvil->Convert->add_commas({number => $difference}) };
 		print $anvil->Words->string({key => "log_0236", variables => $variables})."\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0236", variables => $variables});
@@ -398,6 +411,7 @@ sub setup_boot_environment
 	{
 		# Can't set this up yet.
 		print $anvil->Words->string({key => "error_0042"})."\n";
+		update_progress($anvil, 100, "error_0042");
 		$anvil->nice_exit({code => 2});
 	}
 	
@@ -459,6 +473,7 @@ sub setup_boot_environment
 	{
 		# Failed.
 		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{'dhcpd.conf'} }})."\n";
+		update_progress($anvil, 100, "error_0043");
 		$anvil->nice_exit({code => 3});
 	}
 	elsif ($dhcpd_conf_success eq "1")
@@ -468,14 +483,15 @@ sub setup_boot_environment
 			daemon => "dhcpd", 
 			file   => $anvil->data->{path}{configs}{'dhcpd.conf'}, 
 		}})."\n";
+		update_progress($anvil, 10, "message_0095,!!daemon!dhcpd!!,!!file!".$anvil->data->{path}{configs}{'dhcpd.conf'}."!!");
 		$anvil->System->restart_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
 	}
 	elsif ($dhcpd_conf_success eq "2")
 	{
 		# Update not needed.
 		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{'dhcpd.conf'} }})."\n";
+		update_progress($anvil, 10, "message_0096,!!file!".$anvil->data->{path}{configs}{'dhcpd.conf'}."!!");
 	}
-
 	
 	### PXE BIOS 'default' file.
 	my $bios_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
@@ -492,6 +508,7 @@ sub setup_boot_environment
 	{
 		# Failed.
 		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
+		update_progress($anvil, 100, "error_0043,!!file!".$anvil->data->{path}{configs}{pxe_default}."!!");
 		$anvil->nice_exit({code => 3});
 	}
 	elsif ($dhcpd_conf_success eq "1")
@@ -506,9 +523,11 @@ sub setup_boot_environment
 	}
 	
 	### Generate kickstart files.
+	my $progress = 10;
 	foreach my $type ("striker", "node", "dr")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
+		$progress += 2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type, progress => $progress }});
 		my $say_type = "#!string!message_0115!#";
 		if ($type eq "node")
 		{
@@ -522,7 +541,6 @@ sub setup_boot_environment
 			type     => $type,
 			say_type => $say_type, 
 			hostname => "new-".$type.".".$domain,
-			date     => $anvil->Get->date_and_time({date_only => 1}),
 			os       => $anvil->data->{host_os}{os_type},
 			url      => $base_url."/os/",
 			keyboard => $anvil->data->{kickstart}{keyboard} ? $anvil->data->{kickstart}{keyboard} : $anvil->data->{defaults}{kickstart}{keyboard},
@@ -544,6 +562,7 @@ sub setup_boot_environment
 		{
 			# Failed.
 			print $anvil->Words->string({key => "error_0043", variables => { file => $kickstart_file }})."\n";
+			update_progress($anvil, 100, "error_0043,!!file!".$kickstart_file."!!");
 			$anvil->nice_exit({code => 3});
 		}
 		elsif ($kickstart_success eq "1")
@@ -553,18 +572,22 @@ sub setup_boot_environment
 			$anvil->Storage->change_owner({target => $kickstart_file, user => "apache", group => "apache" });
 
 			print $anvil->Words->string({key => "message_0097", variables => { file => $kickstart_file }})."\n";
+			update_progress($anvil, $progress, "message_0097,!!file!".$kickstart_file."!!");
 		}
 		elsif ($kickstart_success eq "2")
 		{
 			# Update not needed.
 			print $anvil->Words->string({key => "message_0096", variables => { file => $kickstart_file }})."\n";
+			update_progress($anvil, $progress, "message_0096,!!file!".$kickstart_file."!!");
 		}
+		# progress is '16' as it leaves this loop
 	}
 	
 	# Configure apache to show hidden (dot) files.
 	my $old_autoindex_conf    = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'autoindex.conf'}});
 	my $new_autoindex_conf    = "";
 	my $update_autoindex_conf = 0;
+	   $progress              = 18;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_autoindex_conf => $old_autoindex_conf }});
 	foreach my $line (split/\n/, $old_autoindex_conf)
 	{
@@ -630,16 +653,19 @@ sub setup_boot_environment
 			# Something went wrong.
 			print $anvil->Words->string({key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'}, 'return' => $return }})."\n";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'}, 'return' => $return }});
+			update_progress($anvil, "100", "log_0233,!!file!".$anvil->data->{path}{configs}{'autoindex.conf'}."!!,!!return!".$return."!!");
 			$anvil->nice_exit({code => 3});
 		}
 		
 		print $anvil->Words->string({key => "message_0095", variables => { daemon => "httpd", file => $anvil->data->{path}{configs}{'autoindex.conf'} }})."\n";
 		$anvil->System->reload_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
+		update_progress($anvil, $progress, "message_0095,!!daemon!httpd!!,!!file!".$anvil->data->{path}{configs}{'autoindex.conf'}."!!");
 	}
 	else
 	{
 		# Update not needed.
 		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'} }})."\n";
+		update_progress($anvil, $progress, "message_0096,!!file!".$anvil->data->{path}{configs}{'autoindex.conf'}."!!");
 	}
 	
 	# Update dnf to save downloaded files for later repo building efficiency and to skip upstream repos 
@@ -648,6 +674,7 @@ sub setup_boot_environment
 	my $skip_seen      = 0;
 	my $old_dnf_conf   = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'dnf.conf'}});
 	my $new_dnf_conf   = "";
+	   $progress       = 20;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_dnf_conf => $old_dnf_conf }});
 	foreach my $line (split/\n/, $old_dnf_conf)
 	{
@@ -694,45 +721,56 @@ sub setup_boot_environment
 			# Something went wrong.
 			print $anvil->Words->string({key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }})."\n";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }});
+			update_progress($anvil, 100, "log_0023,!!file!".$anvil->data->{path}{configs}{'dnf.conf'}."!!,!!refresh!return!".$return."!!");
 			$anvil->nice_exit({code => 3});
 		}
 		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'} }})."\n";
+		update_progress($anvil, $progress, "message_0097,!!file!".$anvil->data->{path}{configs}{'dnf.conf'}."!!");
 	}
 	else
 	{
 		# Update not needed.
 		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'} }})."\n";
+		update_progress($anvil, $progress, "message_0096,!!file!".$anvil->data->{path}{configs}{'dnf.conf'}."!!");
 	}
 	
 	### Check that daemons are enabled/disabled.
 	### NOTE: We don't manage dhcpd. We leave it off, but if the user enabled it, respect that.
 	# Make sure tftp is enabled.
+	$progress = 22;
 	if (-e $anvil->data->{path}{systemd}{tftp_enabled_symlink})
 	{
 		print $anvil->Words->string({key => "message_0099", variables => { daemon => $anvil->data->{sys}{daemon}{tftp} }})."\n";
+		update_progress($anvil, $progress, "message_0099,!!daemon!".$anvil->data->{sys}{daemon}{tftp}."!!");
 	}
 	else
 	{
 		print $anvil->Words->string({key => "message_0098", variables => { daemon => $anvil->data->{sys}{daemon}{tftp} }})."\n";
+		update_progress($anvil, $progress, "message_0098,!!daemon!".$anvil->data->{sys}{daemon}{tftp}."!!");
 		$anvil->System->enable_daemon({daemon => $anvil->data->{sys}{daemon}{tftp}});
 		$anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{tftp}});
 	}
+	$progress = 24;
 	if (-e $anvil->data->{path}{systemd}{httpd_enabled_symlink})
 	{
 		print $anvil->Words->string({key => "message_0099", variables => { daemon => $anvil->data->{sys}{daemon}{httpd} }})."\n";
+		update_progress($anvil, $progress, "message_0099,!!daemon!".$anvil->data->{sys}{daemon}{httpd}."!!");
 	}
 	else
 	{
 		print $anvil->Words->string({key => "message_0098", variables => { daemon => $anvil->data->{sys}{daemon}{httpd} }})."\n";
+		update_progress($anvil, $progress, "message_0098,!!daemon!".$anvil->data->{sys}{daemon}{httpd}."!!");
 		$anvil->System->enable_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
 		$anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{httpd}});
 	}
 	
 	# Make sure the syslinux files needed for creating the PXE boot menu are in place.
+	$progress = 26;
 	if (not -e $anvil->data->{path}{directories}{tftpboot}."/vesamenu.c32")
 	{
 		# Copy the syslinux files
 		print $anvil->Words->string({key => "message_0100"})."\n";
+		update_progress($anvil, $progress, "message_0100");
 		$anvil->Storage->rsync({
 			debug       => 2, 
 			source      => $anvil->data->{path}{directories}{syslinux}."/*",
@@ -742,6 +780,7 @@ sub setup_boot_environment
 	else
 	{
 		print $anvil->Words->string({key => "message_0101"})."\n";
+		update_progress($anvil, $progress, "message_0101");
 	}
 	
 	### TODO: Add UEFI
@@ -801,6 +840,7 @@ sub check_alteeve_repo
 	{
 		# Die
 		print $anvil->Words->string({key => "error_0041"})."\n";
+		update_progress($anvil, 100, "error_0041");
 		$anvil->nice_exit({code => 1});
 	}
 	
@@ -811,40 +851,50 @@ sub check_alteeve_repo
 sub update_install_source
 {
 	my ($anvil) = @_;
+	
+	# Job progress is at '26' coming into here
 
 	# Should we refresh the local repo?
 	check_refresh($anvil);
 	if (not $anvil->data->{switches}{refresh})
 	{
 		return(0);
+		update_progress($anvil, 90, "");
 	}
 	
+	### TODO: Make sure this handles no internet access gracefully.
 	# Clear the dnf cache
-	my $success = 1;
-	my $output  = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+	my $success  = 1;
+	my $progress = 30;
+	my $output   = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+	my $packages = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
-	print $anvil->Words->string({key => "message_0077", variables => { 
-		directory => "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*", 
-	}})."\n";
+	print $anvil->Words->string({key => "message_0077", variables => { directory => $packages }})."\n";
+	update_progress($anvil, $progress, "message_0077,!!directory!".$packages."!!");
 	
 	# Loop through each letter directory
 	foreach my $letter (sort {$a cmp $b} keys %{$anvil->data->{packages}})
 	{
+		$progress += 2;
+		$progress =  90 if $progress > 90;
 		my $download_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/".$letter;
 		my $array_size    = @{$anvil->data->{packages}{$letter}};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			letter        => $letter, 
 			download_path => $download_path, 
 			array_size    => $array_size,
+			progress      => $progress, 
 		}});
 		if (not -e $download_path)
 		{
 			$anvil->Storage->make_directory({debug => 2, directory => $download_path, mode => "0775"});
 		}
+		my $say_packages = $anvil->Convert->add_commas({number => $array_size});
 		print $anvil->Words->string({key => "message_0120", variables => { 
 			directory => $download_path, 
-			packages  => $anvil->Convert->add_commas({number => $array_size}), 
+			packages  => $say_packages, 
 		}})."\n";
+		update_progress($anvil, $progress, "message_0120,!!directory!".$download_path."!!,!!packages!".$say_packages."!!");
 		
 		my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -927,36 +977,45 @@ sub update_install_source
 
 			# Something went wrong, exit.
 			print $anvil->Words->string({key => "error_0045", variables => { error => $error_out }})."\n";
+			update_progress($anvil, 100, "error_0045,!!error!".$error_out."!!");
 			$anvil->nice_exit({code => 7});
 		}
+		# Progress is '82' leaving this loop
 	}
 	
 	# Create the repodata
 	print $anvil->Words->string({key => "message_0118"})."\n";
 	my $repo_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os";
 	my $comps_xml = $repo_path."/comps.xml";
+	my $target    = $repo_path."/repodata/comps.xml";
 	if (not -e $comps_xml)
 	{
 		# We can't install properly without the comps.xml file, it provides grouping needed by the 
 		# guest OS install.
 		print $anvil->Words->string({key => "message_0119", variables => { comps_xml => $comps_xml }})."\n";
+		update_progress($anvil, 100, "message_0119,!!comps_xml!".$comps_xml."!!");
 		$anvil->nice_exit({code => 6});
 	}
 	$anvil->Storage->copy_file({
 		debug       => 2, 
 		source_file => $comps_xml, 
-		target_file => $repo_path."/repodata/comps.xml",
+		target_file => $target,
 		overwrite   => 1,
 	});
-	if (not -e $repo_path."/repodata/comps.xml")
+	if (not -e $target)
 	{
 		# Something appears to have happened and it failed to copy.
-		print $anvil->Words->string({key => "message_0119", variables => { comps_xml => $comps_xml }})."\n";
+		print $anvil->Words->string({key => "message_0129", variables => { comps_xml => $comps_xml, target => $target }})."\n";
+		update_progress($anvil, 100, "message_0129,!!comps_xml!".$comps_xml."!!,!!target!".$target."!!");
 		$anvil->nice_exit({code => 6});
 	}
+	update_progress($anvil, 85, "");
+	
 	$output = "";
 	$output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo}." -g ".$comps_xml." ".$repo_path });
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	print $anvil->Words->string({key => "message_0130"})."\n";
+	update_progress($anvil, 90, "message_0130");
 	
 	# Update the refresh time to now.
 	$anvil->Database->insert_or_update_variables({
@@ -969,7 +1028,6 @@ sub update_install_source
 		variable_source_uuid  => $anvil->Get->host_uuid, 
 		variable_source_table => "hosts", 
 	});
-
 	
 	return(0);
 }
@@ -2659,6 +2717,7 @@ sub load_packages
 			"zlib.x86_64",
 		],
 	};
+	update_progress($anvil, 5, "log_0241");
 	
 	return(0);
 }

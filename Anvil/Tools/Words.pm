@@ -309,16 +309,15 @@ sub parse_banged_string
 			while ($variable_string)
 			{
 				my $pair = ($variable_string =~ /^(!!.*?!.*?!!).*$/)[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pair => $pair }});
-				
 				my ($variable, $value) = ($pair =~ /^!!(.*?)!(.*?)!!$/);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					variable => $variable,
-					value    => $value, 
+					"s1:pair"     => $pair,
+					"s2:variable" => $variable,
+					"s3:value"    => $value, 
 				}});
 				
 				# Remove this pair
-				$variable_string =~ s/^$pair//;
+				$variable_string =~ s/^\Q$pair//;
 				$variable_string =~ s/^,//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_string => $variable_string }});
 				

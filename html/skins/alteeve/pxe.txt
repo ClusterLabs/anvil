@@ -27,7 +27,6 @@ subnet #!variable!network!# netmask 255.255.0.0 {
 <!-- start kickstart -->
 ### Alteeve's Niche! Inc. - Anvil! Intelligent Availability(tm) Platform
 # License: GPLv2
-# Built:   #!variable!date!#
 # Target:  Network Install (PXE)
 # OS:      #!variable!os!#
 # Machine: #!variable!say_type!#

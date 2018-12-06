@@ -357,7 +357,7 @@ sub process_install_target
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-manage-install-target'}." --".$anvil->data->{cgi}{subtask}{value}, 
+			job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --".$anvil->data->{cgi}{subtask}{value}, 
 			job_data        => "", 
 			job_name        => "install-target::".$anvil->data->{cgi}{task}{value}, 
 			job_title       => "job_0015", 
@@ -1033,7 +1033,7 @@ sub configure_striker
 			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-configure-striker'}, 
+			job_command     => $anvil->data->{path}{exe}{'striker-configure-host'}, 
 			job_data        => "form::config_step2", 
 			job_name        => "configure::network", 
 			job_title       => "job_0001", 

@@ -217,7 +217,7 @@ NOTE: Please be patient!
 		<key name="message_0116">Anvil! Node</key>
 		<key name="message_0117">Dsaster Recovery (DR) Host</key>
 		<key name="message_0118">Regenerating the source repository metadata.</key>
-		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is 'anvil-striker-extra' installed?</key>
+		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is the 'anvil-striker-extra' package installed?</key>
 		<key name="message_0120">
 About to try to download aproximately: [#!variable!packages!#] packages needed to:
 - [#!variable!directory!#].
@@ -230,6 +230,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0126">The attempt to disabled the 'Install Target' function failed! Please check the logs for details.</key>
 		<key name="message_0127">The 'Install Target' function has been enabled.</key>
 		<key name="message_0128">The attempt to enable the 'Install Target' function failed! Please check the logs for details.</key>
+		<key name="message_0129">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was found, but something failed when we tried to copy it to: [#!variable!target!#].</key>
+		<key name="message_0130">Updated repository data.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -504,8 +506,13 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0232">The file: [#!variable!file!#] will now be updated.</key>
 		<key name="log_0233">There was a problem updating file: [#!variable!file!#], expected the write to return '0' but got: [#!variable!return!#]. Please check the logs for details.</key>
 		<key name="log_0234">Failed to backup the file: [#!variable!source!#] to: [#!variable!destination!#]. Details may be found in the logs above.</key>
-		<key name="log_0235">#!free!#</key>
-		<key name="log_0236">Skipping the RPM repository refresh. The next scheduled refresh will be done in: [#!variable!next_refresh!#] second(s). Use '#!variable!program!# --refresh' to force an immediate refresh.</key>
+		<key name="log_0235">Refreshing RPM repository has been disabled in [#!data!path::configs::anvil.conf!#] ('install-manifest::refresh-packages' is set). Not refreshing.</key>
+		<key name="log_0236">Skipping the RPM repository refresh. The next scheduled refresh will be done in: [#!variable!next_refresh!#] second(s). Override with '--force'.</key>
+		<key name="log_0237">RPM repository refresh required, [#!data!path::directories::packages!#] doesn't exist (likely this is the first run or the directory was deleted).</key>
+		<key name="log_0238">RPM repository refresh required, it has been more than: [#!variable!seconds!#] seconds since the last refresh (or no previous refresh was logged).</key>
+		<key name="log_0239">'Install Target' job: [#!data!switches::job-uuid!#] picked up.</key>
+		<key name="log_0240">'Install Target' job: [#!data!switches::job-uuid!#] aborted, system not yet configured.</key>
+		<key name="log_0241">Package list loaded.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -529,7 +536,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">Striker</key>
 		<key name="brand_0004">ScanCore</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2018 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2019 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -675,6 +682,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
 		<key name="job_0015">Manager Install Target.</key>
 		<key name="job_0016">Enable or disable the 'Install Target' feature.</key>
+		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

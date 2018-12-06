@@ -210,6 +210,8 @@ This is the UUID of the job to update. If it isn't set, but C<< jobs::job_uuid >
 
 If set, this message will be appended to C<< job_status >>. If set to 'C<< clear >>', previous records will be removed.
 
+NOTE: This is in the format C<< <key>[,!!<variable_name1>!<variable_value1>[,...,!!<variable_nameN>!<variable_valueN>!!]] >>. Example; C<< foo_0001 >> or C<< foo_0002,!!bar!baz!! >>.
+
 =head3 picked_up_by (optional, default '$$' (caller's PID))
 
 If set, this is used for the C<< job_picked_up_by >> column. If it isn't set, the process ID of the caller is used.

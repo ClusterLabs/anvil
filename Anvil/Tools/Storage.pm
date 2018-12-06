@@ -2094,7 +2094,7 @@ sub update_file
 	else
 	{
 		# Update not needed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0231", variables => { file => $file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0231", variables => { file => $file }});
 		return(2);
 	}
 	
