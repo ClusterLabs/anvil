@@ -1,21 +1,8 @@
 #!/usr/bin/perl
 # 
-# This manages does two main tasks;
-# - On Striker dashboards, it enables and disabled the "Install Target" feauter.
-# - On nodes and DR hosts, it opens and closes VNC ports as servers are booted or stopped.
+# This keeps an eye on the network configuration and ensures the firewall is configured appropriately. What
+# exactly that means depends on why kind of machine the local host is.
 # 
-# Examples;
-# - Call without any arguments and it will check for running servers and, for each it will open the VNC port 
-#   on both the BCN and IFN. Before doing so, it will check 'servers::<server_name>::vnc::<network>'. If that
-#   is found and set to '0', the port will not be opened on the network. For example, to prevent a server 
-#   named 'foo' from being accessible over 'ifn1', set 'servers::foo::vnc::ifn1 = 0'. The network name comes
-#   from the first part of the interface name with the IP address. So for 'ifn1_bond1', the network is 
-#   'ifn1'.
-# - Call it with '--enable-install-target' or '--disable-install-target' to enable or disable the "Install 
-#   Target" feature. This also enables or disables the dhcpd daemon. This can also be called as an Anvil jobs
-#   to enable or disable the Install Target by setting the 'job_data' to 'install-target::enable' or 
-#   'install-target::disable'.
-#  
 # 
 # Exit codes;
 # 0 = Normal exit.
@@ -25,6 +12,8 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Data::Dumper;
+
 
 # Disable buffering
 $| = 1;
@@ -45,7 +34,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure =
 $anvil->data->{switches}{'y'} = "";
 $anvil->Get->switches;
 
-
+check_initial_setup($anvil);
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -55,3 +44,62 @@ $anvil->nice_exit({exit_code => 0});
 # Private functions.                                                                                        #
 #############################################################################################################
 
+sub check_initial_setup
+{
+	my ($anvil) = @_;
+	
+	# Get a list of networks.
+	$anvil->System->get_ips();
+	my $internet_zone = "";
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
+	{
+		if ($interface =~ /^((bcn|ifn|sn)\d+)_/)
+		{
+			# We'll use the start as the zone, though it should always be overridden by the 
+			# ZONE="" variable in each interface's config.
+			my $zone = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { zone => $zone }});
+			if ((exists $anvil->data->{sys}{network}{interface}{$interface}{variable}{ZONE}) && ($anvil->data->{sys}{network}{interface}{$interface}{variable}{ZONE}))
+			{
+				$zone = $anvil->data->{sys}{network}{interface}{$interface}{variable}{ZONE};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { zone => $zone }});
+			}
+			
+			$anvil->data->{zones}{$zone}{interface}{$interface}{ip}     = $anvil->data->{sys}{network}{interface}{$interface}{ip};
+			$anvil->data->{zones}{$zone}{interface}{$interface}{subnet} = $anvil->data->{sys}{network}{interface}{$interface}{subnet};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"zones::${zone}::interface::${interface}::ip"     => $anvil->data->{zones}{$zone}{interface}{$interface}{ip},
+				"zones::${zone}::interface::${interface}::subnet" => $anvil->data->{zones}{$zone}{interface}{$interface}{subnet},
+			}});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"sys::network::interface::${interface}::default_gateway" => $anvil->data->{sys}{network}{interface}{$interface}{default_gateway},
+			}});
+			if ($anvil->data->{sys}{network}{interface}{$interface}{default_gateway})
+			{
+				$internet_zone = $zone;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { internet_zone => $internet_zone }});
+			}
+		}
+	}
+	
+	# See what we've found...
+	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{zones}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zone => $zone }});
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{zones}{$zone}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+		}
+	}
+	
+	# Get the list of existing zones.
+	my $firewall = $anvil->System->check_firewall({debug => 2});
+	print Dumper $firewall;
+	
+	# What am I?
+	my $type = $anvil->System->get_host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+	
+	return(0);
+}

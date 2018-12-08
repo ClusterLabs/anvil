@@ -379,7 +379,7 @@ sub process_install_target
 			title       => "#!string!striker_0044!#",
 			description => "#!string!".$message."!#",
 		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::body" => $anvil->data->{form}{body} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
 	}
 	else
 	{

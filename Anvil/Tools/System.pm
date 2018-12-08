@@ -753,7 +753,12 @@ sub get_ips
 			$anvil->data->{sys}{network}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{dns};
 		}
 		next if not $in_iface;
-		next if $in_iface eq "lo";
+		if ($in_iface eq "lo")
+		{
+			# We don't care about 'lo'.
+			delete $anvil->data->{sys}{network}{interface}{$in_iface};
+			next;
+		}
 		if ($line =~ /inet (.*?)\/(.*?) /)
 		{
 			my $ip   = $1;
@@ -795,6 +800,69 @@ sub get_ips
 			}
 		}
 	}
+	
+	# Read the config files for the interfaces we've found.
+	local(*DIRECTORY);
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { "path::directories::ifcfg" => $anvil->data->{path}{directories}{ifcfg} }});
+	opendir(DIRECTORY, $anvil->data->{path}{directories}{ifcfg});
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		next if $file eq "ifcfg-lo";
+		next if $file !~ /^ifcfg/;
+		next if $file =~ /\.bak$/;
+		my $full_path =  $anvil->data->{path}{directories}{ifcfg}."/".$file;
+		   $full_path =~ s/\/\///g;
+		next if not -f $full_path;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
+		
+		# Read the file.
+		my $file_body = $anvil->Storage->read_file({file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:full_path" => $full_path,
+			"s2:file_body" => $file_body, 
+		}});
+		
+		# Break it apart and store any variables.
+		my $temp      = {};
+		my $interface = "";
+		foreach my $line (split/\n/, $file_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			next if $line =~ /^#/;
+			if ($line =~ /(.*?)=(.*)/)
+			{
+				my $variable =  $1;
+				my $value    =  $2;
+				   $value    =~ s/^"(.*)"$/$1/;
+				$temp->{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "temp->{$variable}" => $temp->{$variable} }});
+				
+				if (uc($variable) eq "DEVICE")
+				{
+					$interface = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "interface" => $interface }});
+				}
+			}
+			
+			if ($interface)
+			{
+				$anvil->data->{sys}{network}{interface}{$interface}{file} = $full_path;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::network::interface::${interface}::file" => $anvil->data->{sys}{network}{interface}{$interface}{file},
+				}});
+				foreach my $variable (sort {$a cmp $b} keys %{$temp})
+				{
+					$anvil->data->{sys}{network}{interface}{$interface}{variable}{$variable} = $temp->{$variable};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"sys::network::interface::${interface}::file::variable::${variable}" => $anvil->data->{sys}{network}{interface}{$interface}{variable}{$variable},
+					}});
+				}
+			}
+		}
+	}
+	closedir(DIRECTORY);
 	
 	# Get the routing info.
 	my $lowest_metric   = 99999999;
@@ -1205,6 +1273,62 @@ sub maintenance_mode
 	}
 	
 	return($maintenance_mode);
+}
+
+### TODO: Move and document.
+sub check_firewall
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->manage_firewall()" }});
+	
+	# Set some values.
+	$anvil->data->{firewall}{default_zone} = "";
+		
+	# Checking the iptables rules in memory is very fast, relative to firewall-cmd. So we'll do an 
+	# initial check there to see if the port in question is listed.
+	my $shell_call = $anvil->data->{path}{exe}{'iptables-save'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	### NOTE: We parse apart iptables-save instead of making frewall-cmd calls as this is a lot faster, 
+	###       if not ideal. May want to revisit how we do this later.
+	my $iptables = $anvil->System->call({shell_call => $shell_call});
+	foreach my $line (split/\n/, $iptables)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /-A INPUT_ZONES -g IN_(.*)$/)
+		{
+			$anvil->data->{firewall}{default_zone} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
+		}
+		if ($line =~ /^:PRE_(\w+) -/)
+		{
+			my $zone = $1;
+			next if $zone =~ /_log$/;
+			next if $zone =~ /_allow$/;
+			next if $zone =~ /_deny$/;
+			$anvil->data->{firewall}{zone}{$zone}{found} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::zone::${zone}::found" => $anvil->data->{firewall}{zone}{$zone}{found} }});
+		}
+	}
+	
+	# Make sure, for each zone, we've got a zone file. We should, so we'll read it in.
+	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}})
+	{
+		my $file =  $anvil->data->{path}{directories}{firewalld_zones}."/".$zone.".xml";
+		   $file =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
+		if (-e $file)
+		{
+			my $zone = $anvil->Storage->read_file({file => $file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { zone => $zone }});
+		}
+	}
+	
+	return(0);
 }
 
 =head2 manage_firewall
