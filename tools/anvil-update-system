@@ -192,6 +192,9 @@ sub run_os_update
 {
 	my ($anvil) = @_;
 	
+	# This needs to be set to avoid warnings when called without a job-uuid.
+	$anvil->data->{sys}{last_update} = 0;
+	
 	# NOTE: We run this directly to better monitor progress and update the progress.
 	my $transaction_shown = 0;
 	my $success           = 0;

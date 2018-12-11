@@ -130,7 +130,7 @@ NOTE: Please be patient!
 		<key name="message_0083">Editing of this option is disabled.</key>
 		<key name="message_0084">^1. Install a Striker dashboard (Fedora 28 64-bit)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /-----------------------------------------------------------------------------------------------------------\ -->
+<!--    /===========================================================================================================\ -->
 		<key name="message_0085">
 	This install will choose the largest available fixed disk (spindle or platter), remove any data from it, 
 	repartition in and install. This is a fully automated process! Once selected, the only way to abort will be
@@ -139,10 +139,10 @@ NOTE: Please be patient!
 	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
-<!--    \-----------------------------------------------------------------------------------------------------------/ -->
+<!--    \===========================================================================================================/ -->
 		<key name="message_0086">^2. Install an Anvil! Node (Fedora 28 64-bit)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /-----------------------------------------------------------------------------------------------------------\ -->
+<!--    /===========================================================================================================\ -->
 		<key name="message_0087">
 	This install will choose the smallest available fixed rotating disk, if available. If none is found, the 
 	smallest solid-state fixed disk will be chosen. All data will be removed, the disk repartitioned and a new OS 
@@ -152,11 +152,11 @@ NOTE: Please be patient!
 	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
-<!--    \-----------------------------------------------------------------------------------------------------------/ -->
+<!--    \===========================================================================================================/ -->
 		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (Fedora 28 64-bit)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /-----------------------------------------------------------------------------------------------------------\ -->
+<!--    /===========================================================================================================\ -->
 	This install will choose the smallest available fixed rotating disk, if available. If none is found, the 
 	smallest solid-state fixed disk will be chosen. All data will be removed, the disk repartitioned and a new OS
 	will be installed. This is a fully automated process! Once selected, the only way to abort will be a manual 
@@ -164,27 +164,27 @@ NOTE: Please be patient!
 	
 	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
-<!--    \-----------------------------------------------------------------------------------------------------------/ -->
+<!--    \===========================================================================================================/ -->
 		</key>
 		<key name="message_0090">Boot into a ^Rescue session</key>
 		<key name="message_0091">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /-----------------------------------------------------------------------------------------------------------\ -->
+<!--    /===========================================================================================================\ -->
 	This will boot into a rescue shell. From there, you can access the bare hard drive on the machine to attempt 
 	to diagnose and repair problems that might be preventing a system from booting.
 	
 	No data on the target machine will be changed by this option.
 		</key>
-<!--    \-----------------------------------------------------------------------------------------------------------/ -->
+<!--    \===========================================================================================================/ -->
 		<key name="message_0092">Install ^Standard Fedora 28 64-bit Install</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /-----------------------------------------------------------------------------------------------------------\ -->
+<!--    /===========================================================================================================\ -->
 		<key name="message_0093">
 	This will start a standard install of Fedora 28.
 	
 	This option will not change anything on disk until and unless you choose to do so.
 		</key>
-<!--    \-----------------------------------------------------------------------------------------------------------/ -->
+<!--    \===========================================================================================================/ -->
 		<key name="message_0094">Boot from Next ^Boot Device</key>
 		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
 		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
