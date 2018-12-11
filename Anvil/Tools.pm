@@ -793,6 +793,9 @@ sub _set_defaults
 		language			=>	"en_CA",
 		log_date			=>	1,
 		log_file			=>	"/var/log/anvil.log",
+		manage				=>	{
+			firewall			=>	1,
+		},
 		password			=>	{
 			algorithm			=>	"sha512",
 			hash_count			=>	500000,
@@ -935,6 +938,7 @@ sub _set_paths
 				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
 				'anvil-daemon'			=>	"/usr/sbin/anvil-daemon",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
+				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
 				'anvil-manage-striker-peers'	=>	"/usr/sbin/anvil-manage-striker-peers",
 				'anvil-prep-database'		=>	"/usr/sbin/anvil-prep-database",

@@ -177,6 +177,12 @@ This is the highest log level, and it will generate a tremendous amount of log e
 
 When set, the string is prepended to the log entry, after 'C<< file >> if set, and should be set to C<< __LINE__ >>. It is used to show where in 'C<< file >>' the log entry was made and can assist with debugging.
 
+=head3 print (optional, default '0')
+
+When set to '1', the log entry is also printed to STDOUT. The prefix (source file and timestamp) is NOT printed, and a newline is added to the end of the string.
+
+B<< NOTE >>: This honours the log level. That is to say, it will only print the string to STDOUT if it also logs it to a file. 
+
 =head3 priority (optional)
 
 This is an optional log priority (level) name. By default, the following priorities will be used based on the log level of the message.
@@ -230,6 +236,7 @@ sub entry
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $facility  = defined $parameter->{facility}  ? $parameter->{facility}  : $anvil->data->{defaults}{'log'}{facility};
+	my $print     = defined $parameter->{'print'}   ? $parameter->{'print'}   : "";
 	my $priority  = defined $parameter->{priority}  ? $parameter->{priority}  : "";
 	my $raw       = defined $parameter->{raw}       ? $parameter->{raw}       : "";
 	my $secure    = defined $parameter->{secure}    ? $parameter->{secure}    : 0;
@@ -269,7 +276,8 @@ sub entry
 	}
 	
 	# Log the file and line, if passed.
-	my $string = "";
+	my $string       = "";
+	my $print_string = "";
 	if ($anvil->data->{sys}{log_date})
 	{
 		# Keep the debug level super high to avoid Get->date_and_time() going into an infinite loop.
@@ -291,7 +299,8 @@ sub entry
 	# If I have a raw string, do no more processing.
 	if ($raw)
 	{
-		$string .= $raw;
+		$string       .= $raw;
+		$print_string .= $raw;
 	}
 	elsif ($key)
 	{
@@ -303,7 +312,8 @@ sub entry
 			variables => $variables,
 		});
 		#print $THIS_FILE." ".__LINE__."; [ Debug ] - message: [$message]\n";
-		$string .= $message;
+		$string       .= $message;
+		$print_string .= $message;
 	}
 	
 	# If the user set a log file, log to that. Otherwise, log via Log::Journald.
@@ -357,6 +367,11 @@ sub entry
 			SYSLOG_FACILITY   => $secure ? "authpriv" : $facility,
 			SYSLOG_IDENTIFIER => $tag,
 		);
+	}
+	
+	if ($print)
+	{
+		print $print_string."\n";
 	}
 	
 	return(0);

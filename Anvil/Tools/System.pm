@@ -1294,6 +1294,7 @@ sub check_firewall
 	
 	### NOTE: We parse apart iptables-save instead of making frewall-cmd calls as this is a lot faster, 
 	###       if not ideal. May want to revisit how we do this later.
+	$anvil->data->{firewall}{default_zone} = "";
 	my $iptables = $anvil->System->call({shell_call => $shell_call});
 	foreach my $line (split/\n/, $iptables)
 	{
@@ -1310,21 +1311,47 @@ sub check_firewall
 			next if $zone =~ /_log$/;
 			next if $zone =~ /_allow$/;
 			next if $zone =~ /_deny$/;
-			$anvil->data->{firewall}{zone}{$zone}{found} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::zone::${zone}::found" => $anvil->data->{firewall}{zone}{$zone}{found} }});
+			$anvil->data->{firewall}{zone}{$zone}{file} = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::zone::${zone}::found" => $anvil->data->{firewall}{zone}{$zone}{file} }});
+		}
+		if ($line =~ /-A INPUT_ZONES -i (\S+) -g IN_(.*)$/)
+		{
+			my $interface = $1;
+			my $zone      = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface => $interface,
+				zone      => $zone,
+			}});
+			
+			$anvil->data->{firewall}{interface}{$interface}{zone} = $zone;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewall::interface::${interface}::zone" => $anvil->data->{firewall}{interface}{$interface}{zone},
+			}});
+		}
+		if ($line =~ /-A INPUT_ZONES -g IN_(.*)$/)
+		{
+			$anvil->data->{firewall}{default_zone} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewall::default_zone" => $anvil->data->{firewall}{default_zone},
+			}});
 		}
 	}
 	
 	# Make sure, for each zone, we've got a zone file. We should, so we'll read it in.
 	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}})
 	{
-		my $file =  $anvil->data->{path}{directories}{firewalld_zones}."/".$zone.".xml";
-		   $file =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
-		if (-e $file)
+		$anvil->data->{firewall}{zone}{$zone}{file} =  $anvil->data->{path}{directories}{firewalld_zones}."/".$zone.".xml";
+		$anvil->data->{firewall}{zone}{$zone}{file} =~ s/\/\//\//g;
+		$anvil->data->{firewall}{zone}{$zone}{body} =  "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"firewall::zone::${zone}::file" => $anvil->data->{firewall}{zone}{$zone}{file},
+		}});
+		if (-e $anvil->data->{firewall}{zone}{$zone}{file})
 		{
-			my $zone = $anvil->Storage->read_file({file => $file});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { zone => $zone }});
+			$anvil->data->{firewall}{zone}{$zone}{body} = $anvil->Storage->read_file({file => $anvil->data->{firewall}{zone}{$zone}{file}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewall::zone::${zone}::body" => $anvil->data->{firewall}{zone}{$zone}{body},
+			}});
 		}
 	}
 	

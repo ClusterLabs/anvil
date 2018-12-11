@@ -4,8 +4,8 @@
 # nodes.
 #
 # Exit codes;
-# 0 = Normal exit
-# 1 = md5sum of this program changed. Exited to reload.
+# 0 = Normal exit or md5sum of this program changed and it exited to reload.
+# 1 = 
 # 2 = Unable to connect to any database, even after trying to initialize the local system.
 # 
 # TODO: 
@@ -100,15 +100,15 @@ my $now_time = time;
 
 # Once a minute, we'll check the md5sums and see if we should restart. 
 # Once a day, we'll refresh an Install Target's RPM repository (has no effect on non-Striker dashboards).
-$anvil->data->{timing}{sum_check_interval}   = 60;
+$anvil->data->{timing}{minute_checks}        = 60;
 $anvil->data->{timing}{repo_update_interval} = 86400;
-$anvil->data->{timing}{next_sum_check}       = $now_time + $anvil->data->{timing}{sum_check_interval};
+$anvil->data->{timing}{next_minute_check}    = $now_time + $anvil->data->{timing}{minute_checks};
 $anvil->data->{timing}{next_repo_check}      = $now_time;			# We want to run on daemon startup
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-	"s1:timing::sum_check_interval"   => $anvil->data->{timing}{sum_check_interval}, 
+	"s1:timing::minute_checks"        => $anvil->data->{timing}{minute_checks}, 
 	"s2:timing::repo_update_interval" => $anvil->data->{timing}{repo_update_interval}, 
 	"s3:now_time"                     => $now_time, 
-	"s4:timing::next_sum_check"       => $anvil->data->{timing}{next_sum_check}, 
+	"s4:timing::next_minute_check"    => $anvil->data->{timing}{next_minute_check}, 
 	"s5:timing::next_repo_check"      => $anvil->data->{timing}{next_repo_check}, 
 }});
 
@@ -168,30 +168,35 @@ sub handle_periodic_tasks
 	my ($anvil) = @_;
 	
 	my $now_time = time;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"s1:now_time"                => $now_time, 
-		"s2:timing::next_sum_check"  => $anvil->data->{timing}{next_sum_check}, 
-		"s3:timing::next_repo_check" => $anvil->data->{timing}{next_repo_check}, 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		"s1:now_time"                  => $now_time, 
+		"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
+		"s3:timing::next_repo_check"   => $anvil->data->{timing}{next_repo_check}, 
 	}});
 	
-	# Time to check if the files on disk have changed?
-	if ($now_time >= $anvil->data->{timing}{next_sum_check})
+	# Time to run once per minute tasks.
+	if ($now_time >= $anvil->data->{timing}{next_minute_check})
 	{
-		# Even if it is time to check, don't if a job is running.
+		# Check the firewall needs to be updated.
+		check_firewall($anvil);
+		
+		# Check if the files on disk have changed. Even if it is time to check, don't if a job is 
+		# running.
 		if ((not $anvil->data->{timing}{jobs_running}) && ($anvil->Storage->check_md5sums))
 		{
+			# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "message_0014"});
-			$anvil->nice_exit({code => 1});
+			$anvil->nice_exit({code => 0});
 		}
 		
 		# Mark that we want to check the database config next time.
 		$check_if_database_is_configured = 1;
 		
 		# Update the next check time.
-		$anvil->data->{timing}{next_sum_check} = $now_time + $anvil->data->{timing}{sum_check_interval};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			"s1:timing::sum_check_interval" => $anvil->data->{timing}{sum_check_interval},
-			"s2:timing::next_sum_check"     => $anvil->data->{timing}{next_sum_check}, 
+		$anvil->data->{timing}{next_minute_check} = $now_time + $anvil->data->{timing}{minute_checks};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:timing::minute_checks"     => $anvil->data->{timing}{minute_checks},
+			"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
 		}});
 	}
 	
@@ -301,6 +306,18 @@ sub run_once
 	return(0);
 }
 
+# Configure/update the firewall.
+sub check_firewall
+{
+	my ($anvil) = @_;
+
+	# Check the firewall needs to be updated.
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	
+	return(0);
+}
+
 # This handles tasks that need to run on boot (if any)
 sub boot_time_tasks
 {
@@ -378,6 +395,9 @@ AND
 			});
 		}
 	}
+	
+	# Check the firewall needs to be updated.
+	check_firewall($anvil);
 	
 	return(0);
 }

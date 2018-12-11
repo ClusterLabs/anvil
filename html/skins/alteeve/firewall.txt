@@ -1,0 +1,35 @@
+<!-- NOTE: These are used by 'anvil-manage-firewall', which is in turn called each minute by 'anvil-daemon'. -->
+<!--       Changes to these templates should propagate within a minute or so.                                -->
+
+<!-- start bcn_zone -->
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>#!variable!zone!#</short>
+  <description>#!variable!description!#</description>
+  <service name="ssh"/>
+  <service name="postgresql"/>
+  <service name="http"/>
+  <service name="https"/>
+</zone>
+<!-- end bcn_zone -->
+
+<!-- start ifn_zone -->
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>#!variable!zone!#</short>
+  <description>#!variable!description!#</description>
+  <service name="ssh"/>
+  <service name="postgresql"/>
+  <service name="http"/>
+  <service name="https"/>
+</zone>
+<!-- end ifn_zone -->
+
+<!-- start sn_zone -->
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>#!variable!zone!#</short>
+  <description>#!variable!description!#</description>
+  <service name="ssh"/>
+</zone>
+<!-- end sn_zone -->
