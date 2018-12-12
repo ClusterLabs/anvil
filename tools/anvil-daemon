@@ -180,6 +180,9 @@ sub handle_periodic_tasks
 		# Check the firewall needs to be updated.
 		check_firewall($anvil);
 		
+		# Check to see if the PXE environment needs to be updated.
+		check_install_target($anvil);
+		
 		# Check if the files on disk have changed. Even if it is time to check, don't if a job is 
 		# running.
 		if ((not $anvil->data->{timing}{jobs_running}) && ($anvil->Storage->check_md5sums))
@@ -245,10 +248,8 @@ sub check_install_target
 		return(0);
 	}
 	
-	my $shell_call = $anvil->data->{path}{exe}{'striker-manage-install-target'}." --status";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	my $status = "unavailable";
-	my $output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --status --check --no-refresh"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{

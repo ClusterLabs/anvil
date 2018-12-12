@@ -52,10 +52,11 @@ $anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->data->{switches}{'y'}        = "";
+$anvil->data->{switches}{check}      = 0;
+$anvil->data->{switches}{force}      = "";
 $anvil->data->{switches}{'job-uuid'} = "";
 $anvil->data->{switches}{refresh}    = 0;
-$anvil->data->{switches}{force}      = "";
+$anvil->data->{switches}{'y'}        = "";
 $anvil->Get->switches();
 
 # Make sure we're running as 'root'
@@ -63,37 +64,43 @@ $anvil->Get->switches();
 if (($< != 0) && ($> != 0))
 {
 	# Not root
-	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0005"});
 	$anvil->nice_exit({code => 5});
 }
 
 # If the user just wants a status, check and exit.
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::status" => $anvil->data->{switches}{status} }});
 if ($anvil->data->{switches}{status})
 {
 	my $dhcpd_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_running => $dhcpd_running }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_running => $dhcpd_running }});
 	if ($dhcpd_running)
 	{
 		print $anvil->Words->string({key => "message_0123"})."\n";
 		print "status=1\n";
-		$anvil->nice_exit({code => 0});
+		if (not $anvil->data->{switches}{check})
+		{
+			$anvil->nice_exit({code => 0});
+		}
 	}
 	else
 	{
 		print $anvil->Words->string({key => "message_0124"})."\n";
 		print "status=0\n";
-		$anvil->nice_exit({code => 0});
+		if (not $anvil->data->{switches}{check})
+		{
+			$anvil->nice_exit({code => 0});
+		}
 	}
 }
 
 # Connect to the database(s).
 $anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
-	print $anvil->Words->string({key => "error_0003"})."\n";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0003"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 8});
 }
 update_progress($anvil, 1, "clear");
@@ -141,7 +148,7 @@ if ($anvil->data->{switches}{disable})
 
 # Exit if we're not configured yet
 my $configured = $anvil->System->check_if_configured;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 if (not $configured)
 {
 	print $anvil->Words->string({key => "error_0046"})."\n";
@@ -256,6 +263,13 @@ sub update_progress
 sub check_refresh
 {
 	my ($anvil) = @_;
+	
+	# If '--no-refresh' is passed, don't refresh
+	if ($anvil->data->{switches}{'no-refresh'})
+	{
+		return(0);
+		update_progress($anvil, 90, "");
+	}
 	
 	# Setup the packages directory
 	$anvil->data->{path}{directories}{packages} = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages";
@@ -1905,7 +1919,6 @@ sub load_packages
 			"libXaw.x86_64",
 			"libxcb.x86_64",
 			"libXcomposite.x86_64",
-			"libxcrypt-common.noarch",
 			"libxcrypt-devel.x86_64",
 			"libxcrypt.x86_64",
 			"libXcursor.x86_64",
