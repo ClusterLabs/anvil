@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        19%{?dist}
+Release:        20%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -404,6 +404,9 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+* Wed Dec 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-20
+- Updated source.
+
 * Fri Nov 30 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-19
 - Added packages to anvil-striker to support PXE server / install target 
   functions.
