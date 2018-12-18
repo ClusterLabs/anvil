@@ -14,7 +14,6 @@ logvol swap --fstype="swap" --size=4096 --name=lv_swap --vgname=striker_vg0
 logvol / --fstype="xfs" --size=15852 --label="lv_root" --name=lv_root --vgname=striker_vg0
 ======================================================================================
 
-
 DOCS; -
 - Explanation of 'comps.xml' (package grouping) - https://pagure.io/fedora-comps
 - Firewalld
@@ -39,9 +38,7 @@ UDP	5405		corosync	bcn		Required on all corosync nodes (needed by corosync)
 TCP	7788+		drbd		sn		1 port per resource
 TCP	49152-49215	virsh		bcn		live migration - migration_port_min and migration_port_max attributes in the /etc/libvirt/qemu.conf
 
-
 NOTE: DHCP listens to raw sockets and ignores firewalld rules. We need to stop dhcpd directly - https://kb.isc.org/docs/aa-00378
-
 
 * After all changes;
 firewall-cmd --zone=public --add-port=49152-49215/tcp --permanent
@@ -51,25 +48,12 @@ firewall-cmd --reload
 If we want to create services or helpers later, look under - /usr/lib/firewalld/
 Core firewalld configs, including defaults zones, etc      - /etc/firewalld/
 
-
 * Zones are meant to deal with dynamic environments and aren't that useful in mostly static server environments
-** Seem to be pre-configured sets of what is/isn't allowed. 'public' for IFN, 'work' for SN/BCN? 'external/internal' are for routing
-** Configured in /etc/firewalld/zones/<zone>.xml - Create 'BCN', 'SN' and 'IFN'?
 * Use 'firewall-cmd' WITHOUT '--permanent' for things like enabling the VNC port for a server. Use '--permanent' for everything else. 
 ====
 
-
-
 Striker as PXE server
 ====
-
-
-
-# NOTE: We DON'T enable DHCP. We'll turn it on as needed.
-# NOTE: Apache needs to show dot-files! (anaconda looks for .treeinfo)
-
-systemctl start tftp.socket
-systemctl enable tftp.socket
 
 
 # Bootloader for BIOS
@@ -135,9 +119,6 @@ su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvi
 Reload the DB;
 su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /anvil.out"
 su - postgres -c "psql anvil"
-
-
-All systems have a UUID, even VMs. Use that for system UUID in the future.
 
 
 
@@ -716,3 +697,101 @@ cat: /sys/class/block/sdb/device/transport: No such file or directory
 
 Disk size:
 /sys/class/block/sda/size * <block size>
+
+=====
+man pages
+
+1   Executable programs or shell commands
+5   File formats and conventions eg /etc/passwd
+7   Miscellaneous (including macro packages and conventions), e.g. man(7), groff(7)
+8   System administration commands (usually only for root)
+
+A manual page consists of several sections.
+
+Conventional section names include NAME, SYNOPSIS, CONFIGURATION, DESCRIPTION, OPTIONS, EXIT STATUS, RETURN VALUE, ERRORS, ENVIRONMENT, FILES, VERSIONS, CONFORMING TO, NOTES, BUGS, EXAMPLE, AUTHORS, and SEE ALSO.
+
+The following conventions apply to the SYNOPSIS section and can be used as a guide in other sections.
+
+bold text          type exactly as shown.
+italic text        replace with appropriate argument.
+[-abc]             any or all arguments within [ ] are optional.
+-a|-b              options delimited by | cannot be used together.
+argument ...       argument is repeatable.
+[expression] ...   entire expression within [ ] is repeatable.
+
+
+====
+
+BEGIN TRANSACTION;
+DROP FUNCTION history_alerts() CASCADE;
+DROP TABLE history.alerts;
+DROP TABLE alerts;
+
+CREATE TABLE alerts (
+    alert_uuid             uuid                        not null    primary key,
+    alert_host_uuid        uuid                        not null,                    -- The name of the node or dashboard that this alert came from.
+    alert_set_by           text                        not null,
+    alert_level            integer                     not null,                    -- 1 (critical), 2 (warning), 3 (notice) or 4 (info)
+    alert_title            text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
+    alert_message          text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
+    alert_sort_position    integer                     not null    default 9999,    -- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
+    alert_show_header      integer                     not null    default 1,       -- This can be set to have the alert be printed with only the contents of the string, no headers.
+    modified_date          timestamp with time zone    not null,
+    
+    FOREIGN KEY(alert_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE alerts OWNER TO admin;
+
+CREATE TABLE history.alerts (
+    history_id             bigserial,
+    alert_uuid             uuid,
+    alert_host_uuid        uuid,
+    alert_set_by           text,
+    alert_level            integer,
+    alert_title            text,
+    alert_message          text,
+    alert_sort_position    integer,
+    alert_show_header      integer,
+    modified_date          timestamp with time zone    not null
+);
+ALTER TABLE history.alerts OWNER TO admin;
+
+CREATE FUNCTION history_alerts() RETURNS trigger
+AS $$
+DECLARE
+    history_alerts RECORD;
+BEGIN
+    SELECT INTO history_alerts * FROM alerts WHERE alert_uuid = new.alert_uuid;
+    INSERT INTO history.alerts
+        (alert_uuid,
+         alert_host_uuid,
+         alert_set_by,
+         alert_level,
+         alert_title,
+         alert_title_variables,
+         alert_message,
+         alert_message_variables,
+         alert_sort_position, 
+         alert_show_header, 
+         modified_date)
+    VALUES
+        (history_alerts.alert_uuid,
+         history_alerts.alert_host_uuid,
+         history_alerts.alert_set_by,
+         history_alerts.alert_level,
+         history_alerts.alert_title,
+         history_alerts.alert_message,
+         history_alerts.alert_sort_position, 
+         history_alerts.alert_show_header, 
+         history_alerts.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_alerts() OWNER TO admin;
+
+CREATE TRIGGER trigger_alerts
+    AFTER INSERT OR UPDATE ON alerts
+    FOR EACH ROW EXECUTE PROCEDURE history_alerts();
+
+COMMIT;

@@ -123,10 +123,10 @@ sub get
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language;
+	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language({debug => $debug});
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
 	my $show_name = defined $parameter->{show_name} ? $parameter->{show_name} : 1;
-	my $skin      = defined $parameter->{skin}      ? $parameter->{skin}      : $anvil->Template->skin;
+	my $skin      = defined $parameter->{skin}      ? $parameter->{skin}      : $anvil->Template->skin({debug => $debug});
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
 	   $skin      = $anvil->data->{path}{directories}{skins}."/".$skin;
 	my $template  = "";
@@ -229,6 +229,7 @@ sub get
 		
 		# Now that I have the skin, inject my variables. We'll use Words->string() to do this for us.
 		$template = $anvil->Words->string({
+			debug     => $debug, 
 			string    => $template,
 			variables => $variables,
 		});
@@ -242,6 +243,7 @@ sub get
 		{
 			# Woops!
 			$template = $anvil->Words->string({key => "error_0029", variables => {
+				debug    => $debug,
 				template => $name,
 				file     => $source,
 			}});
@@ -252,6 +254,7 @@ sub get
 		if ($template eq "#!error!#")
 		{
 			$template = $anvil->Words->string({key => "error_0030", variables => {
+				debug    => $debug,
 				template => $name,
 				file     => $source,
 			}});

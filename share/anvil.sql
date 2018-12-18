@@ -88,33 +88,33 @@ CREATE TRIGGER trigger_hosts
 -- This stores information about users. 
 -- Note that is all permissions are left false, the user can still interact with the Anvil! doing safe things, like changing optical media, perform migrations, start servers (but not stop them), etc. 
 CREATE TABLE users (
-    user_uuid            uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
-    user_name            text                        not null,
-    user_password_hash   text                        not null,                   -- A user without a password is disabled.
-    user_salt            text                        not null,                   -- This is used to enhance the security of the user's password.
-    user_algorithm       text                        not null,                   -- This is the algorithm used to encrypt the password and salt.
-    user_hash_count      text                        not null,                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
-    user_language        text                        not null,                   -- If set, this will choose a different language over the default.
-    user_is_admin        integer                     not null    default 0,      -- If 1, all aspects of the program are available to the user. 
-    user_is_experienced  integer                     not null    default 0,      -- If 1, user is allowed to delete a server, alter disk size, alter hardware and do other potentially risky things. They will also get fewer confirmation dialogues. 
-    user_is_trusted      integer                     not null    default 0,      -- If 1, user is allowed to do things that would cause interruptions, like force-reset and gracefully stop servers, withdraw nodes, and stop the Anvil! entirely.
-    modified_date        timestamp with time zone    not null
+    user_uuid              uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    user_name              text                        not null,
+    user_password_hash     text                        not null,                   -- A user without a password is disabled.
+    user_salt              text                        not null,                   -- This is used to enhance the security of the user's password.
+    user_algorithm         text                        not null,                   -- This is the algorithm used to encrypt the password and salt.
+    user_hash_count        text                        not null,                   -- This is the number of times that the password+salt was re-hashed through the algorithm.
+    user_language          text                        not null,                   -- If set, this will choose a different language over the default.
+    user_is_admin          integer                     not null    default 0,      -- If 1, all aspects of the program are available to the user. 
+    user_is_experienced    integer                     not null    default 0,      -- If 1, user is allowed to delete a server, alter disk size, alter hardware and do other potentially risky things. They will also get fewer confirmation dialogues. 
+    user_is_trusted        integer                     not null    default 0,      -- If 1, user is allowed to do things that would cause interruptions, like force-reset and gracefully stop servers, withdraw nodes, and stop the Anvil! entirely.
+    modified_date          timestamp with time zone    not null
 );
 ALTER TABLE users OWNER TO #!variable!user!#;
 
 CREATE TABLE history.users (
-    history_id           bigserial,
-    user_uuid            uuid,
-    user_name            text,
-    user_password_hash   text,
-    user_salt            text,
-    user_algorithm       text,
-    user_hash_count      text,
-    user_language        text,
-    user_is_admin        integer,
-    user_is_experienced  integer,
-    user_is_trusted      integer,
-    modified_date        timestamp with time zone    not null
+    history_id             bigserial,
+    user_uuid              uuid,
+    user_name              text,
+    user_password_hash     text,
+    user_salt              text,
+    user_algorithm         text,
+    user_hash_count        text,
+    user_language          text,
+    user_is_admin          integer,
+    user_is_experienced    integer,
+    user_is_trusted        integer,
+    modified_date          timestamp with time zone    not null
 );
 ALTER TABLE history.users OWNER TO #!variable!user!#;
 
@@ -213,7 +213,7 @@ CREATE TABLE sessions (
     session_uuid          uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     session_host_uuid     uuid                        not null,                   -- This is the host uuid for this session.
     session_user_uuid     uuid                        not null,                   -- This is the user uuid for the user logging in.
-    session_salt  text                        not null,                   -- This is used when generating a session hash for a session when they log in.
+    session_salt          text                        not null,                   -- This is used when generating a session hash for a session when they log in.
     session_user_agent    text,
     modified_date         timestamp with time zone    not null, 
     
@@ -227,7 +227,7 @@ CREATE TABLE history.sessions (
     session_uuid          uuid, 
     session_host_uuid     uuid, 
     session_user_uuid     uuid, 
-    session_salt  text, 
+    session_salt          text, 
     session_user_agent    text, 
     modified_date         timestamp with time zone    not null
 );
@@ -266,35 +266,31 @@ CREATE TRIGGER trigger_sessions
 
 -- This stores alerts coming in from various sources
 CREATE TABLE alerts (
-    alert_uuid                 uuid                        not null    primary key,
-    alert_host_uuid            uuid                        not null,                    -- The name of the node or dashboard that this alert came from.
-    alert_set_by               text                        not null,
-    alert_level                text                        not null,                    -- debug (log only), info (+ admin email), notice (+ curious users), warning (+ client technical staff), critical (+ all)
-    alert_title_key            text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
-    alert_title_variables      text                        not null,                    -- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
-    alert_message_key          text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
-    alert_message_variables    text                        not null,                    -- List of variables to substitute into the message key. Format is 'var1=val1 #!# var2 #!# val2 #!# ... #!# varN=valN'.
-    alert_sort                 text                        not null,                    -- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
-    alert_header               integer                     not null    default 1,       -- This can be set to have the alert be printed with only the contents of the string, no headers.
-    modified_date              timestamp with time zone    not null,
+    alert_uuid             uuid                        not null    primary key,
+    alert_host_uuid        uuid                        not null,                    -- The name of the node or dashboard that this alert came from.
+    alert_set_by           text                        not null,
+    alert_level            integer                     not null,                    -- 1 (critical), 2 (warning), 3 (notice) or 4 (info)
+    alert_title            text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
+    alert_message          text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
+    alert_sort_position    integer                     not null    default 9999,    -- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
+    alert_show_header      integer                     not null    default 1,       -- This can be set to have the alert be printed with only the contents of the string, no headers.
+    modified_date          timestamp with time zone    not null,
     
     FOREIGN KEY(alert_host_uuid) REFERENCES hosts(host_uuid)
 );
 ALTER TABLE alerts OWNER TO #!variable!user!#;
 
 CREATE TABLE history.alerts (
-    history_id                 bigserial,
-    alert_uuid                 uuid,
-    alert_host_uuid            uuid,
-    alert_set_by               text,
-    alert_level                text,
-    alert_title_key            text,
-    alert_title_variables      text,
-    alert_message_key          text,
-    alert_message_variables    text,
-    alert_sort                 text,
-    alert_header               integer,
-    modified_date              timestamp with time zone    not null
+    history_id             bigserial,
+    alert_uuid             uuid,
+    alert_host_uuid        uuid,
+    alert_set_by           text,
+    alert_level            integer,
+    alert_title            text,
+    alert_message          text,
+    alert_sort_position    integer,
+    alert_show_header      integer,
+    modified_date          timestamp with time zone    not null
 );
 ALTER TABLE history.alerts OWNER TO #!variable!user!#;
 
@@ -309,24 +305,22 @@ BEGIN
          alert_host_uuid,
          alert_set_by,
          alert_level,
-         alert_title_key,
+         alert_title,
          alert_title_variables,
-         alert_message_key,
+         alert_message,
          alert_message_variables,
-         alert_sort, 
-         alert_header, 
+         alert_sort_position, 
+         alert_show_header, 
          modified_date)
     VALUES
         (history_alerts.alert_uuid,
          history_alerts.alert_host_uuid,
          history_alerts.alert_set_by,
          history_alerts.alert_level,
-         history_alerts.alert_title_key,
-         history_alerts.alert_title_variables,
-         history_alerts.alert_message_key,
-         history_alerts.alert_message_variables,
-         history_alerts.alert_sort, 
-         history_alerts.alert_header, 
+         history_alerts.alert_title,
+         history_alerts.alert_message,
+         history_alerts.alert_sort_position, 
+         history_alerts.alert_show_header, 
          history_alerts.modified_date);
     RETURN NULL;
 END;
@@ -337,6 +331,60 @@ ALTER FUNCTION history_alerts() OWNER TO #!variable!user!#;
 CREATE TRIGGER trigger_alerts
     AFTER INSERT OR UPDATE ON alerts
     FOR EACH ROW EXECUTE PROCEDURE history_alerts();
+
+    
+-- This is the list of alert recipients.
+CREATE TABLE recipients (
+    recipient_uuid         uuid                        not null    primary key,
+    recipient_name         text                        not null,                    -- This is the recipient's name
+    recipient_email        text                        not null,                    -- This is the recipient's email address or the file name, depending.
+    recipient_language     text,                                                    -- If set, this is the language the user wants to receive alerts in. If not set, the default language is used.
+    recipient_new_level    integer                     not null,                    -- This is the alert level to use when automatically adding watch links to new systems. '0' tells us to ignore new systems.
+    modified_date          timestamp with time zone    not null,
+    
+    FOREIGN KEY(recipient_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE recipients OWNER TO #!variable!user!#;
+
+CREATE TABLE history.recipients (
+    history_id             bigserial,
+    recipient_uuid             uuid,
+    modified_date          timestamp with time zone    not null
+);
+ALTER TABLE history.recipients OWNER TO #!variable!user!#;
+
+CREATE FUNCTION history_recipients() RETURNS trigger
+AS $$
+DECLARE
+    history_recipients RECORD;
+BEGIN
+    SELECT INTO history_recipients * FROM recipients WHERE recipient_uuid = new.recipient_uuid;
+    INSERT INTO history.recipients
+        (recipient_uuid,
+         modified_date)
+    VALUES
+        (history_recipients.recipient_uuid,
+         history_recipients.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_recipients() OWNER TO #!variable!user!#;
+
+CREATE TRIGGER trigger_recipients
+    AFTER INSERT OR UPDATE ON recipients
+    FOR EACH ROW EXECUTE PROCEDURE history_recipients();
+    
+    
+
+-- TODO: We need to create;
+-- Recipients  (email, we're not supporting files anymore); Name, Address, Units, Language, default watch level
+--             - Display as a list; Strikers, then Anvil!s; each anvil being node 1, node 2 and DR if available)
+-- Watching    (recipient, host, level) -> Link Recipient to hosts
+-- Mail Server (server details)
+-- Host Mail   (Host uses which mail server, in what order)
+
+
 
 
 -- This holds user-configurable variable. These values override defaults but NOT configuration files.

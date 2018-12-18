@@ -732,7 +732,15 @@ sub _set_defaults
 {
 	my ($anvil) = shift;
 	
-	$anvil->data->{sys}      = {
+	$anvil->data->{ScanCore} = {
+		timing				=>	{
+			# Delay between DB connection attempts when no databases are available?
+			db_retry_interval		=>	2,
+			# Delay between scans?
+			run_interval			=>	30,
+		},
+	};
+	$anvil->data->{sys} = {
 		apache				=>	{
 			user				=>	"admin",
 		},
@@ -928,6 +936,7 @@ sub _set_paths
 				firewalld_zones			=>	"/etc/firewalld/zones",
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
+				scan_agents			=>	"/usr/sbin/ScanCore/agents",
 				skins				=>	"/var/www/html/skins",
 				syslinux			=>	"/usr/share/syslinux",
 				tftpboot			=>	"/var/lib/tftpboot",

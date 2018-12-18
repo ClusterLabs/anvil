@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        20%{?dist}
+Release:        21%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -52,6 +52,7 @@ Requires:       perl-Text-Diff
 Requires:       perl-Time-HiRes
 Requires:       perl-UUID-Tiny
 Requires:       perl-XML-Simple 
+Requires:       postfix
 Requires:       postgresql-contrib 
 Requires:       postgresql-plperl 
 Requires:       rsync 
@@ -289,7 +290,7 @@ Provides support for asynchronous disaster recovery hosts in an Anvil! cluster.
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p %{buildroot}/%{_sbindir}/anvil/
+mkdir -p %{buildroot}/%{_sbindir}/ScanCore/agents/
 mkdir -p %{buildroot}/%{_sysconfdir}/anvil/
 mkdir -p %{buildroot}/%{_localstatedir}/www/
 mkdir -p %{buildroot}/%{_usr}/share/anvil/
@@ -302,7 +303,8 @@ cp -R -p Anvil %{buildroot}/%{_datadir}/perl5/
 cp -R -p html %{buildroot}/%{_localstatedir}/www/
 cp -R -p cgi-bin %{buildroot}/%{_localstatedir}/www/
 cp -R -p units/* %{buildroot}/%{_usr}/lib/systemd/system/
-cp -R -p tools/* %{buildroot}/%{_sbindir}
+cp -R -p tools/* %{buildroot}/%{_sbindir}/
+cp -R -p ScanCore/agents/* %{buildroot}/%{_sbindir}/ScanCore/agents/
 cp -R -p anvil.conf %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p anvil.version %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p share/* %{buildroot}/%{_usr}/share/anvil/
@@ -346,6 +348,7 @@ echo "Preparing the database"
 anvil-prep-database
 anvil-update-states
 
+### TODO: I don't think we need this anymore
 # Open access for Striker. The database will be opened after initial setup.
 echo "Opening the web and postgresql ports."
 firewall-cmd --add-service=http
@@ -389,6 +392,7 @@ firewall-cmd --add-service=postgresql --permanent
 %{_usr}/lib/*
 %{_usr}/share/anvil/*
 %{_sbindir}/*
+%{_sbindir}/ScanCore/agents/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
 
@@ -404,6 +408,10 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+*  Madison Kelly <mkelly@alteeve.ca> 3.0-21
+- Started adding support for ScanCore
+- Updated source.
+
 * Wed Dec 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-20
 - Updated source.
 

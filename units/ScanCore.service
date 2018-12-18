@@ -1,0 +1,12 @@
+[Unit]
+Description=Anvil! Intelligent Availability Platform - ScanCore Decision Engine
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/ScanCore
+ExecStop=/bin/kill -WINCH ${MAINPID}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

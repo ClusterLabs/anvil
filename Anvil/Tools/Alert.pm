@@ -286,7 +286,73 @@ WHERE
 
 This registers an alert to be sent later.
 
-If anything goes wrong, C<< !!error!! >> will be returned.
+The C<< alert_uuid >> is returned on success. If anything goes wrong, C<< !!error!! >> will be returned.
+
+Parameters;
+
+=head3 alert_level (required)
+
+This assigns an severity level to the alert. Any recipient listening to this level or higher will receive this alert.
+
+=head4 1 (critical)
+
+Alerts at this level will go to all recipients, except for those ignoring the source system entirely.
+
+This is reserved for alerts that could lead to imminent service interruption or unexpected loss of redundancy.
+
+Alerts at this level should trigger alarm systems for all administrators as well as management who may be impacted by service interruptions.
+
+=head4 2 (warning)
+
+This is used for alerts that require attention from administrators. Examples include intentional loss of redundancy caused by load shedding, hardware in pre-failure, loss of input power, temperature anomalies, etc.
+
+Alerts at this level should trigger alarm systems for administrative staff.
+
+=head4 3 (notice)
+
+This is used for alerts that are generally safe to ignore, but might provide early warnings of developing issues or insight into system behaviour. 
+
+Alerts at this level should not trigger alarm systems. Periodic review is sufficient.
+
+=head4 4 (info)
+
+This is used for alerts that are almost always safe to ignore, but may be useful in testing and debugging. 
+
+=head3 message (required)
+
+This is the message body of the alert. It is expected to be in the format C<< <string_key> >>. If variables are to be injected into the C<< string_key >>, a comma-separated list in the format C<< !!variable_name1!value1!![,!!variable_nameN!valueN!!] >> is used.
+
+Example with a message alone; C<< foo_0001 >>.
+Example with two variables; C<< foo_0002,!!bar!abc!!,!!baz!123!! >>.
+
+=head3 set_by (required)
+
+This is the name of the program that registered this alert. Usually this is simply the caller's C<< $THIS_FILE >> or C<< $0 >> variable.
+
+=head3 show_header (optional, default '1')
+
+When set to C<< 0 >>, only the alert message body is shown, and the title is omitted. This can be useful when a set of alerts are sorted under a common title.
+
+=head3 sort_position (optional, default '9999')
+
+This is used to keep a set of alerts in a certain order when converted to an message body. By default, all alerts have a default value of '9999', so they will be sorted using their severity level, and then the time they were entered into the system. If this is set to a number lower than this, then the value here will sort/prioritize messages over the severity/time values. If two or more alerts have the same sort position, then severity and then time stamps will be used.
+
+In brief; alert messages are sorted in this order;
+
+1. C<< sort_position >>
+2. c<< alert_level >>
+3. C<< timestamp >>
+
+NOTE: The timestamp is generally set for a given program or agent run (set when connecting to the database), NOT by the real time of the database insert. For this reason, relying on the timestamp alone will not generally give the desired results, and why C<< sort_position >> exists.
+
+=head3 title (optional)
+
+NOTE: This is required if C<< show_header >> is set! 
+
+This is the title of the alert. It is expected to be in the format C<< <string_key> >>. If variables are to be injected into the C<< string_key >>, a comma-separated list in the format C<< !!variable_name1!value1!![,!!variable_nameN!valueN!!] >> is used.
+
+Example with a message alone; C<< foo_0001 >>.
+Example with two variables; C<< foo_0002,!!bar!abc!!,!!baz!123!! >>.
 
 =cut
 sub register_alert
@@ -294,66 +360,53 @@ sub register_alert
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $header            = defined $parameter->{header}            ? $parameter->{header}            : 1;
-	my $level             = defined $parameter->{level}             ? $parameter->{level}             : "warning";
-	my $message_key       = defined $parameter->{message_key}       ? $parameter->{message_key}       : "";
-	my $message_variables = defined $parameter->{message_variables} ? $parameter->{message_variables} : "";
-	my $set_by            = defined $parameter->{set_by}            ? $parameter->{set_by}            : "";
-	my $sort              = defined $parameter->{'sort'}            ? $parameter->{'sort'}            : 9999;
-	my $title_key         = defined $parameter->{title_key}         ? $parameter->{title_key}         : "title_0003";
-	my $title_variables   = defined $parameter->{title_variables}   ? $parameter->{title_variables}   : "";
+	my $alert_level   = defined $parameter->{alert_level}   ? $parameter->{alert_level}   : 0;
+	my $message       = defined $parameter->{message}       ? $parameter->{message}       : "";
+	my $set_by        = defined $parameter->{set_by}        ? $parameter->{set_by}        : "";
+	my $show_header   = defined $parameter->{show_header}   ? $parameter->{show_header}   : 1;
+	my $sort_position = defined $parameter->{sort_position} ? $parameter->{sort_position} : 9999;
+	my $title         = defined $parameter->{title}         ? $parameter->{title}         : "title_0003";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		header            => $header,
-		level             => $level, 
-		message_key       => $message_key, 
-		message_variables => $message_variables, 
-		set_by            => $set_by,
-		'sort'            => $sort, 
-		title_key         => $title_key, 
-		title_variables   => $title_variables, 
+		show_header   => $show_header,
+		alert_level   => $alert_level, 
+		message       => $message, 
+		set_by        => $set_by,
+		sort_position => $sort_position, 
+		title         => $title, 
 	}});
 	
+	if (not $alert_level)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "alert_level" }});
+		return("!!error!!");
+	}
 	if (not $set_by)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "set_by" }});
 		return("!!error!!");
 	}
-	if (not $message_key)
+	if (not $message)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "message_key" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "message" }});
 		return("!!error!!");
 	}
-	if (($header) && (not $title_key))
+	if (($show_header) && (not $title))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0101"});
 		return("!!error!!");
 	}
 	
 	# zero-pad sort numbers so that they sort properly.
-	$sort = sprintf("%04d", $sort);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_sort => $sort }});
-	
-	# Convert the hash of title variables and message variables into '!!x!y!!,!!a!b!!,...' strings.
-	if (ref($title_variables) eq "HASH")
-	{
-		foreach my $key (sort {$a cmp $b} keys %{$title_variables})
-		{
-			$title_variables->{$key} = "--" if not defined $title_variables->{$key};
-			$title_variables .= "!!$key!".$title_variables->{$key}."!!,";
-		}
-	}
-	if (ref($message_variables) eq "HASH")
-	{
-		foreach my $key (sort {$a cmp $b} keys %{$message_variables})
-		{
-			$message_variables->{$key} = "--" if not defined $message_variables->{$key};
-			$message_variables .= "!!$key!".$message_variables->{$key}."!!,";
-		}
-	}
+	$sort_position = sprintf("%04d", $sort_position);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sort_position => $sort_position }});
 	
 	
+	
+	
+	
+=cut
 	# In most cases, no one is listening to 'debug' or 'info' level alerts. If that is the case here, 
 	# don't record the alert because it can cause the history.alerts table to grow needlessly. So find
 	# the lowest level log level actually being listened to and simply skip anything lower than that.
@@ -404,7 +457,7 @@ sub register_alert
 	if ($this_level > $lowest_log_level)
 	{
 		# Return.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0102", variables => { message_key => $message_key }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0102", variables => { message => $message }});
 		return(0);
 	}
 	
@@ -417,29 +470,26 @@ INSERT INTO
     alert_host_uuid, 
     alert_set_by, 
     alert_level, 
-    alert_title_key, 
-    alert_title_variables, 
-    alert_message_key, 
-    alert_message_variables, 
-    alert_sort, 
-    alert_header, 
+    alert_title, 
+    alert_message, 
+    alert_sort_position, 
+    alert_show_header, 
     modified_date
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->uuid()).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($set_by).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($level).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($title_key).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($title_variables).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($message_key).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($message_variables).",
-    ".$anvil->data->{sys}{database}{use_handle}->quote($sort).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($header).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($title).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($message).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($sort_position).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($show_header).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+=cut
 	
 	return(0);
 }
@@ -455,122 +505,6 @@ sub error
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-# 	$anvil->Log->entry({log_level => $debug, title_key => "tools_log_0001", title_variables => { function => "error" }, message_key => "tools_log_0002", file => $THIS_FILE, line => __LINE__});
-# 	
-# 	# Setup default values
-# 	my $title_key         = $parameter->{title_key}         ? $parameter->{title_key}         : $anvil->String->get({key => "an_0004"});
-# 	my $title_variables   = $parameter->{title_variables}   ? $parameter->{title_variables}   : "";
-# 	my $message_key       = $parameter->{message_key}       ? $parameter->{message_key}       : $anvil->String->get({key => "an_0005"});
-# 	my $message_variables = $parameter->{message_variables} ? $parameter->{message_variables} : "";
-# 	my $code              = $parameter->{code}              ? $parameter->{code}              : 1;
-# 	my $file              = $parameter->{file}              ? $parameter->{file}              : $anvil->String->get({key => "an_0006"});
-# 	my $line              = $parameter->{line}              ? $parameter->{line}              : "";
-# 	#print "$THIS_FILE ".__LINE__."; title_key: [$title_key], title_variables: [$title_variables], message_key: [$message_key], message_variables: [$message_variables], code: [$code], file: [$file], line: [$line]\n";
-# 	
-# 	# It is possible for this to become a run-away call, so this helps
-# 	# catch when that happens.
-# 	$anvil->_error_count($anvil->_error_count + 1);
-# 	if ($anvil->_error_count > $anvil->_error_limit)
-# 	{
-# 		print "Infinite loop detected while trying to print an error:\n";
-# 		print "- title_key:         [$title_key]\n";
-# 		print "- title_variables:   [$title_variables]\n";
-# 		print "- message_key:       [$message_key]\n";
-# 		print "- message_variables: [$title_variables]\n";
-# 		print "- code:              [$code]\n";
-# 		print "- file:              [$file]\n";
-# 		print "- line:              [$line]\n";
-# 		die "Infinite loop detected while trying to print an error, exiting.\n";
-# 	}
-# 	
-# 	# If the 'code' is empty and 'message' is "error_\d+", strip that code
-# 	# off and use it as the error code.
-# 	#print "$THIS_FILE ".__LINE__."; code: [$code], message_key: [$message_key]\n";
-# 	if ((not $code) && ($message_key =~ /error_(\d+)/))
-# 	{
-# 		$code = $1;
-# 		#print "$THIS_FILE ".__LINE__."; code: [$code], message_key: [$message_key]\n";
-# 	}
-# 	
-# 	# If the title is a key, translate it.
-# 	#print "$THIS_FILE ".__LINE__."; title_key: [$title_key]\n";
-# 	if ($title_key =~ /\w+_\d+$/)
-# 	{
-# 		$title_key = $anvil->String->get({
-# 			key		=>	$title_key,
-# 			variables	=>	$title_variables,
-# 		});
-# 		#print "$THIS_FILE ".__LINE__."; title_key: [$title_key]\n";
-# 	}
-# 	
-# 	# If the message is a key, translate it.
-# 	#print "$THIS_FILE ".__LINE__."; message_key: [$message_key]\n";
-# 	if ($message_key =~ /\w+_\d+$/)
-# 	{
-# 		$message_key = $anvil->String->get({
-# 			key		=>	$message_key,
-# 			variables	=>	$message_variables,
-# 		});
-# 		#print "$THIS_FILE ".__LINE__."; message_key: [$message_key]\n";
-# 	}
-# 	
-# 	# Set my error string
-# 	my $fatal_heading = $anvil->String->get({key => "an_0002"});
-# 	#print "$THIS_FILE ".__LINE__."; fatal_heading: [$fatal_heading]\n";
-# 	
-# 	my $readable_line = $anvil->Readable->comma($line);
-# 	#print "$THIS_FILE ".__LINE__."; readable_line: [$readable_line]\n";
-# 	
-# 	### TODO: Copy this to 'warning'.
-# 	# At this point, the title and message keys are the actual messages.
-# 	my $error = "\n".$anvil->String->get({
-# 		key		=>	"an_0007",
-# 		variables	=>	{
-# 			code		=>	$code,
-# 			heading		=>	$fatal_heading,
-# 			file		=>	$file,
-# 			line		=>	$readable_line,
-# 			title		=>	$title_key,
-# 			message		=>	$message_key,
-# 		},
-# 	})."\n\n";
-# 	#print "$THIS_FILE ".__LINE__."; error: [$error]\n";
-# 	
-# 	# Set the internal error flags
-# 	$anvil->Alert->_set_error($error);
-# 	$anvil->Alert->_set_error_code($code);
-# 	
-# 	# Append "exiting" to the error string if it is fatal.
-# 	$error .= $anvil->String->get({key => "an_0008"})."\n";
-# 	
-# 	# Write a copy of the error to the log.
-# 	$anvil->Log->entry({file => $THIS_FILE, level => 0, raw => $error});
-# 	
-# 	# If this is a browser calling us, print the footer so that the loading pinwheel goes away.
-# 	if ($ENV{'HTTP_REFERER'})
-# 	{
-# 		$anvil->Striker->_footer();
-# 	}
-# 	
-# 	# Don't actually die, but do print the error, if fatal errors have been globally disabled (as is done
-# 	# in the tests).
-# 	if (not $anvil->Alert->no_fatal_errors)
-# 	{
-# 		if ($ENV{'HTTP_REFERER'})
-# 		{
-# 			print "<pre>\n";
-# 			print "$error\n" if not $anvil->Alert->no_fatal_errors;
-# 			print "</pre>\n";
-# 		}
-# 		else
-# 		{
-# 			print "$error\n" if not $anvil->Alert->no_fatal_errors;
-# 		}
-# 		$anvil->data->{sys}{footer_printed} = 1;
-# 		$anvil->nice_exit({exit_code => $code});
-# 	}
-# 	
-# 	return ($code);
 }
 
 1;

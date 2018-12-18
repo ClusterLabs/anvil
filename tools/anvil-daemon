@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # 
-# This is the master daemon that manages all periodically run processes on Striker dashboards and Anvil! 
-# nodes.
+# This is the master daemon that manages all periodically run processes on Striker dashboards, Anvil! cluster
+# nodes and DR hosts.
 #
 # Exit codes;
 # 0 = Normal exit or md5sum of this program changed and it exited to reload.
@@ -26,7 +26,6 @@ use Proc::Simple;
 use JSON;
 use HTML::Strip;
 use HTML::FromText;
-
 use Data::Dumper;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];

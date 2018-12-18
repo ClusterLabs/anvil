@@ -238,91 +238,11 @@ sub process_task
 	# If we're here, the user is logged in!
 	if ($anvil->data->{cgi}{striker}{value})
 	{
-		$anvil->data->{form}{back_link}  = "?striker=true";
-		$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
-		$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
-		if ($anvil->data->{cgi}{task}{value} eq "sync")
-		{
-			process_sync_page($anvil);
-		}
-		elsif ($anvil->data->{cgi}{task}{value} eq "reconfig")
-		{
-			process_reconfig_page($anvil);
-		}
-		elsif ($anvil->data->{cgi}{task}{value} eq "update")
-		{
-			process_update($anvil);
-		}
-		elsif ($anvil->data->{cgi}{task}{value} eq "install-target")
-		{
-			process_install_target($anvil);
-		}
-		elsif ($anvil->data->{cgi}{task}{value} eq "reboot")
-		{
-			process_power($anvil, "reboot");
-		}
-		elsif ($anvil->data->{cgi}{task}{value} eq "poweroff")
-		{
-			process_power($anvil, "poweroff");
-		}
-		else
-		{
-			# What we show for the reboot icon and text depends on if a reboot is pending.
-			my $reboot_needed  = $anvil->System->reboot_needed();
-			my $reboot_icon    = $reboot_needed ? "reboot_needed_icon.png" : "reboot_icon.png";
-			my $reboot_message = $reboot_needed ? "#!string!striker_0093!#" : "#!string!striker_0092!#";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				reboot_needed  => $reboot_needed,
-				reboot_icon    => $reboot_icon, 
-				reboot_message => $reboot_message, 
-			}});
-			
-			# What we show for the install target icon and text depends on if it is enabled or not.
-			my $install_target_title   = "#!string!striker_0109!#";
-			my $install_target_icon    = "install_target_disabled.png";
-			my $install_target_subtask = "unavailable";
-			my ($install_manifest_status, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
-				variable_name         => "install-target::enabled", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
-				variable_source_table => "hosts",
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
-				install_manifest_status => $install_manifest_status, 
-				variable_uuid           => $variable_uuid, 
-				modified_date           => $modified_date, 
-			}});
-			if ($install_manifest_status eq "enabled")
-			{
-				# Offer the button to disable it.
-				$install_target_title   = "#!string!striker_0108!#";
-				$install_target_icon    = "install_target_enabled.png";
-				$install_target_subtask = "disable";
-			}
-			elsif ($install_manifest_status eq "disabled")
-			{
-				# Offer the button to enable it.
-				$install_target_title   = "#!string!striker_0107!#";
-				$install_target_subtask = "enable";
-			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				install_target_title   => $install_target_title,
-				install_target_icon    => $install_target_icon, 
-				install_target_subtask => $install_target_subtask, 
-			}});
-			
-			# The 'back' goes home
-			$anvil->data->{form}{back_link} = "?";
-			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-setup", variables => {
-				reboot_icon            => $reboot_icon, 
-				reboot_message         => $reboot_message, 
-				install_target_icon    => $install_target_icon, 
-				install_target_title   => $install_target_title, 
-				install_target_subtask => $install_target_subtask, 
-			}});
-		}
+		process_striker_menu($anvil);
 	}
-	elsif (0)
+	elsif ($anvil->data->{cgi}{anvil}{value})
 	{
+		process_anvil_menu($anvil);
 	}
 	else
 	{
@@ -340,6 +260,121 @@ sub process_task
 # 	$anvil->data->{sys}{users}{user_is_admin}       = $user_is_admin,
 # 	$anvil->data->{sys}{users}{user_is_experienced} = $user_is_experienced,
 # 	$anvil->data->{sys}{users}{user_is_trusted}     = $user_is_trusted,
+	
+	return(0);
+}
+
+# This handles the "Striker" menu items.
+sub process_striker_menu
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{form}{back_link}  = "?striker=true";
+	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	if ($anvil->data->{cgi}{task}{value} eq "sync")
+	{
+		process_sync_page($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "reconfig")
+	{
+		process_reconfig_page($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "update")
+	{
+		process_update($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "install-target")
+	{
+		process_install_target($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "reboot")
+	{
+		process_power($anvil, "reboot");
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "poweroff")
+	{
+		process_power($anvil, "poweroff");
+	}
+	else
+	{
+		# What we show for the reboot icon and text depends on if a reboot is pending.
+		my $reboot_needed  = $anvil->System->reboot_needed();
+		my $reboot_icon    = $reboot_needed ? "reboot_needed_icon.png" : "reboot_icon.png";
+		my $reboot_message = $reboot_needed ? "#!string!striker_0093!#" : "#!string!striker_0092!#";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			reboot_needed  => $reboot_needed,
+			reboot_icon    => $reboot_icon, 
+			reboot_message => $reboot_message, 
+		}});
+		
+		# What we show for the install target icon and text depends on if it is enabled or not.
+		my $install_target_title   = "#!string!striker_0109!#";
+		my $install_target_icon    = "install_target_disabled.png";
+		my $install_target_subtask = "unavailable";
+		my ($install_manifest_status, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+			variable_name         => "install-target::enabled", 
+			variable_source_uuid  => $anvil->Get->host_uuid, 
+			variable_source_table => "hosts",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {
+			install_manifest_status => $install_manifest_status, 
+			variable_uuid           => $variable_uuid, 
+			modified_date           => $modified_date, 
+		}});
+		if ($install_manifest_status eq "enabled")
+		{
+			# Offer the button to disable it.
+			$install_target_title   = "#!string!striker_0108!#";
+			$install_target_icon    = "install_target_enabled.png";
+			$install_target_subtask = "disable";
+		}
+		elsif ($install_manifest_status eq "disabled")
+		{
+			# Offer the button to enable it.
+			$install_target_title   = "#!string!striker_0107!#";
+			$install_target_subtask = "enable";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			install_target_title   => $install_target_title,
+			install_target_icon    => $install_target_icon, 
+			install_target_subtask => $install_target_subtask, 
+		}});
+		
+		# The 'back' goes home
+		$anvil->data->{form}{back_link} = "?";
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-setup", variables => {
+			reboot_icon            => $reboot_icon, 
+			reboot_message         => $reboot_message, 
+			install_target_icon    => $install_target_icon, 
+			install_target_title   => $install_target_title, 
+			install_target_subtask => $install_target_subtask, 
+		}});
+	}
+	
+	return(0);
+}
+
+# This handles the "Anvil" menu items.
+sub process_anvil_menu
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{form}{back_link}    = "?striker=true";
+	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	
+	if ($anvil->data->{cgi}{task}{value} eq "manifest")
+	{
+		#process_manifest_page($anvil);
+	}
+	else
+	{
+		# The 'back' goes home
+		$anvil->data->{form}{back_link} = "?";
+		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "main-menu", variables => {
+		}});
+	}
 	
 	return(0);
 }
@@ -401,15 +436,27 @@ sub process_power
 	if ($anvil->data->{cgi}{confirm}{value})
 	{
 		# Record the job!
+		my $job_command     = $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y";
+		my $job_title       = "job_0009";
+		my $job_description = "job_0006";
+		my $say_title       = "#!string!job_0005!#";
+		my $say_description = "#!string!job_0006!#";
+		if ($task eq "poweroff")
+		{
+			$job_command     = $anvil->data->{path}{exe}{'anvil-manage-power'}." --poweroff -y";
+			$job_title       = "job_0010";
+			$job_description = "job_0008";
+			$say_title       = "#!string!job_0007!#";
+			$say_description = "#!string!job_0008!#";
+		}
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $task eq "poweroff" ? $anvil->data->{path}{exe}{'anvil-manage-power'}." --poweroff -y" : $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y", 
+			job_command     => $job_command, 
 			job_data        => "", 
 			job_name        => "reboot::system", 
-			job_title       => $task eq "poweroff" ? "job_0010" : "job_0009", 
-			job_description => $task eq "poweroff" ? "job_0008" : "job_0006", 
+			job_title       => $job_title, 
+			job_description => $job_description, 
 			job_progress    => 0,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
@@ -420,8 +467,8 @@ sub process_power
 			title_id    => "",
 			message_id  => "",
 			reload_url  => "/cgi-bin/".$THIS_FILE,
-			title       => $task eq "poweroff" ? "#!string!job_0007!#" : "#!string!job_0005!#",
-			description => $task eq "poweroff" ? "#!string!job_0008!#" : "#!string!job_0006!#",
+			title       => $say_title,
+			description => $say_description,
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
 		
@@ -1653,6 +1700,7 @@ ORDER BY
 		class         => $dns_class,
 		extra         => "",
 	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { say_dns => $say_dns }});
 	
 	# Which interface gets the route?
 	my $default_dg_iface = defined $anvil->data->{cgi}{dg_iface}{value} ? $anvil->data->{cgi}{dg_iface}{value} : "ifn_link1";
@@ -1663,8 +1711,10 @@ ORDER BY
 		selected => $default_dg_iface,
 		class    => $anvil->data->{cgi}{dg_iface}{alert} ? "input_alert" : "input_clear",
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { dg_iface_select => $dg_iface_select }});
+	
 	my $dg_iface_class = $anvil->data->{cgi}{dg_iface}{alert} ? "input_alert" : "input_clear";
-	my $say_dg_iface   = $anvil->Template->get({file => "main.html", name => "input_select_form", variables => {
+	my $say_dg_iface   = $anvil->Template->get({debug => 1, file => "main.html", name => "input_select_form", variables => {
 		field       => "#!string!striker_0039!#",
 		description => "#!string!striker_0040!#",
 		'select'    => "",
