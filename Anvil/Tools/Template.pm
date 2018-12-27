@@ -227,12 +227,17 @@ sub get
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
 		
+		# Insert variables if I found something.
 		# Now that I have the skin, inject my variables. We'll use Words->string() to do this for us.
-		$template = $anvil->Words->string({
-			debug     => $debug, 
-			string    => $template,
-			variables => $variables,
-		});
+		if (($template_found) && ($template))
+		{
+			$template = $anvil->Words->string({
+				debug     => $debug, 
+				string    => $template,
+				variables => $variables,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { template => $template }});
+		}
 		
 		# If we failed to read the template, then load an error message.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

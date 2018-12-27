@@ -1045,7 +1045,7 @@ sub configure_striker
 	{
 		# Sanity check step1.
 		my $sane = sanity_check_step1($anvil);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
 		if ($sane)
 		{
 			# Step 1 was sane, show step 2.
@@ -1061,7 +1061,7 @@ sub configure_striker
 	{
 		# Sanity check step1.
 		my $sane = sanity_check_step2($anvil);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
 		if ($sane)
 		{
 			# Step 2 was sane, show step 3.
@@ -1087,7 +1087,7 @@ sub configure_striker
 			job_description => "job_0002", 
 			job_progress    => 0,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
 		
 		# Set maintenance mode.
 		$anvil->System->maintenance_mode({set => 1});
@@ -1700,7 +1700,6 @@ ORDER BY
 		class         => $dns_class,
 		extra         => "",
 	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { say_dns => $say_dns }});
 	
 	# Which interface gets the route?
 	my $default_dg_iface = defined $anvil->data->{cgi}{dg_iface}{value} ? $anvil->data->{cgi}{dg_iface}{value} : "ifn_link1";
@@ -1711,14 +1710,16 @@ ORDER BY
 		selected => $default_dg_iface,
 		class    => $anvil->data->{cgi}{dg_iface}{alert} ? "input_alert" : "input_clear",
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { dg_iface_select => $dg_iface_select }});
 	
-	my $dg_iface_class = $anvil->data->{cgi}{dg_iface}{alert} ? "input_alert" : "input_clear";
-	my $say_dg_iface   = $anvil->Template->get({debug => 1, file => "main.html", name => "input_select_form", variables => {
-		field       => "#!string!striker_0039!#",
-		description => "#!string!striker_0040!#",
-		'select'    => "",
-	}});
+	### NOTE: I'll likely want this for choosing which interface to use as the default gateway when 2+ 
+	###       IFNs are used.
+# 	my $dg_iface_class = $anvil->data->{cgi}{dg_iface}{alert} ? "input_alert" : "input_clear";
+# 	my $say_dg_iface   = $anvil->Template->get({file => "main.html", name => "input_select_form", variables => {
+# 		field       => "#!string!striker_0039!#",
+# 		description => "#!string!striker_0040!#",
+# 		'select'    => "",
+# 	}});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { say_dg_iface => $say_dg_iface }});
 	
 	# Hostname
 	my $say_default_hostname = $anvil->data->{cgi}{prefix}{value}."-striker0".$anvil->data->{cgi}{sequence}{value}.".".$anvil->data->{cgi}{domain}{value};
@@ -2557,7 +2558,7 @@ sub get_network_details
 				speed   => $data->{interface}{$interface}{speed},
 				'state' => $data->{interface}{$interface}{'state'},
 			};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"interfaces::${interface}::bond"   => $anvil->data->{interfaces}{$interface}{bond}, 
 				"interfaces::${interface}::bridge" => $anvil->data->{interfaces}{$interface}{bridge}, 
 				"interfaces::${interface}::duplex" => $anvil->data->{interfaces}{$interface}{duplex}, 
@@ -2610,7 +2611,7 @@ sub get_network_details
 		{
 			foreach my $address (sort {$a cmp $b} keys %{$data->{ip}})
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { address => $address }});
 				$anvil->data->{ip}{$address} = {
 					on              => $data->{ip}{$address}{on}, 
 					subnet          => $data->{ip}{$address}{subnet}, 
@@ -2618,7 +2619,7 @@ sub get_network_details
 					default_gateway => $data->{ip}{$address}{default_gateway}, 
 					dns             => $data->{ip}{$address}{dns}, 
 				};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"ip::${address}::on"              => $anvil->data->{ip}{$address}{on}, 
 					"ip::${address}::subnet"          => $anvil->data->{ip}{$address}{subnet}, 
 					"ip::${address}::gateway"         => $anvil->data->{ip}{$address}{gateway}, 

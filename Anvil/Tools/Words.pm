@@ -207,7 +207,7 @@ sub key
 		}
 	}
 	
-	if ($string eq "#!not_found!#")
+	if ($string eq "#!not_found!")
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Failed to find the string key: [".$key."]!!"});
 	}
@@ -480,7 +480,7 @@ Parameters;
 
 This is the specific file to read the string from. It should generally not be needed as string keys should not be reused. However, if it happens, this is a way to specify which file's version you want.
 
-=head3 key (required)
+=head3 key (optional, required without 'string' set)
 
 This is the key to return the string for.
 
@@ -492,7 +492,7 @@ This is the ISO code for the language you wish to read the string from. For exam
 
 When no language is passed, 'C<< defaults::languages::output >>' is used. 
 
-=head3 string (optional)
+=head3 string (optional, required if no 'key')
 
 If this is passed, it is treated as a raw string that needs variables inserted. When this is used, the 'C<< key >>' parameter is ignored.
 
