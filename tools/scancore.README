@@ -1,0 +1,67 @@
+ScanCore notes;
+
+= ScanCore =
+
+ScanCore runs as a daemon, periodically scanning for "Scan Agents" and invoking all agents it finds in (and 
+under) 'path::directories::scan_agents'. See 'Agents' below for details on writing new agents.
+
+If the local system is not configured, or if none of the databases are available, ScanCore will go into a 
+loop, sleeping for a period of time and then re-checking to see if the system is not configured or if at 
+least one database is available. Once read, it will serially execute all scan agents it finds. 
+
+Each agent is given a period of time it is allowed to run for before it is terminated. This is controlled by
+'scancore::timing::agent_runtime', but can be overridden on a per-agent basis with 
+'scancore::agent::<agent_name>::agent_runtime'. 
+
+NOTE: It is strongly recommended to keep the average runtime of an agent as low as possible! 
+
+To prevent putting too high a load on the host system, agents are called sequentially. So an agent that takes
+a long time to run will cause all other agents to be delayed, and slow down how often post-scan checks can be
+performed.
+
+= Agents =
+
+ScanCore Agents are self-contained executables that can be written in any language the user chooses. A 
+typical agent contains three files under a dedicated directory, itself under 
+'path::directories::scan_agents'. For example, the agent 'scan-network';
+
+* /usr/sbin/scancore-agents/scan-network/scan-network        - Main program
+* /usr/sbin/scancore-agents/scan-network/scan-network.sql    - SQL schema
+* /usr/sbin/scancore-agents/scan-network/scan-network.xml    - XML 'words'
+
+== Permissions ==
+
+Given most agents are interacting with core systems, all agents are called with root priviledges. If your
+agent doesn't need priviledged access, it is recommended that you drop to an unpriviledged user.
+
+If you provide your agent via an external RPM (or other mechanism), be sure to properly setup SELinux. It is
+enabled and enforcing on production systems!
+
+== Naming ==
+
+All scan agents *must* start with the name 'scan-X'. When ScanCore walks the agents directory, any file that
+does not start with this name is ignored.
+
+== Main Program ==
+
+This is the executable invoked by ScanCore. It should do a single scan and then exit. Keeping the total 
+runtime as short as possible should be a high priority!
+
+== SQL Schema ==
+
+Most agents will want to store data in the ScanCore database (usually a postgres database called 'anvil', see
+'database::X' entries in anvil.conf). If your tables are not found in a given database, this schema will be 
+loaded. 
+
+At this time, there are Perl libraries (see 'perldoc Anvil::Tools::Database') that dramatically simplify 
+connecting to any available databases, handling resync when a given database falls behind, etc. If you plan
+to write a scan agent in another language, porting these tools would be very much appreciated. Let us know
+and we will be happy to assist however we can.
+
+== XML 'words' ==
+
+Any strings used for logging or sending "alerts" to notification recipients are found in this file. Please 
+see 'words.xml' for more information on how this file is structured.
+
+NOTE: To avoid namespace collisions, it is STRONGLY recommended that all string keys start with your agent 
+      name! Ie: 'scan_network_X'.

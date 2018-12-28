@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+Company: Alteeve's Niche, Inc.
+License: GPL v2+
+Author:  Madison Kelly <mkelly@alteeve.ca>
+
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_network_log_0001'.
+-->
+
+<words>
+	<meta version="3.0.0" languages="en_CA,jp"/>
+	<!-- Canadian English -->
+	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors local network interfaces, bonds and bridges.">
+		
+		<!-- Log entries -->
+		<key name="scan_network_log_0001">Starting: [#!variable!program!#].</key>
+		
+	</language>
+</words>

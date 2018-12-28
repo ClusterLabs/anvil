@@ -1,0 +1,257 @@
+#!/usr/bin/perl
+# 
+# This is the main ScanCore program. It is started/killed/recovered by anvil-daemon.
+# 
+# Examples;
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = No database connections available.
+# 
+# TODO: 
+# - Decide if it's worth having a separate ScanCore.log file or just feed into anvil.log.
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Disable buffering
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+
+$anvil->Storage->read_config();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches
+$anvil->data->{switches}{'run-once'} = "";
+$anvil->Get->switches;
+
+# Calculate my sum so that we can exit if it changes later.
+$anvil->Storage->record_md5sums;
+
+# Connect to DBs.
+wait_for_database($anvil);
+
+# If we're not configured, sleep.
+wait_until_configured($anvil);
+
+# Disconnect. We'll reconnect inside the loop
+$anvil->Database->disconnect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0203"});
+
+# The main loop
+while(1)
+{
+	# Reload defaults, re-read the config and then connect to the database(s)
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0248"});
+	$anvil->_set_paths();
+	$anvil->_set_defaults();
+	$anvil->Storage->read_config();
+	$anvil->Database->connect();
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0132"});
+	
+	if ($anvil->data->{sys}{database}{connections})
+	{
+		# Run the normal tasks
+		call_agents($anvil);
+	}
+	else
+	{
+		# No databases available, we can't do anything this run. Sleep for a couple of seconds and 
+		# then try again.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0202"});
+		
+		my $db_retry_interval = 2;
+ 		if ((exists $anvil->data->{scancore}{timing}{db_retry_interval}) && ($anvil->data->{scancore}{timing}{db_retry_interval} =~ /^\d+$/))
+		{
+			$db_retry_interval = $anvil->data->{scancore}{timing}{db_retry_interval};
+		}
+		sleep($db_retry_interval);
+		next;
+	}
+	
+	# Exit if 'run-once' selected.
+	if ($anvil->data->{switches}{'run-once'})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0055"});
+		$anvil->nice_exit({code => 0});
+	}
+	
+	# Disconnect from the database(s) and sleep now.
+	$anvil->Database->disconnect();
+	my $run_interval = 30;
+	if ((exists $anvil->data->{scancore}{timing}{run_interval}) && ($anvil->data->{scancore}{timing}{run_interval} =~ /^\d+$/))
+	{
+		$run_interval = $anvil->data->{scancore}{timing}{run_interval};
+	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0249", variables => { run_interval => $run_interval }});
+	sleep($run_interval);
+	
+	# In case something has changed, exit.
+	exit_if_sums_changed($anvil);
+}
+
+$anvil->nice_exit({code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This invokes all scan agents found in 'path::directories::scan_agents'
+sub call_agents
+{
+	my ($anvil) = @_;
+	
+	# Get the list of scan agents on this system.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"path::directories::scan_agents" => $anvil->data->{path}{directories}{scan_agents},
+	}});
+	scan_directory($anvil, $anvil->data->{path}{directories}{scan_agents});
+	
+	return(0);
+}
+
+# This checks to see if any files on disk have changed and, if so, exits.
+sub exit_if_sums_changed
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->Storage->check_md5sums)
+	{
+		# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "warn", key => "message_0014"});
+		$anvil->nice_exit({code => 0});
+	}
+	
+	return(0);
+}
+
+# This looks in the passed-in directory for scan agents or sub-directories (which will in turn be scanned).
+sub scan_directory
+{
+	my ($anvil, $directory) = @_;
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		my $full_path = $directory."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			file      => $file,
+			full_path => $full_path,
+		}});
+		# If we're looking at a directory, scan it. Otherwise, see if it's an executable and that it
+		# starts with 'scan-*'.
+		if (-d $full_path)
+		{
+			# This is a directory, dive into it.
+			scan_directory($anvil, $full_path);
+		}
+		elsif (-x $full_path)
+		{
+			# Now I only want to know if the file starts with 'scan-'
+			next if $file !~ /^scan-/;
+			
+			# If I am still alive, I am looking at a scan agent!
+			$anvil->data->{scancore}{agent}{$file} = $full_path;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"scancore::agent::${file}" => $anvil->data->{scancore}{agent}{$file},
+			}});
+		}
+	}
+	closedir(DIRECTORY);
+	
+	return(0);
+}
+
+# This loops until it can connect to at least one database.
+sub wait_for_database
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->connect;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, sleep until one comes online.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0244"});
+		
+		until($anvil->data->{sys}{database}{connections})
+		{
+			# Disconnect, Sleep, then check again.
+			$anvil->Database->disconnect();
+			sleep 60;
+			
+			$anvil->_set_paths();
+			$anvil->_set_defaults();
+			$anvil->Storage->read_config();
+			$anvil->Database->connect;
+			if ($anvil->data->{sys}{database}{connections})
+			{
+				# We're good
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0245"});
+			}
+			else
+			{
+				# Not yet...
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0244"});
+			}
+			
+			# In case something has changed, exit.
+			exit_if_sums_changed($anvil);
+		}
+	}
+	
+	return(0);
+}
+
+# Wait until the local system has been configured.
+sub wait_until_configured
+{
+	my ($anvil) = @_;
+	
+	my $configured = $anvil->System->check_if_configured;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+	if (not $configured)
+	{
+		# Sleep for a minute and check again.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0246"});
+		until ($configured)
+		{
+			# Sleep, then check.
+			sleep 60;
+			
+			$configured = $anvil->System->check_if_configured;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+			if ($configured)
+			{
+				# We're good
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0247"});
+			}
+			else
+			{
+				# Not yet...
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0246"});
+			}
+			
+			# In case something has changed, exit.
+			exit_if_sums_changed($anvil);
+		}
+	}
+	
+	return(0);
+}

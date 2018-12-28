@@ -795,3 +795,25 @@ CREATE TRIGGER trigger_alerts
     FOR EACH ROW EXECUTE PROCEDURE history_alerts();
 
 COMMIT;
+
+====
+
+3rd party stuff;
+
+dnf install autoconf automake bzip2-devel corosynclib-devel gnutls-devel help2man libqb-devel libtool \
+            libtool-ltdl-devel libuuid-devel libxml2-devel libxslt-devel pam-devel "pkgconfig(dbus-1)" \
+	    "pkgconfig(glib-2.0)" python3-devel asciidoc inkscape publican booth-site diffstat \
+	    fence-agents-apc fence-agents-ipmilan fence-agents-scsi fence-virt python3-lxml ruby-devel \
+	    rubygem-backports rubygem-ethon rubygem-ffi rubygem-multi_json rubygem-open4 rubygem-rack \
+	    rubygem-rack-protection rubygem-rack-test rubygem-sinatra rubygem-test-unit flex perl-generators
+----
+pacemaker;
+git tag
+git checkout <2.x>
+make srpm
+mv /home/digimer/anvil/builds/pacemaker/pacemaker-2.0.0-0.1.rc2.fedora.src.rpm ~/rpmbuild/SRPMS/
+----
+pcs;
+- Requires pacemaker 2.x install
+git tag
+git checkout <0.10.x>

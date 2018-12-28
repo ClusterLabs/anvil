@@ -34,8 +34,8 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
 		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
 		<key name="message_0012">Wrote the journald config file: [#!variable!file!#] to disable rate limiting to ensure high log levels are not lost.</key>
-		<key name="message_0013">The md5sum of: [#!variable!file!#] has changed since the daemon started.</key>
-		<key name="message_0014">Exiting to reload.</key>
+		<key name="message_0013">#!free!#</key>
+		<key name="message_0014">One or more files on disk have changed. Exiting to reload.</key>
 		<key name="message_0015">The reconfigure of the network has begun.</key>
 		<key name="message_0016">The hostname: [#!variable!hostname!#] has been set.</key>
 		<key name="message_0017">Failed to set the hostname: [#!variable!hostname!#]! The hostname is currently [#!variable!bad_hostname!#]. This is probably a program error.</key>
@@ -526,6 +526,16 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0241">Package list loaded.</key>
 		<key name="log_0242">The firewall zone: [#!variable!zone!#] is not needed. The zone file: [#!variable!file!#] has been backed up to: [#!variable!backup!#] and will now be removed.</key>
 		<key name="log_0243">[ Error ] - Failed to delete the file: [#!variable!file!#].</key>
+		<key name="log_0244">[ Warning ] - None of the databases are accessible. ScanCore will try to connect once a minute until a database is accessible.</key>
+		<key name="log_0245">[ Cleared ] - We now have databases accessible, proceeding.</key>
+		<key name="log_0246">[ Warning ] - The local system is not yet configured. Scancore will check once a minute and start running once configured.</key>
+		<key name="log_0247">[ Cleared ] - The local system is now configured, proceeding.</key>
+		<key name="log_0248">ScanCore has entered the main loop.</key>
+		<key name="log_0249">----=] ScanCore loop finished. Sleeping for: [#!variable!run_interval!#] seconds. ]=--------------------------------------</key>	<!-- This is meant to be easily seen in the logs, hence the dashes. -->
+		<key name="log_0250">
+The md5sum of: [#!variable!file!#] has changed since the daemon started.
+* [#!variable!old_sum!#] -> [#!variable!new_sum!#]
+		</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

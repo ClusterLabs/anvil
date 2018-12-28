@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 # 
-# This daemon watches for network changes and updates a cache file when changes are found.
+# This tool watches for network changes and updates a cache file when changes are found.
 # 
-# NOTE: This daemon does NOT connect to the databases. This is meant to be as quick as possible and to use as 
+# NOTE: This tool does NOT connect to the databases. This is meant to be as quick as possible and to use as 
 #       few resources as possible. It will exit with 'ok' or 'change' depending on if something in the 
 #       network changed.
 #
@@ -10,6 +10,7 @@
 # 0 = Normal exit
 # 
 # TODO: 
+# - 
 # 
 
 use strict;

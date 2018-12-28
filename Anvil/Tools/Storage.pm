@@ -497,13 +497,18 @@ sub check_md5sums
 		"md5sum::${caller}::now"        => $anvil->data->{md5sum}{$caller}{now},
 	}});
 	
-	if ($anvil->data->{md5sum}{$caller}{now} ne $anvil->data->{md5sum}{$caller}{start_time})
+	if ($anvil->data->{md5sum}{$caller}{start_time} ne $anvil->data->{md5sum}{$caller}{now})
 	{
 		# Exit.
 		$exit = 1;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "message_0013", variables => { file => $0 }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0250", variables => { 
+			file    => $0,
+			old_sum => $anvil->data->{md5sum}{$caller}{start_time},
+			new_sum => $anvil->data->{md5sum}{$caller}{now},
+		}});
 	}
 	
+	### NOTE: Some modules are loaded dynamically, so if there is no old hash, we'll record it now.
 	# What about our modules?
 	foreach my $module (sort {$a cmp $b} keys %INC)
 	{
@@ -515,6 +520,15 @@ sub check_md5sums
 			module_sum  => $module_sum,
 		}});
 		
+		# Is this the first time I've seen this module?
+		if (not defined $anvil->data->{md5sum}{$module_file}{start_time})
+		{
+			# New one!
+			$anvil->data->{md5sum}{$module_file}{start_time} = $module_sum;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time},
+			}});
+		}
 		$anvil->data->{md5sum}{$module_file}{now} = $module_sum;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time},
@@ -524,7 +538,11 @@ sub check_md5sums
 		{
 			# Changed.
 			$exit = 1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "message_0013", variables => { file => $module_file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0250", variables => { 
+				file    => $module_file,
+				old_sum => $anvil->data->{md5sum}{$module_file}{start_time},
+				new_sum => $anvil->data->{md5sum}{$module_file}{now},
+			}});
 		}
 	}
 	
@@ -545,7 +563,11 @@ sub check_md5sums
 		if ($anvil->data->{md5sum}{$file}{start_time} ne $anvil->data->{md5sum}{$file}{now})
 		{
 			$exit = 1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "message_0013", variables => { file => $file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0250", variables => { 
+				file    => $file,
+				old_sum => $anvil->data->{md5sum}{$file}{start_time},
+				new_sum => $anvil->data->{md5sum}{$file}{now},
+			}});
 		}
 	}
 	
@@ -1454,9 +1476,12 @@ sub record_md5sums
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	# Record the caller's MD5 sum
 	my $caller = $0;
 	$anvil->data->{md5sum}{$caller}{start_time} = $anvil->Get->md5sum({file => $0});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${caller}::start_time" => $anvil->data->{md5sum}{$caller}{start_time} }});
+	
+	# Record the sums of our perl modules.
 	foreach my $module (sort {$a cmp $b} keys %INC)
 	{
 		my $module_file = $INC{$module};
@@ -1471,7 +1496,7 @@ sub record_md5sums
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "md5sum::${module_file}::start_time" => $anvil->data->{md5sum}{$module_file}{start_time} }});
 	}
 	
-	# Record sums for word files.
+	# Record sum(s) for the words file(s).
 	foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{words}})
 	{
 		my $words_sum = $anvil->Get->md5sum({file => $file});
