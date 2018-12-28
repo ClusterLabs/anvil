@@ -50,16 +50,13 @@ $anvil->Database->disconnect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0203"});
 
 # The main loop
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0248"});
 while(1)
 {
-	# Reload defaults, re-read the config and then connect to the database(s)
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0248"});
-	$anvil->_set_paths();
-	$anvil->_set_defaults();
-	$anvil->Storage->read_config();
-	$anvil->Database->connect();
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0132"});
+	# Do the various pre-run tasks.
+	prepare_for_run($anvil);
 	
+	# Do we have at least one database?
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
@@ -87,8 +84,10 @@ while(1)
 		$anvil->nice_exit({code => 0});
 	}
 	
-	# Disconnect from the database(s) and sleep now.
-	$anvil->Database->disconnect();
+	# Clean up
+	cleanup_after_run($anvil);
+	
+	# Sleep until it's time to run again.
 	my $run_interval = 30;
 	if ((exists $anvil->data->{scancore}{timing}{run_interval}) && ($anvil->data->{scancore}{timing}{run_interval} =~ /^\d+$/))
 	{
@@ -113,13 +112,46 @@ sub call_agents
 {
 	my ($anvil) = @_;
 	
-	# Get the list of scan agents on this system.
+	# Get the current list of scan agents on this system.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"path::directories::scan_agents" => $anvil->data->{path}{directories}{scan_agents},
 	}});
 	scan_directory($anvil, $anvil->data->{path}{directories}{scan_agents});
 	
+	# Now loop through the agents I found and call them.
+	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
+	{
+		my $agent_path  = $anvil->data->{scancore}{agent}{$agent_name};
+		my $agent_words = $agent_path.".xml";
+		
+		if ((-e $agent_words) && (-r $agent_words))
+		{
+			# Read the words file so that we can generate alerts later.
+			$anvil->Words->read({file => $agent_words});
+		}
+	}
+	
 	return(0);
+}
+
+# This cleans things up after a scan run has completed.
+sub cleanup_after_run
+{
+	my ($anvil) = @_;
+	
+	# Delete what we know about existing scan agents so that the next scan freshens the data.
+	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
+	{
+		# Remove the agent's words file data.
+		my $agent_words = $anvil->data->{scancore}{agent}{$agent_name}.".xml";
+		delete $anvil->data->{words}{$agent_words};
+	}
+	
+	# Disconnect from the database(s) and sleep now.
+	$anvil->Database->disconnect();
+	
+	# Now delete all the remaining agent data.
+	delete $anvil->data->{scancore}{agent};
 }
 
 # This checks to see if any files on disk have changed and, if so, exits.
@@ -133,6 +165,21 @@ sub exit_if_sums_changed
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "warn", key => "message_0014"});
 		$anvil->nice_exit({code => 0});
 	}
+	
+	return(0);
+}
+
+# Handle pre-run tasks.
+sub prepare_for_run
+{
+	my ($anvil) = @_;
+	# Reload defaults, re-read the config and then connect to the database(s)
+	$anvil->_set_paths();
+	$anvil->_set_defaults();
+	$anvil->Storage->read_config();
+	$anvil->Words->read();
+	$anvil->Database->connect();
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0132"});
 	
 	return(0);
 }

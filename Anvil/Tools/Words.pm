@@ -357,7 +357,7 @@ This reads in a words file containing translated strings used to generated outpu
 
 Example to read 'C<< anvil.xml >>';
 
- my $words_file = $anvil->data->{path}{words}{'an-words.xml'};
+ my $words_file = $anvil->data->{path}{words}{'words.xml'};
  my $anvil->Words->read({file => $words_file}) or die "Failed to read: [$words_file]. Does the file exist?\n";
 
 Successful read will return '0'. Non-0 is an error;
@@ -371,9 +371,11 @@ NOTE: Read works are stored in 'C<< $anvil->data->{words}{<file_name>}{language}
 
 Parameters;
 
-=head3 file (required)
+=head3 file (optional, default 'path::words::words.xml')
 
-This is the file to read.
+This is the XML "words" file to read.
+
+NOTE: When reading the default words file, all existing words are cleared from memory to avoid stale strings hanging around.
 
 =cut
 sub read
@@ -385,7 +387,7 @@ sub read
 	
 	# Setup default values
 	my $return_code = 0;
-	my $file        = defined $parameter->{file} ? $parameter->{file} : 0;
+	my $file        = defined $parameter->{file} ? $parameter->{file} : $anvil->data->{path}{words}{'words.xml'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
 	
 	if (not $file)
@@ -408,6 +410,12 @@ sub read
 	}
 	else
 	{
+		# If we've read this file before, delete what we had loaded so that no stale keys remain.
+		if (exists $anvil->data->{words}{$file})
+		{
+			delete $anvil->data->{words}{$file};
+		}
+			
 		# Read the file with XML::Simple
 		my $xml = XML::Simple->new();
 		eval { $anvil->data->{words}{$file} = $xml->XMLin($file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'language', 'key' ]) };

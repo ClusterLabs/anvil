@@ -222,7 +222,7 @@ sub new
 	$anvil->Storage->search_directories({debug => $debug, initialize => 1});
 	
 	# I need to read the initial words early.
-	$anvil->Words->read({debug => $debug, file  => $anvil->data->{path}{words}{'words.xml'}});
+	$anvil->Words->read({debug => $debug});
 	
 	# If the local './tools.conf' file exists, read it in.
 	if (-r $anvil->data->{path}{configs}{'anvil.conf'})

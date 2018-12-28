@@ -122,6 +122,7 @@ while(1)
 	$anvil->_set_paths();
 	$anvil->_set_defaults();
 	$anvil->Storage->read_config();
+	$anvil->Words->read();
 	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 	

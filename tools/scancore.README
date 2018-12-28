@@ -63,5 +63,6 @@ and we will be happy to assist however we can.
 Any strings used for logging or sending "alerts" to notification recipients are found in this file. Please 
 see 'words.xml' for more information on how this file is structured.
 
+NOTE: This file MUST be the same as the agent itself, with the file extension '.xml'.
 NOTE: To avoid namespace collisions, it is STRONGLY recommended that all string keys start with your agent 
       name! Ie: 'scan_network_X'.
