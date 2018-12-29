@@ -13,7 +13,7 @@ my $THIS_FILE = "Alert.pm";
 ### Methods;
 # check_alert_sent
 # error
-# register_alert
+# register
 
 =pod
 
@@ -282,7 +282,7 @@ WHERE
 	return($set);
 }
 
-=head2 register_alert
+=head2 register
 
 This registers an alert to be sent later.
 
@@ -317,6 +317,10 @@ Alerts at this level should not trigger alarm systems. Periodic review is suffic
 =head4 4 (info)
 
 This is used for alerts that are almost always safe to ignore, but may be useful in testing and debugging. 
+
+=head3 clear_alert (optional, default '0')
+
+If set, this indicate that the alert has returned to an OK state. Alert level is still honoured for notification target delivery decisions, but some internal values are adjusted.
 
 =head3 message (required)
 
@@ -355,7 +359,7 @@ Example with a message alone; C<< foo_0001 >>.
 Example with two variables; C<< foo_0002,!!bar!abc!!,!!baz!123!! >>.
 
 =cut
-sub register_alert
+sub register
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -363,13 +367,15 @@ sub register_alert
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $alert_level   = defined $parameter->{alert_level}   ? $parameter->{alert_level}   : 0;
+	my $clear_alert   = defined $parameter->{clear_alert}   ? $parameter->{clear_alert}   : 0;
 	my $message       = defined $parameter->{message}       ? $parameter->{message}       : "";
 	my $set_by        = defined $parameter->{set_by}        ? $parameter->{set_by}        : "";
 	my $show_header   = defined $parameter->{show_header}   ? $parameter->{show_header}   : 1;
 	my $sort_position = defined $parameter->{sort_position} ? $parameter->{sort_position} : 9999;
-	my $title         = defined $parameter->{title}         ? $parameter->{title}         : "title_0003";
+	my $title         = defined $parameter->{title}         ? $parameter->{title}         : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		show_header   => $show_header,
+		clear_alert   => $clear_alert, 
 		alert_level   => $alert_level, 
 		message       => $message, 
 		set_by        => $set_by,
@@ -379,23 +385,27 @@ sub register_alert
 	
 	if (not $alert_level)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "alert_level" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register()", parameter => "alert_level" }});
 		return("!!error!!");
 	}
 	if (not $set_by)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "set_by" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register()", parameter => "set_by" }});
 		return("!!error!!");
 	}
 	if (not $message)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register_alert()", parameter => "message" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register()", parameter => "message" }});
 		return("!!error!!");
 	}
 	if (($show_header) && (not $title))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0101"});
-		return("!!error!!");
+		# Set it based on the alert_level.
+		if    ($alert_level eq "1") { $title = $clear_alert ? "alert_title_0005" : "alert_title_0001"; } # Critical (or Critical Cleared)
+		elsif ($alert_level eq "2") { $title = $clear_alert ? "alert_title_0006" : "alert_title_0002"; } # Warning (or Warning Cleared)
+		elsif ($alert_level eq "3") { $title = $clear_alert ? "alert_title_0007" : "alert_title_0003"; } # Notice (or Notice Cleared)
+		elsif ($alert_level eq "4") { $title = $clear_alert ? "alert_title_0008" : "alert_title_0004"; } # Info (or Info Cleared)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { title => $title }});
 	}
 	
 	# zero-pad sort numbers so that they sort properly.

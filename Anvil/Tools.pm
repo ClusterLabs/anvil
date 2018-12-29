@@ -129,7 +129,9 @@ sub new
 			WORDS				=>	Anvil::Tools::Words->new(),
 			VALIDATE			=>	Anvil::Tools::Validate->new(),
 			# This is to be removed before development ends.
-			log_file			=>	"",
+			'log'			=>	{
+				main			=>	"",
+			},
 		},
 		DATA				=>	{},
 		ENV_VALUES			=>	{
@@ -389,10 +391,10 @@ sub nice_exit
 	}});
 	
 	# Close the log file.
-	if ($anvil->data->{HANDLE}{log_file})
+	if ($anvil->data->{HANDLE}{'log'}{main})
 	{
-		close $anvil->data->{HANDLE}{log_file};
-		$anvil->data->{HANDLE}{log_file} = "";
+		close $anvil->data->{HANDLE}{'log'}{main};
+		$anvil->data->{HANDLE}{'log'}{main} = "";
 	}
 	
 	exit($exit_code);
@@ -800,8 +802,12 @@ sub _set_defaults
 		host_type			=>	"",
 		host_uuid			=>	"",
 		language			=>	"en_CA",
-		log_date			=>	1,
-		log_file			=>	"/var/log/anvil.log",
+		'log'				=>	{
+			date				=>	1,
+			# Stores the '-v|...|-vvv' so that shell calls can be run at the same level as the 
+			# avtive program when set by the user at the command line.
+			level				=>	"",
+		},
 		manage				=>	{
 			firewall			=>	1,
 		},
@@ -1011,6 +1017,9 @@ sub _set_paths
 			},
 			'lock'			=>	{
 				database			=>	"/tmp/anvil-tools.database.lock",
+			},
+			'log'			=>	{
+				main				=>	"/var/log/anvil.log",
 			},
 			proc			=>	{
 				uptime				=>	"/proc/uptime",

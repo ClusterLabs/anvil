@@ -47,7 +47,7 @@ wait_until_configured($anvil);
 
 # Disconnect. We'll reconnect inside the loop
 $anvil->Database->disconnect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0203"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0203"});
 
 # The main loop
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0248"});
@@ -119,15 +119,73 @@ sub call_agents
 	scan_directory($anvil, $anvil->data->{path}{directories}{scan_agents});
 	
 	# Now loop through the agents I found and call them.
+	my $default_timeout = 30;
+	if ((exists $anvil->data->{scancore}{timing}{agent_runtime}) && ($anvil->data->{scancore}{timing}{agent_runtime} =~ /^\d+$/))
+	{
+		$default_timeout = $anvil->data->{scancore}{timing}{agent_runtime};
+	}
 	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
 	{
 		my $agent_path  = $anvil->data->{scancore}{agent}{$agent_name};
 		my $agent_words = $agent_path.".xml";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			agent_name  => $agent_name,
+			agent_path  => $agent_path, 
+			agent_words => $agent_words, 
+		}});
 		
 		if ((-e $agent_words) && (-r $agent_words))
 		{
 			# Read the words file so that we can generate alerts later.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0251", variables => {
+				agent_name => $agent_name,
+				file       => $agent_path,
+			}});
 			$anvil->Words->read({file => $agent_words});
+		}
+		
+		# Now call the agent.
+		my $start_time  = time;
+		my $return_code = 9999;
+		my $timeout     = $default_timeout;
+		if ((exists $anvil->data->{scancore}{agent}{$agent_name}{agent_runtime}) && ($anvil->data->{scancore}{agent}{$agent_name}{agent_runtime} =~ /^\d+$/))
+		{
+			$timeout = $anvil->data->{scancore}{agent}{$agent_name}{agent_runtime};
+		}
+		my $shell_call = $anvil->data->{path}{exe}{timeout}." ".$timeout." ".$agent_path;
+		if ($anvil->data->{sys}{'log'}{level})
+		{
+			$shell_call .= ." ".$anvil->data->{sys}{'log'}{level};
+		}
+		$shell_call .= "; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		# Tell the user this agent is about to run...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0252", variables => {
+			agent_name => $agent_name,
+			timeout    => $timeout,
+		}});
+		my $output = $anvil->System->call({shell_call => $shell_call});
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			
+			if ($line =~ /return_code:(\d+)$/)
+			{
+				$return_code = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+			}
+		}
+		
+		# If the return code is '124', timeout popped.
+		if ($return_code eq "124")
+		{
+			# Register an alert...
+			$anvil->Alert->register({
+				alert_level => "notice", 
+				set_by      => $THIS_FILE,
+				message     => "alert_message_0001,!!agent_name!".$agent_name."!!,!!timeout!".$timeout."!!",
+			});
 		}
 	}
 	
@@ -189,7 +247,7 @@ sub scan_directory
 {
 	my ($anvil, $directory) = @_;
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
 	local(*DIRECTORY);
 	opendir(DIRECTORY, $directory);
 	while(my $file = readdir(DIRECTORY))
@@ -197,7 +255,7 @@ sub scan_directory
 		next if $file eq ".";
 		next if $file eq "..";
 		my $full_path = $directory."/".$file;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			file      => $file,
 			full_path => $full_path,
 		}});

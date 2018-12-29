@@ -12,14 +12,17 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 	<language name="en_CA" long_name="Canadian English" description="Anvil! language file.">
 		
 		<!-- Alert titles -->
-		<key name="alert_title_0001">Debug</key>
-		<key name="alert_title_0002">Information</key>
+		<key name="alert_title_0001">Critical</key>
+		<key name="alert_title_0002">Warning</key>
 		<key name="alert_title_0003">Notice</key>
-		<key name="alert_title_0004">Warning</key>
-		<key name="alert_title_0005">Critical</key>
-		<key name="alert_title_0006">Warning Cleared</key>
-		<key name="alert_title_0007">Critical Cleared</key>
-		<key name="alert_title_0008">Important</key>	<!-- This is used for 'warning' level alerts that aren't a problem, but important information. -->
+		<key name="alert_title_0004">Info</key>
+		<key name="alert_title_0005">Critical Cleared!</key>
+		<key name="alert_title_0006">Warning Cleared!</key>
+		<key name="alert_title_0007">Notice Cleared!</key>
+		<key name="alert_title_0008">Info Cleared!</key>
+		
+		<!-- Alert messages -->
+		<key name="alert_message_0001">The scan agent: [#!variable!agent_name!#] timed out! It was given: [#!variable!timeout!#] seconds to run, but it didn't return, so it was terminated.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -91,7 +94,7 @@ The '-y' option prevents a confirmation prompt.
 		</key>
 		<key name="message_0053">This system needs to be rebooted.</key>
 		<key name="message_0054">This system does NOT need to be rebooted.</key>
-		<key name="message_0055">Exiting to '--run-once' switch.</key>
+		<key name="message_0055">Asked to only run once, so exiting now.</key>
 		<key name="message_0056">Previous run exited early. Restarting momentarily.</key>
 		<key name="message_0057">No updates were found or needed.</key>
 		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
@@ -378,7 +381,7 @@ The database connection error was:
 		</key>
 		<key name="log_0099">[ Error ] - There is no Anvil! database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#].</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
-		<key name="log_0101"><![CDATA[[ Error ] - The method Alert->register_alert() was called but the 'title_key' parameter was not passed or it is empty and 'header' is enable (default).]]></key>
+		<key name="log_0101">#!free!#</key>
 		<key name="log_0102">I am not recording the alert with message_key: [#!variable!message_key!#] to the database because its log level was lower than any recipients.</key>
 		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">The database with UUID: [#!variable!uuid!#] for: [#!variable!file!#] is behind.</key>
@@ -536,6 +539,8 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 The md5sum of: [#!variable!file!#] has changed since the daemon started.
 * [#!variable!old_sum!#] -> [#!variable!new_sum!#]
 		</key>
+		<key name="log_0251">Reading the scan agent: [#!variable!agent_name!#]'s words file: [#!variable!file!#].</key>
+		<key name="log_0252">Running the scan agent: [#!variable!agent_name!#] with a timeout of: [#!variable!timeout!#] seconds now...</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -748,9 +753,9 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="error_0025"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.]]></key>
 		<key name="error_0026"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.]]></key>
 		<key name="error_0027">Login failed, please try again.</key>
-		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!sys::log_file!#</span>] for details.]]></key>
+		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!path::log::file!#</span>] for details.]]></key>
 		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
-		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!sys::log_file!#</span>].]]></key>
+		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!path::log::file!#</span>].]]></key>
 		<key name="error_0031">The 'host-uuid': [#!variable!host_uuid!#] is not valid.</key>
 		<key name="error_0032">The '#!variable!switch!#' switch is missing.</key>
 		<key name="error_0033">The job UUID was passed via '--job-uuid' but the passed in value: [#!variable!uuid!#] is not a valid UUID.</key>

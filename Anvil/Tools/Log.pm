@@ -278,7 +278,7 @@ sub entry
 	# Log the file and line, if passed.
 	my $string       = "";
 	my $print_string = "";
-	if ($anvil->data->{sys}{log_date})
+	if ($anvil->data->{sys}{'log'}{date})
 	{
 		# Keep the debug level super high to avoid Get->date_and_time() going into an infinite loop.
 		$string .= $anvil->Get->date_and_time({debug => 99}).":";
@@ -317,7 +317,7 @@ sub entry
 	}
 	
 	# If the user set a log file, log to that. Otherwise, log via Log::Journald.
-	if ($anvil->data->{sys}{log_file})
+	if ($anvil->data->{path}{'log'}{main})
 	{
 		# TODO: Switch back to journald later, using a file for testing for now
 		if ($string !~ /\n$/)
@@ -326,10 +326,10 @@ sub entry
 		}
 		
 		# Open the file?
-		if (not $anvil->data->{HANDLE}{log_file})
+		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
 			# If the file doesn't start with a '/', we'll put it under /var/log.
-			my $log_file           = $anvil->data->{sys}{log_file} =~ /^\// ? $anvil->data->{sys}{log_file} : "/var/log/".$anvil->data->{sys}{log_file};
+			my $log_file           = $anvil->data->{path}{'log'}{main} =~ /^\// ? $anvil->data->{path}{'log'}{main} : "/var/log/".$anvil->data->{path}{'log'}{main};
 			my ($directory, $file) = ($log_file =~ /^(\/.*)\/(.*)$/);
 			
 			### WARNING: We MUST set the debug level really high, or else we'll go into a deep 
@@ -342,20 +342,20 @@ sub entry
 			# NOTE: Don't call '$anvil->Log->entry()' here, it will cause a loop!
 			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
 			$file_handle->autoflush(1);
-			$anvil->data->{HANDLE}{log_file} = $file_handle;
+			$anvil->data->{HANDLE}{'log'}{main} = $file_handle;
 			
 			# Make sure it can be written to by apache.
 			$anvil->Storage->change_mode({debug => $debug, target => $log_file, mode => "0666"});
 		}
 		
-		if (not $anvil->data->{HANDLE}{log_file})
+		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
 			# NOTE: This can't be a normal error because we can't write to the logs.
 			die $THIS_FILE." ".__LINE__."; log file handle doesn't exist, but it should by now.\n";
 		}
 		
 		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
-		print { $anvil->data->{HANDLE}{log_file} } $string;
+		print { $anvil->data->{HANDLE}{'log'}{main} } $string;
 	}
 	else
 	{
@@ -716,25 +716,31 @@ sub _adjust_log_level
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	### TODO: Support '--secure' and '--no-secure' 
 	if ($anvil->data->{switches}{V})
 	{
 		$anvil->Log->level({set => 0});
+		$anvil->data->{sys}{'log'}{level} = "-V";
 	}
 	elsif ($anvil->data->{switches}{v})
 	{
 		$anvil->Log->level({set => 1});
+		$anvil->data->{sys}{'log'}{level} = "-v";
 	}
 	elsif ($anvil->data->{switches}{vv})
 	{
 		$anvil->Log->level({set => 2});
+		$anvil->data->{sys}{'log'}{level} = "-vv";
 	}
 	elsif ($anvil->data->{switches}{vvv})
 	{
 		$anvil->Log->level({set => 3});
+		$anvil->data->{sys}{'log'}{level} = "-vvv";
 	}
 	elsif ($anvil->data->{switches}{vvvv})
 	{
 		$anvil->Log->level({set => 4});
+		$anvil->data->{sys}{'log'}{level} = "-vvvv";
 	}
 	
 	return(0);
