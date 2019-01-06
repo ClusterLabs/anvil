@@ -204,6 +204,23 @@ virt-manager stores information in dconf-editor -> /org/virt-manager/virt-manage
 
 ### Setup - Striker
 
+# el8 build dependencies
+dnf install ...
+
+# Build for el8
+drbd*
+fence-agents-all
+htop
+perl-HTML-FromText
+perl-HTML-Strip
+perl-Log-Journald
+perl-Net-Netmask
+perl-Net-SSH2
+perl-Proc-Simple
+perl-UUID-Tiny
+screen
+
+
 # Packages
 depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg rsync perl-Log-Journald perl-Net-SSH2 
 

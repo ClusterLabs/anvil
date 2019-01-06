@@ -606,9 +606,6 @@ AND
 	}
 	else
 	{
-		### TODO: left off here. First check fails and the user is logged out.
-		#die;
-		
 		# The user's cookie is invalid, log the user out.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
 		$anvil->Account->logout();

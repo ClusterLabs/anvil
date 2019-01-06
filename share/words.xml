@@ -541,6 +541,7 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		</key>
 		<key name="log_0251">Reading the scan agent: [#!variable!agent_name!#]'s words file: [#!variable!file!#].</key>
 		<key name="log_0252">Running the scan agent: [#!variable!agent_name!#] with a timeout of: [#!variable!timeout!#] seconds now...</key>
+		<key name="log_0253">The database user is not 'admin'. Changing table and function ownerships to: [#!variable!database_user!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

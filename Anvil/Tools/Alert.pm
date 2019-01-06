@@ -347,6 +347,8 @@ In brief; alert messages are sorted in this order;
 2. c<< alert_level >>
 3. C<< timestamp >>
 
+NOTE: All C<< sort_position >> values are automatically zero-padded (ie: C<< 12 >> -> C<< 0012 >>) to ensure accurate sorting. If you plan to use values greater than C<< 9999 >>, be sure to manually zero-pad your numbers. (Or, better, find a way to make shorter alerts... ).
+
 NOTE: The timestamp is generally set for a given program or agent run (set when connecting to the database), NOT by the real time of the database insert. For this reason, relying on the timestamp alone will not generally give the desired results, and why C<< sort_position >> exists.
 
 =head3 title (optional)
@@ -412,7 +414,9 @@ sub register
 	$sort_position = sprintf("%04d", $sort_position);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sort_position => $sort_position }});
 	
-	
+	# Before we actually record the alert, see if there are any recipients listening. For example, very
+	# rarely is anyone listening to alert level 4 (info), so skipping recording it saves unnecessary 
+	# growth of the history.alerts table.
 	
 	
 	

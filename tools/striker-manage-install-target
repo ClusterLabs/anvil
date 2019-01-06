@@ -965,6 +965,8 @@ sub update_install_source
 					$last_stdout_line = $this_stdout_line;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_stdout_line => $last_stdout_line }});
 					
+					### TODO: This isn't good enough. If a package is missing, for 
+					###       example, the group will be skipped silently.
 					if ($line =~ /^Error: /)
 					{
 						$error_out .= $line."\n";
@@ -1050,10 +1052,21 @@ sub load_packages
 {
 	my ($anvil) = @_;
 	
-	### NOTE:
-	###  python3-rpm, rpm, rpm-build-libs, rpm-libs, rpm-plugin-selinux, rpm-sign-libs
+	# Read in any packages the user wants us to add.
+	$anvil->data->{packages}{users} = [];
+	if ((exists $anvil->data->{striker}{repo}{'extra-packages'}) && ($anvil->data->{striker}{repo}{'extra-packages'}))
+	{
+		foreach my $package (split/,/, $anvil->data->{striker}{repo}{'extra-packages'})
+		{
+			$package =~ s/^\s+//;
+			$package =~ s/\s+$//;
+			next if $package eq "";
+			push @{$anvil->data->{packages}{users}}, $package
+		}
+	}
 	
 	### TODO: These need to be sorted into groups by their first letter, and those groups need to go under Packages
+	### TODO: Update this for EL8
 	# This is the list of packages we need to download.
 	$anvil->data->{packages} = {
 		a	=>	[

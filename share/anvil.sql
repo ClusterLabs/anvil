@@ -47,7 +47,7 @@ CREATE TABLE hosts (
     host_type        text                        not null,            -- Either 'node' or 'dashboard'.
     modified_date    timestamp with time zone    not null
 );
-ALTER TABLE hosts OWNER TO #!variable!user!#;
+ALTER TABLE hosts OWNER TO admin;
 
 CREATE TABLE history.hosts (
     history_id       bigserial,
@@ -56,7 +56,7 @@ CREATE TABLE history.hosts (
     host_type        text                        not null,
     modified_date    timestamp with time zone    not null
 );
-ALTER TABLE history.hosts OWNER TO #!variable!user!#;
+ALTER TABLE history.hosts OWNER TO admin;
 
 CREATE FUNCTION history_hosts() RETURNS trigger
 AS $$
@@ -78,7 +78,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_hosts() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_hosts() OWNER TO admin;
 
 CREATE TRIGGER trigger_hosts
     AFTER INSERT OR UPDATE ON hosts
@@ -100,7 +100,7 @@ CREATE TABLE users (
     user_is_trusted        integer                     not null    default 0,      -- If 1, user is allowed to do things that would cause interruptions, like force-reset and gracefully stop servers, withdraw nodes, and stop the Anvil! entirely.
     modified_date          timestamp with time zone    not null
 );
-ALTER TABLE users OWNER TO #!variable!user!#;
+ALTER TABLE users OWNER TO admin;
 
 CREATE TABLE history.users (
     history_id             bigserial,
@@ -116,7 +116,7 @@ CREATE TABLE history.users (
     user_is_trusted        integer,
     modified_date          timestamp with time zone    not null
 );
-ALTER TABLE history.users OWNER TO #!variable!user!#;
+ALTER TABLE history.users OWNER TO admin;
 
 CREATE FUNCTION history_users() RETURNS trigger
 AS $$
@@ -152,7 +152,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_users() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_users() OWNER TO admin;
 
 CREATE TRIGGER trigger_users
     AFTER INSERT OR UPDATE ON users
@@ -167,7 +167,7 @@ CREATE TABLE host_variable (
     host_variable_value        text                        not null,
     modified_date              timestamp with time zone    not null
 );
-ALTER TABLE host_variable OWNER TO #!variable!user!#;
+ALTER TABLE host_variable OWNER TO admin;
 
 CREATE TABLE history.host_variable (
     history_id                 bigserial,
@@ -177,7 +177,7 @@ CREATE TABLE history.host_variable (
     host_variable_value        text,
     modified_date              timestamp with time zone    not null
 );
-ALTER TABLE history.host_variable OWNER TO #!variable!user!#;
+ALTER TABLE history.host_variable OWNER TO admin;
 
 CREATE FUNCTION history_host_variable() RETURNS trigger
 AS $$
@@ -201,7 +201,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_host_variable() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_host_variable() OWNER TO admin;
 
 CREATE TRIGGER trigger_host_variable
     AFTER INSERT OR UPDATE ON host_variable
@@ -220,7 +220,7 @@ CREATE TABLE sessions (
     FOREIGN KEY(session_host_uuid) REFERENCES hosts(host_uuid), 
     FOREIGN KEY(session_user_uuid) REFERENCES users(user_uuid) 
 );
-ALTER TABLE sessions OWNER TO #!variable!user!#;
+ALTER TABLE sessions OWNER TO admin;
 
 CREATE TABLE history.sessions (
     history_id            bigserial, 
@@ -231,7 +231,7 @@ CREATE TABLE history.sessions (
     session_user_agent    text, 
     modified_date         timestamp with time zone    not null
 );
-ALTER TABLE history.sessions OWNER TO #!variable!user!#;
+ALTER TABLE history.sessions OWNER TO admin;
 
 CREATE FUNCTION history_sessions() RETURNS trigger
 AS $$
@@ -257,12 +257,11 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_sessions() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_sessions() OWNER TO admin;
 
 CREATE TRIGGER trigger_sessions
     AFTER INSERT OR UPDATE ON sessions
     FOR EACH ROW EXECUTE PROCEDURE history_sessions();
-
 
 -- This stores alerts coming in from various sources
 CREATE TABLE alerts (
@@ -278,7 +277,7 @@ CREATE TABLE alerts (
     
     FOREIGN KEY(alert_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE alerts OWNER TO #!variable!user!#;
+ALTER TABLE alerts OWNER TO admin;
 
 CREATE TABLE history.alerts (
     history_id             bigserial,
@@ -292,7 +291,7 @@ CREATE TABLE history.alerts (
     alert_show_header      integer,
     modified_date          timestamp with time zone    not null
 );
-ALTER TABLE history.alerts OWNER TO #!variable!user!#;
+ALTER TABLE history.alerts OWNER TO admin;
 
 CREATE FUNCTION history_alerts() RETURNS trigger
 AS $$
@@ -306,9 +305,7 @@ BEGIN
          alert_set_by,
          alert_level,
          alert_title,
-         alert_title_variables,
          alert_message,
-         alert_message_variables,
          alert_sort_position, 
          alert_show_header, 
          modified_date)
@@ -326,13 +323,14 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_alerts() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_alerts() OWNER TO admin;
 
 CREATE TRIGGER trigger_alerts
     AFTER INSERT OR UPDATE ON alerts
     FOR EACH ROW EXECUTE PROCEDURE history_alerts();
 
     
+-- NOTE: This doesn't store the user's level, as it might be unique per Anvil!.
 -- This is the list of alert recipients.
 CREATE TABLE recipients (
     recipient_uuid         uuid                        not null    primary key,
@@ -344,14 +342,18 @@ CREATE TABLE recipients (
     
     FOREIGN KEY(recipient_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE recipients OWNER TO #!variable!user!#;
+ALTER TABLE recipients OWNER TO admin;
 
 CREATE TABLE history.recipients (
     history_id             bigserial,
-    recipient_uuid             uuid,
+    recipient_uuid         uuid,
+    recipient_name         text,
+    recipient_email        text,
+    recipient_language     text,
+    recipient_new_level    integer,
     modified_date          timestamp with time zone    not null
 );
-ALTER TABLE history.recipients OWNER TO #!variable!user!#;
+ALTER TABLE history.recipients OWNER TO admin;
 
 CREATE FUNCTION history_recipients() RETURNS trigger
 AS $$
@@ -361,30 +363,192 @@ BEGIN
     SELECT INTO history_recipients * FROM recipients WHERE recipient_uuid = new.recipient_uuid;
     INSERT INTO history.recipients
         (recipient_uuid,
+         recipient_name,
+         recipient_email,
+         recipient_language,
+         recipient_new_level,
          modified_date)
     VALUES
         (history_recipients.recipient_uuid,
+         history_recipients.recipient_name,
+         history_recipients.recipient_email,
+         history_recipients.recipient_language,
+         history_recipients.recipient_new_level,
          history_recipients.modified_date);
     RETURN NULL;
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_recipients() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_recipients() OWNER TO admin;
 
 CREATE TRIGGER trigger_recipients
     AFTER INSERT OR UPDATE ON recipients
     FOR EACH ROW EXECUTE PROCEDURE history_recipients();
+
+
+-- This creates links between recipients and Anvil! systems, with a request alert level, so that we can 
+-- decide who gets what alerts for a given Anvil! system
+CREATE TABLE notifications (
+    notification_uuid              uuid                        not null    primary key,
+    notification_recipient_uuid    uuid                        not null,                    -- The recipient we're linking.
+    notification_anvil_uuid        uuid                        not null,                    -- The Anvil! system we're linking.
+    notification_alert_level       integer                     not null,                    -- This is the alert level (at or above) that this user wants alerts from.
+    modified_date                  timestamp with time zone    not null,
     
+    FOREIGN KEY(notification_anvil_uuid) REFERENCES anvils(anvil_uuid),
+    FOREIGN KEY(notification_recipient_uuid) REFERENCES recipients(recipient_uuid)
+);
+ALTER TABLE notifications OWNER TO admin;
+
+CREATE TABLE history.notifications (
+    history_id                     bigserial,
+    notification_uuid              uuid,
+    notification_recipient_uuid    uuid,
+    notification_anvil_uuid        uuid,
+    notification_alert_level       integer,
+    modified_date                  timestamp with time zone    not null
+);
+ALTER TABLE history.notifications OWNER TO admin;
+
+CREATE FUNCTION history_notifications() RETURNS trigger
+AS $$
+DECLARE
+    history_notifications RECORD;
+BEGIN
+    SELECT INTO history_notifications * FROM notifications WHERE notification_uuid = new.notification_uuid;
+    INSERT INTO history.notifications
+        (notification_uuid, 
+         notification_recipient_uuid, 
+         notification_anvil_uuid, 
+         notification_alert_level, 
+         modified_date)
+    VALUES
+        (history_notifications.notification_uuid,
+         history_notifications.notification_recipient_uuid, 
+         history_notifications.notification_anvil_uuid, 
+         history_notifications.notification_alert_level, 
+         history_notifications.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_notifications() OWNER TO admin;
+
+CREATE TRIGGER trigger_notifications
+    AFTER INSERT OR UPDATE ON notifications
+    FOR EACH ROW EXECUTE PROCEDURE history_notifications();
+
+
+-- This creates a list of mail servers that are available for use by hosts. This information is used to 
+-- configure postfix on the host.
+CREATE TABLE mail_servers (
+    mail_server_uuid              uuid                        not null    primary key,
+    mail_server_address           text                        not null,                   -- example; mail.example.com
+    mail_server_port              integer                     not null,                   -- The TCP port used to connect to the server.
+    mail_server_username          text                        not null,                   -- This is the user name (usually email address) used when authenticating against the mail server.
+    mail_server_password          text,                                                   -- This is the password used when authenticating against the mail server
+    mail_server_security          text                        not null,                   -- This is the security type used when authenticating against the mail server (STARTTLS, TLS/SSL or NONE)
+    mail_server_authentication    text                        not null,                   -- 'None', 'Plain Text', 'Encrypted'.
+    mail_server_helo_domain       text                        not null,                   -- The domain we identify to the mail server as being from. The default is to use the domain name of the host.
+    modified_date                 timestamp with time zone    not null,
+);
+ALTER TABLE mail_servers OWNER TO admin;
+
+CREATE TABLE history.mail_servers (
+    history_id                    bigserial,
+    mail_server_uuid              uuid,
+    mail_server_address           text,
+    mail_server_port              integer,
+    mail_server_username          text,
+    mail_server_password          text,
+    mail_server_security          text,
+    mail_server_authentication    text,
+    mail_server_helo_domain       text,
+    modified_date                 timestamp with time zone    not null
+);
+ALTER TABLE history.mail_servers OWNER TO admin;
+
+CREATE FUNCTION history_mail_servers() RETURNS trigger
+AS $$
+DECLARE
+    history_mail_servers RECORD;
+BEGIN
+    SELECT INTO history_mail_servers * FROM mail_servers WHERE mail_server_uuid = new.mail_server_uuid;
+    INSERT INTO history.mail_servers
+        (mail_server_uuid, 
+         mail_server_recipient_uuid, 
+         mail_server_anvil_uuid, 
+         mail_server_alert_level, 
+         modified_date)
+    VALUES
+        (history_mail_servers.mail_server_uuid,
+         history_mail_servers.mail_server_recipient_uuid, 
+         history_mail_servers.mail_server_anvil_uuid, 
+         history_mail_servers.mail_server_alert_level, 
+         history_mail_servers.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_mail_servers() OWNER TO admin;
+
+CREATE TRIGGER trigger_mail_servers
+    AFTER INSERT OR UPDATE ON mail_servers
+    FOR EACH ROW EXECUTE PROCEDURE history_mail_servers();
+
+
+-- NOTE: If multiple entries for the same host have the same order, the host name will be used to sort for 
+--       priority purposes.
+-- This creates links between hosts and mail servers to use for alerts.
+CREATE TABLE host_mail_servers (
+    host_mail_server_uuid                uuid                        not null    primary key,
+    host_mail_server_host_uuid           uuid                        not null,                    -- The host we're configuring
+    host_mail_server_mail_server_uuid    uuid                        not null,                    -- The mail server to use
+    host_mail_server_order               integer                     not null,                    -- The priority of this mail server.
+    modified_date                        timestamp with time zone    not null,
     
+    FOREIGN KEY(host_mail_server_host_uuid) REFERENCES hosts(host_uuid),
+    FOREIGN KEY(host_mail_server_mail_server_uuid) REFERENCES mail_server(mail_server_uuid)
+);
+ALTER TABLE host_mail_servers OWNER TO admin;
 
--- TODO: We need to create;
--- Recipients  (email, we're not supporting files anymore); Name, Address, Units, Language, default watch level
---             - Display as a list; Strikers, then Anvil!s; each anvil being node 1, node 2 and DR if available)
--- Watching    (recipient, host, level) -> Link Recipient to hosts
--- Mail Server (server details)
--- Host Mail   (Host uses which mail server, in what order)
+CREATE TABLE history.host_mail_servers (
+    history_id                           bigserial,
+    host_mail_server_uuid                uuid,
+    host_mail_server_host_uuid           uuid,
+    host_mail_server_mail_server_uuid    uuid,
+    host_mail_server_order               integer,
+    modified_date                        timestamp with time zone    not null
+);
+ALTER TABLE history.host_mail_servers OWNER TO admin;
 
+CREATE FUNCTION history_host_mail_servers() RETURNS trigger
+AS $$
+DECLARE
+    history_host_mail_servers RECORD;
+BEGIN
+    SELECT INTO history_host_mail_servers * FROM host_mail_servers WHERE host_mail_server_uuid = new.host_mail_server_uuid;
+    INSERT INTO history.host_mail_servers
+        (host_mail_server_uuid, 
+         host_mail_server_host_uuid,
+         host_mail_server_mail_server_uuid,
+         host_mail_server_order,
+         modified_date)
+    VALUES
+        (history_host_mail_servers.host_mail_server_uuid,
+         history_host_mail_servers.host_mail_server_host_uuid,
+         history_host_mail_servers.host_mail_server_mail_server_uuid,
+         history_host_mail_servers.host_mail_server_order,
+         history_host_mail_servers.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_host_mail_servers() OWNER TO admin;
 
+CREATE TRIGGER trigger_host_mail_servers
+    AFTER INSERT OR UPDATE ON host_mail_servers
+    FOR EACH ROW EXECUTE PROCEDURE history_host_mail_servers();
 
 
 -- This holds user-configurable variable. These values override defaults but NOT configuration files.
@@ -399,7 +563,7 @@ CREATE TABLE variables (
     variable_source_table    text                        not null,                   -- Optional; Marks the database table corresponding to the 'variable_source_uuid' value.
     modified_date            timestamp with time zone    not null 
 );
-ALTER TABLE variables OWNER TO #!variable!user!#;
+ALTER TABLE variables OWNER TO admin;
 
 CREATE TABLE history.variables (
     history_id               bigserial,
@@ -413,7 +577,7 @@ CREATE TABLE history.variables (
     variable_source_table    text,
     modified_date            timestamp with time zone    not null 
 );
-ALTER TABLE history.variables OWNER TO #!variable!user!#;
+ALTER TABLE history.variables OWNER TO admin;
 
 CREATE FUNCTION history_variables() RETURNS trigger
 AS $$
@@ -445,7 +609,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_variables() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_variables() OWNER TO admin;
 
 CREATE TRIGGER trigger_variables
     AFTER INSERT OR UPDATE ON variables
@@ -470,7 +634,7 @@ CREATE TABLE jobs (
     
     FOREIGN KEY(job_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE jobs OWNER TO #!variable!user!#;
+ALTER TABLE jobs OWNER TO admin;
 
 CREATE TABLE history.jobs (
     history_id         bigserial,
@@ -488,7 +652,7 @@ CREATE TABLE history.jobs (
     job_status         text,
     modified_date      timestamp with time zone    not null 
 );
-ALTER TABLE history.jobs OWNER TO #!variable!user!#;
+ALTER TABLE history.jobs OWNER TO admin;
 
 CREATE FUNCTION history_jobs() RETURNS trigger
 AS $$
@@ -528,7 +692,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_jobs() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_jobs() OWNER TO admin;
 
 CREATE TRIGGER trigger_jobs
     AFTER INSERT OR UPDATE ON jobs
@@ -554,7 +718,7 @@ CREATE TABLE network_interfaces (
     network_interface_bridge_uuid    uuid,                                                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
     modified_date                    timestamp with time zone    not null
 );
-ALTER TABLE network_interfaces OWNER TO #!variable!user!#;
+ALTER TABLE network_interfaces OWNER TO admin;
 
 CREATE TABLE history.network_interfaces (
     history_id                       bigserial,
@@ -572,7 +736,7 @@ CREATE TABLE history.network_interfaces (
     network_interface_bridge_uuid    uuid,
     modified_date                    timestamp with time zone    not null
 );
-ALTER TABLE history.network_interfaces OWNER TO #!variable!user!#;
+ALTER TABLE history.network_interfaces OWNER TO admin;
 
 CREATE FUNCTION history_network_interfaces() RETURNS trigger
 AS $$
@@ -612,7 +776,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_network_interfaces() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_network_interfaces() OWNER TO admin;
 
 CREATE TRIGGER trigger_network_interfaces
     AFTER INSERT OR UPDATE ON network_interfaces
@@ -638,7 +802,7 @@ CREATE TABLE bonds (
     
     FOREIGN KEY(bond_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE bonds OWNER TO #!variable!user!#;
+ALTER TABLE bonds OWNER TO admin;
 
 CREATE TABLE history.bonds (
     history_id                   bigserial,
@@ -657,7 +821,7 @@ CREATE TABLE history.bonds (
     bond_operational             text,
     modified_date                timestamp with time zone    not null
 );
-ALTER TABLE history.bonds OWNER TO #!variable!user!#;
+ALTER TABLE history.bonds OWNER TO admin;
 
 CREATE FUNCTION history_bonds() RETURNS trigger
 AS $$
@@ -699,7 +863,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_bonds() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_bonds() OWNER TO admin;
 
 CREATE TRIGGER trigger_bonds
     AFTER INSERT OR UPDATE ON bonds
@@ -717,7 +881,7 @@ CREATE TABLE bridges (
     
     FOREIGN KEY(bridge_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE bridges OWNER TO #!variable!user!#;
+ALTER TABLE bridges OWNER TO admin;
 
 CREATE TABLE history.bridges (
     history_id            bigserial,
@@ -728,7 +892,7 @@ CREATE TABLE history.bridges (
     bridge_stp_enabled    text,
     modified_date         timestamp with time zone    not null
 );
-ALTER TABLE history.bridges OWNER TO #!variable!user!#;
+ALTER TABLE history.bridges OWNER TO admin;
 
 CREATE FUNCTION history_bridges() RETURNS trigger
 AS $$
@@ -756,7 +920,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_bridges() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_bridges() OWNER TO admin;
 
 CREATE TRIGGER trigger_bridges
     AFTER INSERT OR UPDATE ON bridges
@@ -778,7 +942,7 @@ CREATE TABLE ip_addresses (
     
     FOREIGN KEY(ip_address_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE ip_addresses OWNER TO #!variable!user!#;
+ALTER TABLE ip_addresses OWNER TO admin;
 
 CREATE TABLE history.ip_addresses (
     history_id                    bigserial,
@@ -793,7 +957,7 @@ CREATE TABLE history.ip_addresses (
     ip_address_dns                text,
     modified_date                 timestamp with time zone    not null
 );
-ALTER TABLE history.ip_addresses OWNER TO #!variable!user!#;
+ALTER TABLE history.ip_addresses OWNER TO admin;
 
 CREATE FUNCTION history_ip_addresses() RETURNS trigger
 AS $$
@@ -827,7 +991,7 @@ BEGIN
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_ip_addresses() OWNER TO #!variable!user!#;
+ALTER FUNCTION history_ip_addresses() OWNER TO admin;
 
 CREATE TRIGGER trigger_ip_addresses
     AFTER INSERT OR UPDATE ON ip_addresses
@@ -848,7 +1012,7 @@ CREATE TABLE updated (
     
     FOREIGN KEY(updated_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE updated OWNER TO #!variable!user!#;
+ALTER TABLE updated OWNER TO admin;
 
 
 -- To avoid "waffling" when a sensor is close to an alert (or cleared) threshold, a gap between the alarm 
@@ -865,7 +1029,7 @@ CREATE TABLE alert_sent (
     
     FOREIGN KEY(alert_sent_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE updated OWNER TO #!variable!user!#;
+ALTER TABLE updated OWNER TO admin;
 
 
 -- This stores state information, like the whether migrations are happening and so on.
@@ -878,4 +1042,4 @@ CREATE TABLE states (
     
     FOREIGN KEY(state_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE states OWNER TO #!variable!user!#;
+ALTER TABLE states OWNER TO admin;

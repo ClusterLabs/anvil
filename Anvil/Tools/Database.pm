@@ -1094,7 +1094,7 @@ sub connect
 				}});
 				
 				# These are warning level alerts.
-				$anvil->Alert->register_alert({
+				$anvil->Alert->register({
 					debug                   => $debug, 
 					alert_level             => "warning", 
 					alert_set_by            => $THIS_FILE,
@@ -1141,7 +1141,7 @@ sub connect
 			});
 			if ($cleared)
 			{
-				$anvil->Alert->register_alert({
+				$anvil->Alert->register({
 					debug             => $debug, 
 					level             => "warning", 
 					agent_name        => "Anvil!",
@@ -1577,10 +1577,26 @@ sub initialize
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
 	
 	my $sql = $anvil->Storage->read_file({file => $sql_file});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> sql" => $sql }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sql => $sql }});
 	
-	$sql =~ s/#!variable!user!#/$user/sg;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sql" => $sql }});
+	# In the off chance that the database user isn't 'admin', update the SQL file.
+	if ($user ne "admin")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0253", variables => { database_user => $user }});
+		my $new_file = "";
+		foreach my $line (split/\n/, $sql)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /OWNER TO admin;/)
+			{
+				$line =~ s/ admin;/ $user;/;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< line" => $line }});
+			}
+			$new_file .= $line."\n";
+		}
+		$sql = $new_file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< sql" => $sql }});
+	}
 	
 	# Now that I am ready, disable autocommit, write and commit.
 	$anvil->Database->write({
