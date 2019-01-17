@@ -263,6 +263,56 @@ CREATE TRIGGER trigger_sessions
     AFTER INSERT OR UPDATE ON sessions
     FOR EACH ROW EXECUTE PROCEDURE history_sessions();
 
+
+-- This stores information about Anvil! systems. 
+CREATE TABLE anvils (
+    anvil_uuid           uuid                        not null    primary key, 
+    anvil_name           text                        not null,
+    anvil_description    text                        not null,                -- This is a short, one-line (usually) description of this particular Anvil!. It is displayed in the Anvil! selection list.
+    anvil_password       text                        not null,                -- This is the 'ricci' or 'hacluster' user password. It is also used to access nodes that don't have a specific password set.
+    modified_date        timestamp with time zone    not null
+);
+ALTER TABLE anvils OWNER TO admin;
+
+CREATE TABLE history.anvils (
+    history_id           bigserial,
+    anvil_uuid           uuid,
+    anvil_name           text,
+    anvil_description    text,
+    anvil_password       text,
+    modified_date        timestamp with time zone    not null 
+);
+ALTER TABLE history.anvils OWNER TO admin;
+
+CREATE FUNCTION history_anvils() RETURNS trigger
+AS $$
+DECLARE
+    history_anvils RECORD;
+BEGIN
+    SELECT INTO history_anvils * FROM anvils WHERE anvil_uuid = new.anvil_uuid;
+    INSERT INTO history.anvils
+        (anvil_uuid, 
+         anvil_name, 
+         anvil_description, 
+         anvil_password, 
+         modified_date)
+    VALUES
+        (history_anvils.anvil_uuid, 
+         history_anvils.anvil_name, 
+         history_anvils.anvil_description, 
+         history_anvils.anvil_password, 
+         history_anvils.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_anvils() OWNER TO admin;
+
+CREATE TRIGGER trigger_anvils
+    AFTER INSERT OR UPDATE ON anvils
+    FOR EACH ROW EXECUTE PROCEDURE history_anvils();
+
+
 -- This stores alerts coming in from various sources
 CREATE TABLE alerts (
     alert_uuid             uuid                        not null    primary key,
@@ -338,9 +388,7 @@ CREATE TABLE recipients (
     recipient_email        text                        not null,                    -- This is the recipient's email address or the file name, depending.
     recipient_language     text,                                                    -- If set, this is the language the user wants to receive alerts in. If not set, the default language is used.
     recipient_new_level    integer                     not null,                    -- This is the alert level to use when automatically adding watch links to new systems. '0' tells us to ignore new systems.
-    modified_date          timestamp with time zone    not null,
-    
-    FOREIGN KEY(recipient_host_uuid) REFERENCES hosts(host_uuid)
+    modified_date          timestamp with time zone    not null
 );
 ALTER TABLE recipients OWNER TO admin;
 
@@ -395,7 +443,7 @@ CREATE TABLE notifications (
     notification_alert_level       integer                     not null,                    -- This is the alert level (at or above) that this user wants alerts from.
     modified_date                  timestamp with time zone    not null,
     
-    FOREIGN KEY(notification_anvil_uuid) REFERENCES anvils(anvil_uuid),
+    FOREIGN KEY(notification_anvil_uuid)     REFERENCES anvils(anvil_uuid),
     FOREIGN KEY(notification_recipient_uuid) REFERENCES recipients(recipient_uuid)
 );
 ALTER TABLE notifications OWNER TO admin;
@@ -450,7 +498,7 @@ CREATE TABLE mail_servers (
     mail_server_security          text                        not null,                   -- This is the security type used when authenticating against the mail server (STARTTLS, TLS/SSL or NONE)
     mail_server_authentication    text                        not null,                   -- 'None', 'Plain Text', 'Encrypted'.
     mail_server_helo_domain       text                        not null,                   -- The domain we identify to the mail server as being from. The default is to use the domain name of the host.
-    modified_date                 timestamp with time zone    not null,
+    modified_date                 timestamp with time zone    not null
 );
 ALTER TABLE mail_servers OWNER TO admin;
 
@@ -507,8 +555,8 @@ CREATE TABLE host_mail_servers (
     host_mail_server_order               integer                     not null,                    -- The priority of this mail server.
     modified_date                        timestamp with time zone    not null,
     
-    FOREIGN KEY(host_mail_server_host_uuid) REFERENCES hosts(host_uuid),
-    FOREIGN KEY(host_mail_server_mail_server_uuid) REFERENCES mail_server(mail_server_uuid)
+    FOREIGN KEY(host_mail_server_host_uuid)        REFERENCES hosts(host_uuid),
+    FOREIGN KEY(host_mail_server_mail_server_uuid) REFERENCES mail_servers(mail_server_uuid)
 );
 ALTER TABLE host_mail_servers OWNER TO admin;
 

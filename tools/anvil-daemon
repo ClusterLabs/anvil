@@ -15,7 +15,30 @@
 #   idea or not.
 # 
 # NOTE:
-# - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the power button. Might be useful in ScanCore down the road.
+# - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the 
+#   power button. Might be useful in ScanCore down the road.
+# 
+# Switches:
+# 
+# --main-loop-only 
+# 
+#   This skips the one-time, start-up tasks and just goes into the main-loop,
+# 
+# --no-start
+# 
+#   This will prevent any pending jobs from being picked up and started in this run. Note that other job checks will still happen.
+# 
+# --refresh-jason 
+#   
+#   This just updates the JSON files used by the web interface. It is the same as '--run-once --main-loop-only --no-start'
+#   
+# --run-once
+# 
+#   This will tell the program to exit after runn the main loop once.
+# 
+# --startup-only
+# 
+#   This will tell the program to exit after running the start up tasks, so the main loop won't run.
 # 
 
 use strict;
