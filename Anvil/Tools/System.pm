@@ -494,6 +494,8 @@ sub check_if_configured
 		modified_date => $modified_date, 
 	}});
 	
+	$configured = 0 if not defined $configured;
+	$configured = 0 if $configured eq "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
 	return($configured);
 }

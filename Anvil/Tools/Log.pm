@@ -251,7 +251,8 @@ sub entry
 	$anvil->data->{loop}{count} = 0 if not defined $anvil->data->{loop}{count};
 	$anvil->data->{loop}{count}++;
 	print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [".$level."], defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."], loop::count: [".$anvil->data->{loop}{count}."]\n" if $test;
-	if ($anvil->data->{loop}{count} > 1000)
+	# The counter needs to be longer than any conceivable file line count we might read.
+	if ($anvil->data->{loop}{count} > 500000)
 	{
 		if ($anvil->environment eq "html")
 		{

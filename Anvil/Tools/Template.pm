@@ -121,6 +121,7 @@ sub get
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
 	
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language({debug => $debug});

@@ -13,6 +13,7 @@ use warnings;
 use Anvil::Tools;
 use Data::Dumper;
 use NetAddr::IP;
+use CGI::Carp "fatalsToBrowser";
 
 # Turn off buffering
 $| = 1;
@@ -24,16 +25,11 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
 
 ### NOTE: We'll print the headers only when we need to. If we print them here, it will block cookies being set.
-
-# Set the log level to 2. Setting 3 slows he program down a LOT.
-
-# Read the config and then connect to the database.
-$anvil->Storage->read_config();
-
-### Setup some variables.
+# Setup some variables.
 $anvil->data->{skin}{url}           = $anvil->data->{path}{urls}{skins}."/".$anvil->Template->skin;
 $anvil->data->{form}{body}          = "";
 $anvil->data->{form}{error_massage} = "";
@@ -65,10 +61,10 @@ if (not $anvil->data->{sys}{database}{connections})
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $configured = $anvil->System->check_if_configured;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 
 my $available = $configured ? check_availability($anvil) : 0;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {available => $available }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {available => $available }});
 if (not $configured)
 {
 	# If there is no user account yet, then the system is new and needs to be reconfigured.
