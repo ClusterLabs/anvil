@@ -167,8 +167,8 @@ sub new
 	$anvil->Validate->parent($anvil);
 	
 	# Set some system paths and system default variables
-	$anvil->_set_paths();
 	$anvil->_set_defaults();
+	$anvil->_set_paths();
 	
 	# Record the start time.
 	$anvil->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;

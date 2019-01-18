@@ -230,6 +230,10 @@ sub entry
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
+	
+	# If we're called before $anvil->_set_defaults, this will be undefined.
+	$anvil->data->{defaults}{'log'}{level} = 1 if not defined $anvil->data->{defaults}{'log'}{level};
 	
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Log->language;
@@ -244,7 +248,45 @@ sub entry
 	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
 	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $anvil->data->{defaults}{'log'}{tag};
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
-	#print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [$level], defaults::log::level: [".$anvil->Log->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."]\n";
+	$anvil->data->{loop}{count} = 0 if not defined $anvil->data->{loop}{count};
+	$anvil->data->{loop}{count}++;
+	print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [".$level."], defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."], loop::count: [".$anvil->data->{loop}{count}."]\n" if $test;
+	if ($anvil->data->{loop}{count} > 1000)
+	{
+		if ($anvil->environment eq "html")
+		{
+			### NOTE: Don't use the template, it could be part of the infinite loop problem.
+			print "Content-type: text/html; charset=utf-8\n\n";
+			print "<pre>\n";
+		}
+		print $THIS_FILE." ".__LINE__."; Infinite loop detected trying to log:\n";
+		print $THIS_FILE." ".__LINE__."; - key: ..... [".$key."]:\n";
+		print $THIS_FILE." ".__LINE__."; - language:  [".$language."]:\n";
+		print $THIS_FILE." ".__LINE__."; - level: ... [".$level."]:\n";
+		print $THIS_FILE." ".__LINE__."; - line: .... [".$line."]:\n";
+		print $THIS_FILE." ".__LINE__."; - print: ... [".$print."]:\n";
+		print $THIS_FILE." ".__LINE__."; - priority:  [".$priority."]:\n";
+		print $THIS_FILE." ".__LINE__."; - raw: ..... [".$raw."]:\n";
+		print $THIS_FILE." ".__LINE__."; - secure: .. [".$secure."]:\n";
+		print $THIS_FILE." ".__LINE__."; - server: .. [".$server."]:\n";
+		print $THIS_FILE." ".__LINE__."; - source: .. [".$source."]:\n";
+		print $THIS_FILE." ".__LINE__."; - tag: ..... [".$tag."]:\n";
+		print $THIS_FILE." ".__LINE__."; - variables: [".$variables."]:\n";
+		if (ref($variables) eq "HASH")
+		{
+			print $THIS_FILE." ".__LINE__."; - variable hash dump:\n";
+			print $THIS_FILE." ".__LINE__."; =====================\n";
+			use Data::Dumper;
+			print Dumper $variables;
+			print $THIS_FILE." ".__LINE__."; =====================\n";
+		}
+		# Don't use nice_exit, it might be part of the problem.
+		if ($anvil->environment eq "html")
+		{
+			print "</pre>\n";
+		}
+		exit (1);
+	}
 	
 	# Exit immediately if this isn't going to be logged
 	if ($level > $anvil->Log->level)
@@ -274,6 +316,7 @@ sub entry
 	{
 		$priority_string .= ".debug";
 	}
+	print $THIS_FILE." ".__LINE__."; priority string: [".$priority_string."]\n" if $test;
 	
 	# Log the file and line, if passed.
 	my $string       = "";
@@ -282,70 +325,88 @@ sub entry
 	{
 		# Keep the debug level super high to avoid Get->date_and_time() going into an infinite loop.
 		$string .= $anvil->Get->date_and_time({debug => 99}).":";
+		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
 	if (($source) && ($line))
 	{
 		$string .= "$source:$line; ";
+		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
 	elsif ($source)
 	{
 		$string .= "$source; ";
+		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
 	elsif ($line)
 	{
 		$string .= "$line; ";
+		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
 	
 	# If I have a raw string, do no more processing.
+	print $THIS_FILE." ".__LINE__."; raw: [".$raw."], key: [".$key."]\n" if $test;
 	if ($raw)
 	{
 		$string       .= $raw;
 		$print_string .= $raw;
+		print $THIS_FILE." ".__LINE__."; string: ..... [".$string."]\n" if $test;
+		print $THIS_FILE." ".__LINE__."; print_string: [".$print_string."]\n" if $test;
 	}
 	elsif ($key)
 	{
 		# Build the string from the key/variables.
+		print $THIS_FILE." ".__LINE__."; debug: [".$debug."], language: [".$language."], key: [".$key."], variables: [".$variables."]\n" if $test;
 		my $message .= $anvil->Words->string({
+			test      => $test,
 			debug     => $debug, 
 			language  => $language,
 			key       => $key,
 			variables => $variables,
 		});
-		#print $THIS_FILE." ".__LINE__."; [ Debug ] - message: [$message]\n";
+		print $THIS_FILE." ".__LINE__."; [ Debug ] - message: [$message]\n" if $test;
+		
 		$string       .= $message;
 		$print_string .= $message;
+		print $THIS_FILE." ".__LINE__."; string: ..... [".$string."]\n" if $test;
+		print $THIS_FILE." ".__LINE__."; print_string: [".$print_string."]\n" if $test;
 	}
 	
 	# If the user set a log file, log to that. Otherwise, log via Log::Journald.
+	print $THIS_FILE." ".__LINE__."; path::log::main: [".$anvil->data->{path}{'log'}{main}."]\n" if $test;
 	if ($anvil->data->{path}{'log'}{main})
 	{
 		# TODO: Switch back to journald later, using a file for testing for now
 		if ($string !~ /\n$/)
 		{
 			$string .= "\n";
+			print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 		}
 		
 		# Open the file?
+		print $THIS_FILE." ".__LINE__."; HANDLE::log::main: [".$anvil->data->{HANDLE}{'log'}{main}."]\n" if $test;
 		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
 			# If the file doesn't start with a '/', we'll put it under /var/log.
 			my $log_file           = $anvil->data->{path}{'log'}{main} =~ /^\// ? $anvil->data->{path}{'log'}{main} : "/var/log/".$anvil->data->{path}{'log'}{main};
 			my ($directory, $file) = ($log_file =~ /^(\/.*)\/(.*)$/);
+			print $THIS_FILE." ".__LINE__."; log_file: [".$log_file."]. directory: [".$directory."], file: [".$file."]\n" if $test;
 			
 			### WARNING: We MUST set the debug level really high, or else we'll go into a deep 
 			###          recursion!
 			# Make sure the log directory exists.
-			$anvil->Storage->make_directory({debug => 99, directory => $directory, mode => 755});
+			$anvil->Storage->make_directory({test => $test, debug => 99, directory => $directory, mode => 755});
 			
 			# Now open the log
 			my $shell_call = $log_file;
+			print $THIS_FILE." ".__LINE__."; shell_call: [".$shell_call."]\n" if $test;
 			# NOTE: Don't call '$anvil->Log->entry()' here, it will cause a loop!
 			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
 			$file_handle->autoflush(1);
 			$anvil->data->{HANDLE}{'log'}{main} = $file_handle;
+			print $THIS_FILE." ".__LINE__."; HANDLE::log::main: [".$anvil->data->{HANDLE}{'log'}{main}."]\n" if $test;
 			
 			# Make sure it can be written to by apache.
-			$anvil->Storage->change_mode({debug => $debug, target => $log_file, mode => "0666"});
+			$anvil->Storage->change_mode({test => $test, debug => $debug, target => $log_file, mode => "0666"});
 		}
 		
 		if (not $anvil->data->{HANDLE}{'log'}{main})
@@ -356,6 +417,7 @@ sub entry
 		
 		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
 		print { $anvil->data->{HANDLE}{'log'}{main} } $string;
+		$anvil->data->{loop}{count} = 0;		
 	}
 	else
 	{
@@ -572,6 +634,7 @@ sub variables
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
 	
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->data->{defaults}{'log'}{language};
 	my $level     = defined $parameter->{level}     ? $parameter->{level}     : 2;
@@ -585,6 +648,8 @@ sub variables
 	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $anvil->data->{defaults}{'log'}{tag};
 	
 	# Exit immediately if this isn't going to be logged
+	print $THIS_FILE." ".__LINE__."; debug: [".$debug."], level: [".$level."], Log->level: [".$anvil->Log->level."]\n" if $test;
+	die if $test;
 	if (not defined $level)
 	{
 		die $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] defined from: [$source : $line]\n";
@@ -598,6 +663,7 @@ sub variables
 	{
 		return(1);
 	}
+	print $THIS_FILE." ".__LINE__."; secure: [".$secure."], Log->secure: [".$anvil->Log->secure."]\n" if $test;
 	if (($secure) && (not $anvil->Log->secure))
 	{
 		return(2);
@@ -606,15 +672,18 @@ sub variables
 	# If I don't have a list, or the list is empty, return.
 	my $entry   = 1;
 	my $entries = keys %{$list};
+	print $THIS_FILE." ".__LINE__."; entries: [".$entries."]\n" if $test;
 	if ($entries)
 	{
 		# If the key points to an undefined value, convert it to '!!undef!!' so that we don't scare
 		# the user with 'undefined variable' warnings.
 		foreach my $key (sort {$a cmp $b} keys %{$list})
 		{
+			print $THIS_FILE." ".__LINE__."; key: [".$key."]\n" if $test;
 			if (not defined $list->{$key})
 			{
 				$list->{$key} = "!!undef!!";
+				print $THIS_FILE." ".__LINE__."; list->{$key}: [".$list->{$key}."]\n" if $test;
 			}
 		}
 		my $raw = "";
@@ -624,12 +693,15 @@ sub variables
 			# Put all the entries on one line.
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
+				print $THIS_FILE." ".__LINE__."; key: [".$key."]\n" if $test;
 				# Strip a leading 'sX:' in case the user is sorting the output.
 				my $say_key =  $key;
 				   $say_key =~ s/^s(\d+)://;
 				$raw .= "$say_key: [".$list->{$key}."], ";
+				print $THIS_FILE." ".__LINE__."; raw: [".$raw."]\n" if $test;
 			}
 			$raw =~ s/, $//;
+			print $THIS_FILE." ".__LINE__."; raw: [".$raw."]\n" if $test;
 		}
 		else
 		{
@@ -639,22 +711,28 @@ sub variables
 			my $length = 0;
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
+				print $THIS_FILE." ".__LINE__."; key: [".$key."]\n" if $test;
 				if (length($key) > $length)
 				{
 					$length = length($key);
+					print $THIS_FILE." ".__LINE__."; length: [".$length."]\n" if $test;
 				}
 			}
 			# We add '1' to account for the colon we append.
 			$length++;
+			print $THIS_FILE." ".__LINE__."; length: [".$length."]\n" if $test;
 			
 			$raw .= $anvil->Words->string({key => "log_0019"})."\n";
+			print $THIS_FILE." ".__LINE__."; raw: [".$raw."]\n" if $test;
 			foreach my $key (sort {$a cmp $b} keys %{$list})
 			{
+				print $THIS_FILE." ".__LINE__."; key: [".$key."]\n" if $test;
 				# Strip a leading 'sX:' in case the user is sorting the output.
 				my $say_key =  $key;
 				   $say_key =~ s/^s(\d+)://;
 				   $say_key .= ":";
 				my $difference = $length - length($say_key);
+				print $THIS_FILE." ".__LINE__."; say_key: [".$say_key."], difference: [".$difference."]\n" if $test;
 				if ($difference)
 				{
 					$say_key .= " ";
@@ -663,20 +741,26 @@ sub variables
 						$say_key .= ".";
 					}
 				}
+				
+				print $THIS_FILE." ".__LINE__."; entry: [".$entry."], entries: [".$entries."]\n" if $test;
 				if ($entry ne $entries)
 				{
 					$raw .= "|- $say_key [".$list->{$key}."]\n";
+					print $THIS_FILE." ".__LINE__."; raw: [".$raw."]\n" if $test;
 				}
 				else
 				{
 					$raw .= "\\- $say_key [".$list->{$key}."]\n";
+					print $THIS_FILE." ".__LINE__."; raw: [".$raw."]\n" if $test;
 				}
 				$entry++;
+				print $THIS_FILE." ".__LINE__."; entry: [".$entry."]\n" if $test;
 			}
 		}
 		
 		# Do the raw log entry.
 		$anvil->Log->entry({
+			test     => $test, 
 			language => $language,
 			level    => $level,
 			line     => $line,

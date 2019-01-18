@@ -39,9 +39,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 1, log_secure => 1});
-
-$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+my $anvil = Anvil::Tools->new();
 
 # If the user has disabled auto-management of the firewall, exit.
 if (not $anvil->data->{sys}{manage}{firewall})

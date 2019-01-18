@@ -915,6 +915,7 @@ sub make_directory
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
 	
 	my $directory   = defined $parameter->{directory}   ? $parameter->{directory}   : "";
 	my $group       = defined $parameter->{group}       ? $parameter->{group}       : getgrgid($();
@@ -925,7 +926,9 @@ sub make_directory
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $user        = defined $parameter->{user}        ? $parameter->{user}        : getpwuid($<);
 	my $failed      = 0;
+	print $THIS_FILE." ".__LINE__."; debug: [".$debug."], directory: [".$directory."], target: [".$target."]\n" if $test;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		test        => $test,
 		directory   => $directory,
 		group       => $group, 
 		mode        => $mode,
@@ -939,6 +942,7 @@ sub make_directory
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
+	print $THIS_FILE." ".__LINE__."; user: [".$user."], group: [".$group."]\n" if $test;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		group     => $group, 
 		user      => $user,
@@ -951,6 +955,7 @@ sub make_directory
 		next if not $this_directory;
 		$working_directory .= "/$this_directory";
 		$working_directory =~ s/\/\//\//g;
+		print $THIS_FILE." ".__LINE__."; working_directory: [".$working_directory."]\n" if $test;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { working_directory => $working_directory }});
 		
 		# Are we working locally or remotely?
@@ -1021,6 +1026,7 @@ fi;";
 				# Directory doesn't exist, so create it.
 				my $error      = "";
 				my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." ".$working_directory;
+				print $THIS_FILE." ".__LINE__."; shell_call: [".$shell_call."]\n" if $test;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
 				open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 				while(<$file_handle>)
@@ -1032,10 +1038,12 @@ fi;";
 				}
 				close $file_handle;
 				
+				print $THIS_FILE." ".__LINE__."; mode: [".$mode."]\n" if $test;
 				if ($mode)
 				{
 					$anvil->Storage->change_mode({debug => $debug, target => $working_directory, mode => $mode});
 				}
+				print $THIS_FILE." ".__LINE__."; user: [".$user."], group: [".$group."]\n" if $test;
 				if (($user) or ($group))
 				{
 					$anvil->Storage->change_owner({debug => $debug, target => $working_directory, user => $user, group => $group});
@@ -1044,6 +1052,7 @@ fi;";
 				if (not -e $working_directory)
 				{
 					$failed = 1;
+					print $THIS_FILE." ".__LINE__."; failed: [".$failed."]\n" if $test;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0168", variables => { 
 						directory   => $working_directory, 
 						error       => $error,
@@ -1051,9 +1060,11 @@ fi;";
 				}
 			}
 		}
+		print $THIS_FILE." ".__LINE__."; failed: [".$failed."]\n" if $test;
 		last if $failed;
 	}
 	
+	print $THIS_FILE." ".__LINE__."; failed: [".$failed."]\n" if $test;
 	return($failed);
 }
 

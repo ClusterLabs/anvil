@@ -44,16 +44,16 @@ $$;
 CREATE TABLE hosts (
     host_uuid        uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     host_name        text                        not null,
-    host_type        text                        not null,            -- Either 'node' or 'dashboard'.
+    host_type        text,                                                   -- Either 'node' or 'dashboard' or 'dr_host'. It is left empty until the host is configured.
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE hosts OWNER TO admin;
 
 CREATE TABLE history.hosts (
     history_id       bigserial,
-    host_uuid        uuid                        not null,
-    host_name        text                        not null,
-    host_type        text                        not null,
+    host_uuid        uuid,
+    host_name        text,
+    host_type        text,
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE history.hosts OWNER TO admin;
@@ -83,6 +83,57 @@ ALTER FUNCTION history_hosts() OWNER TO admin;
 CREATE TRIGGER trigger_hosts
     AFTER INSERT OR UPDATE ON hosts
     FOR EACH ROW EXECUTE PROCEDURE history_hosts();
+
+
+-- This stores the SSH _public_ keys for a given user on a host. 
+CREATE TABLE host_keys (
+    host_key_uuid          uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    host_key_host_uuid     uuid                        not null,
+    host_key_user_name     text                        not null,                   -- This is the user name on the system, not a web interface user.
+    host_key_public_key    text                        not null,                   -- Either 'node' or 'dashboard'.
+    modified_date          timestamp with time zone    not null, 
+    
+    FOREIGN KEY(host_key_host_uuid) REFERENCES hosts(host_uuid), 
+);
+ALTER TABLE host_keys OWNER TO admin;
+
+CREATE TABLE history.host_keys (
+    history_id             bigserial,
+    host_key_uuid          uuid,
+    host_key_host_uuid     uuid,
+    host_key_user_name     text,
+    host_key_public_key    text,
+    modified_date          timestamp with time zone    not null
+);
+ALTER TABLE history.host_keys OWNER TO admin;
+
+CREATE FUNCTION history_host_keys() RETURNS trigger
+AS $$
+DECLARE
+    history_host_keys RECORD;
+BEGIN
+    SELECT INTO history_host_keys * FROM host_keys WHERE host_key_uuid = new.host_key_uuid;
+    INSERT INTO history.host_keys
+        (host_key_uuid,
+         host_key_host_uuid, 
+         host_key_user_name, 
+         host_key_public_key, 
+         modified_date)
+    VALUES
+        (history_host_keys.host_key_uuid,
+         history_host_keys.host_key_host_uuid, 
+         history_host_keys.host_key_user_name, 
+         history_host_keys.host_key_public_key, 
+         history_host_keys.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_host_keys() OWNER TO admin;
+
+CREATE TRIGGER trigger_host_keys
+    AFTER INSERT OR UPDATE ON host_keys
+    FOR EACH ROW EXECUTE PROCEDURE history_host_keys();
 
 
 -- This stores information about users. 

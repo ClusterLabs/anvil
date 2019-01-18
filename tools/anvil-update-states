@@ -18,13 +18,10 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
-
-$anvil->Storage->read_config({file => "/etc/anvil/anvil.conf"});
+my $anvil = Anvil::Tools->new();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect;
-
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
@@ -84,9 +81,22 @@ sub update_network
 			my $mtu         = -e $full_path."/mtu"       ? $anvil->Storage->read_file({file => $full_path."/mtu"})       : 0;
 			my $duplex      = -e $full_path."/duplex"    ? $anvil->Storage->read_file({file => $full_path."/duplex"})    : "unknown";	# full or half?
 			my $operational = -e $full_path."/operstate" ? $anvil->Storage->read_file({file => $full_path."/operstate"}) : "unknown";	# up or down
-			my $speed       = $link_state ? $anvil->Storage->read_file({debug => 3, file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
 			my $media       = "unknown";
 			my $type        = "interface";
+			
+			# Clean up some newlines.
+			$mac_address =~ s/\n$//;
+			$link_state  =~ s/\n$//;
+			$mtu         =~ s/\n$//;
+			$duplex      =~ s/\n$//;
+			$operational =~ s/\n$//;
+			$speed       =~ s/\n$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				interface   => $interface, 
+				speed       => $speed, 
+				mac_address => $mac_address,
+			}});
 			
 			# These are variables that will be needed if this is a bond interface.
 			my $ip_address           = "";
@@ -104,7 +114,7 @@ sub update_network
 			{
 				$ip_address  = $anvil->data->{sys}{network}{interface}{$interface}{ip}     ? $anvil->data->{sys}{network}{interface}{$interface}{ip}     : "";
 				$subnet_mask = $anvil->data->{sys}{network}{interface}{$interface}{subnet} ? $anvil->data->{sys}{network}{interface}{$interface}{subnet} : "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					ip_address  => $ip_address, 
 					subnet_mask => $subnet_mask,
 				}});
@@ -117,7 +127,7 @@ sub update_network
 			{
 				# It's a slave.
 				$mac_address = $anvil->Storage->read_file({file => $mac_bond_file});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac_address => $mac_address }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
 			}
 			
 			# If this is a virtual interface, set some fake values that don't actually exist on 
@@ -128,7 +138,7 @@ sub update_network
 				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
 				$speed  = 100000 if ((not $speed) or ($speed eq "-1"));
 				$duplex = "full" if not $duplex;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					speed  => $speed, 
 					duplex => $duplex,
 				}});
@@ -137,7 +147,7 @@ sub update_network
 			if (not $link_state)
 			{
 				$speed = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { speed => $speed }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed => $speed }});
 			}
 			
 			# Is this a bond interface?
@@ -157,7 +167,7 @@ sub update_network
 				$mii_polling_interval =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/miimon"});
 				$up_delay             =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/updelay"});
 				$down_delay           =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/downdelay"});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					active_slave         => $active_slave, 
 					bond_mode            => $bond_mode, 
 					mii_polling_interval => $mii_polling_interval, 
@@ -171,13 +181,13 @@ sub update_network
 				# No, but it's slaved to one.
 				my $target      = readlink($full_path."/master");
 				   $bond_master = ($target =~ /^.*\/(.*)$/)[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					target      => $target,
 					bond_master => $bond_master, 
 				}});
 			}
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				active_slave         => $active_slave, 
 				bond_master          => $bond_master, 
 				bond_mode            => $bond_mode, 

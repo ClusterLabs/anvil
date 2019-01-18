@@ -171,6 +171,7 @@ sub key
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
 	
 	# Setup default values
 	my $key      = defined $parameter->{key}      ? $parameter->{key}      : "";
@@ -178,16 +179,17 @@ sub key
 	my $file     = defined $parameter->{file}     ? $parameter->{file}     : "";
 	my $string   = "#!not_found!#";
 	my $error    = 0;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, raw => "[ Debug ] - key: [$key], language: [$language], file: [$file]"});
+	### NOTE: Don't call Log->entry or Log->variable in here, it'll cause a recursive loop! Use 'test' when needed
+	print $THIS_FILE." ".__LINE__."; [ Debug ] - key: [$key], language: [$language], file: [$file]\n" if $test;
 
 	if (not $key)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Anvil::Tools::Words->key()' called without a key name to read."});
+		print $THIS_FILE." ".__LINE__."; [ Error ] - Anvil::Tools::Words->key()' called without a key name to read.\n" if $test;
 		$error = 1;
 	}
 	if (not $language)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Anvil::Tools::Words->key()' called without a language, and 'defaults::languages::output' is not set."});
+		print $THIS_FILE." ".__LINE__."; [ Error ] - Anvil::Tools::Words->key()' called without a language, and 'defaults::languages::output' is not set.\n" if $test;
 		$error = 2;
 	}
 	
@@ -195,13 +197,13 @@ sub key
 	{
 		foreach my $this_file (sort {$a cmp $b} keys %{$anvil->data->{words}})
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, raw => "[ Debug ] - this_file: [$this_file], file: [$file]"});
+			print $THIS_FILE." ".__LINE__."; [ Debug ] - this_file: [$this_file], file: [$file]\n" if $test;
 			# If they've specified a file and this doesn't match, skip it.
 			next if (($file) && ($this_file !~ /$file$/));
 			if (exists $anvil->data->{words}{$this_file}{language}{$language}{key}{$key}{content})
 			{
 				$string = $anvil->data->{words}{$this_file}{language}{$language}{key}{$key}{content};
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, raw => "[ Debug ] - string: [$string]"});
+				print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n" if $test;
 				last;
 			}
 		}
@@ -209,10 +211,10 @@ sub key
 	
 	if ($string eq "#!not_found!")
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => "[ Error ] - Failed to find the string key: [".$key."]!!"});
+		print $THIS_FILE." ".__LINE__."; [ Error ] - Failed to find the string key: [".$key."]!!\n" if $test;
 	}
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, raw => "[ Debug ] - string: [$string]"});
+	print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n" if $test;
 	return($string);
 }
 
@@ -515,6 +517,7 @@ sub string
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
 	
 	# Setup default values
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
@@ -522,7 +525,8 @@ sub string
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : $anvil->data->{path}{words}{'words.xml'};
 	my $string    = defined $parameter->{string}    ? $parameter->{string}    : "";
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, raw => "[ Debug ] - key: [$key], language: [$language], file: [$file], string: [$string], variables: [$variables]"});
+	### NOTE: Don't call Log->entry here, or we'll get a recursive loop! Use 'test' to debug.
+	print $THIS_FILE." ".__LINE__."; key: [".$key."], language: [$language], file: [$file], string: [$string], variables: [$variables]\n" if $test;
 	
 	# If we weren't passed a raw string, we'll get the string from our ->key() method, then inject any 
 	# variables, if needed. This also handles the initial sanity checks. If we get back '#!not_found!#',
@@ -530,13 +534,16 @@ sub string
 	if (not $string)
 	{
 		$string = $anvil->Words->key({
+			test     => $test, 
+			debug    => $debug,
 			key      => $key,
 			language => $language,
 			file     => $file,
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, raw => "[ Debug ] - string: [$string]"});
+		print $THIS_FILE." ".__LINE__."; [ Debug ] - string: [$string]\n" if $test;
 	}
 	
+	print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	if (($string ne "#!not_found!#") && ($string =~ /#!([^\s]+?)!#/))
 	{
 		# We've got a string and variables from the caller, so inject them as needed.
@@ -555,7 +562,7 @@ sub string
 				$loops++;
 				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0042", variables => { string => $string }});
+			print $THIS_FILE." ".__LINE__."; [ Error ] - The method Words->string() was asked to process the string: [".$string."] which has insertion variables, but nothing was passed to the 'variables' parameter.\n" if $test;
 			return("#!error!#");
 		}
 		
