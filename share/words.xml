@@ -239,7 +239,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0132">Storage Network ##!variable!number!# - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
 		<key name="message_0133">Internet/Intranet-Facing Network ##!variable!number!# - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</key>
 		<key name="message_0134">Updating / configuring the firewall.</key>
-		<key name="message_0135">Found an unneeded zone: [#!variable!zone!#], it will be removed.</key>
+		<key name="message_0135">#!free!#</key>
 		<key name="message_0136">The zone: [#!variable!zone!#] file: [#!variable!file!#] needs to be updated.</key>
 		<key name="message_0137">The zone: [#!variable!zone!#] file: [#!variable!file!#] doesn't exist, it will now be created.</key>
 		<key name="message_0138">The interface: [#!variable!interface!#] will be added to the zone: [#!variable!zone!#].</key>
@@ -527,7 +527,7 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0239">'Install Target' job: [#!data!switches::job-uuid!#] picked up.</key>
 		<key name="log_0240">'Install Target' job: [#!data!switches::job-uuid!#] aborted, system not yet configured.</key>
 		<key name="log_0241">Package list loaded.</key>
-		<key name="log_0242">The firewall zone: [#!variable!zone!#] is not needed. The zone file: [#!variable!file!#] has been backed up to: [#!variable!backup!#] and will now be removed.</key>
+		<key name="log_0242">#!free!#</key>
 		<key name="log_0243">[ Error ] - Failed to delete the file: [#!variable!file!#].</key>
 		<key name="log_0244">[ Warning ] - None of the databases are accessible. ScanCore will try to connect once a minute until a database is accessible.</key>
 		<key name="log_0245">[ Cleared ] - We now have databases accessible, proceeding.</key>

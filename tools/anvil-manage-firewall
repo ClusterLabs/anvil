@@ -83,17 +83,17 @@ sub check_initial_setup
 	my $internet_zone = "";
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface => $interface }});
 		if ($interface =~ /^((bcn|ifn|sn)\d+)_/)
 		{
 			# We'll use the start of the string (network type) as the zone, though it should 
 			# always be overridden by the ZONE="" variable in each interface's config.
 			my $zone = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zone => $zone }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { zone => $zone }});
 			if ((exists $anvil->data->{sys}{network}{interface}{$interface}{variable}{ZONE}) && ($anvil->data->{sys}{network}{interface}{$interface}{variable}{ZONE}))
 			{
 				$zone = $anvil->data->{sys}{network}{interface}{$interface}{variable}{ZONE};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { zone => $zone }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { zone => $zone }});
 			}
 			push @{$needed_zones}, $zone;
 			
@@ -119,56 +119,31 @@ sub check_initial_setup
 	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}})
 	{
 		my $file = exists $anvil->data->{firewall}{zone}{$zone}{file} ? $anvil->data->{firewall}{zone}{$zone}{file} : $anvil->data->{path}{directories}{firewalld_zones}."/".$zone.".xml";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"s1:zone" => $zone,
 			"s2:file" => $file, 
 		}});
 		
 		### NOTE: This is probably overkill.
-# 		# Is this a zone I want/need?
-# 		my $wanted = 0;
-# 		foreach my $needed_zone (sort {$a cmp $b} @{$needed_zones})
-# 		{
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-# 				"s1:zone"        => $zone,
-# 				"s2:needed_zone" => $needed_zone,
-# 			}});
-# 			if ($needed_zone eq $zone)
-# 			{
-# 				$wanted = 1;
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { wanted => $wanted }});
-# 				last;
-# 			}
-# 		}
-# 		
-# 		# Remove the file if needed, and then skip this zone if we don't care about it.
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wanted => $wanted }});
-# 		if (not $wanted)
-# 		{
-# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0135", variables => { zone => $zone }});
-# 			if (-e $file)
-# 			{
-# 				# Archive and delete it.
-# 				my $backup_file = $anvil->Storage->backup({file  => $file });
-# 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "log_0242", variables => { 
-# 					zone   => $zone, 
-# 					file   => $file, 
-# 					backup => $backup_file,
-# 				}});
-# 				unlink $file;
-# 				
-# 				if (-e $file)
-# 				{
-# 					# Failed to unlink the unneeed zone file.
-# 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0243", variables => { file => $file }});
-# 					$anvil->nice_exit({exit_code => 1});
-# 				}
-# 			}
-# 			delete $anvil->data->{firewall}{zone}{$zone};
-# 			
-# 			reload_firewall($anvil);
-# 			next;
-# 		}
+		# Is this a zone I want/need?
+		my $wanted = 0;
+		foreach my $needed_zone (sort {$a cmp $b} @{$needed_zones})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"s1:zone"        => $zone,
+				"s2:needed_zone" => $needed_zone,
+			}});
+			if ($needed_zone eq $zone)
+			{
+				$wanted = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { wanted => $wanted }});
+				last;
+			}
+		}
+		
+		# Skip if this is a zone I don't care about.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { wanted => $wanted }});
+		next if not $wanted;
 		
 		# Create or update the zone file, if needed.
 		my $template    = "";
@@ -191,7 +166,12 @@ sub check_initial_setup
 			   $template    = "ifn_zone";
 			   $description = $anvil->Words->string({key => "message_0133", variables => { number => $number }});
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		else
+		{
+			# This should never be hit, but it's a fail-safe in we're in a zone we don't manage.
+			next;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"s1:template"    => $template,
 			"s2:description" => $description, 
 		}});
@@ -202,6 +182,12 @@ sub check_initial_setup
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_zone_body => $new_zone_body }});
 		
+		# This is another fail safe, don't edit unless we have a new file body.
+		if (not $new_zone_body)
+		{
+			next;
+		}
+		
 		# If there isn't a body, see if the file exists. If it doesn't, create it. If it does, read it.
 		my $update_file   = 0;
 		my $old_zone_body = exists $anvil->data->{firewall}{zone}{$zone}{body} ? $anvil->data->{firewall}{zone}{$zone}{body} : "";
@@ -210,13 +196,13 @@ sub check_initial_setup
 		{
 			# Has it changed?
 			my $diff = diff \$old_zone_body, \$new_zone_body, { STYLE => 'Unified' };
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { diff => $diff }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { diff => $diff }});
 			if ($diff)
 			{
 				# Update it
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0136", variables => { zone => $zone, file => $file }});
 				$update_file = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_file => $update_file }});
 			}
 		}
 		else
@@ -224,10 +210,10 @@ sub check_initial_setup
 			# Create it
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0137", variables => { zone => $zone, file => $file }});
 			$update_file = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_file => $update_file }});
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_file => $update_file }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_file => $update_file }});
 		if ($update_file)
 		{
 			my $error = $anvil->Storage->write_file({
@@ -238,7 +224,7 @@ sub check_initial_setup
 				mode      => "0644",
 				overwrite => 1,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error => $error }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { error => $error }});
 			
 			if ($error)
 			{
@@ -253,13 +239,13 @@ sub check_initial_setup
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}{$zone}{interface}})
 		{
 			my $in_zone = exists $anvil->data->{firewall}{interface}{$interface}{zone} ? $anvil->data->{firewall}{interface}{$interface}{zone} : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:interface" => $interface,
 				"s2:in_zone"   => $in_zone, 
 				"s3:zone"      => $zone, 
 			}});
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_zone => $in_zone, zone => $zone }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { in_zone => $in_zone, zone => $zone }});
 			if ((not $in_zone) or ($zone ne $in_zone))
 			{
 				# Add it
@@ -269,7 +255,7 @@ sub check_initial_setup
 				}});
 				
 				my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 				
 				reload_firewall($anvil);
 			}
