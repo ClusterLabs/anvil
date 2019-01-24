@@ -6,6 +6,7 @@
 <zone>
   <short>#!variable!zone!#</short>
   <description>#!variable!description!#</description>
+  <service name="cockpit"/>
   <service name="http"/>
   <service name="https"/>
   <service name="postgresql"/>
@@ -19,6 +20,7 @@
 <zone>
   <short>#!variable!zone!#</short>
   <description>#!variable!description!#</description>
+  <service name="cockpit"/>
   <service name="http"/>
   <service name="https"/>
   <service name="postgresql"/>

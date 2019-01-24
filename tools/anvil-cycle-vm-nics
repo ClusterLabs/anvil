@@ -172,9 +172,10 @@ sub get_nic_list
 		my $line = $_;
 		print __LINE__."; [ Debug ] - line: [".$line."]\n" if $debug >= 2;
 		
-		if ($line =~ /<interface type='network'>/)
+		if (($line =~ /<interface type='network'>/) or ($line =~ /<interface type='bridge'>/))
 		{
 			$in_interface = 1;
+			print __LINE__."; [ Debug ] - in_interface: [".$in_interface."]\n" if $debug >= 2;
 		}
 		
 		if ($in_interface)

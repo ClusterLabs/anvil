@@ -1278,6 +1278,7 @@ sub maintenance_mode
 }
 
 ### TODO: Move and document.
+### NOTE: This only works if the firewall is enabled.
 sub check_firewall
 {
 	my $self      = shift;
@@ -1286,56 +1287,99 @@ sub check_firewall
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->manage_firewall()" }});
 	
-	# Set some values.
-	$anvil->data->{firewall}{default_zone} = "";
-		
-	# Checking the iptables rules in memory is very fast, relative to firewall-cmd. So we'll do an 
-	# initial check there to see if the port in question is listed.
-	my $shell_call = $anvil->data->{path}{exe}{'iptables-save'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	# Show live or permanent rules? Permanent is default 
+	my $permanent = defined $parameter->{permanent} ? $parameter->{permanent} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { permanent => $permanent }});
 	
-	### NOTE: We parse apart iptables-save instead of making frewall-cmd calls as this is a lot faster, 
-	###       if not ideal. May want to revisit how we do this later.
-	$anvil->data->{firewall}{default_zone} = "";
-	my $iptables = $anvil->System->call({shell_call => $shell_call});
-	foreach my $line (split/\n/, $iptables)
+	# Read in /etc/firewalld/firewalld.conf and parse the 'DefaultZone' variable.
+	my $firewall_conf = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'firewalld.conf'}});
+	foreach my $line (split/\n/, $firewall_conf)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		
-		if ($line =~ /-A INPUT_ZONES -g IN_(.*)$/)
+		if ($line =~ /^DefaultZone=(.*?)$/)
 		{
 			$anvil->data->{firewall}{default_zone} = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
+			last;
 		}
-		if ($line =~ /^:PRE_(\w+) -/)
+	}
+	$anvil->data->{firewall}{default_zone} = "" if not defined $anvil->data->{firewall}{default_zone};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
+	
+	### NOTE: 'iptables-save' doesn't seem to show the loaded firewall in RHEL8. Slower or not, we seem 
+	###       to have to use 'firewall-cmd'
+	my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --list-all-zones";
+	if (not $permanent)
+	{
+		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --list-all-zones";
+	}
+	$anvil->data->{firewall}{default_zone} = "";
+	my $zone          = "";
+	my $active_state  = "";
+	my $firewall_data = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	foreach my $line (split/\n/, $firewall_data)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:zone' => $zone,
+			's2:line' => $line,
+		}});
+		
+		if ($line =~ /^(\w.*)$/)
 		{
-			my $zone = $1;
-			next if $zone =~ /_log$/;
-			next if $zone =~ /_allow$/;
-			next if $zone =~ /_deny$/;
+			$zone         = $1;
+			$active_state = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { zone => $zone }});
+			if ($line =~ /^(\w+) \((.*?)\)/)
+			{
+				$zone         = $1;
+				$active_state = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					zone         => $zone, 
+					active_state => $active_state 
+				}});
+			}
 			$anvil->data->{firewall}{zone}{$zone}{file} = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::zone::${zone}::found" => $anvil->data->{firewall}{zone}{$zone}{file} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::zone::${zone}::file" => $anvil->data->{firewall}{zone}{$zone}{file} }});
 		}
-		if ($line =~ /-A INPUT_ZONES -i (\S+) -g IN_(.*)$/)
+		elsif ($zone)
 		{
-			my $interface = $1;
-			my $zone      = $2;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				interface => $interface,
-				zone      => $zone,
-			}});
-			
-			$anvil->data->{firewall}{interface}{$interface}{zone} = $zone;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"firewall::interface::${interface}::zone" => $anvil->data->{firewall}{interface}{$interface}{zone},
-			}});
-		}
-		if ($line =~ /-A INPUT_ZONES -g IN_(.*)$/)
-		{
-			$anvil->data->{firewall}{default_zone} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"firewall::default_zone" => $anvil->data->{firewall}{default_zone},
-			}});
+			if ((not $line) or ($line =~ /^\s+$/))
+			{
+				# Done reading this zone, record.
+				my $interfaces = defined $anvil->data->{firewall}{zone}{$zone}{variable}{interfaces} ? $anvil->data->{firewall}{zone}{$zone}{variable}{interfaces} : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					zone       => $zone,
+					interfaces => $interfaces, 
+				}});
+				foreach my $interface (split/ /, $interfaces)
+				{
+					$anvil->data->{firewall}{interface}{$interface}{zone} = $zone;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"firewall::interface::${interface}::zone" => $anvil->data->{firewall}{interface}{$interface}{zone},
+					}});
+				}
+				
+				$zone         = "";
+				$active_state = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					zone         => $zone, 
+					active_state => $active_state, 
+				}});
+			}
+			elsif (($active_state) && ($line =~ /(\S.*?):(.*)$/))
+			{
+				my $variable =  $1;
+				my $value    =  $2;
+				   $variable =~ s/^\s+//;
+				   $variable =~ s/\s+$//;
+				   $value    =~ s/^\s+//;
+				   $value    =~ s/\s+$//;
+				$anvil->data->{firewall}{zone}{$zone}{variable}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:line"                                           => $line,
+					"s2:firewall::zone::${zone}::variable::${variable}" => $anvil->data->{firewall}{zone}{$zone}{variable}{$variable}, 
+				}});
+			}
 		}
 	}
 	

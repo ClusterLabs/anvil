@@ -870,29 +870,29 @@ sub _set_defaults
 			password	=>	"Initial1",
 			timezone	=>	"Etc/GMT --isUtc",
 		},
-		## Network stuff... The second octet auto-increments to handle N-number of netowrks. As such,
-		##                  we need to use a wider spread between the BCNs, SNs and IFNs than we had
-		##                  in v2.
+		# See 'striker' -> 'sub generate_ip()' function comments for details on how m3 IPs are handled.
 		network		=>	{
-			# BCN starts at 10.(0+n)/16
+			# BCN starts at 10.200(+n)/16
 			bcn		=>	{
-				subnet		=> "10.0.0.0",
-				netmask		=> "255.255.0.0",
-				pdu_octet3	=> "1",
-				ups_octet3	=> "2",
-				switch_octet3 	=> "3",
-				striker_octet3	=> "4",
+				subnet              => "10.200.0.0",
+				netmask             => "255.255.0.0",
+				switch_octet3       => "1",
+				pdu_octet3          => "2",
+				ups_octet3          => "3",
+				striker_octet3	    => "4",
+				striker_ipmi_octet3 => "5",
 			},
 			dns		=>	"8.8.8.8, 8.8.4.4",
-			# IFN starts at 10.(80+)/16
+			# The IFN will not be under our control. So for suggestion to the user purpose only, 
+			# IFN starts at 10.255/16
 			ifn		=>	{
-				subnet		=>	"10.100.0.0",
+				subnet		=>	"10.255.0.0",
 				netmask		=>	"255.255.0.0",
 				striker_octet3	=> "4",
 			},
-			# SN starts at 10.(40+n)/16
+			# SN starts at 10.100(+n)/16
 			sn		=>	{
-				subnet		=>	"10.50.0.0",
+				subnet		=>	"10.100.0.0",
 				netmask		=>	"255.255.0.0",
 			},
 		},
@@ -940,7 +940,8 @@ sub _set_paths
 				backups				=>	"/root/anvil-backups",
 				'cgi-bin'			=>	"/var/www/cgi-bin",
 				firewalld_services		=>	"/usr/lib/firewalld/services",
-				firewalld_zones			=>	"/etc/firewalld/zones",
+				#firewalld_zones		=>	"/etc/firewalld/zones",
+				firewalld_zones			=>	"/usr/lib/firewalld/zones",
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
 				scan_agents			=>	"/usr/sbin/scancore-agents",

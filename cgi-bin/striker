@@ -2676,6 +2676,43 @@ sub get_network_details_form
 	return($network);
 }
 
+=cut
+Network planning;
+
+ 10.x.y.z / 255.255.0.0
+ 10.x.y.z / 255.255.0.0
+
+x = Network;
+    - BCN = 200 + network
+            ie: BCN1 = 10.201.y.z
+                BCN2 = 10.202.y.z
+    -  SN = 100 + network
+            ie: SN1 = 10.101.y.z
+                SN2 = 10.102.y.z
+
+y = Device Type.
+    Foudation Pack;
+    1. Switches
+    2. PDUs
+    3. UPSes
+    4. Switches
+    5. Strikers
+    6. Striker IPMI (BCN only)
+    
+    Anvil! systems;
+    1st - 10 = Node IP
+          11 = Node IPMI
+    2nd - 12 = Node IP
+          13 = Node IPMI
+    3rd - 14 = Node IP
+          15 = Node IPMI
+    N...
+
+z = Device Sequence
+    - Foundation pack devices are simple sequence
+    - Anvils; .1 = node 1, .2 = node 2, .3 = DR host
+=cut
+
 # This is a rudimentary function for generating default Striker IPs.
 sub generate_ip
 {
@@ -2712,10 +2749,13 @@ sub generate_ip
 		if ($default_netmark eq "255.255.0.0")
 		{
 			# We can work with this.
-			$ip_octet2 += $network_sequence;
-			$ip_octet3 =  $anvil->data->{defaults}{network}{$network}{striker_octet3};
-			$ip_octet4 =  $device_sequence;
-			$ip        =  $ip_octet1.".".$ip_octet2.".".$ip_octet3.".".$ip_octet4;
+			if ($network ne "ifn")
+			{
+				$ip_octet2 += $network_sequence;
+			}
+			$ip_octet3 = $anvil->data->{defaults}{network}{$network}{striker_octet3};
+			$ip_octet4 = $device_sequence;
+			$ip        = $ip_octet1.".".$ip_octet2.".".$ip_octet3.".".$ip_octet4;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:ip_octet2" => $ip_octet2,
 				"s2:ip_octet3" => $ip_octet3,
