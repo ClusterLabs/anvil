@@ -678,41 +678,41 @@ menu label #!string!message_0084!#
 TEXT HELP
 #!string!message_0085!#
 ENDTEXT
-kernel fedora28/vmlinuz
+kernel rhel8/vmlinuz
 # NOTE: add ' rd.debug' below for debugging
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
+append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
 
 label node
 menu label #!string!message_0086!#
 TEXT HELP
 #!string!message_0087!#
 ENDTEXT
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.gpt inst.sshd
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.gpt inst.sshd
 
 label node
 menu label #!string!message_0088!#
 TEXT HELP
 #!string!message_0089!#
 ENDTEXT
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.gpt inst.sshd
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.gpt inst.sshd
 
 label rescue
 menu label #!string!message_0090!#
 TEXT HELP
 #!string!message_0091!#
 ENDTEXT
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img ip=dhcp root=live:#!variable!base_url!#/LiveOS/squashfs.img rescue inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.sshd
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img ip=dhcp root=live:#!variable!base_url!#/LiveOS/squashfs.img rescue inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.sshd
 
-label fedora
+label rhel8
 menu label #!string!message_0092!#
 TEXT HELP
 #!string!message_0093!#
 ENDTEXT
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:#!variable!base_url!#/images/install.img inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.gpt inst.sshd
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/images/install.img inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.gpt inst.sshd
 
 label next
 menu default

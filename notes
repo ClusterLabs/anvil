@@ -664,7 +664,7 @@ clearpart --none --initlabel
 # Use graphical install
 graphical
 # Use network installation
-url --url="http://10.1.4.1/fedora28/x86_64/iso/"
+url --url="http://10.1.4.1/rhel8/x86_64/iso/"
 # Keyboard layouts
 keyboard --vckeymap=us --xlayouts='us'
 # System language
@@ -1197,3 +1197,31 @@ diff -uNr htop-2.2.0 htop-2.2.0-digimer > whatever.patch
 
 # Fabio's way
 diff -Naurd htop-2.2.0 htop-2.2.0-digimer > htop_python3_MakeHeader.patch 
+
+=======================================
+
+chrissie's cluster script
+
+# Run these commands on all nodes:
+cp ../ifup-local /sbin
+/sbin/ifup-local
+pcs host auth -uhacluster -phacluster amy.chrissie.net anna.chrissie.net clara.chrissie.net fanny.chrissie.net
+
+if [ "$(hostname)" != "amy.chrissie.net" -a "$(hostname)" != "amy" ]
+then
+  exit
+fi
+
+# and these on just one:
+pcs cluster setup taroxVMs amy.chrissie.net anna.chrissie.net clara.chrissie.net fanny.chrissie.net 
+pcs cluster start --all
+sleep 30
+
+pcs stonith create fence-virsh fence_virsh ipaddr=192.168.100.1 login=root passwd=christine pcmk_host_map="amy:rhel8-1;anna:rhel8-2;clara:rhel8-3;fanny:rhel8-4"
+
+pcs property set stonith-enabled=true
+pcs resource create dlm ocf:pacemaker:controld op monitor interval=60s on-fail=fence clone meta interleave=true clone-node-max=1 ordered=true
+pcs resource create lvmlock ocf:heartbeat:lvmlockd op monitor interval=60s on-fail=fence clone meta interleave=true
+pcs constraint order start dlm-clone then lvmlock-clone
+pcs constraint colocation add lvmlock-clone with dlm-clone
+

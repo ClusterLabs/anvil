@@ -74,8 +74,8 @@ TEXT HELP
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 ENDTEXT
 #       \-----------------------------------------------------------------------------------------------------------/
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img inst.stage2=http://10.1.4.1/fedora28/x86_64/os/ ip=dhcp inst.ks=http://10.1.4.1/fedora28/x86_64/kickstart/striker.ks inst.sshd rd.debug
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img root=live:http://10.201.4.1/rhel8/x86_64/os/images/install.img inst.stage2=http://10.201.4.1/rhel8/x86_64/os/ ip=dhcp inst.ks=http://10.201.4.1/rhel8/x86_64/kickstart/striker.ks inst.sshd rd.debug
 
 label node
 menu label Install an Anvil! ^Node (Fedora 28 64-bit)
@@ -92,8 +92,8 @@ TEXT HELP
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 ENDTEXT
 #       \-----------------------------------------------------------------------------------------------------------/
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img inst.stage2=http://10.1.4.1/fedora28/x86_64/os/ ip=dhcp inst.ks=http://10.1.4.1/fedora28/x86_64/kickstart/node.ks inst.sshd rd.debug
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img root=live:http://10.201.4.1/rhel8/x86_64/os/images/install.img inst.stage2=http://10.201.4.1/rhel8/x86_64/os/ ip=dhcp inst.ks=http://10.201.4.1/rhel8/x86_64/kickstart/node.ks inst.sshd rd.debug
 
 label node
 menu label Install an Anvil! ^Disaster Recover Host (Fedora 28 64-bit)
@@ -110,8 +110,8 @@ TEXT HELP
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 ENDTEXT
 #       \-----------------------------------------------------------------------------------------------------------/
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img inst.stage2=http://10.1.4.1/fedora28/x86_64/os/ ip=dhcp inst.ks=http://10.1.4.1/fedora28/x86_64/kickstart/dr.ks inst.sshd rd.debug
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img root=live:http://10.201.4.1/rhel8/x86_64/os/images/install.img inst.stage2=http://10.201.4.1/rhel8/x86_64/os/ ip=dhcp inst.ks=http://10.201.4.1/rhel8/x86_64/kickstart/dr.ks inst.sshd rd.debug
 
 label rescue
 menu label Boot into a ^Rescue session
@@ -125,10 +125,10 @@ TEXT HELP
 	No data on the target machine will be changed by this option.
 ENDTEXT
 #       \-----------------------------------------------------------------------------------------------------------/
-kernel fedora28/vmlinuz
-append initrd=fedora28initrd.img ip=dhcp root=live:http://10.1.4.1/fedora28/x86_64/os/LiveOS/squashfs.img rescue
+kernel rhel8/vmlinuz
+append initrd=rhel8initrd.img ip=dhcp root=live:http://10.201.4.1/rhel8/x86_64/os/LiveOS/squashfs.img rescue
 
-label fedora
+label rhel8
 menu label Install ^Standard Fedora 28 64-bit Install
 #       Keep help text wrapped within the area shown directly below.
 #       /-----------------------------------------------------------------------------------------------------------\
@@ -139,8 +139,8 @@ TEXT HELP
 	This option will not change anything on disk until and unless you choose to do so.
 ENDTEXT
 #       \-----------------------------------------------------------------------------------------------------------/
-kernel fedora28/vmlinuz
-append initrd=fedora28/initrd.img root=live:http://10.1.4.1/fedora28/x86_64/os/images/install.img
+kernel rhel8/vmlinuz
+append initrd=rhel8/initrd.img root=live:http://10.201.4.1/rhel8/x86_64/os/images/install.img
 
 label next
 menu default

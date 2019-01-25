@@ -20,7 +20,7 @@ firstboot --disable
 reboot
 
 # Install from the source Striker
-url --url=http://10.1.4.1/fedora28/x86_64/os/
+url --url=http://10.201.4.1/rhel8/x86_64/os/
 
 ### TODO: These should be configurable eventually.
 # Keyboard layouts

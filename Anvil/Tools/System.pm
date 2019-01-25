@@ -999,7 +999,7 @@ This returns the operating system type and the system architecture as two separa
  # Run on RHEL 7, on a 64-bit system
  my ($os_type, $os_arch) = $anvil->System->get_os_type();
  
- # '$os_type' holds 'rhel7'  ('rhel', 'centos' or 'fedora' + release version) 
+ # '$os_type' holds 'rhel8'  ('rhel' or 'centos' + release version) 
  # '$os_arch' holds 'x86_64' (specifically, 'uname --hardware-platform')
 
 If either can not be determined, C<< unknown >> will be returned.
@@ -1019,12 +1019,10 @@ sub get_os_type
 	my $os_arch = "unknown";
 	
 	### NOTE: Examples;
-	# Red Hat Enterprise Linux Server release 6.10 (Santiago)
+	# Red Hat Enterprise Linux release 8.0 Beta (Ootpa)
 	# Red Hat Enterprise Linux Server release 7.5 (Maipo)
-	# CentOS release 6.10 (Final)
 	# CentOS Linux release 7.5.1804 (Core) 
-	# Fedora release 28 (Twenty Eight)
-	# 
+
 	# Read in the /etc/redhat-release file
 	my $release = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'redhat-release'}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { release => $release }});
@@ -1038,12 +1036,6 @@ sub get_os_type
 	{
 		# CentOS, with the major version number appended
 		$os_type = "centos".$1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
-	}
-	elsif ($release =~ /Fedora .*? (\d+) /)
-	{
-		# Fedora, with the version number appended
-		$os_type = "fedora".$1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
 	}
 	
