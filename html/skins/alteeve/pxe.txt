@@ -104,7 +104,7 @@ rsync -av /var/log     /mnt/sysimage/root/install_logs/var/
 
 ### NOTE: This is only useful in the Alteeve labs. Replace with your own repo, or remove.
 echo "Adding local repo"
-cat > /etc/yum.repos.d/rhel8.repo << EOF
+cat > /mnt/sysimage/etc/yum.repos.d/rhel8.repo << EOF
 [rhel8-repo]
 name=RHEL 8 Repo on local network
 baseurl=http://10.255.100.30/repo/

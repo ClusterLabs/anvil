@@ -93,7 +93,7 @@ CREATE TABLE host_keys (
     host_key_public_key    text                        not null,                   -- Either 'node' or 'dashboard'.
     modified_date          timestamp with time zone    not null, 
     
-    FOREIGN KEY(host_key_host_uuid) REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(host_key_host_uuid) REFERENCES hosts(host_uuid)
 );
 ALTER TABLE host_keys OWNER TO admin;
 
