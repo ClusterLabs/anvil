@@ -131,7 +131,7 @@ NOTE: Please be patient!
 		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
 		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
 		<key name="message_0083">Editing of this option is disabled.</key>
-		<key name="message_0084">^1. Install a Striker dashboard (Fedora 28 64-bit)</key>
+		<key name="message_0084">^1. Install a Striker dashboard (RHEL 8b 64-bit)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0085">
@@ -143,7 +143,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0086">^2. Install an Anvil! Node (Fedora 28 64-bit)</key>
+		<key name="message_0086">^2. Install an Anvil! Node (RHEL 8b 64-bit)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0087">
@@ -156,7 +156,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (Fedora 28 64-bit)</key>
+		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (RHEL 8b 64-bit)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
@@ -179,11 +179,11 @@ NOTE: Please be patient!
 	No data on the target machine will be changed by this option.
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0092">Install ^Standard Fedora 28 64-bit Install</key>
+		<key name="message_0092">Install ^Standard RHEL 8b 64-bit Install</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0093">
-	This will start a standard install of Fedora 28.
+	This will start a standard install of RHEL 8b.
 	
 	This option will not change anything on disk until and unless you choose to do so.
 		</key>

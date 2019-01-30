@@ -840,10 +840,12 @@ sub check_alteeve_repo
 	
 	my $repo_url  = "";
 	my $repo_file = "";
-	if ($anvil->data->{host_os}{os_type} eq "fedora")
+	### NOTE: This adds 'b' for the beta repo
+	if (1)
 	{
-		$repo_file = "/etc/yum.repos.d/alteeve-f".$anvil->data->{host_os}{version}.".repo";
-		$repo_url  = "https://alteeve.com/an-repo/f".$anvil->data->{host_os}{version}."/alteeve-f".$anvil->data->{host_os}{version}."-repo-latest.noarch.rpm";
+		### TODO: Remove this and the check when the signed el8 repo is ready
+		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}.".repo";
+		$repo_url  = "https://alteeve.com/an-repo/el".$anvil->data->{host_os}{version}."b/alteeve-el".$anvil->data->{host_os}{version}."b-repo-latest.noarch.rpm";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			repo_file => $repo_file,
 			repo_url  => $repo_url, 
@@ -852,7 +854,7 @@ sub check_alteeve_repo
 	else
 	{
 		### TODO: Update this when rhel8 is out
-		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}.".repo";
+		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}."b.repo";
 		$repo_url  = "https://alteeve.com/an-repo/el".$anvil->data->{host_os}{version}."/alteeve-el".$anvil->data->{host_os}{version}."-repo-latest.noarch.rpm";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			repo_file => $repo_file,
