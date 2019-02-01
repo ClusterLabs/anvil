@@ -273,15 +273,15 @@ sub check_install_target
 	
 	my $status = "unavailable";
 	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --status --check --no-refresh"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		
 		if ($line =~ /status=(\d)/)
 		{
 			my $digit = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { digit => $digit }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { digit => $digit }});
 			
 			if ($digit == 0)
 			{
@@ -291,7 +291,7 @@ sub check_install_target
 			{
 				$status = "enabled";
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { status => $status }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
 			last;
 		}
 	}

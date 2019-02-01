@@ -93,7 +93,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 if ($anvil->data->{switches}{status})
 {
 	my $dhcpd_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_running => $dhcpd_running }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_running => $dhcpd_running }});
 	if ($dhcpd_running)
 	{
 		print $anvil->Words->string({key => "message_0123"})."\n";
@@ -493,7 +493,7 @@ sub setup_boot_environment
 		range   => $range,
 		router  => $bcn_ip,
 	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_conf_body => $dhcpd_conf_body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_body => $dhcpd_conf_body }});
 	
 	# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means something 
 	# went wrong.
@@ -501,7 +501,7 @@ sub setup_boot_environment
 		body  => $dhcpd_conf_body, 
 		file  => $anvil->data->{path}{configs}{'dhcpd.conf'},
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_conf_success => $dhcpd_conf_success }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_success => $dhcpd_conf_success }});
 	if (not $dhcpd_conf_success)
 	{
 		# Failed.

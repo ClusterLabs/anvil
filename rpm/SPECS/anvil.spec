@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        21%{?dist}
+Release:        22%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+

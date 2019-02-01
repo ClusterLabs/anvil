@@ -14,6 +14,7 @@ my $THIS_FILE = "Job.pm";
 ### Methods;
 # clear
 # get_job_uuid
+# running
 # update_progress
 
 =pod
@@ -188,6 +189,43 @@ AND
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 	return($job_uuid);
+}
+
+=head2 running
+
+This simple returns C<< 1 >> if one or more jobs are pending or running on this host. If none are (or all are at 100%), it returns C<< 0 >>.
+
+This method takes no parameters
+
+=cut
+sub running
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	my $query        = "
+SELECT 
+    COUNT(*) 
+FROM 
+    jobs 
+WHERE 
+    job_progress != '100'
+AND 
+    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results   = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $job_count = $results->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results   => $results, 
+		job_count => $job_count, 
+	}});
+	
+	my $jobs_running = $job_count ? 1 : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jobs_running => $jobs_running }});
+	return($jobs_running);
 }
 
 =head2 update_progress

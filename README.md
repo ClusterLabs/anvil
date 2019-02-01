@@ -6,5 +6,5 @@ Major components;
 * The "Striker" Web interface
 * Tools for Striker dashboards, Anvil! nodes and DR targets
 
-This project is being designed for RHEL 7, Pacemaker, DRBD v9, Corosync 3 and Kronosnet.
+This project is being designed for RHEL 8, Pacemaker 2, DRBD v9, Corosync 3 and Kronosnet 1.
 

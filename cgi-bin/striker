@@ -126,11 +126,20 @@ sub print_and_exit
 		back_button       => $back_button,
 		refresh_button    => $refresh_button, 
 	}});
-
+	
+	# The jobs button is "on" when the user is logged in and there is one or more jobs on this system 
+	# under 100% complete.
+	my $say_jobs_button = $anvil->Template->get({file => "main.html", name => "jobs_button_off"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_jobs_button => $say_jobs_button }});
+	if (($anvil->data->{sys}{users}{user_name}) && ($anvil->Job->running({debug => 2})))
+	{
+		$say_jobs_button = $anvil->Template->get({file => "main.html", name => "jobs_button_on"});
+	}
 	my $right_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_right", variables => {
 		anvil_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})     : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
-		striker_button   => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "striker_button_on"})   : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
 		configure_button => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "configure_button_on"}) : $anvil->Template->get({file => "main.html", name => "configure_button_off"}),
+		jobs_button      => $say_jobs_button,
+		striker_button   => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "striker_button_on"})   : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
 		user_button      => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})      : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
 	}});
 	my $footer = $anvil->Template->get({file => "main.html", name => "footer", variables => {
