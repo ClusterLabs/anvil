@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        22%{?dist}
+Release:        23%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -275,6 +275,12 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+* Sat Feb 01 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-23
+- Updated the source.
+
+* Sat Jan 30 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-22
+- Finished swapping over to RHEL8. Fedora support now removed.
+
 * Sat Jan 05 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-21
 - Started adding support for ScanCore.
 - Updated source and renamed to anvil-3.0b.
