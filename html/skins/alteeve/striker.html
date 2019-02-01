@@ -138,6 +138,29 @@
 			</table>
 <!-- end confirm-reconfig -->
 
+<!-- start jobs -->
+			<table class="centered" width="90%">
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+				<div id="running_jobs">
+				<script type="text/javascript" src="/skins/alteeve/jobs.js"></script>
+				<tr>
+					<td>
+						<input type="hidden" name="status_waiting" id="status_waiting" value="#!string!js_0004!#">
+						<span name="jobs-title" id="jobs-title" class="config_header2">#!string!header_0011!#</span><br />
+						<span name="jobs-message" id="jobs-message" class="config_header3">#!string!striker_0096!#</span>
+						<br />
+						<hr />
+						#!variable!job_list!#
+					</td>
+				</tr>
+				</div>
+			</table>
+<!-- end jobs -->
+
 <!-- start reconfig-done -->
 			<table>
 				<tr>

@@ -14,6 +14,7 @@ my $THIS_FILE = "Job.pm";
 ### Methods;
 # clear
 # get_job_uuid
+# html_list
 # running
 # update_progress
 
@@ -226,6 +227,101 @@ AND
 	my $jobs_running = $job_count ? 1 : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jobs_running => $jobs_running }});
 	return($jobs_running);
+}
+
+=head2 html_list
+
+This returns an html form list of jobs that are running or recently ended.
+
+Parameters;
+
+=head3 ended_within (optional, default '300')
+
+This gets a list of all jobs that are running, or that have ended within this number of seconds.
+
+=cut
+sub html_list
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	my $ended_within = defined $parameter->{ended_within} ? $parameter->{ended_within} : 300;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ended_within => $ended_within, 
+	}});
+	
+	my $jobs_list = "#!string!striker_0097!#";
+	my $return = $anvil->Database->get_jobs({ended_within => 300});
+	my $count  = @{$return};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+	if ($count)
+	{
+		$jobs_list = "";
+		foreach my $hash_ref (@{$return})
+		{
+			my $job_uuid            = $hash_ref->{job_uuid};
+			my $job_command         = $hash_ref->{job_command};
+			my $job_data            = $hash_ref->{job_data};
+			my $job_picked_up_by    = $hash_ref->{job_picked_up_by};
+			my $job_picked_up_at    = $hash_ref->{job_picked_up_at};
+			my $job_updated         = $hash_ref->{job_updated};
+			my $job_name            = $hash_ref->{job_name};
+			my $job_progress        = $hash_ref->{job_progress};
+			my $job_title           = $hash_ref->{job_title};
+			my $job_description     = $hash_ref->{job_description};
+			my $job_status          = $hash_ref->{job_status};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				job_uuid            => $job_uuid,
+				job_command         => $job_command,
+				job_data            => $job_data,
+				job_picked_up_by    => $job_picked_up_by,
+				job_picked_up_at    => $job_picked_up_at,
+				job_updated         => $job_updated,
+				job_name            => $job_name, 
+				job_progress        => $job_progress,
+				job_title           => $job_title, 
+			}});
+			
+			# Skip jobs that finished more than five minutes ago.
+			my $job_finished = time - $job_updated;
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:time'         => time,
+				's2:job_updated'  => $job_updated,
+				's3:job_finished' => $job_finished,
+			}});
+			if (($job_progress eq "100") && ($job_finished > 600))
+			{
+				# Skip it
+				next;
+			}
+			
+			# Convert the double-banged strings into a proper message.
+			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
+			my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				job_title       => $job_title, 
+				say_description => $say_description, 
+			}});
+			
+			### TODO: left off here
+			my $job_template = $anvil->Template->get({file => "striker.html", name => "job-details", variables => {
+				div_id           => "job_".$job_uuid, 
+				title            => $say_title, 
+				description      => $say_description, 
+				progress_bar     => "job_progress_".$job_uuid, 
+				progress_percent => "job_progress_percent_".$job_uuid, 
+				status           => "job_status_".$job_uuid,
+			}});
+			
+			$jobs_list .= $job_template."\n";
+		}
+	}
+	
+	
+	return($jobs_list);
 }
 
 =head2 update_progress

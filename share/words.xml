@@ -695,6 +695,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0112">The 'Install Target' enabled job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been disabled.</key>
 		<key name="striker_0113">Anvil! Configuration and Management.</key>
 		<key name="striker_0114">Create a new Anvil! system.</key>
+		<key name="striker_0115">Any running jobs, or jobs that have ended recently, are displayed below.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
