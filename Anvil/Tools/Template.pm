@@ -133,11 +133,19 @@ sub get
 	my $template  = "";
 	my $source    = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		file     => $file,
-		language => $language,
-		name     => $name, 
-		skin     => $skin, 
+		file      => $file,
+		language  => $language,
+		name      => $name, 
+		skin      => $skin, 
+		variables => ref($variables) ? ref($variables) : $variables,
 	}});
+	if (($anvil->Log->level >= $debug) && (ref($variables) eq "HASH"))
+	{
+		foreach my $key (sort {$a cmp $b} keys %{$variables})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "variables->{$key}" => $variables->{$key} }});
+		}
+	}
 	
 	# The 'http_headers' template can never show the name
 	$show_name = 0 if $name eq "http_headers";
@@ -233,7 +241,6 @@ sub get
 		if (($template_found) && ($template))
 		{
 			$template = $anvil->Words->string({
-				debug     => $debug, 
 				string    => $template,
 				variables => $variables,
 			});
@@ -249,7 +256,6 @@ sub get
 		{
 			# Woops!
 			$template = $anvil->Words->string({key => "error_0029", variables => {
-				debug    => $debug,
 				template => $name,
 				file     => $source,
 			}});
@@ -260,7 +266,6 @@ sub get
 		if ($template eq "#!error!#")
 		{
 			$template = $anvil->Words->string({key => "error_0030", variables => {
-				debug    => $debug,
 				template => $name,
 				file     => $source,
 			}});

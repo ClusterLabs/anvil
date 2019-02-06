@@ -218,6 +218,25 @@ input[type=text].input_clear, input[type=number].input_clear, select.input_clear
 	padding-right: 10px;
 }
 
+/* TODO: Switch the Striker menus over to these classes */
+.main_option {
+/* 	border:         1px dotted red; */
+	color:          #dbe0e5;
+	font-size:      1.3em;
+	padding-top:    22px;
+	padding-left:   20px;
+	padding-bottom: 22px;
+	height:         100%;
+}
+
+.main_option_icon {
+/* 	border:         1px dotted blue; */
+	padding-top:    10px;
+	padding-bottom: 10px;
+	vertical-align: center;
+	height:         100%;
+}
+
 .menu_title {
 	color:          #dbe0e5;
 	font-size:      1.3em;

@@ -199,7 +199,7 @@ systemctl start anvil-daemon.service
 
 
 %post striker
-### NOTE: PostgreSQL is initialized and enabled by anvil-prep-database later.
+### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
 echo "Enabling and starting apache."
 systemctl enable httpd.service
 systemctl start httpd.service
@@ -212,7 +212,7 @@ then
 fi
 
 echo "Preparing the database"
-anvil-prep-database
+striker-prep-database
 anvil-update-states
 
 ### TODO: I don't think we need this anymore
@@ -337,7 +337,7 @@ firewall-cmd --add-service=postgresql --permanent
 - Fixed the path to anvil.sql
 
 * Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-7
-- Added an explicit call to anvil-prep-database in post.
+- Added an explicit call to striker-prep-database in post.
 
 * Thu Jul 12 2018 Madison Kelly <mkelly@alteeve.ca> 3.0-6
 - Fixed 'pre' to actually run for 'core'.

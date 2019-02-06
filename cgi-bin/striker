@@ -138,6 +138,7 @@ sub print_and_exit
 	my $right_buttons = $anvil->Template->get({file => "main.html", name => "button_bar_right", variables => {
 		anvil_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "anvil_button_on"})     : $anvil->Template->get({file => "main.html", name => "anvil_button_off"}),
 		configure_button => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "configure_button_on"}) : $anvil->Template->get({file => "main.html", name => "configure_button_off"}),
+		files_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "files_button_on"})     : $anvil->Template->get({file => "main.html", name => "files_button_off"}),
 		jobs_button      => $say_jobs_button,
 		striker_button   => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "striker_button_on"})   : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
 		user_button      => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})      : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
@@ -351,8 +352,9 @@ sub process_striker_menu
 		}});
 		
 		# The 'back' goes home
-		$anvil->data->{form}{back_link} = "?";
-		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-setup", variables => {
+		$anvil->data->{form}{back_link}    = "?";
+		$anvil->data->{form}{refresh_link} = "?striker=true";
+		$anvil->data->{form}{body}      = $anvil->Template->get({file => "striker.html", name => "striker-setup", variables => {
 			reboot_icon            => $reboot_icon, 
 			reboot_message         => $reboot_message, 
 			install_target_icon    => $install_target_icon, 
@@ -369,6 +371,7 @@ sub process_jobs_menu
 {
 	my ($anvil) = @_;
 	
+	$anvil->data->{form}{refresh_link} = "?jobs=true";
 	$anvil->data->{form}{back_link}    = "?striker=true";
 	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
@@ -389,11 +392,16 @@ sub process_anvil_menu
 {
 	my ($anvil) = @_;
 	
+	$anvil->data->{form}{refresh_link} = "striker?anvil=true";
 	$anvil->data->{form}{back_link}    = "?striker=true";
 	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
 	
-	if ($anvil->data->{cgi}{task}{value} eq "manifest")
+	if ($anvil->data->{cgi}{task}{value} eq "prep-host")
+	{
+		process_prep_host_page($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "manifest")
 	{
 		#process_manifest_page($anvil);
 	}
@@ -404,6 +412,28 @@ sub process_anvil_menu
 		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "main-menu", variables => {
 		}});
 	}
+	
+	return(0);
+}
+
+# This handles installing our repo, installing the appropriate 'anvil-X' rpm, running OS updates if selected 
+# and configuring the network on a machine destined to be an Anvil! node or DR host.
+sub process_prep_host_page
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{form}{refresh_link} = "?jobs=true&task=prep-host";
+	$anvil->data->{form}{back_link}    = "?jobs=true";
+	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "jobs", variables => {
+		title_id    => "", 
+		message_id  => "", 
+		title       => "#!string!striker_0096!#", 
+		description => "#!string!striker_0115!#", 
+		job_list    => $anvil->Job->html_list({debug => 2, ended_within => 300}), 
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	
 	return(0);
 }
@@ -756,7 +786,8 @@ sub process_sync_page
 	}
 	
 	# Build the menu.
-	$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "striker-sync", variables => { 
+	$anvil->data->{form}{refresh_link} = "?striker=true&task=sync";
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "striker.html", name => "striker-sync", variables => { 
 		inbound_table     => $inbound_table,
 		peer_table        => $peer_table,
 		new_peer_access   => defined $anvil->data->{cgi}{new_peer_access}{value}   ? $anvil->data->{cgi}{new_peer_access}{value} : "", 
@@ -792,7 +823,7 @@ sub delete_sync_peer
 			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'anvil-manage-striker-peers'}." --remove --host-uuid ".$uuid, 
+			job_command     => $anvil->data->{path}{exe}{'striker-manage-peers'}." --remove --host-uuid ".$uuid, 
 			job_data        => "", 
 			job_name        => "striker-peer::remove", 
 			job_title       => "job_0013", 
@@ -995,7 +1026,7 @@ sub add_sync_peer
 		if ($anvil->data->{cgi}{confirm}{value})
 		{
 			# OK, save the job!
-			my $job_command = $anvil->data->{path}{exe}{'anvil-manage-striker-peers'}." --add --host-uuid ".$peer_uuid." --host ".$host." --port ".$port." --ping ".$ping;
+			my $job_command = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$peer_uuid." --host ".$host." --port ".$port." --ping ".$ping;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				job_command => $job_command,
 				password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
@@ -1015,7 +1046,7 @@ sub add_sync_peer
 				# See which of our IPs match theirs. If the peer is a hostname, first
 				my $host_uuid    =  $anvil->Get->host_uuid;
 				my $sql_port     =  $anvil->data->{database}{$host_uuid}{port};
-				my $job_command  =  $anvil->data->{path}{exe}{'anvil-manage-striker-peers'}." --add --host-uuid ".$host_uuid." --host ".$use_ip." --port ".$sql_port." --ping ".$ping;
+				my $job_command  =  $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$use_ip." --port ".$sql_port." --ping ".$ping;
 				   $job_data     .= "\npeer_job_command=".$job_command;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { job_command => $job_command }});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data    => $job_data    }});
@@ -1145,7 +1176,7 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
-	my $debug     = 3;
+	my $debug     = 2;
 	my $available = 1;
 	
 	# Check maintenance mode.

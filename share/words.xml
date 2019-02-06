@@ -696,6 +696,9 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0113">Anvil! Configuration and Management.</key>
 		<key name="striker_0114">Create a new Anvil! system.</key>
 		<key name="striker_0115">Any running jobs, or jobs that have ended recently, are displayed below.</key>
+		<key name="striker_0116">Prepare a host for use as an Anvil! node or disaster recovery target.</key>
+		<key name="striker_0117">Initial host configuration.</key>
+		<key name="striker_0118">Prepare a new machine for use as an Anvil! node or DR (disaster recovery) host. This process will setup the repository, install the appropriate anvil packages and link it to the Anvil! databases on the Strikers you choose.</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

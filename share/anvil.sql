@@ -22,6 +22,9 @@
 -- If a table is a child of another table, ie: a UPS battery is a child of a UPS, and you have tables for 
 -- each that you plan to link, still use a '*_host_uuid' column (if the data is host-specific). This is 
 -- needed by the resync method.
+-- 
+-- NOTE: If you add, rename or remove a table, remember to update the 'sys::database::core_tables' array!
+-- 
 
 
 SET client_encoding = 'UTF8';
@@ -1002,7 +1005,6 @@ BEGIN
     INSERT INTO history.bridges
         (bridge_uuid,
          bridge_host_uuid,
-         bridge_name, 
          bridge_name,
          bridge_id,
          bridge_stp_enabled,
@@ -1010,7 +1012,6 @@ BEGIN
     VALUES
         (history_bridges.bridge_uuid, 
          history_bridges.bridge_host_uuid, 
-         history_bridges.bridge_name, 
          history_bridges.bridge_name, 
          history_bridges.bridge_id, 
          history_bridges.bridge_stp_enabled, 
@@ -1095,6 +1096,270 @@ ALTER FUNCTION history_ip_addresses() OWNER TO admin;
 CREATE TRIGGER trigger_ip_addresses
     AFTER INSERT OR UPDATE ON ip_addresses
     FOR EACH ROW EXECUTE PROCEDURE history_ip_addresses();
+
+
+-- This stores files made available to Anvil! systems and DR hosts.
+CREATE TABLE files (
+    file_uuid        uuid                        not null    primary key,
+    file_name        text                        not null,                   -- This is the file's name. It can change without re-uploading the file.
+    file_md5sum      text                        not null,                   -- This is the sum as calculated when the file is first uploaded. Once recorded, it can't change.
+    file_type        text                        not null,                   -- This is; 'iso', 'repo_rpm', 'script', or 'backup'. 
+    modified_date    timestamp with time zone    not null
+);
+ALTER TABLE files OWNER TO admin;
+
+CREATE TABLE history.files (
+    history_id       bigserial,
+    file_uuid        uuid,
+    file_name        text,
+    file_md5sum      text,
+    file_type        text,
+    modified_date    timestamp with time zone    not null
+);
+ALTER TABLE history.files OWNER TO admin;
+
+CREATE FUNCTION history_files() RETURNS trigger
+AS $$
+DECLARE
+    history_files RECORD;
+BEGIN
+    SELECT INTO history_files * FROM files WHERE file_uuid = new.file_uuid;
+    INSERT INTO history.files
+        (file_uuid,
+         file_name, 
+         file_md5sum, 
+         file_type, 
+         modified_date)
+    VALUES
+        (history_files.file_uuid, 
+         history_files.file_name, 
+         history_files.file_md5sum, 
+         history_files.file_type, 
+         history_files.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_files() OWNER TO admin;
+
+CREATE TRIGGER trigger_files
+    AFTER INSERT OR UPDATE ON files
+    FOR EACH ROW EXECUTE PROCEDURE history_files();
+
+
+-- NOTE: When an entry is made here, the next time files are checked on a machine and an entry doesn't exist 
+--       on disk, the file fill be found (if possible) and copied to the houst. Only machines on the same 
+--       subnet are searched. Of course, if a URL is given (or a file is uploaded over a browser), the file
+--       will be sourced accordingly. The search pattern is; 
+--       Nodes;   1. Check for the file on the peer.
+--                2. Check for the file on Strikers, in alphabetical order.
+--                3. Check for the file on DR host, if available.
+--                4. Check other nodes, in alphabetical order.
+--                5. Check other DR hosts, in alphabetical order.
+--       Striker; 1. Check for the file on other Strikers, in alphabetical order.
+--                2. Check for the file on DR hosts, if available
+--                3. Check for the file on Anvil! nodes.
+--       DR Host; 1. Check for the file on Strikers, in alphabetical order.
+--                2. Check for the file on Anvil! nodes.
+--       * If a file can't be found, it will try again every so often until it is found.
+--       * When a file is found, it is copied to '/mnt/shared/incoming'. Only when the file has arrived and 
+--         the md5sum matches. At this point, it is moved into the proper directory.
+--       How new files are handled;
+--       * When uploading a file from a Striker web interface, or when creating an ISO from physical media,
+--         it will be dropped into /mnt/shared/incoming. Once there, the user will have the option of pushing
+--         the file to an Anvil! system. ISOs and scripts will go to both nodes (and the DR host, when 
+--         needed).
+--       * Repo RPMs are sync'ed to all peer'ed dashboards, but not sent to hosts (they are used during the
+--         initial host setup).
+--       * Special Note: Definition files are stored in the database and written out as needed to the 
+--                       nodes/DR host.
+--       
+-- This tracks which files should be on which machines.
+CREATE TABLE file_locations (
+    file_location_uuid         uuid                        not null    primary key,
+    file_location_file_uuid    text                        not null,                   -- This is file to be moved to (or restored to) this machine.
+    file_location_host_uuid    text                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
+    modified_date              timestamp with time zone    not null,
+    
+    FOREIGN KEY(file_location_file_uuid) REFERENCES files(file_uuid), 
+    FOREIGN KEY(file_location_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE file_locations OWNER TO admin;
+
+CREATE TABLE history.file_locations (
+    history_id       bigserial,
+    file_location_uuid        uuid,
+    file_location_file_uuid    text              not null,                   -- This is 
+    file_location_host_uuid    text              not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
+    modified_date    timestamp with time zone    not null
+);
+ALTER TABLE history.file_locations OWNER TO admin;
+
+CREATE FUNCTION history_file_locations() RETURNS trigger
+AS $$
+DECLARE
+    history_file_locations RECORD;
+BEGIN
+    SELECT INTO history_file_locations * FROM file_locations WHERE file_location_uuid = new.file_location_uuid;
+    INSERT INTO history.file_locations
+        (file_location_uuid,
+         file_location_name, 
+         file_location_md5sum, 
+         file_location_type, 
+         modified_date)
+    VALUES
+        (history_file_locations.file_location_uuid, 
+         history_file_locations.file_location_name, 
+         history_file_locations.file_location_md5sum, 
+         history_file_locations.file_location_type, 
+         history_file_locations.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_file_locations() OWNER TO admin;
+
+CREATE TRIGGER trigger_file_locations
+    AFTER INSERT OR UPDATE ON file_locations
+    FOR EACH ROW EXECUTE PROCEDURE history_file_locations();
+
+
+-- This stores servers made available to Anvil! systems and DR hosts.
+CREATE TABLE servers (
+    server_uuid                        uuid                        not null    primary key,
+    server_name                        text                        not null,                     -- This is the server's name. It can change without re-uploading the server.
+    server_anvil_uuid                  uuid                        not null,                     -- This is the Anvil! system that the server lives on. It can move to another Anvil!, so this can change.
+    server_clean_stop                  boolean                                 default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
+    server_start_after_server_uuid     uuid,                                                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
+    server_start_delay                 integer                     not null    default 0,        -- See above.
+    server_host_uuid                   uuid,                                                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
+    server_state                       text,                                                     -- This is the current state of this server.
+    server_live_migration              boolean                     not null    default TRUE,     -- When false, servers will be stopped and then rebooted when a migration is requested. Also, when false, preventative migrations will not happen.
+    server_pre_migration_file_uuid     uuid,                                                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_pre_migration_arguments     text,                                                     -- These are arguments to pass to the pre-migration script
+    server_post_migration_file_uuid    uuid,                                                     -- This is set to the files -> file_uuid of a script to run AFTER migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_post_migration_arguments    text,                                                     -- These are arguments to pass to the post-migration script
+    modified_date                      timestamp with time zone    not null, 
+    
+    FOREIGN KEY(server_anvil_uuid)               REFERENCES anvils(anvil_uuid),
+    FOREIGN KEY(server_start_after_server_uuid)  REFERENCES servers(server_uuid),
+    FOREIGN KEY(server_host_uuid)                REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(server_pre_migration_file_uuid)  REFERENCES files(file_uuid), 
+    FOREIGN KEY(server_post_migration_file_uuid) REFERENCES files(file_uuid), 
+);
+ALTER TABLE servers OWNER TO admin;
+
+CREATE TABLE history.servers (
+    history_id                         bigserial,
+    server_uuid                        uuid,
+    server_name                        text,
+    server_anvil_uuid                  uuid,
+    server_clean_stop                  boolean,
+    server_start_after_server_uuid     uuid,
+    server_start_delay                 integer,
+    server_host_uuid                   uuid,
+    server_state                       text,
+    server_live_migration              boolean,
+    server_pre_migration_file_uuid     uuid,
+    server_pre_migration_arguments     text,
+    server_post_migration_file_uuid    uuid,
+    server_post_migration_arguments    text,
+    modified_date                      timestamp with time zone    not null
+);
+ALTER TABLE history.servers OWNER TO admin;
+
+CREATE FUNCTION history_servers() RETURNS trigger
+AS $$
+DECLARE
+    history_servers RECORD;
+BEGIN
+    SELECT INTO history_servers * FROM servers WHERE server_uuid = new.server_uuid;
+    INSERT INTO history.servers
+        (server_uuid,
+         server_name, 
+         server_anvil_uuid,
+         server_clean_stop,
+         server_start_after_server_uuid,
+         server_start_delay,
+         server_host_uuid,
+         server_state,
+         server_live_migration,
+         server_pre_migration_file_uuid,
+         server_pre_migration_arguments,
+         server_post_migration_file_uuid,
+         server_post_migration_arguments,
+         modified_date)
+    VALUES
+        (history_servers.server_uuid, 
+         history_servers.server_name, 
+         history_servers.server_clean_stop,
+         history_servers.server_start_after_server_uuid,
+         history_servers.server_start_delay,
+         history_servers.server_host_uuid,
+         history_servers.server_state,
+         history_servers.server_live_migration,
+         history_servers.server_pre_migration_file_uuid,
+         history_servers.server_pre_migration_arguments,
+         history_servers.server_post_migration_file_uuid,
+         history_servers.server_post_migration_arguments,
+         history_servers.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_servers() OWNER TO admin;
+
+CREATE TRIGGER trigger_servers
+    AFTER INSERT OR UPDATE ON servers
+    FOR EACH ROW EXECUTE PROCEDURE history_servers();
+
+
+-- This stores the XML definition for a server. Whenever a definition is found missing on a node or DR host, 
+-- it will be rewritten from here. If this copy changes, it will be updated on the hosts.
+CREATE TABLE definitions (
+    definition_uuid           uuid                        not null    primary key,
+    definition_server_uuid    uuid                        not null,                   -- This is the servers -> server_uuid of the server
+    definition_xml            text                        not null,                   -- This is the XML body.
+    modified_date             timestamp with time zone    not null, 
+    
+    FOREIGN KEY(definition_server_uuid) REFERENCES servers(server_uuid), 
+);
+ALTER TABLE definitions OWNER TO admin;
+
+CREATE TABLE history.definitions (
+    history_id                bigserial,
+    definition_uuid           uuid,
+    definition_server_uuid    uuid, 
+    definition_xml            text, 
+    modified_date             timestamp with time zone    not null
+);
+ALTER TABLE history.definitions OWNER TO admin;
+
+CREATE FUNCTION history_definitions() RETURNS trigger
+AS $$
+DECLARE
+    history_definitions RECORD;
+BEGIN
+    SELECT INTO history_definitions * FROM definitions WHERE definition_uuid = new.definition_uuid;
+    INSERT INTO history.definitions
+        (definition_uuid,
+         definition_server_uuid, 
+         definition_xml, 
+         modified_date)
+    VALUES
+        (history_definitions.definition_uuid, 
+         history_definitions.definition_server_uuid, 
+         history_definitions.definition_xml, 
+         history_definitions.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_definitions() OWNER TO admin;
+
+CREATE TRIGGER trigger_definitions
+    AFTER INSERT OR UPDATE ON definitions
+    FOR EACH ROW EXECUTE PROCEDURE history_definitions();
 
 
 -- ------------------------------------------------------------------------------------------------------- --

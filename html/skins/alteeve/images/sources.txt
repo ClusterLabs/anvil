@@ -49,3 +49,9 @@ Target by bezier master from the Noun Project (https://thenounproject.com/term/t
 
 Task by Ramesha from the Noun Project (https://thenounproject.com/term/task/1212201/)
 - tasks_icon.png
+
+Setup by Eucalyp from the Noun Project (https://thenounproject.com/term/setup/1453246/)
+- prep-host_icon.png
+
+Folder by Mint Shirt from the Noun Project (https://thenounproject.com/term/folder/402164/)
+- files_icon.png

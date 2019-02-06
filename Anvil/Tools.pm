@@ -769,19 +769,29 @@ sub _set_defaults
 			### WARNING: The order the tables are resync'ed is important! Any table that has a 
 			###          foreign key needs to resync *AFTER* the tables with the primary keys.
 			# NOTE: Check that this list is complete with;
-			#       grep 'CREATE TABLE' shared/anvil.sql | grep -v history. | awk '{print $3}'
+			#       grep 'CREATE TABLE' share/anvil.sql | grep -v history. | awk '{print $3}'
 			core_tables			=>	[
 									"hosts",		# Always has to be first.
+									"host_keys",
 									"users", 
 									"host_variable", 
 									"sessions", 		# Has to come after users and hosts
+									"anvils", 
 									"alerts",
+									"recipients", 
+									"notifications", 
+									"mail_servers", 
+									"host_mail_servers", 
 									"variables",
 									"jobs",
 									"network_interfaces",
 									"bonds",
 									"bridges",
 									"ip_addresses", 
+									"files", 
+									"file_locations", 
+									"servers", 
+									"definitions", 
 									"updated",
 									"alert_sent",
 									"states",
@@ -957,8 +967,6 @@ sub _set_paths
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
-				'anvil-manage-striker-peers'	=>	"/usr/sbin/anvil-manage-striker-peers",
-				'anvil-prep-database'		=>	"/usr/sbin/anvil-prep-database",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'chmod'				=>	"/usr/bin/chmod",
@@ -1004,6 +1012,8 @@ sub _set_paths
 				strings				=>	"/usr/bin/strings",
 				'striker-configure-host'	=>	"/usr/sbin/striker-configure-host",
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",
+				'striker-manage-peers'		=>	"/usr/sbin/striker-manage-peers",
+				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",
 				stty				=>	"/usr/bin/stty",
 				su				=>	"/usr/bin/su",
 				systemctl			=>	"/usr/bin/systemctl",
@@ -1020,7 +1030,7 @@ sub _set_paths
 				database			=>	"/tmp/anvil-tools.database.lock",
 			},
 			'log'			=>	{
-				main				=>	"/var/log/anvil.log",
+				file				=>	"/var/log/anvil.log",
 			},
 			proc			=>	{
 				uptime				=>	"/proc/uptime",

@@ -373,8 +373,8 @@ sub entry
 	}
 	
 	# If the user set a log file, log to that. Otherwise, log via Log::Journald.
-	print $THIS_FILE." ".__LINE__."; path::log::main: [".$anvil->data->{path}{'log'}{main}."]\n" if $test;
-	if ($anvil->data->{path}{'log'}{main})
+	print $THIS_FILE." ".__LINE__."; path::log::file: [".$anvil->data->{path}{'log'}{file}."]\n" if $test;
+	if ($anvil->data->{path}{'log'}{file})
 	{
 		# TODO: Switch back to journald later, using a file for testing for now
 		if ($string !~ /\n$/)
@@ -388,7 +388,7 @@ sub entry
 		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
 			# If the file doesn't start with a '/', we'll put it under /var/log.
-			my $log_file           = $anvil->data->{path}{'log'}{main} =~ /^\// ? $anvil->data->{path}{'log'}{main} : "/var/log/".$anvil->data->{path}{'log'}{main};
+			my $log_file           = $anvil->data->{path}{'log'}{file} =~ /^\// ? $anvil->data->{path}{'log'}{file} : "/var/log/".$anvil->data->{path}{'log'}{file};
 			my ($directory, $file) = ($log_file =~ /^(\/.*)\/(.*)$/);
 			print $THIS_FILE." ".__LINE__."; log_file: [".$log_file."]. directory: [".$directory."], file: [".$file."]\n" if $test;
 			

@@ -418,7 +418,7 @@ sub add_to_local_config
 	my ($anvil) = @_;
 	
 	# Write the password to a file.
-	my $password_file = "/tmp/anvil-manage-striker-peers.".$anvil->Get->uuid;
+	my $password_file = "/tmp/striker-manage-peers.".$anvil->Get->uuid;
 	$anvil->Storage->write_file({
 		secure    => 1, 
 		file      => $password_file, 
@@ -430,7 +430,7 @@ sub add_to_local_config
 	# Make the shell call, and parse the output looking for our own entry
 	my $host_uuid = $anvil->Get->host_uuid();
 	my $output    = $anvil->System->call({
-		shell_call => $anvil->data->{path}{exe}{'anvil-manage-striker-peers'}." --add --host-uuid ".$anvil->Get->host_uuid." --host localhost --port 5432 --password-file ".$password_file." --ping 0", 
+		shell_call => $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$anvil->Get->host_uuid." --host localhost --port 5432 --password-file ".$password_file." --ping 0", 
 		source     => $THIS_FILE, 
 		line       => __LINE__,
 	});

@@ -431,7 +431,7 @@ sub prep_database
 {
 	my ($anvil) = @_;
 	
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-prep-database'};
+	my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	my $database_output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	if ($database_output)
