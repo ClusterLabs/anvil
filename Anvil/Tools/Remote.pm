@@ -417,7 +417,33 @@ sub call
 			target => $target, 
 			port   => $port, 
 		}});
-		if (not $ssh_fh->connect($target, $port))
+		# Try ten times. 9 in the loop, last try after.
+		my $connected = 0;
+		for (1..9)
+		{
+			if ($ssh_fh->connect($target, $port))
+			{
+				$connected = 1;
+				last;
+			}
+			else
+			{
+				# Sleep and try once more.
+				$ssh_fh->disconnect();
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0101", variables => {
+					target => $target, 
+					port   => $port, 
+				}});
+				sleep 1;
+				$ssh_fh = Net::SSH2->new(timeout => 1000);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+					ssh_fh => $ssh_fh,
+					target => $target, 
+					port   => $port, 
+				}});
+			}
+		}
+		if ((not $connected) && (not $ssh_fh->connect($target, $port)))
 		{
 #			my $connect_time = tv_interval ($start_time, [gettimeofday]);
 			#print "[".$connect_time."] - Connection failed time to: [$target:$port]\n";
@@ -432,7 +458,10 @@ sub call
 			
 			# We'll now try to get a more useful message for the user and logs.
 			my $message_key = "message_0005";
-			my $variables   = { target => $target };
+			my $variables   = { 
+				target => $target,
+				error  => $@,
+			};
 			if ($@ =~ /Bad hostname/i)
 			{
 				$message_key = "message_0001";

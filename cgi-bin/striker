@@ -250,6 +250,10 @@ sub process_task
 	{
 		process_anvil_menu($anvil);
 	}
+	elsif ($anvil->data->{cgi}{files}{value})
+	{
+		process_file_menu($anvil);
+	}
 	elsif ($anvil->data->{cgi}{jobs}{value})
 	{
 		process_jobs_menu($anvil);
@@ -383,6 +387,31 @@ sub process_jobs_menu
 		job_list    => $anvil->Job->html_list({debug => 2, ended_within => 300}), 
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+	
+	return(0);
+}
+
+# This handles files.
+sub process_file_menu
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{form}{refresh_link} = "striker?anvil=true";
+	$anvil->data->{form}{back_link}    = "?striker=true";
+	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	
+	if ($anvil->data->{cgi}{task}{value} eq "upload")
+	{
+		#process_upload_page($anvil);
+	}
+	else
+	{
+		# The 'back' goes home
+		$anvil->data->{form}{back_link} = "?";
+		$anvil->data->{form}{body}      = $anvil->Template->get({file => "files.html", name => "main-menu", variables => {
+		}});
+	}
 	
 	return(0);
 }

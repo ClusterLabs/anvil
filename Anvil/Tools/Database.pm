@@ -851,7 +851,9 @@ sub connect
 				remote_version => $remote_version, 
 				local_version  => $local_version,
 			}});
-			if ($remote_version ne $local_version)
+			# TODO: Periodically, we fail to get the remote version. For now, we proceed if 
+			#       everything else is OK. Might be better to pause a re-try... To be determined.
+			if (($remote_version) && ($remote_version ne $local_version))
 			{
 				# Version doesn't match, 
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0145", variables => { 

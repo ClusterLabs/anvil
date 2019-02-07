@@ -28,7 +28,7 @@
 # 
 #   This will prevent any pending jobs from being picked up and started in this run. Note that other job checks will still happen.
 # 
-# --refresh-jason 
+# --refresh-json 
 #   
 #   This just updates the JSON files used by the web interface. It is the same as '--run-once --main-loop-only --no-start'
 #   
@@ -61,6 +61,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
+# NOTE: Setting 'log_level' and 'log_secure' here will get overridden in the main lopp. Use the Log methods 
+#       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -124,9 +126,9 @@ my $now_time = time;
 # Once a day, we'll refresh an Install Target's RPM repository (has no effect on non-Striker dashboards).
 $anvil->data->{timing}{minute_checks}        = 60;
 $anvil->data->{timing}{repo_update_interval} = 86400;
-$anvil->data->{timing}{next_minute_check}    = $now_time + $anvil->data->{timing}{minute_checks};
+$anvil->data->{timing}{next_minute_check}    = $now_time - 1;
 $anvil->data->{timing}{next_repo_check}      = $now_time;			# We want to run on daemon startup
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	"s1:timing::minute_checks"        => $anvil->data->{timing}{minute_checks}, 
 	"s2:timing::repo_update_interval" => $anvil->data->{timing}{repo_update_interval}, 
 	"s3:now_time"                     => $now_time, 
@@ -143,8 +145,9 @@ while(1)
 {
 	# Reload defaults, re-read the config and then connect to the database(s)
 	$anvil->_set_paths();
-	$anvil->_set_defaults();
-	$anvil->Storage->read_config();
+	$anvil->_set_defaults();	# This reset the log level
+	$anvil->Storage->read_config();	# This reset the log level also
+	$anvil->Get->switches;		# Re-read to let switches override again.
 	$anvil->Words->read();
 	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
@@ -224,6 +227,40 @@ sub handle_periodic_tasks
 			"s1:timing::minute_checks"     => $anvil->data->{timing}{minute_checks},
 			"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
 		}});
+		
+		# Make sure the shared directories.
+		foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{path}{directories}{shared}})
+		{
+			my $directory = $anvil->data->{path}{directories}{shared}{$target};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				target    => $target, 
+				directory => $directory,
+			}});
+			if (not -e $anvil->data->{path}{directories}{shared}{$target})
+			{
+				my $failed = $anvil->Storage->make_directory({
+					directory => $directory,
+					group     => "apache", 
+					user      => "apache",
+					mode      => "0775",
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
+				if ($failed)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0254", variables => {
+						directory => $directory,
+					}});
+				}
+				else
+				{
+					# Success
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0255", variables => {
+						directory => $directory,
+					}});
+				}
+			}
+		}
 	}
 	
 	### NOTE: We call it once/day, but this will also trigger on restart of anvil-daemon. As such, we

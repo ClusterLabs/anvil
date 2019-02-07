@@ -955,6 +955,12 @@ sub _set_paths
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
 				scan_agents			=>	"/usr/sbin/scancore-agents",
+				shared				=>	{
+					archives			=>	"/mnt/shared/archives",
+					definitions			=>	"/mnt/shared/definitions",
+					files				=>	"/mnt/shared/files",
+					incoming			=>	"/mnt/shared/incoming",
+				},
 				skins				=>	"/var/www/html/skins",
 				syslinux			=>	"/usr/share/syslinux",
 				tftpboot			=>	"/var/lib/tftpboot",

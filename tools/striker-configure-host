@@ -61,7 +61,8 @@ $anvil->System->maintenance_mode({set => 1});
 
 pickup_job_details($anvil);
 
-reconfigure_network($anvil);
+my ($reboot_needed) = reconfigure_network($anvil);
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { reboot_needed => $reboot_needed }});
 
 # Record that we've configured this machine.
 $anvil->Database->insert_or_update_variables({
@@ -87,17 +88,19 @@ $anvil->System->maintenance_mode({set => 0});
 
 ### TODO: This is only until we can get the damn networking stable on reconfigure.
 # Set reboot needed so that things clean up properly on reboot.
-$anvil->System->reboot_needed({set => 1});
-if (not $anvil->data->{switches}{'no-reboot'})
+if ($reboot_needed)
 {
-	# Reboot, after waiting a few seconds to let the user's browser pick up the last messages in 
-	# jobs.json. We'll also log the user out, in case we were re-configuring.
-	sleep 5;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
-	$anvil->Account->logout({debug => 2});
-	$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y"});
+	$anvil->System->reboot_needed({set => 1});
+	if (not $anvil->data->{switches}{'no-reboot'})
+	{
+		# Reboot, after waiting a few seconds to let the user's browser pick up the last messages in 
+		# jobs.json. We'll also log the user out, in case we were re-configuring.
+		sleep 5;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
+		$anvil->Account->logout({debug => 2});
+		$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y"});
+	}
 }
-
 $anvil->nice_exit({code => 0});
 
 
@@ -171,6 +174,7 @@ sub reconfigure_network
 {
 	my ($anvil) = @_;
 	
+	my $reboot_needed   = 0;
 	my $prefix          = $anvil->data->{variables}{form}{config_step1}{prefix}{value};
 	my $sequence        = $anvil->data->{variables}{form}{config_step1}{sequence}{value};
 	my $domain          = $anvil->data->{variables}{form}{config_step1}{domain}{value};
