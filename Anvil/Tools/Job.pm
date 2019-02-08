@@ -216,16 +216,16 @@ WHERE
 AND 
     job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results   = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $job_count = $results->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results   => $results, 
 		job_count => $job_count, 
 	}});
 	
 	my $jobs_running = $job_count ? 1 : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { jobs_running => $jobs_running }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { jobs_running => $jobs_running }});
 	return($jobs_running);
 }
 

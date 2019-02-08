@@ -527,7 +527,7 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0239">'Install Target' job: [#!data!switches::job-uuid!#] picked up.</key>
 		<key name="log_0240">'Install Target' job: [#!data!switches::job-uuid!#] aborted, system not yet configured.</key>
 		<key name="log_0241">Package list loaded.</key>
-		<key name="log_0242">#!free!#</key>
+		<key name="log_0242">It looks like a user tried to upload a file without actually doing so.</key>
 		<key name="log_0243">[ Error ] - Failed to delete the file: [#!variable!file!#].</key>
 		<key name="log_0244">[ Warning ] - None of the databases are accessible. ScanCore will try to connect once a minute until a database is accessible.</key>
 		<key name="log_0245">[ Cleared ] - We now have databases accessible, proceeding.</key>
@@ -544,6 +544,9 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		<key name="log_0253">The database user is not 'admin'. Changing table and function ownerships to: [#!variable!database_user!#].</key>
 		<key name="log_0254">[ Warning ] - The Storage->make_directory() method failed to create the directory: [#!variable!directory!#].</key>
 		<key name="log_0255">[ Note ] - Created the directory: [#!variable!directory!#].</key>
+		<key name="log_0256">[ Note ] - Downloaded: [#!variable!file!#] (#!variable!human_readable_size!# / #!variable!size_in_bytes!# bytes).</key>
+		<key name="log_0257">[ Warning ] - It appears that we failed to downloaded and save: [#!variable!file!#].</key>
+		<key name="log_0258">[ Warning ] - It appears that we failed to downloaded and save: [#!variable!file!#]. The output file has no size, and will be removed.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

@@ -38,7 +38,15 @@ $anvil->data->{form}{back_link}     = "";
 $anvil->data->{form}{refresh_link}  = "";
 
 # Read in any CGI variables, if needed.
-$anvil->Get->cgi();
+$anvil->Get->cgi({debug => 2});
+
+# If we're being asked to get a file, do so now.
+if ($anvil->data->{cgi}{upload_file}{file_handle})
+{
+	# Save and exit. We've got ajax handling the UI so this invocation only saves the file.
+	handle_upload($anvil);
+	$anvil->nice_exit({exit_code => 0});
+}
 
 # If the system hasn't initialized, there may be no host.uuid, and we'll need a better error to show the 
 # user.
@@ -61,10 +69,12 @@ if (not $anvil->data->{sys}{database}{connections})
 
 # If any jobs are pending/running, show the "unavailable" option.
 my $configured = $anvil->System->check_if_configured;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
 
+### TODO: Something is causing fairly frequent resyncs, which results in Striker going in and out of 
+###       maintenance mode.
 my $available = $configured ? check_availability($anvil) : 0;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {available => $available }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {available => $available }});
 if (not $configured)
 {
 	# If there is no user account yet, then the system is new and needs to be reconfigured.
@@ -99,6 +109,64 @@ print_and_exit($anvil);
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This handles uploading (downloading by our perspective)
+sub handle_upload
+{
+	my ($anvil) = @_;
+	
+	# Get the file handle.
+	my $cgi_file_handle =  $anvil->data->{cgi}{upload_file}{file_handle};
+	my $file_name       =  $anvil->data->{cgi}{upload_file}{file_name};
+	my $mime_type       =  $anvil->data->{cgi}{upload_file}{mime_type};
+	my $output_file     =  $anvil->data->{path}{directories}{shared}{incoming}."/".$file_name;
+	   $output_file     =~ s/\/\//\//g;
+	# TODO: Make sure characters like spaces and whatnot don't need to be escaped.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		cgi_file_handle => $cgi_file_handle, 
+		file_name       => $file_name, 
+		mime_type       => $mime_type, 
+		output_file     => $output_file, 
+	}});
+	
+	open (my $file_handle, ">", $output_file) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $output_file, error => $! }});
+	binmode $file_handle;
+	while(<$file_handle>)
+	{
+		print $cgi_file_handle $_;
+	}
+	close $file_handle;
+	
+	if (not -f $output_file)
+	{
+		# Something went wrong
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0257", variables => { file => $output_file }});
+	}
+	else
+	{
+		# Looks like we got it.
+		my $file_size = -s $output_file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_size => $file_size }});
+		if (not $file_size)
+		{
+			# Looks like we didn't actually get the file...
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0258", variables => { file => $output_file }});
+			unlink $output_file;
+		}
+		else
+		{
+			my $say_size_in_bytes = $anvil->Convert->add_commas({number => $file_size});
+			my $say_human_size    = $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0256", variables => { 
+				file                => $output_file, 
+				size_in_bytes       => $say_size_in_bytes,
+				human_readable_size => $say_human_size, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
 sub print_and_exit
 {
 	my ($anvil) = @_;
@@ -130,8 +198,8 @@ sub print_and_exit
 	# The jobs button is "on" when the user is logged in and there is one or more jobs on this system 
 	# under 100% complete.
 	my $say_jobs_button = $anvil->Template->get({file => "main.html", name => "jobs_button_off"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_jobs_button => $say_jobs_button }});
-	if (($anvil->data->{sys}{users}{user_name}) && ($anvil->Job->running({debug => 2})))
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_jobs_button => $say_jobs_button }});
+	if (($anvil->data->{sys}{users}{user_name}) && ($anvil->Job->running({debug => 3})))
 	{
 		$say_jobs_button = $anvil->Template->get({file => "main.html", name => "jobs_button_on"});
 	}
@@ -1205,7 +1273,7 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
-	my $debug     = 2;
+	my $debug     = 3;
 	my $available = 1;
 	
 	# Check maintenance mode.

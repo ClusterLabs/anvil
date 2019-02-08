@@ -203,24 +203,26 @@ sub cgi
 	# Needed to read in passed CGI variables
 	my $cgi = CGI->new();
 	
-	# The list of CGI variables to try and read will always be in 'cgi_list'.
 	my $cgis      = [];
 	my $cgi_count = 0;
-	if (defined $cgi->param("cgi_list"))
+	# Get the list of parameters coming in, if possible, 
+	if (exists $cgi->{param})
 	{
-		my $cgi_list = $cgi->param("cgi_list");
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_list => $cgi_list }});
-		
-		foreach my $variable (split/,/, $cgi_list)
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'cgi->{param}' => $cgi->{param} }});
+		foreach my $variable (sort {$a cmp $b} keys %{$cgi->{param}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
 			push @{$cgis}, $variable;
 		}
 	}
-	elsif (exists $cgi->{param})
+	elsif (defined $cgi->param("cgi_list"))
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'cgi->{param}' => $cgi->{param} }});
-		foreach my $variable (sort {$a cmp $b} keys %{$cgi->{param}})
+		### TODO: Get rid of this
+		# This is a fall-back list we really shouldn't need.
+		my $cgi_list = $cgi->param("cgi_list");
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_list => $cgi_list }});
+		
+		foreach my $variable (split/,/, $cgi_list)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
 			push @{$cgis}, $variable;
@@ -240,29 +242,36 @@ sub cgi
 	# Now read in the variables.
 	foreach my $variable (sort {$a cmp $b} @{$cgis})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable => $variable }});
 		
-		$anvil->data->{cgi}{$variable}{value}      = "";
-		$anvil->data->{cgi}{$variable}{mimetype}   = "string";
-		$anvil->data->{cgi}{$variable}{filehandle} = "";
-		$anvil->data->{cgi}{$variable}{alert}      = 0;	# This is set if a sanity check fails
+		$anvil->data->{cgi}{$variable}{value}       = "";
+		$anvil->data->{cgi}{$variable}{mime_type}   = "string";
+		$anvil->data->{cgi}{$variable}{file_handle} = "";
+		$anvil->data->{cgi}{$variable}{file_name}   = "";
+		$anvil->data->{cgi}{$variable}{alert}       = 0;	# This is set if a sanity check fails
 		
-		if ($variable eq "file")
+		# This is a special CGI key for download files (upload from the user's perspective)
+		if ($variable eq "upload_file")
 		{
-			if (not $cgi->upload($variable))
+			if (not $cgi->upload('upload_file'))
 			{
 				# Empty file passed, looks like the user forgot to select a file to upload.
-				#$anvil->Log->entry({log_level => $debug, message_key => "log_0016", file => $THIS_FILE, line => __LINE__});
+				$anvil->Log->entry({log_level => 2, message_key => "log_0242", file => $THIS_FILE, line => __LINE__});
 			}
 			else
 			{
-				   $anvil->data->{cgi}{$variable}{filehandle} = $cgi->upload($variable);
-				my $file                                      = $anvil->data->{cgi}{$variable}{filehandle};
-				   $anvil->data->{cgi}{$variable}{mimetype}   = $cgi->uploadInfo($file)->{'Content-Type'};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					variable                       => $variable,
-					"cgi::${variable}::filehandle" => $anvil->data->{cgi}{$variable}{filehandle},
-					"cgi::${variable}::mimetype"   => $anvil->data->{cgi}{$variable}{mimetype},
+				   $anvil->data->{cgi}{upload_file}{file_handle} = $cgi->upload('upload_file');
+				my $file                                         = $anvil->data->{cgi}{upload_file}{file_handle};
+				   $anvil->data->{cgi}{upload_file}{file_name}   = $file;
+				   $anvil->data->{cgi}{upload_file}{mime_type}   = $cgi->uploadInfo($file)->{'Content-Type'};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					variable                                => 'upload_file',
+					"cgi::${variable}::file_handle"         => $anvil->data->{cgi}{upload_file}{file_handle},
+					"cgi::${variable}::file_handle->handle" => $anvil->data->{cgi}{upload_file}{file_handle}->handle,
+					"cgi::${variable}::file_name"           => $anvil->data->{cgi}{upload_file}{file_name},
+					"cgi::${variable}::mime_type"           => $anvil->data->{cgi}{upload_file}{mime_type},
+					"cgi->upload('upload_file')"            => $cgi->upload('upload_file'),
+					"cgi->upload('upload_file')->handle"    => $cgi->upload('upload_file')->handle,
 				}});
 			}
 		}
