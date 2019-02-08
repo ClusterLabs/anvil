@@ -1,0 +1,43 @@
+#!/usr/bin/perl
+# 
+# This handles moving around and managing files on Anvil! nodes, DR hosts and Striker dashboards.
+#
+# Exit codes;
+# 0 = Normal exit or md5sum of this program changed and it exited to reload.
+# 1 = 
+# 2 = 
+# 
+# TODO: 
+# - 
+# 
+# NOTE:
+# - 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+
+# Disable buffering
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+
+
+# We're done
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Private functions.                                                                                        #
+#############################################################################################################
