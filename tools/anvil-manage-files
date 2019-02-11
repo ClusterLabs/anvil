@@ -1,6 +1,19 @@
 #!/usr/bin/perl
 # 
 # This handles moving around and managing files on Anvil! nodes, DR hosts and Striker dashboards.
+# 
+# When this is called (periodically by the daemon of after an upload / ISO generation);
+# - 1. Check 'incoming/' for files. For any found, generate an md5sum and see if the file name and sum match 
+#      anything in the database from any host;
+#      - If so, update/add an entry in 'file_locations'
+#      - If not, create a new entry in 'files' and then add the first entry in 'file_locations'
+# - 2. Check 'file_locations' for any files on this system, and verify they exist still. 
+#      - If not, check the other files for one with a matching md5sum. If found, handle as a rename.
+#      - If not found at all, search for the file according to the search rules and copy to here if found.
+#      - If not found anywhere, remove it from 'file_locations' and send an alert.
+#      - If found, check the size. If it differs, recalculate the md5sum.
+# - 3. If called with '--rename --file <filename> --to <newname>', rename the file and update 'files'.
+# - 4. If called with '--delete', remove from 'file_locations' and then remove from the local storage.
 #
 # Exit codes;
 # 0 = Normal exit or md5sum of this program changed and it exited to reload.
@@ -32,6 +45,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+
+### When a new file is processed, record in DB and then update files.json (if on a striker)
 
 
 # We're done

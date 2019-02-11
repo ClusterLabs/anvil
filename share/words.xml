@@ -547,6 +547,15 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		<key name="log_0256">[ Note ] - Downloaded: [#!variable!file!#] (#!variable!human_readable_size!# / #!variable!size_in_bytes!# bytes).</key>
 		<key name="log_0257">[ Warning ] - It appears that we failed to downloaded and save: [#!variable!file!#].</key>
 		<key name="log_0258">[ Warning ] - It appears that we failed to downloaded and save: [#!variable!file!#]. The output file has no size, and will be removed.</key>
+		<key name="log_0259">Starting download of file: [#!variable!file!#].</key>
+		<key name="log_0260">
+Finished Downloading: [#!variable!file!#]. 
+- md5sum: ...... [#!variable!md5sum!#]. 
+- Size: ........ [#!variable!size_human!# (#!variable!size_bytes!# bytes)]. 
+- Took: ........ [#!variable!took!#] seconds.
+- Download rate: [#!variable!rate!#]
+		</key>
+		<key name="log_0261">#!variable!file!# was called, but no files where available for download in CGI. Was the variable name 'upload_file' used?</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -705,6 +714,10 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0117">Initial host configuration.</key>
 		<key name="striker_0118">Prepare a new machine for use as an Anvil! node or DR (disaster recovery) host. This process will setup the repository, install the appropriate anvil packages and link it to the Anvil! databases on the Strikers you choose.</key>
 		<key name="striker_0119">Anvil! File Manager.</key>
+		<key name="striker_0120">Saving File...</key>
+		
+		<!-- These are generally units and appended to numbers -->
+		<key name="suffix_0001">#!variable!number!#/sec</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

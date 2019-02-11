@@ -1032,6 +1032,9 @@ sub _set_paths
 				uuidgen				=>	"/usr/bin/uuidgen",
 				virsh				=>	"/usr/bin/virsh",
 			},
+			json			=>	{
+				files				=>	"files.json",
+			},
 			'lock'			=>	{
 				database			=>	"/tmp/anvil-tools.database.lock",
 			},

@@ -907,7 +907,13 @@ sub users_home
 
 =head2 uuid
 
-This method returns a new v4 UUID (using 'UUID::Tiny'). It takes no parameters.
+This method returns a new v4 UUID (using 'UUID::Tiny').
+
+Parameters;
+
+=head3 short (optional, default '0')
+
+This returns just the first 8 bytes of the uuid. For example, if the generated UUID is C<< 9e4b3f7c-5a98-40b6-9c34-84fdb24ddd30 >>, only C<< 9e4b3f7c >> is returned.
 
 =cut
 sub uuid
@@ -917,8 +923,18 @@ sub uuid
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	my $short = defined $parameter->{short} ? $parameter->{short} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		short => $short,
+	}});
+	
 	my $uuid = create_uuid_as_string(UUID_RANDOM);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+	
+	if ($short)
+	{
+		$uuid =~ s/^(\w+?)-.*$/$1/;
+	}
 	
 	return($uuid);
 }

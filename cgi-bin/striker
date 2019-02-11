@@ -464,8 +464,8 @@ sub process_file_menu
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{form}{refresh_link} = "striker?anvil=true";
-	$anvil->data->{form}{back_link}    = "?striker=true";
+	$anvil->data->{form}{refresh_link} = "striker?files=true";
+	#$anvil->data->{form}{back_link}    = "?striker=true";
 	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
 	
