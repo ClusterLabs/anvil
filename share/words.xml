@@ -556,6 +556,7 @@ Finished Downloading: [#!variable!file!#].
 - Download rate: [#!variable!rate!#]
 		</key>
 		<key name="log_0261">#!variable!file!# was called, but no files where available for download in CGI. Was the variable name 'upload_file' used?</key>
+		<key name="log_0262">[ Error ] - Storage->scan_directory() was asked to scan: [#!variable!directory!#], but it doesn't exist or isn't actually a directory.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

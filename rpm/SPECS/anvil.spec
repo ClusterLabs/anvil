@@ -41,6 +41,7 @@ Requires:       perl-Data-Dumper
 Requires:       perl-DBD-Pg 
 Requires:       perl-DBI
 Requires:       perl-Digest-SHA
+Requires:       perl-File-MimeInfo
 Requires:       perl-HTML-FromText
 Requires:       perl-HTML-Strip
 Requires:       perl-JSON 

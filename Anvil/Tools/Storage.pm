@@ -8,6 +8,7 @@ use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
 use Text::Diff;
+use File::MimeInfo;
 use utf8;
 
 our $VERSION  = "3.0.0";
@@ -26,6 +27,7 @@ my $THIS_FILE = "Storage.pm";
 # read_mode
 # record_md5sums
 # rsync
+# scan_directory
 # search_directories
 # update_config
 # update_file
@@ -1732,6 +1734,100 @@ sub rsync
 	}
 	
 	return($failed);
+}
+
+=head2 scan_directory
+
+
+
+=cut
+### TODO: Make this work on remote systems
+sub scan_directory
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Set a default if nothing was passed.
+	my $directory = defined $parameter->{directory} ? $parameter->{directory} : "";
+	my $recursive = defined $parameter->{recursive} ? $parameter->{recursive} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		directory => $directory,
+		recursive => $recursive, 
+	}});
+	
+	# Does this directory exist?
+	if (not $directory)
+	{
+		# Not even passed in
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->rsync()", parameter => "scan_directory" }});
+		return(1);
+	}
+	if ((not -e $directory) or (not -d $directory))
+	{
+		# Nope.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0262", variables => { directory => $directory }});
+		return(1);
+	}
+	
+	# Results will be stored in this hash.
+	$anvil->data->{scan}{directories}{$directory}{type} = "directory";
+	
+	# Now lets scan
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		my $full_path = $directory."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+		if ((-d $full_path) && ($recursive))
+		{
+			# This is a directory, dive into it is asked.
+			$anvil->data->{scan}{directories}{$full_path}{type} = "directory";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scan::directories::${full_path}::type" => $anvil->data->{scan}{directories}{$full_path}{type}, 
+			}});
+			$anvil->Storage->scan_directory({directory => $full_path, recursive => $recursive});
+		}
+		elsif (-l $full_path)
+		{
+			# Symlink
+			$anvil->data->{scan}{directories}{$full_path}{type}   = "symlink";
+			$anvil->data->{scan}{directories}{$full_path}{target} = readlink($full_path);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scan::directories::${full_path}::type"    => $anvil->data->{scan}{directories}{$full_path}{type}, 
+				"scan::directories::${full_path}::taarget" => $anvil->data->{scan}{directories}{$full_path}{taarget}, 
+			}});
+		}
+		elsif (-f $full_path)
+		{
+			# Normal file.
+			my @details = stat($full_path);
+			$anvil->data->{scan}{directories}{$full_path}{type}     = "file";
+			$anvil->data->{scan}{directories}{$full_path}{mode}     = sprintf("04%o", $details[2] & 07777);
+			$anvil->data->{scan}{directories}{$full_path}{user_id}  = $details[4];
+			$anvil->data->{scan}{directories}{$full_path}{group_id} = $details[5];
+			$anvil->data->{scan}{directories}{$full_path}{size}     = $details[7];
+			$anvil->data->{scan}{directories}{$full_path}{mtime}    = $details[9];
+			$anvil->data->{scan}{directories}{$full_path}{mimetype} = mimetype($full_path);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scan::directories::${full_path}::type"     => $anvil->data->{scan}{directories}{$full_path}{type}, 
+				"scan::directories::${full_path}::mode"     => $anvil->data->{scan}{directories}{$full_path}{mode}, 
+				"scan::directories::${full_path}::user_id"  => $anvil->data->{scan}{directories}{$full_path}{user_id}, 
+				"scan::directories::${full_path}::group_id" => $anvil->data->{scan}{directories}{$full_path}{group_id}, 
+				"scan::directories::${full_path}::size"     => $anvil->data->{scan}{directories}{$full_path}{size}, 
+				"scan::directories::${full_path}::mtime"    => $anvil->data->{scan}{directories}{$full_path}{mtime}, 
+				"scan::directories::${full_path}::mimetype" => $anvil->data->{scan}{directories}{$full_path}{mimetype}, 
+			}});
+		}
+	}
+	closedir(DIRECTORY);
+	
+	
+	return(0);
 }
 
 =head2 search_directories

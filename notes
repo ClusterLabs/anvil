@@ -911,7 +911,7 @@ dnf install bash-completion bind-utils dnf-utils firefox gdm libgcrypt-devel lib
             perl-IO-stringy perl-MailTools perl-Module-Build perl-Module-Install perl-Module-Install-AutoLicense perl-Module-Install-ReadmeFromPod perl-Net-DNS perl-Test-Exception perl-Test-Simple perl-Test-Pod perl-Test-Pod-Coverage \
             perl-Test2-Suite rpm-build systemd-devel texinfo virt-manager wget \
             perl-Params-ValidationCompiler perl-Dist-CheckConflicts perl-namespace-autoclean perl-Test-Fatal perl-Devel-GlobalDestruction perl-IPC-Run3 perl-Specio perl-Sys-Syslog mod_perl postfix perl-DBI perl-IPC-SysV perl-Test perl-Filter rrdtool-perl perl-Test-Warn perl-Date-Manip \
-            perl-MIME-Types python36 docbook-style-xsl libxslt flex kernel-devel
+            perl-MIME-Types python36 docbook-style-xsl libxslt flex kernel-devel perl-IPC-System-Simple xdg-user-dirs perl-Import-Into perl-Class-XSAccessor perl-Sub-Name perl-DynaLoader-Functions perl-Devel-CallChecker perl-Test-Requires
 
 
 - Uninstall
@@ -922,9 +922,13 @@ dnf remove biosdevname
 * anvil
 * anvil-striker-extra
 * libssh2                              # NOTE! Make sure this comes from F29 (1.8.0-8). The version from RHEL doesn't offer -devel, they say it's deprecated (??). May need to update or replace perl-Net-SSH2
+* perl-B-Compiling
 * perl-Email-Date-Format
 * perl-Exporter-Lite
+* perl-ExtUtils-Depends
 * perl-HTML-Strip
+* perl-File-BaseDir
+* perl-File-MimeInfo
 * perl-IO-CaptureOutput
 * perl-Log-Journald
 * perl-Mail-Sender
@@ -932,6 +936,8 @@ dnf remove biosdevname
 * perl-Module-Install-GithubMeta
 * perl-Net-Domain-TLD
 * perl-Proc-Simple
+* perl-Lexical-SealRequireHints
+* perl-Sub-Quote
 * perl-Test-Needs
 * perl-Test-UseAllModules
 * perl-UUID-Tiny
@@ -941,237 +947,65 @@ dnf remove biosdevname
 --- Second round of builds;
 
 rpm -Uvh libssh2  (won't update from 1.8.0-7 from RHEL8 repo to our 1.8.0-8 via dnf update for some reason)
-dnf install perl-IO-CaptureOutput perl-Exporter-Lite perl-Module-Install-GithubMeta perl-Net-Domain-TLD perl-Test-UseAllModules perl-Mail-Sender perl-Mail-Sendmail perl-Test-Needs perl-Email-Date-Format
+dnf install perl-IO-CaptureOutput perl-Exporter-Lite perl-Module-Install-GithubMeta perl-Net-Domain-TLD perl-Test-UseAllModules perl-Mail-Sender perl-Mail-Sendmail perl-Test-Needs perl-Email-Date-Format perl-ExtUtils-Depends perl-B-Compiling perl-Lexical-SealRequireHints \
+            perl-Sub-Quote 
 
+* perl-B-Hooks-OP-Check
 * perl-Email-Valid
+* perl-Lexical-Var
 * perl-MIME-Lite
 * perl-Module-Install-AutoLicense
 * perl-Net-Netmask
 
 --- Third round of builds;
 
-dnf install perl-Email-Valid erl-Module-Install-AutoLicense perl-MIME-Lite 
+dnf install perl-Email-Valid erl-Module-Install-AutoLicense perl-MIME-Lite perl-B-Hooks-OP-Check perl-Lexical-Var
 
+* perl-bareword-filehandles
+* perl-Devel-Declare            # NOTE: need to boot-strap; [rpmbuild -ba --define='perl_bootstrap=1' perl-Devel-Declare.spec], build perl-Devel-CallParser, rebuild this without bootstrap.
 * perl-Email-Find
 * perl-Log-Dispatch
 * perl-Module-Install-CheckLib
+* perl-multidimensional
+* perl-indirect                 # NOTE: need to boot-strap; [rpmbuild -ba --define='perl_bootstrap=1' perl-indirect.spec], build perl-Devel-CallParser, rebuild this without bootstrap.
 
 --- Fourth round of builds;
 
-dnf install perl-Email-Find perl-Module-Install-CheckLib perl-Log-Dispatch
+dnf install perl-Email-Find perl-Module-Install-CheckLib perl-Log-Dispatch perl-Devel-Declare perl-bareword-filehandles perl-multidimensional perl-indirect 
 
+* perl-Devel-CallParser
 * perl-HTML-FromText
 * perl-Log-Dispatch-FileRotate
 * perl-Net-SSH2
-
+* perl-strictures
 
 --- Fifth round of builds;
 
-dnf install perl-Log-Dispatch
+dnf install perl-Log-Dispatch perl-strictures perl-Devel-CallParser
 
+* perl-Devel-Declare             # Again, without the bootstrapping.
+* perl-indirect                  # Again, without the bootstrapping.
 * perl-Log-Log4perl
+* perl-Moo
 
+--- Sixth round of builds;
 
+dnf clean all                    # expire-cache isn't enough to clear the boot-strapped versions
+dnf reinstall perl-Devel-Declare perl-indirect
+dnf install perl-Moo
 
+* perl-CPAN-Changes
 
-====== try1
+--- Seventh round of builds;
 
-1. dnf install asciidoc bind-utils bison byacc cmake dos2unix freeglut-devel freetype-devel gcc-c++ gd-devel gettext-devel ghostscript graphviz gtk2-devel inkscape libGLU-devel libX11-devel libXext-devel libXi-devel libXmu-devel \
-               libXt-devel libgcrypt-devel libjpeg-devel libpng-devel librsvg2-devel libtiff-devel libtool libtool-ltdl-devel libwebp-devel libxml2-devel lpr mesa-libGL-devel openssl-devel perl "perl(Devel::PPPort)" "perl(Env)" \
-               "perl(ExtUtils::CBuilder)" "perl(File::HomeDir)" perl-File-Remove "perl(File::ShareDir)" "perl(File::Which)" "perl(Locale::Messages)" "perl(Mail::Address)" "perl(Module::Build)" "perl(Module::Pluggable)" \
-               "perl(Module::Runtime)" "perl(Net::DNS)" "perl(Term::ReadKey)" "perl(Test)" "perl(Test::Simple)" "perl(Text::Diff)" "perl(Try::Tiny)" "perl(YAML)" "perl(autodie)" perl-Devel-Peek perl-Pod-Parser perl-Text-Glob \
-               perl-generators "pkgconfig(dbus-1)" "pkgconfig(glib-2.0)" publican python3-devel python3-devel python36 qt5-qtbase-devel systemd-devel texlive-epstopdf "tex(adjustbox.sty)" "tex(appendix.sty)" "tex(dvips)" \
-               "tex(import.sty)" "tex(latex)" "tex(multirow.sty)" "tex(sectsty.sty)" "tex(tabu.sty)" "tex(tocloft.sty)" "tex(xtab.sty)" time valgrind wget xdg-user-dirs xdg-utils xmlto xz-devel zip2-devel zlib-devel
+dnf install perl-CPAN-Changes
 
-=================
+* perl-File-DesktopEntry
 
-* csnappy
-* doxygen
-* fpaste
-* giflib
-* gtest
-* help2man
-* htop 
-* jbigkit
-* lcms2
-* libssh2
-* libutempter
-* libwmf
-* perl-Capture-Tiny
-* perl-Class-XSAccessor
-* perl-Config-Tiny
-* perl-Class-Data-Inheritable
-* perl-Class-Tiny
-* perl-Devel-CheckBin
-* perl-Devel-Hide
-* perl-Devel-StackTrace
-* perl-Digest-SHA1
-* perl-Encode
-* perl-ExtUtils-Depends
-* perl-Exporter-Lite
-* perl-ExtUtils-Config
-* perl-ExtUtils-Helpers
-* perl-ExtUtils-PkgConfig
-* perl-File-BaseDir
-* perl-File-ReadBackwards
-* perl-File-Remove
-* perl-File-Type
-* perl-Import-Into
-* perl-Importer
-* perl-IO-CaptureOutput
-* perl-IO-String
-* perl-IO-stringy
-* perl-Log-Journald 
-* perl-Mock-Config
-* perl-Module-Install-ExtraTests
-* perl-Module-Pluggable
-* perl-Net-Domain-TLD
-* perl-Number-Compare
-* perl-PadWalker
-* perl-Perl-Destruct-Level
-* perl-Probe-Perl
-* perl-Proc-Simple
-* perl-Scope-Guard
-* perl-File-ShareDir-Install
-* perl-Lingua-EN-Inflect
-* perl-strictures
-* perl-String-Format
-* perl-Sub-Exporter-Progressive
-* perl-Sub-Identify
-* perl-Sub-Uplevel
-* perl-Taint-Runtime
-* perl-Task-Weaken
-* perl-Term-Size-Perl
-* perl-Test-Deep
-* perl-Test-Fatal
-* perl-Test-InDistDir
-* perl-Test-Object
-* perl-Test-Pod
-* perl-Test-Requires
-* perl-Test-Warnings
-* perl-Test-Without-Module
-* perl-YAML-LibYAML
-* perl-YAML-Syck
-* perltidy
-* yasm
+--- Seventh round of builds;
 
-2. dnf install csnappy doxygen fpaste giflib gtest help2man htop  jbigkit lcms2 libssh2 libutempter libwmf perl-Capture-Tiny perl-Class-XSAccessor perl-Config-Tiny perl-Class-Data-Inheritable perl-Class-Tiny perl-Devel-CheckBin \
-               perl-Devel-Hide perl-Devel-StackTrace perl-Digest-SHA1 perl-Encode perl-ExtUtils-Depends perl-Exporter-Lite perl-ExtUtils-Config perl-ExtUtils-Helpers perl-ExtUtils-PkgConfig perl-File-BaseDir perl-File-ReadBackwards \
-               perl-File-Remove perl-File-Type perl-Import-Into perl-Importer perl-IO-CaptureOutput perl-IO-String perl-IO-stringy perl-Log-Journald  perl-Mock-Config perl-Module-Install-ExtraTests perl-Module-Pluggable \
-               perl-Net-Domain-TLD perl-Number-Compare perl-PadWalker perl-Perl-Destruct-Level perl-Probe-Perl perl-Proc-Simple perl-Scope-Guard perl-File-ShareDir-Install perl-Lingua-EN-Inflect perl-strictures perl-String-Format \
-               perl-Sub-Exporter-Progressive perl-Sub-Identify perl-Sub-Uplevel perl-Taint-Runtime perl-Task-Weaken perl-Term-Size-Perl perl-Test-Deep perl-Test-Fatal perl-Test-InDistDir perl-Test-Object perl-Test-Pod \
-               perl-Test-Requires perl-Test-Warnings perl-Test-Without-Module perl-YAML-LibYAML perl-YAML-Syck perltidy yasm 
+dnf install perl-File-DesktopEntry 
 
-jasper
-libdatrie
-libthai
-libtiff
-* p7zip
-perl-B-Hooks-EndOfScope
-perl-B-Keywords
-perl-Class-Method-Modifiers
-perl-Clone
-perl-Devel-CheckLib
-perl-Devel-Cycle
-perl-Devel-EnforceEncapsulation
-perl-Devel-GlobalDestruction
-perl-Devel-Symdump
-perl-Dist-CheckConflicts
-perl-Email-Find
-perl-Email-Valid
-perl-Encode-EUCJPASCII
-perl-Exception-Class
-perl-Exporter-Tiny
-perl-ExtUtils-InstallPaths
-perl-File-DesktopEntry
-perl-File-Find-Rule
-perl-File-Find-Rule-Perl
-perl-File-MimeInfo
-perl-Font-TTF
-perl-GD
-perl-Getopt-ArgvFile
-perl-Graphics-TIFF
-perl-Hook-LexWrap
-perl-HTML-FromText 
-perl-HTML-Strip 
-perl-IO-All
-perl-List-MoreUtils
-perl-List-MoreUtils-XS
-perl-MCE
-perl-MIME-Charset
-perl-Module-Build-Tiny
-perl-Module-Implementation
-perl-Module-Install
-perl-Module-Install-AuthorRequires
-perl-Module-Install-AuthorTests
-perl-Module-Install-AutoLicense
-perl-Module-Install-CheckLib
-perl-Module-Install-GithubMeta
-perl-Module-Install-ManifestSkip
-perl-Module-Install-ReadmeFromPod
-perl-Module-Install-Repository
-perl-Module-Package
-perl-Module-Package-Au
-perl-Moo
-perl-namespace-autoclean
-perl-namespace-clean
-perl-Net-Netmask 
-perl-Net-SSH2 
-perl-Package-Stash
-perl-Package-Stash-XS
-perl-Paper-Specs
-perl-Path-Class
-perl-Path-Tiny
-perl-PDF-API2
-perl-Perl-Critic
-perl-Perl-Critic-Deprecated
-perl-Perl-Critic-More
-perl-Perl-MinimumVersion
-perl-pod2pdf
-perl-Pod-Coverage
-perl-Pod-Markdown
-perl-Pod-Spell
-perl-PPI
-perl-PPIx-QuoteLike
-perl-PPIx-Regexp
-perl-PPIx-Utilities
-perl-Readonly
-perl-Role-Tiny
-perl-Sereal
-perl-Sereal-Decoder
-perl-Sereal-Encoder
-perl-Sub-Info
-perl-Sub-Name
-perl-Sub-Quote
-perl-Term-Size-Any
-perl-Term-Table
-perl-Test-Differences
-perl-Test-Exception
-perl-Test-LongString
-perl-Test-Memory-Cycle
-perl-Test-Perl-Critic
-perl-Test-Pod-Coverage
-perl-Test-Script
-perl-Test-SubCalls
-perl-Test-UseAllModules
-perl-Test-Warn
-perl-Test2-Suite	                - Needs to be updated! Source from F29 isn't available easily
-perl-Unicode-EastAsianWidth
-perl-Unicode-LineBreak
-perl-Unicode-UTF8
-perl-UUID-Tiny
-perl-Variable-Magic
-perl-YAML-Tiny
-screen
-texinfo
-zstd
-
-3. 
-
-GraphicsMagick
-miniz
-perl-Image-Size
-sombok
 
 
 =======================================
