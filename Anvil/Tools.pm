@@ -974,6 +974,7 @@ sub _set_paths
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
+				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",

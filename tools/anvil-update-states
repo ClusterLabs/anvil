@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 # 
-# This is the master daemon that manages all periodically run processes on Striker dashboards and Anvil! 
-# nodes.
+# This updates things like the current network configuration, shared file data and writes it out to a json file.
 # 
 # 
 use strict;

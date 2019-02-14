@@ -50,8 +50,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure =
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
-	print $anvil->Words->string({key => "error_0003"})."\n";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0003"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 1});
 }
 
@@ -65,58 +64,14 @@ if (not $anvil->data->{switches}{'job-uuid'})
 }
 if ($anvil->data->{switches}{'job-uuid'})
 {
-	# Is it set and valid?
-	if (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))
+	# Load the job details. If anything is returned, there was a problem.
+	my $return = $anvil->Job->get_job_details({job_uuid => $anvil->data->{switches}{'job-uuid'}});
+	if ($return)
 	{
 		# It's not a UUID.
-		print $anvil->Words->string({key => "error_0033", variables => { uuid => $anvil->data->{switches}{'job-uuid'} }})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0033", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
 		$anvil->nice_exit({code => 2});
 	}
-	
-	# If I'm here, see if we can read the job details.
-	my $query = "
-SELECT 
-    job_host_uuid, 
-    job_data, 
-    job_updated, 
-    job_name,
-    job_status 
-FROM 
-    jobs 
-WHERE 
-    job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{switches}{'job-uuid'})." 
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	if ($count < 1)
-	{
-		print $anvil->Words->string({key => "error_0034", variables => { uuid => $anvil->data->{switches}{'job-uuid'} }})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0034", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });
-		$anvil->nice_exit({code => 2});
-	}
-	
-	# If we're here, we're good. Load the details
-	$anvil->data->{jobs}{job_uuid}      = $anvil->data->{switches}{'job-uuid'};
-	$anvil->data->{jobs}{job_host_uuid} = $results->[0]->[0];
-	$anvil->data->{jobs}{job_data}      = $results->[0]->[1];
-	$anvil->data->{jobs}{job_updated}   = $results->[0]->[2];
-	$anvil->data->{jobs}{job_name}      = $results->[0]->[3];
-	$anvil->data->{jobs}{job_status}    = $results->[0]->[4];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		"jobs::job_uuid"      => $anvil->data->{jobs}{job_uuid}, 
-		"jobs::job_host_uuid" => $anvil->data->{jobs}{job_host_uuid},
-		"jobs::job_data"      => $anvil->data->{jobs}{job_data}, 
-		"jobs::job_updated"   => $anvil->data->{jobs}{job_updated}, 
-		"jobs::job_name"      => $anvil->data->{jobs}{job_name}, 
-		"jobs::job_status"    => $anvil->data->{jobs}{job_status}, 
-	}});
 }
 
 # Clea any old runs.

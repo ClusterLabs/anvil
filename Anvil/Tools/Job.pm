@@ -13,6 +13,7 @@ my $THIS_FILE = "Job.pm";
 
 ### Methods;
 # clear
+# get_job_details
 # get_job_uuid
 # html_list
 # running
@@ -117,6 +118,138 @@ sub clear
 		job_progress         => 0, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	
+	return(0);
+}
+
+=head2 get_job_details
+
+This takes a C<< job_uuid >> and returns the job's details. If the job is found, C<< 0 >> is returned. If it isn't found, C<< 1 >> is returned. If it is found, but C<< check >> was set and the process is still alice, C<< 2 >> is returned.
+
+When successful, the job details will be stored in;
+
+* C<< jobs::job_uuid >>
+* C<< jobs::job_host_uuid >>
+* C<< jobs::job_command >>
+* C<< jobs::job_data >>
+* C<< jobs::job_updated >>
+* C<< jobs::job_picked_up_by >>
+* C<< jobs::job_picked_up_at >>
+* C<< jobs::job_name >>
+* C<< jobs::job_progress >>
+* C<< jobs::job_title >>
+* C<< jobs::job_description >>
+* C<< jobs::job_status >>
+
+Parameters;
+
+=head3 check (optional, default '1')
+
+This checks to see if the job was picked up by a program that is still running. If set to C<< 1 >> and that process is running, this method will return C<< 2 >>. If set to C<< 0 >>, the job data will be loaded (if found) and C<< 0 >> will be returned.
+
+=head3 job_uuid (required)
+
+This is the job UUID to pull up.
+
+=cut
+sub get_job_details
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	my $check    = defined $parameter->{check}    ? $parameter->{check}    : "";
+	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		check    => $check,
+		job_uuid => $job_uuid,
+	}});
+	
+	if (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))
+	{
+		# It's not a UUID.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0033", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });
+		return(1);
+	}
+	
+	# If I'm here, see if we can read the job details.
+	my $query = "
+SELECT 
+    job_host_uuid, 
+    job_command, 
+    job_data, 
+    job_picked_up_by, 
+    job_picked_up_at, 
+    job_updated, 
+    job_name,
+    job_progress, 
+    job_title, 
+    job_description, 
+    job_status 
+FROM 
+    jobs 
+WHERE 
+    job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{switches}{'job-uuid'})." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count < 1)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0034", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });
+		$anvil->nice_exit({code => 2});
+	}
+	
+	# If we're here, we're good. Load the details
+	$anvil->data->{jobs}{job_uuid}         = $job_uuid;
+	$anvil->data->{jobs}{job_host_uuid}    = $results->[0]->[0];
+	$anvil->data->{jobs}{job_command}      = $results->[0]->[1];
+	$anvil->data->{jobs}{job_data}         = $results->[0]->[1];
+	$anvil->data->{jobs}{job_picked_up_by} = $results->[0]->[2];
+	$anvil->data->{jobs}{job_picked_up_at} = $results->[0]->[3];
+	$anvil->data->{jobs}{job_updated}      = $results->[0]->[4];
+	$anvil->data->{jobs}{job_name}         = $results->[0]->[5];
+	$anvil->data->{jobs}{job_progress}     = $results->[0]->[6];
+	$anvil->data->{jobs}{job_title}        = $results->[0]->[7];
+	$anvil->data->{jobs}{job_description}  = $results->[0]->[8];
+	$anvil->data->{jobs}{job_status}       = $results->[0]->[9];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		"jobs::job_uuid"         => $anvil->data->{jobs}{job_uuid}, 
+		"jobs::job_host_uuid"    => $anvil->data->{jobs}{job_host_uuid},
+		"jobs::job_command"      => $anvil->data->{jobs}{job_command},
+		"jobs::job_data"         => $anvil->data->{jobs}{job_data}, 
+		"jobs::job_picked_up_by" => $anvil->data->{jobs}{job_picked_up_by}, 
+		"jobs::job_picked_up_at" => $anvil->data->{jobs}{job_picked_up_at}, 
+		"jobs::job_updated"      => $anvil->data->{jobs}{job_updated}, 
+		"jobs::job_name"         => $anvil->data->{jobs}{job_name}, 
+		"jobs::job_progress"     => $anvil->data->{jobs}{job_progress}, 
+		"jobs::job_title"        => $anvil->data->{jobs}{job_title}, 
+		"jobs::job_description"  => $anvil->data->{jobs}{job_description}, 
+		"jobs::job_status"       => $anvil->data->{jobs}{job_status}, 
+	}});
+	
+	# Have we been asked to check another job is already running?
+	
+	# See if the job was picked up by another running instance.
+	my $job_picked_up_by = $anvil->data->{jobs}{job_picked_up_by};
+	if (($check) && ($job_picked_up_by))
+	{
+		# Check if the PID is still active.
+		$anvil->System->pids({ignore_me => 1});
+		
+		# Is the PID that picked up the job still alive?
+		if (exists $anvil->data->{pids}{$job_picked_up_by})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0146", variables => { pid => $job_picked_up_by }});
+			return(2);
+		}
+	}
 	
 	return(0);
 }

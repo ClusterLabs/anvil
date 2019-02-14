@@ -13,12 +13,20 @@
 #      - If not found anywhere, remove it from 'file_locations' and send an alert.
 #      - If found, check the size. If it differs, recalculate the md5sum.
 # - 3. If called with '--rename --file <filename> --to <newname>', rename the file and update 'files'.
-# - 4. If called with '--delete', remove from 'file_locations' and then remove from the local storage.
+# - 4. If called with '--delete', remove from 'file_locations' and then remove from the local storage. If 
+#      also used with '--everywhere', then all copies on all systems we know about will be deleted. This is 
+#      done by registering a job against all known hosts. As such, if this is called and the target file 
+#      doesn't exist, it just clears the job and then exits.
+# - 5. If called with '--is-script=[0|1]', mark as 'script' in the 'files' table and set/remove the executable bit.
 #
 # Exit codes;
 # 0 = Normal exit or md5sum of this program changed and it exited to reload.
-# 1 = 
-# 2 = 
+# 1 = No databases available.
+# 2 = Another process that is still running has picked up this job.
+# 3 = No filename specified when needed by another switch.
+# 4 = Request to change the file name but the new name wasn't given.
+# 5 = The file specified was not found.
+# 6 = The file to delete is not under '/mnt/shared/'.
 # 
 # TODO: 
 # - 
@@ -45,9 +53,72 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+$anvil->data->{switches}{'job-uuid'}  = "";
+$anvil->data->{switches}{'rename'}    = "";
+$anvil->data->{switches}{'is-script'} = "";
+$anvil->data->{switches}{file}        = "";
+$anvil->data->{switches}{to}          = "";
+$anvil->data->{switches}{'delete'}    = "";
+$anvil->data->{switches}{everywhere}  = "";
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::job-uuid"   => $anvil->data->{switches}{'job-uuid'},
+	"switches::rename"     => $anvil->data->{switches}{'rename'},
+	"switches::is-script"  => $anvil->data->{switches}{'is-script'},
+	"switches::file"       => $anvil->data->{switches}{file},
+	"switches::to"         => $anvil->data->{switches}{to},
+	"switches::delete"     => $anvil->data->{switches}{'delete'},
+	"switches::everywhere" => $anvil->data->{switches}{everywhere},
+}});
 
-### When a new file is processed, record in DB and then update files.json (if on a striker)
+# Connect or die
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0003"});
+	$anvil->nice_exit({exit_code => 1});
+}
 
+# If we have a job_uuid, pick it up.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	my $return = $anvil->Job->get_job_details({check => 1, job_uuid => $anvil->data->{switches}{'job-uuid'}});
+	if ($return == 1)
+	{
+		# It's not a UUID.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
+		$anvil->nice_exit({code => 2});
+	}
+	if ($return == 2)
+	{
+		# This job is being handled by another process that is still alive.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
+		$anvil->nice_exit({code => 3});
+	}
+	
+	# If there's a progress, clear it.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'job::job_progress' => $anvil->data->{job}{job_progress} }});
+	if ($anvil->data->{job}{job_progress})
+	{
+		$anvil->Job->update_progress({
+			progress => 1, 
+			message  => "clear", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
+	}
+}
+
+# What are we doing?
+if ($anvil->data->{switches}{'rename'})
+{
+	handle_rename($anvil);
+}
+elsif ($anvil->data->{switches}{'delete'}))
+{
+	handle_delete($anvil);
+}
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -56,3 +127,84 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+# This handles deleting a file. If the requested deletion target doesn't exist, we'll just clear the 
+# database. If that doesn't exist either, we still don't error. This is to handle broad requests to delete a
+# file everywhere. If we're asked to delete it everywhere, then we'll register a job against all hosts.
+sub handle_delete
+{
+	my ($anvil) = @_;
+	
+	if (not $anvil->data->{switches}{file})
+	{
+		# Um...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052"});
+		$anvil->nice_exit({exit_code => 3});
+	}
+	elsif ($anvil->data->{switches}{file} !~ /^\/mnt\/shared\//)
+	{
+		# We don't do that here...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0053", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->nice_exit({exit_code => 6});
+	}
+	
+	# Does the file exist?
+	if (-e $anvil->data->{switches}{file})
+	{
+		# Delete it.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0263", variables => { file => $anvil->data->{switches}{file} }});
+		
+		unlink $anvil->data->{switches}{file};
+		
+		# Sleep and verify
+		sleep 1;
+		if (-e $anvil->data->{switches}{file})
+		{
+			# Failed to delete...
+			# TODO:
+		}
+		else
+		{
+			# Deleted successfully. Remove from 'file_locations'
+			### TODO: Find the file_uuid, then if found, see if we have and entry in file_location and then delete it.
+		}
+	}
+	
+	return(0);
+}
+
+# This handles renaming files.
+sub handle_rename
+{
+	my ($anvil) = @_;
+	
+	# Do we have the current file name and the new one?
+	if (not $anvil->data->{switches}{file})
+	{
+		# Um...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0049"});
+		$anvil->nice_exit({exit_code => 3});
+	}
+	elsif (not $anvil->data->{switches}{to})
+	{
+		# We need a target
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0050", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->nice_exit({exit_code => 4});
+	}
+	elsif (not -f $anvil->data->{switches}{file})
+	{
+		# The file to rename doesn't exist.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0051", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->nice_exit({exit_code => 5});
+	}
+	elsif (-e $anvil->data->{switches}{to})
+	{
+		# There's already a file (or directory or something) with that name.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052", variables => { file => $anvil->data->{switches}{file}, to => $anvil->data->{switches}{to} }});
+		$anvil->nice_exit({exit_code => 6});
+	}
+	
+	### TODO: Left off here
+	
+	return(0);
+}

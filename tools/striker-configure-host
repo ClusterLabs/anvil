@@ -9,6 +9,7 @@
 # 3 = Job was already picked up by another running instance.
 # 4 = The host name did not update properly.
 # 5 = Failed to write the temp file with the new password needed to call anvil-change-password.
+# 6 = The job-uuid was not found.
 # 
 
 use strict;
@@ -749,72 +750,37 @@ sub pickup_job_details
 {
 	my ($anvil) = @_;
 	
-	# If any job said it was picked up, and the "job_picked_up_by" PID doesn't exist, take it and update
-	# it.
+	# If this returns '1', the job-uuid was bad. If it returns '2', another process is running.
+	my $return = $anvil->Job->get_job_details({check => 1, job_uuid => $anvil->data->{switches}{'job-uuid'}});
+	if ($return == 1)
+	{
+		# It's not a valid UUID.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
+		$anvil->nice_exit({code => 6});
+	}
+	if ($return == 2)
+	{
+		# This job is being handled by another process that is still alive.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
+		$anvil->nice_exit({code => 3});
+	}
 	
-	my $query = "
-SELECT 
-    job_uuid, 
-    job_command, 
-    job_data, 
-    job_picked_up_by, 
-    job_picked_up_at, 
-    job_updated, 
-    job_progress 
-FROM 
-    jobs 
-WHERE 
-    job_name = 'configure::network' 
-AND 
-    job_progress != 100 
-AND 
-    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
-LIMIT 1;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
+	# Still alive? Good.
+	my $job_picked_up_by = $anvil->data->{jobs}{job_picked_up_by};
+	my $job_progress     = $anvil->data->{jobs}{job_progress};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	my $job_uuid         =         $results->[0]->[0];
-	my $job_command      =         $results->[0]->[1];
-	my $job_data         = defined $results->[0]->[2] ? $results->[0]->[2] : "";
-	my $job_picked_up_by =         $results->[0]->[3];
-	my $job_picked_up_at =         $results->[0]->[4]; 
-	my $job_updated      =         $results->[0]->[5];
-	my $job_progress     =         $results->[0]->[6];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		job_uuid         => $job_uuid,
-		job_command      => $job_command,
-		job_data         => $job_data,
 		job_picked_up_by => $job_picked_up_by,
-		job_picked_up_at => $job_picked_up_at,
-		job_updated      => $job_updated,
 		job_progress     => $job_progress,
 	}});
 	
 	# See if the job was picked up by another running instance.
 	if ($job_picked_up_by)
 	{
-		# Check if the PID is still active.
-		$anvil->System->pids({ignore_me => 1});
-		
-		# Is the PID that picked up the job still alive?
-		if (exists $anvil->data->{pids}{$job_picked_up_by})
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0146", variables => { pid => $job_picked_up_by }});
-			$anvil->nice_exit({code => 3});
-		}
-		else
-		{
-			# The previous job is gone, we'll take this over.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0147", variables => { 
-				pid     => $job_picked_up_by,
-				percent => $job_progress, 
-			}});
-		}
+		# The previous job is gone if we're still alive, we'll take this over.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0147", variables => { 
+			pid     => $job_picked_up_by,
+			percent => $job_progress, 
+		}});
 	}
 	
 	# This will store the variables from the database
@@ -858,9 +824,6 @@ AND
 		
 		$anvil->_make_hash_reference($anvil->data->{variables}, $this_variable, $this_value);
 	}
-	
-	# This will be used when updating the job
-	$anvil->data->{job}{uuid} = $job_uuid;
 	
 	# Record that we've picked up this job.
 	$anvil->Job->update_progress({

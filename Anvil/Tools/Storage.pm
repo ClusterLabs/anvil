@@ -1781,7 +1781,8 @@ sub scan_directory
 	{
 		next if $file eq ".";
 		next if $file eq "..";
-		my $full_path = $directory."/".$file;
+		my $full_path =  $directory."/".$file;
+		   $full_path =~ s/\/\//\//g; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
 		if ((-d $full_path) && ($recursive))
 		{
@@ -1790,7 +1791,7 @@ sub scan_directory
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"scan::directories::${full_path}::type" => $anvil->data->{scan}{directories}{$full_path}{type}, 
 			}});
-			$anvil->Storage->scan_directory({directory => $full_path, recursive => $recursive});
+			$anvil->Storage->scan_directory({debug => $debug, directory => $full_path, recursive => $recursive});
 		}
 		elsif (-l $full_path)
 		{
@@ -1806,21 +1807,23 @@ sub scan_directory
 		{
 			# Normal file.
 			my @details = stat($full_path);
-			$anvil->data->{scan}{directories}{$full_path}{type}     = "file";
-			$anvil->data->{scan}{directories}{$full_path}{mode}     = sprintf("04%o", $details[2] & 07777);
-			$anvil->data->{scan}{directories}{$full_path}{user_id}  = $details[4];
-			$anvil->data->{scan}{directories}{$full_path}{group_id} = $details[5];
-			$anvil->data->{scan}{directories}{$full_path}{size}     = $details[7];
-			$anvil->data->{scan}{directories}{$full_path}{mtime}    = $details[9];
-			$anvil->data->{scan}{directories}{$full_path}{mimetype} = mimetype($full_path);
+			$anvil->data->{scan}{directories}{$full_path}{type}       = "file";
+			$anvil->data->{scan}{directories}{$full_path}{mode}       = sprintf("04%o", $details[2] & 07777);
+			$anvil->data->{scan}{directories}{$full_path}{user_id}    = $details[4];
+			$anvil->data->{scan}{directories}{$full_path}{group_id}   = $details[5];
+			$anvil->data->{scan}{directories}{$full_path}{size}       = $details[7];
+			$anvil->data->{scan}{directories}{$full_path}{mtime}      = $details[9];
+			$anvil->data->{scan}{directories}{$full_path}{mimetype}   = mimetype($full_path);
+			$anvil->data->{scan}{directories}{$full_path}{executable} = -x $full_path ? 1 : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"scan::directories::${full_path}::type"     => $anvil->data->{scan}{directories}{$full_path}{type}, 
-				"scan::directories::${full_path}::mode"     => $anvil->data->{scan}{directories}{$full_path}{mode}, 
-				"scan::directories::${full_path}::user_id"  => $anvil->data->{scan}{directories}{$full_path}{user_id}, 
-				"scan::directories::${full_path}::group_id" => $anvil->data->{scan}{directories}{$full_path}{group_id}, 
-				"scan::directories::${full_path}::size"     => $anvil->data->{scan}{directories}{$full_path}{size}, 
-				"scan::directories::${full_path}::mtime"    => $anvil->data->{scan}{directories}{$full_path}{mtime}, 
-				"scan::directories::${full_path}::mimetype" => $anvil->data->{scan}{directories}{$full_path}{mimetype}, 
+				"scan::directories::${full_path}::type"       => $anvil->data->{scan}{directories}{$full_path}{type}, 
+				"scan::directories::${full_path}::mode"       => $anvil->data->{scan}{directories}{$full_path}{mode}, 
+				"scan::directories::${full_path}::user_id"    => $anvil->data->{scan}{directories}{$full_path}{user_id}, 
+				"scan::directories::${full_path}::group_id"   => $anvil->data->{scan}{directories}{$full_path}{group_id}, 
+				"scan::directories::${full_path}::size"       => $anvil->data->{scan}{directories}{$full_path}{size}, 
+				"scan::directories::${full_path}::mtime"      => $anvil->data->{scan}{directories}{$full_path}{mtime}, 
+				"scan::directories::${full_path}::mimetype"   => $anvil->data->{scan}{directories}{$full_path}{mimetype}, 
+				"scan::directories::${full_path}::executable" => $anvil->data->{scan}{directories}{$full_path}{executable}, 
 			}});
 		}
 	}

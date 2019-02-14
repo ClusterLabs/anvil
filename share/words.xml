@@ -557,6 +557,7 @@ Finished Downloading: [#!variable!file!#].
 		</key>
 		<key name="log_0261">#!variable!file!# was called, but no files where available for download in CGI. Was the variable name 'upload_file' used?</key>
 		<key name="log_0262">[ Error ] - Storage->scan_directory() was asked to scan: [#!variable!directory!#], but it doesn't exist or isn't actually a directory.</key>
+		<key name="log_0263">Now deleting the file: [#!variable!file!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -809,6 +810,12 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0046">This Striker system is not configured yet. This tool will not be available until it is.</key>
 		<key name="error_0047">Failed to start the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
 		<key name="error_0048">Failed to stop the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
+		<key name="error_0049">A request to rename a file was made, but no file name was given.</key>
+		<key name="error_0050">A request to rename the file: [#!variable!file!#] was made, but the new name wasn't given. Was '--to X' given?</key>
+		<key name="error_0051">A request to rename the file: [#!variable!file!#] was made, but that file doesn't exist.</key>
+		<key name="error_0051">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
+		<key name="error_0052">A request to delete a file was made, but no file name was given.</key>
+		<key name="error_0053">A request to delete the file: [#!variable!file!#] was received, but it is not under '/mnt/shared/'. This program can only work on or under that directory.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

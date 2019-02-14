@@ -26,6 +26,8 @@ my $THIS_FILE = "Database.pm";
 # initialize
 # insert_or_update_bridges
 # insert_or_update_bonds
+# insert_or_update_file_locations
+# insert_or_update_files
 # insert_or_update_hosts
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
@@ -2174,6 +2176,425 @@ WHERE
 	}
 	
 	return($bond_uuid);
+}
+
+=head2 insert_or_update_file_locations
+
+This updates (or inserts) a record in the 'file_locations' table. The C<< file_location_uuid >> referencing the database row will be returned.
+
+This table is used to track which of the files in the database are on a given host.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 file_location_uuid (optional)
+
+The record to update, when passed.
+
+If not passed, a check will be made to see if an existing entry is found for C<< file_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
+
+=head3 file_location_file_uuid (required)
+
+This is the C<< files >> -> C<< file_uuid >> referenced by this record.
+
+=head3 file_location_host_uuid (optional, default 'sys::host_uuid')
+
+This is the C<< hosts >> -> C<< host_uuid >> referenced by this record.
+
+=cut
+sub insert_or_update_file_locations
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_file_locations()" }});
+	
+	my $file_location_uuid      = defined $parameter->{file_location_uuid}      ? $parameter->{file_location_uuid}      : "";
+	my $file_location_file_uuid = defined $parameter->{file_location_file_uuid} ? $parameter->{file_location_file_uuid} : "";
+	my $file_location_host_uuid = defined $parameter->{file_location_host_uuid} ? $parameter->{file_location_host_uuid} : $anvil->data->{sys}{host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file_location_uuid      => $file_location_uuid, 
+		file_location_file_uuid => $file_location_file_uuid, 
+		file_location_host_uuid => $file_location_host_uuid, 
+	}});
+	
+	if (not $file_location_file_uuid)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_file_uuid" }});
+		return("");
+	}
+	if (not $file_location_host_uuid)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_file_locations()", parameter => "file_location_host_uuid" }});
+		return("");
+	}
+	
+	# Made sure the file_uuuid and host_uuid are valid
+	### TODO
+	
+	# If we don't have a UUID, see if we can find one for the given md5sum.
+	if (not $file_location_uuid)
+	{
+		my $query = "
+SELECT 
+    file_location_uuid 
+FROM 
+    file_locations 
+WHERE 
+    file_location_file_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_file_uuid)." 
+AND
+    file_location_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$file_location_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
+		}
+	}
+	
+	# If I still don't have an file_location_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
+	if (not $file_location_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $anvil->Database->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		$file_location_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    file_locations 
+(
+    file_location_uuid, 
+    file_location_file_uuid, 
+    file_location_host_uuid, 
+    file_md5sum, 
+    file_type, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_file_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    file_location_file_uuid, 
+    file_location_host_uuid, 
+FROM 
+    file_locations 
+WHERE 
+    file_location_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a file_location_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "file_location_uuid", uuid => $file_location_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_file_location_file_uuid = $row->[0];
+			my $old_file_location_host_uuid = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_file_location_file_uuid => $old_file_location_file_uuid, 
+				old_file_location_host_uuid => $old_file_location_host_uuid, 
+			}});
+			
+			# Anything change?
+			if (($old_file_location_file_uuid ne $file_location_file_uuid) or 
+			    ($old_file_location_host_uuid ne $file_location_host_uuid))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    file_locations 
+SET 
+    file_location_file_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_file_uuid).", 
+    file_location_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_host_uuid).", 
+    modified_date           = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    file_location_uuid      = ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	return($file_location_uuid);
+}
+
+=head2 insert_or_update_files
+
+This updates (or inserts) a record in the 'files' table. The C<< file_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 file_uuid (optional)
+
+If not passed, a check will be made to see if an existing entry is found for C<< file_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
+
+=head3 file_name (required)
+
+This is the file's name.
+
+=head3 file_size (required)
+
+This is the file's size in bytes. It is recorded as a quick way to determine if the file has changed on disk.
+
+=head3 file_md5sum (requred)
+
+This is the sum as calculated when the file is first uploaded. Once recorded, it can't change.
+
+=head3 file_type (required)
+
+This is the file's type/purpose. The expected values are 'iso' (disc image a new server can be installed from or mounted in a virtual optical drive),  'repo_rpm' (a package to install on a guest that provides access to Anvil! RPM software), 'script' (pre or post migration scripts), 'image' (images to use for newly created servers, instead of installing from an ISO or PXE), or 'other'. 
+
+=cut
+sub insert_or_update_files
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_files()" }});
+	
+	my $file_uuid   = defined $parameter->{file_uuid}   ? $parameter->{file_uuid}   : "";
+	my $file_name   = defined $parameter->{file_name}   ? $parameter->{file_name}   : "";
+	my $file_size   = defined $parameter->{file_size}   ? $parameter->{file_size}   : "";
+	my $file_md5sum = defined $parameter->{file_md5sum} ? $parameter->{file_md5sum} : "";
+	my $file_type   = defined $parameter->{file_type}   ? $parameter->{file_type}   : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file_uuid   => $file_uuid, 
+		file_name   => $file_name, 
+		file_size   => $file_size, 
+		file_md5sum => $file_md5sum, 
+		file_type   => $file_type, 
+	}});
+	
+	if (not $file_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_name" }});
+		return("");
+	}
+	if (not $file_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_name" }});
+		return("");
+	}
+	if (not $file_md5sum)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_md5sum" }});
+		return("");
+	}
+	if (not $file_type)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_type" }});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given md5sum.
+	if (not $file_uuid)
+	{
+		my $query = "
+SELECT 
+    file_uuid 
+FROM 
+    files 
+WHERE 
+    file_md5sum = ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$file_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});
+		}
+	}
+	
+	# If I still don't have an file_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});
+	if (not $file_uuid)
+	{
+		# It's possible that this is called before the host is recorded in the database. So to be
+		# safe, we'll return without doing anything if there is no host_uuid in the database.
+		my $hosts = $anvil->Database->get_hosts();
+		my $found = 0;
+		foreach my $hash_ref (@{$hosts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hash_ref->{host_uuid}" => $hash_ref->{host_uuid}, 
+				"sys::host_uuid"        => $anvil->data->{sys}{host_uuid}, 
+			}});
+			if ($hash_ref->{host_uuid} eq $anvil->data->{sys}{host_uuid})
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+			}
+		}
+		if (not $found)
+		{
+			# We're out.
+			return("");
+		}
+		
+		# INSERT
+		$file_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_uuid => $file_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    files 
+(
+    file_uuid, 
+    file_name, 
+    file_size, 
+    file_md5sum, 
+    file_type, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_size).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    file_name, 
+    file_size, 
+    file_md5sum, 
+    file_type 
+FROM 
+    files 
+WHERE 
+    file_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a file_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "file_uuid", uuid => $file_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_file_name   = $row->[0];
+			my $old_file_size   = $row->[1];
+			my $old_file_md5sum = $row->[2]; 
+			my $old_file_type   = $row->[3]; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_file_name   => $old_file_name, 
+				old_file_size   => $old_file_size, 
+				old_file_md5sum => $old_file_md5sum, 
+				old_file_type   => $old_file_type, 
+			}});
+			
+			# Anything change?
+			if (($old_file_name   ne $file_name)   or 
+			    ($old_file_size   ne $file_size)   or 
+			    ($old_file_md5sum ne $file_md5sum) or 
+			    ($old_file_type   ne $file_type))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    files 
+SET 
+    file_name     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_name).", 
+    file_size     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_size).", 
+    file_md5sum   = ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
+    file_type     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
+    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    file_uuid     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	return($file_uuid);
 }
 
 =head2 insert_or_update_hosts

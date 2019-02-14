@@ -1191,11 +1191,11 @@ CREATE TABLE file_locations (
 ALTER TABLE file_locations OWNER TO admin;
 
 CREATE TABLE history.file_locations (
-    history_id       bigserial,
-    file_location_uuid        uuid,
-    file_location_file_uuid    text              not null,                   -- This is 
-    file_location_host_uuid    text              not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
-    modified_date    timestamp with time zone    not null
+    history_id                 bigserial,
+    file_location_uuid         uuid,
+    file_location_file_uuid    text,
+    file_location_host_uuid    text,
+    modified_date              timestamp with time zone    not null
 );
 ALTER TABLE history.file_locations OWNER TO admin;
 
@@ -1207,15 +1207,13 @@ BEGIN
     SELECT INTO history_file_locations * FROM file_locations WHERE file_location_uuid = new.file_location_uuid;
     INSERT INTO history.file_locations
         (file_location_uuid,
-         file_location_name, 
-         file_location_md5sum, 
-         file_location_type, 
+         file_location_file_uuid,
+         file_location_host_uuid, 
          modified_date)
     VALUES
         (history_file_locations.file_location_uuid, 
-         history_file_locations.file_location_name, 
-         history_file_locations.file_location_md5sum, 
-         history_file_locations.file_location_type, 
+         history_file_locations.file_location_file_uuid,
+         history_file_locations.file_location_host_uuid, 
          history_file_locations.modified_date);
     RETURN NULL;
 END;
