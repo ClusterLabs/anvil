@@ -816,6 +816,8 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0051">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
 		<key name="error_0052">A request to delete a file was made, but no file name was given.</key>
 		<key name="error_0053">A request to delete the file: [#!variable!file!#] was received, but it is not under '/mnt/shared/'. This program can only work on or under that directory.</key>
+		<key name="error_0054">Failed!</key>
+		<key name="error_0055">A request to toggle the script flag was received, but no file name was given.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

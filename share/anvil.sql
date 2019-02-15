@@ -1104,7 +1104,7 @@ CREATE TABLE files (
     file_name        text                        not null,                   -- This is the file's name. It can change without re-uploading the file.
     file_size        numeric                     not null,                   -- This is the file's size in bytes. If it recorded as a quick way to determine if a file has changed on disk.
     file_md5sum      text                        not null,                   -- This is the sum as calculated when the file is first uploaded. Once recorded, it can't change.
-    file_type        text                        not null,                   -- This is; 'iso', 'repo_rpm', 'script', or 'backup'. 
+    file_type        text                        not null,                   -- This is the file's type/purpose. The expected values are 'iso', 'rpm', 'script', 'disk-image', or 'other'. 
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE files OWNER TO admin;

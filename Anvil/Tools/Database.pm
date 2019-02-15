@@ -2401,7 +2401,7 @@ This is the sum as calculated when the file is first uploaded. Once recorded, it
 
 =head3 file_type (required)
 
-This is the file's type/purpose. The expected values are 'iso' (disc image a new server can be installed from or mounted in a virtual optical drive),  'repo_rpm' (a package to install on a guest that provides access to Anvil! RPM software), 'script' (pre or post migration scripts), 'image' (images to use for newly created servers, instead of installing from an ISO or PXE), or 'other'. 
+This is the file's type/purpose. The expected values are 'iso' (disc image a new server can be installed from or mounted in a virtual optical drive),  'rpm' (a package to install on a guest that provides access to Anvil! RPM software), 'script' (pre or post migration scripts), 'image' (images to use for newly created servers, instead of installing from an ISO or PXE), or 'other'. 
 
 =cut
 sub insert_or_update_files

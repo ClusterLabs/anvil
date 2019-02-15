@@ -519,11 +519,12 @@ sub update_progress
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
 	}
 	
-	# Return if we still don't have a job_uuid
+	# Return if we still don't have a job_uuid. This isn't unexpected as some programs can run with or 
+	# without a job_uuid.
 	if (not $job_uuid)
 	{
 		# Nothing we can do.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "alert", key => "log_0207"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0207"});
 		return(1);
 	}
 	

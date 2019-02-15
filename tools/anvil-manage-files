@@ -119,6 +119,11 @@ elsif ($anvil->data->{switches}{'delete'}))
 {
 	handle_delete($anvil);
 }
+elsif ($anvil->data->{switches}{'is-script'}))
+{
+	handle_script($anvil);
+}
+
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -127,6 +132,178 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+# This gets the file_uuid for a given file name and/or md5sum. If the file isn't found, an empty string is
+# returned.
+sub get_file_uuid
+{
+	my ($anvil, $file_md5sum, $file_name) = @_;
+	$file_md5sum = "" if not defined $file_md5sum;
+	$file_name   = "" if not defined $file_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_md5sum => $file_md5sum, 
+		file_name   => $file_name,
+	}});
+	
+	### TODO: At some point, we'll need to deal with the possibility that the same file name with 
+	###       different md5sums might exist in the database.
+	# If I have the md5sum, search using that. If I have the filename only, then we'll fall back to that.
+	my $query = "
+SELECT 
+    file_uuid 
+FROM 
+    files 
+WHERE 
+";
+	if ($file_md5sum)
+	{
+		$query .= "    file_md5sum = ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum)."\n";
+	}
+	elsif ($file_name)
+	{
+		$query .= "    file_name = ".$anvil->data->{sys}{database}{use_handle}->quote($file_name)."\n";
+	}
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if (not $count)
+	{
+		# File wasn't found in the database
+		return("");
+	}
+	my $file_uuid = $results->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_uuid => $file_uuid, 
+	}});
+	
+	return($file_uuid);
+}
+
+# This handles toggling a file to marked or unmarked as a script.
+sub handle_script
+{
+	my ($anvil) = @_;
+	
+	if (not $anvil->data->{switches}{file})
+	{
+		# Um...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0055"});
+		if ($anvil->data->{jobs}{'job-uuid'})
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "error_0055", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
+		$anvil->nice_exit({exit_code => 3});
+	}
+	
+	# Find the file_uuid.
+	my ($file_uuid) = get_file_uuid($anvil, "", $anvil->data->{switches}{file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+	
+	# Toggle the executable bits.
+	if ($anvil->data->{switches}{'is-script'})
+	{
+		# Is it already executable?
+		if (-x $anvil->data->{switches}{file})
+		{
+			# Switch it on
+			$anvil->Storage->change_mode({target => $anvil->data->{switches}{file}, mode => "a+x"});
+		}
+		else
+		{
+			# Already a script.
+		}
+	}
+	else
+	{
+		# Is it executable?
+		if (-x $anvil->data->{switches}{file})
+		{
+			# Switch it off.
+			$anvil->Storage->change_mode({target => $anvil->data->{switches}{file}, mode => "a-x"});
+		}
+		else
+		{
+			# Already not a script.
+		}
+	}
+	
+	# If we have a file UUID, update the 'file_type
+	if ($file_uuid)
+	{
+		# Load the details.
+		my $query = "
+SELECT 
+    file_name, 
+    file_size, 
+    file_md5sum, 
+    file_type 
+FROM 
+    files 
+WHERE 
+    file_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { results => $results }});
+		my $file_name   = $results->[0]->[0];
+		my $file_size   = $results->[0]->[1];
+		my $file_md5sum = $results->[0]->[2]; 
+		my $file_type   = $results->[0]->[3]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			file_name   => $file_name, 
+			file_size   => $file_size, 
+			file_md5sum => $file_md5sum, 
+			file_type   => $file_type, 
+		}});
+		if (($file_type eq "script") && (not $anvil->data->{switches}{'is-script'}))
+		{
+			# Figure out what the file type is and update.
+			my $mimetype = mimetype($full_path);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mimetype => $mimetype }});
+			
+			my $say_mimetype = "other";
+			if ($mimetype =~ /cd-image/)
+			{
+				$say_mimetype = "iso";
+			}
+			elsif ($mimetype =~ /rpm$/)
+			{
+				$say_mimetype = "rpm";
+			}
+			elsif ($mimetype =~ /disk-image/)
+			{
+				$say_mimetype = "disk-image";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_mimetype => $say_mimetype }});
+			$anvil->Database->insert_or_update_files({
+				file_uuid   => $file_uuid, 
+				file_name   => $anvil->data->{switches}{file}, 
+				file_size   => $file_size, 
+				file_md5sum => $file_md5sum, 
+				file_type   => $say_mimetype, 
+			});
+		}
+		elsif ($file_type ne "script") && ($anvil->data->{switches}{'is-script'}))
+		{
+			# Change the file tpye to "script"
+			$anvil->Database->insert_or_update_files({
+				file_uuid   => $file_uuid, 
+				file_name   => $anvil->data->{switches}{file}, 
+				file_size   => $file_size, 
+				file_md5sum => $file_md5sum, 
+				file_type   => "script", 
+			});
+		}
+	}
+	
+	return(0);
+}
 
 # This handles deleting a file. If the requested deletion target doesn't exist, we'll just clear the 
 # database. If that doesn't exist either, we still don't error. This is to handle broad requests to delete a
@@ -139,12 +316,23 @@ sub handle_delete
 	{
 		# Um...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052"});
+		if ($anvil->data->{jobs}{'job-uuid'})
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "error_0052", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
 		$anvil->nice_exit({exit_code => 3});
 	}
 	elsif ($anvil->data->{switches}{file} !~ /^\/mnt\/shared\//)
 	{
 		# We don't do that here...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0053", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "error_0053,!!file!".$anvil->data->{switches}{file}."!!", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
 		$anvil->nice_exit({exit_code => 6});
 	}
 	
@@ -183,24 +371,44 @@ sub handle_rename
 	{
 		# Um...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0049"});
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "error_0049", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
 		$anvil->nice_exit({exit_code => 3});
 	}
 	elsif (not $anvil->data->{switches}{to})
 	{
 		# We need a target
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0050", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "error_0050,!!file!".$anvil->data->{switches}{file}."!!", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
 		$anvil->nice_exit({exit_code => 4});
 	}
 	elsif (not -f $anvil->data->{switches}{file})
 	{
 		# The file to rename doesn't exist.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0051", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "error_0051,!!file!".$anvil->data->{switches}{file}."!!", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
 		$anvil->nice_exit({exit_code => 5});
 	}
 	elsif (-e $anvil->data->{switches}{to})
 	{
 		# There's already a file (or directory or something) with that name.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052", variables => { file => $anvil->data->{switches}{file}, to => $anvil->data->{switches}{to} }});
+		$anvil->Job->update_progress({
+			progress => 0, 
+			message  => "error_0052,!!file!".$anvil->data->{switches}{file}."!!,!!to!".$anvil->data->{switches}{to}."!!", 
+			job_uuid => $anvil->data->{jobs}{'job-uuid'},
+		});
 		$anvil->nice_exit({exit_code => 6});
 	}
 	

@@ -357,7 +357,7 @@ sub change_mode
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "mode" }});
 		$error = 1;
 	}
-	elsif (($mode !~ /^\d\d\d$/) && ($mode !~ /^\d\d\d\d$/))
+	elsif (($mode !~ /^\d\d\d$/) && ($mode !~ /^\d\d\d\d$/) && ($mode !~ /^\w\+\w$/) && ($mode !~ /^\w\-\w$/))
 	{
 		# Invalid mode
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0038", variables => { mode => $mode }});
@@ -1738,7 +1738,7 @@ sub rsync
 
 =head2 scan_directory
 
-
+TODO: Wtite this...
 
 =cut
 ### TODO: Make this work on remote systems
