@@ -2211,6 +2211,8 @@ sub insert_or_update_file_locations
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_file_locations()" }});
 	
+	my $file                    = defined $parameter->{file}                    ? $parameter->{file}                    : "";
+	my $line                    = defined $parameter->{line}                    ? $parameter->{line}                    : "";
 	my $file_location_uuid      = defined $parameter->{file_location_uuid}      ? $parameter->{file_location_uuid}      : "";
 	my $file_location_file_uuid = defined $parameter->{file_location_file_uuid} ? $parameter->{file_location_file_uuid} : "";
 	my $file_location_host_uuid = defined $parameter->{file_location_host_uuid} ? $parameter->{file_location_host_uuid} : $anvil->data->{sys}{host_uuid};
@@ -2301,15 +2303,11 @@ INSERT INTO
     file_location_uuid, 
     file_location_file_uuid, 
     file_location_host_uuid, 
-    file_md5sum, 
-    file_type, 
     modified_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_file_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_location_host_uuid).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -2322,7 +2320,7 @@ INSERT INTO
 		my $query = "
 SELECT 
     file_location_file_uuid, 
-    file_location_host_uuid, 
+    file_location_host_uuid 
 FROM 
     file_locations 
 WHERE 
@@ -2412,6 +2410,8 @@ sub insert_or_update_files
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_files()" }});
 	
+	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
+	my $line        = defined $parameter->{line}        ? $parameter->{line}        : "";
 	my $file_uuid   = defined $parameter->{file_uuid}   ? $parameter->{file_uuid}   : "";
 	my $file_name   = defined $parameter->{file_name}   ? $parameter->{file_name}   : "";
 	my $file_size   = defined $parameter->{file_size}   ? $parameter->{file_size}   : "";

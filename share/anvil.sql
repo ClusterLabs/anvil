@@ -1181,8 +1181,8 @@ CREATE TRIGGER trigger_files
 -- This tracks which files should be on which machines.
 CREATE TABLE file_locations (
     file_location_uuid         uuid                        not null    primary key,
-    file_location_file_uuid    text                        not null,                   -- This is file to be moved to (or restored to) this machine.
-    file_location_host_uuid    text                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
+    file_location_file_uuid    uuid                        not null,                   -- This is file to be moved to (or restored to) this machine.
+    file_location_host_uuid    uuid                        not null,                   -- This is the sum as calculated when the file_location is first uploaded. Once recorded, it can't change.
     modified_date              timestamp with time zone    not null,
     
     FOREIGN KEY(file_location_file_uuid) REFERENCES files(file_uuid), 

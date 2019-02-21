@@ -616,13 +616,14 @@ sub md5sum
 	
 	my $sum = "";
 	my $file = defined $parameter->{file} ? $parameter->{file} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
 	
 	if (-e $file)
 	{
 		my $shell_call = $anvil->data->{path}{exe}{md5sum}." ".$file;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
-		my $return = $anvil->System->call({shell_call => $shell_call});
+		my $return = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
 		
 		# split the sum off.

@@ -1002,6 +1002,7 @@ sub _set_paths
 				logger				=>	"/usr/bin/logger",
 				md5sum				=>	"/usr/bin/md5sum",
 				'mkdir'				=>	"/usr/bin/mkdir",
+				mv				=>	"/usr/bin/mv",
 				nmcli				=>	"/bin/nmcli",
 				openssl				=>	"/usr/bin/openssl", 
 				passwd				=>	"/usr/bin/passwd",

@@ -52,6 +52,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 $anvil->data->{switches}{'job-uuid'}  = "";
 $anvil->data->{switches}{'rename'}    = "";
@@ -61,7 +63,7 @@ $anvil->data->{switches}{to}          = "";
 $anvil->data->{switches}{'delete'}    = "";
 $anvil->data->{switches}{everywhere}  = "";
 $anvil->Get->switches;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	"switches::job-uuid"   => $anvil->data->{switches}{'job-uuid'},
 	"switches::rename"     => $anvil->data->{switches}{'rename'},
 	"switches::is-script"  => $anvil->data->{switches}{'is-script'},
@@ -115,15 +117,22 @@ if ($anvil->data->{switches}{'rename'})
 {
 	handle_rename($anvil);
 }
-elsif ($anvil->data->{switches}{'delete'}))
+elsif ($anvil->data->{switches}{'delete'})
 {
 	handle_delete($anvil);
 }
-elsif ($anvil->data->{switches}{'is-script'}))
+elsif ($anvil->data->{switches}{'is-script'})
 {
 	handle_script($anvil);
 }
-
+else
+{
+	# Check for new files
+	check_incoming($anvil);
+	
+	# Check for files we should have but don't yet have.
+	find_missing_files($anvil);
+}
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -132,6 +141,157 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+# This looks to see if there are any entries in 'file_locations' for us that, the pointed to file, doesn't 
+# exist on this machine. For those entries, we will search for the file on other machines. The one exception
+# is server definition files. For those, we write the file out from the server's 'definition' table entry.
+# 
+# When a missing entry is found, and an entry doesn't exist, the file will be found (if possible) and copied
+# to this houst. Only machines on the same subnet are searched. The search pattern is; 
+# 
+# Nodes;   1. Check for the file on the peer.
+#          2. Check for the file on Strikers, in alphabetical order.
+#          3. Check for the file on DR host, if available.
+#          4. Check other nodes, in alphabetical order.
+#          5. Check other DR hosts, in alphabetical order.
+# Striker; 1. Check for the file on other Strikers, in alphabetical order.
+#          2. Check for the file on DR hosts, if available
+#          3. Check for the file on Anvil! nodes.
+# DR Host; 1. Check for the file on Strikers, in alphabetical order.
+#          2. Check for the file on Anvil! nodes.
+# * If a file can't be found, it will try again every so often until it is found.
+# * When a file is found, it is copied to '/mnt/shared/incoming'. Only when the file has arrived and the 
+#   md5sum matches. At this point, it is moved into the proper directory.
+sub find_missing_files
+{
+	my ($anvil) = @_;
+	
+	# What am I? This will impact how missing files are found.
+	my $query = "
+SELECT 
+    file_location_file_uuid 
+FROM 
+    file_locations 
+WHERE 
+    file_location_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $file_location_file_uuid = $row->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				file_location_file_uuid => $file_location_file_uuid, 
+			}});
+			
+			### TODO: How to handle when the file with the same name exists on 2+ machines with 
+			###       different md5sums. Use the most recent mtime?
+			# Read in the file details.
+		}
+	
+	# Read in any entries from 'file_locations'.
+	
+	return(0);
+}
+
+# This handles deleting a file. 
+sub check_incoming
+{
+	my ($anvil) = @_;
+	
+	# This hash shouldn't exist, but lets be safe...
+	if (exists $anvil->data->{scan}{directories})
+	{
+		delete $anvil->data->{scan}{directories};
+	}
+	# Read any files in '/mnt/shared/incoming'.
+	$anvil->Storage->scan_directory({
+		debug     => 3,
+		directory => $anvil->data->{path}{directories}{shared}{incoming},
+		recursive => 0,
+	});
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0264"});
+	foreach my $full_path (sort {$a cmp $b} keys %{$anvil->data->{scan}{directories}})
+	{
+		# Is this a file?
+		my $file_name       = $anvil->data->{scan}{directories}{$full_path}{name};
+		my $file_type       = $anvil->data->{scan}{directories}{$full_path}{type};
+		my $file_size       = $anvil->data->{scan}{directories}{$full_path}{size};
+		my $file_mimetype   = $anvil->data->{scan}{directories}{$full_path}{mimetype};
+		my $file_executable = $anvil->data->{scan}{directories}{$full_path}{executable} = -x $full_path ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			full_path       => $full_path,
+			file_name       => $file_name, 
+			file_type       => $file_type, 
+			file_size       => $file_size, 
+			file_mimetype   => $file_mimetype, 
+			file_executable => $file_executable, 
+		}});
+		next if $file_type ne "file";
+		
+		# If this file is over 128 MiB, warn the user that it might take a second
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0265", variables => { file => $full_path }});
+		if ($file_size > (128 * (2 ** 20)))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0266", variables => { 
+				size => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}),
+			}});
+		}
+		my $say_mimetype = convert_mimetype($anvil, $file_mimetype, $full_path, $file_executable);
+		my $file_md5sum  = $anvil->Get->md5sum({debug => 2, file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			say_mimetype => $say_mimetype, 
+			file_md5sum  => $file_md5sum,
+		}});
+		
+		# Do we know about this file? If not, file_uuid will be blank when we call the 
+		# insert_or_update. If we do, it will update the file name, if needed.
+		my ($file_uuid) = $anvil->Database->insert_or_update_files({
+			debug       => 2,
+			file_uuid   => get_file_uuid($anvil, $file_md5sum, $file_name), 
+			file_name   => $file_name, 
+			file_size   => $file_size, 
+			file_md5sum => $file_md5sum, 
+			file_type   => $say_mimetype, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+		
+		# Make sure we know about this file on this system
+		my ($file_locatiom_uuid) = $anvil->Database->insert_or_update_file_locations({
+			debug                   => 2,
+			file_location_file_uuid => $file_uuid, 
+			file_location_host_uuid => $anvil->data->{sys}{host_uuid},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_locatiom_uuid => $file_locatiom_uuid }});
+		
+		# Not move it. If it's a definition file, we'll move it to 
+		# 'path::directories::shared::definitions', otherwise we'll move it to 
+		# 'path::directories::shared::files'.
+		my $target =  $say_mimetype eq "definition" ? $anvil->data->{path}{directories}{shared}{definitions} : $anvil->data->{path}{directories}{shared}{files};
+		   $target .= "/";
+		   $target =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0268", variables => { 
+			file   => $full_path,
+			target => $target, 
+		}});
+		$anvil->Storage->move_file({
+			debug       => 2,
+			source_file => $full_path, 
+			target_file => $target,
+		});
+	}
+	
+	return(0);
+}
 
 # This gets the file_uuid for a given file name and/or md5sum. If the file isn't found, an empty string is
 # returned.
@@ -191,7 +351,6 @@ sub handle_script
 	{
 		# Um...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0055"});
-		if ($anvil->data->{jobs}{'job-uuid'})
 		$anvil->Job->update_progress({
 			progress => 0, 
 			message  => "error_0055", 
@@ -205,12 +364,14 @@ sub handle_script
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
 	
 	# Toggle the executable bits.
+	my $executable = 0;
 	if ($anvil->data->{switches}{'is-script'})
 	{
 		# Is it already executable?
 		if (-x $anvil->data->{switches}{file})
 		{
 			# Switch it on
+			$executable = 1;
 			$anvil->Storage->change_mode({target => $anvil->data->{switches}{file}, mode => "a+x"});
 		}
 		else
@@ -224,6 +385,7 @@ sub handle_script
 		if (-x $anvil->data->{switches}{file})
 		{
 			# Switch it off.
+			$executable = 1;
 			$anvil->Storage->change_mode({target => $anvil->data->{switches}{file}, mode => "a-x"});
 		}
 		else
@@ -249,7 +411,7 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { results => $results }});
 		my $file_name   = $results->[0]->[0];
 		my $file_size   = $results->[0]->[1];
@@ -264,22 +426,10 @@ WHERE
 		if (($file_type eq "script") && (not $anvil->data->{switches}{'is-script'}))
 		{
 			# Figure out what the file type is and update.
-			my $mimetype = mimetype($full_path);
+			my $mimetype = mimetype($file_name);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mimetype => $mimetype }});
 			
-			my $say_mimetype = "other";
-			if ($mimetype =~ /cd-image/)
-			{
-				$say_mimetype = "iso";
-			}
-			elsif ($mimetype =~ /rpm$/)
-			{
-				$say_mimetype = "rpm";
-			}
-			elsif ($mimetype =~ /disk-image/)
-			{
-				$say_mimetype = "disk-image";
-			}
+			my $say_mimetype = convert_mimetype($anvil, $mimetype, $file_name, $executable);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_mimetype => $say_mimetype }});
 			$anvil->Database->insert_or_update_files({
 				file_uuid   => $file_uuid, 
@@ -288,11 +438,22 @@ WHERE
 				file_md5sum => $file_md5sum, 
 				file_type   => $say_mimetype, 
 			});
+			
+			# Change the file tpye to "say_mimetype".
+			$anvil->Database->insert_or_update_files({
+				debug       => 2,
+				file_uuid   => $file_uuid, 
+				file_name   => $anvil->data->{switches}{file}, 
+				file_size   => $file_size, 
+				file_md5sum => $file_md5sum, 
+				file_type   => $say_mimetype, 
+			});
 		}
-		elsif ($file_type ne "script") && ($anvil->data->{switches}{'is-script'}))
+		elsif (($file_type ne "script") && ($anvil->data->{switches}{'is-script'}))
 		{
 			# Change the file tpye to "script"
 			$anvil->Database->insert_or_update_files({
+				debug       => 2,
 				file_uuid   => $file_uuid, 
 				file_name   => $anvil->data->{switches}{file}, 
 				file_size   => $file_size, 
@@ -303,6 +464,55 @@ WHERE
 	}
 	
 	return(0);
+}
+
+# This takes the mimetype as reported by the 'mimetype' method and returns a file type we care about.
+sub convert_mimetype
+{
+	my ($anvil, $mimetype, $file, $executable) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		mimetype   => $mimetype,
+		file       => $file,
+		executable => $executable, 
+	}});
+	
+	my $say_mimetype = "other";
+	if ($mimetype)
+	{
+		if ($mimetype =~ /cd-image/)
+		{
+			$say_mimetype = "iso";
+		}
+		elsif ($mimetype =~ /xml/)
+		{
+			# This might be a definition, but look inside it to be sure.
+			my $is_domain = $anvil->System->call({
+				debug      => 2, 
+				shell_call => "if \$(".$anvil->data->{path}{exe}{'grep'}." -q '</domain>' ".$file."); then ".$anvil->data->{path}{exe}{echo}." 1; else ".$anvil->data->{path}{exe}{echo}." 0; fi", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { is_domain => $is_domain }});
+
+			if ($is_domain)
+			{
+				$say_mimetype = "definition";
+			}
+		}
+		elsif ($mimetype =~ /rpm$/)
+		{
+			$say_mimetype = "rpm";
+		}
+		elsif ($mimetype =~ /disk-image/)
+		{
+			$say_mimetype = "disk-image";
+		}
+		elsif ($executable)
+		{
+			$say_mimetype = "script";
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_mimetype => $say_mimetype }});
+	return($say_mimetype);
 }
 
 # This handles deleting a file. If the requested deletion target doesn't exist, we'll just clear the 
@@ -316,7 +526,6 @@ sub handle_delete
 	{
 		# Um...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052"});
-		if ($anvil->data->{jobs}{'job-uuid'})
 		$anvil->Job->update_progress({
 			progress => 0, 
 			message  => "error_0052", 
@@ -403,10 +612,10 @@ sub handle_rename
 	elsif (-e $anvil->data->{switches}{to})
 	{
 		# There's already a file (or directory or something) with that name.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052", variables => { file => $anvil->data->{switches}{file}, to => $anvil->data->{switches}{to} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0056", variables => { file => $anvil->data->{switches}{file}, to => $anvil->data->{switches}{to} }});
 		$anvil->Job->update_progress({
 			progress => 0, 
-			message  => "error_0052,!!file!".$anvil->data->{switches}{file}."!!,!!to!".$anvil->data->{switches}{to}."!!", 
+			message  => "error_0056,!!file!".$anvil->data->{switches}{file}."!!,!!to!".$anvil->data->{switches}{to}."!!", 
 			job_uuid => $anvil->data->{jobs}{'job-uuid'},
 		});
 		$anvil->nice_exit({exit_code => 6});

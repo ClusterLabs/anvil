@@ -299,13 +299,13 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0043"><![CDATA[[ Error ] - The method System->call() was called but 'shell_call' was not passed or was empty.]]></key>
 		<key name="log_0044">The host: [#!variable!host!#] has renewed its database lock.</key>
 		<key name="log_0045">The host: [#!variable!host!#] is requesting a database lock.</key>
-		<key name="log_0046"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target already exists and 'overwrite' wasn't specified, skipping.]]></key>
+		<key name="log_0046"><![CDATA[[ Note ] - The method Storage->#!variable!method!#() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target already exists and 'overwrite' wasn't specified, skipping.]]></key>
 		<key name="log_0047"><![CDATA[[ Error ] - The method Log->level() was passed an invalid log level: [#!variable!set!#]. Only '0', '1', '2', '3' or '4' are valid.]]></key>
 		<key name="log_0048"><![CDATA[[ Warning ] - Testing of Anvil::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
 		<key name="log_0049"><![CDATA[[ Warning ] - Testing of Anvil::Tools is complete.]]></key>
 		<key name="log_0050">[ Error ] - There is a local database defined, but it does not appear to exist and we could not initialize the database server. Is 'postgresql-server' installed?</key>
 		<key name="log_0051"><![CDATA[[ Error ] - The method Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
-		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->copy_file() was called but the source file: [#!variable!source_file!#] doesn't exist.]]></key>
+		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->#!variable!method!#() was called but the source file: [#!variable!source_file!#] doesn't exist.]]></key>
 		<key name="log_0053"><![CDATA[[ Error ] - The 'Database->connect()' method tried to connect to the same database twice: [#!variable!target!#].]]></key>
 		<key name="log_0054">
 Connecting to Database with configuration ID: [#!variable!uuid!#]
@@ -450,7 +450,7 @@ The database connection error was:
 		<key name="log_0167">Failed to create the directory: [#!variable!directory!#] on: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0168">Failed to create the directory: [#!variable!directory!#]. The error (if any) was: [#!variable!error!#].</key>
 		<key name="log_0169">Failed to copy the file: [#!variable!source_file!#] to: [#!variable!target_file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
-		<key name="log_0170"><![CDATA[[ Note ] - The method Storage->copy_file() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target's parent directory doesn't exist and we were unable to create it.]]></key>
+		<key name="log_0170"><![CDATA[[ Note ] - The method Storage->#!variable!method!#() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target's parent directory doesn't exist and we were unable to create it.]]></key>
 		<key name="log_0171"><![CDATA[[ Error ] - The method: Account->encrypt_password() tried to use the algorithm: [#!variable!algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported. The desired algorithm can be set via 'sys::password::algorithm'.]]></key>
 		<key name="log_0172"><![CDATA[[ Error ] - Asked to validate a password for the user: [#!variable!user!#], but that user wasn't found.]]></key>
 		<key name="log_0173"><![CDATA[[ Error ] - Asked to valudate a password encoded with the algorithm: [#!variable!user_algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported.]]></key>
@@ -558,6 +558,11 @@ Finished Downloading: [#!variable!file!#].
 		<key name="log_0261">#!variable!file!# was called, but no files where available for download in CGI. Was the variable name 'upload_file' used?</key>
 		<key name="log_0262">[ Error ] - Storage->scan_directory() was asked to scan: [#!variable!directory!#], but it doesn't exist or isn't actually a directory.</key>
 		<key name="log_0263">Now deleting the file: [#!variable!file!#].</key>
+		<key name="log_0264">Checking: [#!data!path::directories::shared::incoming!#] for new files.</key>
+		<key name="log_0265">About to calculate the md5sum for the file: [#!variable!file!#].</key>
+		<key name="log_0266">This file is large, [#!variable!size!#], this might take a bit of time...</key>
+		<key name="log_0267">Failed to move the file: [#!variable!source_file!#] to: [#!variable!target_file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
+		<key name="log_0268">The file: [#!variable!file!#] has been added to the database (if needed) moved to: [#!variable!target!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -813,11 +818,11 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0049">A request to rename a file was made, but no file name was given.</key>
 		<key name="error_0050">A request to rename the file: [#!variable!file!#] was made, but the new name wasn't given. Was '--to X' given?</key>
 		<key name="error_0051">A request to rename the file: [#!variable!file!#] was made, but that file doesn't exist.</key>
-		<key name="error_0051">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
 		<key name="error_0052">A request to delete a file was made, but no file name was given.</key>
 		<key name="error_0053">A request to delete the file: [#!variable!file!#] was received, but it is not under '/mnt/shared/'. This program can only work on or under that directory.</key>
 		<key name="error_0054">Failed!</key>
 		<key name="error_0055">A request to toggle the script flag was received, but no file name was given.</key>
+		<key name="error_0056">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
