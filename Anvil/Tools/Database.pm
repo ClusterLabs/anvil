@@ -2389,6 +2389,10 @@ If not passed, a check will be made to see if an existing entry is found for C<<
 
 This is the file's name.
 
+=head3 file_directory (required)
+
+This is the directory that the file is in. This is used to avoid conflict if two files of the same name exist in two places but are otherwise different.
+
 =head3 file_size (required)
 
 This is the file's size in bytes. It is recorded as a quick way to determine if the file has changed on disk.
@@ -2414,21 +2418,23 @@ sub insert_or_update_files
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_files()" }});
 	
-	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
-	my $line        = defined $parameter->{line}        ? $parameter->{line}        : "";
-	my $file_uuid   = defined $parameter->{file_uuid}   ? $parameter->{file_uuid}   : "";
-	my $file_name   = defined $parameter->{file_name}   ? $parameter->{file_name}   : "";
-	my $file_size   = defined $parameter->{file_size}   ? $parameter->{file_size}   : "";
-	my $file_md5sum = defined $parameter->{file_md5sum} ? $parameter->{file_md5sum} : "";
-	my $file_type   = defined $parameter->{file_type}   ? $parameter->{file_type}   : "";
-	my $file_mtime  = defined $parameter->{file_mtime}  ? $parameter->{file_mtime}  : "";
+	my $file           = defined $parameter->{file}           ? $parameter->{file}           : "";
+	my $line           = defined $parameter->{line}           ? $parameter->{line}           : "";
+	my $file_uuid      = defined $parameter->{file_uuid}      ? $parameter->{file_uuid}      : "";
+	my $file_name      = defined $parameter->{file_name}      ? $parameter->{file_name}      : "";
+	my $file_directory = defined $parameter->{file_directory} ? $parameter->{file_directory} : "";
+	my $file_size      = defined $parameter->{file_size}      ? $parameter->{file_size}      : "";
+	my $file_md5sum    = defined $parameter->{file_md5sum}    ? $parameter->{file_md5sum}    : "";
+	my $file_type      = defined $parameter->{file_type}      ? $parameter->{file_type}      : "";
+	my $file_mtime     = defined $parameter->{file_mtime}     ? $parameter->{file_mtime}     : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		file_uuid   => $file_uuid, 
-		file_name   => $file_name, 
-		file_size   => $file_size, 
-		file_md5sum => $file_md5sum, 
-		file_type   => $file_type, 
-		file_mtime  => $file_mtime, 
+		file_uuid      => $file_uuid, 
+		file_name      => $file_name, 
+		file_directory => $file_directory, 
+		file_size      => $file_size, 
+		file_md5sum    => $file_md5sum, 
+		file_type      => $file_type, 
+		file_mtime     => $file_mtime, 
 	}});
 	
 	if (not $file_name)
@@ -2441,6 +2447,12 @@ sub insert_or_update_files
 	{
 		# Throw an error and exit.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_name" }});
+		return("");
+	}
+	if (not $file_directory)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_directory" }});
 		return("");
 	}
 	if (not $file_md5sum)
@@ -2524,6 +2536,7 @@ INSERT INTO
 (
     file_uuid, 
     file_name, 
+    file_directory, 
     file_size, 
     file_md5sum, 
     file_type, 
@@ -2532,6 +2545,7 @@ INSERT INTO
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_directory).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_size).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
@@ -2548,6 +2562,7 @@ INSERT INTO
 		my $query = "
 SELECT 
     file_name, 
+    file_directory, 
     file_size, 
     file_md5sum, 
     file_type, 
@@ -2573,39 +2588,43 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_file_name   = $row->[0];
-			my $old_file_size   = $row->[1];
-			my $old_file_md5sum = $row->[2]; 
-			my $old_file_type   = $row->[3]; 
-			my $old_file_mtime  = $row->[4]; 
+			my $old_file_name      = $row->[0];
+			my $old_file_directory = $row->[1];
+			my $old_file_size      = $row->[1];
+			my $old_file_md5sum    = $row->[2]; 
+			my $old_file_type      = $row->[3]; 
+			my $old_file_mtime     = $row->[4]; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				old_file_name   => $old_file_name, 
-				old_file_size   => $old_file_size, 
-				old_file_md5sum => $old_file_md5sum, 
-				old_file_type   => $old_file_type, 
-				old_file_mtime  => $old_file_mtime, 
+				old_file_name      => $old_file_name, 
+				old_file_directory => $old_file_directory, 
+				old_file_size      => $old_file_size, 
+				old_file_md5sum    => $old_file_md5sum, 
+				old_file_type      => $old_file_type, 
+				old_file_mtime     => $old_file_mtime, 
 			}});
 			
 			# Anything change?
-			if (($old_file_name   ne $file_name)   or 
-			    ($old_file_size   ne $file_size)   or 
-			    ($old_file_md5sum ne $file_md5sum) or 
-			    ($old_file_mtime  ne $file_mtime)  or 
-			    ($old_file_type   ne $file_type))
+			if (($old_file_name      ne $file_name)      or 
+			    ($old_file_directory ne $file_directory) or 
+			    ($old_file_size      ne $file_size)      or 
+			    ($old_file_md5sum    ne $file_md5sum)    or 
+			    ($old_file_mtime     ne $file_mtime)     or 
+			    ($old_file_type      ne $file_type))
 			{
 				# Something changed, save.
 				my $query = "
 UPDATE 
     files 
 SET 
-    file_name     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_name).", 
-    file_size     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_size).", 
-    file_md5sum   = ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
-    file_type     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
-    file_mtime    = ".$anvil->data->{sys}{database}{use_handle}->quote($file_mtime).", 
-    modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    file_name      = ".$anvil->data->{sys}{database}{use_handle}->quote($file_name).", 
+    file_directory = ".$anvil->data->{sys}{database}{use_handle}->quote($file_directory).", 
+    file_size      = ".$anvil->data->{sys}{database}{use_handle}->quote($file_size).", 
+    file_md5sum    = ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
+    file_type      = ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
+    file_mtime     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_mtime).", 
+    modified_date  = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    file_uuid     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid)." 
+    file_uuid      = ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -5347,6 +5366,9 @@ sub query
 	$anvil->Database->check_lock_age({debug => $debug});
 	
 	# Do I need to log the transaction?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::database::log_transactions" => $anvil->data->{sys}{database}{log_transactions}, 
+	}});
 	if ($anvil->data->{sys}{database}{log_transactions})
 	{
 		$anvil->Log->entry({source => $source, line => $line, secure => $secure, level => 0, key => "log_0074", variables => { 
@@ -5361,6 +5383,7 @@ sub query
 			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { DBreq => $DBreq }});
 	
 	# Execute on the query
 	$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 

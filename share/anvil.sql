@@ -1102,6 +1102,7 @@ CREATE TRIGGER trigger_ip_addresses
 CREATE TABLE files (
     file_uuid        uuid                        not null    primary key,
     file_name        text                        not null,                   -- This is the file's name. It can change without re-uploading the file.
+    file_directory   text                        not null,                   -- This is the directory that the file is in.
     file_size        numeric                     not null,                   -- This is the file's size in bytes. If it recorded as a quick way to determine if a file has changed on disk.
     file_md5sum      text                        not null,                   -- This is the sum as calculated when the file is first uploaded. Once recorded, it can't change.
     file_type        text                        not null,                   -- This is the file's type/purpose. The expected values are 'iso', 'rpm', 'script', 'disk-image', or 'other'. 
@@ -1114,6 +1115,7 @@ CREATE TABLE history.files (
     history_id       bigserial,
     file_uuid        uuid,
     file_name        text,
+    file_directory   text, 
     file_size        numeric,
     file_md5sum      text,
     file_type        text,
@@ -1131,6 +1133,7 @@ BEGIN
     INSERT INTO history.files
         (file_uuid,
          file_name, 
+         file_directory, 
          file_size, 
          file_md5sum, 
          file_type, 
@@ -1139,6 +1142,7 @@ BEGIN
     VALUES
         (history_files.file_uuid, 
          history_files.file_name, 
+         history_files.file_directory, 
          history_files.file_size, 
          history_files.file_md5sum, 
          history_files.file_type, 

@@ -40,7 +40,6 @@ use warnings;
 use Anvil::Tools;
 use Data::Dumper;
 
-
 # Disable buffering
 $| = 1;
 
@@ -167,33 +166,43 @@ sub find_missing_files
 	my ($anvil) = @_;
 	
 	# What am I? This will impact how missing files are found.
-# 	my $query = "
-# SELECT 
-#     file_location_file_uuid 
-# FROM 
-#     file_locations 
-# WHERE 
-#     file_location_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})." 
-# ;";
-# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-# 	
-# 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-# 	my $count   = @{$results};
-# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-# 		results => $results, 
-# 		count   => $count, 
-# 	}});
-# 	foreach my $row (@{$results})
-# 	{
-# 		my $file_location_file_uuid = $row->[0];
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-# 			file_location_file_uuid => $file_location_file_uuid, 
-# 		}});
-# 		
-# 		### TODO: How to handle when the file with the same name exists on 2+ machines with 
-# 		###       different md5sums. Use the most recent mtime?
-# 		# Read in the file details.
-# 	}
+	my $query = "
+SELECT 
+    a.file_uuid, 
+    a.file_name 
+FROM 
+    files a, 
+    hosts b, 
+    file_locations c 
+WHERE 
+    b.host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})." 
+AND 
+    a.file_uuid = c.file_location_file_uuid 
+AND 
+    b.host_uuid = c.file_location_host_uuid 
+ORDER BY 
+    a.file_name ASC, 
+    b.host_name ASC
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $file_location_file_uuid = $row->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			file_location_file_uuid => $file_location_file_uuid, 
+		}});
+		
+		### TODO: How to handle when the file with the same name exists on 2+ machines with 
+		###       different md5sums. Use the most recent mtime?
+		# Read in the file details.
+	}
 	
 	# Read in any entries from 'file_locations'.
 	
@@ -212,7 +221,7 @@ sub check_incoming
 	}
 	# Read any files in '/mnt/shared/incoming'.
 	$anvil->Storage->scan_directory({
-		debug     => 2,
+		debug     => 1,
 		directory => $anvil->data->{path}{directories}{shared}{base},
 		recursive => 1,
 	});
@@ -230,6 +239,7 @@ sub check_incoming
 		next if $file_type ne "file";
 		
 		my $file_name       = $anvil->data->{scan}{directories}{$full_path}{name};
+		my $file_directory  = $anvil->data->{scan}{directories}{$full_path}{directory};
 		my $file_size       = $anvil->data->{scan}{directories}{$full_path}{size};
 		my $file_mtime      = $anvil->data->{scan}{directories}{$full_path}{mtime};
 		my $file_mimetype   = $anvil->data->{scan}{directories}{$full_path}{mimetype};
@@ -287,13 +297,14 @@ sub check_incoming
 			
 			# Insert or update the files entry.
 			($file_uuid) = $anvil->Database->insert_or_update_files({
-				debug       => 2,
-				file_uuid   => $file_uuid, 
-				file_name   => $file_name, 
-				file_size   => $file_size, 
-				file_md5sum => $file_md5sum, 
-				file_mtime  => $file_mtime, 
-				file_type   => $say_mimetype, 
+				debug          => 2,
+				file_uuid      => $file_uuid, 
+				file_name      => $file_name, 
+				file_directory => $file_directory, 
+				file_size      => $file_size, 
+				file_md5sum    => $file_md5sum, 
+				file_mtime     => $file_mtime, 
+				file_type      => $say_mimetype, 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
 		}
@@ -334,6 +345,20 @@ sub check_incoming
 				source_file => $full_path, 
 				target_file => $target,
 			});
+			
+			# Update the file_directory.
+			my $say_directory =~ s/\/$//;
+			($file_uuid) = $anvil->Database->insert_or_update_files({
+				debug          => 2,
+				file_uuid      => $file_uuid, 
+				file_name      => $file_name, 
+				file_directory => $say_directory, 
+				file_size      => $file_size, 
+				file_md5sum    => $file_md5sum, 
+				file_mtime     => $file_mtime, 
+				file_type      => $say_mimetype, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
 		}
 	}
 	
@@ -476,6 +501,7 @@ sub handle_script
 		my $query = "
 SELECT 
     file_name, 
+    file_directory, 
     file_size, 
     file_md5sum, 
     file_type, 
@@ -489,17 +515,19 @@ WHERE
 		
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { results => $results }});
-		my $file_name   = $results->[0]->[0];
-		my $file_size   = $results->[0]->[1];
-		my $file_md5sum = $results->[0]->[2]; 
-		my $file_type   = $results->[0]->[3]; 
-		my $file_mtime  = $results->[0]->[4]; 
+		my $file_name      = $results->[0]->[0];
+		my $file_directory = $results->[0]->[1];
+		my $file_size      = $results->[0]->[2];
+		my $file_md5sum    = $results->[0]->[3]; 
+		my $file_type      = $results->[0]->[4]; 
+		my $file_mtime     = $results->[0]->[5]; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			file_name   => $file_name, 
-			file_size   => $file_size, 
-			file_md5sum => $file_md5sum, 
-			file_type   => $file_type, 
-			file_mtime  => $file_mtime, 
+			file_name      => $file_name, 
+			file_directory => $file_directory, 
+			file_size      => $file_size, 
+			file_md5sum    => $file_md5sum, 
+			file_type      => $file_type, 
+			file_mtime     => $file_mtime, 
 		}});
 		if (($file_type eq "script") && (not $anvil->data->{switches}{'is-script'}))
 		{
@@ -510,26 +538,28 @@ WHERE
 			my $say_mimetype = convert_mimetype($anvil, $mimetype, $file_name, 0);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_mimetype => $say_mimetype }});
 			$anvil->Database->insert_or_update_files({
-				debug       => 2,
-				file_uuid   => $file_uuid, 
-				file_name   => $anvil->data->{switches}{file}, 
-				file_size   => $file_size, 
-				file_md5sum => $file_md5sum, 
-				file_mtime  => $file_mtime, 
-				file_type   => $say_mimetype, 
+				debug          => 2,
+				file_uuid      => $file_uuid, 
+				file_name      => $anvil->data->{switches}{file}, 
+				file_directory => $file_directory,
+				file_size      => $file_size, 
+				file_md5sum    => $file_md5sum, 
+				file_mtime     => $file_mtime, 
+				file_type      => $say_mimetype, 
 			});
 		}
 		elsif (($file_type ne "script") && ($anvil->data->{switches}{'is-script'}))
 		{
 			# Change the file tpye to "script"
 			$anvil->Database->insert_or_update_files({
-				debug       => 2,
-				file_uuid   => $file_uuid, 
-				file_name   => $anvil->data->{switches}{file}, 
-				file_size   => $file_size, 
-				file_md5sum => $file_md5sum, 
-				file_mtime  => $file_mtime, 
-				file_type   => "script", 
+				debug          => 2,
+				file_uuid      => $file_uuid, 
+				file_name      => $anvil->data->{switches}{file}, 
+				file_directory => $file_directory,
+				file_size      => $file_size, 
+				file_md5sum    => $file_md5sum, 
+				file_mtime     => $file_mtime, 
+				file_type      => "script", 
 			});
 		}
 	}
