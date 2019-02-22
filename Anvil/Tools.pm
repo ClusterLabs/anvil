@@ -957,6 +957,7 @@ sub _set_paths
 				scan_agents			=>	"/usr/sbin/scancore-agents",
 				shared				=>	{
 					archives			=>	"/mnt/shared/archives",
+					base				=>	"/mnt/shared",
 					definitions			=>	"/mnt/shared/definitions",
 					files				=>	"/mnt/shared/files",
 					incoming			=>	"/mnt/shared/incoming",

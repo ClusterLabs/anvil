@@ -1105,6 +1105,7 @@ CREATE TABLE files (
     file_size        numeric                     not null,                   -- This is the file's size in bytes. If it recorded as a quick way to determine if a file has changed on disk.
     file_md5sum      text                        not null,                   -- This is the sum as calculated when the file is first uploaded. Once recorded, it can't change.
     file_type        text                        not null,                   -- This is the file's type/purpose. The expected values are 'iso', 'rpm', 'script', 'disk-image', or 'other'. 
+    file_mtime       numeric                     not null,                   -- If the same file exists on different machines and differ md5sums/sizes, the one with the most recent mtime will be used to update the others.
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE files OWNER TO admin;
@@ -1116,6 +1117,7 @@ CREATE TABLE history.files (
     file_size        numeric,
     file_md5sum      text,
     file_type        text,
+    file_mtime       numeric,
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE history.files OWNER TO admin;
@@ -1132,6 +1134,7 @@ BEGIN
          file_size, 
          file_md5sum, 
          file_type, 
+         file_mtime, 
          modified_date)
     VALUES
         (history_files.file_uuid, 
@@ -1139,6 +1142,7 @@ BEGIN
          history_files.file_size, 
          history_files.file_md5sum, 
          history_files.file_type, 
+         history_files.file_mtime, 
          history_files.modified_date);
     RETURN NULL;
 END;

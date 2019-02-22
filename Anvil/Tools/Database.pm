@@ -2401,6 +2401,10 @@ This is the sum as calculated when the file is first uploaded. Once recorded, it
 
 This is the file's type/purpose. The expected values are 'iso' (disc image a new server can be installed from or mounted in a virtual optical drive),  'rpm' (a package to install on a guest that provides access to Anvil! RPM software), 'script' (pre or post migration scripts), 'image' (images to use for newly created servers, instead of installing from an ISO or PXE), or 'other'. 
 
+=head3 file_mtime (required)
+
+This is the file's C<< mtime >> (modification time as a unix timestamp). This is used in case a file of the same name exists on two or more systems, but their size or md5sum differ. The file with the most recent mtime is used to update the older versions.
+
 =cut
 sub insert_or_update_files
 {
@@ -2417,12 +2421,14 @@ sub insert_or_update_files
 	my $file_size   = defined $parameter->{file_size}   ? $parameter->{file_size}   : "";
 	my $file_md5sum = defined $parameter->{file_md5sum} ? $parameter->{file_md5sum} : "";
 	my $file_type   = defined $parameter->{file_type}   ? $parameter->{file_type}   : "";
+	my $file_mtime  = defined $parameter->{file_mtime}  ? $parameter->{file_mtime}  : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		file_uuid   => $file_uuid, 
 		file_name   => $file_name, 
 		file_size   => $file_size, 
 		file_md5sum => $file_md5sum, 
 		file_type   => $file_type, 
+		file_mtime  => $file_mtime, 
 	}});
 	
 	if (not $file_name)
@@ -2447,6 +2453,12 @@ sub insert_or_update_files
 	{
 		# Throw an error and exit.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_type" }});
+		return("");
+	}
+	if (not $file_mtime)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_files()", parameter => "file_mtime" }});
 		return("");
 	}
 	
@@ -2515,6 +2527,7 @@ INSERT INTO
     file_size, 
     file_md5sum, 
     file_type, 
+    file_mtime, 
     modified_date 
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid).", 
@@ -2522,7 +2535,8 @@ INSERT INTO
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_size).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->data->{sys}{database}{use_handle}->quote($file_mtime).", 
+   ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -2536,7 +2550,8 @@ SELECT
     file_name, 
     file_size, 
     file_md5sum, 
-    file_type 
+    file_type, 
+    file_mtime 
 FROM 
     files 
 WHERE 
@@ -2562,17 +2577,20 @@ WHERE
 			my $old_file_size   = $row->[1];
 			my $old_file_md5sum = $row->[2]; 
 			my $old_file_type   = $row->[3]; 
+			my $old_file_mtime  = $row->[4]; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_file_name   => $old_file_name, 
 				old_file_size   => $old_file_size, 
 				old_file_md5sum => $old_file_md5sum, 
 				old_file_type   => $old_file_type, 
+				old_file_mtime  => $old_file_mtime, 
 			}});
 			
 			# Anything change?
 			if (($old_file_name   ne $file_name)   or 
 			    ($old_file_size   ne $file_size)   or 
 			    ($old_file_md5sum ne $file_md5sum) or 
+			    ($old_file_mtime  ne $file_mtime)  or 
 			    ($old_file_type   ne $file_type))
 			{
 				# Something changed, save.
@@ -2584,6 +2602,7 @@ SET
     file_size     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_size).", 
     file_md5sum   = ".$anvil->data->{sys}{database}{use_handle}->quote($file_md5sum).", 
     file_type     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_type).", 
+    file_mtime    = ".$anvil->data->{sys}{database}{use_handle}->quote($file_mtime).", 
     modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     file_uuid     = ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid)." 
