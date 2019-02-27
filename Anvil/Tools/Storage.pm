@@ -957,8 +957,8 @@ sub make_directory
 	$group =~ s/^(\S+)\s.*$/$1/;
 	print $THIS_FILE." ".__LINE__."; user: [".$user."], group: [".$group."]\n" if $test;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		group     => $group, 
-		user      => $user,
+		group => $group, 
+		user  => $user,
 	}});
 	
 	# Break the directories apart.

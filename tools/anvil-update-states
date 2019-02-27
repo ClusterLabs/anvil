@@ -18,6 +18,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 0});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect;
@@ -125,7 +127,8 @@ sub update_network
 			if (-e $mac_bond_file)
 			{
 				# It's a slave.
-				$mac_address = $anvil->Storage->read_file({file => $mac_bond_file});
+				$mac_address =  $anvil->Storage->read_file({file => $mac_bond_file});
+				$mac_address =~ s/\n$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
 			}
 			
@@ -158,14 +161,21 @@ sub update_network
 				
 				# Read the bond mode.
 				$bond_mode            =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/mode"});
-				$bond_mode            =~ s/\s.*//;
 				$primary_slave        =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary"});
 				$primary_reselect     =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary_reselect"});
-				$primary_reselect     =~ s/\s.*//;
 				$active_slave         =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/active_slave"});
 				$mii_polling_interval =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/miimon"});
 				$up_delay             =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/updelay"});
 				$down_delay           =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/downdelay"});
+				$bond_mode            =~ s/\s.*//;
+				$bond_mode            =~ s/\n$//;
+				$primary_slave        =~ s/\n$//;
+				$primary_reselect     =~ s/\s.*//;
+				$primary_reselect     =~ s/\n$//;
+				$active_slave         =~ s/\n$//;
+				$mii_polling_interval =~ s/\n$//;
+				$up_delay             =~ s/\n$//;
+				$down_delay           =~ s/\n$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					active_slave         => $active_slave, 
 					bond_mode            => $bond_mode, 
@@ -180,13 +190,13 @@ sub update_network
 				# No, but it's slaved to one.
 				my $target      = readlink($full_path."/master");
 				   $bond_master = ($target =~ /^.*\/(.*)$/)[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					target      => $target,
 					bond_master => $bond_master, 
 				}});
 			}
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				active_slave         => $active_slave, 
 				bond_master          => $bond_master, 
 				bond_mode            => $bond_mode, 
@@ -261,7 +271,7 @@ sub update_network
 				type                 => $type, 
 				up_delay             => $up_delay, 
 			};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"network::interfaces::by_name::${interface}::active_slave"           => $anvil->data->{network}{interfaces}{by_name}{$interface}{active_slave},
 				"network::interfaces::by_name::${interface}::bond_mode"              => $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_mode},
 				"network::interfaces::by_name::${interface}::bond_master"            => $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_master},

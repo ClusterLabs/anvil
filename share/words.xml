@@ -563,6 +563,15 @@ Finished Downloading: [#!variable!file!#].
 		<key name="log_0266">This file is large, [#!variable!size!#], this might take a bit of time...</key>
 		<key name="log_0267">Failed to move the file: [#!variable!source_file!#] to: [#!variable!target_file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0268">The file: [#!variable!file!#] has been added to the database (if needed) moved to: [#!variable!target!#].</key>
+		<key name="log_0269">The file: [#!variable!file!#] should exist, but doesn't. We will try to find it now.</key>
+		<key name="log_0270">The user: [#!variable!user!#] doesn't appear to have an SSH key yet. Will create it now. This could take some time, depending on how long it takes to collect entropy. If this appears to not be responding, move the mouse or do other things to generate activity on the host.</key>
+		<key name="log_0271">
+The user: [#!variable!user!#]'s SSH key yet has been generated. The output is below;
+====
+#!variable!output!#
+====
+		</key>
+		<key name="log_0272">The user: [#!variable!user!#] doesn't appear to have a base SSH directory. Will now create: [#!variable!directory!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -823,6 +832,12 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0054">Failed!</key>
 		<key name="error_0055">A request to toggle the script flag was received, but no file name was given.</key>
 		<key name="error_0056">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
+		<key name="error_0057">
+Failed to generate an RSA public key for the user: [#!variable!user!#]. The output, if any, is below:
+====
+#!variable!output!#
+====
+		</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

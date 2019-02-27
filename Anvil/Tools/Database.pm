@@ -2655,6 +2655,10 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
+=head3 host_key (required)
+
+The is the host's public key used by other machines to validate this machine when connecting to it using ssh. The value comes from C<< /etc/ssh/ssh_host_ecdsa_key.pub >>. An example string would be C<< ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMLEG+mcczSUgmcSuRNZc5OAFPa7IudZQv/cYWzCzmlKPMkIdcNiYDuFM1iFNiV9wVtAvkIXVSkOe2Ah/BGt6fQ= >>.
+
 =head3 host_name (required)
 
 This default value is the local hostname.
@@ -2679,6 +2683,7 @@ sub insert_or_update_hosts
 	my $uuid      = defined $parameter->{uuid}      ? $parameter->{uuid}      : "";
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
+	my $host_key  = defined $parameter->{host_key}  ? $parameter->{host_key}  : "";
 	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_hostname;
 	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->get_host_type;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
@@ -2686,6 +2691,7 @@ sub insert_or_update_hosts
 		uuid      => $uuid, 
 		file      => $file, 
 		line      => $line, 
+		host_key  => $host_key, 
 		host_name => $host_name, 
 		host_type => $host_type, 
 		host_uuid => $host_uuid, 
@@ -2704,13 +2710,23 @@ sub insert_or_update_hosts
 		return("");
 	}
 	
+	# If we're looking at ourselves and we don't have the host_key, read it in.
+	if ((not $host_key) && ($host_uuid eq $anvil->Get->host_uuid))
+	{
+		$host_key =  $anvil->Storage->read_file({file => $anvil->data->{path}{data}{host_ssh_key}});
+		$host_key =~ s/\n$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key => $host_key }});
+	}
+	
 	# Read the old values, if they exist.
 	my $old_host_name = "";
 	my $old_host_type = "";
-	my $query = "
+	my $old_host_key  = "";
+	my $query         = "
 SELECT 
     host_name, 
-    host_type  
+    host_type, 
+    host_key  
 FROM 
     hosts 
 WHERE 
@@ -2727,10 +2743,12 @@ WHERE
 	foreach my $row (@{$results})
 	{
 		$old_host_name = $row->[0];
-		$old_host_type = $row->[1];
+		$old_host_type = defined $row->[1] ? $row->[1] : "";
+		$old_host_key  = defined $row->[2] ? $row->[2] : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			old_host_name => $old_host_name, 
 			old_host_type => $old_host_type, 
+			old_host_key  => $old_host_key, 
 		}});
 	}
 	if (not $count)
@@ -2743,18 +2761,22 @@ INSERT INTO
     host_uuid, 
     host_name, 
     host_type, 
+    host_key, 
     modified_date
 ) VALUES (
     ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).", 
     ".$anvil->data->{sys}{database}{use_handle}->quote($host_name).",
     ".$anvil->data->{sys}{database}{use_handle}->quote($host_type).",
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_key).",
     ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
-	elsif (($old_host_name ne $host_name) or ($old_host_type ne $host_type))
+	elsif (($old_host_name ne $host_name) or 
+	       ($old_host_type ne $host_type) or 
+	       ($old_host_key  ne $host_key))
 	{
 		# Clear the stop data.
 		my $query = "
@@ -2763,6 +2785,7 @@ UPDATE
 SET 
     host_name     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_name).", 
     host_type     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_type).", 
+    host_key      = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key).", 
     modified_date = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE
     host_uuid     = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)."

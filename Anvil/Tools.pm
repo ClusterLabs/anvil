@@ -941,6 +941,7 @@ sub _set_paths
 			},
 			data			=>	{
 				group				=>	"/etc/group",
+				host_ssh_key			=>	"/etc/ssh/ssh_host_ecdsa_key.pub",
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
 				host_uuid			=>	"/etc/anvil/host.uuid",
 				passwd				=>	"/etc/passwd",
@@ -1017,6 +1018,7 @@ sub _set_paths
 				rsync				=>	"/usr/bin/rsync",
 				sed				=>	"/usr/bin/sed", 
 				'shutdown'			=>	"/usr/sbin/shutdown",
+				'ssh-keygen'			=>	"/usr/bin/ssh-keygen",
 				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
 				strings				=>	"/usr/bin/strings",
 				'striker-configure-host'	=>	"/usr/sbin/striker-configure-host",

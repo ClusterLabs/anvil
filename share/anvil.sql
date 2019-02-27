@@ -48,6 +48,7 @@ CREATE TABLE hosts (
     host_uuid        uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     host_name        text                        not null,
     host_type        text,                                                   -- Either 'node' or 'dashboard' or 'dr_host'. It is left empty until the host is configured.
+    host_key         text,                                                   -- This is the host's key used to authenticate it when other machines try to ssh to it.
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE hosts OWNER TO admin;
@@ -57,6 +58,7 @@ CREATE TABLE history.hosts (
     host_uuid        uuid,
     host_name        text,
     host_type        text,
+    host_key         text,
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE history.hosts OWNER TO admin;
@@ -68,14 +70,16 @@ DECLARE
 BEGIN
     SELECT INTO history_hosts * FROM hosts WHERE host_uuid = new.host_uuid;
     INSERT INTO history.hosts
-        (host_uuid,
-         host_name,
-         host_type,
+        (host_uuid, 
+         host_name, 
+         host_type, 
+         host_key, 
          modified_date)
     VALUES
         (history_hosts.host_uuid,
          history_hosts.host_name,
          history_hosts.host_type,
+         history_hosts.host_key, 
          history_hosts.modified_date);
     RETURN NULL;
 END;
@@ -88,12 +92,12 @@ CREATE TRIGGER trigger_hosts
     FOR EACH ROW EXECUTE PROCEDURE history_hosts();
 
 
--- This stores the SSH _public_ keys for a given user on a host. 
+-- This stores the SSH _public_keys for a given user on a host. 
 CREATE TABLE host_keys (
     host_key_uuid          uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
     host_key_host_uuid     uuid                        not null,
     host_key_user_name     text                        not null,                   -- This is the user name on the system, not a web interface user.
-    host_key_public_key    text                        not null,                   -- Either 'node' or 'dashboard'.
+    host_key_public_key    text                        not null,                   -- Either 'node', 'dashboard' or 'dr'
     modified_date          timestamp with time zone    not null, 
     
     FOREIGN KEY(host_key_host_uuid) REFERENCES hosts(host_uuid)

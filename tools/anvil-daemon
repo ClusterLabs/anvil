@@ -65,6 +65,8 @@ $| = 1;
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
@@ -209,6 +211,9 @@ sub handle_periodic_tasks
 		# Check to see if the PXE environment needs to be updated.
 		check_install_target($anvil);
 		
+		# Check that the users we care about have ssh public keys and they're recorded in ssh_keys.
+		check_ssh_keys($anvil);
+		
 		# Check if the files on disk have changed. Even if it is time to check, don't if a job is 
 		# running.
 		if ((not $anvil->data->{timing}{jobs_running}) && ($anvil->Storage->check_md5sums))
@@ -228,7 +233,7 @@ sub handle_periodic_tasks
 			"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
 		}});
 		
-		# Make sure the shared directories.
+		# Make sure the shared directories exist.
 		foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{path}{directories}{shared}})
 		{
 			my $directory = $anvil->data->{path}{directories}{shared}{$target};
@@ -288,6 +293,87 @@ sub handle_periodic_tasks
 			"s1:timing::repo_update_interval" => $anvil->data->{timing}{repo_update_interval},
 			"s2:timing::next_repo_check"      => $anvil->data->{timing}{next_repo_check}, 
 		}});
+	}
+	
+	return(0);
+}
+
+# Check that the host's fingerprint and users we care about have ssh public keys and they're recorded in ssh_keys.
+sub check_ssh_keys
+{
+	my ($anvil) = @_;
+	
+	### TODO: Left off here... Then read in the same for all other machines and use it to generate/update each user's 'known_hosts' file. 
+	###       For each user, if there is no SSH public key, create it. If / once it exists, add/update it the database. Finally, use key user keys from other users on other systems to populate / update the user's authorized_keys file.
+	# Read in this host's machine fingerprint.
+# 	130 digimer@pulsar:~/anvil/anvil$ # el8-striker01 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMLEG+mcczSUgmcSuRNZc5OAFPa7IudZQv/cYWzCzmlKPMkIdcNiYDuFM1iFNiV9wVtAvkIXVSkOe2Ah/BGt6fQ=
+	# 
+	
+	# Get a list of all hosts and IPs we know about. We'll use this to update 
+	
+	
+	# Users to check:
+	# root, admin, hacluster
+	foreach my $user ("root", "admin")
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
+		
+		my $user_home = $anvil->Get->users_home({user => $user});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user_home => $user_home }});
+		
+		# If the user doesn't exist, their home directory won't either, so skip.
+		next if not $user_home;
+		next if not -d $user_home;
+		
+		# If the user's ~/.ssh directory doesn't exist, we need to create it.
+		my $ssh_directory =  $user_home."/.ssh";
+		   $ssh_directory =~ s/\/\//\//g;
+		if (not -e $ssh_directory)
+		{
+			# Create it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0272", variables => { user => $user, directory => $ssh_directory }});
+			$anvil->Storage->make_directory({
+				directory => $ssh_directory, 
+				user      => $user,
+				group     => $user, 
+				mode      => "0700",
+			});
+			if (not -e $ssh_directory)
+			{
+				# Failed ?
+				next;
+			}
+		}
+		
+		my $ssh_private_key_file = $user_home."/.ssh/id_rsa";
+		my $ssh_public_key_file  = $user_home."/.ssh/id_rsa.pub";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			ssh_public_key_file  => $ssh_public_key_file,
+			ssh_private_key_file => $ssh_private_key_file, 
+		}});
+		if (not -e $ssh_public_key_file)
+		{
+			# Generate the SSH keys.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0270", variables => { user => $user }});
+			
+			my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
+			if (-e $ssh_public_key_file)
+			{
+				# Success!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0271", variables => { user => $user, output => $output }});
+			}
+			else
+			{
+				# Failed?
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0057", variables => { user => $user, output => $output }});
+				next;
+			}
+		}
+		
+		# Now read in the key.
+		my $users_public_key =  $anvil->Storage->read_file({file => $ssh_public_key_file});
+		   $users_public_key =~ s/\n$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { users_public_key => $users_public_key }});
 	}
 	
 	return(0);
@@ -358,6 +444,9 @@ sub run_once
 	
 	# Check to see if we need to do boot-time tasks. We only run these if we've just booted
 	boot_time_tasks($anvil);
+	
+	# Check the ssh stuff.
+	check_ssh_keys($anvil);
 	
 	if ($anvil->data->{switches}{'startup-only'})
 	{

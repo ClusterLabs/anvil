@@ -130,7 +130,7 @@ else
 	check_incoming($anvil);
 	
 	# Check for files we should have but don't yet have.
-	#find_missing_files($anvil);
+	find_missing_files($anvil);
 }
 
 # We're done
@@ -169,6 +169,7 @@ sub find_missing_files
 	my $query = "
 SELECT 
     a.file_uuid, 
+    a.file_directory, 
     a.file_name 
 FROM 
     files a, 
@@ -181,33 +182,126 @@ AND
 AND 
     b.host_uuid = c.file_location_host_uuid 
 ORDER BY 
+    a.file_directory ASC, 
     a.file_name ASC, 
     b.host_name ASC
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
 	foreach my $row (@{$results})
 	{
-		my $file_location_file_uuid = $row->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			file_location_file_uuid => $file_location_file_uuid, 
+		my $file_uuid      = $row->[0];
+		my $file_directory = $row->[1];
+		my $file_name      = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			's1:file_uuid'      => $file_uuid, 
+			's2:file_directory' => $file_directory, 
+			's3:file_name'      => $file_name, 
 		}});
 		
-		### TODO: How to handle when the file with the same name exists on 2+ machines with 
-		###       different md5sums. Use the most recent mtime?
-		# Read in the file details.
+		my $test_file =  $file_directory."/".$file_name;
+		   $test_file =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
+		
+		if (not -e $test_file)
+		{
+			# Missing file!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0269", variables => { file => $test_file }});
+			
+			# Find what target, if any, we'll the file from.
+			my ($target, $port, $password) = find_file($anvil, $file_uuid);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				target   => $target,
+				port     => $port, 
+				password => $password,
+			}});
+		}
 	}
 	
 	# Read in any entries from 'file_locations'.
 	
 	return(0);
 }
+
+### TODO: Use System->find_matching_ip() and System->get_ips().
+### TODO: Add sorting by preferred target
+# This looks for a file on another system. The exact order of search depends on what kind of machine we are.
+sub find_file
+{
+	my ($anvil, $file_uuid) = @_;
+	
+	my $target   = "";
+	my $port     = "";
+	my $password = "";
+	
+	# Find the file on any/all other hosts.
+	my $query = "
+SELECT 
+    a.host_uuid, 
+    a.host_name, 
+    a.host_type, 
+    b.file_directory, 
+    b.file_name, 
+    b.file_size, 
+    b.file_md5sum 
+FROM 
+    hosts a, 
+    files b, 
+    file_locations c 
+WHERE 
+    a.host_uuid =  c.file_location_host_uuid 
+AND 
+    b.file_uuid =  c.file_location_file_uuid 
+AND 
+    b.file_uuid =  ".$anvil->data->{sys}{database}{use_handle}->quote($file_uuid)." 
+AND 
+    a.host_uuid != ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})." 
+ORDER BY 
+    file_mtime DESC;
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $host_uuid      = $row->[0];
+		my $host_name      = $row->[1];
+		my $host_type      = $row->[2];
+		my $file_directory = $row->[3];
+		my $file_name      = $row->[4];
+		my $file_size      = $row->[5];
+		my $file_md5sum    = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			host_uuid      => $host_uuid, 
+			host_name      => $host_name, 
+			host_type      => $host_type, 
+			file_directory => $file_directory, 
+			file_name      => $file_name, 
+			file_size      => $file_size, 
+			file_md5sum    => $file_md5sum,
+		}});
+		
+		my $test_file =  $file_directory."/".$file_name;
+		   $test_file =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
+		
+		# Can I connect to this machine?
+	}
+	
+	
+	return($target, $port, $password);
+}
+
 
 # This handles deleting a file. 
 sub check_incoming
@@ -221,7 +315,7 @@ sub check_incoming
 	}
 	# Read any files in '/mnt/shared/incoming'.
 	$anvil->Storage->scan_directory({
-		debug     => 1,
+		debug     => 3,
 		directory => $anvil->data->{path}{directories}{shared}{base},
 		recursive => 1,
 	});
@@ -232,7 +326,7 @@ sub check_incoming
 	{
 		# Skip if this isn't a file.
 		my $file_type = $anvil->data->{scan}{directories}{$full_path}{type};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			full_path => $full_path,
 			file_type => $file_type, 
 		}});
@@ -245,7 +339,7 @@ sub check_incoming
 		my $file_mimetype   = $anvil->data->{scan}{directories}{$full_path}{mimetype};
 		my $file_executable = $anvil->data->{scan}{directories}{$full_path}{executable} = -x $full_path ? 1 : 0;
 		my $say_mimetype    = convert_mimetype($anvil, $file_mimetype, $full_path, $file_executable);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			file_name       => $file_name, 
 			file_size       => $file_size, 
 			file_mtime      => $file_mtime, 
@@ -256,7 +350,7 @@ sub check_incoming
 		
 		# Do I know about this file? If so, is the file the same size? If either is no, calculate the md5sum.
 		my ($file_uuid, $recorded_size, $recorded_mtime, $recorded_md5sum) = get_file_db_info($anvil, "", $file_name);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			file_uuid       => $file_uuid, 
 			recorded_size   => $recorded_size,
 			recorded_mtime  => $recorded_mtime, 
@@ -297,7 +391,7 @@ sub check_incoming
 			
 			# Insert or update the files entry.
 			($file_uuid) = $anvil->Database->insert_or_update_files({
-				debug          => 2,
+				debug          => 3,
 				file_uuid      => $file_uuid, 
 				file_name      => $file_name, 
 				file_directory => $file_directory, 
@@ -306,23 +400,23 @@ sub check_incoming
 				file_mtime     => $file_mtime, 
 				file_type      => $say_mimetype, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
 		}
 		
 		# If we still don't have a file UUID for some reason, skip this file.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
 		next if not $file_uuid;
 		
 		# Make sure we know about this file on this system
 		my ($file_locatiom_uuid) = $anvil->Database->insert_or_update_file_locations({
-			debug                   => 2,
+			debug                   => 3,
 			file_location_file_uuid => $file_uuid, 
 			file_location_host_uuid => $anvil->data->{sys}{host_uuid},
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_locatiom_uuid => $file_locatiom_uuid }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_locatiom_uuid => $file_locatiom_uuid }});
 		
 		# Are we in the incoming directory? If so, move the file.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			full_path          => $full_path,
 			incoming_directory => $incoming_directory, 
 		}});
@@ -334,14 +428,14 @@ sub check_incoming
 			my $target =  $say_mimetype eq "definition" ? $anvil->data->{path}{directories}{shared}{definitions} : $anvil->data->{path}{directories}{shared}{files};
 			$target .= "/";
 			$target =~ s/\/\//\//g;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { target => $target }});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0268", variables => { 
 				file   => $full_path,
 				target => $target, 
 			}});
 			$anvil->Storage->move_file({
-				debug       => 2,
+				debug       => 3,
 				source_file => $full_path, 
 				target_file => $target,
 			});
@@ -349,7 +443,7 @@ sub check_incoming
 			# Update the file_directory.
 			my $say_directory =~ s/\/$//;
 			($file_uuid) = $anvil->Database->insert_or_update_files({
-				debug          => 2,
+				debug          => 3,
 				file_uuid      => $file_uuid, 
 				file_name      => $file_name, 
 				file_directory => $say_directory, 
@@ -358,7 +452,7 @@ sub check_incoming
 				file_mtime     => $file_mtime, 
 				file_type      => $say_mimetype, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
 		}
 	}
 	
@@ -391,7 +485,7 @@ sub get_file_db_info
 	my ($anvil, $file_md5sum, $file_name) = @_;
 	$file_md5sum = "" if not defined $file_md5sum;
 	$file_name   = "" if not defined $file_name;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		file_md5sum => $file_md5sum, 
 		file_name   => $file_name,
 	}});
@@ -419,7 +513,7 @@ WHERE
 	}
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -432,7 +526,7 @@ WHERE
 	my $file_size   = defined $results->[0]->[1] ? $results->[0]->[1] : 0;
 	my $file_mtime  = defined $results->[0]->[2] ? $results->[0]->[2] : 0;
 	   $file_md5sum = defined $results->[0]->[3] ? $results->[0]->[3] : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		file_uuid   => $file_uuid, 
 		file_size   => $file_size, 
 		file_mtime  => $file_mtime, 
@@ -571,7 +665,7 @@ WHERE
 sub convert_mimetype
 {
 	my ($anvil, $mimetype, $file, $executable) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		mimetype   => $mimetype,
 		file       => $file,
 		executable => $executable, 
@@ -588,10 +682,10 @@ sub convert_mimetype
 		{
 			# This might be a definition, but look inside it to be sure.
 			my $is_domain = $anvil->System->call({
-				debug      => 2, 
+				debug      => 3, 
 				shell_call => "if \$(".$anvil->data->{path}{exe}{'grep'}." -q '</domain>' ".$file."); then ".$anvil->data->{path}{exe}{echo}." 1; else ".$anvil->data->{path}{exe}{echo}." 0; fi", 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { is_domain => $is_domain }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { is_domain => $is_domain }});
 
 			if ($is_domain)
 			{
@@ -612,7 +706,7 @@ sub convert_mimetype
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_mimetype => $say_mimetype }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_mimetype => $say_mimetype }});
 	return($say_mimetype);
 }
 
