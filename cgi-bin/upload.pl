@@ -134,7 +134,7 @@ if ($cgi->param())
 else
 {
 	# Why are we here?
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "warn", key => "log_0261", variables => { file => $THIS_FILE }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0261", variables => { file => $THIS_FILE }});
 }
 
 exit(0);

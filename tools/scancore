@@ -220,7 +220,7 @@ sub exit_if_sums_changed
 	if ($anvil->Storage->check_md5sums)
 	{
 		# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "warn", key => "message_0014"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "message_0014"});
 		$anvil->nice_exit({code => 0});
 	}
 	

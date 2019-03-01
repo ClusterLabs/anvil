@@ -504,7 +504,7 @@ sub check_md5sums
 	{
 		# Exit.
 		$exit = 1;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0250", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0250", variables => { 
 			file    => $0,
 			old_sum => $anvil->data->{md5sum}{$caller}{start_time},
 			new_sum => $anvil->data->{md5sum}{$caller}{now},
@@ -541,7 +541,7 @@ sub check_md5sums
 		{
 			# Changed.
 			$exit = 1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0250", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0250", variables => { 
 				file    => $module_file,
 				old_sum => $anvil->data->{md5sum}{$module_file}{start_time},
 				new_sum => $anvil->data->{md5sum}{$module_file}{now},
@@ -566,7 +566,7 @@ sub check_md5sums
 		if ($anvil->data->{md5sum}{$file}{start_time} ne $anvil->data->{md5sum}{$file}{now})
 		{
 			$exit = 1;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0250", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0250", variables => { 
 				file    => $file,
 				old_sum => $anvil->data->{md5sum}{$file}{start_time},
 				new_sum => $anvil->data->{md5sum}{$file}{now},

@@ -572,6 +572,7 @@ The user: [#!variable!user!#]'s SSH key yet has been generated. The output is be
 ====
 		</key>
 		<key name="log_0272">The user: [#!variable!user!#] doesn't appear to have a base SSH directory. Will now create: [#!variable!directory!#].</key>
+		<key name="log_0273">The user: [#!variable!user!#]'s: [#!variable!file!#] file needs to be updated.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -838,6 +839,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 #!variable!output!#
 ====
 		</key>
+		<key name="error_0058">Failed to backup: [#!variable!file!#], skipping..</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

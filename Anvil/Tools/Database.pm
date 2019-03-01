@@ -2635,6 +2635,202 @@ WHERE
 	return($file_uuid);
 }
 
+=head2 insert_or_update_host_keys
+
+This updates (or inserts) a record in the 'host_keys' table. The C<< host_key_uuid >> UUID will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 host_key_host_uuid (optional, default is Get->host_uuid)
+
+This is the host that the corresponding user and key belong to.
+
+=head3 host_key_public_key (required)
+
+This is the B<<PUBLIC>> key for the user, the full line stored in the user's C<< ~/.ssh/id_rsa.pub >> file.
+
+=head3 host_key_user_name (required)
+
+This is the name of the user that the public key belongs to.
+
+=head3 host_key_uuid (optional)
+
+This is the specific record to update. If not provides, a search will be made to find a matching entry. If found, the record will be updated if one of the values has changed. If not, a new record will be inserted.
+
+=cut
+sub insert_or_update_host_keys
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_host_keys()" }});
+	
+	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
+	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
+	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
+	my $host_key_host_uuid  = defined $parameter->{host_key_host_uuid}  ? $parameter->{host_key_host_uuid}  : $anvil->Get->host_uuid;
+	my $host_key_public_key = defined $parameter->{host_key_public_key} ? $parameter->{host_key_public_key} : "";
+	my $host_key_user_name  = defined $parameter->{host_key_user_name}  ? $parameter->{host_key_user_name}  : "";
+	my $host_key_uuid       = defined $parameter->{host_key_uuid}       ? $parameter->{host_key_uuid}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                => $uuid, 
+		file                => $file, 
+		line                => $line, 
+		host_key_host_uuid  => $host_key_host_uuid, 
+		host_key_public_key => $host_key_public_key, 
+		host_key_user_name  => $host_key_user_name, 
+		host_key_uuid       => $host_key_uuid, 
+	}});
+	
+	if (not $host_key_public_key)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_host_keys()", parameter => "host_key_public_key" }});
+		return("");
+	}
+	if (not $host_key_user_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_host_keys()", parameter => "host_key_user_name" }});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given user and host.
+	if (not $host_key_uuid)
+	{
+		my $query = "
+SELECT 
+    host_key_uuid 
+FROM 
+    host_keys 
+WHERE 
+    host_key_user_name = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_user_name)." 
+AND 
+    host_key_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$host_key_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
+		}
+	}
+	
+	# If I still don't have an host_key_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
+	if (not $host_key_uuid)
+	{
+		# INSERT
+		$host_key_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    host_keys 
+(
+    host_key_uuid, 
+    host_key_host_uuid, 
+    host_key_public_key, 
+    host_key_user_name, 
+    modified_date 
+) VALUES (
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_host_uuid).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_public_key).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_user_name).", 
+    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    host_key_host_uuid, 
+    host_key_public_key, 
+    host_key_user_name 
+FROM 
+    host_keys 
+WHERE 
+    host_key_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a host_key_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "host_key_uuid", uuid => $host_key_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_host_key_host_uuid  = $row->[0];
+			my $old_host_key_public_key = $row->[1];
+			my $old_host_key_user_name  = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_host_key_host_uuid  => $old_host_key_host_uuid, 
+				old_host_key_public_key => $old_host_key_public_key, 
+				old_host_key_user_name  => $old_host_key_user_name, 
+			}});
+			
+			# Anything change?
+			if (($old_host_key_host_uuid  ne $host_key_host_uuid)  or 
+			    ($old_host_key_public_key ne $host_key_public_key) or 
+			    ($old_host_key_user_name  ne $host_key_user_name))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    host_keys 
+SET 
+    host_key_host_uuid  = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_host_uuid).",  
+    host_key_public_key = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_public_key).", 
+    host_key_user_name  = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_user_name).", 
+    modified_date       = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    host_key_uuid       = ".$anvil->data->{sys}{database}{use_handle}->quote($host_key_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
+	return($host_key_uuid);
+}
+
 =head2 insert_or_update_hosts
 
 This updates (or inserts) a record in the 'hosts' table. The C<< host_uuid >> UUID will be returned.
