@@ -74,9 +74,6 @@ $anvil->Log->secure({set => 1});
 $anvil->Database->connect({debug => 3, check_if_configured => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 
-check_ssh_keys($anvil);
-die;
-
 # If I have no databases, sleep for a second and then exit (systemd will restart us).
 if (not $anvil->data->{sys}{database}{connections})
 {
@@ -307,14 +304,6 @@ sub check_ssh_keys
 {
 	my ($anvil) = @_;
 	
-	### TODO: Left off here... Then read in the same for all other machines and use it to generate/update each user's 'known_hosts' file. 
-	###       For each user, if there is no SSH public key, create it. If / once it exists, add/update it the database. Finally, use key user keys from other users on other systems to populate / update the user's authorized_keys file.
-	# Read in this host's machine fingerprint.
-# 	130 digimer@pulsar:~/anvil/anvil$ # el8-striker01 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMLEG+mcczSUgmcSuRNZc5OAFPa7IudZQv/cYWzCzmlKPMkIdcNiYDuFM1iFNiV9wVtAvkIXVSkOe2Ah/BGt6fQ=
-	# 
-	
-	# Get a list of all hosts and IPs we know about. We'll use this to update 
-	
 	# Get a list of machine host keys and user public keys from other machines.
 	get_other_keys($anvil);
 	
@@ -322,7 +311,7 @@ sub check_ssh_keys
 	# root, admin, hacluster
 	foreach my $user ("root", "admin")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
 		
 		my $user_home = $anvil->Get->users_home({user => $user});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user_home => $user_home }});
@@ -423,11 +412,15 @@ sub check_ssh_keys
 		
 		# Look at all the hosts I know about (other than myself) and see if any of the machine or 
 		# user keys either don't exist or have changed.
-		my $update_known_hosts     = 0;
-		my $update_authorized_keys = 0;
+		my $update_known_hosts        = 0;
+		my $update_authorized_keys    = 0;
+		my $known_hosts_new_lines     = "";
+		my $authorized_keys_new_lines = "";
+		
+		# Check for changes to known_hosts
 		foreach my $host_uuid (keys %{$anvil->data->{peers}{ssh_keys}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_uuid => $host_uuid }});
 			foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{peers}{ssh_keys}{$host_uuid}{host}})
 			{
 				my $key = $anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$host_name};
@@ -439,24 +432,29 @@ sub check_ssh_keys
 				# Is this in the file and, if so, has it changed?
 				my $found     = 0;
 				my $test_line = $host_name." ".$key;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_line => $test_line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { test_line => $test_line }});
 				foreach my $line (split/\n/, $known_hosts_old_body)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 					if ($line eq $test_line)
 					{
 						# No change needed, key is the same.
 						$found = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
-						last;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { found => $found }});
 					}
 					elsif ($line =~ /^$host_name /)
 					{
 						# Key has changed, update.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0274", variables => { 
+							machine => $host_name, 
+							old_key => $line, 
+							new_key => $test_line,
+							
+						}});
 						$found              = 1;
 						$line               = $test_line;
 						$update_known_hosts = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 							found              => $found,
 							line               => $line, 
 							update_known_hosts => $update_known_hosts, 
@@ -465,14 +463,14 @@ sub check_ssh_keys
 					$known_hosts_new_body .= $line."\n";
 				}
 				# If we didn't find the key, add it.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { found => $found }});
 				if (not $found)
 				{
-					$update_known_hosts   =  1;
-					$known_hosts_new_body .= $test_line."\n";
+					$update_known_hosts    =  1;
+					$known_hosts_new_lines .= $test_line."\n";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						's1:update_known_hosts'   => $update_known_hosts, 
-						's2:known_hosts_new_body' => $known_hosts_new_body, 
+						's1:update_known_hosts'    => $update_known_hosts, 
+						's2:known_hosts_new_lines' => $known_hosts_new_lines, 
 					}});
 				}
 				
@@ -482,33 +480,95 @@ sub check_ssh_keys
 				$known_hosts_new_body = "";
 			}
 		}
+		
 		# Lastly, copy the last version of the old body to the new body,
-		$known_hosts_new_body = $known_hosts_old_body;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$known_hosts_new_body = $known_hosts_old_body.$known_hosts_new_lines;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			's1:update_known_hosts'    => $update_known_hosts, 
 			's2:known_hosts_file_body' => $known_hosts_file_body, 
 			's3:known_hosts_new_body'  => $known_hosts_new_body, 
 			's4:difference'            => diff \$known_hosts_file_body, \$known_hosts_new_body, { STYLE => 'Unified' },
 		}});
 		
-		die;
+		# Check for changes to authorized_keys
+		foreach my $host_uuid (keys %{$anvil->data->{peers}{ssh_keys}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_uuid => $host_uuid }});
+			foreach my $host_key_user_name (sort {$a cmp $b} keys %{$anvil->data->{peers}{ssh_keys}{$host_uuid}{user}})
+			{
+				my $host_key_public_key = $anvil->data->{peers}{ssh_keys}{$host_uuid}{user}{$host_key_user_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					's1:host_key_user_name'  => $host_key_user_name,
+					's2:host_key_public_key' => $host_key_public_key,
+				}});
+				
+				# The key in the file might have a different trailing suffix (user@hostname)
+				# and doesn't really matter. So we search by the key type and public key to 
+				# see if it exists already.
+				my $found     = 0;
+				my $test_line = ($host_key_public_key =~ /^(ssh-.*? .*?) /)[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { test_line => $test_line }});
+				foreach my $line (split/\n/, $authorized_keys_old_body)
+				{
+					# NOTE: Use '\Q...\E' so that the '+' characters in the key aren't 
+					#       evaluated as part of the regex.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+					if ($line =~ /^\Q$test_line\E/)
+					{
+						# No change needed, key is the same.
+						$found = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { found => $found }});
+					}
+					# We don't look for changes (yet). Might be worth looking for stale 
+					# keys by ckecking of the host at the end matches an entry in the 
+					# database and then verifying the keys haven't changed, but that's 
+					# for another day.
+					$authorized_keys_new_body .= $line."\n";
+				}
+				# If we didn't find the key, add it.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { found => $found }});
+				if (not $found)
+				{
+					$update_authorized_keys    =  1;
+					$authorized_keys_new_lines .= $host_key_public_key."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						's1:update_authorized_keys'    => $update_authorized_keys, 
+						's2:authorized_keys_new_lines' => $authorized_keys_new_lines, 
+					}});
+				}
+				
+				# Move the new body over to the old body (even though it may not have 
+				# changed) and then clear the new body to prepare for the next pass.
+				$authorized_keys_old_body = $authorized_keys_new_body;
+				$authorized_keys_new_body = "";
+			}
+		}
 		
-		# Update files, if needed.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_known_hosts => $update_known_hosts }});
+		# Lastly, copy the last version of the old body to the new body,
+		$authorized_keys_new_body = $authorized_keys_old_body.$authorized_keys_new_lines;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			's1:update_authorized_keys'    => $update_authorized_keys, 
+			's2:authorized_keys_file_body' => $authorized_keys_file_body, 
+			's3:authorized_keys_new_body'  => $authorized_keys_new_body, 
+			's4:difference'                => diff \$authorized_keys_file_body, \$authorized_keys_new_body, { STYLE => 'Unified' },
+		}});
+		
+		# Update the known_hosts files, if needed.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_known_hosts => $update_known_hosts }});
 		if ($update_known_hosts)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0273", variables => { user => $user, file => $known_hosts_file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0273", variables => { user => $user, file => $known_hosts_file }});
 			if (-e $known_hosts_file)
 			{
 				my $backup_file = $anvil->Storage->backup({
-					debug => 2,
+					debug => 3,
 					fatal => 1, 
 					file  => $known_hosts_file, 
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { backup_file => $backup_file }});
 				if (-e $backup_file)
 				{
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0154", variables => { source_file => $known_hosts_file, target_file => $backup_file }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0154", variables => { source_file => $known_hosts_file, target_file => $backup_file }});
 				}
 				else
 				{
@@ -524,16 +584,18 @@ sub check_ssh_keys
 				group     => $user, 
 				mode      => "0644", 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_authorized_keys => $update_authorized_keys }});
+		
+		# Update the authorized_keys files, if needed.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { update_authorized_keys => $update_authorized_keys }});
 		if ($update_authorized_keys)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0273", variables => { user => $user, file => $authorized_keys_file }});
 			if (-e $authorized_keys_file)
 			{
 				my $backup_file = $anvil->Storage->backup({
-					debug => 2,
+					debug => 3,
 					fatal => 1, 
 					file  => $authorized_keys_file, 
 				});
