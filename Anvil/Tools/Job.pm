@@ -190,7 +190,7 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{switches}{'job-uuid'})." 
+    job_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'job-uuid'})." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
@@ -297,11 +297,11 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_command LIKE ".$anvil->data->{sys}{database}{use_handle}->quote($program."%")." 
+    job_command LIKE ".$anvil->Database->quote($program."%")." 
 AND 
     job_progress != '100'
 AND 
-    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)." 
+    job_host_uuid = ".$anvil->Database->quote($host_uuid)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -347,7 +347,7 @@ FROM
 WHERE 
     job_progress != '100'
 AND 
-    job_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
+    job_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results   = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -567,7 +567,7 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid)."
+    job_uuid = ".$anvil->Database->quote($job_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		

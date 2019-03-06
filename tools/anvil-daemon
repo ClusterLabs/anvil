@@ -641,7 +641,7 @@ SELECT
 FROM 
    hosts 
 WHERE 
-   host_uuid != ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
+   host_uuid != ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
@@ -678,7 +678,7 @@ WHERE
 		}
 		
 		# Find any IP addresses for this host.
-		my $query = "SELECT ip_address_address FROM ip_addresses WHERE ip_address_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).";";
+		my $query = "SELECT ip_address_address FROM ip_addresses WHERE ip_address_host_uuid = ".$anvil->Database->quote($host_uuid).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -711,7 +711,7 @@ SELECT
 FROM 
     host_keys 
 WHERE 
-    host_key_host_uuid != ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
+    host_key_host_uuid != ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
@@ -851,7 +851,7 @@ FROM
 WHERE 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
+    variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 AND 
     variable_name = 'reboot::needed'
 ;";

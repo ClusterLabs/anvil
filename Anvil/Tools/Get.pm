@@ -482,7 +482,7 @@ SELECT
 FROM 
     hosts 
 WHERE 
-    host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).";
+    host_uuid = ".$anvil->Database->quote($host_uuid).";
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -650,7 +650,7 @@ Parameters;
 
 This is the IPv4 IP address being calculated.
 
-=head3 subnet (optional)
+=head3 subnet (required)
 
 This is the subnet of the IP address being calculated.
 

@@ -1311,7 +1311,7 @@ WHERE
 AND 
     job_progress  != 100 
 AND 
-    job_host_uuid =  ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
+    job_host_uuid =  ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -1371,7 +1371,7 @@ WHERE
 AND 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
+    variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 ORDER BY 
     variable_name ASC;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
@@ -1521,7 +1521,7 @@ WHERE
 AND 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)." 
+    variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 ORDER BY 
     variable_name ASC;";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});

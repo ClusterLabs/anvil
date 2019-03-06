@@ -728,6 +728,8 @@ This method checks the local system for interfaces and stores them in:
 
 To aid in look-up by MAC address, C<< sys::mac::<mac_address>::iface >> is also set.
 
+No parameters are accepted by this method.
+
 =cut
 sub get_ips
 {

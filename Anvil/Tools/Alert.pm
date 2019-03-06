@@ -177,13 +177,13 @@ SELECT
 FROM 
     alert_sent 
 WHERE 
-    alert_sent_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})." 
+    alert_sent_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})." 
 AND 
-    alert_set_by         = ".$anvil->data->{sys}{database}{use_handle}->quote($set_by)." 
+    alert_set_by         = ".$anvil->Database->quote($set_by)." 
 AND 
-    alert_record_locator = ".$anvil->data->{sys}{database}{use_handle}->quote($record_locator)." 
+    alert_record_locator = ".$anvil->Database->quote($record_locator)." 
 AND 
-    alert_name           = ".$anvil->data->{sys}{database}{use_handle}->quote($name)."
+    alert_name           = ".$anvil->Database->quote($name)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -209,7 +209,7 @@ SELECT
 FROM 
     hosts 
 WHERE 
-    host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid})."
+    host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 
@@ -247,12 +247,12 @@ INSERT INTO
     alert_name, 
     modified_date
 ) VALUES (
-    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->uuid).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($set_by).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($record_locator).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($name).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Get->uuid).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", 
+    ".$anvil->Database->quote($set_by).", 
+    ".$anvil->Database->quote($record_locator).", 
+    ".$anvil->Database->quote($name).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -269,7 +269,7 @@ INSERT INTO
 DELETE FROM 
     alert_sent 
 WHERE 
-    alert_sent_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($alert_sent_uuid)." 
+    alert_sent_uuid = ".$anvil->Database->quote($alert_sent_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			query => $query,
@@ -490,15 +490,15 @@ INSERT INTO
     alert_show_header, 
     modified_date
 ) VALUES (
-    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->uuid()).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{host_uuid}).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($set_by).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($level).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($title).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($message).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($sort_position).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($show_header).", 
-    ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})."
+    ".$anvil->Database->quote($anvil->Get->uuid()).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", 
+    ".$anvil->Database->quote($set_by).", 
+    ".$anvil->Database->quote($level).", 
+    ".$anvil->Database->quote($title).", 
+    ".$anvil->Database->quote($message).", 
+    ".$anvil->Database->quote($sort_position).", 
+    ".$anvil->Database->quote($show_header).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});

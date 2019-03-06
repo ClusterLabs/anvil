@@ -226,7 +226,7 @@ sub process_entry
 		if ($anvil->data->{sys}{database}{connections})
 		{
 			# See if the password is in job_data.
-			my $query = "SELECT job_data FROM jobs WHERE job_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($job_uuid).";";
+			my $query = "SELECT job_data FROM jobs WHERE job_uuid = ".$anvil->Database->quote($job_uuid).";";
 			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -575,7 +575,7 @@ sub process_entry
 		until($host_seen)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0212"});
-			my $query = "SELECT host_name FROM hosts WHERE host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid).";";
+			my $query = "SELECT host_name FROM hosts WHERE host_uuid = ".$anvil->Database->quote($host_uuid).";";
 			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

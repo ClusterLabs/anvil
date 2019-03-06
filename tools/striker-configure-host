@@ -802,7 +802,7 @@ LIKE
 AND 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
+    variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	

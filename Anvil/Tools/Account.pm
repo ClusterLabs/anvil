@@ -273,7 +273,7 @@ FROM
 WHERE 
     user_algorithm != 'DELETED' 
 AND 
-    user_name = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cgi}{username}{value})."
+    user_name = ".$anvil->Database->quote($anvil->data->{cgi}{username}{value})."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -434,14 +434,14 @@ UPDATE
     sessions 
 SET 
     session_salt      = '', 
-    modified_date     = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{sys}{database}{timestamp})." 
+    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." ";
+    session_user_uuid = ".$anvil->Database->quote($user_uuid)." ";
 	if ($host_uuid ne "all")
 	{
 		$query .= "
 AND 
-    session_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($host_uuid)." ";
+    session_host_uuid = ".$anvil->Database->quote($host_uuid)." ";
 	}
 	$query .= "
 ;";
@@ -535,9 +535,9 @@ SELECT
 FROM 
     sessions 
 WHERE 
-    session_user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->data->{cookie}{anvil_user_uuid})."
+    session_user_uuid = ".$anvil->Database->quote($anvil->data->{cookie}{anvil_user_uuid})."
 AND 
-    session_host_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($anvil->Get->host_uuid)."
+    session_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -661,7 +661,7 @@ SELECT
 FROM 
     users 
 WHERE 
-    user_uuid = ".$anvil->data->{sys}{database}{use_handle}->quote($user_uuid)." 
+    user_uuid = ".$anvil->Database->quote($user_uuid)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -784,7 +784,7 @@ SELECT
 FROM 
     users 
 WHERE 
-    user_name = ".$anvil->data->{sys}{database}{use_handle}->quote($user)." 
+    user_name = ".$anvil->Database->quote($user)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
