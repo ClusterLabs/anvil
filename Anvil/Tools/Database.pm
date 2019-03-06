@@ -20,6 +20,7 @@ my $THIS_FILE = "Database.pm";
 # configure_pgsql
 # connect
 # disconnect
+# get_alert_recipients
 # get_hosts
 # get_jobs
 # get_local_uuid
@@ -1250,6 +1251,43 @@ sub disconnect
 	return(0);
 }
 
+=head2 get_alert_recipients
+
+This returns a list of users listening to alerts for a given host, along with their alert level.
+
+Parameters;
+
+=head3 host_uuid (optional, default Get->host_uuid)
+
+This is the host we're querying.
+
+=cut
+sub get_alert_recipients
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_alert_recipients()" }});
+	
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+	}});
+	
+	my $lowest_level = 0;
+	my $query        = "
+SELECT 
+    notification_recipient_uuid, 
+    notification_alert_level
+FROM 
+    notifications
+WHERE 
+    notification_host_uuid = ".$anvil->Database->quote($job_host_uuid)."
+;";
+	
+	return();
+}
 
 =head2 get_hosts
 
