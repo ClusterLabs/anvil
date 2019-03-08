@@ -1,0 +1,92 @@
+#!/usr/bin/perl
+# 
+# All this does is stat a file and return the information in a parsable way. For this reason, translatable 
+# strings are not used.
+# 
+# NOTE: This isn't comprehensive at all. It's mainly meant to be used when 'anvil-file-details' is looking on
+#       the hosts for a file it is missing.
+#
+# Exit codes;
+# 0 = Normal exit or md5sum of this program changed and it exited to reload.
+# 1 = '--file <full_path>' not used.
+# 2 = File not found.
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Disable buffering
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+$anvil->data->{switches}{file}          = "";
+$anvil->data->{switches}{'with-md5sum'} = "";
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::file"        => $anvil->data->{switches}{file},
+	"switches::with-md5sum" => $anvil->data->{switches}{'with-md5sum'},
+}});
+
+my $file = $anvil->data->{switches}{file};
+if (not $file)
+{
+	print "[ Error ] - Not called with '--file </path/to/file>'.\n";
+	$anvil->nice_exit({exit_code => 1});
+}
+elsif (not -e $file)
+{
+	print "[ Error ] - File: [".$file."] not found.\n";
+	$anvil->nice_exit({exit_code => 1});
+}
+else
+{
+	### TODO: Should be -l -> lstat?
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0275", variables => { file => $file }});
+	my @details  = stat($file);
+	my $mode     = $details[2];
+	   $mode     = sprintf("04%o", $details[2] & 07777);
+	my $user_id  = $details[4];
+	my $group_id = $details[5];
+	my $size     = $details[7];
+	my $mtime    = $details[9];
+	my $md5sum   = "--";
+	if ($anvil->data->{switches}{'with-md5sum'})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0265", variables => { file => $file }});
+		if ($size > (128 * (2 ** 20)))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0266", variables => { 
+				size => $anvil->Convert->bytes_to_human_readable({'bytes' => $size}),
+			}});
+		}
+		
+		# Update (or get) the md5sum.
+		$md5sum = $anvil->Get->md5sum({debug => 2, file => $file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { md5sum => $md5sum }});
+	}
+	
+	print "File: [".$file."]
+size: [".$size."]
+mode: [".$mode."]
+uid: [".$user_id."]
+gid: [".$group_id."]
+mtime: [".$mtime."]
+md5sum: [".$md5sum."]\n";
+}
+
+
+
+# We're done
+$anvil->nice_exit({exit_code => 0});

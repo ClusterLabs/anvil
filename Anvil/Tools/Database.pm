@@ -1283,8 +1283,9 @@ SELECT
 FROM 
     notifications
 WHERE 
-    notification_host_uuid = ".$anvil->Database->quote($job_host_uuid)."
+    notification_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	return();
 }

@@ -578,6 +578,7 @@ The fingerprint of: [#!variable!machine!#] has changed! Updating it's entry in k
 - From: [#!variable!old_key!#]
 - To: . [#!variable!new_key!#]
 		</key>
+		<key name="log_0275">Gathering data for: [#!variable!file!#]:</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

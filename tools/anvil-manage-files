@@ -406,6 +406,10 @@ AND
 					's2:name' => $name,
 					's3:ip'   => $ip,
 				}});
+				
+				my $output = $anvil->Remote->call({
+					shell_call => "",
+				});
 			}
 		}
 	}
