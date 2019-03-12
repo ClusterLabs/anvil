@@ -413,9 +413,9 @@ sub call
 # 		my $start_time = [gettimeofday];
 		$ssh_fh = Net::SSH2->new(timeout => 1000);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			ssh_fh => $ssh_fh,
-			target => $target, 
-			port   => $port, 
+			's1:target' => $target, 
+			's2:port'   => $port, 
+			's3:ssh_fh' => $ssh_fh,
 		}});
 		# Try ten times. 9 in the loop, last try after.
 		my $connected = 0;
@@ -424,6 +424,7 @@ sub call
 			if ($ssh_fh->connect($target, $port))
 			{
 				$connected = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
 				last;
 			}
 			else
@@ -437,9 +438,9 @@ sub call
 				sleep 1;
 				$ssh_fh = Net::SSH2->new(timeout => 1000);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-					ssh_fh => $ssh_fh,
-					target => $target, 
-					port   => $port, 
+					's1:target' => $target, 
+					's2:port'   => $port, 
+					's3:ssh_fh' => $ssh_fh,
 				}});
 			}
 		}
@@ -499,9 +500,10 @@ sub call
 			}});
 			if (not $ssh_fh->auth_password($remote_user, $password)) 
 			{
+				### NOTE: Passwordless SSH isn't working.
 				# Can we log in without a password?
 				my $user           = getpwuid($<);
-				my $home_directory = $anvil->Get->users_home({debug => $debug, user => $user});
+				my $home_directory = $anvil->Get->users_home({debug => 3, user => $user});
 				my $public_key     = $home_directory."/.ssh/id_rsa.pub";
 				my $private_key    = $home_directory."/.ssh/id_rsa";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -511,7 +513,12 @@ sub call
 					private_key    => $private_key,
 				}});
 				
-				if ($ssh_fh->auth_publickey($user, $public_key, $private_key)) 
+				my $return = $ssh_fh->auth_publickey($user, $public_key, $private_key);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					'return' => $return,
+					'$@'     => $@,
+				}});
+				if ($return)
 				{
 					# We're in! Record the file handle for this target.
 					$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = $ssh_fh;
@@ -551,7 +558,7 @@ sub call
 	{
 		# We need to open a channel every time for 'exec' calls. We want to keep blocking off, but we
 		# need to enable it for the channel() call.
-		   $ssh_fh->blocking(1);
+		$ssh_fh->blocking(1);
 		my $channel = $ssh_fh->channel(); # or $ssh_fh->die_with_error;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { channel => $channel }});
 		if (not $channel)
@@ -569,7 +576,8 @@ sub call
 						target => $remote_user."\@".$target,
 						error  => $ssh_fh->error, 
 					} });
-					   $error   = $message;
+					
+					$error = $message;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $message});
 					if ($anvil->environment eq" html")
 					{

@@ -28,6 +28,7 @@ Requires:       bash-completion
 Requires:       bind-utils 
 Requires:       dmidecode
 Requires:       dnf-utils
+Requires:       expect
 Requires:       fence-agents-all 
 Requires:       fence-agents-virsh 
 Requires:       firewalld

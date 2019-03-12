@@ -170,7 +170,9 @@ sub find_missing_files
 SELECT 
     a.file_uuid, 
     a.file_directory, 
-    a.file_name 
+    a.file_name, 
+    a.file_size, 
+    a.file_md5sum  
 FROM 
     files a, 
     hosts b, 
@@ -199,6 +201,8 @@ ORDER BY
 		my $file_uuid      = $row->[0];
 		my $file_directory = $row->[1];
 		my $file_name      = $row->[2];
+		my $file_size      = $row->[3];
+		my $file_md5sum    = $row->[4];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			's1:file_uuid'      => $file_uuid, 
 			's2:file_directory' => $file_directory, 
@@ -215,30 +219,24 @@ ORDER BY
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0269", variables => { file => $test_file }});
 			
 			# Find what target, if any, we'll the file from.
-			my ($target, $port, $password) = find_file($anvil, $file_uuid);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				target   => $target,
-				port     => $port, 
-				password => $password,
-			}});
+			my ($found) = find_file($anvil, $file_uuid, $test_file, $file_size, $file_md5sum);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
 		}
 	}
 	
 	# Read in any entries from 'file_locations'.
+	### TODO: Left off here.
 	
 	return(0);
 }
 
-### TODO: Use System->find_matching_ip() and System->get_ips().
 ### TODO: Add sorting by preferred target
 # This looks for a file on another system. The exact order of search depends on what kind of machine we are.
 sub find_file
 {
-	my ($anvil, $file_uuid) = @_;
+	my ($anvil, $file_uuid, $full_path, $file_size, $file_md5sum) = @_;
 	
-	my $target   = "";
-	my $port     = "";
-	my $password = "";
+	my $found = 0;
 	
 	# What are my IPs?
 	$anvil->System->get_ips();
@@ -262,7 +260,7 @@ sub find_file
 		{
 			$type = $1;
 			$sort = $2;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:type' => $type, 
 				's2:sort' => $sort, 
 			}});
@@ -272,7 +270,7 @@ sub find_file
 		$anvil->data->{local_ip}{by_network}{$network}{interface} = $interface;
 		$anvil->data->{local_ip}{by_network}{$network}{ip}        = $ip;
 		$anvil->data->{local_ip}{by_network}{$network}{subnet}    = $subnet;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"s1:local_ip::by_network::${network}::type"      => $anvil->data->{local_ip}{by_network}{$network}{type}, 
 			"s1:local_ip::by_network::${network}::sort"      => $anvil->data->{local_ip}{by_network}{$network}{'sort'}, 
 			"s2:local_ip::by_network::${network}::interface" => $anvil->data->{local_ip}{by_network}{$network}{interface}, 
@@ -306,10 +304,10 @@ AND
 ORDER BY 
     file_mtime DESC;
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -324,7 +322,7 @@ ORDER BY
 		my $file_md5sum    =  $row->[6];
 		my $test_file      =  $file_directory."/".$file_name;
 		   $test_file      =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			host_uuid      => $host_uuid, 
 			host_name      => $host_name, 
 			host_type      => $host_type, 
@@ -347,10 +345,10 @@ WHERE
 AND 
     ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			results => $results, 
 			count   => $count, 
 		}});
@@ -359,7 +357,7 @@ AND
 			my $ip_address_address     = $row->[0];
 			my $ip_address_subnet_mask = $row->[1];
 			my $network                = $anvil->Get->network({ip => $ip_address_address, subnet => $ip_address_subnet_mask});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				ip_address_address     => $ip_address_address, 
 				ip_address_subnet_mask => $ip_address_subnet_mask, 
 				network                => $network, 
@@ -371,57 +369,193 @@ AND
 				# We're on the same subnet!
 				my $type = $anvil->data->{local_ip}{by_network}{$network}{type};
 				my $sort = $anvil->data->{local_ip}{by_network}{$network}{'sort'};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"s1:type" => $type, 
 					"s2:sort" => $sort, 
 				}});
 				
 				# Record.
-				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip}   = $ip_address_address;
-				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name} = $host_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"s1:peer_ip::${host_type}::${type}::${sort}::name" => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name}, 
-					"s2:peer_ip::${host_type}::${type}::${sort}::ip"   => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip}, 
+				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip}        = $ip_address_address;
+				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name}      = $host_name;
+				$anvil->data->{peer_ip}{$host_type}{$type}{$sort}{host_uuid} = $host_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					"s1:peer_ip::${host_type}::${type}::${sort}::name"      => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name}, 
+					"s2:peer_ip::${host_type}::${type}::${sort}::ip"        => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip}, 
+					"s3:peer_ip::${host_type}::${type}::${sort}::host_uuid" => $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{host_uuid}, 
 				}});
 			}
 		}
-		
-		### NOTE: Use '$anvil->Get->network({ip => "10.2.4.1", subnet => "255.255.0.0"});' with our IPs and this machines IPs to see if we're on the same subnet.
 	}
 	
+	### TODO: Do this according to what we are.
 	# Sort through what we've found.
-	my $file_found = 0;
+	my $file_found     = 0;
+	my $searched_hosts = {};
 	foreach my $host_type (sort {$a cmp $b} keys %{$anvil->data->{peer_ip}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		last if $file_found; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 		foreach my $type (sort {$a cmp $b} keys %{$anvil->data->{peer_ip}{$host_type}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+			last if $file_found; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
 			foreach my $sort (sort {$a cmp $b} keys %{$anvil->data->{peer_ip}{$host_type}{$type}})
 			{
-				my $ip   = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip};
-				my $name = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name};
+				last if $file_found; 
+				my $ip          = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{ip};
+				my $name        = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{name};
+				my $host_uuid   = $anvil->data->{peer_ip}{$host_type}{$type}{$sort}{host_uuid};
+				my $remote_user = "admin";
+				my $password    = "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:sort' => $sort,
-					's2:name' => $name,
-					's3:ip'   => $ip,
+					's1:host_type'   => $host_type,
+					's2:type'        => $type, 
+					's3:sort'        => $sort,
+					's4:name'        => $name,
+					's5:ip'          => $ip,
+					's6:host_uuid'   => $host_uuid,
+					's7:remote_user' => $remote_user, 
+					's8:password'    => $password, 
 				}});
 				
+				if ((exists $searched_hosts->{$name}) && ($searched_hosts->{$name}))
+				{
+					# Already searched this host, this is just a different IP. Skip it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0282", variables => {
+						host_name => $name, 
+						ip        => $ip, 
+					}});
+					next;
+				}
+				$searched_hosts->{$name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { "searched_hosts->{$name}" => $searched_hosts->{$name} }});
+				
+				### NOTE: There's a bug in Net::SSH2 on RHEL8 where passwordless SSH doesn't 
+				###       work. So for now, we'll manually pull in passwords from the 
+				###       anvil.conf using 'hosts::<host_name>::password' or 
+				###       'hosts::<host_uuid>::password'. This will be removed when the bug 
+				###       is fixed.
+				if ((exists $anvil->data->{hosts}{$host_uuid}{password}{$remote_user}) && ($anvil->data->{hosts}{$host_uuid}{password}{$remote_user}))
+				{
+					$password = $anvil->data->{hosts}{$host_uuid}{password}{$remote_user};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
+				}
+				elsif ((exists $anvil->data->{hosts}{$name}{password}{$remote_user}) && ($anvil->data->{hosts}{$name}{password}{$remote_user}))
+				{
+					$password = $anvil->data->{hosts}{$host_uuid}{password};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
+				}
+				
+				### NOTE: This might take a while for the call to return if we're md5sum'ing
+				###       a large file like an ISO.
+				### TODO: Should we ask for the size, then follow up with the md5sum for 
+				###       files that are over a certain size? Or will this get called rarely
+				###       enough in practice that it doesn't really matter?
+				# If the file is found, we'll parse these out.
+				my $remote_size   = 0;
+				my $remote_md5sum = "";
 				my $output = $anvil->Remote->call({
-					shell_call => "",
+					shell_call  => $anvil->data->{path}{exe}{'anvil-file-details'}." --file ".$full_path." --with-md5sum", 
+					remote_user => $remote_user, 
+					password    => $password,
+					target      => $ip, 
 				});
+				foreach my $line (@{$output})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+					if ($line =~ /^size: \[(\d+)\]$/)
+					{
+						$remote_size = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { remote_size => $remote_size }});
+					}
+					if ($line =~ /^md5sum: \[(.*)\]$/)
+					{
+						$remote_md5sum = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { remote_md5sum => $remote_md5sum }});
+					}
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:remote_size'   => $remote_size,
+					's2:file_size'     => $file_size,
+					's3:remote_md5sum' => $remote_md5sum, 
+					's4:file_md5sum'   => $file_md5sum,
+				}});
+				
+				### Do I really need to match sizes if the md5sum is the same?
+				if (($remote_size eq $file_size) && ($remote_md5sum eq $file_md5sum))
+				{
+					# Pull it over!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0276", variables => {
+						file      => $full_path, 
+						host_name => $name, 
+						ip        => $ip, 
+					}});
+					my $failed = $anvil->Storage->rsync({
+						debug       => 2, 
+						destination => $full_path,
+						password    => $password, 
+						source      => $remote_user."\@".$ip.":".$full_path,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+					
+					if (-f $full_path)
+					{
+						# Got it!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0277", variables => { file => $full_path }});
+						
+						# Verify the md5sum.
+						my $local_md5sum = $anvil->Get->md5sum({file => $full_path});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							local_md5sum => $local_md5sum, 
+							file_md5sum  => $file_md5sum, 
+						}});
+						if ($local_md5sum eq $file_md5sum)
+						{
+							# Success!
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0278", variables => { file => $full_path }});
+							
+							$file_found = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_found => $file_found }});
+							last;
+						}
+						else
+						{
+							# Failed. :(
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0279", variables => { file => $full_path }});
+							unlink $full_path;
+						}
+					}
+					else
+					{
+						# Failed to rsync.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0280", variables => { 
+							file      => $full_path, 
+							host_name => $name, 
+							ip        => $ip, 
+						}});
+					}
+				}
+				else
+				{
+					# Doesn't match what we're looking for.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0281", variables => { 
+						file            => $full_path, 
+						host_name       => $name, 
+						ip              => $ip, 
+						remote_md5sum   => $remote_md5sum, 
+						file_md5sum     => $file_md5sum,
+						file_size       => $file_size,
+						say_file_size   => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}),
+						remote_size     => $remote_size,
+						say_remote_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $remote_size}), 
+					}});
+				}
 			}
 		}
 	}
-	die;
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		target   => $target,
-		port     => $port, 
-		password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
-	}});
-	die;
-	return($target, $port, $password);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+	return($found);
 }
 
 

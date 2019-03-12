@@ -972,6 +972,7 @@ sub _set_paths
 			exe			=>	{
 				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
 				'anvil-daemon'			=>	"/usr/sbin/anvil-daemon",
+				'anvil-file-details'		=>	"/usr/sbin/anvil-file-details",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",

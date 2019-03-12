@@ -1912,6 +1912,7 @@ sub rsync
 		
 		# Remote target, wrapper needed.
 		$wrapper_script = $anvil->Storage->_create_rsync_wrapper({
+			debug    => $debug,
 			target   => $target,
 			password => $password, 
 		});
@@ -2877,7 +2878,7 @@ sub _create_rsync_wrapper
 	# Check my parameters.
 	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
 	my $password = defined $parameter->{password} ? $parameter->{password} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
 		target   => $target, 
 	}});
@@ -2902,13 +2903,13 @@ eval spawn rsync \$argv
 expect \"password:\" \{ send \"".$password."\\n\" \}
 expect eof
 ";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		wrapper_script => $wrapper_script, 
 		wrapper_body   => $wrapper_body, 
 	}});
 	$anvil->Storage->write_file({
-		body      => $wrapper_body,
 		debug     => $debug,
+		body      => $wrapper_body,
 		file      => $wrapper_script,
 		mode      => "0700",
 		overwrite => 1,
@@ -2919,7 +2920,7 @@ expect eof
 	{
 		# Failed!
 		$wrapper_script = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { wrapper_script => $wrapper_script }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, list => { wrapper_script => $wrapper_script }});
 	}
 	
 	return($wrapper_script);

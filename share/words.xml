@@ -579,6 +579,16 @@ The fingerprint of: [#!variable!machine!#] has changed! Updating it's entry in k
 - To: . [#!variable!new_key!#]
 		</key>
 		<key name="log_0275">Gathering data for: [#!variable!file!#]:</key>
+		<key name="log_0276">Found the missing file: [#!variable!file!#] on: [#!variable!host_name!# (#!variable!ip!#]). Downloading it now...</key>
+		<key name="log_0277">Downloaded the file: [#!variable!file!#]. Generating md5sum from local copy now...</key>
+		<key name="log_0278">The md5sum of file: [#!variable!file!#] matches what we expected!</key>
+		<key name="log_0279">The md5sum of file: [#!variable!file!#] failed to match. Discarding the downloaded file.</key>
+		<key name="log_0280">Failed to download: [#!variable!file!#] from: [#!variable!host_name!# (#!variable!ip!#). Will look on other hosts (if any left).</key>
+		<key name="log_0281">The file: [#!variable!file!#] on: [#!variable!host_name!# (#!variable!ip!#]) doesn't match the file we're looking for.
+- Wanted; md5sum: [#!variable!file_md5sum!#], size: [#!variable!say_file_size!# (#!variable!file_size!# bytes)]
+- Found;  md5sum: [#!variable!remote_md5sum!#], size: [#!variable!say_remote_size!# (#!variable!remote_size!# bytes)]
+We will keep looking.</key>
+		<key name="log_0282">Already searched: [#!variable!host_name!# using another IP address, skipping this IP: [#!variable!ip!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
