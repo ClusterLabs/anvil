@@ -126,6 +126,9 @@ elsif ($anvil->data->{switches}{'is-script'})
 }
 else
 {
+	# Check for files scheduled for deletion.
+	check_for_deletes($anvil);
+	
 	# Check for new files
 	check_incoming($anvil);
 	
@@ -224,7 +227,6 @@ ORDER BY
 		}
 	}
 	
-	# Read in any entries from 'file_locations'.
 	### TODO: Left off here.
 	
 	return(0);
@@ -966,6 +968,78 @@ sub convert_mimetype
 	return($say_mimetype);
 }
 
+# This looks for any files with the file_type of 'DELETED' and that has an entry in file_locations for this
+# machine. Any that are found will have their file deleted and the file_locations entry deleted.
+sub check_for_deletes
+{
+	my ($anvil) = @_;
+	
+	my $query = "
+SELECT 
+    a.file_uuid, 
+    b.file_location_uuid, 
+    a.file_directory || '/' || a.file_name AS full_path 
+FROM 
+    files a, 
+    file_locations b 
+WHERE 
+    a.file_uuid = b.file_location_file_uuid 
+AND 
+    a.file_type = 'DELETED' 
+AND 
+    b.file_location_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $file_uuid          = $row->[0];
+		my $file_location_uuid = $row->[1];
+		my $full_path          = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			's1:file_uuid'          => $file_uuid, 
+			's2:file_location_uuid' => $file_location_uuid, 
+			's3:full_path'          => $full_path, 
+		}});
+		
+		# Get rid of it (if it actually exists) and then remove it from file_locations.
+		if (-e $full_path)
+		{
+			# Delete it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0285", variables => { file => $full_path }});
+			
+			unlink $full_path;
+			
+			# Sleep and verify
+			sleep 1;
+			if (-e $full_path)
+			{
+				# Failed to delete...
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0284", variables => { file => $full_path }});
+				return("");
+			}
+			else
+			{
+				# Deleted successfully.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0283"});
+			}
+		}
+		
+		# Delete the entry from file_locations, if needed.
+		$query = "DELETE FROM file_locations WHERE file_location_uuid = ".$anvil->Database->quote($file_location_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
 # This handles deleting a file. If the requested deletion target doesn't exist, we'll just clear the 
 # database. If that doesn't exist either, we still don't error. This is to handle broad requests to delete a
 # file everywhere. If we're asked to delete it everywhere, then we'll register a job against all hosts.
@@ -973,7 +1047,9 @@ sub handle_delete
 {
 	my ($anvil) = @_;
 	
-	if (not $anvil->data->{switches}{file})
+	my $full_path = $anvil->data->{switches}{file};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+	if (not $full_path)
 	{
 		# Um...
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0052"});
@@ -984,38 +1060,117 @@ sub handle_delete
 		});
 		$anvil->nice_exit({exit_code => 3});
 	}
-	elsif ($anvil->data->{switches}{file} !~ /^\/mnt\/shared\//)
+	elsif ($full_path !~ /^\/mnt\/shared\//)
 	{
 		# We don't do that here...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0053", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0053", variables => { file => $full_path }});
 		$anvil->Job->update_progress({
 			progress => 0, 
-			message  => "error_0053,!!file!".$anvil->data->{switches}{file}."!!", 
+			message  => "error_0053,!!file!".$full_path."!!", 
 			job_uuid => $anvil->data->{jobs}{'job-uuid'},
 		});
 		$anvil->nice_exit({exit_code => 6});
 	}
 	
+	# What's the UUID of this file? I collect all the data for the update, if appropriate.
+	my $file_name      = ($full_path =~ /^.*\/(.*)$/)[0];
+	my $file_directory = ($full_path =~ /^(.*?)\/$file_name$/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		full_name      => $file_name,
+		file_directory => $file_directory, 
+	}});
+	my $query = "
+SELECT 
+    file_uuid, 
+    file_size, 
+    file_md5sum,
+    file_type, 
+    file_mtime 
+FROM 
+    files 
+WHERE 
+    file_name = ".$anvil->Database->quote($file_name)." 
+AND 
+    file_directory = ".$anvil->Database->quote($file_directory)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results   = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	
+	my $file_uuid      = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+	my $file_size      = defined $results->[0]->[1] ? $results->[0]->[1] : "";
+	my $file_md5sum    = defined $results->[0]->[2] ? $results->[0]->[2] : "";
+	my $file_type      = defined $results->[0]->[3] ? $results->[0]->[3] : "";
+	my $file_mtime     = defined $results->[0]->[4] ? $results->[0]->[4] : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_uuid   => $file_uuid,
+		file_size   => $file_size, 
+		file_md5sum => $file_md5sum,
+		file_type   => $file_type, 
+		file_mtime  => $file_mtime, 
+	}});
+	
+	# If I have the file_uuid, and we've been asked to delete it everywhere, mark it as DELETEd in the 
+	# database. This way, if anything goes wrong below, future runs will try (again) to delete the file 
+	# itself. If it's only beind deleted locally, and it fails for some reason, there will be no attempt
+	# to try again.
+	if (($file_uuid) && ($anvil->data->{switches}{everywhere}))
+	{
+		# Yup.
+		($file_uuid) = $anvil->Database->insert_or_update_files({
+			file_uuid      => $file_uuid, 
+			file_name      => $file_name, 
+			file_directory => $file_directory, 
+			file_size      => $file_size, 
+			file_md5sum    => $file_md5sum, 
+			file_type      => "DELETED", 
+			file_mtime     => $file_mtime, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file_uuid => $file_uuid }});
+	}
+	
 	# Does the file exist?
-	if (-e $anvil->data->{switches}{file})
+	if (-e $full_path)
 	{
 		# Delete it.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0263", variables => { file => $anvil->data->{switches}{file} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0263", variables => { file => $full_path }});
 		
-		unlink $anvil->data->{switches}{file};
+		unlink $full_path;
 		
 		# Sleep and verify
 		sleep 1;
-		if (-e $anvil->data->{switches}{file})
+		if (-e $full_path)
 		{
 			# Failed to delete...
-			# TODO:
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0284"});
+			return("");
 		}
 		else
 		{
-			# Deleted successfully. Remove from 'file_locations'
-			### TODO: Find the file_uuid, then if found, see if we have and entry in file_location and then delete it.
+			# Deleted successfully.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0283"});
 		}
+	}
+	
+	# Now, if I have a file_uuid, delete it from file_locations if it exists.
+	if ($file_uuid)
+	{
+		# Delete the entry from file_locations, if needed.
+		my $query = "
+DELETE FROM 
+    file_locations 
+WHERE 
+    file_location_file_uuid = ".$anvil->Database->quote($file_uuid)." 
+AND 
+    file_location_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
 	return(0);

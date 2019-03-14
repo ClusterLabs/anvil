@@ -589,6 +589,9 @@ The fingerprint of: [#!variable!machine!#] has changed! Updating it's entry in k
 - Found;  md5sum: [#!variable!remote_md5sum!#], size: [#!variable!say_remote_size!# (#!variable!remote_size!# bytes)]
 We will keep looking.</key>
 		<key name="log_0282">Already searched: [#!variable!host_name!# using another IP address, skipping this IP: [#!variable!ip!#].</key>
+		<key name="log_0283">Done.</key>
+		<key name="log_0284">[ Error ] - Failed to remove the file: [#!variable!file!#]! Please check the permissions or for SELinux denials.</key>
+		<key name="log_0285">As requested by another machine, we will now delete the file: [#!variable!file!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
