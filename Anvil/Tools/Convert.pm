@@ -973,6 +973,144 @@ sub round
 	return ($rounded_number);
 }
 
+=head2 time
+
+This takes a number of seconds and converts it into a human readable string. Returns C<< #!error!# >> is an error is encountered.
+
+Parameters;
+
+=head3 time (required)
+
+This is the time, in seconds, to convert.
+
+=head3 long (optional, default 0)
+
+If set to C<< 1 >>, the long suffixes will be used instead of the default C<< w/d/h/m/s >> format. 
+
+B<< Note >>: The suffixes are translatable in both short (default) and long formats. See the C<< suffix_0002 >> through C<< suffix_0011 >> string keys.
+
+=cut
+sub time
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $time = $parameter->{'time'} ? $parameter->{'time'} : 0;
+	my $long = $parameter->{long}   ? $parameter->{long}   : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'time' => $time,
+		long   => $long, 
+	}});
+	
+	if (not $time)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->update_file()", parameter => "time" }});
+		return("#!error!#");
+	}
+	
+	# Remote commas and verify we're left with a number.
+	my $time =~ s/,//g;
+	if ($time =~ /^\d+\.\d+$/)
+	{
+		# Round the time
+		$time = $anvil->Convert->round({number => $time});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'time' => $time }});
+	}
+	if ($time =~ /\D/)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0294", variables => { 'time' => $time }});
+		return("#!error!#");
+	}
+	
+	# The suffix used for each unit of time will depend on the requested suffix type.
+	my $suffix_seconds = $long ? " #!string!suffix_0002!#" : " #!string!suffix_0007!#";
+	my $suffix_minutes = $long ? " #!string!suffix_0003!#" : " #!string!suffix_0008!#";
+	my $suffix_hours   = $long ? " #!string!suffix_0004!#" : " #!string!suffix_0009!#";
+	my $suffix_days    = $long ? " #!string!suffix_0005!#" : " #!string!suffix_0010!#";
+	my $suffix_weeks   = $long ? " #!string!suffix_0006!#" : " #!string!suffix_0011!#";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		suffix_seconds => $suffix_seconds,
+		suffix_minutes => $suffix_minutes, 
+		suffix_hours   => $suffix_hours, 
+		suffix_days    => $suffix_days, 
+		suffix_weeks   => $suffix_weeks, 
+	}});
+	
+	my $say_time          = "";
+	my $seconds           = $time % 60;
+	my $minutes           = ($time - $seconds) / 60;
+	my $remaining_minutes = $minutes % 60;
+	my $hours             = ($minutes - $remaining_minutes) / 60;
+	my $remaining_hours   = $hours % 24;
+	my $days              = ($hours - $remaining_hours) / 24;
+	my $remaining_days    = $days % 7;
+	my $weeks             = ($days - $remaining_days) / 7;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:weeks'             => $weeks,
+		's2:remaining_days'    => $remaining_days, 
+		's3:days'              => $days, 
+		's4:remaining_hours'   => $remaining_hours, 
+		's5:hours'             => $hours, 
+		's6:remaining_minutes' => $remaining_minutes, 
+		's7:minutes'           => $minutes, 
+		's8:seconds'           => $seconds, 
+	}});
+
+	### TODO: Left off here.
+	if ($seconds < 1)
+	{
+		$say_time = "0".$suffix_seconds;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
+	}
+	else
+	{
+		$say_time = sprintf("%01d", $seconds).$suffix_seconds;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
+	}
+	if ($remaining_minutes > 0)
+	{
+		$say_time =~ s/ sec.$/$suffix_seconds/;
+		$say_time =  sprintf("%01d", $remaining_minutes).$suffix_minutes." $say_time";
+	}
+	elsif (($hours > 0) or ($days > 0) or ($weeks > 0))
+	{
+		$say_time = "0".$suffix_minutes." ".$say_time;
+	}
+	if ($remaining_hours > 0)
+	{
+		$say_time = sprintf("%01d", $remaining_hours)."$suffix_hours $say_time";
+	}
+	elsif (($days > 0) or ($weeks > 0))
+	{
+		$say_time = "0".$suffix_hours." ".$say_time;
+	}
+	if ($days > 0)
+	{
+		$say_time = sprintf("%01d", $remaining_days).$suffix_days." ".$say_time;
+	}
+	elsif ($weeks > 0)
+	{
+		$say_time = "0".$suffix_days." ".$say_time;
+	}
+	if ($weeks > 0)
+	{
+		$weeks   = $an->Readable->comma($weeks);
+		$say_time = $weeks.$suffix_weeks." ".$say_time;
+	}
+	
+	# Return an already-translated string
+	$say_time = $an->String->_process_string({
+		string    => $say_time, 
+		language  => $an->default_language, 
+		hash      => $an->data, 
+		variables => {}, 
+	});
+	
+	return($say_time);
+}
+
 # =head3
 # 
 # Private Functions;

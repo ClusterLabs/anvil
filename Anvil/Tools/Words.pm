@@ -443,7 +443,7 @@ sub read
 
 =head2 string
 
-This method takes a string key and returns the string in the requested language. If not key is passed, the language key in 'defaults::languages::output' is used. A hash reference containing variables can be provided to inject values into a string.
+This method takes a string key and returns the string in the requested language. If no key is passed, the language key in 'defaults::languages::output' is used. A hash reference containing variables can be provided to inject values into a string.
 
 If the requested string is not found, 'C<< #!not_found!# >>' is returned.
 

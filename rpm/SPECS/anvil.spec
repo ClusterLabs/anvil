@@ -62,6 +62,7 @@ Requires:       postgresql-plperl
 Requires:       rsync 
 Requires:       screen
 Requires:       vim 
+Requires:       wget
 # iptables-services conflicts with firewalld
 Conflicts:      iptables-services
 # We handle interface naming

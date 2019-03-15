@@ -592,6 +592,14 @@ We will keep looking.</key>
 		<key name="log_0283">Done.</key>
 		<key name="log_0284">[ Error ] - Failed to remove the file: [#!variable!file!#]! Please check the permissions or for SELinux denials.</key>
 		<key name="log_0285">As requested by another machine, we will now delete the file: [#!variable!file!#].</key>
+		<key name="log_0286">[ Error ] - The URL: [#!variable!url!#] to download appears to be invalid.</key>
+		<key name="log_0287">[ Error ] - The requested URL: [#!variable!url!#] was not found on the remote server.</key>
+		<key name="log_0288">[ Error ] - The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
+		<key name="log_0289">[ Error ] - The requested URL: [#!variable!url!#] failed because the remote host refused the connection.</key>
+		<key name="log_0290">[ Error ] - The requested URL: [#!variable!url!#] failed because there is no route to that host.</key>
+		<key name="log_0292">[ Error ] - The requested URL: [#!variable!url!#] failed because the network is unreachable.</key>
+		<key name="log_0293">[ Error ] - The requested URL: [#!variable!url!#] failed for an unknown reason.</key>
+		<key name="log_0294"><![CDATA[[ Error ] - The method Convert->time() was passed the 'time' of: [#!variable!time!#] which does not appear to be a whole number.]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -754,6 +762,16 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
+		<key name="suffix_0002">s</key>		<!-- Short suffix for 'seconds'. -->
+		<key name="suffix_0003">m</key>		<!-- Short suffix for 'minutes'. -->
+		<key name="suffix_0004">h</key>		<!-- Short suffix for 'hours'. -->
+		<key name="suffix_0005">d</key>		<!-- Short suffix for 'days'. -->
+		<key name="suffix_0006">w</key>		<!-- Short suffix for 'weeks'. -->
+		<key name="suffix_0007">Seconds</key>	<!-- Long suffix for 'seconds'. -->
+		<key name="suffix_0008">Minutes</key>	<!-- Long suffix for 'minutes'. -->
+		<key name="suffix_0009">Hours</key>	<!-- Long suffix for 'hours'. -->
+		<key name="suffix_0010">Days</key>	<!-- Long suffix for 'days'. -->
+		<key name="suffix_0011">Weeks</key>	<!-- Long suffix for 'days'. -->
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

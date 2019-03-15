@@ -54,22 +54,24 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
+$anvil->data->{switches}{'delete'}    = "";
+$anvil->data->{switches}{download}    = "";
+$anvil->data->{switches}{everywhere}  = "";
+$anvil->data->{switches}{file}        = "";
+$anvil->data->{switches}{'is-script'} = "";
 $anvil->data->{switches}{'job-uuid'}  = "";
 $anvil->data->{switches}{'rename'}    = "";
-$anvil->data->{switches}{'is-script'} = "";
-$anvil->data->{switches}{file}        = "";
 $anvil->data->{switches}{to}          = "";
-$anvil->data->{switches}{'delete'}    = "";
-$anvil->data->{switches}{everywhere}  = "";
 $anvil->Get->switches;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	"switches::delete"     => $anvil->data->{switches}{'delete'},
+	"switches::download"   => $anvil->data->{switches}{download},
+	"switches::everywhere" => $anvil->data->{switches}{everywhere},
+	"switches::file"       => $anvil->data->{switches}{file},
+	"switches::is-script"  => $anvil->data->{switches}{'is-script'},
 	"switches::job-uuid"   => $anvil->data->{switches}{'job-uuid'},
 	"switches::rename"     => $anvil->data->{switches}{'rename'},
-	"switches::is-script"  => $anvil->data->{switches}{'is-script'},
-	"switches::file"       => $anvil->data->{switches}{file},
 	"switches::to"         => $anvil->data->{switches}{to},
-	"switches::delete"     => $anvil->data->{switches}{'delete'},
-	"switches::everywhere" => $anvil->data->{switches}{everywhere},
 }});
 
 # Connect or die
@@ -582,8 +584,12 @@ sub check_incoming
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0264"});
 	foreach my $full_path (sort {$a cmp $b} keys %{$anvil->data->{scan}{directories}})
 	{
+		# Skip this if it's under '/mnt/shared/temp' (that's used for files being downloaded, etc)
+		next if $full_path =~ /^\/mnt\/shared\/temp\//;
+		
 		# Skip if this isn't a file.
 		my $file_type = $anvil->data->{scan}{directories}{$full_path}{type};
+		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			full_path => $full_path,
 			file_type => $file_type, 

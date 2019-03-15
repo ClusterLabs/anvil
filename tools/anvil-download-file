@@ -1,0 +1,244 @@
+#!/usr/bin/perl
+# 
+# This takes a URL (ftp, http or https) and downloads the file. If it is called without --url, it shows the 
+# progress of any other instances currently downloading files.
+# 
+# Return codes:
+# 0 = Normal exit.
+# 1 = URL not found.
+# 2 = The requested URL was not found on the remote server.
+# 3 = The requested URL does not resolve to a known domain.
+# 4 = The requested URL failed because the remote host refused the connection.
+# 5 = The requested URL failed because there is no route to that host.
+# 6 = Abort requested, but UUID or PID not passed
+# 7 = The requested URL failed because the network is unreachable.
+# 
+# 
+# TODO: 
+# - 
+# 
+# NOTE:
+# - 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Disable buffering
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+
+$anvil->data->{switches}{abort}      = "";
+$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->data->{switches}{'save-to'}  = ""; 	# /mnt/shared/files by default
+$anvil->data->{switches}{url}        = ""; 
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::abort'    => $anvil->data->{switches}{abort},
+	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
+	'switches::save-to'  => $anvil->data->{switches}{'save-to'},
+	'switches::url'      => $anvil->data->{switches}{url},
+}});
+
+
+if ($anvil->data->{switches}{abort})
+{
+	# Kill the other download
+	abort_download($anvil);
+}
+elsif ($anvil->data->{switches}{url})
+{
+	# Try to download the file
+	download_file($anvil);
+}
+else
+{
+	# Show the status of any downloading, finished, failed or aborted downloads.
+	show_status($anvil);
+}
+
+
+# We're done
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Private functions.                                                                                        #
+#############################################################################################################
+
+sub abort_download
+{
+	my ($anvil) = @_;
+	
+	my $failed    =  0;
+	my $url       =  $anvil->data->{switches}{url};
+	my $file_name =  ($url =~ /^.*\/(.*)$/)[0];
+	my $temp_file =  $anvil->data->{path}{directories}{shared}{temp}."/".$file;
+	my $save_to   =  $anvil->data->{switches}{'save-to'} ? $anvil->data->{switches}{'save-to'} : $anvil->data->{path}{directories}{shared}{files};
+	my $out_file  =  $save_to."/".$file;
+	   $save_to   =~ s/\/\///g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		url       => $url,
+		file_name => $file_name, 
+		temp_file => $temp_file, 
+		save_to   => $save_to, 
+	}});
+	
+	# Is this a supported protocol?
+	if (($url !~ /^ftp\:\/\//) && ($url !~ /^http\:\/\//) && ($url !~ /^https\:\/\//))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0286", variables => { url => $url }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	### NOTE: We don't use System->call because we need to track the output in real time.
+	# Try to download it.
+	my $bytes_downloaded = 0;
+	my $downloaded       = 0;	# Bytes
+	my $percent          = 0;
+	my $rate             = 0;	# Bytes/sec
+	my $time_left        = 0;	# Seconds
+	my $running_time     = 0;
+	my $shell_call       = $anvil->data->{path}{exe}{wget}." --continue --progress=dot:binary ".$url." --output-document ".$temp_file;
+	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+	while(<$file_handle>)
+	{
+		chomp;
+		my $line = $anvil->Words->clean_spaces({ string => $_ });;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
+		
+		# Check for problems
+		if (($line =~ /404/) && ($line =~ /Not Found/i))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0287", variables => { url => $url }});
+			$failed = 2;
+		}
+		elsif ($line =~ /Name or service not known/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0288", variables => { url => $url }});
+			$failed = 3;
+		}
+		elsif ($line =~ /Connection refused/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0289", variables => { url => $url }});
+			$failed = 4;
+		}
+		elsif ($line =~ /route to host/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0290", variables => { url => $url }});
+			$failed = 5;
+		}
+		elsif ($line =~ /Network is unreachable/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0291", variables => { url => $url }});
+			$failed = 7;
+		}
+		elsif ($line =~ /^(\d+)K .*? (\d+)% (.*?) (\d+.*)$/)
+		{
+			$downloaded = $1;
+			$percent    = $2;
+			$rate       = $3;
+			$time_left  = $4;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				downloaded => $url,
+				percent    => $percent, 
+				rate       => $rate, 
+				time_left  => $time_left, 
+			}});
+			
+			### NOTE: According to: http://savannah.gnu.org/bugs/index.php?22765, wget uses base-2.
+			# Convert
+			   $bytes_downloaded = $downloaded * 1024;
+			my $say_downloaded   = $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_downloaded});
+			my $say_percent      = $percent."%";
+			my $byte_rate        = $anvil->Convert->human_readable_to_bytes({size => $rate, base2 => 1});
+			my $say_rate         = $anvil->Convert->bytes_to_human_readable({'bytes' => $byte_rate})."/s";
+			   $running_time     = time - $unix_start;
+			my $say_running_time = $an->Readable->time({'time' => $running_time, process => 1});
+			# Time left is a bit more complicated
+			my $days    = 0;
+			my $hours   = 0;
+			my $minutes = 0;
+			my $seconds = 0;
+			if ($time_left =~ /(\d+)d/)
+			{
+				$days = $1;
+				#print "$THIS_FILE ".__LINE__."; == days: [$days]\n";
+			}
+			if ($time_left =~ /(\d+)h/)
+			{
+				$hours = $1;
+				#print "$THIS_FILE ".__LINE__."; == hours: [$hours]\n";
+			}
+			if ($time_left =~ /(\d+)m/)
+			{
+				$minutes = $1;
+				#print "$THIS_FILE ".__LINE__."; == minutes: [$minutes]\n";
+			}
+			if ($time_left =~ /(\d+)s/)
+			{
+				$seconds = $1;
+				#print "$THIS_FILE ".__LINE__."; == seconds: [$seconds]\n";
+			}
+			my $seconds_left     = (($days * 86400) + ($hours * 3600) + ($minutes * 60) + $seconds);
+			my $say_time_left    = $an->Readable->time({'time' => $seconds_left, suffix => "long", process => 1});
+			   $running_time     = 1 if not $running_time;
+			   $average_rate     = int($bytes_downloaded / $running_time);
+			my $say_average_rate = $anvil->Convert->bytes_to_human_readable({'bytes' => $average_rate})."/s";
+			
+			#print "$THIS_FILE ".__LINE__."; downloaded: [$downloaded], bytes_downloaded: [$bytes_downloaded], say_downloaded: [$say_downloaded], percent: [$percent], rate: [$rate], byte_rate: [$byte_rate], say_rate: [$say_rate], time_left: [$time_left]\n";
+			if (time > $next_report)
+			{
+				#print "$THIS_FILE ".__LINE__."; say_downloaded: [$say_downloaded], percent: [$percent], say_rate: [$say_rate], running_time: [$running_time], say_running_time: [$say_running_time], seconds_left: [$seconds_left], say_time_left: [$say_time_left]\n";
+				#print "$file; Downloaded: [$say_downloaded]/[$say_percent], Rate/Avg: [$say_rate]/[$say_average_rate], Running: [$say_running_time], Left: [$say_time_left]\n";
+				#print "$THIS_FILE ".__LINE__."; bytes_downloaded=$bytes_downloaded, percent=$percent, current_rate=$byte_rate, average_rate=$average_rate, seconds_running=$running_time, seconds_left=$seconds_left, out_file=$out_file\n";
+				$next_report += $report_interval;
+				
+				my $shell_call = $progress_file;
+				$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
+					name1 => "shell_call", value1 => $shell_call, 
+				}, file => $THIS_FILE, line => __LINE__});
+				open (my $file_handle, ">$shell_call") or $an->Alert->error({title_key => "an_0003", message_key => "error_title_0015", message_variables => { shell_call => $shell_call, error => $! }, code => 2, file => $THIS_FILE, line => __LINE__});
+				print $file_handle "uuid=$uuid bytes_downloaded=$bytes_downloaded percent=$percent current_rate=$byte_rate average_rate=$average_rate seconds_running=$running_time seconds_left=$seconds_left url=$url out_file=$out_file\n";
+				close $file_handle;
+			}
+		}
+	}
+	close $file_handle;
+	
+	
+	
+	return(0);
+}
+
+sub download_file
+{
+	my ($anvil) = @_;
+	
+
+	
+	return(0);
+}
+
+# Show the status of any downloading, finished, failed or aborted downloads.
+sub show_status
+{
+	my ($anvil) = @_;
+	
+
+	
+	return(0);
+}

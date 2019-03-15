@@ -962,6 +962,7 @@ sub _set_paths
 					definitions			=>	"/mnt/shared/definitions",
 					files				=>	"/mnt/shared/files",
 					incoming			=>	"/mnt/shared/incoming",
+					temp				=>	"/mnt/shared/temp",
 				},
 				skins				=>	"/var/www/html/skins",
 				syslinux			=>	"/usr/share/syslinux",
@@ -1037,6 +1038,7 @@ sub _set_paths
 				usermod				=>	"/usr/sbin/usermod",
 				uuidgen				=>	"/usr/bin/uuidgen",
 				virsh				=>	"/usr/bin/virsh",
+				wget				=>	"",
 			},
 			json			=>	{
 				files				=>	"files.json",
