@@ -6,7 +6,6 @@ package Anvil::Tools::System;
 use strict;
 use warnings;
 use Data::Dumper;
-use Net::SSH2;
 use Scalar::Util qw(weaken isweak);
 use Time::HiRes qw(gettimeofday tv_interval);
 use Proc::Simple;

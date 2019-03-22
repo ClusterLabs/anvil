@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        23%{?dist}
+Release:        24%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -38,6 +38,7 @@ Requires:       htop
 Requires:       iproute
 Requires:       lsscsi
 Requires:       mlocate 
+Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
 Requires:       perl-DBD-Pg 
 Requires:       perl-DBI
@@ -45,10 +46,12 @@ Requires:       perl-Digest-SHA
 Requires:       perl-File-MimeInfo
 Requires:       perl-HTML-FromText
 Requires:       perl-HTML-Strip
+Requires:       perl-IO-Tty
 Requires:       perl-JSON 
 Requires:       perl-Log-Journald 
 Requires:       perl-Net-SSH2 
 Requires:       perl-Net-Netmask
+Requires:       perl-Net-OpenSSH
 Requires:       perl-NetAddr-IP 
 Requires:       perl-Proc-Simple
 Requires:       perl-Sys-Syslog

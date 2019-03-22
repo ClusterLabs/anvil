@@ -1011,7 +1011,7 @@ sub time
 	}
 	
 	# Remote commas and verify we're left with a number.
-	my $time =~ s/,//g;
+	$time =~ s/,//g;
 	if ($time =~ /^\d+\.\d+$/)
 	{
 		# Round the time
@@ -1073,41 +1073,46 @@ sub time
 	{
 		$say_time =~ s/ sec.$/$suffix_seconds/;
 		$say_time =  sprintf("%01d", $remaining_minutes).$suffix_minutes." $say_time";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	}
 	elsif (($hours > 0) or ($days > 0) or ($weeks > 0))
 	{
 		$say_time = "0".$suffix_minutes." ".$say_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	}
 	if ($remaining_hours > 0)
 	{
 		$say_time = sprintf("%01d", $remaining_hours)."$suffix_hours $say_time";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	}
 	elsif (($days > 0) or ($weeks > 0))
 	{
 		$say_time = "0".$suffix_hours." ".$say_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	}
 	if ($days > 0)
 	{
 		$say_time = sprintf("%01d", $remaining_days).$suffix_days." ".$say_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	}
 	elsif ($weeks > 0)
 	{
 		$say_time = "0".$suffix_days." ".$say_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	}
 	if ($weeks > 0)
 	{
-		$weeks   = $an->Readable->comma($weeks);
+		$weeks   = $anvil->Convert->add_commas({number => $weeks});
 		$say_time = $weeks.$suffix_weeks." ".$say_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			weeks    => $weeks, 
+			say_time => $say_time,
+		}});
 	}
 	
 	# Return an already-translated string
-	$say_time = $an->String->_process_string({
-		string    => $say_time, 
-		language  => $an->default_language, 
-		hash      => $an->data, 
-		variables => {}, 
-	});
-	
+	$say_time = $anvil->Words->string({debug => $debug, string => $say_time});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	return($say_time);
 }
 

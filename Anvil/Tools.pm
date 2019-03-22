@@ -674,8 +674,7 @@ sub _get_hash_reference
 	my $parameter = shift;
 	my $anvil        = $self;
 	
-	#print "$THIS_FILE ".__LINE__."; hash: [".$an."], key: [$parameter->{key}]\n";
-	die "$THIS_FILE ".__LINE__."; The hash key string: [$parameter->{key}] doesn't seem to be valid. It should be a string in the format 'foo::bar::baz'.\n" if $parameter->{key} !~ /::/;
+	die "$THIS_FILE ".__LINE__."; The hash key string: [".$parameter->{key}."] doesn't seem to be valid. It should be a string in the format 'foo::bar::baz'.\n" if $parameter->{key} !~ /::/;
 	
 	# Split up the keys.
 	my $key   = $parameter->{key} ? $parameter->{key} : "";

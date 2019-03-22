@@ -1,3 +1,5 @@
+============
+
 NEXT; - 
 
 RHEL 8 package changes:
@@ -1058,4 +1060,3 @@ pcs resource create dlm ocf:pacemaker:controld op monitor interval=60s on-fail=f
 pcs resource create lvmlock ocf:heartbeat:lvmlockd op monitor interval=60s on-fail=fence clone meta interleave=true
 pcs constraint order start dlm-clone then lvmlock-clone
 pcs constraint colocation add lvmlock-clone with dlm-clone
-
