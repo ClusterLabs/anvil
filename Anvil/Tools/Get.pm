@@ -148,7 +148,7 @@ else
 fi;
 ";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($error, $output) = $anvil->Remote->call({
+		my ($output, $error) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
 			target      => $target,
@@ -156,9 +156,12 @@ fi;
 			password    => $password,
 			remote_user => $remote_user, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error  => $error,
+			output => $output,
+		}});
 		
-		$version = defined $output->[0] ? $output->[0] : "";
+		$version = defined $output ? $output : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
 	}
 	else

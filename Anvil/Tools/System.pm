@@ -380,12 +380,13 @@ sub change_shell_user_password
 	
 	# Update the password using 'usermod'. NOTE: The single-quotes are crtical!
 	my $output     = "";
+	my $error      = "";
 	my $shell_call = $anvil->data->{path}{exe}{usermod}." --password '".$new_hash."' ".$user."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
 	if ($target)
 	{
 		# Remote call.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		$output = $anvil->Remote->call({
+		($output, $error) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
 			target      => $target,
@@ -393,7 +394,10 @@ sub change_shell_user_password
 			password    => $password,
 			remote_user => $remote_user, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error  => $error,
+			output => $output,
+		}});
 	}
 	else
 	{
@@ -1986,13 +1990,14 @@ sub ping
 		last if $pinged;
 		
 		my $output = "";
+		my $error  = "";
 		
 		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our hostname.
 		if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
 		{
 			### Remote calls
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-			$output = $anvil->Remote->call({
+			($output, $error) = $anvil->Remote->call({
 				debug       => $debug, 
 				shell_call  => $shell_call, 
 				target      => $target,
@@ -2000,7 +2005,10 @@ sub ping
 				password    => $password,
 				remote_user => $remote_user, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error  => $error,
+				output => $output,
+			}});
 		}
 		else
 		{

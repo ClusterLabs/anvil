@@ -26,13 +26,13 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
-		<key name="message_0002">The connection to: [#!variable!target!#] on port: [#!variable!port!#] as the user: [#!variable!user!#] was refused. If you recently booted the target, it may be just about finished booting. It is normal for the connection to be refused for a brief time during the boot process.</key>
-		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine in the process of booting up or powering off?</key>
+		<key name="message_0002">The connection to: [#!variable!connection!#] was refused. If you recently booted the target, the network might have started, the ssh daemon might not be running yet.</key>
+		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine (or the interface) up?</key>
 		<key name="message_0004">Timed out while waiting for a reply from: [#!variable!target!#]. Is the machine booting up? If so, please wait a minute or two and try again.</key>
 		<key name="message_0005">There was an unknown error while connecting to: [#!variable!target!#]. The error was: [#!variable!error!#]</key>
-		<key name="message_0006">We were unable to log in to: [#!variable!target!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
+		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
 		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
-		<key name="message_0008">There was a problem establishing an SSH channel to the target: [#!variable!target!#].</key>
+		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error: [#!variable!error!#].</key>
 		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
 		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
@@ -600,6 +600,8 @@ We will keep looking.</key>
 		<key name="log_0292">[ Error ] - The requested URL: [#!variable!url!#] failed because the network is unreachable.</key>
 		<key name="log_0293">[ Error ] - The requested URL: [#!variable!url!#] failed for an unknown reason.</key>
 		<key name="log_0294"><![CDATA[[ Error ] - The method Convert->time() was passed the 'time' of: [#!variable!time!#] which does not appear to be a whole number.]]></key>
+		<key name="log_0295"><![CDATA[[ Error ] - The method Remote->call() was passed the 'timeout' of: [#!variable!timeout!#] which does not appear to be a whole number.]]></key>
+		<key name="log_0296">We have a connection open already to: [#!variable!connection!#], skipping connect stage.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

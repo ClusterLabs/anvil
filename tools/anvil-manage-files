@@ -458,13 +458,17 @@ AND
 				# If the file is found, we'll parse these out.
 				my $remote_size   = 0;
 				my $remote_md5sum = "";
-				my $output = $anvil->Remote->call({
+				my ($output, $error) = $anvil->Remote->call({
 					shell_call  => $anvil->data->{path}{exe}{'anvil-file-details'}." --file ".$full_path." --with-md5sum", 
 					remote_user => $remote_user, 
 					password    => $password,
 					target      => $ip, 
 				});
-				foreach my $line (@{$output})
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					error  => $error,
+					output => $output,
+				}});
+				foreach my $line (split/\n/, $output)
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 					if ($line =~ /^size: \[(\d+)\]$/)

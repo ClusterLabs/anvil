@@ -191,7 +191,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'not found'
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($error, $output) = $anvil->Remote->call({
+		my ($output, $error) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			user        => $remote_user, 
@@ -199,23 +199,27 @@ fi";
 			remote_user => $remote_user, 
 			shell_call  => $shell_call,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error  => $error,
+			output => $output,
+		}});
 		if (not $error)
 		{
 			# No error. Did the file exist?
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
-			if ($output->[0] eq "not found")
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+			if ($output eq "not found")
 			{
 				# File doesn't exist.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0151", variables => { source_file => $source_file }});
 				if ($fatal) { $anvil->nice_exit({code => 1}); }
 			}
-			elsif ($output->[0] eq "not a file")
+			elsif ($output eq "not a file")
 			{
 				# Not a file
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0153", variables => { source_file => $source_file }});
 				if ($fatal) { $anvil->nice_exit({code => 1}); }
 			}
-			elsif ($output->[0] eq "not readable")
+			elsif ($output eq "not readable")
 			{
 				# Can't read the file.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0152", variables => { source_file => $source_file }});
@@ -682,7 +686,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'target directory not found'
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($error, $output) = $anvil->Remote->call({
+		my ($output, $error) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			user        => $remote_user, 
@@ -690,6 +694,10 @@ fi";
 			remote_user => $remote_user, 
 			shell_call  => $shell_call,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error  => $error,
+			output => $output,
+		}});
 		if ($error)
 		{
 			# Something went wrong.
@@ -705,11 +713,12 @@ fi";
 		}
 		else
 		{
+			my ($line1, $line2) = (split/\n/, $output);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				'output->[0]' => $output->[0],
-				'output->[1]' => $output->[1],
+				line1 => $line1,
+				line2 => $line2,
 			}});
-			if ($output->[0] eq "source file not found")
+			if ($line1 eq "source file not found")
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { 
 					method      => "copy_file",
@@ -717,7 +726,7 @@ fi";
 				}});
 				return(1);
 			}
-			if (($output->[0] eq "source file exists") && (not $overwrite))
+			if (($line1 eq "source file exists") && (not $overwrite))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
 					method      => "copy_file",
@@ -726,7 +735,7 @@ fi";
 				}});
 				return(1);
 			}
-			if ($output->[1] eq "target directory not found")
+			if ($line2 eq "target directory not found")
 			{
 				my $failed = $anvil->Storage->make_directory({
 					debug       => $debug,
@@ -745,7 +754,7 @@ fi";
 			}
 		
 			# Now backup the file.
-			my ($error, $output) = $anvil->Remote->call({
+			my ($output, $error) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
 				user        => $remote_user, 
@@ -753,7 +762,10 @@ fi";
 				remote_user => $remote_user, 
 				shell_call  => $anvil->data->{path}{exe}{'cp'}." -af ".$source_file." ".$target_file,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error  => $error,
+				output => $output,
+			}});
 		}
 	}
 	else
@@ -1007,7 +1019,7 @@ else
     fi;
 fi;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-			my ($error, $output) = $anvil->Remote->call({
+			my ($output, $error) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
 				user        => $remote_user, 
@@ -1019,7 +1031,7 @@ fi;";
 				error  => $error,
 				output => $output, 
 			}});
-			if ($output->[0] eq "failed to create")
+			if ($output eq "failed to create")
 			{
 				$failed = 1;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0167", variables => { 
@@ -1199,7 +1211,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'target directory not found'
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($error, $output) = $anvil->Remote->call({
+		my ($output, $error) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			user        => $remote_user, 
@@ -1207,6 +1219,10 @@ fi";
 			remote_user => $remote_user, 
 			shell_call  => $shell_call,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error  => $error,
+			output => $output,
+		}});
 		if ($error)
 		{
 			# Something went wrong.
@@ -1222,11 +1238,12 @@ fi";
 		}
 		else
 		{
+			my ($line1, $line2) = (split/\n/, $output);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				'output->[0]' => $output->[0],
-				'output->[1]' => $output->[1],
+				line1 => $line1,
+				line2 => $line2,
 			}});
-			if ($output->[0] eq "source file not found")
+			if ($line1 eq "source file not found")
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0052", variables => { 
 					method      => "move_file",
@@ -1234,7 +1251,7 @@ fi";
 				}});
 				return(1);
 			}
-			if (($output->[0] eq "source file exists") && (not $overwrite))
+			if (($line1 eq "source file exists") && (not $overwrite))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
 					method      => "move_file",
@@ -1243,7 +1260,7 @@ fi";
 				}});
 				return(1);
 			}
-			if ($output->[1] eq "target directory not found")
+			if ($line2 eq "target directory not found")
 			{
 				my $failed = $anvil->Storage->make_directory({
 					debug       => $debug,
@@ -1262,7 +1279,7 @@ fi";
 			}
 		
 			# Now backup the file.
-			my ($error, $output) = $anvil->Remote->call({
+			my ($output, $error) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
 				user        => $remote_user, 
@@ -1270,7 +1287,10 @@ fi";
 				remote_user => $remote_user, 
 				shell_call  => $anvil->data->{path}{exe}{mv}." -f ".$source_file." ".$target_file,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error  => $error,
+				output => $output,
+			}});
 		}
 	}
 	else
@@ -2673,7 +2693,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'not found';
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		($error, my $output) = $anvil->Remote->call({
+		(my $output, $error) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			port        => $port, 
@@ -2682,11 +2702,14 @@ fi";
 			remote_user => $remote_user, 
 			shell_call  => $shell_call,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error  => $error,
+			output => $output,
+		}});
 		if (not $error)
 		{
 			# No error. Did the file exist?
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
-			if ($output->[0] eq "exists")
+			if ($output eq "exists")
 			{
 				if (not $overwrite)
 				{
@@ -2720,7 +2743,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'not found';
 fi";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-				($error, my $output) = $anvil->Remote->call({
+				(my $output, $error) = $anvil->Remote->call({
 					debug       => $debug, 
 					target      => $target,
 					user        => $remote_user, 
@@ -2728,14 +2751,16 @@ fi";
 					remote_user => $remote_user, 
 					shell_call  => $shell_call,
 				});
-				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'output->[0]' => $output->[0] }});
-				if ($output->[0] eq "not found")
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					error  => $error,
+					output => $output,
+				}});
+				if ($output eq "not found")
 				{
 					# Create the directory
 					my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." -p ".$directory;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-					($error, my $output) = $anvil->Remote->call({
+					(my $output, $error) = $anvil->Remote->call({
 						debug       => $debug, 
 						target      => $target,
 						user        => $remote_user, 
@@ -2743,6 +2768,10 @@ fi";
 						remote_user => $remote_user, 
 						shell_call  => $shell_call,
 					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						error  => $error,
+						output => $output,
+					}});
 				}
 				
 				if (not $error)

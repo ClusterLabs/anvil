@@ -1028,12 +1028,15 @@ sub add_sync_peer
 		my $shell_call = $anvil->data->{path}{exe}{dmidecode}." --string system-uuid";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
-		my ($error, $output) = $anvil->Remote->call({
+		my ($output, $error) = $anvil->Remote->call({
 			password   => $password, 
 			target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
 			shell_call => $shell_call,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error => $error }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output => $output, 
+			error  => $error,
+		}});
 		if ($error)
 		{
 			# No access
@@ -1042,7 +1045,7 @@ sub add_sync_peer
 		else
 		{
 			# We got the peer's UUID. Get the hostname as well.
-			$peer_uuid = lc($output->[0]);
+			$peer_uuid = lc($output);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_uuid => $peer_uuid }});
 			
 			if (not $anvil->Validate->is_uuid({uuid => $peer_uuid}))
@@ -1056,8 +1059,12 @@ sub add_sync_peer
 					target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
 					shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output => $output, 
+					error  => $error,
+				}});
 				
-				$peer_host = $output->[0];
+				$peer_host = $output;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host => $peer_host }});
 				
 				# Lastly, if bi-directional is set, make sure we have a way to talk to it.
