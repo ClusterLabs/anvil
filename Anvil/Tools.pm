@@ -1037,7 +1037,7 @@ sub _set_paths
 				usermod				=>	"/usr/sbin/usermod",
 				uuidgen				=>	"/usr/bin/uuidgen",
 				virsh				=>	"/usr/bin/virsh",
-				wget				=>	"",
+				wget				=>	"/usr/bin/wget",
 			},
 			json			=>	{
 				files				=>	"files.json",

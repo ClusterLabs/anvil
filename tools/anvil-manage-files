@@ -834,7 +834,7 @@ sub handle_script
 		{
 			# Switch it on
 			$executable = 1;
-			$anvil->Storage->change_mode({target => $anvil->data->{switches}{file}, mode => "a+x"});
+			$anvil->Storage->change_mode({path => $anvil->data->{switches}{file}, mode => "a+x"});
 		}
 		else
 		{
@@ -848,7 +848,7 @@ sub handle_script
 		{
 			# Switch it off.
 			$executable = 1;
-			$anvil->Storage->change_mode({target => $anvil->data->{switches}{file}, mode => "a-x"});
+			$anvil->Storage->change_mode({path => $anvil->data->{switches}{file}, mode => "a-x"});
 		}
 		else
 		{

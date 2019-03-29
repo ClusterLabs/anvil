@@ -320,13 +320,13 @@ fi";
 
 This changes the mode of a file or directory.
 
- $anvil->Storage->change_mode({target => "/tmp/foo", mode => "0644"});
+ $anvil->Storage->change_mode({path => "/tmp/foo", mode => "0644"});
 
 If it fails to write the file, an alert will be logged.
 
 Parameters;
 
-=head3 target (required)
+=head3 path (required)
 
 This is the file or directory to change the mode on.
 
@@ -342,18 +342,18 @@ sub change_mode
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $target = defined $parameter->{target} ? $parameter->{target} : "";
-	my $mode   = defined $parameter->{mode}   ? $parameter->{mode}   : "";
+	my $path = defined $parameter->{path} ? $parameter->{path} : "";
+	my $mode = defined $parameter->{mode} ? $parameter->{mode} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		target => $target,
-		mode   => $mode,
+		mode => $mode,
+		path => $path,
 	}});
 	
 	my $error = 0;
-	if (not $target)
+	if (not $path)
 	{
-		# No target...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "target" }});
+		# No path...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_mode()", parameter => "path" }});
 		$error = 1;
 	}
 	if (not $mode)
@@ -371,7 +371,7 @@ sub change_mode
 	
 	if (not $error)
 	{
-		my $shell_call = $anvil->data->{path}{exe}{'chmod'}." $mode $target";
+		my $shell_call = $anvil->data->{path}{exe}{'chmod'}." $mode $path";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
 		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
@@ -390,23 +390,23 @@ sub change_mode
 
 This changes the owner and/or group of a file or directory.
 
- $anvil->Storage->change_owner({target => "/tmp/foo", user => "apache", group => "apache" });
+ $anvil->Storage->change_owner({path => "/tmp/foo", user => "apache", group => "apache" });
 
 If it fails to write the file, an alert will be logged and 'C<< 1 >>' will be returned. Otherwise, 'C<< 0 >>' will be returned.
 
 Parameters;
 
-=head3 target (required)
+=head3 path (required)
 
 This is the file or directory to change the mode on.
 
 =head3 group (optional, default is the main group of the user running the program)
 
-This is the group name or UID to set the target to.
+This is the group name or UID to set the path to.
 
 =head3 user (optional, default is the user running the program)
 
-This is the user name or UID to set the target to.
+This is the user name or UID to set the path to.
 
 =cut
 sub change_owner
@@ -416,11 +416,11 @@ sub change_owner
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $target = defined $parameter->{target} ? $parameter->{target} : "";
+	my $path = defined $parameter->{path} ? $parameter->{path} : "";
 	my $group  = defined $parameter->{group}  ? $parameter->{group}  : getgrgid($();
 	my $user   = defined $parameter->{user}   ? $parameter->{user}   : getpwuid($<);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		target => $target,
+		path => $path,
 		group  => $group,
 		user   => $user,
 	}});
@@ -435,15 +435,15 @@ sub change_owner
 	
 	my $string = "";
 	my $error  = 0;
-	if (not $target)
+	if (not $path)
 	{
-		# No target...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_owner()", parameter => "target" }});
+		# No path...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->change_owner()", parameter => "path" }});
 		$error = 1;
 	}
-	if (not -e $target)
+	if (not -e $path)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0051", variables => {target => $target }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0051", variables => {path => $path }});
 		$error = 1;
 	}
 	
@@ -464,7 +464,7 @@ sub change_owner
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error, string => $string }});
 	if ((not $error) && ($string ne ""))
 	{
-		my $shell_call = $anvil->data->{path}{exe}{'chown'}." $string $target";
+		my $shell_call = $anvil->data->{path}{exe}{'chown'}." ".$string." ".$path;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
 		open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 		while(<$file_handle>)
@@ -1066,12 +1066,12 @@ fi;";
 				print $THIS_FILE." ".__LINE__."; mode: [".$mode."]\n" if $test;
 				if ($mode)
 				{
-					$anvil->Storage->change_mode({debug => $debug, target => $working_directory, mode => $mode});
+					$anvil->Storage->change_mode({debug => $debug, path => $working_directory, mode => $mode});
 				}
 				print $THIS_FILE." ".__LINE__."; user: [".$user."], group: [".$group."]\n" if $test;
 				if (($user) or ($group))
 				{
-					$anvil->Storage->change_owner({debug => $debug, target => $working_directory, user => $user, group => $group});
+					$anvil->Storage->change_owner({debug => $debug, path => $working_directory, user => $user, group => $group});
 				}
 				
 				if (not -e $working_directory)
@@ -2845,7 +2845,7 @@ fi";
 			if ($secure)
 			{
 				$anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{touch}." ".$file});
-				$anvil->Storage->change_mode({debug => $debug, target => $file, mode => $mode});
+				$anvil->Storage->change_mode({debug => $debug, path => $file, mode => $mode});
 			}
 			
 			# Now write the file.
@@ -2857,11 +2857,11 @@ fi";
 			
 			if ($mode)
 			{
-				$anvil->Storage->change_mode({debug => $debug, target => $file, mode => $mode});
+				$anvil->Storage->change_mode({debug => $debug, path => $file, mode => $mode});
 			}
 			if (($user) or ($group))
 			{
-				$anvil->Storage->change_owner({debug => $debug, target => $file, user => $user, group => $group});
+				$anvil->Storage->change_owner({debug => $debug, path => $file, user => $user, group => $group});
 			}
 		}
 	}

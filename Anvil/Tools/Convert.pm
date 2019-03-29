@@ -18,7 +18,7 @@ my $THIS_FILE = "Convert.pm";
 # hostname_to_ip
 # human_readable_to_bytes
 # round
-
+# time
 
 =pod
 
@@ -989,6 +989,10 @@ If set to C<< 1 >>, the long suffixes will be used instead of the default C<< w/
 
 B<< Note >>: The suffixes are translatable in both short (default) and long formats. See the C<< suffix_0002 >> through C<< suffix_0011 >> string keys.
 
+=head3 translate (optional, default '0')
+
+When set to C<< 1 >>, the string returned will be translated into plain language. When set to C<< 0 >> (the default), the string returned will not have translated words, but instead return the C<< #!string!x!# >> codes for insertion into templates, email bodies or other uses where translation will be done later.
+
 =cut
 sub time
 {
@@ -997,18 +1001,14 @@ sub time
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $time = $parameter->{'time'} ? $parameter->{'time'} : 0;
-	my $long = $parameter->{long}   ? $parameter->{long}   : 0;
+	my $time      = $parameter->{'time'}    ? $parameter->{'time'}    : 0;
+	my $long      = $parameter->{long}      ? $parameter->{long}      : 0;
+	my $translate = $parameter->{translate} ? $parameter->{translate} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		'time' => $time,
-		long   => $long, 
+		'time'    => $time,
+		long      => $long, 
+		translate => $translate, 
 	}});
-	
-	if (not $time)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->update_file()", parameter => "time" }});
-		return("#!error!#");
-	}
 	
 	# Remote commas and verify we're left with a number.
 	$time =~ s/,//g;
@@ -1110,8 +1110,14 @@ sub time
 		}});
 	}
 	
-	# Return an already-translated string
-	$say_time = $anvil->Words->string({debug => $debug, string => $say_time});
+	# Return an already-translated string, if asked.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { translate => $translate }});
+	if ($translate)
+	{
+		$say_time = $anvil->Words->string({debug => $debug, string => $say_time});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
+	}
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	return($say_time);
 }

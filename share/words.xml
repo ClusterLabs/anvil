@@ -291,7 +291,7 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0035"><![CDATA[[ Warning ] - The config file: [#!variable!file!#] appears to have a malformed line: [#!variable!count!#:#!variable!line!#].]]></key>
 		<key name="log_0036"><![CDATA[[ Error ] - The method Database->read_variable() was called but both the 'variable_name' and 'variable_uuid' parameters were not passed or both were empty.]]></key>
 		<key name="log_0037"><![CDATA[[ Error ] - The method Database->insert_or_update_variables() method was called but both the 'variable_name' and 'variable_uuid' parameters were not passed or both were empty.]]></key>
-		<key name="log_0038"><![CDATA[[ Error ] - The method Storage->change_mode() was called without an invalid 'mode' parameter. It should have been three or four digits, but: [#!variable!mode!#] was passed.]]></key>
+		<key name="log_0038"><![CDATA[[ Error ] - The method Storage->change_mode() was called without an invalid 'mode' parameter. It should have been three or four digits, or 'x+/-y' format, but: [#!variable!mode!#] was passed.]]></key>
 		<key name="log_0039">The host: [#!variable!host!#] has released its database lock.</key>
 		<key name="log_0040"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it already exists and 'overwrite' was not set. Aborting.]]></key>
 		<key name="log_0041"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it is not a full path. Aborting.]]></key>
@@ -304,7 +304,7 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0048"><![CDATA[[ Warning ] - Testing of Anvil::Tools is beginning. This will generate warnings and alerts and are not a concern.]]></key>
 		<key name="log_0049"><![CDATA[[ Warning ] - Testing of Anvil::Tools is complete.]]></key>
 		<key name="log_0050">[ Error ] - There is a local database defined, but it does not appear to exist and we could not initialize the database server. Is 'postgresql-server' installed?</key>
-		<key name="log_0051"><![CDATA[[ Error ] - The method Storage->change_owner() was asked to change the ownership of: [#!variable!target!#] which doesn't exist.]]></key>
+		<key name="log_0051"><![CDATA[[ Error ] - The method Storage->change_owner() was asked to change the ownership of: [#!variable!path!#] which doesn't exist.]]></key>
 		<key name="log_0052"><![CDATA[[ Error ] - The method Storage->#!variable!method!#() was called but the source file: [#!variable!source_file!#] doesn't exist.]]></key>
 		<key name="log_0053"><![CDATA[[ Error ] - The 'Database->connect()' method tried to connect to the same database twice: [#!variable!target!#].]]></key>
 		<key name="log_0054">
@@ -602,6 +602,7 @@ We will keep looking.</key>
 		<key name="log_0294"><![CDATA[[ Error ] - The method Convert->time() was passed the 'time' of: [#!variable!time!#] which does not appear to be a whole number.]]></key>
 		<key name="log_0295"><![CDATA[[ Error ] - The method Remote->call() was passed the 'timeout' of: [#!variable!timeout!#] which does not appear to be a whole number.]]></key>
 		<key name="log_0296">We have a connection open already to: [#!variable!connection!#], skipping connect stage.</key>
+		<key name="log_0297">The file: [#!variable!file!#] has beed successfully downloaded.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -878,7 +879,9 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 #!variable!output!#
 ====
 		</key>
-		<key name="error_0058">Failed to backup: [#!variable!file!#], skipping..</key>
+		<key name="error_0058">Failed to backup: [#!variable!file!#], skipping.</key>
+		<key name="error_0059">The file to be downloaded: [#!variable!file!#], already exists. Either remove it, or call again with '--overwrite'.</key>
+		<key name="error_0060">Something went wrong moving the downloaded file from the temporary location: [#!variable!source_file!#] to the output: [#!variable!target_file!#]. Useful errors may be above this message.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

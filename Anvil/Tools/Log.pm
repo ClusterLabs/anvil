@@ -407,7 +407,7 @@ sub entry
 			print $THIS_FILE." ".__LINE__."; HANDLE::log::main: [".$anvil->data->{HANDLE}{'log'}{main}."]\n" if $test;
 			
 			# Make sure it can be written to by apache.
-			$anvil->Storage->change_mode({test => $test, debug => $debug, target => $log_file, mode => "0666"});
+			$anvil->Storage->change_mode({test => $test, debug => $debug, path => $log_file, mode => "0666"});
 		}
 		
 		if (not $anvil->data->{HANDLE}{'log'}{main})

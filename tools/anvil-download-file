@@ -12,6 +12,8 @@
 # 5 = The requested URL failed because there is no route to that host.
 # 6 = Abort requested, but UUID or PID not passed
 # 7 = The requested URL failed because the network is unreachable.
+# 8 = The file to download already exists.
+# 9 = Something went wrong moving the file from temp to the output directory.
 # 
 # 
 # TODO: 
@@ -43,14 +45,18 @@ $anvil->Log->secure({set => 1});
 
 $anvil->data->{switches}{abort}      = "";
 $anvil->data->{switches}{'job-uuid'} = "";
+$anvil->data->{switches}{overwrite}  = ""; 
 $anvil->data->{switches}{'save-to'}  = ""; 	# /mnt/shared/files by default
+$anvil->data->{switches}{script}     = "";
 $anvil->data->{switches}{url}        = ""; 
 $anvil->Get->switches;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::abort'    => $anvil->data->{switches}{abort},
-	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
-	'switches::save-to'  => $anvil->data->{switches}{'save-to'},
-	'switches::url'      => $anvil->data->{switches}{url},
+	'switches::abort'     => $anvil->data->{switches}{abort}, 
+	'switches::job-uuid'  => $anvil->data->{switches}{'job-uuid'}, 
+	'switches::overwrite' => $anvil->data->{switches}{overwrite}, 
+	'switches::save-to'   => $anvil->data->{switches}{'save-to'}, 
+	'switches::script'    => $anvil->data->{switches}{script}, 
+	'switches::url'       => $anvil->data->{switches}{url}, 
 }});
 
 
@@ -79,22 +85,24 @@ $anvil->nice_exit({exit_code => 0});
 # Private functions.                                                                                        #
 #############################################################################################################
 
-sub abort_download
+sub download_file
 {
 	my ($anvil) = @_;
 	
-	my $failed    =  0;
-	my $url       =  $anvil->data->{switches}{url};
-	my $file_name =  ($url =~ /^.*\/(.*)$/)[0];
-	my $temp_file =  $anvil->data->{path}{directories}{shared}{temp}."/".$file;
-	my $save_to   =  $anvil->data->{switches}{'save-to'} ? $anvil->data->{switches}{'save-to'} : $anvil->data->{path}{directories}{shared}{files};
-	my $out_file  =  $save_to."/".$file;
-	   $save_to   =~ s/\/\///g;
+	my $failed        =  0;
+	my $url           =  $anvil->data->{switches}{url};
+	my $file_name     =  ($url =~ /^.*\/(.*)$/)[0];
+	my $temp_file     =  $anvil->data->{path}{directories}{shared}{temp}."/".$file_name;
+	my $save_to       =  $anvil->data->{switches}{'save-to'} ? $anvil->data->{switches}{'save-to'} : $anvil->data->{path}{directories}{shared}{files};
+	my $out_file      =  $save_to."/".$file_name;
+	   $save_to       =~ s/\/\///g;
+	my $unix_start    =  time;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		url       => $url,
-		file_name => $file_name, 
-		temp_file => $temp_file, 
-		save_to   => $save_to, 
+		url        => $url,
+		file_name  => $file_name, 
+		temp_file  => $temp_file, 
+		unix_start => $unix_start, 
+		save_to    => $save_to, 
 	}});
 	
 	# Is this a supported protocol?
@@ -102,6 +110,37 @@ sub abort_download
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0286", variables => { url => $url }});
 		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# If the target file exists, exit.
+	if ((-e $out_file) && (not $anvil->data->{switches}{overwrite}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0059", variables => { file => $out_file }});
+		$anvil->nice_exit({exit_code => 8});
+	}
+	
+	# Make sure the output directory exists.
+	if (not -e $save_to)
+	{
+		my $failed = $anvil->Storage->make_directory({
+			debug     => 2,
+			directory => $save_to,
+			mode      => "0777", 
+			user      => "apache", 
+			group     => "apache", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+	}
+	if (not -e $anvil->data->{path}{directories}{shared}{temp})
+	{
+		my $failed = $anvil->Storage->make_directory({
+			debug     => 2,
+			directory => $anvil->data->{path}{directories}{shared}{temp},
+			mode      => "0777", 
+			user      => "apache", 
+			group     => "apache", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
 	}
 	
 	### NOTE: We don't use System->call because we need to track the output in real time.
@@ -112,12 +151,19 @@ sub abort_download
 	my $rate             = 0;	# Bytes/sec
 	my $time_left        = 0;	# Seconds
 	my $running_time     = 0;
+	my $average_rate     = 0;
+	my $report_interval  = 5;	# Seconds between status file update
+	my $next_report      = time + $report_interval;
 	my $shell_call       = $anvil->data->{path}{exe}{wget}." --continue --progress=dot:binary ".$url." --output-document ".$temp_file;
-	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		next_report => $next_report, 
+		shell_call  => $shell_call, 
+	}});
+	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
 	{
 		chomp;
-		my $line = $anvil->Words->clean_spaces({ string => $_ });;
+		my $line = $anvil->Words->clean_spaces({string => $_});;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
 		
 		# Check for problems
@@ -162,12 +208,22 @@ sub abort_download
 			### NOTE: According to: http://savannah.gnu.org/bugs/index.php?22765, wget uses base-2.
 			# Convert
 			   $bytes_downloaded = $downloaded * 1024;
-			my $say_downloaded   = $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_downloaded});
+			my $say_downloaded   = $anvil->Convert->bytes_to_human_readable({debug => 3, 'bytes' => $bytes_downloaded});
 			my $say_percent      = $percent."%";
-			my $byte_rate        = $anvil->Convert->human_readable_to_bytes({size => $rate, base2 => 1});
-			my $say_rate         = $anvil->Convert->bytes_to_human_readable({'bytes' => $byte_rate})."/s";
+			my $byte_rate        = $anvil->Convert->human_readable_to_bytes({debug => 3, size => $rate, base2 => 1});
+			my $say_rate         = $anvil->Convert->bytes_to_human_readable({debug => 3, 'bytes' => $byte_rate})."/s";
 			   $running_time     = time - $unix_start;
-			my $say_running_time = $an->Readable->time({'time' => $running_time, process => 1});
+			my $say_running_time = $anvil->Convert->time({debug => 3, 'time' => $running_time, translate => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				bytes_downloaded => $bytes_downloaded,
+				say_downloaded   => $say_downloaded, 
+				say_percent      => $say_percent, 
+				byte_rate        => $byte_rate, 
+				say_rate         => $say_rate, 
+				running_time     => $running_time, 
+				say_running_time => $say_running_time, 
+			}});
+			
 			# Time left is a bit more complicated
 			my $days    = 0;
 			my $hours   = 0;
@@ -176,55 +232,111 @@ sub abort_download
 			if ($time_left =~ /(\d+)d/)
 			{
 				$days = $1;
-				#print "$THIS_FILE ".__LINE__."; == days: [$days]\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { days => $days }});
 			}
 			if ($time_left =~ /(\d+)h/)
 			{
 				$hours = $1;
-				#print "$THIS_FILE ".__LINE__."; == hours: [$hours]\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hours => $hours }});
 			}
 			if ($time_left =~ /(\d+)m/)
 			{
 				$minutes = $1;
-				#print "$THIS_FILE ".__LINE__."; == minutes: [$minutes]\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { minutes => $minutes }});
 			}
 			if ($time_left =~ /(\d+)s/)
 			{
 				$seconds = $1;
-				#print "$THIS_FILE ".__LINE__."; == seconds: [$seconds]\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { seconds => $seconds }});
 			}
 			my $seconds_left     = (($days * 86400) + ($hours * 3600) + ($minutes * 60) + $seconds);
-			my $say_time_left    = $an->Readable->time({'time' => $seconds_left, suffix => "long", process => 1});
+			my $say_time_left    = $anvil->Convert->time({debug => 3, 'time' => $seconds_left, suffix => "long", translate => 1});
 			   $running_time     = 1 if not $running_time;
 			   $average_rate     = int($bytes_downloaded / $running_time);
-			my $say_average_rate = $anvil->Convert->bytes_to_human_readable({'bytes' => $average_rate})."/s";
+			my $say_average_rate = $anvil->Convert->bytes_to_human_readable({debug => 3, 'bytes' => $average_rate})."/s";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				seconds_left     => $seconds_left,
+				say_time_left    => $say_time_left, 
+				running_time     => $running_time, 
+				average_rate     => $average_rate, 
+				say_average_rate => $say_average_rate, 
+			}});
 			
-			#print "$THIS_FILE ".__LINE__."; downloaded: [$downloaded], bytes_downloaded: [$bytes_downloaded], say_downloaded: [$say_downloaded], percent: [$percent], rate: [$rate], byte_rate: [$byte_rate], say_rate: [$say_rate], time_left: [$time_left]\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'time'      => time,
+				next_report => $next_report, 
+			}});
 			if (time > $next_report)
 			{
-				#print "$THIS_FILE ".__LINE__."; say_downloaded: [$say_downloaded], percent: [$percent], say_rate: [$say_rate], running_time: [$running_time], say_running_time: [$say_running_time], seconds_left: [$seconds_left], say_time_left: [$say_time_left]\n";
-				#print "$file; Downloaded: [$say_downloaded]/[$say_percent], Rate/Avg: [$say_rate]/[$say_average_rate], Running: [$say_running_time], Left: [$say_time_left]\n";
-				#print "$THIS_FILE ".__LINE__."; bytes_downloaded=$bytes_downloaded, percent=$percent, current_rate=$byte_rate, average_rate=$average_rate, seconds_running=$running_time, seconds_left=$seconds_left, out_file=$out_file\n";
-				$next_report += $report_interval;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					say_downloaded   => $say_downloaded,
+					percent          => $percent, 
+					say_rate         => $say_rate, 
+					running_time     => $running_time, 
+					say_running_time => $say_running_time, 
+					seconds_left     => $seconds_left, 
+					say_time_left    => $say_time_left, 
+					say_percent      => $say_percent, 
+					say_average_rate => $say_average_rate, 
+					average_rate     => $average_rate, 
+				}});
 				
-				my $shell_call = $progress_file;
-				$an->Log->entry({log_level => 3, message_key => "an_variables_0001", message_variables => {
-					name1 => "shell_call", value1 => $shell_call, 
-				}, file => $THIS_FILE, line => __LINE__});
-				open (my $file_handle, ">$shell_call") or $an->Alert->error({title_key => "an_0003", message_key => "error_title_0015", message_variables => { shell_call => $shell_call, error => $! }, code => 2, file => $THIS_FILE, line => __LINE__});
-				print $file_handle "uuid=$uuid bytes_downloaded=$bytes_downloaded percent=$percent current_rate=$byte_rate average_rate=$average_rate seconds_running=$running_time seconds_left=$seconds_left url=$url out_file=$out_file\n";
-				close $file_handle;
+				my $line        =  "bytes_downloaded=$bytes_downloaded percent=$percent current_rate=$byte_rate average_rate=$average_rate seconds_running=$running_time seconds_left=$seconds_left url=$url out_file=$out_file"; 
+				   $next_report += $report_interval;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					line        => $line,
+					next_report => $next_report, 
+				}});
+				print $line."\n";
 			}
 		}
 	}
 	close $file_handle;
 	
+	# We should have the file now. Move it to the final position.
+	if (($failed) or (not -e $temp_file))
+	{
+		# Something went wrong. Unlink the temp file.
+		if (-e $temp_file)
+		{
+			unlink $temp_file;
+		}
+		$anvil->nice_exit({exit_code => $failed});
+	}
+	else
+	{
+		# Move it (overwrite set because we'd be dead by now if '--overwrite' wasn't used.
+		my $failed = $anvil->Storage->move_file({
+			debug       => 2, 
+			source_file => $temp_file, 
+			target_file => $save_to,
+			overwrite   => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+		if (($failed) or (not -e $out_file))
+		{
+			# Something went wrong.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "err", key => "error_0060", variables => { 
+				source_file => $temp_file,
+				target_file => $save_to,
+			}});
+			$anvil->nice_exit({exit_code => 8});
+		}
+	}
 	
+	# Set it executable if '--script' was used.
+	if ($anvil->data->{switches}{script})
+	{
+		$anvil->Storage->change_mode({debug => 2, path => $out_file, mode => "a+x"});
+	}
+	
+	# Tell the user that we're done.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, , key => "log_0297", variables => { file => $out_file }});
 	
 	return(0);
 }
 
-sub download_file
+sub abort_download
 {
 	my ($anvil) = @_;
 	
