@@ -166,6 +166,13 @@ sub get_job_details
 		job_uuid => $job_uuid,
 	}});
 	
+	# 
+	if ((not $job_uuid) && ($anvil->data->{switches}{'job-uuid'}))
+	{
+		$job_uuid = $anvil->data->{switches}{'job-uuid'};
+		
+	}
+	
 	if (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))
 	{
 		# It's not a UUID.
@@ -192,11 +199,11 @@ FROM
 WHERE 
     job_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'job-uuid'})." 
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
@@ -208,18 +215,18 @@ WHERE
 	
 	# If we're here, we're good. Load the details
 	$anvil->data->{jobs}{job_uuid}         = $job_uuid;
-	$anvil->data->{jobs}{job_host_uuid}    = $results->[0]->[0];
-	$anvil->data->{jobs}{job_command}      = $results->[0]->[1];
-	$anvil->data->{jobs}{job_data}         = $results->[0]->[1];
-	$anvil->data->{jobs}{job_picked_up_by} = $results->[0]->[2];
-	$anvil->data->{jobs}{job_picked_up_at} = $results->[0]->[3];
-	$anvil->data->{jobs}{job_updated}      = $results->[0]->[4];
-	$anvil->data->{jobs}{job_name}         = $results->[0]->[5];
-	$anvil->data->{jobs}{job_progress}     = $results->[0]->[6];
-	$anvil->data->{jobs}{job_title}        = $results->[0]->[7];
-	$anvil->data->{jobs}{job_description}  = $results->[0]->[8];
-	$anvil->data->{jobs}{job_status}       = $results->[0]->[9];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->data->{jobs}{job_host_uuid}    = defined $results->[0]->[0]  ? $results->[0]->[0]  : "";
+	$anvil->data->{jobs}{job_command}      = defined $results->[0]->[1]  ? $results->[0]->[1]  : "";
+	$anvil->data->{jobs}{job_data}         = defined $results->[0]->[2]  ? $results->[0]->[2]  : "";
+	$anvil->data->{jobs}{job_picked_up_by} = defined $results->[0]->[3]  ? $results->[0]->[3]  : "";
+	$anvil->data->{jobs}{job_picked_up_at} = defined $results->[0]->[4]  ? $results->[0]->[4]  : "";
+	$anvil->data->{jobs}{job_updated}      = defined $results->[0]->[5]  ? $results->[0]->[5]  : "";
+	$anvil->data->{jobs}{job_name}         = defined $results->[0]->[6]  ? $results->[0]->[6]  : "";
+	$anvil->data->{jobs}{job_progress}     = defined $results->[0]->[7]  ? $results->[0]->[7]  : "";
+	$anvil->data->{jobs}{job_title}        = defined $results->[0]->[8]  ? $results->[0]->[8]  : "";
+	$anvil->data->{jobs}{job_description}  = defined $results->[0]->[9]  ? $results->[0]->[9]  : "";
+	$anvil->data->{jobs}{job_status}       = defined $results->[0]->[10] ? $results->[0]->[10] : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"jobs::job_uuid"         => $anvil->data->{jobs}{job_uuid}, 
 		"jobs::job_host_uuid"    => $anvil->data->{jobs}{job_host_uuid},
 		"jobs::job_command"      => $anvil->data->{jobs}{job_command},
@@ -233,8 +240,6 @@ WHERE
 		"jobs::job_description"  => $anvil->data->{jobs}{job_description}, 
 		"jobs::job_status"       => $anvil->data->{jobs}{job_status}, 
 	}});
-	
-	# Have we been asked to check another job is already running?
 	
 	# See if the job was picked up by another running instance.
 	my $job_picked_up_by = $anvil->data->{jobs}{job_picked_up_by};
@@ -297,7 +302,7 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_command LIKE ".$anvil->Database->quote($program."%")." 
+    job_command LIKE ".$anvil->Database->quote("%".$program."%")." 
 AND 
     job_progress != '100'
 AND 
@@ -452,7 +457,6 @@ sub html_list
 			$jobs_list .= $job_template."\n";
 		}
 	}
-	
 	
 	return($jobs_list);
 }
@@ -635,6 +639,29 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> job_status" => $job_status }});
 		$job_status =~ s/message_0058,!!downloaded!.*?!!,!!installed!.*?!!,!!verified!.*?!!,!!lines!.*?!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< job_status" => $job_status }});
+	}
+	# This is used by 'anvil-download-file'
+	if ($job_status =~ /message_0142/gs)
+	{
+		### NOTE: Left off here.
+# 		my $downloaded = $anvil->data->{counts}{downloaded} ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{downloaded}}) : 0;
+# 		my $installed  = $anvil->data->{counts}{installed}  ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{installed}})  : 0;
+# 		my $verified   = $anvil->data->{counts}{verified}   ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{verified}})   : 0;
+# 		my $lines      = $anvil->data->{counts}{lines}      ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{lines}})      : 0;
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 			"s1:counts::downloaded" => $anvil->data->{counts}{downloaded},
+# 			"s2:downloaded"         => $downloaded, 
+# 			"s3:counts::installed"  => $anvil->data->{counts}{installed},
+# 			"s4:installed"          => $installed, 
+# 			"s5:counts::verified"   => $anvil->data->{counts}{verified},
+# 			"s6:verified"           => $verified, 
+# 			"s7:counts::lines"      => $anvil->data->{counts}{lines},
+# 			"s8:lines"              => $lines, 
+# 		}});
+# 		
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> job_status" => $job_status }});
+# 		$job_status =~ s/message_0142,!!downloaded!.*?!!,!!installed!.*?!!,!!verified!.*?!!,!!lines!.*?!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< job_status" => $job_status }});
 	}
 	
 	$job_uuid = $anvil->Database->insert_or_update_jobs({

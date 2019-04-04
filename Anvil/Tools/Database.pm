@@ -3494,7 +3494,7 @@ sub insert_or_update_jobs
 			$problem = 1;
 		}
 		
-		# Job name?
+		# Job title?
 		if (not $job_title)
 		{
 			$anvil->Log->entry({source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_jobs()", parameter => "job_title" }});
@@ -3527,6 +3527,8 @@ WHERE
     job_name      = ".$anvil->Database->quote($job_name)." 
 AND 
     job_command   = ".$anvil->Database->quote($job_command)." 
+AND 
+    job_data      = ".$anvil->Database->quote($job_data)." 
 AND 
     job_host_uuid = ".$anvil->Database->quote($job_host_uuid)." 
 ;";

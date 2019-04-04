@@ -4,16 +4,19 @@
 # progress of any other instances currently downloading files.
 # 
 # Return codes:
-# 0 = Normal exit.
-# 1 = URL not found.
-# 2 = The requested URL was not found on the remote server.
-# 3 = The requested URL does not resolve to a known domain.
-# 4 = The requested URL failed because the remote host refused the connection.
-# 5 = The requested URL failed because there is no route to that host.
-# 6 = Abort requested, but UUID or PID not passed
-# 7 = The requested URL failed because the network is unreachable.
-# 8 = The file to download already exists.
-# 9 = Something went wrong moving the file from temp to the output directory.
+# 0  = Normal exit.
+# 1  = No database connections available
+# 2  = The requested URL was not found on the remote server.
+# 3  = The requested URL does not resolve to a known domain.
+# 4  = The requested URL failed because the remote host refused the connection.
+# 5  = The requested URL failed because there is no route to that host.
+# 6  = Abort requested, but UUID or PID not passed
+# 7  = The requested URL failed because the network is unreachable.
+# 8  = The file to download already exists.
+# 9  = Something went wrong moving the file from temp to the output directory.
+# 10 = URL not found.
+# 11 = The --job-uuid is invalid
+# 12 = The --job-uuid is already being handled by another process
 # 
 # 
 # TODO: 
@@ -42,6 +45,14 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0003"});
+	$anvil->nice_exit({exit_code => 1});
+}
 
 $anvil->data->{switches}{abort}      = "";
 $anvil->data->{switches}{'job-uuid'} = "";
@@ -59,7 +70,14 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	'switches::url'       => $anvil->data->{switches}{url}, 
 }});
 
+# If I don't have --abort or --url, see if there is a job waiting
+if ((not $anvil->data->{switches}{abort}) && (not $anvil->data->{switches}{url}))
+{
+	get_job_details($anvil);
+}
+die;
 
+# Do what now?
 if ($anvil->data->{switches}{abort})
 {
 	# Kill the other download
@@ -85,6 +103,107 @@ $anvil->nice_exit({exit_code => 0});
 # Private functions.                                                                                        #
 #############################################################################################################
 
+# This loads a job's details, or looks for unclaimed jobs that aren't finished.
+sub get_job_details
+{
+	my ($anvil) = @_;
+	
+	# If I don't have a job-uuid, see if any jobs are pending
+	if (not $anvil->data->{switches}{'job-uuid'})
+	{
+		my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		if ($anvil->Validate->is_uuid({uuid => $job_uuid}))
+		{
+			# Got one!
+			$anvil->data->{switches}{'job-uuid'} = $job_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
+		}
+	}
+	
+	# If we've got a job-uuid, load the details.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
+	if ($anvil->data->{switches}{'job-uuid'})
+	{
+		my $problem = $anvil->Job->get_job_details({
+			debug => 2, 
+			check => 1, 
+		});
+		# If 'problem' is '1', the job-uuid is bad. If it's '2', it's already being handled by 
+		# another process. In either case, we're not going to handle this.
+		if (not $problem)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				problem                  => $problem, 
+				"jobs::job_uuid"         => $anvil->data->{jobs}{job_uuid}, 
+				"jobs::job_host_uuid"    => $anvil->data->{jobs}{job_host_uuid},
+				"jobs::job_command"      => $anvil->data->{jobs}{job_command},
+				"jobs::job_data"         => $anvil->data->{jobs}{job_data}, 
+				"jobs::job_picked_up_by" => $anvil->data->{jobs}{job_picked_up_by}, 
+				"jobs::job_picked_up_at" => $anvil->data->{jobs}{job_picked_up_at}, 
+				"jobs::job_updated"      => $anvil->data->{jobs}{job_updated}, 
+				"jobs::job_name"         => $anvil->data->{jobs}{job_name}, 
+				"jobs::job_progress"     => $anvil->data->{jobs}{job_progress}, 
+				"jobs::job_title"        => $anvil->data->{jobs}{job_title}, 
+				"jobs::job_description"  => $anvil->data->{jobs}{job_description}, 
+				"jobs::job_status"       => $anvil->data->{jobs}{job_status}, 
+			}});
+			
+			# Store the job-uuid in the switches hash.
+			$anvil->data->{switches}{'job-uuid'} = $anvil->data->{jobs}{job_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::job-uuid" => $anvil->data->{switches}{'job-uuid'} }});
+		}
+		elsif ($problem eq "1")
+		{
+			# Bad UUID
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0061", variables => { job_uuid => $anvil->data->{jobs}{job_uuid} }});
+			$anvil->nice_exit({exit_code => 11});
+		}
+		else
+		{
+			# Job is already being handled by another active process.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0062", variables => { job_uuid => $anvil->data->{jobs}{job_uuid} }});
+			$anvil->nice_exit({exit_code => 12});
+		}
+		
+		# Pull apart the job-data and feed them into the switches hash
+		if ($anvil->data->{switches}{'job-uuid'})
+		{
+			foreach my $pair (split/,/, $anvil->data->{jobs}{job_data})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pair => $pair }});
+				
+				my ($variable, $value) = ($pair =~ /^(.*?)=(.*)$/);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					variable => $variable,
+					value    => $value,
+				}});
+				
+				$anvil->data->{switches}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::${variable}" => $anvil->data->{switches}{$variable} }});
+			}
+		}
+		
+		# If "job_picked_up_by" is set, clear it. (It won't be running because we did 'check' 
+		# earlier)
+		if ($anvil->data->{jobs}{job_picked_up_by})
+		{
+			$anvil->Job->clear({
+				debug    => 2,
+				job_uuid => $anvil->data->{switches}{'job-uuid'},
+			});
+		}
+		
+		# Mark it as 1% done.
+		$anvil->Job->update_progress({
+			debug    => 2, 
+			job_uuid => $anvil->data->{switches}{'job-uuid'}, 
+		});
+	}
+	
+	return(0);
+}
+
 sub download_file
 {
 	my ($anvil) = @_;
@@ -109,7 +228,7 @@ sub download_file
 	if (($url !~ /^ftp\:\/\//) && ($url !~ /^http\:\/\//) && ($url !~ /^https\:\/\//))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0286", variables => { url => $url }});
-		$anvil->nice_exit({exit_code => 1});
+		$anvil->nice_exit({exit_code => 10});
 	}
 	
 	# If the target file exists, exit.

@@ -246,6 +246,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0139">Reloading the firewall...</key>
 		<key name="message_0140">Restarting the firewall...</key>
 		<key name="message_0141">Changing the default zone to: [#!variable!zone!#].</key>
+		<key name="message_0142">* Download progress: [#!variable!percentage!# %], Downloaded: [#!variable!downloaded!#], Current rate: [#!variable!current_rate!#], Average Rate: [#!variable!average_rate!#], Time Running: [#!variable!running_time!#], Estimated left: [#!variable!estimated_left!#].</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -794,6 +795,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0015">Manager Install Target.</key>
 		<key name="job_0016">Enable or disable the 'Install Target' feature.</key>
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
+		<key name="job_0018">Download a file</key>
+		<key name="job_0019">The referenced file will be downloaded by the target host.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -882,6 +885,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0058">Failed to backup: [#!variable!file!#], skipping.</key>
 		<key name="error_0059">The file to be downloaded: [#!variable!file!#], already exists. Either remove it, or call again with '--overwrite'.</key>
 		<key name="error_0060">Something went wrong moving the downloaded file from the temporary location: [#!variable!source_file!#] to the output: [#!variable!target_file!#]. Useful errors may be above this message.</key>
+		<key name="error_0061">The download job with UUID: [#!variable!job_uuid!#] is not valid.</key>
+		<key name="error_0062">The download job with UUID: [#!variable!job_uuid!#] is already being handled by another process.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
