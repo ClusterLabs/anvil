@@ -319,8 +319,29 @@ clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil
 # OS config
 * Register if RHEL proper;
 subscription-manager register --username <user> --password <secret> --auto-attach --force
-subscription-manager repos --enable=rhel-ha-for-rhel-7-server-rpms
-subscription-manager repos --enable=rhel-7-server-optional-rpms
+
+subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-appstream-source-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-baseos-source-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-highavailability-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-highavailability-source-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-supplementary-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
+subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms
+subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
+----
+subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-appstream-source-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-supplementary-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-baseos-source-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-highavailability-source-rpms
+subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-highavailability-rpms
+subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms
+
 * Packages to install;
 
 *** DASHBOARDS
@@ -894,7 +915,6 @@ git checkout <0.10.x>
 Building 3rd party tools
 dnf -y install bzip2-devel corosynclib-devel docbook-style-xsl gnutls-devel help2man libqb-devel libtool libtool-ltdl-devel libuuid-devel libxml2-devel libxslt-devel ncurses-devel pam-devel
 
-
 ==========
 
 Build Dependency chain;
@@ -903,113 +923,143 @@ perl-Log-Log4perl
   perl-Log-Dispatch-FileRotate
 perl-MIME-Lite
 
-==========
+===========================================================================================================
 
 RPM build order
 
 --- Install from RHEL repos;
+
 - Groups;
 dnf group install development rpm-development-tools
-
-- Packages
-dnf install bash-completion bind-utils dnf-utils firefox gdm libgcrypt-devel libutempter-devel libvirt-bash-completion ncurses-devel openssl-devel pam-devel perl-Capture-Tiny perl-Devel-CheckLib perl-Digest-SHA1 perl-ExtUtils-CBuilder perl-ExtUtils-MakeMaker perl-HTML-Parser \
-            perl-IO-stringy perl-MailTools perl-Module-Build perl-Module-Install perl-Module-Install-AutoLicense perl-Module-Install-ReadmeFromPod perl-Net-DNS perl-Test-Exception perl-Test-Simple perl-Test-Pod perl-Test-Pod-Coverage \
-            perl-Test2-Suite rpm-build systemd-devel texinfo virt-manager wget \
-            perl-Params-ValidationCompiler perl-Dist-CheckConflicts perl-namespace-autoclean perl-Test-Fatal perl-Devel-GlobalDestruction perl-IPC-Run3 perl-Specio perl-Sys-Syslog mod_perl postfix perl-DBI perl-IPC-SysV perl-Test perl-Filter rrdtool-perl perl-Test-Warn perl-Date-Manip \
-            perl-MIME-Types python36 docbook-style-xsl libxslt flex kernel-devel perl-IPC-System-Simple xdg-user-dirs perl-Import-Into perl-Class-XSAccessor perl-Sub-Name perl-DynaLoader-Functions perl-Devel-CallChecker perl-Test-Requires
-
 
 - Uninstall
 dnf remove biosdevname
 
+- Packages
+dnf -y install bash-completion bind-utils dnf-utils firefox gdm libgcrypt-devel libutempter-devel libvirt-bash-completion ncurses-devel openssl-devel pam-devel perl-Capture-Tiny perl-Devel-CheckLib perl-Digest-SHA1 perl-ExtUtils-CBuilder perl-ExtUtils-MakeMaker perl-HTML-Parser \
+            perl-IO-stringy perl-MailTools perl-Module-Build perl-Module-Install perl-Module-Install-ReadmeFromPod perl-Net-DNS perl-Test-Exception perl-Test-Simple perl-Test-Pod perl-Test-Pod-Coverage \
+            perl-Test2-Suite rpm-build systemd-devel texinfo virt-manager wget \
+            perl-Params-ValidationCompiler perl-Dist-CheckConflicts perl-namespace-autoclean perl-Test-Fatal perl-Devel-GlobalDestruction perl-IPC-Run3 perl-Specio perl-Sys-Syslog postfix perl-DBI perl-IPC-SysV perl-Test perl-Filter rrdtool-perl perl-Test-Warn perl-Date-Manip \
+            perl-MIME-Types python36 docbook-style-xsl libxslt flex kernel-devel perl-IPC-System-Simple xdg-user-dirs perl-Import-Into perl-Class-XSAccessor perl-Sub-Name perl-DynaLoader-Functions perl-Devel-CallChecker perl-Test-Requires \
+            apr-devel apr-util-devel gdbm-devel httpd-devel perl-CGI perl-libwww-perl perl-Path-Tiny perl-ExtUtils-Embed perl-XML-DOM perl-Test-Taint perl-Readonly perl-Devel-Peek perl-String-ShellQuote 
 
 --- First round of builds;
-* anvil
-* anvil-striker-extra
-* libssh2                              # NOTE! Make sure this comes from F29 (1.8.0-8). The version from RHEL doesn't offer -devel, they say it's deprecated (??). May need to update or replace perl-Net-SSH2
-* perl-B-Compiling
-* perl-Email-Date-Format
-* perl-Exporter-Lite
-* perl-ExtUtils-Depends
-* perl-HTML-Strip
-* perl-File-BaseDir
-* perl-File-MimeInfo
-* perl-IO-CaptureOutput
-* perl-Log-Journald
-* perl-Mail-Sender
-* perl-Mail-Sendmail
-* perl-Module-Install-GithubMeta
-* perl-Net-Domain-TLD
-* perl-Proc-Simple
-* perl-Lexical-SealRequireHints
-* perl-Sub-Quote
-* perl-Test-Needs
-* perl-Test-UseAllModules
-* perl-UUID-Tiny
-* screen
-
+alteeve-el8-repo
+anvil
+anvil-striker-extra
+libssh2
+perl-Algorithm-C3
+perl-B-Compiling
+perl-BSD-Resource
+perl-Devel-ArgNames
+perl-Devel-Refcount
+perl-Email-Date-Format
+perl-Exporter-Lite
+perl-ExtUtils-Config
+perl-ExtUtils-Depends
+perl-ExtUtils-Helpers
+perl-Eval-WithLexicals
+perl-Fennec-Lite
+perl-HTML-Strip
+perl-File-BaseDir
+perl-File-MimeInfo
+perl-IO-CaptureOutput
+perl-Lexical-SealRequireHints
+perl-Linux-Pid
+perl-Log-Journald
+perl-Net-Domain-TLD
+perl-Mail-Sender
+perl-Mail-Sendmail
+perl-Module-Install-GithubMeta
+perl-Net-Domain-TLD
+perl-Net-OpenSSH	           # Requires the builder enter their password
+perl-Proc-Simple
+perl-Sub-Quote
+perl-Test-Identity
+perl-Test-Needs
+perl-Test-UseAllModules
+perl-UUID-Tiny
 
 --- Second round of builds;
 
-rpm -Uvh libssh2  (won't update from 1.8.0-7 from RHEL8 repo to our 1.8.0-8 via dnf update for some reason)
-dnf install perl-IO-CaptureOutput perl-Exporter-Lite perl-Module-Install-GithubMeta perl-Net-Domain-TLD perl-Test-UseAllModules perl-Mail-Sender perl-Mail-Sendmail perl-Test-Needs perl-Email-Date-Format perl-ExtUtils-Depends perl-B-Compiling perl-Lexical-SealRequireHints \
-            perl-Sub-Quote 
+# RHEL 8 blocks the install of libssh2-devel via dnf, so rpm to instal it
+rpm -Uvh /var/www/html/repo/RPMS/x86_64/libssh2-1.8.0-8.el8.x86_64.rpm /var/www/html/repo/RPMS/x86_64/libssh2-devel-1.8.0-8.el8.x86_64.rpm 
+dnf -y install perl-IO-CaptureOutput perl-Exporter-Lite perl-Module-Install-GithubMeta perl-Net-Domain-TLD perl-Test-UseAllModules perl-Mail-Sender perl-Mail-Sendmail perl-Test-Needs perl-Email-Date-Format perl-ExtUtils-Depends perl-B-Compiling perl-Lexical-SealRequireHints \
+               perl-Sub-Quote perl-BSD-Resource perl-Linux-Pid perl-Algorithm-C3 perl-Fennec-Lite perl-Devel-ArgNames perl-Devel-Refcount perl-ExtUtils-Config perl-ExtUtils-Helpers perl-Test-Identity perl-Eval-WithLexicals
 
-* perl-B-Hooks-OP-Check
-* perl-Email-Valid
-* perl-Lexical-Var
-* perl-MIME-Lite
-* perl-Module-Install-AutoLicense
-* perl-Net-Netmask
+mod_perl			# NOTE: When --sign'ing it, it throws an error. Build without '--sign' and then do 'rpm --addsign <all rpms>'
+perl-B-Hooks-OP-Check
+perl-Class-C3
+perl-Data-Dumper-Concise
+perl-Email-Valid
+perl-ExtUtils-InstallPaths
+perl-Lexical-Var
+perl-Meta-Builder
+perl-MIME-Lite
+perl-Module-Install-AutoLicense
+perl-Net-Netmask
+perl-Test-Refcount
 
 --- Third round of builds;
 
-dnf install perl-Email-Valid erl-Module-Install-AutoLicense perl-MIME-Lite perl-B-Hooks-OP-Check perl-Lexical-Var
+dnf -y install perl-Email-Valid perl-Module-Install-AutoLicense perl-MIME-Lite perl-B-Hooks-OP-Check perl-Lexical-Var mod_perl perl-Class-C3 perl-Data-Dumper-Concise perl-ExtUtils-InstallPaths perl-Meta-Builder perl-Test-Refcount
 
-* perl-bareword-filehandles
-* perl-Devel-Declare            # NOTE: need to boot-strap; [rpmbuild -ba --define='perl_bootstrap=1' perl-Devel-Declare.spec], build perl-Devel-CallParser, rebuild this without bootstrap.
-* perl-Email-Find
-* perl-Log-Dispatch
-* perl-Module-Install-CheckLib
-* perl-multidimensional
-* perl-indirect                 # NOTE: need to boot-strap; [rpmbuild -ba --define='perl_bootstrap=1' perl-indirect.spec], build perl-Devel-CallParser, rebuild this without bootstrap.
+perl-bareword-filehandles
+perl-Email-Find
+perl-Future
+perl-Log-Dispatch
+perl-Module-Build-Tiny
+perl-Module-Install-CheckLib
+perl-multidimensional
+### NOTE: These two need to be built using bootstrap, and will be rebuilt later.
+perl-Devel-Declare            # NOTE: rpmbuild -ba --define='perl_bootstrap=1' perl-Devel-Declare.spec, build perl-Devel-CallParser, rebuild this without bootstrap.
+perl-indirect                 # NOTE: rpmbuild -ba --define='perl_bootstrap=1' perl-indirect.spec, build perl-Devel-CallParser, rebuild this without bootstrap.
+
 
 --- Fourth round of builds;
 
-dnf install perl-Email-Find perl-Module-Install-CheckLib perl-Log-Dispatch perl-Devel-Declare perl-bareword-filehandles perl-multidimensional perl-indirect 
+dnf -y install perl-Email-Find perl-Module-Install-CheckLib perl-Log-Dispatch perl-Devel-Declare perl-bareword-filehandles perl-multidimensional perl-indirect perl-Future perl-Module-Build-Tiny
 
-* perl-Devel-CallParser
-* perl-HTML-FromText
-* perl-Log-Dispatch-FileRotate
-* perl-Net-SSH2
-* perl-strictures
+perl-aliased
+perl-Devel-CallParser
+perl-HTML-FromText
+perl-Log-Dispatch-FileRotate
+perl-Net-SSH2
+perl-strictures
 
 --- Fifth round of builds;
 
-dnf install perl-Log-Dispatch perl-strictures perl-Devel-CallParser
+dnf -y install perl-Log-Dispatch perl-strictures perl-Devel-CallParser perl-Log-Dispatch-FileRotate perl-aliased
 
-* perl-Devel-Declare             # Again, without the bootstrapping.
-* perl-indirect                  # Again, without the bootstrapping.
-* perl-Log-Log4perl
-* perl-Moo
+perl-Exporter-Declare
+perl-Log-Log4perl
+perl-Moo
+### NOTE: We're rebuilding these two, this time without bootstrap
+perl-Devel-Declare
+perl-indirect
+
 
 --- Sixth round of builds;
 
-dnf clean all                    # expire-cache isn't enough to clear the boot-strapped versions
+### NOTE: expire-cache isn't enough to clear the boot-strapped versions
+dnf clean all
 dnf reinstall perl-Devel-Declare perl-indirect
-dnf install perl-Moo
+dnf -y install perl-Moo perl-Log-Log4perl perl-Exporter-Declare
 
-* perl-CPAN-Changes
+perl-CPAN-Changes
+perl-Log-Contextual
 
---- Seventh round of builds;
-
-dnf install perl-CPAN-Changes
-
-* perl-File-DesktopEntry
 
 --- Seventh round of builds;
 
-dnf install perl-File-DesktopEntry 
+dnf -y install perl-CPAN-Changes perl-Log-Contextual
+
+perl-File-DesktopEntry
+perl-Object-Remote
+
+--- Seventh round, final installs.
+
+dnf -y install perl-File-DesktopEntry perl-Object-Remote perl-Net-OpenSSH
 
 
 

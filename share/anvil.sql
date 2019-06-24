@@ -1259,7 +1259,7 @@ CREATE TABLE servers (
     FOREIGN KEY(server_start_after_server_uuid)  REFERENCES servers(server_uuid),
     FOREIGN KEY(server_host_uuid)                REFERENCES hosts(host_uuid), 
     FOREIGN KEY(server_pre_migration_file_uuid)  REFERENCES files(file_uuid), 
-    FOREIGN KEY(server_post_migration_file_uuid) REFERENCES files(file_uuid), 
+    FOREIGN KEY(server_post_migration_file_uuid) REFERENCES files(file_uuid) 
 );
 ALTER TABLE servers OWNER TO admin;
 
@@ -1336,7 +1336,7 @@ CREATE TABLE definitions (
     definition_xml            text                        not null,                   -- This is the XML body.
     modified_date             timestamp with time zone    not null, 
     
-    FOREIGN KEY(definition_server_uuid) REFERENCES servers(server_uuid), 
+    FOREIGN KEY(definition_server_uuid) REFERENCES servers(server_uuid) 
 );
 ALTER TABLE definitions OWNER TO admin;
 

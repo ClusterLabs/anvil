@@ -63,7 +63,7 @@ Requires:       postfix
 Requires:       postgresql-contrib 
 Requires:       postgresql-plperl 
 Requires:       rsync 
-Requires:       screen
+Requires:       tmux
 Requires:       vim 
 Requires:       wget
 # iptables-services conflicts with firewalld
