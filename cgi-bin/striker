@@ -255,9 +255,11 @@ sub process_task
 	my $logged_in = 0;
 	$anvil->data->{cgi}{login}{value}  = "" if not defined $anvil->data->{cgi}{login}{value};
 	$anvil->data->{cgi}{logout}{value} = "" if not defined $anvil->data->{cgi}{logout}{value};
+	$anvil->data->{cgi}{save}{value}   = "" if not defined $anvil->data->{cgi}{save}{value};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"cgi::login::value"  => $anvil->data->{cgi}{login}{value},
 		"cgi::logout::value" => $anvil->data->{cgi}{logout}{value},
+		"cgi::save::value"   => $anvil->data->{cgi}{save}{value},
 	}});
 	if ($anvil->data->{cgi}{login}{value})
 	{
@@ -351,9 +353,16 @@ sub process_striker_menu
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{form}{back_link}  = "?striker=true";
+	$anvil->data->{form}{back_link}    = "?striker=true";
 	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{cgi}{save}{value}   = "" if not defined $anvil->data->{cgi}{save}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		"form::back_link"    => $anvil->data->{form}{back_link},
+		"cgi::task::value"   => $anvil->data->{cgi}{task}{value},
+		"cgi::action::value" => $anvil->data->{cgi}{action}{value},
+		"cgi::save::value"   => $anvil->data->{cgi}{save}{value},
+	}});
 	if ($anvil->data->{cgi}{task}{value} eq "sync")
 	{
 		process_sync_page($anvil);
@@ -656,7 +665,7 @@ sub process_update
 	{
 		# Record the job!
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			debug           => 3,
+			debug           => 1,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
 			job_command     => $anvil->data->{path}{exe}{'anvil-update-system'}, 

@@ -980,6 +980,7 @@ sub _set_paths
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
+				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",
 				cp				=>	"/usr/bin/cp",

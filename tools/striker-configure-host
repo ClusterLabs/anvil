@@ -787,9 +787,7 @@ sub pickup_job_details
 	$anvil->data->{variables} = {};
 	
 	# If we're still alive, pick up the details.
-	$results = "";
-	$count   = "";
-	$query   = "
+	my $query   = "
 SELECT 
     variable_name, 
     variable_value 
@@ -806,8 +804,8 @@ AND
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		results => $results, 
 		count   => $count,
