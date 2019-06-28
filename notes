@@ -941,12 +941,13 @@ dnf -y install bash-completion bind-utils dnf-utils firefox gdm libgcrypt-devel 
             perl-Test2-Suite rpm-build systemd-devel texinfo virt-manager wget \
             perl-Params-ValidationCompiler perl-Dist-CheckConflicts perl-namespace-autoclean perl-Test-Fatal perl-Devel-GlobalDestruction perl-IPC-Run3 perl-Specio perl-Sys-Syslog postfix perl-DBI perl-IPC-SysV perl-Test perl-Filter rrdtool-perl perl-Test-Warn perl-Date-Manip \
             perl-MIME-Types python36 docbook-style-xsl libxslt flex kernel-devel perl-IPC-System-Simple xdg-user-dirs perl-Import-Into perl-Class-XSAccessor perl-Sub-Name perl-DynaLoader-Functions perl-Devel-CallChecker perl-Test-Requires \
-            apr-devel apr-util-devel gdbm-devel httpd-devel perl-CGI perl-libwww-perl perl-Path-Tiny perl-ExtUtils-Embed perl-XML-DOM perl-Test-Taint perl-Readonly perl-Devel-Peek perl-String-ShellQuote 
+            apr-devel apr-util-devel gdbm-devel httpd-devel perl-CGI perl-libwww-perl perl-Path-Tiny perl-ExtUtils-Embed perl-XML-DOM perl-Test-Taint perl-Readonly perl-Devel-Peek perl-String-ShellQuote elfutils-libelf-devel po4a
 
 --- First round of builds;
 alteeve-el8-repo
 anvil
 anvil-striker-extra
+htop
 libssh2
 perl-Algorithm-C3
 perl-B-Compiling

@@ -972,9 +972,6 @@ sub keep_running
 		update_state_file($anvil);
 	}
 	
-	# Is the Install Target enabled (if applicable)?
-	check_install_target($anvil);
-	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
 	run_jobs($anvil);
 	

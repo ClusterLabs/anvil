@@ -887,6 +887,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0060">Something went wrong moving the downloaded file from the temporary location: [#!variable!source_file!#] to the output: [#!variable!target_file!#]. Useful errors may be above this message.</key>
 		<key name="error_0061">The download job with UUID: [#!variable!job_uuid!#] is not valid.</key>
 		<key name="error_0062">The download job with UUID: [#!variable!job_uuid!#] is already being handled by another process.</key>
+		<key name="error_0063">Something went wrong trying to download: [#!variable!packages!#]. The return code should have been '0'. but: [#!variable!return_code!#] was received. Is a package missing upstream?</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

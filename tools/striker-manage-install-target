@@ -64,7 +64,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 1});
+$anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -99,7 +99,6 @@ if (($< != 0) && ($> != 0))
 }
 
 # If the user just wants a status, check and exit.
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::status" => $anvil->data->{switches}{status} }});
 if ($anvil->data->{switches}{status})
 {
 	my $dhcpd_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
@@ -126,7 +125,7 @@ if ($anvil->data->{switches}{status})
 
 # Connect to the database(s).
 $anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -178,7 +177,7 @@ if ($anvil->data->{switches}{disable})
 
 # Exit if we're not configured yet
 my $configured = $anvil->System->check_if_configured;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
 if (not $configured)
 {
 	print $anvil->Words->string({key => "error_0046"})."\n";
@@ -503,7 +502,7 @@ sub setup_boot_environment
 		range   => $range,
 		router  => $bcn_ip,
 	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_body => $dhcpd_conf_body }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_conf_body => $dhcpd_conf_body }});
 	
 	# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means something 
 	# went wrong.
@@ -511,7 +510,7 @@ sub setup_boot_environment
 		body  => $dhcpd_conf_body, 
 		file  => $anvil->data->{path}{configs}{'dhcpd.conf'},
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_conf_success => $dhcpd_conf_success }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_conf_success => $dhcpd_conf_success }});
 	if (not $dhcpd_conf_success)
 	{
 		# Failed.
@@ -815,7 +814,7 @@ sub setup_boot_environment
 		print $anvil->Words->string({key => "message_0100"})."\n";
 		update_progress($anvil, $progress, "message_0100");
 		$anvil->Storage->rsync({
-			debug       => 2, 
+			debug       => 3, 
 			source      => $anvil->data->{path}{directories}{syslinux}."/*",
 			destination => $anvil->data->{path}{directories}{tftpboot}."/",
 		});
@@ -834,7 +833,7 @@ sub setup_boot_environment
 		# We don't bother checking if this needs to be updated because rsync can figure it out more 
 		# efficiently.
 		$anvil->Storage->rsync({
-			debug       => 2, 
+			debug       => 3, 
 			source      => $bios_splash,
 			destination => $anvil->data->{path}{directories}{tftpboot}."/splash.jpg",
 		});
@@ -911,9 +910,9 @@ sub update_install_source
 	# Clear the dnf cache
 	my $success  = 1;
 	my $progress = 30;
-	my $output   = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+	my $output   = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
 	my $packages = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	print $anvil->Words->string({key => "message_0077", variables => { directory => $packages }})."\n";
 	update_progress($anvil, $progress, "message_0077,!!directory!".$packages."!!");
 	
@@ -924,7 +923,7 @@ sub update_install_source
 		$progress =  90 if $progress > 90;
 		my $download_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/".$letter;
 		my $array_size    = @{$anvil->data->{packages}{$letter}};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			letter        => $letter, 
 			download_path => $download_path, 
 			array_size    => $array_size,
@@ -941,13 +940,17 @@ sub update_install_source
 		}})."\n";
 		update_progress($anvil, $progress, "message_0120,!!directory!".$download_path."!!,!!packages!".$say_packages."!!");
 		
+		my $packages   = "";
 		my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 		foreach my $package (sort {$a cmp $b} @{$anvil->data->{packages}{$letter}})
 		{
 			# Append the package to the active shell call.
-			$shell_call .= " ".$package;
+			$packages .= $package." ";
 		}
+		$packages   =~ s/ $//;
+		$shell_call .= " ".$packages."; 2>&1 ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 		
 		# Now call the command in the background, then we'll track the output.
 		my $stdout_file = "/tmp/".$THIS_FILE."_update_install_source.stdout";
@@ -961,17 +964,18 @@ sub update_install_source
 			background  => 1, 
 			stdout_file => $stdout_file, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle }});
 		
 		# Now we'll loop, printing output, until the handle dies.
 		my $alive            = 1;
 		my $last_stdout_line = 0;
 		my $error_out        = "";
+		my $return_code      = 255;
 		while($alive)
 		{
 			# Are we still alive?
 			$alive = $handle->poll();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alive => $alive }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { alive => $alive }});
 			
 			# Sleep (even if we're dead now, we want to give a second for the stdout file to be updated 
 			# before processing it).
@@ -997,18 +1001,29 @@ sub update_install_source
 					$last_stdout_line = $this_stdout_line;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_stdout_line => $last_stdout_line }});
 					
-					### TODO: This isn't good enough. If a package is missing, for 
-					###       example, the group will be skipped silently.
+					# A none-zero return code indicates, likely, that a package failed to download. 
+					if ($line =~ /^return_code:(\d+)$/)
+					{
+						$return_code = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+						
+						if ($return_code)
+						{
+							# Something went wrong.
+							$error_out .= $anvil->Words->string({key => "error_0063", variables => { packages => $packages, return_code => $return_code }})."\n";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { error_out => $error_out }});
+						}
+					}
 					if ($line =~ /^Error: /)
 					{
 						$error_out .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error_out => $error_out }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { error_out => $error_out }});
 					}
 				}
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error_out => $error_out }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { error_out => $error_out }});
 		if ($error_out)
 		{
 			# Bump the last successful time by 24 hours.
@@ -1060,7 +1075,7 @@ sub update_install_source
 	
 	$output = "";
 	$output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo}." -g ".$comps_xml." ".$repo_path });
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	print $anvil->Words->string({key => "message_0130"})."\n";
 	update_progress($anvil, 90, "message_0130");
 	
@@ -1969,7 +1984,7 @@ sub load_packages
 			"pulseaudio-libs.x86_64",
 			"pulseaudio-module-bluetooth.x86_64",
 			"pulseaudio.x86_64",
-			"python3-IPy.noarch",
+			#"python3-IPy.noarch",
 			"python3-asn1crypto.noarch",
 			"python3-audit.x86_64",
 			"python3-bind.noarch",
@@ -2084,7 +2099,6 @@ sub load_packages
 			"samba-common.noarch",
 			"sbc.x86_64",
 			"sbd.x86_64",
-			"screen.x86_64",
 			"SDL.x86_64",
 			"seabios-bin.noarch",
 			"seavgabios-bin.noarch",
@@ -2132,6 +2146,7 @@ sub load_packages
 			"telnet.x86_64",
 			"tftp-server.x86_64",
 			"timedatex.x86_64",
+			"tmux.x86_64",
 			"totem-pl-parser.x86_64",
 			"trousers-lib.x86_64",
 			"trousers.x86_64",
