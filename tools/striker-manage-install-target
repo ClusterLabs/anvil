@@ -78,7 +78,7 @@ $anvil->data->{switches}{'no-refresh'} = 0;
 $anvil->data->{switches}{refresh}      = 0;
 $anvil->data->{switches}{status}       = "";
 $anvil->Get->switches();
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	'switches::check'      => $anvil->data->{switches}{check},
 	'switches::disable'    => $anvil->data->{switches}{disable},
 	'switches::enable'     => $anvil->data->{switches}{enable},
@@ -102,7 +102,7 @@ if (($< != 0) && ($> != 0))
 if ($anvil->data->{switches}{status})
 {
 	my $dhcpd_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dhcpd_running => $dhcpd_running }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dhcpd_running => $dhcpd_running }});
 	if ($dhcpd_running)
 	{
 		print $anvil->Words->string({key => "message_0123"})."\n";
@@ -141,7 +141,7 @@ if ($anvil->data->{switches}{disable})
 	my $exit_code   = 0;
 	my $job_message = "message_0125";
 	my $return_code = $anvil->System->stop_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	if ($return_code)
 	{
 		# non-0 means something went wrong.
@@ -222,7 +222,7 @@ if ($anvil->data->{switches}{enable})
 	my $exit_code   = 0;
 	my $job_message = "message_0127";
 	my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	if ($return_code)
 	{
 		# non-0 means something went wrong.
@@ -302,10 +302,10 @@ sub check_refresh
 	
 	# Setup the packages directory
 	$anvil->data->{path}{directories}{packages} = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::directories::packages" => $anvil->data->{path}{directories}{packages} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "path::directories::packages" => $anvil->data->{path}{directories}{packages} }});
 	
 	# Default to 'no'
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"switches::refresh" => $anvil->data->{switches}{refresh},
 		"switches::force"   => $anvil->data->{switches}{force},
 	}});
@@ -324,13 +324,13 @@ sub check_refresh
 	
 	# If it's been disabled in anvil.conf, exit.
 	$anvil->data->{'install-manifest'}{'refresh-packages'} = 1 if not defined $anvil->data->{'install-manifest'}{'refresh-packages'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "install-manifest::refresh-packages" => $anvil->data->{'install-manifest'}{'refresh-packages'} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "install-manifest::refresh-packages" => $anvil->data->{'install-manifest'}{'refresh-packages'} }});
 	if (not $anvil->data->{'install-manifest'}{'refresh-packages'})
 	{
 		# We're out.
 		$anvil->data->{switches}{refresh} = 0;
 		print $anvil->Words->string({key => "log_0235"})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0235"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0235"});
 		return(0);
 	}
 	
@@ -340,8 +340,8 @@ sub check_refresh
 		# Source isn't configured, set it up
 		$anvil->data->{switches}{refresh} = 1;
 		print $anvil->Words->string({key => "log_0237"})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0237"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0237"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::refresh" => $anvil->data->{switches}{refresh} }});
 		return(0);
 	}
 	
@@ -351,7 +351,7 @@ sub check_refresh
 		variable_source_uuid  => $anvil->Get->host_uuid, 
 		variable_source_table => "hosts", 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		unixtime      => $unixtime, 
 		variable_uuid => $variable_uuid, 
 		modified_date => $modified_date, 
@@ -360,7 +360,7 @@ sub check_refresh
 	if (($unixtime eq "") or ($unixtime =~ /\D/))
 	{
 		$unixtime = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { unixtime => $unixtime }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { unixtime => $unixtime }});
 	}
 	
 	### TODO: Allow the user to set a "refresh time" that will wait until the local time is after a
@@ -369,20 +369,20 @@ sub check_refresh
 	# refresh.
 	$anvil->data->{'install-manifest'}{'refresh-period'} =  86400 if not defined $anvil->data->{'install-manifest'}{'refresh-period'};
 	$anvil->data->{'install-manifest'}{'refresh-period'} =~ s/,//g;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		'install-manifest::refresh-period' => $anvil->data->{'install-manifest'}{'refresh-period'}, 
 	}});
 	if ($anvil->data->{'install-manifest'}{'refresh-period'} =~ /\D/)
 	{
 		$anvil->data->{'install-manifest'}{'refresh-period'} = 86400;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			'install-manifest::refresh-period' => $anvil->data->{'install-manifest'}{'refresh-period'}, 
 		}});
 	}
 	my $time_now   = time;
 	my $next_scan  = $unixtime + $anvil->data->{'install-manifest'}{'refresh-period'};
 	my $difference = ($next_scan - $time_now);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		's1:time_now'   => $time_now, 
 		's2:next_scan'  => $next_scan, 
 		's3:difference' => $difference, 
@@ -393,7 +393,7 @@ sub check_refresh
 		$anvil->data->{switches}{refresh} = 1;
 		my $variables = { seconds => $anvil->Convert->add_commas({number => $anvil->data->{'install-manifest'}{'refresh-period'}}) };
 		print $anvil->Words->string({key => "log_0239", variables => $variables})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0239", variables => $variables});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0239", variables => $variables});
 		return(0);
 	}
 	elsif ($difference > 0)
@@ -402,7 +402,7 @@ sub check_refresh
 		$anvil->data->{switches}{refresh} = 0;
 		my $variables = { next_refresh => $anvil->Convert->add_commas({number => $difference}) };
 		print $anvil->Words->string({key => "log_0236", variables => $variables})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0236", variables => $variables});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0236", variables => $variables});
 	}
 	
 	# If the refresh fails, we'll update the last unixtime to be 24 hours from now, so that we can try 
@@ -411,13 +411,13 @@ sub check_refresh
 	if ($unixtime =~ /^\d+$/)
 	{
 		$anvil->data->{sys}{retry_time} = $unixtime + 86400;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::retry_time" => $anvil->data->{sys}{retry_time} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::retry_time" => $anvil->data->{sys}{retry_time} }});
 	}
 	else
 	{
 		# No previous time, so start with the current time
 		$anvil->data->{sys}{retry_time} = time;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::retry_time" => $anvil->data->{sys}{retry_time} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::retry_time" => $anvil->data->{sys}{retry_time} }});
 	}
 	
 	return(0);
@@ -855,7 +855,7 @@ sub check_alteeve_repo
 		### TODO: Remove this and the check when the signed el8 repo is ready
 		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}.".repo";
 		$repo_url  = "https://alteeve.com/an-repo/el".$anvil->data->{host_os}{version}."b/alteeve-el".$anvil->data->{host_os}{version}."b-repo-latest.noarch.rpm";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			repo_file => $repo_file,
 			repo_url  => $repo_url, 
 		}});
@@ -865,7 +865,7 @@ sub check_alteeve_repo
 		### TODO: Update this when rhel8 is out
 		$repo_file = "/etc/yum.repos.d/alteeve-el".$anvil->data->{host_os}{version}."b.repo";
 		$repo_url  = "https://alteeve.com/an-repo/el".$anvil->data->{host_os}{version}."/alteeve-el".$anvil->data->{host_os}{version}."-repo-latest.noarch.rpm";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			repo_file => $repo_file,
 			repo_url  => $repo_url, 
 		}});
@@ -876,7 +876,7 @@ sub check_alteeve_repo
 	{
 		# Install the repo
 		my $handle = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{rpm}." -Uvh ".$repo_url });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle }});
 	}
 	
 	# If it still doesn't exist, we're done.
@@ -1125,6 +1125,7 @@ sub load_packages
 			"adwaita-gtk2-theme.x86_64",
 			"adwaita-icon-theme.noarch",
 			"alsa-lib.x86_64",
+			"alteeve-el8-repo.noarch", 
 			"anvil-core.noarch",
 			"anvil-dr.noarch",
 			"anvil-node.noarch",

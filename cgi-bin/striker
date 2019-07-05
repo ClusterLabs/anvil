@@ -1427,7 +1427,7 @@ ORDER BY
 	
 	# Get the list of current IPs so that we can warn the user if committing the changes will require 
 	# reconnecting.
-	$anvil->System->get_ips;
+	$anvil->System->get_ips({debug => 2});
 	my $matched_ip = 0;
 	my $server_ip  = $ENV{SERVER_ADDR};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_ip => $server_ip }});

@@ -878,16 +878,18 @@ sub get_ips
 	my $ip_route        = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ip}." route show"});
 	foreach my $line (split/\n/, $ip_route)
 	{
+		$line = $anvil->Words->clean_spaces({ string => $line });
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /default via (.*?) dev (.*?) proto static metric (\d+)/i)
+		if ($line =~ /default via (.*?) dev (.*?) proto .*? metric (\d+)/i)
 		{
 			my $this_ip        = $1;
 			my $this_interface = $2;
 			my $metric         = $3;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				this_ip        => $this_ip,
-				this_interface => $this_interface, 
-				metric         => $metric, 
+				's1:this_ip'        => $this_ip,
+				's2:this_interface' => $this_interface, 
+				's3:metric'         => $metric, 
+				's4:lowest_metric'  => $lowest_metric, 
 			}});
 			
 			if ($metric < $lowest_metric)

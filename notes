@@ -216,35 +216,223 @@ hosts:
 10.41.20.2	m3-a02n02.sn
 10.255.20.2	m3-a02n02.ifn
 
-10.1.20.3	m3-a02dr01.bcn m3-a02dr01 m3-a02dr01.alteeve.com
-10.41.20.3	m3-a02dr01.sn
-10.255.20.3	m3-a02dr01.ifn
+10.1.22.1	m3-a02dr01.bcn m3-a02dr01 m3-a02dr01.alteeve.com
+10.41.22.1	m3-a02dr01.sn
+10.255.22.1	m3-a02dr01.ifn
 ====
 
-Example Link config:
-====
-====
+### Interface files
+#
+# Note: Insert the HWADDR's and update the IPs!
+#
+### BCN #######################################################################
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-BCN_1_-_Link_1 << EOF
+# Back-Channel Network 1 - Link 1
+HWADDR=""
+UUID="${UUID}"
+NAME="BCN 1 - Link 1"
+DEVICE="bcn1_link1"
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+USERCTL="no"
+MTU="1500"
+NM_CONTROLLED="yes"
+SLAVE="yes"
+MASTER="bcn1_bond1"
+ZONE="BCN1"
+EOF
 
-Example Bonding config:
-====
-BRIDGE_UUID="e7a8f977-560d-4a94-95cd-a1218f0fe890"
-DEVICE="ifn1_bond1"
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-BCN_1_-_Link_2 << EOF
+# Back-Channel Network 1 - Link 2
+HWADDR=""
+UUID="${UUID}"
+NAME="BCN 1 - Link 2"
+DEVICE="bcn1_link2"
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+USERCTL="no"
+MTU="1500"
+NM_CONTROLLED="yes"
+SLAVE="yes"
+MASTER="bcn1_bond1"
+ZONE="BCN1"
+EOF
+
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-BCN_1_-_Bond_1 << EOF
+# Back-Channel Network 1 - Bond 1
+UUID="${UUID}"
+NAME="BCN 1 - Bond 1"
+DEVICE="bcn1_bond1"
+BRIDGE="bcn1_bridge1"
+BONDING_OPTS="mode=active-backup primary=bcn1_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better"
+TYPE="Bond"
+BONDING_MASTER="yes"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+ZONE="BCN1"
+EOF
+
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-BCN_1_-_Bridge_1 << EOF
+# Back-Channel Network 1 - Bridge 1
+UUID="${UUID}"
+STP="yes"
+BRIDGING_OPTS="priority=32768"
+TYPE="Bridge"
+BROWSER_ONLY="no"
+NAME="BCN 1 - Bridge 1"
+DEVICE="bcn1_bridge1"
+ONBOOT="yes"
+BOOTPROTO="none"
+IPADDR="10.20.10.1"
+PREFIX="16"
+DEFROUTE="no"
+ZONE="BCN1"
+EOF
+
+### SN ########################################################################
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-SN_1_-_Link_1 << EOF
+# Storage Network 1 - Link 1
+HWADDR=""
+UUID="${UUID}"
+NAME="SN 1 - Link 1"
+DEVICE="sn1_link1"
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+USERCTL="no"
+MTU="1500"
+NM_CONTROLLED="yes"
+SLAVE="yes"
+MASTER="sn1_bond1"
+ZONE="SN1"
+EOF
+
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-SN_1_-_Link_2 << EOF
+# Storage Network 1 - Link 2
+HWADDR=""
+UUID="${UUID}"
+NAME="SN 1 - Link 2"
+DEVICE="sn1_link2"
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+USERCTL="no"
+MTU="1500"
+NM_CONTROLLED="yes"
+SLAVE="yes"
+MASTER="sn1_bond1"
+ZONE="SN1"
+EOF
+
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-SN_1_-_Bond_1 << EOF
+# Storage Network 1 - Bond 1
+UUID="${UUID}"
+NAME="SN 1 - Bond 1"
+DEVICE="sn1_bond1"
+BONDING_OPTS="mode=active-backup primary=sn1_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better"
+TYPE="Bond"
+BONDING_MASTER="yes"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+IPADDR="10.41.10.1"
+PREFIX="16"
+DEFROUTE="no"
+ZONE="SN1"
+EOF
+
+### IFN #######################################################################
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-IFN_1_-_Link_1 << EOF
+# Internet-Facing Network 1 - Link 1
+HWADDR=""
+UUID="${UUID}"
+NAME="IFN 1 - Link 1"
+DEVICE="ifn1_link1"
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+USERCTL="no"
+MTU="1500"
+NM_CONTROLLED="yes"
+SLAVE="yes"
+MASTER="ifn1_bond1"
+ZONE="IFN1"
+EOF
+
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-IFN_1_-_Link_2 << EOF
+# Internet-Facing Network 1 - Link 2
+HWADDR=""
+UUID="${UUID}"
+NAME="IFN 1 - Link 2"
+DEVICE="ifn1_link2"
+TYPE="Ethernet"
+BOOTPROTO="none"
+IPV6INIT="no"
+ONBOOT="yes"
+USERCTL="no"
+MTU="1500"
+NM_CONTROLLED="yes"
+SLAVE="yes"
+MASTER="ifn1_bond1"
+ZONE="IFN1"
+EOF
+
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-IFN_1_-_Bond_1 << EOF
+# Internet-Facing Network 1 - Bond 1
+UUID="${UUID}"
 NAME="IFN 1 - Bond 1"
-UUID="a59d138e-6c40-4366-b859-fcadafe577f4"
+DEVICE="ifn1_bond1"
+BRIDGE="ifn1_bridge1"
 BONDING_OPTS="mode=active-backup primary=ifn1_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better"
 TYPE="Bond"
 BONDING_MASTER="yes"
 BOOTPROTO="none"
 IPV6INIT="no"
 ONBOOT="yes"
-DEFROUTE="no"
-BRIDGE="ifn1_bridge1"
-ZONE=public
-====
+MTU="1500"
+ZONE="IFN1"
+EOF
 
-Example Bridge config:
-=====
-=====
+UUID=$(uuidgen)
+cat > /etc/sysconfig/network-scripts/ifcfg-IFN_1_-_Bridge_1 << EOF
+# Internet-Facing Network 1 - Bridge 1
+UUID="${UUID}"
+STP="yes"
+BRIDGING_OPTS="priority=32768"
+TYPE="Bridge"
+BROWSER_ONLY="no"
+NAME="IFN 1 - Bridge 1"
+DEVICE="ifn1_bridge1"
+ONBOOT="yes"
+BOOTPROTO="none"
+IPADDR="10.255.10.1"
+PREFIX="16"
+GATEWAY="10.255.255.254"
+DNS1="8.8.8.8"
+DNS2="8.8.4.4"
+DEFROUTE="yes"
+ZONE="IFN1"
+EOF
+
+====
 
 =======
 virt-manager stores information in dconf-editor -> /org/virt-manager/virt-manager/connections ($HOME/.config/dconf/user)
@@ -330,7 +518,7 @@ subscription-manager repos --enable rhel-8-for-x86_64-supplementary-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
-----
+# ----
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms

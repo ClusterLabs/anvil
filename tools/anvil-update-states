@@ -93,7 +93,7 @@ sub update_network
 			$duplex      =~ s/\n$//;
 			$operational =~ s/\n$//;
 			$speed       =~ s/\n$//;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				interface   => $interface, 
 				speed       => $speed, 
 				mac_address => $mac_address,
@@ -115,7 +115,7 @@ sub update_network
 			{
 				$ip_address  = $anvil->data->{sys}{network}{interface}{$interface}{ip}     ? $anvil->data->{sys}{network}{interface}{$interface}{ip}     : "";
 				$subnet_mask = $anvil->data->{sys}{network}{interface}{$interface}{subnet} ? $anvil->data->{sys}{network}{interface}{$interface}{subnet} : "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					ip_address  => $ip_address, 
 					subnet_mask => $subnet_mask,
 				}});
@@ -129,7 +129,7 @@ sub update_network
 				# It's a slave.
 				$mac_address =  $anvil->Storage->read_file({file => $mac_bond_file});
 				$mac_address =~ s/\n$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac_address => $mac_address }});
 			}
 			
 			# If this is a virtual interface, set some fake values that don't actually exist on 
@@ -140,7 +140,7 @@ sub update_network
 				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
 				$speed  = 100000 if ((not $speed) or ($speed eq "-1"));
 				$duplex = "full" if not $duplex;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					speed  => $speed, 
 					duplex => $duplex,
 				}});
@@ -149,7 +149,7 @@ sub update_network
 			if (not $link_state)
 			{
 				$speed = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { speed => $speed }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { speed => $speed }});
 			}
 			
 			# Is this a bond interface?
@@ -176,7 +176,7 @@ sub update_network
 				$mii_polling_interval =~ s/\n$//;
 				$up_delay             =~ s/\n$//;
 				$down_delay           =~ s/\n$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					active_slave         => $active_slave, 
 					bond_mode            => $bond_mode, 
 					mii_polling_interval => $mii_polling_interval, 
@@ -271,7 +271,7 @@ sub update_network
 				type                 => $type, 
 				up_delay             => $up_delay, 
 			};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"network::interfaces::by_name::${interface}::active_slave"           => $anvil->data->{network}{interfaces}{by_name}{$interface}{active_slave},
 				"network::interfaces::by_name::${interface}::bond_mode"              => $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_mode},
 				"network::interfaces::by_name::${interface}::bond_master"            => $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_master},
