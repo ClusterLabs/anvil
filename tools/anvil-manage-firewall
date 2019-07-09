@@ -40,6 +40,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 2});
 
 # If the user has disabled auto-management of the firewall, exit.
 if (not $anvil->data->{sys}{manage}{firewall})
@@ -47,14 +49,20 @@ if (not $anvil->data->{sys}{manage}{firewall})
 	# Do nothing.
 	$anvil->nice_exit({exit_code => 0});
 }
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->data->{switches}{'y'} = "";
 $anvil->Get->switches;
 
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 2, level => 3, key => "message_0134"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0134"});
 check_initial_setup($anvil);
+
+# Restart, if needed.
+if ($anvil->data->{firewall}{reload})
+{
+	restart_firewall($anvil);
+}
 
 # We're done
 $anvil->nice_exit({exit_code => 0});
@@ -80,6 +88,8 @@ sub check_initial_setup
 	
 	# Get the list of existing zones from iptables/firewalld.
 	$anvil->System->check_firewall({debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
+	
 	my $internet_zone = "";
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
 	{
@@ -111,6 +121,13 @@ sub check_initial_setup
 			{
 				$internet_zone = $zone;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { internet_zone => $internet_zone }});
+				
+				if ((not $anvil->data->{firewall}{default_zone}) or ($anvil->data->{firewall}{default_zone} eq "public"))
+				{
+					$anvil->data->{firewall}{default_zone} = $zone;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
+				}
+				
 			}
 		}
 	}
@@ -176,7 +193,7 @@ sub check_initial_setup
 			"s2:description" => $description, 
 		}});
 		
-		my $new_zone_body = $anvil->Template->get({file => "firewall.txt", show_name => 0, name => $template, variables => {
+		my $new_zone_body = $anvil->Template->get({debug => 3, file => "firewall.txt", show_name => 0, name => $template, variables => {
 			zone        => $zone,
 			description => $description,
 		}});
@@ -231,8 +248,11 @@ sub check_initial_setup
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0043", variables => { file => $file }});
 				$anvil->nice_exit({exit_code => 2});
 			}
-			
-			reload_firewall($anvil);
+			else
+			{
+				# We need an immediate reload to pick up the new file.
+				restart_firewall($anvil);
+			}
 		}
 		
 		# Make sure the appropriate interfaces are in this zone.
@@ -254,10 +274,14 @@ sub check_initial_setup
 					zone      => $zone, 
 				}});
 				
-				my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface});
+				my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface." --permanent"});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 				
-				reload_firewall($anvil);
+				$output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+				
+				$anvil->data->{firewall}{reload} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "firewall::reload" => $anvil->data->{firewall}{reload} }});
 			}
 			
 			# Delete it so we know this one has been processed.
@@ -266,42 +290,48 @@ sub check_initial_setup
 	}
 	
 	# Do we need to update the default zone?
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		internet_zone            => $internet_zone,
 		"firewall::default_zone" => $anvil->data->{firewall}{default_zone}, 
 	}});
-	if (($internet_zone) && ($anvil->data->{firewall}{default_zone}) && ($anvil->data->{firewall}{default_zone} ne $internet_zone))
+	if ($anvil->data->{firewall}{default_zone})
 	{
-		# Yup 
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "message_0141", variables => { zone => $internet_zone }});
-		my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}."  --set-default-zone=".$internet_zone});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+		# What's the current default zone?
+		my $default_zone = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --get-default-zone"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_zone => $default_zone }});
+		
+		if ($default_zone ne $anvil->data->{firewall}{default_zone})
+		{
+			# Update.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0141", variables => { zone => $internet_zone }});
+			my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --set-default-zone=".$anvil->data->{firewall}{default_zone}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			
+			$anvil->data->{firewall}{reload} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "firewall::reload" => $anvil->data->{firewall}{reload} }});
+		}
 	}
 	
 	# NOTE: We may want to do machine-specific stuff down the road.
-	#my $type = $anvil->System->get_host_type();
-	#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
-	
-	# Restart, if needed.
-	if ($anvil->data->{firewall}{reload})
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "message_0140"});
-		$anvil->System->restart_daemon({debug => 2, daemon => "firewalld"});
-	}
+	my $type = $anvil->System->get_host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
 	
 	return(0);
 }
 
-# Reload the firewall as we change zones.
-sub reload_firewall
+sub restart_firewall
 {
 	my ($anvil) = @_;
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0139"});
-	my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --complete-reload"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	my $output = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --complete-reload"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
 	
-	$anvil->data->{firewall}{reload} = 1;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "message_0140"});
+	$anvil->System->restart_daemon({debug => 3, daemon => "firewalld"});
+	
+	$anvil->data->{firewall}{reload} = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "firewall::reload" => $anvil->data->{firewall}{reload} }});
 	
 	return(0);
 }

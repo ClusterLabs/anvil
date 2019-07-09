@@ -443,71 +443,17 @@ virt-manager stores information in dconf-editor -> /org/virt-manager/virt-manage
 ['qemu+ssh://root@localhost/system']
 ====
 
-
-### Setup - Striker
-
-# el8 build dependencies
-dnf install ...
-
-# Build for el8
-drbd*
-fence-agents-all
-htop
-perl-HTML-FromText
-perl-HTML-Strip
-perl-Log-Journald
-perl-Net-Netmask
-perl-Net-SSH2
-perl-Proc-Simple
-perl-UUID-Tiny
-screen
-
-
-# Packages
-depends on: perl-XML-Simple postgresql-server postgresql-plperl postgresql-contrib perl-CGI perl-NetAddr-IP perl-DBD-Pg rsync perl-Log-Journald perl-Net-SSH2 
-
-# Paths
-mkdir /usr/sbin/anvil
-
-# virsh
-virsh net-destroy default
-virsh net-autostart default --disable
-virsh net-undefine default
-
 # Web - TODO: Setup to auto-use "Let's Encrypt", but make sure we have an offline fall-back
-systemctl enable httpd.service
-systemctl start httpd.service
-
-# Post install
-systemctl daemon-reload
 
 # SELinux
 restorecon -rv /var/www
 
 =============================================================
-[root@striker-m3 ~]# cat watch_logs 
-clear; journalctl -f -a -S "$(date +"%F %R:%S")" -t anvil
 
+How to rebuild all of the packages in the Alteeve RHEL 8 repo;
 
-### Setup - Nodes
-
-# OS Install
-* Set TZ to etc/GMT
-* Disable kdump
-* Storage;
-** 1 = /BIOS Boot (1 MiB)
-** 2 = /boot      (1 GiB)
-** 3 = LVM PV     (all remaining space)
-*** VG = <short-name>_vg0
-**** <swap>       (8 GiB)
-**** /            (50 GiB)
-**** /mnt/anvil   (20 GiB)
-* 'root' and 'admin' use 'Initial1' (with sudo)
-
-# OS config
-* Register if RHEL proper;
+# Register if RHEL proper;
 subscription-manager register --username <user> --password <secret> --auto-attach --force
-
 subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-appstream-source-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms
@@ -518,7 +464,6 @@ subscription-manager repos --enable rhel-8-for-x86_64-supplementary-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
-# ----
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms
@@ -531,20 +476,6 @@ subscription-manager repos --enable rhel-8-for-x86_64-highavailability-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms
 
 * Packages to install;
-
-*** DASHBOARDS
-rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
-yum install perl-CGI perl-DBD-Pg perl-DBI perl-Log-Journald perl-Net-SSH2 perl-NetAddr-IP perl-XML-Simple postgresql-contrib postgresql-plperl postgresql-server rsync 
-
-*** NODES
-rpm -Uvh https://www.alteeve.com/an-repo/el7/alteeve-el7-repo-0.1-1.noarch.rpm
-yum install bash-completion bind-utils bridge-utils drbd drbd-bash-completion drbd-kernel drbd-utils fence-agents-all fence-agents-virsh gpm kernel-doc kmod-drbd libvirt libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-kvm libvirt-docs mlocate pacemaker pcs perl-Data-Dumper perl-JSON perl-XML-Simple qemu-kvm qemu-kvm-common qemu-kvm-tools rsync screen vim virt-install
-
-* Packages to remove;
-yum remove biosdevname 
-
-* Service management;
-systemctl start gpm.service
 
 * Network;
 ** {bc,if,s}nX_{link,bond,bridge}Y naming

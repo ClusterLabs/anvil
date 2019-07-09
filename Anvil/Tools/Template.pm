@@ -175,9 +175,20 @@ sub get
 		
 		if (not -e $source)
 		{
-			# Source doesn't exist
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0025", variables => { source => $source }});
-			$error = 1;
+			# See if it's a special one in the /sbin/ directory.
+			if ($file !~ /^\//)
+			{
+				$source = "/usr/sbin/".$file;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+			}
+			
+			# If I still don't have it, we're out.
+			if (not -e $source)
+			{
+				# Source doesn't exist
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0025", variables => { source => $source }});
+				$error = 1;
+			}
 		}
 		elsif (not -r $source)
 		{

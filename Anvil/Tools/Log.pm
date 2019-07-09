@@ -383,6 +383,8 @@ sub entry
 			print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 		}
 		
+		### TODO: Periodically check the log file size. If it's over a gigabyte, archive it
+		
 		# Open the file?
 		print $THIS_FILE." ".__LINE__."; HANDLE::log::main: [".$anvil->data->{HANDLE}{'log'}{main}."]\n" if $test;
 		if (not $anvil->data->{HANDLE}{'log'}{main})

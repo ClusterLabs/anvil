@@ -1312,7 +1312,7 @@ sub check_firewall
 	{
 		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --list-all-zones";
 	}
-	$anvil->data->{firewall}{default_zone} = "";
+	
 	my $zone          = "";
 	my $active_state  = "";
 	my $firewall_data = $anvil->System->call({debug => $debug, shell_call => $shell_call});
