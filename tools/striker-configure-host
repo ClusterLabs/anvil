@@ -139,17 +139,12 @@ sub update_passwords
 	}
 	else
 	{
-		my $return_code = "";
-		my $output      = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file."; ".$anvil->data->{path}{exe}{'echo'}." return_code:\$!" });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output }});
+		my $return_code            = "";
+		my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output, return_code => $return_code }});
 		foreach my $line (split/\n/, $output)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { line => $line }});
-			if ($line =~ /return_code:(\d+)$/)
-			{
-				$return_code = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { return_code => $return_code }});
-			}
 		}
 		
 		# Unlink the temp file.
@@ -655,9 +650,9 @@ sub reconfigure_network
 	});
 	
 	# If any virtio bridges exist, remove it/them.
-	my $start   = 0;
-	my $bridges = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridges => $bridges }});
+	my $start                   = 0;
+	my ($bridges, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridges => $bridges, return_code => $return_code }});
 	foreach my $line (split/\n/, $bridges)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
@@ -679,16 +674,16 @@ sub reconfigure_network
 	foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{virsh}{bridge}})
 	{
 		# Destroy (stop) it.
-		my $destroy = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { destroy => $destroy }});
+		my ($destroy, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { destroy => $destroy, return_code => $return_code }});
 		
 		# Disable it from auto-start.
-		my $disable = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { disable => $disable }});
+		(my $disable, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { disable => $disable, return_code => $return_code }});
 		
 		# Undefine (delete)
-		my $undefine = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { undefine => $undefine }});
+		(my $undefine, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { undefine => $undefine, return_code => $return_code }});
 	}
 	
 	### TODO: This isn't working... The route table won't set the IFN as the default route properly and 

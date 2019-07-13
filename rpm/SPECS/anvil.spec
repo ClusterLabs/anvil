@@ -21,7 +21,6 @@ WARNING: This is an alpha-stage project. Many features are missing and this
          should not be used for anything other than development purposes! The
          first stable release will be 3.1. Anything 3.0 is UNSTABLE.
 
-# TODO: Add back htop
 %package core
 Summary:        Alteeve's Anvil! Core package
 Requires:       bash-completion 
@@ -63,6 +62,7 @@ Requires:       postfix
 Requires:       postgresql-contrib 
 Requires:       postgresql-plperl 
 Requires:       rsync 
+Requires:       syslinux
 Requires:       tmux
 Requires:       vim 
 Requires:       wget
@@ -231,6 +231,17 @@ firewall-cmd --add-service=https --permanent
 firewall-cmd --add-service=postgresql
 firewall-cmd --add-service=postgresql --permanent
 
+%pre node
+echo "Copying the OCF resource agent into place.
+if [ ! -d /usr/lib/ocf/resource.d/anvil ];
+then
+    mkdir /usr/lib/ocf/resource.d/anvil
+fi
+if [ ! -e /usr/lib/ocf/resource.d/anvil/server ];
+then
+    cp -R -p ocf/alteeve/* /usr/lib/ocf/resource.d/anvil/
+fi
+
 ### Remove stuff - Disabled for now, messes things up during upgrades
 %postun core
 ## This is breaking on upgrades - (note: switch back to single percent sign 
@@ -274,13 +285,18 @@ firewall-cmd --add-service=postgresql --permanent
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
-#<placeholder for node specific files>
+%{_usr}/lib/ocf/resource.d/alteeve/*
 
 %files dr
 #<placeholder for node specific files>
 
 
 %changelog
+* <TODO> Madison Kelly <mkelly@alteeve.ca> 3.0-24
+- Added syslinux to core requirements.
+- Added installation of ocf:alteeve:server resource agent to nodes.
+- Updated the source.
+
 * Sat Feb 01 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-23
 - Updated the source.
 

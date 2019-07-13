@@ -157,7 +157,6 @@ sub call_agents
 		{
 			$shell_call .= ." ".$anvil->data->{sys}{'log'}{level};
 		}
-		$shell_call .= "; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		# Tell the user this agent is about to run...
@@ -165,16 +164,11 @@ sub call_agents
 			agent_name => $agent_name,
 			timeout    => $timeout,
 		}});
-		my $output = $anvil->System->call({shell_call => $shell_call});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 		foreach my $line (split/\n/, $output)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			
-			if ($line =~ /return_code:(\d+)$/)
-			{
-				$return_code = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-			}
 		}
 		
 		# If the return code is '124', timeout popped.

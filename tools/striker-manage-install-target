@@ -875,8 +875,8 @@ sub check_alteeve_repo
 	if (not -e $repo_file)
 	{
 		# Install the repo
-		my $handle = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{rpm}." -Uvh ".$repo_url });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle }});
+		my ($handle, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{rpm}." -Uvh ".$repo_url });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle, return_code => $return_code }});
 	}
 	
 	# If it still doesn't exist, we're done.
@@ -908,11 +908,11 @@ sub update_install_source
 	
 	### TODO: Make sure this handles no internet access gracefully.
 	# Clear the dnf cache
-	my $success  = 1;
-	my $progress = 30;
-	my $output   = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
-	my $packages = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	my $success                = 1;
+	my $progress               = 30;
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+	my $packages               = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	print $anvil->Words->string({key => "message_0077", variables => { directory => $packages }})."\n";
 	update_progress($anvil, $progress, "message_0077,!!directory!".$packages."!!");
 	
@@ -958,7 +958,7 @@ sub update_install_source
 		{
 			unlink $stdout_file;
 		}
-		my $handle = $anvil->System->call({
+		my ($handle, undef) = $anvil->System->call({
 			debug       => 2,
 			shell_call  => $shell_call, 
 			background  => 1, 
@@ -1073,9 +1073,9 @@ sub update_install_source
 	}
 	update_progress($anvil, 85, "");
 	
-	$output = "";
-	$output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo}." -g ".$comps_xml." ".$repo_path });
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+	$output                 = "";
+	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo}." -g ".$comps_xml." ".$repo_path });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	print $anvil->Words->string({key => "message_0130"})."\n";
 	update_progress($anvil, 90, "message_0130");
 	

@@ -456,13 +456,14 @@ AND
 				###       files that are over a certain size? Or will this get called rarely
 				###       enough in practice that it doesn't really matter?
 				# If the file is found, we'll parse these out.
-				my $remote_size   = 0;
-				my $remote_md5sum = "";
-				my ($output, $error) = $anvil->Remote->call({
+				my $remote_size                    = 0;
+				my $remote_md5sum                  = "";
+				my ($output, $error, $return_code) = $anvil->Remote->call({
 					shell_call  => $anvil->data->{path}{exe}{'anvil-file-details'}." --file ".$full_path." --with-md5sum", 
 					remote_user => $remote_user, 
 					password    => $password,
 					target      => $ip, 
+					return_code => $return_code, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					error  => $error,
@@ -949,11 +950,8 @@ sub convert_mimetype
 		elsif ($mimetype =~ /xml/)
 		{
 			# This might be a definition, but look inside it to be sure.
-			my $is_domain = $anvil->System->call({
-				debug      => 3, 
-				shell_call => "if \$(".$anvil->data->{path}{exe}{'grep'}." -q '</domain>' ".$file."); then ".$anvil->data->{path}{exe}{echo}." 1; else ".$anvil->data->{path}{exe}{echo}." 0; fi", 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { is_domain => $is_domain }});
+			my ($is_domain, $return_code) = $anvil->System->call({debug => 3, shell_call => "if \$(".$anvil->data->{path}{exe}{'grep'}." -q '</domain>' ".$file."); then ".$anvil->data->{path}{exe}{echo}." 1; else ".$anvil->data->{path}{exe}{echo}." 0; fi" });
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { is_domain => $is_domain, return_code => $return_code }});
 
 			if ($is_domain)
 			{

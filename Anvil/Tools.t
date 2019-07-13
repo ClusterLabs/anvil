@@ -47,7 +47,7 @@ like($anvil->Words, qr/^Anvil::Tools::Words=HASH\(0x\w+\)$/, "Verifying that 'Wo
 # make sure it logged properly
 $anvil->Log->entry({level => 0, priority => "alert", key => "log_0048"});
 my $message  = $anvil->Words->string({key => "log_0048"});
-my $last_log = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
+my ($last_log, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
 is($last_log, $message, "Verified that we could write a log entry to journalctl by warning the user of incoming warnings and errors.");
 
 ### Anvil::Tools::Alert tests
@@ -180,19 +180,19 @@ $anvil->Log->secure({set => 0});
 is($anvil->Log->secure, "0", "Verifying that logging secure messages was disabled again.");
 # variables
 $anvil->Log->variables({level => 0, list => { a => "1" }});
-my $list_a = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
+my ($list_a, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
 is($list_a, "a: [1]", "Verified that we could log a list of variables (1 entry).");
 $anvil->Log->variables({level => 0, list => { a => "1", b => "2" }});
-my $list_b = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
+(my $list_b, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
 is($list_b, "a: [1], b: [2]", "Verified that we could log a list of variables (2 entries).");
 $anvil->Log->variables({level => 0, list => { a => "1", b => "2", c => "3" }});
-my $list_c = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
+(my $list_c, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
 is($list_c, "a: [1], b: [2], c: [3]", "Verified that we could log a list of variables (3 entries).");
 $anvil->Log->variables({level => 0, list => { a => "1", b => "2", c => "3", d => "4" }});
-my $list_d = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
+(my $list_d, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
 is($list_d, "a: [1], b: [2], c: [3], d: [4]", "Verified that we could log a list of variables (4 entries).");
 $anvil->Log->variables({level => 0, list => { a => "1", b => "2", c => "3", d => "4", e => "5" }});
-my $list_e = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
+(my $list_e, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{journalctl}." -t anvil --lines 1 --full --output cat --no-pager"});
 my $say_variables = $anvil->Words->key({key => "log_0019"});
 my $expect_e = "$say_variables
 |- a: [1]

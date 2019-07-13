@@ -247,6 +247,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0140">Restarting the firewall...</key>
 		<key name="message_0141">Changing the default zone to: [#!variable!zone!#].</key>
 		<key name="message_0142">* Download progress: [#!variable!percentage!# %], Downloaded: [#!variable!downloaded!#], Current rate: [#!variable!current_rate!#], Average Rate: [#!variable!average_rate!#], Time Running: [#!variable!running_time!#], Estimated left: [#!variable!estimated_left!#].</key>
+		<key name="message_0143">The zone: [#!variable!zone!#]'s user-land file: [#!variable!file!#] exists. Skipping checking the configuration of this zone.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -604,6 +605,29 @@ We will keep looking.</key>
 		<key name="log_0295"><![CDATA[[ Error ] - The method Remote->call() was passed the 'timeout' of: [#!variable!timeout!#] which does not appear to be a whole number.]]></key>
 		<key name="log_0296">We have a connection open already to: [#!variable!connection!#], skipping connect stage.</key>
 		<key name="log_0297">The file: [#!variable!file!#] has beed successfully downloaded.</key>
+		<key name="log_0298">ocf:alteeve:server invoked</key>
+		<key name="log_0299">We were asked to promote: [#!variable!server!#], which makes no sense and is not supported. Ignoreing.</key>
+		<key name="log_0300">We were asked to demote: [#!variable!server!#], which makes no sense and is not supported. Ignoreing.</key>
+		<key name="log_0301">We were asked to notify, but this is not a promotable (we're stateless) agent. Ignoring.</key>
+		<key name="log_0302">We were invoked with an unexpected (or no) command. Environment variables and arguments below.</key>
+		<key name="log_0303">We've been asked to start the server: [#!variable!server!#].</key>
+		<key name="log_0304">It appears that the list the currently running servers returned a non-zero return code: [#!variable!return_code!#]. We will proceed as we may be able to fix this. The output, if any, was: [#!variable!output!#].</key>
+		<key name="log_0305">#!free!#</key>
+		<key name="log_0306">The server: [#!variable!server!#] is already on this node in the state: [#!variable!state!#], aborting the start request.</key>
+		<key name="log_0307"></key>
+		<key name="log_0308"></key>
+		<key name="log_0309"></key>
+		<key name="log_0310"></key>
+		<key name="log_0311"></key>
+		<key name="log_0312"></key>
+		<key name="log_0313"></key>
+		<key name="log_0314"></key>
+		<key name="log_0315"></key>
+		<key name="log_0316"></key>
+		<key name="log_0317"></key>
+		<key name="log_0318"></key>
+		<key name="log_0319"></key>
+		<key name="log_0320"></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

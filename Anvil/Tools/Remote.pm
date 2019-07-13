@@ -187,7 +187,7 @@ This does a remote call over SSH. The connection is held open and the file handl
 Example;
 
  # Call 'hostname' on a node.
- my ($output, $error) = $anvil->Remote->call({
+ my ($output, $error, $return_code) = $anvil->Remote->call({
  	target      => "an-a01n01.alteeve.com",
  	password    => "super secret password",
  	remote_user => "admin",
@@ -196,7 +196,7 @@ Example;
  
  # Make a call with sensitive data that you want logged only if $anvil->Log->secure is set and close the 
  # connection when done.
- my ($output, $error) = $anvil->Remote->call({
+ my ($output, $error, $return_code) = $anvil->Remote->call({
  	target      => "an-a01n01.alteeve.com",
  	password    => "super secret password",
  	remote_user => "root",
@@ -411,10 +411,11 @@ sub call
 	}
 	
 	# This will store the output 
-	my $output = "";
-	my $state  = "";
-	my $error  = "";
+	my $output         = "";
+	my $state          = "";
+	my $error          = "";
 	my $connect_output = "";
+	my $return_code    = 9999;
 	
 	# If I don't already have an active SSH file handle, connect now.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_fh => $ssh_fh }});
@@ -553,7 +554,7 @@ sub call
 		if ($timeout)
 		{
 			# Call with a timeout
-			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call);
+			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call."; ".$anvil->data->{path}{exe}{echo}." return_code:\$?");
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
 		}
 		else
@@ -582,6 +583,22 @@ sub call
 			'close' => $close,
 		}});
 		
+		# Pull the return code out.
+		my $clean_output = "";
+		foreach my $line (split/\n/, $output)
+		{
+			if ($line =~ /^return_code:(\d+)$/)
+			{
+				$return_code = $1;
+			}
+			else
+			{
+				$clean_output .= $line."\n";
+			}
+		}
+		$clean_output =~ s/\n$//;
+		$output       =  $clean_output;
+		
 		# Have we been asked to close the connection?
 		if ($close)
 		{
@@ -597,10 +614,11 @@ sub call
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
-		error  => $error,
-		output => $output, 
+		error       => $error,
+		output      => $output,
+		return_code => $return_code, 
 	}});
-	return($output, $error);
+	return($output, $error, $return_code);
 }
 
 # =head3

@@ -247,9 +247,9 @@ sub do_poweroff
 	# Now do the deed.
 	my $shell_call = $anvil->data->{path}{exe}{systemctl}." ".$task;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my $output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	
 	# Unlikely we're still alive, but 'poweroff' and 'reboot' do return once enqueued, so...
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 	$anvil->nice_exit({exit_code => 0});
 }

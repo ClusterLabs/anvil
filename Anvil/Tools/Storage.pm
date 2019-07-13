@@ -191,7 +191,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'not found'
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($output, $error) = $anvil->Remote->call({
+		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			user        => $remote_user, 
@@ -686,7 +686,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'target directory not found'
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($output, $error) = $anvil->Remote->call({
+		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			user        => $remote_user, 
@@ -754,7 +754,7 @@ fi";
 			}
 		
 			# Now backup the file.
-			my ($output, $error) = $anvil->Remote->call({
+			my ($output, $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
 				user        => $remote_user, 
@@ -812,8 +812,8 @@ fi";
 		}
 		
 		# Now backup the file.
-		my $output = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'cp'}." -af ".$source_file." ".$target_file});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'cp'}." -af ".$source_file." ".$target_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 	}
 	
 	return(0);
@@ -1019,7 +1019,7 @@ else
     fi;
 fi;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-			my ($output, $error) = $anvil->Remote->call({
+			my ($output, $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
 				user        => $remote_user, 
@@ -1211,7 +1211,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'target directory not found'
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($output, $error) = $anvil->Remote->call({
+		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			user        => $remote_user, 
@@ -1279,7 +1279,7 @@ fi";
 			}
 		
 			# Now backup the file.
-			my ($output, $error) = $anvil->Remote->call({
+			my ($output, $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
 				user        => $remote_user, 
@@ -1337,8 +1337,8 @@ fi";
 		}
 		
 		# Now backup the file.
-		my $output = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'mv'}." -f ".$source_file." ".$target_file});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'mv'}." -f ".$source_file." ".$target_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 	}
 	
 	return(0);
@@ -1944,9 +1944,9 @@ sub rsync
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { shell_call => $shell_call }});
 	
 	# Now make the call (this exposes the password so 'secure' is set).
-	my $conflict = "";
-	my $output   = $anvil->System->call({secure => 1, shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { output => $output }});
+	my $conflict               = "";
+	my ($output, $return_code) = $anvil->System->call({secure => 1, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { output => $output, return_code => $return_code }});
 	foreach my $line (split/\n/, $output)
 	{
 		# This exposes the password on the 'password: ' line.
@@ -1983,8 +1983,8 @@ sub rsync
 	if (($conflict) && ($try_again))
 	{
 		# Remove the conflicting fingerprint.
-		my $output = $anvil->System->call({shell_call => $conflict});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $conflict});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 		foreach my $line (split/\n/, $output)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -2693,7 +2693,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'not found';
 fi";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		(my $output, $error) = $anvil->Remote->call({
+		(my $output, $error, my $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
 			port        => $port, 
@@ -2743,7 +2743,7 @@ else
     ".$anvil->data->{path}{exe}{echo}." 'not found';
 fi";
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-				(my $output, $error) = $anvil->Remote->call({
+				(my $output, $error, my $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					target      => $target,
 					user        => $remote_user, 
@@ -2760,7 +2760,7 @@ fi";
 					# Create the directory
 					my $shell_call = $anvil->data->{path}{exe}{'mkdir'}." -p ".$directory;
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-					(my $output, $error) = $anvil->Remote->call({
+					(my $output, $error, my $return_code) = $anvil->Remote->call({
 						debug       => $debug, 
 						target      => $target,
 						user        => $remote_user, 

@@ -641,7 +641,7 @@ sub _hostname
 	else
 	{
 		# The environment variable isn't set. Call 'hostname' on the command line.
-		$hostname = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
+		($hostname, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
 	}
 	
 	return($hostname);
@@ -950,7 +950,7 @@ sub _set_paths
 				backups				=>	"/root/anvil-backups",
 				'cgi-bin'			=>	"/var/www/cgi-bin",
 				firewalld_services		=>	"/usr/lib/firewalld/services",
-				#firewalld_zones		=>	"/etc/firewalld/zones",
+				firewalld_zones_etc		=>	"/etc/firewalld/zones",		# Changes when firewall-cmd ... --permanent is used.
 				firewalld_zones			=>	"/usr/lib/firewalld/zones",
 				html				=>	"/var/www/html",
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
@@ -961,6 +961,7 @@ sub _set_paths
 					definitions			=>	"/mnt/shared/definitions",
 					files				=>	"/mnt/shared/files",
 					incoming			=>	"/mnt/shared/incoming",
+					provision			=>	"/mnt/shared/provision",
 					temp				=>	"/mnt/shared/temp",
 				},
 				skins				=>	"/var/www/html/skins",
@@ -981,18 +982,25 @@ sub _set_paths
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
+				bridge				=>	"/usr/sbin/bridge",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",
+				cibadmin			=>	"/usr/sbin/cibadmin",
 				cp				=>	"/usr/bin/cp",
 				createdb			=>	"/usr/bin/createdb",
 				createrepo			=>	"/usr/bin/createrepo",
 				createuser			=>	"/usr/bin/createuser",
+				crm_error			=>	"/usr/sbin/crm_error",
 				dmidecode			=>	"/usr/sbin/dmidecode",
 				dnf				=>	"/usr/bin/dnf",
+				drbdadm				=>	"/usr/sbin/drbdadm",
+				drbdsetup			=>	"/usr/sbin/drbdsetup",
 				echo				=>	"/usr/bin/echo",
 				ethtool				=>	"/usr/sbin/ethtool",
 				expect				=>	"/usr/bin/expect", 
 				'firewall-cmd'			=>	"/usr/bin/firewall-cmd",
+				free				=>	"/usr/bin/free",
+				getent				=>	"/usr/bin/getent",
 				gethostip			=>	"/usr/bin/gethostip",
 				'grep'				=>	"/usr/bin/grep", 
 				head				=>	"/usr/bin/head",
@@ -1023,6 +1031,7 @@ sub _set_paths
 				'shutdown'			=>	"/usr/sbin/shutdown",
 				'ssh-keygen'			=>	"/usr/bin/ssh-keygen",
 				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
+				stonith_admin			=>	"/usr/sbin/stonith_admin",
 				strings				=>	"/usr/bin/strings",
 				'striker-configure-host'	=>	"/usr/sbin/striker-configure-host",
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",

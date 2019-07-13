@@ -148,7 +148,7 @@ else
 fi;
 ";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($output, $error) = $anvil->Remote->call({
+		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
 			target      => $target,
@@ -538,8 +538,8 @@ sub host_uuid
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { '$<' => $<, '$>' => $> }});
 		if (($< == 0) or ($> == 0))
 		{
-			$uuid = lc($anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"}));
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+			($uuid, my $return_code) = lc($anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"}));
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid, return_code => $return_code }});
 		}
 		else
 		{
@@ -626,8 +626,8 @@ sub md5sum
 		my $shell_call = $anvil->data->{path}{exe}{md5sum}." ".$file;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
-		my $return = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
+		my ($return, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return, return_code => $return_code }});
 		
 		# split the sum off.
 		$sum = ($return =~ /^(.*?)\s+$file$/)[0];
@@ -711,9 +711,9 @@ sub network_details
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $network      = {};
-	my $hostname     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
-	my $ip_addr_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." addr list"});
+	my $network                      = {};
+	my ($hostname, $return_code)     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
+	(my $ip_addr_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." addr list"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		hostname     => $hostname, 
 		ip_addr_list => $ip_addr_list,
@@ -1025,12 +1025,7 @@ sub _wrap_to
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Get the column width
-	my $shell_call = $anvil->data->{path}{exe}{tput}." cols";
-	my $columns    = $anvil->System->call({
-		debug           => $debug, 
-		redirect_stderr => 0, 
-		shell_call      => $shell_call, 
-	});
+	my ($columns, $return_code) = $anvil->System->call({debug => $debug, redirect_stderr => 0, shell_call => $anvil->data->{path}{exe}{tput}." cols" });
 	if ((not defined $columns) or ($columns !~ /^\d+$/))
 	{
 		# Set 0.

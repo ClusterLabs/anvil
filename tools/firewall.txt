@@ -12,6 +12,7 @@
   <service name="postgresql"/>
   <service name="ssh"/>
   <service name="tftp"/>
+  <service name="high-availability"/>
 </zone>
 <!-- end bcn_zone -->
 

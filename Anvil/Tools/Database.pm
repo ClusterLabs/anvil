@@ -258,8 +258,8 @@ sub configure_pgsql
 		if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 		{
 			# Initialize.
-			my $output = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'postgresql-setup'}." initdb", source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 			
 			# Did it succeed?
 			if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
@@ -453,8 +453,8 @@ sub configure_pgsql
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0099", variables => { uuid => $uuid }});
 		return("!!error!!");
 	}
-	my $user_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_list => $user_list }});
+	my ($user_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_list => $user_list, return_code => $return_code }});
 	foreach my $line (split/\n/, $user_list)
 	{
 		if ($line =~ /^ $database_user\s+\|\s+(\d+)/)
@@ -470,8 +470,8 @@ sub configure_pgsql
 	if ($create_user)
 	{
 		# Create the user
-		my $create_output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $database_user\"", source => $THIS_FILE, line => __LINE__});
-		my $user_list     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
+		my ($create_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createuser}." --no-superuser --createdb --no-createrole $database_user\"", source => $THIS_FILE, line => __LINE__});
+		(my $user_list, $return_code)     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT usename, usesysid FROM pg_catalog.pg_user;'\"", source => $THIS_FILE, line => __LINE__});
 		my $user_exists   = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_output => $create_output, user_list => $user_list }});
 		foreach my $line (split/\n/, $user_list)
@@ -496,8 +496,8 @@ sub configure_pgsql
 		{
 			foreach my $user ("postgres", $database_user)
 			{
-				my $update_output = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$uuid}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { update_output => $update_output }});
+				my ($update_output, $return_code) = $anvil->System->call({secure => 1, shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c \\\"ALTER ROLE $user WITH PASSWORD '".$anvil->data->{database}{$uuid}{password}."';\\\"\"", source => $THIS_FILE, line => __LINE__});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { update_output => $update_output, return_code => $return_code }});
 				foreach my $line (split/\n/, $user_list)
 				{
 					if ($line =~ /ALTER ROLE/)
@@ -515,8 +515,8 @@ sub configure_pgsql
 	my $database_name   = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_name => $database_name }});
 	
-	my $database_list = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list }});
+	(my $database_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list, return_code => $return_code }});
 	foreach my $line (split/\n/, $database_list)
 	{
 		if ($line =~ /^ $database_name$/)
@@ -530,12 +530,12 @@ sub configure_pgsql
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_database => $create_database }});
 	if ($create_database)
 	{
-		my $create_output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}."  --owner $database_user $database_name\"", source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_output => $create_output }});
+		my ($create_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{createdb}."  --owner $database_user $database_name\"", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_output => $create_output, return_code => $return_code }});
 		
-		my $database_exists = 0;
-		my $database_list   = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list }});
+		my $database_exists               = 0;
+		(my $database_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{su}." - postgres -c \"".$anvil->data->{path}{exe}{psql}." template1 -c 'SELECT datname FROM pg_catalog.pg_database;'\"", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { database_list => $database_list, return_code => $return_code }});
 		foreach my $line (split/\n/, $database_list)
 		{
 			if ($line =~ /^ $database_name$/)

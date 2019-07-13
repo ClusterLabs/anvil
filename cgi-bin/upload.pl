@@ -58,11 +58,7 @@ if ($cgi->param())
 	close $file_handle;
 	
 	# TODO: Call anvil-manage-files as a backgroup process, use the logic below and move the 
-	$anvil->System->call({
-		debug      => 2,
-		background => 1,
-		shell_call => $anvil->data->{path}{exe}{'anvil-update-files'}, 
-	});
+	$anvil->System->call({debug => 2, background => 1, shell_call => $anvil->data->{path}{exe}{'anvil-update-files'}});
 	
 	### NOTE: The timing is a guide only. The AJAX does a lot of work before this script is invoked. It 
 	###       might be better to just remove the timing stuff entirely...

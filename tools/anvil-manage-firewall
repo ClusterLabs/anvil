@@ -58,6 +58,20 @@ $anvil->Get->switches;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0134"});
 check_initial_setup($anvil);
 
+### TODO:
+=cut
+firewall-cmd --get-active-zones | grep -q virbr0
+if [ $? -eq 0 ]; 
+then 
+    echo "Removing libvirt firewall zone..."
+    firewall-cmd --zone=libvirt --remove-interface=virbr0 --permanent
+    firewall-cmd  --zone=libvirt --remove-interface=virbr0
+    echo "Done."
+else
+    echo "There is no libvirt firewall zone to remove."
+fi
+=cut
+
 # Restart, if needed.
 if ($anvil->data->{firewall}{reload})
 {
@@ -135,10 +149,12 @@ sub check_initial_setup
 	# Process the list of existing zones from iptables/firewalld.
 	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}})
 	{
-		my $file = exists $anvil->data->{firewall}{zone}{$zone}{file} ? $anvil->data->{firewall}{zone}{$zone}{file} : $anvil->data->{path}{directories}{firewalld_zones}."/".$zone.".xml";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			"s1:zone" => $zone,
-			"s2:file" => $file, 
+		my $file      = exists $anvil->data->{firewall}{zone}{$zone}{file} ? $anvil->data->{firewall}{zone}{$zone}{file} : $anvil->data->{path}{directories}{firewalld_zones}."/".$zone.".xml";
+		my $user_file = $anvil->data->{path}{directories}{firewalld_zones_etc}."/".$zone.".xml";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:zone"      => $zone,
+			"s2:file"      => $file, 
+			"s3:user_file" => $user_file, 
 		}});
 		
 		### NOTE: This is probably overkill.
@@ -161,6 +177,13 @@ sub check_initial_setup
 		# Skip if this is a zone I don't care about.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { wanted => $wanted }});
 		next if not $wanted;
+		
+		# Now, skip if the user-land file exists.
+		if (-e $user_file)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0143", variables => { zone => $zone, file => $user_file }});
+			next;
+		}
 		
 		# Create or update the zone file, if needed.
 		my $template    = "";
@@ -274,11 +297,11 @@ sub check_initial_setup
 					zone      => $zone, 
 				}});
 				
-				my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface." --permanent"});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+				my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface." --permanent"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 				
-				$output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+				($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --zone=".$zone." --change-interface=".$interface});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 				
 				$anvil->data->{firewall}{reload} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "firewall::reload" => $anvil->data->{firewall}{reload} }});
@@ -297,15 +320,15 @@ sub check_initial_setup
 	if ($anvil->data->{firewall}{default_zone})
 	{
 		# What's the current default zone?
-		my $default_zone = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --get-default-zone"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_zone => $default_zone }});
+		my ($default_zone, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --get-default-zone"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_zone => $default_zone, return_code => $return_code }});
 		
 		if ($default_zone ne $anvil->data->{firewall}{default_zone})
 		{
 			# Update.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0141", variables => { zone => $internet_zone }});
-			my $output = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --set-default-zone=".$anvil->data->{firewall}{default_zone}});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --set-default-zone=".$anvil->data->{firewall}{default_zone}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 			
 			$anvil->data->{firewall}{reload} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "firewall::reload" => $anvil->data->{firewall}{reload} }});
@@ -324,8 +347,8 @@ sub restart_firewall
 	my ($anvil) = @_;
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0139"});
-	my $output = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --complete-reload"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'firewall-cmd'}." --complete-reload"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "message_0140"});
 	$anvil->System->restart_daemon({debug => 3, daemon => "firewalld"});

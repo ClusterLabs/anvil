@@ -1037,10 +1037,11 @@ sub add_sync_peer
 		my $shell_call = $anvil->data->{path}{exe}{dmidecode}." --string system-uuid";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
-		my ($output, $error) = $anvil->Remote->call({
-			password   => $password, 
-			target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
-			shell_call => $shell_call,
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			password    => $password, 
+			target      => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
+			shell_call  => $shell_call,
+			return_code => $return_code, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output => $output, 
@@ -1063,10 +1064,11 @@ sub add_sync_peer
 			}
 			else
 			{
-				my ($error, $output) = $anvil->Remote->call({
-					password   => $password, 
-					target     => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
-					shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
+				my ($error, $output, $return_code) = $anvil->Remote->call({
+					password    => $password, 
+					target      => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
+					shell_call  => $anvil->data->{path}{exe}{hostnamectl}." --static",
+					return_code => $return_code, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output => $output, 
@@ -1110,8 +1112,8 @@ sub add_sync_peer
 		});
 		
 		# This will return '1' only, if it works.
-		my $db_access = $anvil->System->call({shell_call => "PGPASSFILE=\"".$pgpass_file."\" ".$anvil->data->{path}{exe}{psql}." --host ".$host." --port ".$port." --dbname ".$name." --username ".$user." --no-password --tuples-only --no-align --command \"SELECT 1\""});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_access => $db_access }});
+		my ($db_access, $return_code) = $anvil->System->call({shell_call => "PGPASSFILE=\"".$pgpass_file."\" ".$anvil->data->{path}{exe}{psql}." --host ".$host." --port ".$port." --dbname ".$name." --username ".$user." --no-password --tuples-only --no-align --command \"SELECT 1\""});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_access => $db_access, return_code => $return_code }});
 		if ($db_access ne "1")
 		{
 			# Failed to connect.

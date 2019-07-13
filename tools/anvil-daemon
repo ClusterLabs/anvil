@@ -351,7 +351,7 @@ sub check_ssh_keys
 			# Generate the SSH keys.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0270", variables => { user => $user }});
 			
-			my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
 			if (-e $ssh_public_key_file)
 			{
 				# Success!
@@ -756,8 +756,8 @@ sub check_install_target
 		return(0);
 	}
 	
-	my $status = "unavailable";
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --status --check --no-refresh"});
+	my $status                 = "unavailable";
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --status --check --no-refresh"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
@@ -830,8 +830,8 @@ sub check_firewall
 	# Check the firewall needs to be updated.
 	if ($configured)
 	{
-		my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	}
 	
 	return(0);
@@ -928,7 +928,7 @@ sub prep_database
 	
 	my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
-	my $database_output = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	my ($database_output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	if ($database_output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_output => $database_output }});
@@ -1153,7 +1153,7 @@ sub run_jobs
 			# Start the job, appending '--job-uuid' to the command.
 			my $command = $job_command." --job-uuid ".$job_uuid;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0210", variables => { command => $command }});
-			$anvil->data->{jobs}{handles}{$job_uuid} = $anvil->System->call({
+			($anvil->data->{jobs}{handles}{$job_uuid}, my $return_code) = $anvil->System->call({
 				debug       => 3,
 				background  => 1, 
 				stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
@@ -1162,7 +1162,7 @@ sub run_jobs
 				source      => $THIS_FILE, 
 				line        => __LINE__,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid}, return_code => $return_code }});
 			
 			# Log the PID (the job should update the database).
 			my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
@@ -1196,7 +1196,7 @@ sub update_state_file
 {
 	my ($anvil) = @_;
 	
-	my $states_output = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}, source => $THIS_FILE, line => __LINE__});
+	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}, source => $THIS_FILE, line => __LINE__});
 	if ($states_output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { states_output => $states_output }});
