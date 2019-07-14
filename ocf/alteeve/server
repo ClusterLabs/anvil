@@ -98,32 +98,30 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
-# Read or Set the environment variables
-$anvil->data->{environment} => {
-	# This is the name of the server we're managing.										      # Example values:
-	OCF_RESKEY_name			=>	defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : "", # srv01-c7	
-	# This is our node name
-	OCF_RESKEY_CRM_meta_on_node	=>	defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : "", # el8-a01n01.digimer.ca
-	# This says "UUID", but it's the node ID.
-	OCF_RESKEY_CRM_meta_on_node_uuid =>	defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : "", # 1
-	# This is the timeout for the called action in millisecond.
-	OCF_RESKEY_CRM_meta_timeout	=>	defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : "", # 20000
-	# If this is set, we'll bump our log level as well.
-	PCMK_debug			=>	defined $ENV{PCMK_debug}                         ? $ENV{PCMK_debug}                         : "", # 0
-	# These are other variables that are set, but we don't currently care about them
-	OCF_EXIT_REASON_PREFIX		=>	defined $ENV{OCF_EXIT_REASON_PREFIX}             ? $ENV{OCF_EXIT_REASON_PREFIX}             : "", # ocf-exit-reason:
-	OCF_RA_VERSION_MAJOR		=>	defined $ENV{OCF_RA_VERSION_MAJOR}               ? $ENV{OCF_RA_VERSION_MAJOR}               : "", # 1
-	OCF_RA_VERSION_MINOR		=>	defined $ENV{OCF_RA_VERSION_MINOR}               ? $ENV{OCF_RA_VERSION_MINOR}               : "", # 0
-	OCF_RESKEY_crm_feature_set	=>	defined $ENV{OCF_RESKEY_crm_feature_set}         ? $ENV{OCF_RESKEY_crm_feature_set}         : "", # 3.0.12
-	OCF_RESOURCE_INSTANCE		=>	defined $ENV{OCF_RESOURCE_INSTANCE}              ? $ENV{OCF_RESOURCE_INSTANCE}              : "", # srv01-c7
-	OCF_RESOURCE_PROVIDER		=>	defined $ENV{OCF_RESOURCE_PROVIDER}              ? $ENV{OCF_RESOURCE_PROVIDER}              : "", # alteeve
-	OCF_RESOURCE_TYPE		=>	defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : "", # server
-	OCF_ROOT			=>	defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : "", # /usr/lib/ocf
-	# These are set during a migration
-	OCF_RESKEY_CRM_meta_migrate_source =>	defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : "", # el8-a01n01.digimer.ca
-	OCF_RESKEY_CRM_meta_migrate_target => 	defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : "", # el8-a01n02.digimer.ca
-	OCF_RESKEY_CRM_meta_record_pending =>	defined $ENV{OCF_RESKEY_CRM_meta_record_pending} ? $ENV{OCF_RESKEY_CRM_meta_record_pending} : "", # true
-};
+### Read or Set the environment variables
+# This is the name of the server we're managing.                # Example values:
+$anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-c7 
+# This is our node name
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : ""; # el8-a01n01.digimer.ca
+# This says "UUID", but it's the node ID.
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node_uuid}   = defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : ""; # 1
+# This is the timeout for the called action in millisecond.
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : ""; # 20000
+# If this is set, we'll bump our log level as well.
+$anvil->data->{environment}{PCMK_debug}                         = defined $ENV{PCMK_debug}                         ? $ENV{PCMK_debug}                         : ""; # 0
+# These are other variables that are set, but we don't currently care about them
+$anvil->data->{environment}{OCF_EXIT_REASON_PREFIX}             = defined $ENV{OCF_EXIT_REASON_PREFIX}             ? $ENV{OCF_EXIT_REASON_PREFIX}             : ""; # ocf-exit-reason:
+$anvil->data->{environment}{OCF_RA_VERSION_MAJOR}               = defined $ENV{OCF_RA_VERSION_MAJOR}               ? $ENV{OCF_RA_VERSION_MAJOR}               : ""; # 1
+$anvil->data->{environment}{OCF_RA_VERSION_MINOR}               = defined $ENV{OCF_RA_VERSION_MINOR}               ? $ENV{OCF_RA_VERSION_MINOR}               : ""; # 0
+$anvil->data->{environment}{OCF_RESKEY_crm_feature_set}         = defined $ENV{OCF_RESKEY_crm_feature_set}         ? $ENV{OCF_RESKEY_crm_feature_set}         : ""; # 3.0.12
+$anvil->data->{environment}{OCF_RESOURCE_INSTANCE}              = defined $ENV{OCF_RESOURCE_INSTANCE}              ? $ENV{OCF_RESOURCE_INSTANCE}              : ""; # srv01-c7
+$anvil->data->{environment}{OCF_RESOURCE_PROVIDER}              = defined $ENV{OCF_RESOURCE_PROVIDER}              ? $ENV{OCF_RESOURCE_PROVIDER}              : ""; # alteeve
+$anvil->data->{environment}{OCF_RESOURCE_TYPE}                  = defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : ""; # server
+$anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : ""; # /usr/lib/ocf
+# These are set during a migration
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : ""; # el8-a01n01.digimer.ca
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : ""; # el8-a01n02.digimer.ca
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_record_pending} = defined $ENV{OCF_RESKEY_CRM_meta_record_pending} ? $ENV{OCF_RESKEY_CRM_meta_record_pending} : ""; # true
 
 # If pacemaker is in debug, so are we,
 if ($anvil->data->{environment}{PCMK_debug})
@@ -347,7 +345,7 @@ sub start_server
 	validate_all($anvil);
 	
 	# If we're still alive, we're ready to boot.
-	to_log($anvil, {message => "Sanity checks passed, ready to start: [$server].", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0305", variables => { server => $server }});
 	
 	my $definition_file =  $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { definition_file => $definition_file }});
@@ -359,7 +357,11 @@ sub start_server
 	{
 		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
 		# also start the server on another node, because we don't know the state of it here.
-		to_log($anvil, {message => "All tests passed, yet the attempt to boot the server: [$server] exited with a non-zero return code: [$return_code]. The server is in an unknown state, so exiting with a fatal error. Human intervention is now required. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0307", variables => { 
+			server      => $server,
+			return_code => $return_code, 
+			output      => $output, 
+		}});
 		$anvil->nice_exit({exit_code => 6});
 	}
 	
@@ -372,7 +374,11 @@ sub start_server
 	{
 		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
 		# also start the server on another node, because we don't know the state of it here.
-		to_log($anvil, {message => "It appears that the call to boot the server: [$server] worked, but the call to list running servers exited with a non-zero return code: [$return_code]. The server is in an unknown state, so exiting with a fatal error. Human intervention is now required. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0308", variables => { 
+			server      => $server,
+			return_code => $return_code, 
+			output      => $output, 
+		}});
 		$anvil->nice_exit({exit_code => 6});
 	}
 	foreach my $line (split/\n/, $output)
@@ -392,13 +398,13 @@ sub start_server
 			if ($state eq "running")
 			{
 				# Success!
-				to_log($anvil, {message => "The server: [$server] has started successfully.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0309", variables => { server => $server }});
 				$anvil->nice_exit({exit_code => 0});
 			}
 			else
 			{
 				# WTF?
-				to_log($anvil, {message => "The server: [$server] should have been started, but it's state is: [$state]. Human intervention is required!", 'line' => __LINE__, level => 1, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0310", variables => { server => $server, 'state' => $state }});
 				$anvil->nice_exit({exit_code => 6});
 			}
 			
@@ -407,7 +413,7 @@ sub start_server
 	}
 	
 	# If we're still alive, then we didn't see the server in the list of running servers, which is really weird.
-	to_log($anvil, {message => "The server: [$server] should have been started, but it wasn't found in the list of running servers.", 'line' => __LINE__, level => 1, priority => "err"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0311", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 1});
 }
 
@@ -422,7 +428,7 @@ sub stop_server
 	if ($return_code)
 	{
 		# Looks like virsh isn't running.
-		to_log($anvil, {message => "The attempt to list the running servers returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0312", variables => { return_code => $return_code, output => $output }});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -446,17 +452,21 @@ sub stop_server
 			if ($state eq "running")
 			{
 				# The server is running, shut it down.
-				to_log($anvil, {message => "The server: [$server] is running. We will ask it to shut down now.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0313", variables => { server => $server }});
 			}
 			elsif ($state eq "paused")
 			{
 				# The server is paused. Resume it, wait a few, then proceed with the shutdown.
-				to_log($anvil, {message => "The server: [$server] is paused. Resuming it now so that it can react to the shutdown request.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0314", variables => { server => $server }});
 				my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." resume $server"});
 				if ($return_code)
 				{
 					# Looks like virsh isn't running.
-					to_log($anvil, {message => "The attempt to resume the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0315", variables => { 
+						server      => $server,
+						return_code => $return_code, 
+						output      => $output, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				to_log($anvil, {message => "Pausing for a moment to give the server time to resume.", 'line' => __LINE__, level => 2});
@@ -470,7 +480,11 @@ sub stop_server
 				if ($return_code)
 				{
 					# Looks like virsh isn't running.
-					to_log($anvil, {message => "The attempt to wake the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0318", variables => { 
+						server      => $server,
+						return_code => $return_code, 
+						output      => $output, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				to_log($anvil, {message => "Pausing for half a minute to give the server time to wake up.", 'line' => __LINE__, level => 2});
@@ -496,7 +510,11 @@ sub stop_server
 				if ($return_code)
 				{
 					# Looks like virsh isn't running.
-					to_log($anvil, {message => "The attempt to force-off the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0323", variables => { 
+						server      => $server,
+						return_code => $return_code, 
+						output      => $output, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				
@@ -506,7 +524,10 @@ sub stop_server
 			else
 			{
 				# WTF?
-				to_log($anvil, {message => "The server: [$server] is running, but it is in an unexpected state: [$state]. Human intervention is required!", 'line' => __LINE__, level => 1, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0325", variables => { 
+					server  => $server,
+					'state' => $state, 
+				}});
 				$anvil->nice_exit({exit_code => 6});
 			}
 			
@@ -529,7 +550,11 @@ sub stop_server
 		if ($return_code)
 		{
 			# Looks like virsh isn't running.
-			to_log($anvil, {message => "The attempt to shut down the server: [$server] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0328", variables => { 
+				server      => $server,
+				return_code => $return_code, 
+				output      => $output, 
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -543,7 +568,11 @@ sub stop_server
 		if ($return_code)
 		{
 			# Looks like virsh isn't running.
-			to_log($anvil, {message => "The attempt to list the running servers returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0312", variables => { 
+				server      => $server,
+				return_code => $return_code, 
+				output      => $output, 
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		foreach my $line (split/\n/, $output)
@@ -643,11 +672,13 @@ sub server_status
 	# If I got a non-zero return code, something went wrong with the virsh call.
 	if ($return_code)
 	{
-		to_log($anvil, {message => "It would appear that libvirtd is not operating (or not operating correctly). Expected the return code '0' but got: [$return_code].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0334", variables => { return_code => $return_code }});
 		if ($output)
 		{
-			to_log($anvil, {message => "Output of: [".$anvil->data->{path}{exe}{virsh}." list] follows;", 'line' => __LINE__, level => 0, priority => "err"});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", list => { output => $output }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0335", variables => { 
+				command => $anvil->data->{path}{exe}{virsh}, 
+				output => $output,
+			}});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -683,17 +714,23 @@ sub server_status
 		elsif ($state eq "shut off")
 		{
 			to_log($anvil, {message => "The server: [$server] is: [$state].", 'line' => __LINE__, level => 1});
-			$anvil->nice_exit({exit_code => 7});
+			$anvil->nice_exit({exit_code => $7});
 		}
 		elsif (($state eq "idle") or ($state eq "crashed"))
 		{
-			to_log($anvil, {message => "The server: [$server] is in a bad state: [$state]!", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0338", variables => { 
+				server  => $server,
+				'state' => $state, 
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		else
 		{
 			# WTF?
-			to_log($anvil, {message => "The server: [$server] is in an unexpected state: [$state]!", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0339", variables => { 
+				server  => $server,
+				'state' => $state, 
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -741,6 +778,11 @@ sub migrate_server
 		my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." list"});
 		if ($return_code)
 		{
+			### TODO: Left off here, was changing the to_log() calles with priority => "err"/"warn"
+# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0339", variables => { 
+# 				server  => $server,
+# 				'state' => $state, 
+# 			}});
 			to_log($anvil, {message => "It appears that the call to check if the server: [$server] is on this node returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -1521,7 +1563,7 @@ sub validate_emulator
 	
 	# What emulator is this using?
 	my $emulator = $anvil->data->{server}{definition_xml}->{devices}->[0]->{emulator}->[0];
-	to_log($anvil, {message => "emulator: [$emulator]", 'line' => __LINE__, level => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { emulator => $emulator }});
 	if (not -e $emulator)
 	{
 		# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
@@ -1708,17 +1750,17 @@ sub show_environment
 	{
 		next if $key eq "raw";
 		next if $anvil->data->{switches}{$key} eq "";
-		to_log($anvil, {message => "Command line switch: [$key] -> [".$anvil->data->{switches}{$key}."]", 'line' => __LINE__, level => $level});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $level, list => { "switches::${key}" => $anvil->data->{switches}{$key} }});
 	}
 	foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{environment}})
 	{
 		next if $anvil->data->{environment}{$key} eq "";
-		to_log($anvil, {message => "OCF Environment variable: [$key] -> [".$anvil->data->{environment}{$key}."]", 'line' => __LINE__, level => $level});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $level, list => { "environment::${key}" => $anvil->data->{environment}{$key} }});
 	}
 	foreach my $key (sort {$a cmp $b} keys %ENV)
 	{
 		next if exists $anvil->data->{environment}{$key};
-		to_log($anvil, {message => "System Environment variable: [$key] -> [".$ENV{$key}."]", 'line' => __LINE__, level => $level});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $level, list => { "ENV::${key}" => $ENV{$key} }});
 	}
 	
 	return(0);
@@ -1729,7 +1771,7 @@ sub show_usage
 {
 	my ($anvil) = @_;
 	
-	print "TODO: How to use this...\n";
+	### TODO: How to use this...
 	
 	$anvil->nice_exit({exit_code => 0});
 }
@@ -1783,37 +1825,37 @@ sub get_switches
 	   $anvil->data->{switches}{raw} = "";
 	foreach my $argument (@ARGV)
 	{
-		to_log($anvil, {message => "argument: [$argument]", 'line' => __LINE__, level => 3});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { argument => $argument }});
 		if ($last_argument eq "raw")
 		{
 			# Don't process anything.
 			$anvil->data->{switches}{raw} .= " ".$argument;
-			to_log($anvil, {message => "switches::raw: [".$anvil->data->{switches}{raw}."]", 'line' => __LINE__, level => 3});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw" => $anvil->data->{switches}{raw} }});
 		}
 		elsif ($argument =~ /^-/)
 		{
 			# If the argument is just '--', appeand everything after it to 'raw'.
 			if ($argument eq "--")
 			{
-				$last_argument         = "raw";
+				$last_argument                = "raw";
 				$anvil->data->{switches}{raw} = "";
-				to_log($anvil, {message => "switches::raw: [".$anvil->data->{switches}{raw}."]", 'line' => __LINE__, level => 3});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw" => $anvil->data->{switches}{raw} }});
 			}
 			else
 			{
 				($last_argument) = ($argument =~ /^-{1,2}(.*)/)[0];
-				to_log($anvil, {message => "last_argument: [$last_argument]", 'line' => __LINE__, level => 3});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_argument => $last_argument }});
 				if ($last_argument =~ /=/)
 				{
 					# Break up the variable/value.
 					($last_argument, my $value)       = (split /=/, $last_argument, 2);
 					$anvil->data->{switches}{$last_argument} = $value;
-					to_log($anvil, {message => "switches::${last_argument}: [".$anvil->data->{switches}{$last_argument}."]", 'line' => __LINE__, level => 3});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$last_argument} }});
 				}
 				else
 				{
 					$anvil->data->{switches}{$last_argument} = "#!SET!#";
-					to_log($anvil, {message => "switches::${last_argument}: [".$anvil->data->{switches}{$last_argument}."]", 'line' => __LINE__, level => 3});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$last_argument} }});
 				}
 			}
 		}
@@ -1822,26 +1864,26 @@ sub get_switches
 			if ($last_argument)
 			{
 				$anvil->data->{switches}{$last_argument} = $argument;
-				to_log($anvil, {message => "switches::${last_argument}: [".$anvil->data->{switches}{$last_argument}."]", 'line' => __LINE__, level => 3});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$last_argument} }});
 				
 				$last_argument = "";
-				to_log($anvil, {message => "last_argument: [$last_argument]", 'line' => __LINE__, level => 3});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_argument => $last_argument }});
 			}
 			else
 			{
 				# Got a value without an argument. That's OK.
 				$anvil->data->{switches}{$argument} = "#!SET!#";
-				to_log($anvil, {message => "switches::${argument}: [".$anvil->data->{switches}{$argument}."]", 'line' => __LINE__, level => 3});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$argument} }});
 			}
 		}
 	}
 	
 	# Clean up the initial space added to 'raw'.
-	to_log($anvil, {message => "switches::raw: [".$anvil->data->{switches}{raw}."]", 'line' => __LINE__, level => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw:" => $anvil->data->{switches}{raw} }});
 	if ($anvil->data->{switches}{raw})
 	{
 		$anvil->data->{switches}{raw} =~ s/^ //;
-		to_log($anvil, {message => "switches::raw: [".$anvil->data->{switches}{raw}."]", 'line' => __LINE__, level => 3});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw:" => $anvil->data->{switches}{raw} }});
 	}
 	
 	return(0);
