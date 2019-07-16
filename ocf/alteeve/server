@@ -469,13 +469,13 @@ sub stop_server
 					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
-				to_log($anvil, {message => "Pausing for a moment to give the server time to resume.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0316"});
 				sleep 3;
 			}
 			elsif ($state eq "pmsuspended")
 			{
 				# The server is paused. Resume it, wait a few, then proceed with the shutdown.
-				to_log($anvil, {message => "The server: [$server] is asleep. Waking it now so that it can react to the shutdown request.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0317", variables => { server => $server }});
 				my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." dompmwakeup $server"});
 				if ($return_code)
 				{
@@ -487,25 +487,28 @@ sub stop_server
 					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
-				to_log($anvil, {message => "Pausing for half a minute to give the server time to wake up.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0319"});
 				sleep 30;
 			}
 			elsif ($state eq "in shutdown")
 			{
 				# The server is already shutting down
-				to_log($anvil, {message => "The server: [$server] is already shutting down. We'll monitor it until it actually shuts off.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0320", variables => { server => $server }});
 				$shutdown = 0;
 			}
 			elsif ($state eq "shut off")
 			{
 				# The server is already shutting down
-				to_log($anvil, {message => "The server: [$server] is already off.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0321", variables => { server => $server }});
 				$anvil->nice_exit({exit_code => 0});
 			}
 			elsif (($state eq "idle") or ($state eq "crashed"))
 			{
 				# The server needs to be destroyed.
-				to_log($anvil, {message => "The server: [$server] is hung. Its state is: [$state]. We will force it off now.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0322", variables => { 
+					server  => $server,
+					'state' => $state, 
+				}});
 				my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." destroy $server"});
 				if ($return_code)
 				{
@@ -518,7 +521,7 @@ sub stop_server
 					$anvil->nice_exit({exit_code => 1});
 				}
 				
-				to_log($anvil, {message => "The server: [$server] is now off.", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0324", variables => { server => $server }});
 				$anvil->nice_exit({exit_code => 0});
 			}
 			else
@@ -538,7 +541,7 @@ sub stop_server
 	# If we didn't see it, it's off and undefined.
 	if (not $found)
 	{
-		to_log($anvil, {message => "The server: [$server] was not listed on this node, so it is not running here.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0326", variables => { server => $server }});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -546,7 +549,7 @@ sub stop_server
 	if ($shutdown)
 	{
 		my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." shutdown $server"});
-		to_log($anvil, {message => "Asking the server: [$server] to shut down now. Please be patient.", 'line' => __LINE__, level => 1});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0327", variables => { server => $server }});
 		if ($return_code)
 		{
 			# Looks like virsh isn't running.
@@ -593,7 +596,7 @@ sub stop_server
 				if ($state eq "shut off")
 				{
 					# We're down.
-					to_log($anvil, {message => "The server: [$server] is now off.", 'line' => __LINE__, level => 2});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0324", variables => { server => $server }});
 					$anvil->nice_exit({exit_code => 0});
 				}
 				
@@ -604,14 +607,14 @@ sub stop_server
 		# If we didn't find the server, it's off and undefined now.
 		if (not $found)
 		{
-			to_log($anvil, {message => "The server: [$server] is no longer listed. It is now off.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0329", variables => { server => $server }});
 			
 			# Stop DRBD resources now.
 			stop_storage($anvil);
 			$anvil->nice_exit({exit_code => 0});
 		}
 		
-		to_log($anvil, {message => "The server: [$server] is not off yet, waiting a few seconds and then we'll check again.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0330", variables => { server => $server }});
 		sleep 5;
 	}
 	
@@ -634,7 +637,7 @@ sub server_status
 	{
 		# Set a sane default of 20 seconds.
 		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
-		to_log($anvil, {message => "The environment variable 'OCF_RESKEY_CRM_meta_timeout' was not set, so setting it to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}."].", 'line' => __LINE__, level => 1, priority => "warn"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "warn", key => "log_0331", variables => { logout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
 	my $return_code  = undef;
 	my $output       = "";
@@ -660,11 +663,11 @@ sub server_status
 		{
 			# We've waited long enough.
 			$waiting = 0;
-			to_log($anvil, {message => "The 'virsh' call exited with the return code: [$return_code]. The 'libvirtd' may have failed to start. We won't wait any longer.", 'line' => __LINE__, level => 1, priority => "warn"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "warn", key => "log_0332", variables => { return_code => $return_code }});
 		}
 		else
 		{
-			to_log($anvil, {message => "The 'virsh' call exited with the return code: [$return_code]. The 'libvirtd' service might be starting, so we will check again shortly.", 'line' => __LINE__, level => 3});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0333", variables => { return_code => $return_code }});
 			sleep 2;
 		}
 	}
@@ -708,12 +711,18 @@ sub server_status
 		# (See the comment below the 'FUNCTIONS' divider above the first function for a full list of states.)
 		if (($state eq "running") or ($state eq "paused") or ($state eq "pmsuspended") or ($state eq "in shutdown"))
 		{
-			to_log($anvil, {message => "The server: [$server] is: [$state], which is OK.", 'line' => __LINE__, level => 1});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0336", variables => { 
+				server  => $server,
+				'state' => $state, 
+			}});
 			$anvil->nice_exit({exit_code => 0});
 		}
 		elsif ($state eq "shut off")
 		{
-			to_log($anvil, {message => "The server: [$server] is: [$state].", 'line' => __LINE__, level => 1});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0337", variables => { 
+				server  => $server,
+				'state' => $state, 
+			}});
 			$anvil->nice_exit({exit_code => $7});
 		}
 		elsif (($state eq "idle") or ($state eq "crashed"))
@@ -737,7 +746,7 @@ sub server_status
 	else
 	{
 		# Not running. Exit with OCF_NOT_RUNNING
-		to_log($anvil, {message => "The server: [$server] is not running on this node.", 'line' => __LINE__, level => 1});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0340", variables => { server => $server }});
 		$anvil->nice_exit({exit_code => 7});
 	}
 	
@@ -771,19 +780,21 @@ sub migrate_server
 	}});
 	if ($anvil->data->{switches}{migrate_to})
 	{
-		to_log($anvil, {message => "We're pushing the: [$server] to: [$target].", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0337", variables => { 
+			server => $server,
+			target => $target, 
+		}});
 		
 		# Is the server even here?
 		my $found                  = 0;
 		my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." list"});
 		if ($return_code)
 		{
-			### TODO: Left off here, was changing the to_log() calles with priority => "err"/"warn"
-# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0339", variables => { 
-# 				server  => $server,
-# 				'state' => $state, 
-# 			}});
-			to_log($anvil, {message => "It appears that the call to check if the server: [$server] is on this node returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0342", variables => { 
+				server      => $server,
+				return_code => $return_code, 
+				output      => $output, 
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		foreach my $line (split/\n/, $output)
@@ -805,14 +816,17 @@ sub migrate_server
 				# We can only migrate if it is running.
 				if (lc($state) ne "running")
 				{
-					to_log($anvil, {message => "The server: [$server] state is: [$state]. A server must be 'running' in order to migrate it.", 'line' => __LINE__, level => 0, priority => "err"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0343", variables => { 
+						server  => $server,
+						'state' => $state, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 			}
 		}
 		if (not $found)
 		{
-			to_log($anvil, {message => "The server: [$server] wasn't found on this machine.", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0344", variables => { server => $server }});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
@@ -838,12 +852,16 @@ sub migrate_server
 		if ($anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} eq $target)
 		{
 			# Yup. All we want to do if make sure it is running here.
-			to_log($anvil, {message => "Verifying that the server: [$server] was successfully migrated here.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0345", variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." list"});
 			if ($return_code)
 			{
 				# This really shouldn't happen... The migration to here should have failed.
-				to_log($anvil, {message => "While verifying that the server: [$server] migrated here, the attempt to list servers running here returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0346", variables => { 
+					server      => $server,
+					return_code => $return_code, 
+					output      => $output, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			foreach my $line (split/\n/, $output)
@@ -862,7 +880,7 @@ sub migrate_server
 					if ($state eq "running")
 					{
 						# Success!
-						to_log($anvil, {message => "The migration of the server: [$server] to here was successful!", 'line' => __LINE__, level => 1});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0347", variables => { server => $server }});
 						$anvil->nice_exit({exit_code => 0});
 					}
 				}
@@ -870,11 +888,14 @@ sub migrate_server
 			
 			# If we're still alive, we'll proceed as if we're pulling the server to us, and maybe
 			# that will work.
-			to_log($anvil, {message => "It looks like we were called to verify that the: [$server] migrated here, but it isn't here yet. We'll proceed with an attempt to pull the server over.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0348", variables => { server => $server }});
 		}
 		
 		# Validate everything, as if we were about to boot
-		to_log($anvil, {message => "We're pulling the: [$server] from: [$target].", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0349", variables => { 
+			server => $server,
+			target => $target, 
+		}});
 		validate_all($anvil);
 		
 		# If we're alive, craft the migration command.
@@ -895,12 +916,22 @@ sub migrate_server
 		my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$resource." ".$anvil->data->{resource}{$resource}{target_node_id}." --allow-two-primaries=yes";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
-		to_log($anvil, {message => "Temporarily enabling dual primary for the resource: [$resource] to the node: [".$anvil->data->{resource}{$resource}{target_name}." (".$anvil->data->{resource}{$resource}{target_node_id}."].", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0350", variables => { 
+			resource       => $resource,
+			target_name    => $anvil->data->{resource}{$resource}{target_name}, 
+			target_node_id => $anvil->data->{resource}{$resource}{target_node_id}, 
+		}});
 		my ($output, $return_code) = $anvil->System->call({shell_call =>  $shell_call});
 		if ($return_code)
 		{
 			# Something went wrong.
-			to_log($anvil, {message => "The attempt to enable dual-primary for the resource: [$resource] to the node: [".$anvil->data->{resource}{$resource}{target_name}." (".$anvil->data->{resource}{$resource}{target_node_id}.")] returned a non-zero return code [$return_code]. The returned output (if any) was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0346", variables => { 
+				resource       => $resource,
+				target_name    => $anvil->data->{resource}{$resource}{target_name}, 
+				target_node_id => $anvil->data->{resource}{$resource}{target_node_id}, 
+				return_code    => $return_code, 
+				output         => $output, 
+			}});
 			
 			# Disable migration (and any further attempts to enable dual-primary).
 			$migrate = 0;
@@ -912,17 +943,25 @@ sub migrate_server
 	if ($migrate)
 	{
 		# Call the migration.
-		to_log($anvil, {message => "The migration of: [$server] to the node: [$target] will now begin.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0352", variables => { 
+			server => $server,
+			target => $target, 
+		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { migration_command => $migration_command }});
 		my ($output, $return_code) = $anvil->System->call({shell_call =>  $migration_command});
 		if ($return_code)
 		{
 			# Something went wrong.
-			to_log($anvil, {message => "The attempt to migrate the server: [$server] to the node: [$target] returned a non-zero return code [$return_code]. The returned output (if any) was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0353", variables => { 
+				server      => $server, 
+				target      => $target, 
+				return_code => $return_code, 
+				output      => $output, 
+			}});
 		}
 		else
 		{
-			to_log($anvil, {message => "It looks like the migration was successful. Will verify in a moment.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0354"});
 			
 			$migrated = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { migrated => $migrated }});
@@ -933,12 +972,15 @@ sub migrate_server
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust all";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
-	to_log($anvil, {message => "Re-disabling dual primary by restoring config file settings.", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0355"});
 	my ($output, $return_code) = $anvil->System->call({shell_call =>  $shell_call});
 	if ($return_code)
 	{
 		# Something went wrong.
-		to_log($anvil, {message => "The attempt to reset DRBD to config file settings returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0356", variables => { 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -950,7 +992,7 @@ sub migrate_server
 	if ((not $migrate) or (not $migrated))
 	{
 		# Exit
-		to_log($anvil, {message => "Failure, exiting with '1'.", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0357"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -964,7 +1006,11 @@ sub migrate_server
 	{
 		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
 		# also start the server on another node, because we don't know the state of it here.
-		to_log($anvil, {message => "It appears that the list the running servers on the migration target: [$target] returned a non-zero return code: [$return_code]. The output, if any, was: [$output].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0358", variables => { 
+			target      => $target, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	foreach my $line (split/\n/, $output)
@@ -983,14 +1029,17 @@ sub migrate_server
 			if ($state eq "running")
 			{
 				# Success!
-				to_log($anvil, {message => "The migration of the server: [$server] to: [$target] was a success!", 'line' => __LINE__, level => 0, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0359", variables => { 
+					server => $server, 
+					target => $target, 
+				}});
 				$anvil->nice_exit({exit_code => 0});
 			}
 		}
 	}
 	
 	# If we made it here, we succeeded.
-	to_log($anvil, {message => "Success, exiting with '0'.", 'line' => __LINE__, level => 1});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0360"});
 	$anvil->nice_exit({exit_code => 0});
 }
 
@@ -998,35 +1047,35 @@ sub migrate_server
 sub validate_all
 {
 	my ($anvil) = @_;
-	to_log($anvil, {message => "Running validation tests...", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0361"});
 	
 	# Read in the server's definition file (if found and readable).
 	read_server_definition($anvil);
-	to_log($anvil, {message => "- Server definition was read.", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0362"});
 	
 	# Does the internal server name match?
 	validate_name($anvil);
-	to_log($anvil, {message => "- Server name is valid.", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0363"});
 	
 	# Make sure the emulator it wants is the one we have.
 	validate_emulator($anvil);
-	to_log($anvil, {message => "- Eumlator is valid.", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0364"});
 	
 	# These tests are only needed if we're about to boot the server
 	if (($anvil->data->{switches}{start}) or ($anvil->data->{switches}{migrate_from}))
 	{
 		# Check that we have enough RAM.
 		validate_ram($anvil);
-		to_log($anvil, {message => "- Sufficient RAM is available.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0365"});
 	}
 	
 	# Validate bridges
 	validate_bridges($anvil);
-	to_log($anvil, {message => "- Network bridge(s) are available.", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0366"});
 	
 	# Validate storage (Disks and optical media)
 	validate_storage($anvil);
-	to_log($anvil, {message => "- Storage is valid and ready.", 'line' => __LINE__, level => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0367"});
 	
 	return(0);
 }
@@ -1069,12 +1118,12 @@ sub validate_bridges
 	{
 		if ($anvil->data->{'local'}{bridge}{$bridge})
 		{
-			to_log($anvil, {message => "The bridge: [$bridge] is available for this server.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0368", variables => { bridge => $bridge }});
 		}
 		else
 		{
 			# Missing bridge.
-			to_log($anvil, {message => "The server wants to connect to the bridge: [$bridge] which we do not have on this node.", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0369", variables => { bridge => $bridge }});
 			$anvil->nice_exit({exit_code => 5});
 		}
 	}
@@ -1138,7 +1187,10 @@ sub validate_storage_drbd
 	if ($return_code)
 	{
 		# Something went wrong.
-		to_log($anvil, {message => "The attempt to read the DRBD configuration returned a non-zero code: [$return_code]. The returned output (if any) was: [$drbd_body].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0370", variables => { 
+			return_code => $return_code,
+			drbd_body   => $drbd_body, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1197,7 +1249,11 @@ sub validate_storage_drbd
 				{
 					# This is us.
 					$local = $host;
-					to_log($anvil, {message => "Recording the local connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0371", variables => { 
+						resource => $resource,
+						address  => $address, 
+						port     => $port, 
+					}});
 					$anvil->data->{server}{drbd}{'local'}{hostname}       = $host,
 					$anvil->data->{server}{drbd}{'local'}{short_hostname} = $short_hostname,
 					$anvil->data->{server}{drbd}{'local'}{address}        = $address,
@@ -1212,7 +1268,11 @@ sub validate_storage_drbd
 				{
 					# This is our peer
 					$peer = $host;
-					to_log($anvil, {message => "Recording the peer's connection details for the resource: [$resource] -> [$address:$port].", 'line' => __LINE__, level => 2});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0372", variables => { 
+						resource => $resource,
+						address  => $address, 
+						port     => $port, 
+					}});
 					$anvil->data->{server}{drbd}{peer}{hostname}       = $host,
 					$anvil->data->{server}{drbd}{peer}{short_hostname} = $short_hostname,
 					$anvil->data->{server}{drbd}{peer}{address}        = $address,
@@ -1258,24 +1318,30 @@ sub validate_storage_drbd
 	
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 	{
-		to_log($anvil, {message => "Checking that the DRBD device: [$device_path] is ready.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0373", variables => { device_path => $device_path }});
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "server::drbd::local::device::${device_path}::lv" => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv} }});
 		if (not $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv})
 		{
 			# The backing LV doesn't exist.
-			to_log($anvil, {message => "The server wants to use: [$device_path] as a hard drive, but we couldn't find the backing logical volume on this node.", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0374", variables => { device_path => $device_path }});
 			$anvil->nice_exit({exit_code => 5});
 		}
 		elsif (not -e $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv})
 		{
 			# The backing LV doesn't exist.
-			to_log($anvil, {message => "The server wants to use: [$device_path] as a hard drive, but the backing logical volume: [".$anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}."] doesn't exist on this node.", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0375", variables => { 
+				device_path => $device_path,
+				lv          => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}, 
+			}});
 			$anvil->nice_exit({exit_code => 5});
 		}
 		else
 		{
-			to_log($anvil, {message => "The server wants to use: [$device_path] as a hard drive, which is backed by the logical volume: [".$anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}."]. Checking that these are ready.", 'line' => __LINE__, level => 1});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0376", variables => { 
+				device_path => $device_path,
+				lv          => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}, 
+			}});
 		}
 	}
 	
@@ -1285,48 +1351,61 @@ sub validate_storage_drbd
 	if ($return_code)
 	{
 		# Something went wrong.
-		to_log($anvil, {message => "The attempt to read the DRBD status returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0377", variables => { 
+			return_code => $return_code,
+			status_json => $status_json, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	# If DRBD is not up, the returned JSON output will not actually exist.
 	if ($status_json =~ /No currently configured DRBD found/si)
 	{
-		to_log($anvil, {message => "DRBD is not loaded. Bringing it up now.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0378"});
 		foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 		{
 			my $resource = $anvil->data->{device_path}{$device_path}{resource};
-			to_log($anvil, {message => "Bringing up the resource: [$resource] for the server's: [".$device_path."] disk.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0379", variables => { 
+				resource    => $resource,
+				device_path => $device_path,
+			}});
 			
 			(my $drbdadm_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." up $resource"});
 			if ($return_code)
 			{
 				# Something went wrong.
-				to_log($anvil, {message => "The attempt to start the DRBD resource: [$resource] returned a non-zero code: [$return_code]. The returned output (if any) was: [$drbdadm_output].", 'line' => __LINE__, level => 0, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0380", variables => { 
+					return_code    => $return_code,
+					resource       => $resource, 
+					drbdadm_output => $drbdadm_output, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
 		
 		# Give them a few seconds to start.
-		to_log($anvil, {message => "Pausing briefly to give the resources time to start.", 'line' => __LINE__, level => 0});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0381"});
 		sleep 3;
 		
 		# Check DRBD setup again
 		$return_code = undef;
 		$status_json = undef;
-		to_log($anvil, {message => "Checking the DRBD status again.", 'line' => __LINE__, level => 0});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0385"});
 		($status_json, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdsetup}." status --json"});
 		if ($return_code)
 		{
 			# Something went wrong.
-			to_log($anvil, {message => "The attempt to read the DRBD status after bringing up the resource(s) for this server returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0382", variables => { 
+				return_code => $return_code,
+				status_json => $status_json, 
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
 		# If DRBD is still not up, we're done.
 		if ($status_json =~ /No currently configured DRBD found/si)
 		{
-			to_log($anvil, {message => "The attempt to read the DRBD status after bringing up the resource(s) appears to have failed.", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0383"});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -1343,13 +1422,20 @@ sub validate_storage_drbd
 			# Failed to see it, see if we can bring it up. 
 			   $check_again = 1;
 			my $resource    = $anvil->data->{device_path}{$device_path}{resource};
-			to_log($anvil, {message => "The DRBD resource: [$resource] backing the device: [$device_path] was not seen in the 'drbdsetup' status data. Attempting to bringing it up now.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0384", variables => { 
+				resource    => $resource,
+				device_path => $device_path,
+			}});
 			
 			(my $drbdadm_output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdadm}." up $resource"});
 			if ($return_code)
 			{
 				# Something went wrong.
-				to_log($anvil, {message => "The attempt to start the DRBD resource: [$resource] returned a non-zero code: [$return_code]. The returned output (if any) was: [$drbdadm_output].", 'line' => __LINE__, level => 0, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0380", variables => { 
+					resource       => $resource,
+					return_code    => $return_code,
+					drbdadm_output => $drbdadm_output, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
@@ -1358,18 +1444,21 @@ sub validate_storage_drbd
 		if ($check_again)
 		{
 			# Give the resource a few seconds to start.
-			to_log($anvil, {message => "Pausing briefly to give the resources time to start.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0381"});
 			sleep 3;
 			
 			# Check again.
 			$return_code = undef;
 			$status_json = undef;
-			to_log($anvil, {message => "Checking the DRBD status again.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0385"});
 			($status_json, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdsetup}." status --json"});
 			if ($return_code)
 			{
 				# Something went wrong.
-				to_log($anvil, {message => "The attempt to read the DRBD status after bringing up the resource(s) for this server returned a non-zero code: [$return_code]. The returned output (if any) was: [$status_json].", 'line' => __LINE__, level => 0, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0382", variables => { 
+					return_code => $return_code,
+					status_json => $status_json, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			
@@ -1387,16 +1476,20 @@ sub validate_storage_drbd
 			{
 				# Failed.
 				my $resource = $anvil->data->{device_path}{$device_path}{resource};
-				to_log($anvil, {message => "The DRBD resource: [$resource] backing the device: [$device_path] was not able to start.", 'line' => __LINE__, level => 0, priority => "err"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0386", variables => { 
+					resource    => $resource,
+					device_path => $device_path, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
 	}
 	
+	### TODO: Finish this.
 	# If I am about to push a server off, we need to make sure the peer is UpToDate
 	if ($anvil->data->{switches}{migrate_to})
 	{
-		to_log($anvil, {message => "Checking that the peer's DRBD resources are Connected and UpToDate prior to migration.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0387"});
 		foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 		{
 		}
@@ -1430,7 +1523,7 @@ sub check_drbd_status
 		if ((exists $anvil->data->{server}{disks}{$device_path}) && ($anvil->data->{server}{disks}{$device_path} eq "check"))
 		{
 			### This disk is in use by this server, check it.
-			to_log($anvil, {message => "The local replicated disk: [$device_path] is used by this server. Checking it out now.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0388", variables => { device_path => $device_path }});
 			
 			# If we're booting a server or migrating it here, we need to make sure all local 
 			# volumes are UpToDate?
@@ -1442,12 +1535,20 @@ sub check_drbd_status
 					if ((lc($device_ref->{'disk-state'}) ne "uptodate") && (lc($device_ref->{'disk-state'}) ne "syncsource"))
 					{
 						# We can't start here.
-						to_log($anvil, {message => "The DRBD resource: [$resource] volume: [".$device_ref->{volume}."] locat disk state is: [".$device_ref->{'disk-state'}."]. Unsafe to boot the server unless the disk state is UpToDate.", 'line' => __LINE__, level => 0, priority => "err"});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0389", variables => { 
+							resource   => $resource,
+							volume     => $device_ref->{volume}, 
+							disk_state => $device_ref->{'disk-state'},
+						}});
 						$anvil->nice_exit({exit_code => 1});
 					}
 					else
 					{
-						to_log($anvil, {message => "The DRBD resource: [$resource] volume: [".$device_ref->{volume}."] locat disk state is: [".$device_ref->{'disk-state'}."], good.", 'line' => __LINE__, level => 2});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0390", variables => { 
+							resource   => $resource, 
+							volume     => $device_ref->{volume}, 
+							disk_state => $device_ref->{'disk-state'}, 
+						 }});
 					}
 				}
 			}
@@ -1457,13 +1558,16 @@ sub check_drbd_status
 			foreach my $connection_ref (@{$resource_ref->{connections}})
 			{
 				# Is the peer's role Primary? In all cases, we abort if so.
-				to_log($anvil, {message => "Checking connection to: [".$connection_ref->{name}."].", 'line' => __LINE__, level => 2});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0390", variables => { name => $connection_ref->{name} }});
 				if (lc($connection_ref->{'peer-role'}) eq "primary")
 				{
 					# Don't boot here
 					if ($anvil->data->{switches}{start})
 					{
-						to_log($anvil, {message => "The DRBD resource: [$resource] on the peer: [".$connection_ref->{name}."] is 'Primary'. Refusing to boot.", 'line' => __LINE__, level => 0, priority => "err"});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0392", variables => { 
+							resource => $resource,
+							name     => $connection_ref->{name}
+						}});
 						$anvil->nice_exit({exit_code => 1});
 					}
 				}
@@ -1477,11 +1581,14 @@ sub check_drbd_status
 					   $peer_short_name  =~ s/\..*$//;
 					my $migration_target =  $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
 					   $migration_target =~ s/\..*$//;
-					to_log($anvil, {message => "peer_short_name: [$peer_short_name], migration_target: [$migration_target].", 'line' => __LINE__, level => 2});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						peer_short_name  => $peer_short_name,
+						migration_target => $migration_target, 
+					}});
 					if ($peer_short_name ne $migration_target)
 					{
 						# Ignore this, it isn't our target
-						to_log($anvil, {message => "Ignoring the connection to: [$peer_short_name], it isn't the migration target.", 'line' => __LINE__, level => 2});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0394", variables => { peer_short_name => $peer_short_name }});
 						next;
 					}
 					
@@ -1503,7 +1610,10 @@ sub check_drbd_status
 						}});
 						if ((lc($volume_ref->{'peer-disk-state'}) ne "uptodate") && (lc($volume_ref->{'peer-disk-state'}) ne "syncsource"))
 						{
-							to_log($anvil, {message => "The DRBD resource: [$resource] on the peer: [".$connection_ref->{name}."] is not UpToDate (or SyncSource). Refusing to migrate.", 'line' => __LINE__, level => 0, priority => "err"});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0395", variables => { 
+								resource => $resource,
+								name     => $connection_ref->{name}
+							}});
 							$anvil->nice_exit({exit_code => 1});
 						}
 					}
@@ -1516,7 +1626,8 @@ sub check_drbd_status
 		}
 		else
 		{
-			to_log($anvil, {message => "Ignoring the local replicated disk: [$device_path], it is not used by this server.", 'line' => __LINE__, level => 2});
+			# Ignoring, not used.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0396", variables => { device_path => $device_path }});
 		}
 	}
 	
@@ -1530,26 +1641,26 @@ sub validate_storage_optical
 	
 	foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{server}{optical}})
 	{
-		to_log($anvil, {message => "Checking that the optical disc image: [$file] exists.", 'line' => __LINE__, level => 2});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0397", variables => { file => $file }});
 		
 		# If the file doesn't exist, exit with OCF_ERR_INSTALLED (5). If we can't read it, exit with 
 		# OCF_ERR_PERM (4).
 		if (not -e $file)
 		{
 			# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
-			to_log($anvil, {message => "The server has the ISO: [$file] mounted in its optical drive, but that file doesn't exist on this system.", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0398", variables => { file => $file }});
 			$anvil->nice_exit({exit_code => 5});
 		}
 		elsif (not -r $file)
 		{
 			# We can't read it. Exit with OCF_ERR_PERM (4).
-			to_log($anvil, {message => "The server has the ISO: [$file] mounted in its optical drive, which we have, but we can't read it. Check permissions and for SELinux denials.", 'line' => __LINE__, level => 0, priority => "err"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0399", variables => { file => $file }});
 			$anvil->nice_exit({exit_code => 4});
 		}
 		else
 		{
 			# We're OK.
-			to_log($anvil, {message => "The server has the ISO: [$file] mounted in its optical drive, which we have.", 'line' => __LINE__, level => 2});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0400", variables => { file => $file }});
 		}
 	}
 	
@@ -1567,13 +1678,16 @@ sub validate_emulator
 	if (not -e $emulator)
 	{
 		# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
-		to_log($anvil, {message => "The server wants to use the emulator: [$emulator] which doesn't exist on this node. Was this server migrated from a different generation Anvil! system? Please update '<emulator>...</emulator>' in the server's definition file: [".$anvil->data->{server}{definition_file}."].", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0401", variables => { 
+			emulator        => $emulator,
+			definition_file => $anvil->data->{server}{definition_file}, 
+		}});
 		$anvil->nice_exit({exit_code => 5});
 	}
 	if (not -x $emulator)
 	{
 		# We can't execute it. Exit with OCF_ERR_PERM (4).
-		to_log($anvil, {message => "The server wants to use the emulator: [$emulator] which exists, but we can't run. Please check permissions and for SELinux denials.", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0402", variables => { emulator => $emulator }});
 		$anvil->nice_exit({exit_code => 4});
 	}
 	
@@ -1588,7 +1702,10 @@ sub validate_name
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	if ($server ne $anvil->data->{server}{definition_xml}->{name}->[0])
 	{
-		to_log($anvil, {message => "The configured server name: [$server] does not match the name of the server in the definition file: [".$anvil->data->{server}{definition_xml}->{name}."]!", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0403", variables => { 
+			server => $server,
+			name   => $anvil->data->{server}{definition_xml}->{name}, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1652,7 +1769,13 @@ sub validate_ram
 	if ($server_ram_bytes > $available)
 	{
 		# Not enough free memory.
-		to_log($anvil, {message => "The configured server name: [".$anvil->data->{environment}{OCF_RESKEY_name}."] needs: [".comma($anvil, $server_ram_bytes)." bytes] of RAM, but only: [".comma($anvil, $available)." bytes] are available!", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0404", variables => { 
+			name                => $anvil->data->{environment}{OCF_RESKEY_name}, 
+			ram                 => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}), 
+			ram_bytes           => $anvil->Convert->add_commas({number => $server_ram_bytes}), 
+			available_ram       => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}), 
+			available_ram_bytes => $anvil->Convert->add_commas({number => $available}), 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1687,12 +1810,18 @@ sub read_server_definition
 	# return OCF_ERR_PERM (4).
 	if (not -e $definition_file)
 	{
-		to_log($anvil, {message => "The definition file: [$definition_file] for the server: [$server] does not exist here!", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0405", variables => { 
+			definition_file => $definition_file, 
+			server          => $server, 
+		}});
 		$anvil->nice_exit({exit_code => 5});
 	}
 	elsif (not -r $definition_file)
 	{
-		to_log($anvil, {message => "The definition file: [$definition_file] for the server: [$server] can not be read!", 'line' => __LINE__, level => 0, priority => "err"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0406", variables => { 
+			definition_file => $definition_file, 
+			server          => $server, 
+		}});
 		$anvil->nice_exit({exit_code => 4});
 	}
 	
@@ -1724,8 +1853,9 @@ sub read_file
 {
 	my ($anvil, $file) = @_;
 	
-	my $body = "";
-	open (my $file_handle, "<".$file) or to_log($anvil, {message => "Failed to read: [$file]. The error was: $!", 'line' => __LINE__, level => 0, priority => "err", exit_code => 1});
+	my $body       = "";
+	my $shell_call = $file; 
+	open (my $file_handle, "<".$shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
 	{
 		# This should not generate output.
@@ -1884,30 +2014,6 @@ sub get_switches
 	{
 		$anvil->data->{switches}{raw} =~ s/^ //;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw:" => $anvil->data->{switches}{raw} }});
-	}
-	
-	return(0);
-}
-
-# Log file entries
-sub to_log
-{
-	my ($anvil, $parameters) = @_;
-	
-	my $facility  = defined $parameters->{facility}  ? $parameters->{facility}  : $anvil->data->{'log'}{facility};
-	my $level     = defined $parameters->{level}     ? $parameters->{level}     : 1;
-	my $line      = defined $parameters->{'line'}    ? $parameters->{'line'}    : 0;
-	my $message   = defined $parameters->{message}   ? $parameters->{message}   : "";
-	my $priority  = defined $parameters->{priority}  ? $parameters->{priority}  : "";
-	my $exit_code = defined $parameters->{exit_code} ? $parameters->{exit_code} : "";
-	
-	# Just send this as a raw message until we finish converting the log calls.
-	return if not $message;
-	$anvil->Log->entry({source => $THIS_FILE, line => $line, 'print' => 1, level => $level, priority => $priority, raw => $message});
-	
-	if ($exit_code =~ /^\d+$/)
-	{
-		$anvil->nice_exit({exit_code => $exit_code});
 	}
 	
 	return(0);

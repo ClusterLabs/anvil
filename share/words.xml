@@ -670,7 +670,7 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0355">Re-disabling dual primary by restoring config file settings.</key>
 		<key name="log_0356">The attempt to reset DRBD to config file settings returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0357">Failure, exiting with '1'.</key>
-		<key name="log_0358">It appears that the list the running servers on the migration target: [#!variable!target!#] returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
+		<key name="log_0358">It appears that the call to list the running servers on the migration target: [#!variable!target!#] returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0359">The migration of the server: [#!variable!server!#] to: [#!variable!target!#] was a success!</key>
 		<key name="log_0360">Success, exiting with '0'.</key>
 		<key name="log_0361">Running validation tests...</key>
