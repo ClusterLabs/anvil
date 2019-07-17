@@ -524,44 +524,52 @@ sub host_uuid
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		set          => $set,
+		'HOST::UUID' => $anvil->{HOST}{UUID}, 
+	}});
 	
 	if ($set)
 	{
-		$anvil->data->{HOST}{UUID} = $set;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
+		$anvil->{HOST}{UUID} = $set;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->{HOST}{UUID} }});
 	}
-	elsif (not $anvil->data->{HOST}{UUID})
+	elsif (not $anvil->{HOST}{UUID})
 	{
-		# Read dmidecode if I am root, otherwise, read the cache.
+		# Read /etc/anvil/host.uuid if it exists. If not, and if we're root, we'll create that file 
+		# using the UUID from dmidecode.
 		my $uuid = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { '$<' => $<, '$>' => $> }});
-		if (($< == 0) or ($> == 0))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			'$<'                    => $<, 
+			'$>'                    => $>,
+			'path::data::host_uuid' => $anvil->data->{path}{data}{host_uuid}, 
+		}});
+		if (-e $anvil->data->{path}{data}{host_uuid})
 		{
+			# Read the UUID in
+			$uuid = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{data}{host_uuid}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+		}
+		elsif (($< == 0) or ($> == 0))
+		{
+			# Create the UUID file.
 			($uuid, my $return_code) = lc($anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"}));
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid, return_code => $return_code }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				uuid        => $uuid, 
+				return_code => $return_code,
+			}});
 		}
 		else
 		{
-			# Not running as root, so I have to rely on the cache file, or die if it doesn't 
-			# exist.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'path::data::host_uuid' => $anvil->data->{path}{data}{host_uuid} }});
-			if (not -e $anvil->data->{path}{data}{host_uuid})
-			{
-				# We're done.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0187"});
-				return("#!error!#");
-			}
-			else
-			{
-				$uuid = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{data}{host_uuid}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
-			}
+			# Host UUID file doesn't exist and I'm Not running as root, I'm done.
+			# We're done.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0187"});
+			return("#!error!#");
 		}
 		
 		if ($anvil->Validate->is_uuid({uuid => $uuid}))
 		{
-			$anvil->data->{HOST}{UUID} = $uuid;
+			$anvil->{HOST}{UUID} = $uuid;
 			if (not -e $anvil->data->{path}{data}{host_uuid})
 			{
 				### TODO: This will need to set the proper SELinux context.
@@ -582,21 +590,23 @@ sub host_uuid
 		else
 		{
 			# Bad UUID.
+			$anvil->{HOST}{UUID} = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->{HOST}{UUID} }});
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0134", variables => { uuid => $uuid }});
-			$anvil->data->{HOST}{UUID} = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
+			return("#!error!#");
 		}
 	}
 	
 	# We'll also store the host UUID in a variable.
-	if ((not $anvil->data->{sys}{host_uuid}) && ($anvil->data->{HOST}{UUID}))
+	if ((not $anvil->data->{sys}{host_uuid}) && ($anvil->{HOST}{UUID}))
 	{
-		$anvil->data->{sys}{host_uuid} = $anvil->data->{HOST}{UUID};
+		$anvil->data->{sys}{host_uuid} = $anvil->{HOST}{UUID};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::host_uuid" => $anvil->data->{sys}{host_uuid} }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->data->{HOST}{UUID} }});
-	return($anvil->data->{HOST}{UUID});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "HOST::UUID" => $anvil->{HOST}{UUID} }});
+	return($anvil->{HOST}{UUID});
 }
 
 =head2 md5sum

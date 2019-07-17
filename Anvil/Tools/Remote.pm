@@ -358,7 +358,7 @@ sub call
 	else
 	{
 		# In case the user is using ports in /etc/ssh/ssh_config, we'll want to check for an entry.
-		$anvil->System->read_ssh_config();
+		$anvil->System->read_ssh_config({deubg => $debug});
 		
 		$anvil->data->{hosts}{$target}{port} = "" if not defined $anvil->data->{hosts}{$target}{port};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hosts::${target}::port" => $anvil->data->{hosts}{$target}{port} }});
@@ -389,7 +389,7 @@ sub call
 	# If the target is a host name, convert it to an IP.
 	if (not $anvil->Validate->is_ipv4({ip => $target}))
 	{
-		my $new_target = $anvil->Convert->hostname_to_ip({host_name => $target});
+		my $new_target = $anvil->Convert->hostname_to_ip({hostname => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_target => $new_target }});
 		if ($new_target)
 		{
@@ -464,6 +464,20 @@ sub call
 				$i           = $last_loop;
 				$message_key = "message_0003";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+			}
+			elsif ($connect_output =~ /Host key verification failed/i)
+			{
+				# Need to accept the fingerprint
+				$message_key = "message_0135";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+				
+				# Make sure we know the fingerprint of the remote machine
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => $< }});
+				$anvil->Remote->add_target_to_known_hosts({
+					debug  => $debug, 
+					target => $target, 
+					user   => $<,
+				});
 			}
 			elsif ($connect_output =~ /Connection refused/i)
 			{

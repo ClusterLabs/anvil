@@ -422,7 +422,8 @@ sub stop_server
 {
 	my ($anvil) = @_;
 	
-	# Stopping the server is simply a question of "is the server running?" and, if so, stop it.
+	# Stopping the server is simply a question of "is the server running?" and, if so, stop it. Once 
+	# stopped, we stop the DRBD resource on both nodes.
 	my $server                 = $anvil->data->{environment}{OCF_RESKEY_name};
 	my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." list"});
 	if ($return_code)
@@ -609,8 +610,9 @@ sub stop_server
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0329", variables => { server => $server }});
 			
-			# Stop DRBD resources now.
-			stop_storage($anvil);
+			# Stop DRBD resources now. We don't worry if it actually stops or not (let ScanCore 
+			# handle that). We only care that the server has stopped.
+			manage_drbd_resource($anvil, "down");
 			$anvil->nice_exit({exit_code => 0});
 		}
 		
@@ -1219,8 +1221,8 @@ sub validate_storage_drbd
 		{
 			my $protocol = $connection_ref->{section}->{net}->{option}->{protocol}->{value};
 			my $fencing  = $connection_ref->{section}->{net}->{option}->{fencing}->{value};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				protocol => $resource, 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				protocol => $protocol, 
 				fencing  => $fencing, 
 			}});
 			
@@ -1343,6 +1345,12 @@ sub validate_storage_drbd
 				lv          => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}, 
 			}});
 		}
+	}
+	
+	# If we're in a stop operation, we're done.
+	if ($anvil->data->{switches}{stop})
+	{
+		return(0);
 	}
 	
 	# Now read in the status of the drbd devices
@@ -1783,12 +1791,43 @@ sub validate_ram
 }
 
 # This stops (drbdadm down <server>) the storage for a given server on both nodes.
-sub stop_storage
+sub manage_drbd_resource
 {
-	my ($anvil) = @_;
+	my ($anvil, $task) = @_;
 	
 	read_server_definition($anvil);
-	validate_storage($anvil);
+	validate_storage_drbd($anvil);
+	
+	# Stop the resource on the peer, then stop it here.
+	my $server        = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $peer_hostname = $anvil->data->{server}{drbd}{peer}{hostname};
+	my $peer_address  = $anvil->data->{server}{drbd}{peer}{address};
+	my $shell_call    = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$server;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server        => $server, 
+		peer_hostname => $peer_hostname,
+		peer_address  => $peer_address, 
+		shell_call    => $shell_call, 
+	}});
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		debug       => 2, 
+		shell_call  => $shell_call,
+		target      => $peer_hostname,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		error       => $error,
+		return_code => $return_code, 
+	}});
+	
+	# Now call it locally
+	$output      = undef;
+	$return_code = undef;
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 }

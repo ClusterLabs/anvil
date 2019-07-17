@@ -178,13 +178,17 @@ sub new
 	if (ref($parameter) eq "HASH")
 	{
 		# Local parameters...
-		if ($parameter->{debug})
+		if ($parameter->{log_level})
 		{
-			$debug = $parameter->{debug};
+			$anvil->Log->level({set => $parameter->{log_level}});
 		}
 		if ($parameter->{log_secure})
 		{
 			$anvil->Log->secure({set => $parameter->{log_secure}});
+		}
+		if ($parameter->{debug})
+		{
+			$debug = $parameter->{debug};
 		}
 	}
 	elsif ($parameter)
@@ -192,12 +196,6 @@ sub new
 		# Um...
 		print $THIS_FILE." ".__LINE__."; Anvil::Tools->new() invoked with an invalid parameter. Expected a hash reference, but got: [$parameter]\n";
 		exit(1);
-	}
-	
-	# If the user passed a custom log level, sit it now.
-	if ($parameter->{log_level})
-	{
-		$anvil->Log->level({set => $parameter->{log_level}});
 	}
 	
 	# This will help clean up if we catch a signal.
@@ -612,14 +610,14 @@ sub _anvil_version
 	my $self  = shift;
 	my $anvil = $self;
 	
-	$anvil->data->{HOST}{ANVIL_VERSION} = "" if not defined $anvil->data->{HOST}{ANVIL_VERSION};
-	if ($anvil->data->{HOST}{ANVIL_VERSION} eq "")
+	$anvil->{HOST}{ANVIL_VERSION} = "" if not defined $anvil->{HOST}{ANVIL_VERSION};
+	if ($anvil->{HOST}{ANVIL_VERSION} eq "")
 	{
 		# Try to read the local Anvil! version.
-		$anvil->data->{HOST}{ANVIL_VERSION} = $anvil->Get->anvil_version();
+		$anvil->{HOST}{ANVIL_VERSION} = $anvil->Get->anvil_version();
 	}
 	
-	return($anvil->data->{HOST}{ANVIL_VERSION});
+	return($anvil->{HOST}{ANVIL_VERSION});
 }
 
 =head2 _hostname

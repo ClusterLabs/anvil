@@ -239,7 +239,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0132">Storage Network ##!variable!number!# - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
 		<key name="message_0133">Internet/Intranet-Facing Network ##!variable!number!# - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</key>
 		<key name="message_0134">Updating / configuring the firewall.</key>
-		<key name="message_0135">#!free!#</key>
+		<key name="message_0135">It appears like we need to accept the fingerprint. Will do so now and then try to conenct again.</key>
 		<key name="message_0136">The zone: [#!variable!zone!#] file: [#!variable!file!#] needs to be updated.</key>
 		<key name="message_0137">The zone: [#!variable!zone!#] file: [#!variable!file!#] doesn't exist, it will now be created.</key>
 		<key name="message_0138">The interface: [#!variable!interface!#] will be added to the zone: [#!variable!zone!#].</key>
@@ -416,7 +416,7 @@ The database connection error was:
 		<key name="log_0131">Entering function: [#!variable!function!#]</key>
 		<key name="log_0132">Connected to: [#!data!sys::database::connections!#] database(s).</key>
 		<key name="log_0133">Failed to read the system UUID. Received a non-UUID string: [#!variable!uuid!#]. Is the user: [#!variable!user!#] in the 'kmem' group?</key>
-		<key name="log_0134">The read host UUID: [#!variable!uuid!#] does not appear to be a valid UUID.</key>
+		<key name="log_0134">The host UUID: [#!variable!uuid!#] does not appear to be a valid UUID. Please check the contents of: [#!data!path::data::host_uuid!#] or the output from: [dmidecode --string system-uuid]. Note that some mainboards will report their UUID as all-0. If this is the case, manually create the 'host.uuid' file with a UUID created by 'uuidgen'.</key>
 		<key name="log_0135">- #!variable!caller!# runtime was approximately: [#!variable!runtime!#] seconds.</key>
 		<key name="log_0136"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called with either 'job_uuid': [#!variable!job_uuid!#] not being passed (or was not a valid UUID), or 'job_name': [#!variable!job_name!#] not being passed.]]></key>
 		<key name="log_0137"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called with an invalid value for: [#!variable!variable_name!#]: -> [#!variable!variable_value!#]. See 'perldoc Anvil::Tools::#!variable!module!#' for valid options.]]></key>
@@ -469,7 +469,7 @@ The database connection error was:
 		<key name="log_0184">Theew was a failed login attempt from: [#!variable!user_agent!#], trying to log in as: [#!variable!user!#]. log in rejected.</key>
 		<key name="log_0185"><![CDATA[<unknown>]]></key>	<!-- Used in some cases when a variable isn't known -->
 		<key name="log_0186"><![CDATA[<suppressed>]]></key>	<!-- Used in some cases when a variable isn't known -->
-		<key name="log_0187">UUID cache file: [#!data!path::data::host_uuid!#] doesn't exists and we're not running as root. Unable to proceed.</key>
+		<key name="log_0187">Host UUID cache file: [#!data!path::data::host_uuid!#] doesn't exists and we're not running as root so we can't read dmidecode. Unable to proceed.</key>
 		<key name="log_0188">Database archive check skipped, not running as root.</key>
 		<key name="log_0189">Database archiving is disabled, skipping archive checks.</key>
 		<key name="log_0190">Peer: [#!variable!peer!#], database: [#!variable!name!#], password: [#!variable!password!#], host UUID: [#!variable!uuid!#]</key>
