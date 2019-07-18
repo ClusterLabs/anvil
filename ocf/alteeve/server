@@ -621,8 +621,11 @@ sub stop_server
 			
 			# Stop DRBD resources now. We don't worry if it actually stops or not (let ScanCore 
 			# handle that). We only care that the server has stopped.
+			read_server_definition($anvil);
+			validate_storage($anvil);
 			foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 			{
+				
 				my $resource = $anvil->data->{device_path}{$device_path}{resource};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					device_path => $device_path, 
@@ -1200,7 +1203,7 @@ sub validate_storage
 	}
 	
 	# Verify optical disks now, unless we're migrating a server off of us or stopping.
-	if ((not $anvil->data->{switches}{migrate_to}) && ($anvil->data->{switches}{stop}))
+	if ((not $anvil->data->{switches}{migrate_to}) && (not $anvil->data->{switches}{stop}))
 	{
 		validate_storage_optical($anvil);
 	}
@@ -1766,7 +1769,7 @@ sub validate_storage_optical
 		else
 		{
 			# We're OK.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0400", variables => { file => $file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0400", variables => { file => $file }});
 		}
 	}
 	
@@ -1891,9 +1894,6 @@ sub manage_drbd_resource
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'server::drbd::peer::hostname' => $anvil->data->{server}{drbd}{peer}{hostname}, 
 	}});
-	
-	#read_server_definition($anvil);
-	#validate_storage_drbd($anvil);
 	
 	# Stop the resource on the peer, then stop it here.
 	my $peer_hostname = $anvil->data->{server}{drbd}{peer}{hostname};
