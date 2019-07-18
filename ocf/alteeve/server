@@ -9,6 +9,11 @@
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
 #          another purpose, let us know and we'll try to help.
 # 
+# NOTE: This was initially written with the idea that multiple resources could be used by a single server. 
+#       Now. we use a single resource, named after the server, with 1 or more volumes per resource. As such,
+#       you will see (for now) an attempt to parse resources, which is not needed and will be removed in 
+#       time.
+# 
 # Based on: https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 # 
 # Error types from pacemaker's perspective;
@@ -153,14 +158,16 @@ if ($anvil->data->{switches}{test2})
 }
 if ($anvil->data->{switches}{test3})
 {
-	$anvil->data->{switches}{start}              = "#!set!#";
-	$anvil->data->{environment}{OCF_RESKEY_name} = "test_server";
+	$anvil->data->{switches}{start}                          = "#!set!#";
+	$anvil->data->{environment}{OCF_RESKEY_name}             = "test_server";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "el8-a01n01.digimer.ca";
 	print "Running test 3; Boot: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
 }
 if ($anvil->data->{switches}{test4})
 {
-	$anvil->data->{switches}{stop}               = "#!set!#";
-	$anvil->data->{environment}{OCF_RESKEY_name} = "test_server";
+	$anvil->data->{switches}{stop}                           = "#!set!#";
+	$anvil->data->{environment}{OCF_RESKEY_name}             = "test_server";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "el8-a01n01.digimer.ca";
 	print "Running test 3; Shut down: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
 }
 
@@ -177,7 +184,7 @@ if (($anvil->data->{switches}{monitor})     or
 }
 else
 {
-	show_environment($anvil, 2);
+	show_environment($anvil, 3);
 }
 
 ### What are we being asked to do?
@@ -250,7 +257,7 @@ elsif ($anvil->data->{switches}{notify})
 else
 {
 	# We were called in some unexpected way. Log an error, show usage and exit.
-	show_environment($anvil, 0);
+	show_environment($anvil, 3);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level =>0, key => "log_0302"});
 	$anvil->nice_exit({exit_code => 1});
 }
@@ -331,6 +338,8 @@ sub start_server
 				'state' => $state,
 			}});
 			
+			# Make sure the server is shut down, if it is listed at all. Any other state is 
+			# unexpected and needs to be sorted by a human.
 			if ($state ne "shut down")
 			{
 				# Abort
@@ -347,12 +356,12 @@ sub start_server
 	# If we're still alive, we're ready to boot.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0305", variables => { server => $server }});
 	
-	my $definition_file =  $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { definition_file => $definition_file }});
 	
 	$return_code = undef;
 	$output      = undef;
-	($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." create $definition_file"});
+	($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." create $definition_file"});
 	if ($return_code)
 	{
 		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
@@ -612,7 +621,31 @@ sub stop_server
 			
 			# Stop DRBD resources now. We don't worry if it actually stops or not (let ScanCore 
 			# handle that). We only care that the server has stopped.
-			manage_drbd_resource($anvil, "down");
+			foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
+			{
+				my $resource = $anvil->data->{device_path}{$device_path}{resource};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					device_path => $device_path, 
+					resource    => $resource,
+				}});
+				
+				if ((not exists $anvil->data->{drbd}{stopped}{$resource}) or (not $anvil->data->{drbd}{stopped}{$resource}))
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0408", variables => { 
+						resource    => $resource,
+						device_path => $device_path,
+					}});
+					manage_drbd_resource($anvil, "down", $resource);
+					$anvil->data->{drbd}{stopped}{$resource} = 1;
+				}
+				else
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0409", variables => { 
+						resource    => $resource,
+						device_path => $device_path,
+					}});
+				}
+			}
 			$anvil->nice_exit({exit_code => 0});
 		}
 		
@@ -1120,7 +1153,7 @@ sub validate_bridges
 	{
 		if ($anvil->data->{'local'}{bridge}{$bridge})
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0368", variables => { bridge => $bridge }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0368", variables => { bridge => $bridge }});
 		}
 		else
 		{
@@ -1144,12 +1177,12 @@ sub validate_storage
 		foreach my $disk_ref (@{$device_ref->{disk}})
 		{
 			my $type = $disk_ref->{device};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
 			if ($type eq "disk")
 			{
 				foreach my $source_ref (@{$disk_ref->{source}})
 				{
-					my $device_path                         = $source_ref->{dev};
+					my $device_path                                = $source_ref->{dev};
 					   $anvil->data->{server}{disks}{$device_path} = "check";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "server::disks::${device_path}" => $anvil->data->{server}{disks}{$device_path} }});
 				}
@@ -1158,9 +1191,9 @@ sub validate_storage
 			{
 				foreach my $source_ref (@{$disk_ref->{source}})
 				{
-					my $file                           = $source_ref->{file};
+					my $file                                  = $source_ref->{file};
 					   $anvil->data->{server}{optical}{$file} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "server::optical::${file}" => $anvil->data->{server}{optical}{$file} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "server::optical::${file}" => $anvil->data->{server}{optical}{$file} }});
 				}
 			}
 		}
@@ -1185,7 +1218,7 @@ sub validate_storage_drbd
 	my ($anvil) = @_;
 	
 	# Read in the DRBD configuration XML.
-	my ($drbd_body, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
+	my ($drbd_body, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." dump-xml"});
 	if ($return_code)
 	{
 		# Something went wrong.
@@ -1215,13 +1248,14 @@ sub validate_storage_drbd
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
 		
+		# Figure out who I am and who my peer is, ignoring DR host(s).
 		my $peer  = "";
 		my $local = "";
 		foreach my $connection_ref (@{$drbd_xml->{resource}->{$resource}->{connection}})
 		{
 			my $protocol = $connection_ref->{section}->{net}->{option}->{protocol}->{value};
 			my $fencing  = $connection_ref->{section}->{net}->{option}->{fencing}->{value};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				protocol => $protocol, 
 				fencing  => $fencing, 
 			}});
@@ -1238,7 +1272,7 @@ sub validate_storage_drbd
 				my $short_hostname =  $host;
 				   $short_hostname =~ s/\..*$//;
 				my $local_hostname = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					host           => $host, 
 					short_hostname => $short_hostname, 
 					address        => $address, 
@@ -1251,7 +1285,7 @@ sub validate_storage_drbd
 				{
 					# This is us.
 					$local = $host;
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0371", variables => { 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0371", variables => { 
 						resource => $resource,
 						address  => $address, 
 						port     => $port, 
@@ -1264,13 +1298,13 @@ sub validate_storage_drbd
 					# Record my node name for this resource (to be paired with the node 
 					# ID when migrating)
 					$anvil->data->{resource}{$resource}{local_node_name} = $host;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "resource::${resource}::local_node_name" => $anvil->data->{resource}{$resource}{local_node_name} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "resource::${resource}::local_node_name" => $anvil->data->{resource}{$resource}{local_node_name} }});
 				}
 				else
 				{
 					# This is our peer
 					$peer = $host;
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0372", variables => { 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0372", variables => { 
 						resource => $resource,
 						address  => $address, 
 						port     => $port, 
@@ -1283,12 +1317,13 @@ sub validate_storage_drbd
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			'local' => $local, 
 			 peer   => $peer, 
 		}});
 		foreach my $volume (sort {$a cmp $b} keys %{$drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}})
 		{
+			# The backing device is the logical volume underpinning this DRBD device on this node.
 			my $backing_device = $drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}->{$volume}->{disk}->[0];
 			my $device_path    = $drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}->{$volume}->{device}->[0]->{content};
 			my $device_minor   = $drbd_xml->{resource}->{$resource}->{host}->{$local}->{volume}->{$volume}->{device}->[0]->{minor};
@@ -1301,38 +1336,39 @@ sub validate_storage_drbd
 			
 			$anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}    = $backing_device;
 			$anvil->data->{server}{drbd}{'local'}{device}{$device_path}{minor} = $device_minor;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"server::drbd::local::device::${device_path}::lv"    => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv},
 				"server::drbd::local::device::${device_path}::minor" => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{minor}, 
 			}});
 			
 			# Map the resource name to the local drbd device path.
-			$anvil->data->{resource}{$resource}{lv}             = $backing_device;
-			$anvil->data->{resource}{$resource}{path}           = $device_path;
-			$anvil->data->{device_path}{$device_path}{resource} = $resource;
+			$anvil->data->{resource}{$resource}{volume}{$volume}{lv}   = $backing_device;
+			$anvil->data->{resource}{$resource}{volume}{$volume}{path} = $device_path;
+			$anvil->data->{device_path}{$device_path}{resource}        = $resource;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"resource::${resource}::path"           => $anvil->data->{resource}{$resource}{path},
-				"resource::${resource}::lv"             => $anvil->data->{resource}{$resource}{lv}, 
-				"device_path::${device_path}::resource" => $anvil->data->{device_path}{$device_path}{resource}, 
+				"resource::${resource}::volume::${volume}::path" => $anvil->data->{resource}{$resource}{volume}{$volume}{path},
+				"resource::${resource}::volume::${volume}::lv"   => $anvil->data->{resource}{$resource}{volume}{$volume}{lv}, 
+				"device_path::${device_path}::resource"          => $anvil->data->{device_path}{$device_path}{resource}, 
 			}});
 		}
 	}
-	
+
+	# Pair the volumes to their backing LVs.
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0373", variables => { device_path => $device_path }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, key => "log_0373", variables => { device_path => $device_path }});
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "server::drbd::local::device::${device_path}::lv" => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "server::drbd::local::device::${device_path}::lv" => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv} }});
 		if (not $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv})
 		{
 			# The backing LV doesn't exist.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0374", variables => { device_path => $device_path }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 0, priority => "err", key => "log_0374", variables => { device_path => $device_path }});
 			$anvil->nice_exit({exit_code => 5});
 		}
 		elsif (not -e $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv})
 		{
 			# The backing LV doesn't exist.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0375", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 0, priority => "err", key => "log_0375", variables => { 
 				device_path => $device_path,
 				lv          => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}, 
 			}});
@@ -1340,7 +1376,7 @@ sub validate_storage_drbd
 		}
 		else
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0376", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0376", variables => { 
 				device_path => $device_path,
 				lv          => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv}, 
 			}});
@@ -1356,6 +1392,11 @@ sub validate_storage_drbd
 	# Now read in the status of the drbd devices
 	$return_code                    = undef;
 	(my $status_json, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdsetup}." status --json"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		status_json => $status_json,
+		return_code => $return_code, 
+		json_length => length($status_json), 
+	}});
 	if ($return_code)
 	{
 		# Something went wrong.
@@ -1367,39 +1408,50 @@ sub validate_storage_drbd
 	}
 	
 	# If DRBD is not up, the returned JSON output will not actually exist.
-	if ($status_json =~ /No currently configured DRBD found/si)
+	if (($status_json =~ /No currently configured DRBD found/si) or (not check_drbd_status($anvil, $status_json)))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0378"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0378"});
 		foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 		{
 			my $resource = $anvil->data->{device_path}{$device_path}{resource};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0379", variables => { 
-				resource    => $resource,
-				device_path => $device_path,
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				device_path => $device_path, 
+				resource    => length($resource), 
 			}});
 			
-			(my $drbdadm_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." up $resource"});
-			if ($return_code)
+			if ((not exists $anvil->data->{drbd}{started}{$resource}) or (not $anvil->data->{drbd}{started}{$resource}))
 			{
-				# Something went wrong.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0380", variables => { 
-					return_code    => $return_code,
-					resource       => $resource, 
-					drbdadm_output => $drbdadm_output, 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0379", variables => { 
+					resource    => $resource,
+					device_path => $device_path,
 				}});
-				$anvil->nice_exit({exit_code => 1});
 			}
+			else
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0407", variables => { 
+					resource    => $resource,
+					device_path => $device_path,
+				}});
+				next;
+			}
+			
+			manage_drbd_resource($anvil, "up", $resource);
+			$anvil->data->{drbd}{started}{$resource} = 1;
 		}
 		
 		# Give them a few seconds to start.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0381"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0381"});
 		sleep 3;
 		
 		# Check DRBD setup again
 		$return_code = undef;
 		$status_json = undef;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0385"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0385"});
 		($status_json, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdsetup}." status --json"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			status_json => $status_json,
+			return_code => $return_code, 
+		}});
 		if ($return_code)
 		{
 			# Something went wrong.
@@ -1411,7 +1463,7 @@ sub validate_storage_drbd
 		}
 		
 		# If DRBD is still not up, we're done.
-		if ($status_json =~ /No currently configured DRBD found/si)
+		if (($status_json =~ /No currently configured DRBD found/si) or (length($status_json) < 5))
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0383"});
 			$anvil->nice_exit({exit_code => 1});
@@ -1419,12 +1471,20 @@ sub validate_storage_drbd
 	}
 	
 	# Process the JSON data. If any disks are not seen, they won't be set to 'ok', which we'll catch next.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { status_json => $status_json }});
 	check_drbd_status($anvil, $status_json);
 	
+	### NOTE: The checks below might no longer be needed.
+=cut
 	# Make sure I saw all disks.
 	my $check_again = 0;
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			device_path                     => $device_path,
+			"server::disks::${device_path}" => $anvil->data->{server}{disks}{$device_path}, 
+		}});
+		
 		if ($anvil->data->{server}{disks}{$device_path} eq "check")
 		{
 			# Failed to see it, see if we can bring it up. 
@@ -1435,7 +1495,8 @@ sub validate_storage_drbd
 				device_path => $device_path,
 			}});
 			
-			(my $drbdadm_output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdadm}." up $resource"});
+			#manage_drbd_resource($anvil, "up", $resource);
+			(my $drbdadm_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." up $resource"});
 			if ($return_code)
 			{
 				# Something went wrong.
@@ -1476,6 +1537,7 @@ sub validate_storage_drbd
 	}
 	
 	# Do I need to check again?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {check_again => $check_again }});
 	if ($check_again)
 	{
 		foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
@@ -1492,8 +1554,9 @@ sub validate_storage_drbd
 			}
 		}
 	}
+=cut
 	
-	### TODO: Finish this.
+	### TODO: Finish this, whatever this was going to be...
 	# If I am about to push a server off, we need to make sure the peer is UpToDate
 	if ($anvil->data->{switches}{migrate_to})
 	{
@@ -1510,136 +1573,171 @@ sub validate_storage_drbd
 sub check_drbd_status
 {
 	my ($anvil, $status_json) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { status_json => $status_json }});
 	
-	my $json        = JSON->new->allow_nonref;
-	my $drbd_status = $json->decode($status_json);
+	my $json           = JSON->new->allow_nonref;
+	my $drbd_status    = $json->decode($status_json);
+	my $resource_found = 0;
 	foreach my $resource_ref (@{$drbd_status})
 	{
-		my $resource       = $resource_ref->{name};
-		my $device_path    = $anvil->data->{resource}{$resource}{path};
-		my $logical_volume = $anvil->data->{resource}{$resource}{lv};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			resource       => $resource, 
-			device_path    => $device_path, 
-			logical_volume => $logical_volume, 
-		}});
+		my $resource = $resource_ref->{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
 		
 		# Record my node ID for this resource
 		$anvil->data->{resource}{$resource}{local_node_id} = $resource_ref->{'node-id'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "resource::${resource}::local_node_id" => $anvil->data->{resource}{$resource}{local_node_id} }});
 		
-		if ((exists $anvil->data->{server}{disks}{$device_path}) && ($anvil->data->{server}{disks}{$device_path} eq "check"))
+		foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{resource}{$resource}{volume}})
 		{
-			### This disk is in use by this server, check it.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0388", variables => { device_path => $device_path }});
-			
-			# If we're booting a server or migrating it here, we need to make sure all local 
-			# volumes are UpToDate?
-			if (($anvil->data->{switches}{start}) or ($anvil->data->{switches}{migrate_from}))
+			my $device_path    = $anvil->data->{resource}{$resource}{volume}{$volume}{path};
+			my $logical_volume = $anvil->data->{resource}{$resource}{volume}{$volume}{lv};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:volume'         => $volume, 
+				's2:device_path'    => $device_path, 
+				's3:logical_volume' => $logical_volume, 
+			}});
+		
+			if ((exists $anvil->data->{server}{disks}{$device_path}) && ($anvil->data->{server}{disks}{$device_path} eq "check"))
 			{
-				foreach my $device_ref (@{$resource_ref->{devices}})
+				### This disk is in use by this server, check it.
+				$resource_found = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0388", variables => { device_path => $device_path }});
+				
+				# We can't run the server here until our device(s) are UpToDate or SyncSource.
+				if (($anvil->data->{switches}{start}) or ($anvil->data->{switches}{migrate_from}))
 				{
-					# Are we UpToDate (or SyncSource)?
-					if ((lc($device_ref->{'disk-state'}) ne "uptodate") && (lc($device_ref->{'disk-state'}) ne "syncsource"))
+					foreach my $device_ref (@{$resource_ref->{devices}})
 					{
-						# We can't start here.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0389", variables => { 
-							resource   => $resource,
-							volume     => $device_ref->{volume}, 
-							disk_state => $device_ref->{'disk-state'},
-						}});
-						$anvil->nice_exit({exit_code => 1});
-					}
-					else
-					{
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0390", variables => { 
-							resource   => $resource, 
-							volume     => $device_ref->{volume}, 
-							disk_state => $device_ref->{'disk-state'}, 
-						 }});
+						# Are we UpToDate (or SyncSource)?
+						if ((lc($device_ref->{'disk-state'}) ne "uptodate") && (lc($device_ref->{'disk-state'}) ne "syncsource"))
+						{
+							# We can't run here.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0389", variables => { 
+								resource   => $resource,
+								volume     => $device_ref->{volume}, 
+								disk_state => $device_ref->{'disk-state'},
+							}});
+							$anvil->nice_exit({exit_code => 1});
+						}
+						else
+						{
+							# We're good.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0390", variables => { 
+								resource   => $resource, 
+								volume     => $device_ref->{volume}, 
+								disk_state => $device_ref->{'disk-state'}, 
+							}});
+						}
 					}
 				}
-			}
-			
-			# If we're booting a server, we need to be sure that *no* peer is Primary. If we're 
-			# migrating, we need to be sure the migration target is UpToDate.
-			foreach my $connection_ref (@{$resource_ref->{connections}})
-			{
-				# Is the peer's role Primary? In all cases, we abort if so.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0390", variables => { name => $connection_ref->{name} }});
-				if (lc($connection_ref->{'peer-role'}) eq "primary")
+				
+				# If we're booting a server, we need to be sure that *no* peer is Primary.
+				foreach my $connection_ref (@{$resource_ref->{connections}})
 				{
-					# Don't boot here
-					if ($anvil->data->{switches}{start})
+					# If we're not connected, skip.
+					my $connection_state = $connection_ref->{'connection-state'};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
+					next if lc($connection_state) ne "connected";
+					
+					# Is the peer's role Primary? In all cases, we abort if so.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0391", variables => { name => $connection_ref->{name} }});
+					if ((lc($connection_ref->{'peer-role'}) eq "primary") && ($anvil->data->{switches}{start}))
 					{
+						# Don't boot here
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0392", variables => { 
 							resource => $resource,
 							name     => $connection_ref->{name}
 						}});
 						$anvil->nice_exit({exit_code => 1});
 					}
-				}
-				
-				# If we're migrating to the peer, make sure the target disk state is UpToDate
-				# or SyncSource.
-				if (($anvil->data->{switches}{migrate_to}) or ($anvil->data->{switches}{migrate_to}))
-				{
-					# Is this connection to our migration target?
-					my $peer_short_name  =  $connection_ref->{name};
-					   $peer_short_name  =~ s/\..*$//;
-					my $migration_target =  $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
-					   $migration_target =~ s/\..*$//;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						peer_short_name  => $peer_short_name,
-						migration_target => $migration_target, 
-					}});
-					if ($peer_short_name ne $migration_target)
-					{
-						# Ignore this, it isn't our target
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0394", variables => { peer_short_name => $peer_short_name }});
-						next;
-					}
 					
-					# We will need the node ID to enable dual-primary.
-					#print Dumper $connection_ref;
-					$anvil->data->{resource}{$resource}{target_name}    = $connection_ref->{name};
-					$anvil->data->{resource}{$resource}{target_node_id} = $connection_ref->{'peer-node-id'};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"resource::${resource}::target_name"    => $anvil->data->{resource}{$resource}{target_name}, 
-						"resource::${resource}::target_node_id" => $anvil->data->{resource}{$resource}{target_node_id}, 
-					}});
-					
-					# If we're still alive, we want to ensure all volumes are UpToDate.
-					foreach my $volume_ref (@{$connection_ref->{peer_devices}})
+					# If we're migrating to the peer, make sure the target disk state is UpToDate
+					# or SyncSource.
+					if ($anvil->data->{switches}{migrate_to})
 					{
+						# Is this connection to our migration target?
+						my $peer_short_name  =  $connection_ref->{name};
+						   $peer_short_name  =~ s/\..*$//;
+						my $migration_target =  $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
+						   $migration_target =~ s/\..*$//;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							volume     => $volume_ref->{volume}, 
-							disk_state => $volume_ref->{'peer-disk-state'}, 
+							peer_short_name  => $peer_short_name,
+							migration_target => $migration_target, 
 						}});
-						if ((lc($volume_ref->{'peer-disk-state'}) ne "uptodate") && (lc($volume_ref->{'peer-disk-state'}) ne "syncsource"))
+						if ($peer_short_name ne $migration_target)
 						{
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0395", variables => { 
-								resource => $resource,
-								name     => $connection_ref->{name}
+							# Ignore this, it isn't our target
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0394", variables => { peer_short_name => $peer_short_name }});
+							next;
+						}
+						
+						# We will need the node ID to enable dual-primary.
+						$anvil->data->{resource}{$resource}{target_name}    = $connection_ref->{name};
+						$anvil->data->{resource}{$resource}{target_node_id} = $connection_ref->{'peer-node-id'};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"resource::${resource}::target_name"    => $anvil->data->{resource}{$resource}{target_name}, 
+							"resource::${resource}::target_node_id" => $anvil->data->{resource}{$resource}{target_node_id}, 
+						}});
+						
+						# If we're still alive, we want to ensure all volumes are UpToDate.
+						foreach my $volume_ref (@{$connection_ref->{peer_devices}})
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								volume     => $volume_ref->{volume}, 
+								disk_state => $volume_ref->{'peer-disk-state'}, 
 							}});
-							$anvil->nice_exit({exit_code => 1});
+							if ((lc($volume_ref->{'peer-disk-state'}) ne "uptodate") && (lc($volume_ref->{'peer-disk-state'}) ne "syncsource"))
+							{
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0395", variables => { 
+									resource => $resource,
+									name     => $connection_ref->{name}
+								}});
+								$anvil->nice_exit({exit_code => 1});
+							}
 						}
 					}
 				}
+				
+				# If we're here, it's OK.
+				$anvil->data->{server}{disks}{$device_path} = "ok";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "server::disks::${device_path}" => $anvil->data->{server}{disks}{$device_path} }});
 			}
-			
-			# If we're here, it's OK.
-			$anvil->data->{server}{disks}{$device_path} = "ok";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "server::disks::${device_path}" => $anvil->data->{server}{disks}{$device_path} }});
+			else
+			{
+				# Ignoring, not used.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0396", variables => { device_path => $device_path }});
+			}
 		}
-		else
+		
+		# If we're still alive and we're booting a server, make sure the local resource is Primary
+		my $role = $resource_ref->{role};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { role => $role }});
+		if (($anvil->data->{switches}{start}) && (lc($role) eq "secondary"))
 		{
-			# Ignoring, not used.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0396", variables => { device_path => $device_path }});
+			# Go primary.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0410", variables => { 
+				resource => $resource,
+				role     => $role,
+			}});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." primary ".$resource});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			if ($return_code)
+			{
+				# Something went wrong
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0411", variables => { 
+					resource    => $resource,
+					return_code => $return_code,
+					output      => $output, 
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
 		}
 	}
 	
-	return(0);
+	return($resource_found);
 }
 
 # This makes sure that any media in the server's optical drive exists here and is readable.
@@ -1649,7 +1747,7 @@ sub validate_storage_optical
 	
 	foreach my $file (sort {$a cmp $b} keys %{$anvil->data->{server}{optical}})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0397", variables => { file => $file }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0397", variables => { file => $file }});
 		
 		# If the file doesn't exist, exit with OCF_ERR_INSTALLED (5). If we can't read it, exit with 
 		# OCF_ERR_PERM (4).
@@ -1682,7 +1780,7 @@ sub validate_emulator
 	
 	# What emulator is this using?
 	my $emulator = $anvil->data->{server}{definition_xml}->{devices}->[0]->{emulator}->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { emulator => $emulator }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { emulator => $emulator }});
 	if (not -e $emulator)
 	{
 		# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
@@ -1728,22 +1826,16 @@ sub validate_ram
 	# How mcuh RAM does the server need?
 	my $server_ram_value = $anvil->data->{server}{definition_xml}->{memory}->[0]->{content};
 	my $server_ram_units = $anvil->data->{server}{definition_xml}->{memory}->[0]->{unit};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server_ram_value => $server_ram_value, 
 		server_ram_units => $server_ram_units, 
 	}});
 	
 	# Convert to bytes
-	my $server_ram_bytes = $server_ram_value;
-	if    ($server_ram_units =~ /^k/i) { $server_ram_bytes = ($server_ram_value * (2 ** 10));                             }
-	elsif ($server_ram_units =~ /^m/i) { $server_ram_bytes = ($server_ram_value * (2 ** 20));                             }
-	elsif ($server_ram_units =~ /^g/i) { $server_ram_bytes = ($server_ram_value * (2 ** 30));                             }
-	elsif ($server_ram_units =~ /^t/i) { $server_ram_bytes = ($server_ram_value * (2 ** 40));                             }
-	elsif ($server_ram_units =~ /^p/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('50')->bmul($server_ram_value); }
-	elsif ($server_ram_units =~ /^e/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('60')->bmul($server_ram_value); }
-	elsif ($server_ram_units =~ /^z/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('70')->bmul($server_ram_value); }
-	elsif ($server_ram_units =~ /^y/i) { $server_ram_bytes = Math::BigInt->new('2')->bpow('80')->bmul($server_ram_value); }
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_ram_bytes => $server_ram_bytes }});
+	my $server_ram_bytes = $anvil->Convert->human_readable_to_bytes({size => $server_ram_value, type => $server_ram_units, base2 => 1 });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		server_ram_bytes => $server_ram_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}).")",
+	}});
 	
 	# How much RAM do we have available?
 	my $available               = 0;
@@ -1760,19 +1852,19 @@ sub validate_ram
 			my $cache     = $5;
 			   $available = $6;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				total     => $total, 
-				used      => $used,
-				free      => $free, 
-				shared    => $shared, 
-				cache     => $cache, 
-				available => $available, 
+				total     => $total." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $total})."})", 
+				used      => $used." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used})."})",
+				free      => $free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free})."})", 
+				shared    => $shared." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $shared})."})", 
+				cache     => $cache." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $cache})."})", 
+				available => $available." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available})."})", 
 			}});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server_ram_bytes => $anvil->Convert->add_commas({number => $server_ram_bytes}), 
-		available        => $anvil->Convert->add_commas({number => $available}), 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		server_ram_bytes => $anvil->Convert->add_commas({number => $server_ram_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}).")", 
+		available        => $anvil->Convert->add_commas({number => $available})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available}).")", 
 	}});
 	if ($server_ram_bytes > $available)
 	{
@@ -1790,23 +1882,24 @@ sub validate_ram
 	return(0);
 }
 
+### TODO: Make sure the appropriate SN ports are opened.
 # This stops (drbdadm down <server>) the storage for a given server on both nodes.
 sub manage_drbd_resource
 {
-	my ($anvil, $task) = @_;
+	my ($anvil, $task, $resource) = @_;
 	
-	read_server_definition($anvil);
-	validate_storage_drbd($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'server::drbd::peer::hostname' => $anvil->data->{server}{drbd}{peer}{hostname}, 
+	}});
+	
+	#read_server_definition($anvil);
+	#validate_storage_drbd($anvil);
 	
 	# Stop the resource on the peer, then stop it here.
-	my $server        = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $peer_hostname = $anvil->data->{server}{drbd}{peer}{hostname};
-	my $peer_address  = $anvil->data->{server}{drbd}{peer}{address};
-	my $shell_call    = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$server;
+	my $shell_call    = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server        => $server, 
 		peer_hostname => $peer_hostname,
-		peer_address  => $peer_address, 
 		shell_call    => $shell_call, 
 	}});
 	my ($output, $error, $return_code) = $anvil->Remote->call({
@@ -1865,7 +1958,7 @@ sub read_server_definition
 	}
 	
 	# Still alive? Read it in.
-	my ($definition_xml) = read_file($anvil, $definition_file);
+	my $definition_xml = $anvil->Storage->read_file({file => $definition_file});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { definition_file => $definition_file }});
 	
 	my $xml = XML::Simple->new();
@@ -1885,29 +1978,6 @@ sub read_server_definition
 	$anvil->data->{server}{definition_file} = $definition_file;
 	
 	return(0);
-}
-
-# This reads in a file and returns the contents as a single string variable.
-sub read_file
-{
-	my ($anvil, $file) = @_;
-	
-	my $body       = "";
-	my $shell_call = $file; 
-	open (my $file_handle, "<".$shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0015", variables => { shell_call => $shell_call, error => $! }});
-	while(<$file_handle>)
-	{
-		# This should not generate output.
-		chomp;
-		my $line =  $_;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
-		
-		$body .= $line."\n";
-	}
-	close $file_handle;
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { body => $body }});
-	return($body);
 }
 
 # This logs the details of this call.

@@ -688,10 +688,10 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0373">Checking that the DRBD device: [#!variable!device_path!#] is ready.</key>
 		<key name="log_0374">The server wants to use: [#!variable!device_path!#] as a hard drive, but we couldn't find the backing logical volume on this node.</key>
 		<key name="log_0375">The server wants to use: [#!variable!device_path!#] as a hard drive, but the backing logical volume: [#!variable!lv!#] doesn't exist on this node.</key>
-		<key name="log_0376">The server wants to use: [#!variable!device_path!#] as a hard drive, which is backed by the logical volume: [#!variable!lv!#]. Checking that these are ready.</key>
+		<key name="log_0376">The server wants to use: [#!variable!device_path!#] as a hard drive, which is backed by the logical volume: [#!variable!lv!#]. Will check that is is ready.</key>
 		<key name="log_0377">The attempt to read the DRBD status returned a non-zero code: [#!variable!return_code!#]. The returned output (if any) was: [#!variable!status_json!#].</key>
-		<key name="log_0378">DRBD is not loaded. Bringing it up now.</key>
-		<key name="log_0379">Bringing up the resource: [#!variable!resource!#] for the server's: [".#!variable!device_path!#."] disk.</key>
+		<key name="log_0378">The DRBD resource for this server is not running yet.</key>
+		<key name="log_0379">Bringing up the resource: [#!variable!resource!#] for the server's: [#!variable!device_path!#] disk.</key>
 		<key name="log_0380">The attempt to start the DRBD resource: [#!variable!resource!#] returned a non-zero code: [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0381">Pausing briefly to give the resources time to start.</key>
 		<key name="log_0382">The attempt to read the DRBD status after bringing up the resource(s) for this server returned a non-zero code: [#!variable!return_code!#]. The returned output (if any) was: [#!variable!status_json!#].</key>
@@ -701,8 +701,8 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0386">The DRBD resource: [#!variable!resource!#] backing the device: [#!variable!device_path!#] was not able to start.</key>
 		<key name="log_0387">Checking that the peer's DRBD resources are Connected and UpToDate prior to migration.</key>
 		<key name="log_0388">The local replicated disk: [#!variable!device_path!#] is used by this server. Checking it out now.</key>
-		<key name="log_0389">The DRBD resource: [#!variable!resource!#] volume: [#!variable!volume!#] locat disk state is: [#!variable!disk_state!#]. Unsafe to boot the server unless the disk state is UpToDate.</key>
-		<key name="log_0390">The DRBD resource: [#!variable!resource!#] volume: [#!variable!volume!#] locat disk state is: [#!variable!disk_state!#], good.</key>
+		<key name="log_0389">The DRBD resource: [#!variable!resource!#] volume: [#!variable!volume!#] local disk state is: [#!variable!disk_state!#]. Unsafe to run the server unless the local disk state is UpToDate.</key>
+		<key name="log_0390">The DRBD resource: [#!variable!resource!#] volume: [#!variable!volume!#] local disk state is: [#!variable!disk_state!#], good.</key>
 		<key name="log_0391">Checking connection to: [#!variable!name!#].</key>
 		<key name="log_0392">The DRBD resource: [#!variable!resource!#] on the peer: [#!variable!name!#] is 'Primary'. Refusing to boot.</key>
 		<key name="log_0393">peer_short_name: [#!variable!peer_short_name!#], migration_target: [#!variable!migration_target!#].</key>
@@ -719,6 +719,16 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0404">The configured server name: [#!variable!name!#] needs: [#!variable!ram!# (#!variable!ram_bytes!# bytes)] of RAM, but only: #!variable!available_ram!# (#!variable!available_ram_bytes!# bytes)] are available!</key>
 		<key name="log_0405">The definition file: [#!variable!definition_file!#] for the server: [#!variable!server!#] does not exist here!</key>
 		<key name="log_0406">The definition file: [#!variable!definition_file!#] for the server: [#!variable!server!#] can not be read!</key>
+		<key name="log_0407">The server's disk: [#!variable!device_path!#] is part of the resource: [#!variable!resource!#] which was already started.</key>
+		<key name="log_0408">Taking down the resource: [#!variable!resource!#] for the server's: [#!variable!device_path!#] disk.</key>
+		<key name="log_0409">The server's disk: [#!variable!device_path!#] is part of the resource: [#!variable!resource!#] which was already taken down.</key>
+		<key name="log_0410">The DRBD resource: [#!variable!resource!#] local role is: [#!variable!role!#]. Promoting to primary now.</key>
+		<key name="log_0411">
+Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a zero return code but got: [#!variable!return_code!#]. The output, if any, is below:
+====
+#!variable!output!#
+====
+		</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
