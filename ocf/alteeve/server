@@ -9,11 +9,6 @@
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
 #          another purpose, let us know and we'll try to help.
 # 
-# NOTE: This was initially written with the idea that multiple resources could be used by a single server. 
-#       Now. we use a single resource, named after the server, with 1 or more volumes per resource. As such,
-#       you will see (for now) an attempt to parse resources, which is not needed and will be removed in 
-#       time.
-# 
 # Based on: https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 # 
 # Error types from pacemaker's perspective;
@@ -257,8 +252,8 @@ elsif ($anvil->data->{switches}{notify})
 else
 {
 	# We were called in some unexpected way. Log an error, show usage and exit.
-	show_environment($anvil, 3);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level =>0, key => "log_0302"});
+	show_environment($anvil, 0);
 	$anvil->nice_exit({exit_code => 1});
 }
 
@@ -804,6 +799,11 @@ sub migrate_server
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source};
 	my $target = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server => $server, 
+		source => $source, 
+		target => $target,
+	}});
 	
 	# The actual migration command will involve enabling dual primary, then beginning the migration. The
 	# virsh call will depend on if we're pushing or pulling. Once the migration completes, regardless of
@@ -812,13 +812,12 @@ sub migrate_server
 	my $verify_command    = "";
 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server => $server, 
-		source => $source, 
-		target => $target,
+		'switches::migrate_to'   => $anvil->data->{switches}{migrate_to}, 
+		'switches::migrate_from' => $anvil->data->{switches}{migrate_from}, 
 	}});
 	if ($anvil->data->{switches}{migrate_to})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0337", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0341", variables => { 
 			server => $server,
 			target => $target, 
 		}});
@@ -872,7 +871,7 @@ sub migrate_server
 		validate_storage($anvil);
 		
 		# If we're alive, craft the migration command.
-		$migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --live ".$server." qemu+ssh://".$target."/system";
+		$migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
 		$verify_command    = $anvil->data->{path}{exe}{virsh}." list";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			migration_command => $migration_command, 
@@ -928,6 +927,44 @@ sub migrate_server
 			# that will work.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0348", variables => { server => $server }});
 		}
+		else
+		{
+			# If we're being re-invoked after a previous successful migration, then the server 
+			# might already be here. Check before we proceed.
+			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." list"});
+			if ($return_code)
+			{
+				# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
+				# also start the server on another node, because we don't know the state of it here.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0304", variables => { return_code => $return_code, output => $output }});
+			}
+			foreach my $line (split/\n/, $output)
+			{
+				$line =~ s/^\s+//;
+				$line =~ s/\s+$//;
+				$line =~ s/\s+/ /g;
+				
+				if ($line =~ /^(\d+) $server (.*)$/)
+				{
+					my $state = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						server  => $server, 
+						'state' => $state,
+					}});
+					
+					# Make sure the server is shut down, if it is listed at all. Any other state is 
+					# unexpected and needs to be sorted by a human.
+					if ($state ne "shut down")
+					{
+						# Abort
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0412", variables => { server => $server, 'state' => $state }});
+						$anvil->nice_exit({exit_code => 0});
+					}
+					last;
+				}
+			}
+			die;
+		}
 		
 		# Validate everything, as if we were about to boot
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0349", variables => { 
@@ -937,7 +974,7 @@ sub migrate_server
 		validate_all($anvil);
 		
 		# If we're alive, craft the migration command.
-		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --live ".$server." qemu+ssh://".$target."/system";
+		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
 		$verify_command    = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system list";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			migration_command => $migration_command, 
@@ -959,7 +996,7 @@ sub migrate_server
 			target_name    => $anvil->data->{resource}{$resource}{target_name}, 
 			target_node_id => $anvil->data->{resource}{$resource}{target_node_id}, 
 		}});
-		my ($output, $return_code) = $anvil->System->call({shell_call =>  $shell_call});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		if ($return_code)
 		{
 			# Something went wrong.
@@ -1274,8 +1311,8 @@ sub validate_storage_drbd
 				my $port           =  $connection_ref->{host}->{$host}->{address}->[0]->{port};
 				my $short_hostname =  $host;
 				   $short_hostname =~ s/\..*$//;
-				my $local_hostname = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				my $local_hostname = $anvil->_hostname;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					host           => $host, 
 					short_hostname => $short_hostname, 
 					address        => $address, 
@@ -1288,6 +1325,8 @@ sub validate_storage_drbd
 				{
 					# This is us.
 					$local = $host;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'local' => $local }});
+					
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0371", variables => { 
 						resource => $resource,
 						address  => $address, 
@@ -1297,16 +1336,24 @@ sub validate_storage_drbd
 					$anvil->data->{server}{drbd}{'local'}{short_hostname} = $short_hostname,
 					$anvil->data->{server}{drbd}{'local'}{address}        = $address,
 					$anvil->data->{server}{drbd}{'local'}{port}           = $port,
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::drbd::local::hostname"       => $anvil->data->{server}{drbd}{'local'}{hostname},
+						"server::drbd::local::short_hostname" => $anvil->data->{server}{drbd}{'local'}{short_hostname}, 
+						"server::drbd::local::address"        => $anvil->data->{server}{drbd}{'local'}{address}, 
+						"server::drbd::local::port"           => $anvil->data->{server}{drbd}{'local'}{port}, 
+					}});
 					
 					# Record my node name for this resource (to be paired with the node 
 					# ID when migrating)
 					$anvil->data->{resource}{$resource}{local_node_name} = $host;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "resource::${resource}::local_node_name" => $anvil->data->{resource}{$resource}{local_node_name} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "resource::${resource}::local_node_name" => $anvil->data->{resource}{$resource}{local_node_name} }});
 				}
 				else
 				{
 					# This is our peer
 					$peer = $host;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer => $peer }});
+					
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0372", variables => { 
 						resource => $resource,
 						address  => $address, 
@@ -1316,11 +1363,17 @@ sub validate_storage_drbd
 					$anvil->data->{server}{drbd}{peer}{short_hostname} = $short_hostname,
 					$anvil->data->{server}{drbd}{peer}{address}        = $address,
 					$anvil->data->{server}{drbd}{peer}{port}           = $port,
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server::drbd::peer::hostname"       => $anvil->data->{server}{drbd}{peer}{hostname},
+						"server::drbd::peer::short_hostname" => $anvil->data->{server}{drbd}{peer}{short_hostname}, 
+						"server::drbd::peer::address"        => $anvil->data->{server}{drbd}{peer}{address}, 
+						"server::drbd::peer::port"           => $anvil->data->{server}{drbd}{peer}{port}, 
+					}});
 				}
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			'local' => $local, 
 			 peer   => $peer, 
 		}});
@@ -1355,11 +1408,11 @@ sub validate_storage_drbd
 			}});
 		}
 	}
-
+	
 	# Pair the volumes to their backing LVs.
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, key => "log_0373", variables => { device_path => $device_path }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0373", variables => { device_path => $device_path }});
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "server::drbd::local::device::${device_path}::lv" => $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv} }});
 		if (not $anvil->data->{server}{drbd}{'local'}{device}{$device_path}{lv})
@@ -1595,12 +1648,13 @@ sub check_drbd_status
 			my $device_path    = $anvil->data->{resource}{$resource}{volume}{$volume}{path};
 			my $logical_volume = $anvil->data->{resource}{$resource}{volume}{$volume}{lv};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:volume'         => $volume, 
-				's2:device_path'    => $device_path, 
-				's3:logical_volume' => $logical_volume, 
+				's1:volume'                      => $volume, 
+				's2:device_path'                 => $device_path, 
+				's3:logical_volume'              => $logical_volume, 
+				's4:server::disks::$device_path' => defined $anvil->data->{server}{disks}{$device_path} ? $anvil->data->{server}{disks}{$device_path} : "",
 			}});
 		
-			if ((exists $anvil->data->{server}{disks}{$device_path}) && ($anvil->data->{server}{disks}{$device_path} eq "check"))
+			if ((defined $anvil->data->{server}{disks}{$device_path}) && ($anvil->data->{server}{disks}{$device_path} eq "check"))
 			{
 				### This disk is in use by this server, check it.
 				$resource_found = 1;
@@ -1639,7 +1693,7 @@ sub check_drbd_status
 				{
 					# If we're not connected, skip.
 					my $connection_state = $connection_ref->{'connection-state'};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { connection_state => $connection_state }});
 					next if lc($connection_state) ne "connected";
 					
 					# Is the peer's role Primary? In all cases, we abort if so.
@@ -1708,7 +1762,7 @@ sub check_drbd_status
 			else
 			{
 				# Ignoring, not used.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0396", variables => { device_path => $device_path }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, key => "log_0396", variables => { device_path => $device_path }});
 			}
 		}
 		
@@ -2001,6 +2055,10 @@ sub show_environment
 		next if exists $anvil->data->{environment}{$key};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $level, list => { "ENV::${key}" => $ENV{$key} }});
 	}
+	foreach my $value (@ARGV)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $level, list => { "ARGV" => $value }});
+	}
 	
 	return(0);
 }
@@ -2053,77 +2111,4 @@ It manages underlying components like DRBD 9 storage resources, brodge connectio
 ';
 	
 	$anvil->nice_exit({exit_code => 0});
-}
-
-# This gathers command line switches and stores them in 'swithes::<foo>'.
-sub get_switches
-{
-	my ($anvil) = @_;
-	
-	my $last_argument         = "";
-	   $anvil->data->{switches}{raw} = "";
-	foreach my $argument (@ARGV)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { argument => $argument }});
-		if ($last_argument eq "raw")
-		{
-			# Don't process anything.
-			$anvil->data->{switches}{raw} .= " ".$argument;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw" => $anvil->data->{switches}{raw} }});
-		}
-		elsif ($argument =~ /^-/)
-		{
-			# If the argument is just '--', appeand everything after it to 'raw'.
-			if ($argument eq "--")
-			{
-				$last_argument                = "raw";
-				$anvil->data->{switches}{raw} = "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw" => $anvil->data->{switches}{raw} }});
-			}
-			else
-			{
-				($last_argument) = ($argument =~ /^-{1,2}(.*)/)[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_argument => $last_argument }});
-				if ($last_argument =~ /=/)
-				{
-					# Break up the variable/value.
-					($last_argument, my $value)       = (split /=/, $last_argument, 2);
-					$anvil->data->{switches}{$last_argument} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$last_argument} }});
-				}
-				else
-				{
-					$anvil->data->{switches}{$last_argument} = "#!SET!#";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$last_argument} }});
-				}
-			}
-		}
-		else
-		{
-			if ($last_argument)
-			{
-				$anvil->data->{switches}{$last_argument} = $argument;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$last_argument} }});
-				
-				$last_argument = "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_argument => $last_argument }});
-			}
-			else
-			{
-				# Got a value without an argument. That's OK.
-				$anvil->data->{switches}{$argument} = "#!SET!#";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::${last_argument}" => $anvil->data->{switches}{$argument} }});
-			}
-		}
-	}
-	
-	# Clean up the initial space added to 'raw'.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw:" => $anvil->data->{switches}{raw} }});
-	if ($anvil->data->{switches}{raw})
-	{
-		$anvil->data->{switches}{raw} =~ s/^ //;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "switches::raw:" => $anvil->data->{switches}{raw} }});
-	}
-	
-	return(0);
 }

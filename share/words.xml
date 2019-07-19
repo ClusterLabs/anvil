@@ -729,6 +729,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 #!variable!output!#
 ====
 		</key>
+		<key name="log_0412">The server: [#!variable!server!#] is already on this node in the state: [#!variable!state!#], aborting the migration request.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
