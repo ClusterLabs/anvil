@@ -132,6 +132,14 @@ if ($anvil->data->{environment}{PCMK_debug})
 # Get any command line switches.
 $anvil->Get->switches;
 
+
+# Something for the logs
+if ((not $anvil->data->{switches}{metadaata}) and (not $anvil->data->{switches}{'meta-data'}))
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0298"});
+}
+
+
 ### TEST: to be removed later
 if ($anvil->data->{switches}{test1})
 {
@@ -140,7 +148,7 @@ if ($anvil->data->{switches}{test1})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n01.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n01.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n02.digimer.ca";
-	print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	#print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test2})
 {
@@ -149,25 +157,20 @@ if ($anvil->data->{switches}{test2})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n02.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n02.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n01.digimer.ca";
-	print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	#print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test3})
 {
-	$anvil->data->{switches}{start}                          = "#!set!#";
 	$anvil->data->{environment}{OCF_RESKEY_name}             = "test_server";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "el8-a01n01.digimer.ca";
-	print "Running test 3; Boot: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
+	#print "Running test 3; Boot: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
 }
 if ($anvil->data->{switches}{test4})
 {
-	$anvil->data->{switches}{stop}                           = "#!set!#";
 	$anvil->data->{environment}{OCF_RESKEY_name}             = "test_server";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "el8-a01n01.digimer.ca";
-	print "Running test 3; Shut down: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
+	#print "Running test 3; Shut down: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
 }
-
-# Something for the logs
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0298"});
 
 # This is for debugging.
 if (($anvil->data->{switches}{monitor})     or 
@@ -963,7 +966,6 @@ sub migrate_server
 					last;
 				}
 			}
-			die;
 		}
 		
 		# Validate everything, as if we were about to boot
