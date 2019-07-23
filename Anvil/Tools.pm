@@ -40,8 +40,9 @@ binmode(STDOUT, ':encoding(utf-8)');
 # methods via their containing module's name. (A La: C<< $anvil->Module->method >> rather than C<< $anvil->method >>).
 use Anvil::Tools::Account;
 use Anvil::Tools::Alert;
-use Anvil::Tools::Database;
 use Anvil::Tools::Convert;
+use Anvil::Tools::Database;
+use Anvil::Tools::DRBD;
 use Anvil::Tools::Get;
 use Anvil::Tools::Job;
 use Anvil::Tools::Log;
@@ -117,8 +118,9 @@ sub new
 		HANDLE				=>	{
 			ACCOUNT				=>	Anvil::Tools::Account->new(),
 			ALERT				=>	Anvil::Tools::Alert->new(),
-			DATABASE			=>	Anvil::Tools::Database->new(),
 			CONVERT				=>	Anvil::Tools::Convert->new(),
+			DATABASE			=>	Anvil::Tools::Database->new(),
+			DRBD				=>	Anvil::Tools::DRBD->new(),
 			GET				=>	Anvil::Tools::Get->new(),
 			LOG				=>	Anvil::Tools::Log->new(),
 			JOB				=>	Anvil::Tools::Job->new(),
@@ -154,8 +156,9 @@ sub new
 	# Get a handle on the various submodules
 	$anvil->Account->parent($anvil);
 	$anvil->Alert->parent($anvil);
-	$anvil->Database->parent($anvil);
 	$anvil->Convert->parent($anvil);
+	$anvil->Database->parent($anvil);
+	$anvil->DRBD->parent($anvil);
 	$anvil->Get->parent($anvil);
 	$anvil->Log->parent($anvil);
 	$anvil->Job->parent($anvil);
@@ -433,6 +436,18 @@ sub Alert
 	return ($self->{HANDLE}{ALERT});
 }
 
+=head2 Convert
+
+Access the C<Convert.pm> methods via 'C<< $anvil->Convert->method >>'.
+
+=cut
+sub Convert
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{CONVERT});
+}
+
 =head2 Database
 
 Access the C<Database.pm> methods via 'C<< $anvil->Database->method >>'.
@@ -445,16 +460,16 @@ sub Database
 	return ($self->{HANDLE}{DATABASE});
 }
 
-=head2 Convert
+=head2 DRBD
 
-Access the C<Convert.pm> methods via 'C<< $anvil->Convert->method >>'.
+Access the C<DRBD.pm> methods via 'C<< $anvil->DRBD->method >>'.
 
 =cut
-sub Convert
+sub DRBD
 {
 	my $self = shift;
 	
-	return ($self->{HANDLE}{CONVERT});
+	return ($self->{HANDLE}{DRBD});
 }
 
 =head2 Get

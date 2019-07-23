@@ -98,6 +98,9 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
+$anvil->DRBD->get_status({debug => 2});
+die;
+
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
 $anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-c7 
@@ -596,7 +599,7 @@ sub stop_server
 			{
 				my $state = $2;
 				   $found = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					server  => $server, 
 					'state' => $state,
 				}});
@@ -1977,6 +1980,22 @@ sub manage_drbd_resource
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	
+	# Now wait for it to come up.
+	my $wait = 1;
+	while($wait)
+	{
+		if ($wait)
+		{
+			sleep 1;
+		}
+		
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+	}
 	
 	return(0);
 }
