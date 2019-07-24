@@ -75,7 +75,15 @@ sub parent
 
 =head2 get_status
 
-This parses the DRBD status on the local or remote system. It returns a JSON -> decoded reference.
+This parses the DRBD status on the local or remote system. The data collected is stored in the following hashes;
+
+ - drbd::status::<hostname>::resource::<resource_name>::{ap-in-flight,congested,connection-state,peer-node-id,rs-in-flight}
+ - drbd::status::<hostname>::resource::<resource_name>::connection::<peer_hostname>::volume::<volume>::{has-online-verify-details,has-sync-details,out-of-sync,peer-client,peer-disk-state,pending,percent-in-sync,received,replication-state,resync-suspended,sent,unacked}
+ - # If the volume is resyncing, these additional values will be set:
+ - drbd::status::<hostname>::resource::<resource_name>::connection::<peer_hostname>::volume::<volume>::{db-dt MiB-s,db0-dt0 MiB-s,db1-dt1 MiB-s,estimated-seconds-to-finish,percent-resync-done,rs-db0-sectors,rs-db1-sectors,rs-dt-start-ms,rs-dt0-ms,rs-dt1-ms,rs-failed,rs-paused-ms,rs-same-csum,rs-total,want}
+ - drbd::status::<hostname>::resource::<resource>::devices::volume::<volume>::{al-writes,bm-writes,client,disk-state,lower-pending,minor,quorum,read,size,upper-pending,written}
+
+If any data was stored in a previous call, it will be deleted before the new data is collected and stored.
 
 Parameters;
 
@@ -108,7 +116,6 @@ sub get_status
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
-	my $version     = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
 		port        => $port, 
@@ -154,9 +161,6 @@ sub get_status
 	# Parse the output.
 	my $json        = JSON->new->allow_nonref;
 	my $drbd_status = $json->decode($output);
-	print "===] Raw Output [=======================================================================================\n";
-	print $output."\n";
-	print "========================================================================================================\n";
 	foreach my $hash_ref (@{$drbd_status})
 	{
 		my $resource = $hash_ref->{name};
@@ -174,10 +178,9 @@ sub get_status
 		}});
 		
 		my $count_i = @{$hash_ref->{connections}};
-		print "hash_ref->{connections}: [".$hash_ref->{connections}."], count_i: [$count_i]\n";
- 		for (my $i = 0; $i < $count_i; $i++)
+		for (my $i = 0; $i < $count_i; $i++)
 		{
-			print "i: [$i]\n";
+			#print "i: [$i]\n";
 			my $peer_name = $hash_ref->{connections}->[$i]->{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { peer_name => $peer_name }});
 			
@@ -195,11 +198,8 @@ sub get_status
 			}});
 			
 			my $count_j = @{$hash_ref->{connections}->[$i]->{peer_devices}};
-			print "hash_ref->{connections}->[${i}]->{peer_devices}: [".$hash_ref->{connections}->[$i]->{peer_devices}."], count_j: [$count_j]\n";
 			for (my $j = 0; $j < $count_j; $j++)
 			{
-				### TODO: What does this look like during a resync?
-				print "j: [$j]\n";
 				my $volume = $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{volume};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { volume => $volume }});
 				
@@ -230,109 +230,90 @@ sub get_status
 					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::unacked"                   => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{unacked},
 				}});
 				
+				### NOTE: 03:54 < lge> t0, t1, ...: time stamps. db/dt (0,1,...): delta blocks per delta time: the "estimated average" resync rate in kB/s from tX to now.
+				#         03:57 < lge> time stamps and block gauges are send by the module, the rate is then calculated by the tool, so if there are funny numbers, you have to tool closely if the data from the module is already bogus, or if just the calculation in the tool is off.
 				# These are set during a resync
-#				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'has-online-verify-details'} = $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'has-online-verify-details'};
-# key: [db/dt [MiB/s]] -> [86.88]
-# key: [db0/dt0 [MiB/s]] -> [86.88]
-# key: [db1/dt1 [MiB/s]] -> [93.05]
-# key: [estimated-seconds-to-finish] -> [213]
-# key: [percent-resync-done] -> [3.35]
-# key: [rs-db0-sectors] -> [1405248]
-# key: [rs-db1-sectors] -> [933440]
-# key: [rs-dt-start-ms] -> [7898]
-# key: [rs-dt0-ms] -> [7898]
-# key: [rs-dt1-ms] -> [4898]
-# key: [rs-failed] -> [0]
-# key: [rs-paused-ms] -> [0]
-# key: [rs-same-csum] -> [1405248]
-# key: [rs-total] -> [41940408]
-# key: [want] -> [0]
-				
-				foreach my $key (sort {$a cmp $b} keys %{$hash_ref->{connections}->[$i]->{peer_devices}->[$j]})
-				{
-					print "key: [$key] -> [".$hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{$key}."]\n";
-				}
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'db-dt MiB-s'}                 = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'db/dt [MiB/s]'}               ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'db/dt [MiB/s]'}               : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'db0-dt0 MiB-s'}               = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'db0/dt0 [MiB/s]'}             ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'db0/dt0 [MiB/s]'}             : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'db1-dt1 MiB-s'}               = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'db1/dt1 [MiB/s]'}             ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'db1/dt1 [MiB/s]'}             : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'estimated-seconds-to-finish'} = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'estimated-seconds-to-finish'} ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'estimated-seconds-to-finish'} : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'percent-resync-done'}         = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'percent-resync-done'}         ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'percent-resync-done'}         : 100;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-db0-sectors'}              = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-db0-sectors'}              ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-db0-sectors'}              : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-db1-sectors'}              = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-db1-sectors'}              ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-db1-sectors'}              : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-dt-start-ms'}              = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-dt-start-ms'}              ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-dt-start-ms'}              : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-dt0-ms'}                   = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-dt0-ms'}                   ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-dt0-ms'}                   : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-dt1-ms'}                   = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-dt1-ms'}                   ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-dt1-ms'}                   : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-failed'}                   = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-failed'}                   ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-failed'}                   : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-paused-ms'}                = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-paused-ms'}                ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-paused-ms'}                : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-same-csum'}                = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-same-csum'}                ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-same-csum'}                : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-total'}                    = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-total'}                    ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{'rs-total'}                    : 0;
+				$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{want}                          = defined $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{want}                          ? $hash_ref->{connections}->[$i]->{peer_devices}->[$j]->{want}                          : 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::db-dt MiB-s"                 => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'db-dt MiB-s'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::db0-dt0 MiB-s"               => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'db0-dt0 MiB-s'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::db1-dt1 MiB-s"               => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'db1-dt1 MiB-s'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::estimated-seconds-to-finish" => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'estimated-seconds-to-finish'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::percent-resync-done"         => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'percent-resync-done'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-db0-sectors"              => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-db0-sectors'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-db1-sectors"              => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-db1-sectors'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-dt-start-ms"              => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-dt-start-ms'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-dt0-ms"                   => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-dt0-ms'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-dt1-ms"                   => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-dt1-ms'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-failed"                   => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-failed'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-paused-ms"                => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-paused-ms'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-same-csum"                => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-same-csum'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::rs-total"                    => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'rs-total'},
+					"drbd::status::${host}::resource::${resource}::connection::${peer_name}::volume::${volume}::want"                        => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{want},
+				}});
 			}
 		}
-	}
-	print "========================================================================================================\n";
-	die;
-	
-	print "===] Full Dump [========================================================================================\n";
-	print Dumper $drbd_status;
-	print "========================================================================================================\n";
-	my $count = @{$drbd_status};
-	print "Array count: [$count]\n";
-	foreach my $hash_ref (@{$drbd_status})
-	{
-		my $count = keys %{$hash_ref};
-		print "Hash count: [$count]\n";
-		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
+		
+		$count_i = @{$hash_ref->{devices}};
+		#print "hash_ref->{devices}: [".$hash_ref->{devices}."], count_i: [$count_i]\n";
+ 		for (my $i = 0; $i < $count_i; $i++)
 		{
-			if (ref($hash_ref->{$key}) eq "HASH")
-			{
-				print "key: [$key] is a hash\n";
-				print Dumper $hash_ref->{$key};
-			}
-			elsif (ref($hash_ref->{$key}) eq "ARRAY")
-			{
-				print "key: [$key] is an array\n";
-				print Dumper $hash_ref->{$key};
-			}
-			else
-			{
-				print "key: [$key] -> [".$hash_ref->{$key}."]\n";
-			}
-# 			if ($key eq "connections")
-# 			{
-# 				# Receive-Buffer Size in flight?
-# 				$anvil->data->{drbd}{status}{$host}{$key} = $hash_ref->{$key};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::status::${host}::${key}" => $anvil->data->{drbd}{status}{$host}{$key} }});
-# 			}
-# 			elsif ($key eq "")
-# 			{
-# 				# 
-# 				$anvil->data->{drbd}{status}{$host}{} = $hash_ref->{$key};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::status::${host}::" => $anvil->data->{drbd}{status}{$host}{} }});
-# 			}
-# 			elsif ($key eq "")
-# 			{
-# 				# 
-# 				$anvil->data->{drbd}{status}{$host}{} = $hash_ref->{$key};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::status::${host}::" => $anvil->data->{drbd}{status}{$host}{} }});
-# 			}
-# 			elsif ($key eq "")
-# 			{
-# 				# 
-# 				$anvil->data->{drbd}{status}{$host}{} = $hash_ref->{$key};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::status::${host}::" => $anvil->data->{drbd}{status}{$host}{} }});
-# 			}
-# 			elsif ($key eq "")
-# 			{
-# 				# 
-# 				$anvil->data->{drbd}{status}{$host}{} = $hash_ref->{$key};
-# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::status::${host}::" => $anvil->data->{drbd}{status}{$host}{} }});
-# 			}
-# 			else
-# 			{
-# 				print "Key: [".$key."] ========================================================================================\n";
-# 				print Dumper $hash_ref->{$key};
-# 			}
+			#print "i: [$i], [".$hash_ref->{devices}->[$i]."]\n";
+			my $volume = $hash_ref->{devices}->[$i]->{volume};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { volume => $volume }});
+			
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'al-writes'}     = $hash_ref->{devices}->[$i]->{'al-writes'};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'bm-writes'}     = $hash_ref->{devices}->[$i]->{'bm-writes'};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{client}          = $hash_ref->{devices}->[$i]->{client};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'}    = $hash_ref->{devices}->[$i]->{'disk-state'};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'lower-pending'} = $hash_ref->{devices}->[$i]->{'lower-pending'};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{minor}           = $hash_ref->{devices}->[$i]->{minor};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{quorum}          = $hash_ref->{devices}->[$i]->{quorum};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'read'}          = $hash_ref->{devices}->[$i]->{'read'};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{size}            = $hash_ref->{devices}->[$i]->{size};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'upper-pending'} = $hash_ref->{devices}->[$i]->{'upper-pending'};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{written}         = $hash_ref->{devices}->[$i]->{written};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::al-writes"     => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'al-writes'},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::bm-writes"     => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'bm-writes'},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::client"        => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{client},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::disk-state"    => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'disk-state'},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::lower-pending" => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'lower-pending'},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::minor"         => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{minor},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::quorum"        => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{quorum},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::read"          => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'read'},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::size"          => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{size},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::upper-pending" => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{'upper-pending'},
+				"drbd::status::${host}::resource::${resource}::devices::volume::${volume}::written"       => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{devices}{volume}{$volume}{written},
+			}});
 		}
+		
+# 		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
+# 		{
+# 			next if $key eq "name";
+# 			next if $key eq "role";
+# 			next if $key eq "node-id";
+# 			next if $key eq "suspended";
+# 			next if $key eq "write-ordering";
+# 			next if $key eq "connections";
+# 			next if $key eq "devices";
+# 			print "Key: [$key] -> [".$hash_ref->{$key}."]\n";
+# 		}
 	}
-	print "========================================================================================================\n";
-	foreach my $hash_ref (@{$drbd_status->[0]->{connections}})
-	{
-		#print "Hash ref: [".$hash_ref."]\n";
-		my $peer_name = $hash_ref->{name};
-		print "Connection: [".$peer_name."]\n";
-		print "- ap-in-flight: ... [".$hash_ref->{'ap-in-flight'}."]\n";
-		print "- Connection state: [".$hash_ref->{'connection-state'}."]\n";
-		print "- Peer role: ...... [".$hash_ref->{'peer-role'}."]\n";
-		print "- rs-in-flight: ... [".$hash_ref->{'rs-in-flight'}."]\n";
-	}
-	print "========================================================================================================\n";
-	die;
 	
 	return(0);
 }
