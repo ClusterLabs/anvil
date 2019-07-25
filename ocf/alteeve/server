@@ -98,9 +98,6 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
-$anvil->DRBD->get_status({debug => 2});
-die;
-
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
 $anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-c7 
@@ -141,7 +138,6 @@ if ((not $anvil->data->{switches}{metadaata}) and (not $anvil->data->{switches}{
 {
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0298"});
 }
-
 
 ### TEST: to be removed later
 if ($anvil->data->{switches}{test1})
@@ -317,110 +313,6 @@ sub start_server
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0303", variables => { server => $server }});
 	
-	# If the server is already here, we'll do nothing else.
-	my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." list"});
-	if ($return_code)
-	{
-		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
-		# also start the server on another node, because we don't know the state of it here.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0304", variables => { return_code => $return_code, output => $output }});
-	}
-	foreach my $line (split/\n/, $output)
-	{
-		$line =~ s/^\s+//;
-		$line =~ s/\s+$//;
-		$line =~ s/\s+/ /g;
-		
-		if ($line =~ /^(\d+) $server (.*)$/)
-		{
-			my $state = $2;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				server  => $server, 
-				'state' => $state,
-			}});
-			
-			# Make sure the server is shut down, if it is listed at all. Any other state is 
-			# unexpected and needs to be sorted by a human.
-			if ($state ne "shut down")
-			{
-				# Abort
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0306", variables => { server => $server, 'state' => $state }});
-				$anvil->nice_exit({exit_code => 0});
-			}
-			last;
-		}
-	}
-	
-	# We need to boot, validate everything.
-	validate_all($anvil);
-	
-	# If we're still alive, we're ready to boot.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0305", variables => { server => $server }});
-	
-	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { definition_file => $definition_file }});
-	
-	$return_code = undef;
-	$output      = undef;
-	($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." create $definition_file"});
-	if ($return_code)
-	{
-		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
-		# also start the server on another node, because we don't know the state of it here.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0307", variables => { 
-			server      => $server,
-			return_code => $return_code, 
-			output      => $output, 
-		}});
-		$anvil->nice_exit({exit_code => 6});
-	}
-	
-	# Verify that it started.
-	sleep 2;
-	$return_code = undef;
-	$output      = undef;
-	($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." list"});
-	if ($return_code)
-	{
-		# If this fails, we want to exit with OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to
-		# also start the server on another node, because we don't know the state of it here.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0308", variables => { 
-			server      => $server,
-			return_code => $return_code, 
-			output      => $output, 
-		}});
-		$anvil->nice_exit({exit_code => 6});
-	}
-	foreach my $line (split/\n/, $output)
-	{
-		$line =~ s/^\s+//;
-		$line =~ s/\s+$//;
-		$line =~ s/\s+/ /g;
-		
-		if ($line =~ /^(\d+) $server (.*)$/)
-		{
-			my $state = $2;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				server  => $server, 
-				'state' => $state,
-			}});
-			
-			if ($state eq "running")
-			{
-				# Success!
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0309", variables => { server => $server }});
-				$anvil->nice_exit({exit_code => 0});
-			}
-			else
-			{
-				# WTF?
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0310", variables => { server => $server, 'state' => $state }});
-				$anvil->nice_exit({exit_code => 6});
-			}
-			
-			last;
-		}
-	}
 	
 	# If we're still alive, then we didn't see the server in the list of running servers, which is really weird.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0311", variables => { server => $server }});
@@ -1451,22 +1343,18 @@ sub validate_storage_drbd
 	}
 	
 	# Now read in the status of the drbd devices
-	$return_code                    = undef;
-	(my $status_json, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdsetup}." status --json"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		status_json => $status_json,
-		return_code => $return_code, 
-		json_length => length($status_json), 
-	}});
-	if ($return_code)
+	my $host = $anvil->_short_hostname;
+	$anvil->DRBD->get_status({debug => 2});
+	if ($anvil->data->{drbd}{status}{$host}{return_code})
 	{
 		# Something went wrong.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0377", variables => { 
-			return_code => $return_code,
+			return_code => $anvil->data->{drbd}{status}{$host}{return_code},
 			status_json => $status_json, 
 		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
+	die; 
 	
 	# If DRBD is not up, the returned JSON output will not actually exist.
 	if (($status_json =~ /No currently configured DRBD found/si) or (not check_drbd_status($anvil, $status_json)))
@@ -1534,88 +1422,6 @@ sub validate_storage_drbd
 	# Process the JSON data. If any disks are not seen, they won't be set to 'ok', which we'll catch next.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { status_json => $status_json }});
 	check_drbd_status($anvil, $status_json);
-	
-	### NOTE: The checks below might no longer be needed.
-=cut
-	# Make sure I saw all disks.
-	my $check_again = 0;
-	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			device_path                     => $device_path,
-			"server::disks::${device_path}" => $anvil->data->{server}{disks}{$device_path}, 
-		}});
-		
-		if ($anvil->data->{server}{disks}{$device_path} eq "check")
-		{
-			# Failed to see it, see if we can bring it up. 
-			   $check_again = 1;
-			my $resource    = $anvil->data->{device_path}{$device_path}{resource};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0384", variables => { 
-				resource    => $resource,
-				device_path => $device_path,
-			}});
-			
-			#manage_drbd_resource($anvil, "up", $resource);
-			(my $drbdadm_output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{drbdadm}." up $resource"});
-			if ($return_code)
-			{
-				# Something went wrong.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0380", variables => { 
-					resource       => $resource,
-					return_code    => $return_code,
-					drbdadm_output => $drbdadm_output, 
-				}});
-				$anvil->nice_exit({exit_code => 1});
-			}
-		}
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check_again => $check_again }});
-		if ($check_again)
-		{
-			# Give the resource a few seconds to start.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0381"});
-			sleep 3;
-			
-			# Check again.
-			$return_code = undef;
-			$status_json = undef;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0385"});
-			($status_json, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{drbdsetup}." status --json"});
-			if ($return_code)
-			{
-				# Something went wrong.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0382", variables => { 
-					return_code => $return_code,
-					status_json => $status_json, 
-				}});
-				$anvil->nice_exit({exit_code => 1});
-			}
-			
-			# Check again.
-			check_drbd_status($anvil, $status_json);
-		}
-	}
-	
-	# Do I need to check again?
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {check_again => $check_again }});
-	if ($check_again)
-	{
-		foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{disks}})
-		{
-			if ($anvil->data->{server}{disks}{$device_path} eq "check")
-			{
-				# Failed.
-				my $resource = $anvil->data->{device_path}{$device_path}{resource};
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0386", variables => { 
-					resource    => $resource,
-					device_path => $device_path, 
-				}});
-				$anvil->nice_exit({exit_code => 1});
-			}
-		}
-	}
-=cut
 	
 	### TODO: Finish this, whatever this was going to be...
 	# If I am about to push a server off, we need to make sure the peer is UpToDate

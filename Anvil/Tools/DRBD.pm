@@ -83,7 +83,7 @@ This parses the DRBD status on the local or remote system. The data collected is
  - drbd::status::<hostname>::resource::<resource_name>::connection::<peer_hostname>::volume::<volume>::{db-dt MiB-s,db0-dt0 MiB-s,db1-dt1 MiB-s,estimated-seconds-to-finish,percent-resync-done,rs-db0-sectors,rs-db1-sectors,rs-dt-start-ms,rs-dt0-ms,rs-dt1-ms,rs-failed,rs-paused-ms,rs-same-csum,rs-total,want}
  - drbd::status::<hostname>::resource::<resource>::devices::volume::<volume>::{al-writes,bm-writes,client,disk-state,lower-pending,minor,quorum,read,size,upper-pending,written}
 
-If any data was stored in a previous call, it will be deleted before the new data is collected and stored.
+If any data for the host was stored in a previous call, it will be deleted before the new data is collected and stored.
 
 Parameters;
 
@@ -126,11 +126,18 @@ sub get_status
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
-	my $host       = $anvil->_short_hostname;
+	my $host       = $anvil->_short_hostname({debug => $debug});
 	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
 	{
+		# Clear the hash where we'll store the data.
+		$host = $target;
+		if (exists $anvil->data->{drbd}{status}{$host})
+		{
+			delete $anvil->data->{drbd}{status}{$host};
+		}
+		
 		# Remote call.
-		($output, my $error, my $return_code) = $anvil->Remote->call({
+		($output, my $error, $anvil->data->{drbd}{status}{$host}{return_code}) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
 			target      => $target,
@@ -139,23 +146,22 @@ sub get_status
 			remote_user => $remote_user, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			error       => $error,
-			output      => $output,
-			return_code => $return_code,
+			error                                => $error,
+			output                               => $output,
+			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
 		}});
-		$host = $target;
 	}
 	else
 	{
+		# Clear the hash where we'll store the data.
+		if (exists $anvil->data->{drbd}{status}{$host})
+		{
+			delete $anvil->data->{drbd}{status}{$host};
+		}
+		
 		# Local.
-		($output, my $return_code) = $anvil->System->call({shell_call => $shell_call});
+		($output, $anvil->data->{drbd}{status}{return_code}) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
-	}
-	
-	# Clear the hash where we'll store the data.
-	if (exists $anvil->data->{drbd}{status}{$host})
-	{
-		delete $anvil->data->{drbd}{status}{$host};
 	}
 	
 	# Parse the output.

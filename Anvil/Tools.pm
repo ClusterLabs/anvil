@@ -47,6 +47,7 @@ use Anvil::Tools::Get;
 use Anvil::Tools::Job;
 use Anvil::Tools::Log;
 use Anvil::Tools::Remote;
+use Anvil::Tools::Server;
 use Anvil::Tools::Storage;
 use Anvil::Tools::System;
 use Anvil::Tools::Template;
@@ -125,6 +126,7 @@ sub new
 			LOG				=>	Anvil::Tools::Log->new(),
 			JOB				=>	Anvil::Tools::Job->new(),
 			REMOTE				=>	Anvil::Tools::Remote->new(),
+			SERVER				=>	Anvil::Tools::Server->new(),
 			STORAGE				=>	Anvil::Tools::Storage->new(),
 			SYSTEM				=>	Anvil::Tools::System->new(),
 			TEMPLATE			=>	Anvil::Tools::Template->new(),
@@ -163,6 +165,7 @@ sub new
 	$anvil->Log->parent($anvil);
 	$anvil->Job->parent($anvil);
 	$anvil->Remote->parent($anvil);
+	$anvil->Server->parent($anvil);
 	$anvil->Storage->parent($anvil);
 	$anvil->System->parent($anvil);
 	$anvil->Template->parent($anvil);
@@ -518,6 +521,18 @@ sub Remote
 	my $self = shift;
 	
 	return ($self->{HANDLE}{REMOTE});
+}
+
+=head2 Server
+
+Access the C<Server.pm> methods via 'C<< $anvil->Server->method >>'.
+
+=cut
+sub Server
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{SERVER});
 }
 
 =head2 Storage
