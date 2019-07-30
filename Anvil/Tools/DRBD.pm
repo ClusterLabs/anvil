@@ -12,7 +12,8 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "DRBD.pm";
 
 ### Methods;
-# status
+# get_devices
+# get_status
 
 =pod
 
@@ -72,6 +73,182 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 get_devices
+
+This finds all of the configured '/dev/drbdX' devices and maps them to their resource names.
+
+
+Parameters;
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default 'root')
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
+
+=cut
+sub get_devices
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	}});
+	
+	# Clear the hash where we'll store the data.
+	if (exists $anvil->data->{drbd}{'dump-xml'})
+	{
+		delete $anvil->data->{drbd}{'dump-xml'};
+	}
+	
+	# Is this a local call or a remote call?
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
+	my $output     = "";
+	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	{
+		# Remote call.
+		($output, my $error, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error                            => $error,
+			output                           => $output,
+			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
+		}});
+	}
+	else
+	{
+		# Local.
+		($output, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output                           => $output,
+			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
+		}});
+	}
+	
+	my $xml      = XML::Simple->new();
+	my $dump_xml = "";
+	eval { $dump_xml = $xml->XMLin($output, KeyAttr => {}, ForceArray => 1) };
+	if ($@)
+	{
+		chomp $@;
+		my $error =  "[ Error ] - The was a problem parsing: [$output]. The error was:\n";
+		   $error .= "===========================================================\n";
+		   $error .= $@."\n";
+		   $error .= "===========================================================\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	$anvil->data->{drbd}{'dump-xml'}{parsed}     = $dump_xml;
+	$anvil->data->{drbd}{config}{'auto-promote'} = 0;
+	
+	foreach my $hash_ref (@{$dump_xml->{resource}})
+	{
+		my $this_resource = $hash_ref->{name};
+		foreach my $connection_href (@{$hash_ref->{connection}})
+		{
+			foreach my $host_href (@{$connection_href->{host}})
+			{
+				my $host                                                                       = $host_href->{name};
+				my $port                                                                       = $host_href->{address}->[0]->{port};
+				my $ip_address                                                                 = $host_href->{address}->[0]->{content};
+				   $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_family}  = $host_href->{address}->[0]->{family};
+				   $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_address} = $host_href->{address}->[0]->{content};
+				   $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{port}       = $port;
+				   $anvil->data->{drbd}{ip_addresses}{$ip_address}                             = 1;
+				   $anvil->data->{drbd}{tcp_ports}{$port}                                      = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"drbd::config::${this_resource}::connection::${host}::ip_family"  => $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_family},
+					"drbd::config::${this_resource}::connection::${host}::ip_address" => $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_address},
+					"drbd::config::${this_resource}::connection::${host}::port"       => $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{port},
+					"drbd::ip_addresses::${ip_address}"                               => $anvil->data->{drbd}{ip_addresses}{$ip_address}, 
+					"drbd::tcp_ports::${port}"                                        => $anvil->data->{drbd}{tcp_ports}{$port},
+				}});
+			}
+			foreach my $section_href (@{$connection_href->{section}})
+			{
+				my $section = $section_href->{name};
+				foreach my $option_href (@{$section_href->{option}})
+				{
+					my $variable = $option_href->{name};
+					$anvil->data->{drbd}{config}{$this_resource}{section}{$section}{$variable} = $option_href->{value};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"drbd::config::${this_resource}::section::${section}::${variable}" => $anvil->data->{drbd}{config}{$this_resource}{section}{$section}{$variable},
+					}});
+				}
+			}
+		}
+		
+		foreach my $host_href (@{$hash_ref->{host}})
+		{
+			### TODO: Handle external metadata
+			my $host  = $host_href->{name};
+			my $local = 0;
+			if (($host eq $anvil->_hostname) or ($host eq $anvil->_short_hostname))
+			{
+				$local = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'local' => $local }});
+			}
+			foreach my $volume_href (@{$host_href->{volume}})
+			{
+				my $volume                                                                    = $volume_href->{vnr};
+				my $drbd_path                                                                 = $volume_href->{device}->[0]->{content};
+				my $lv_path                                                                   = $volume_href->{disk}->[0];
+				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_path}   = $drbd_path;
+				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_minor}  = $volume_href->{device}->[0]->{minor};
+				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{'meta-disk'} = $volume_href->{'meta-disk'}->[0];
+				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{backing_lv}  = $lv_path;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"drbd::config::${this_resource}::volume::${volume}::drbd_path"  => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_path},
+					"drbd::config::${this_resource}::volume::${volume}::drbd_minor" => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_minor},
+					"drbd::config::${this_resource}::volume::${volume}::meta-disk"  => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{'meta-disk'},
+					"drbd::config::${this_resource}::volume::${volume}::backing_lv" => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{backing_lv},
+				}});
+				if ($local)
+				{
+					$anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{on}       = $lv_path;
+					$anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{resource} = $this_resource;
+					$anvil->data->{drbd}{'local'}{lv_path}{$lv_path}{under}        = $drbd_path;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"drbd::local::drbd_path::${drbd_path}::on"       => $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{on},
+						"drbd::local::drbd_path::${drbd_path}::resource" => $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{resource},
+						"drbd::local::lv_path::${lv_path}::under"        => $anvil->data->{drbd}{'local'}{lv_path}{$lv_path}{under},
+					}});
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 get_status
 
@@ -161,7 +338,10 @@ sub get_status
 		
 		# Local.
 		($output, $anvil->data->{drbd}{status}{return_code}) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output                               => $output,
+			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
+		}});
 	}
 	
 	# Parse the output.

@@ -1041,11 +1041,11 @@ sub add_sync_peer
 			password    => $password, 
 			target      => $ssh_tcp != 22 ? $host.":".$ssh_tcp : $host,
 			shell_call  => $shell_call,
-			return_code => $return_code, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output => $output, 
 			error  => $error,
+			return_code => $return_code, 
 		}});
 		if ($error)
 		{
