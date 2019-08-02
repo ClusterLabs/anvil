@@ -202,7 +202,7 @@ sub get_status
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"server::${server}::disk::xml" => $anvil->data->{server}{$server}{disk}{xml},
 	}});
-	if ($anvil->data->{server}{$server}{disk}{xml})
+	if ($anvil->data->{server}{$server}{from_disk}{xml})
 	{
 		$anvil->Server->_parse_definition({
 			debug      => $debug,
@@ -211,6 +211,8 @@ sub get_status
 			definition => $anvil->data->{server}{$server}{from_disk}{xml}, 
 		});
 	}
+	
+	die;
 	
 	return(0);
 }
@@ -280,23 +282,29 @@ sub _parse_definition
 	#print Dumper $server_xml;
 	
 	# Pull out some basic server info.
-	$anvil->data->{server}{$server}{$source}{info}{uuid} = $server_xml->{uuid}->[0];
-	$anvil->data->{server}{$server}{$source}{info}{name} = $server_xml->{name}->[0];
-	$anvil->data->{server}{$server}{$source}{info}{on_poweroff} = $server_xml->{on_poweroff}->[0];
-	$anvil->data->{server}{$server}{$source}{info}{on_crash}    = $server_xml->{on_crash}->[0];
-	$anvil->data->{server}{$server}{$source}{info}{on_reboot}   = $server_xml->{on_reboot}->[0];
-	$anvil->data->{server}{$server}{$source}{info}{boot_menu}   = $server_xml->{os}->[0]->{bootmenu}->[0]->{enable};
-	$anvil->data->{server}{$server}{$source}{info}{id}          = $server_xml->{id};
-	$anvil->data->{server}{$server}{$source}{info}{emulator}    = $server_xml->{devices}->[0]->{emulator}->[0];
+	$anvil->data->{server}{$server}{$source}{info}{uuid}         = $server_xml->{uuid}->[0];
+	$anvil->data->{server}{$server}{$source}{info}{name}         = $server_xml->{name}->[0];
+	$anvil->data->{server}{$server}{$source}{info}{on_poweroff}  = $server_xml->{on_poweroff}->[0];
+	$anvil->data->{server}{$server}{$source}{info}{on_crash}     = $server_xml->{on_crash}->[0];
+	$anvil->data->{server}{$server}{$source}{info}{on_reboot}    = $server_xml->{on_reboot}->[0];
+	$anvil->data->{server}{$server}{$source}{info}{boot_menu}    = $server_xml->{os}->[0]->{bootmenu}->[0]->{enable};
+	$anvil->data->{server}{$server}{$source}{info}{architecture} = $server_xml->{os}->[0]->{type}->[0]->{arch};
+	$anvil->data->{server}{$server}{$source}{info}{machine}      = $server_xml->{os}->[0]->{type}->[0]->{machine};
+	$anvil->data->{server}{$server}{$source}{info}{id}           = $server_xml->{id};
+	$anvil->data->{server}{$server}{$source}{info}{emulator}     = $server_xml->{devices}->[0]->{emulator}->[0];
+	$anvil->data->{server}{$server}{$source}{info}{acpi}         = exists $server_xml->{features}->[0]->{acpi} ? 1 : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"server::${server}::${source}::info::uuid"        => $anvil->data->{server}{$server}{$source}{info}{uuid},
-		"server::${server}::${source}::info::name"        => $anvil->data->{server}{$server}{$source}{info}{name},
-		"server::${server}::${source}::info::on_poweroff" => $anvil->data->{server}{$server}{$source}{info}{on_poweroff},
-		"server::${server}::${source}::info::on_crash"    => $anvil->data->{server}{$server}{$source}{info}{on_crash},
-		"server::${server}::${source}::info::on_reboot"   => $anvil->data->{server}{$server}{$source}{info}{on_reboot},
-		"server::${server}::${source}::info::boot_menu"   => $anvil->data->{server}{$server}{$source}{info}{boot_menu},
-		"server::${server}::${source}::info::id"          => $anvil->data->{server}{$server}{$source}{info}{id},
-		"server::${server}::${source}::info::emulator"    => $anvil->data->{server}{$server}{$source}{info}{emulator},
+		"server::${server}::${source}::info::uuid"         => $anvil->data->{server}{$server}{$source}{info}{uuid},
+		"server::${server}::${source}::info::name"         => $anvil->data->{server}{$server}{$source}{info}{name},
+		"server::${server}::${source}::info::on_poweroff"  => $anvil->data->{server}{$server}{$source}{info}{on_poweroff},
+		"server::${server}::${source}::info::on_crash"     => $anvil->data->{server}{$server}{$source}{info}{on_crash},
+		"server::${server}::${source}::info::on_reboot"    => $anvil->data->{server}{$server}{$source}{info}{on_reboot},
+		"server::${server}::${source}::info::architecture" => $anvil->data->{server}{$server}{$source}{info}{architecture},
+		"server::${server}::${source}::info::machine"      => $anvil->data->{server}{$server}{$source}{info}{machine},
+		"server::${server}::${source}::info::boot_menu"    => $anvil->data->{server}{$server}{$source}{info}{boot_menu},
+		"server::${server}::${source}::info::id"           => $anvil->data->{server}{$server}{$source}{info}{id},
+		"server::${server}::${source}::info::emulator"     => $anvil->data->{server}{$server}{$source}{info}{emulator},
+		"server::${server}::${source}::info::acpi"         => $anvil->data->{server}{$server}{$source}{info}{acpi},
 	}});
 	
 	# CPU
@@ -361,6 +369,24 @@ sub _parse_definition
 		"server::${server}::${source}::memory" => $anvil->Convert->add_commas({number => $anvil->data->{server}{$server}{$source}{memory}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{server}{$server}{$source}{memory}}).")",
 	}});
 	
+	# Clock info
+	$anvil->data->{server}{$server}{$source}{clock}{offset} = $server_xml->{clock}->[0]->{offset};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"server::${server}::${source}::clock::offset" => $anvil->data->{server}{$server}{$source}{clock}{offset},
+	}});
+	foreach my $hash_ref (@{$server_xml->{clock}->[0]->{timer}})
+	{
+		my $name = $hash_ref->{name};
+		foreach my $variable (keys %{$hash_ref})
+		{
+			next if $variable eq "name";
+			$anvil->data->{server}{$server}{$source}{clock}{$name}{$variable} = $hash_ref->{$variable};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"server::${server}::${source}::clock::${name}::${variable}" => $anvil->data->{server}{$server}{$source}{clock}{$name}{$variable},
+			}});
+		}
+	}
+	
 	# Pull out my channels
 	foreach my $hash_ref (@{$server_xml->{devices}->[0]->{channel}})
 	{
@@ -398,11 +424,12 @@ sub _parse_definition
 				"server::${server}::${source}::device::channel::unix::target::name"        => $anvil->data->{server}{$server}{$source}{device}{channel}{unix}{target}{name},
 			}});
 			
+			### TODO: Store the parts in some format that allows representing it better to the user and easier to find "open slots".
 			# Add to system bus list
-			$anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port} = "channel - ".$type;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::${server}::${source}::address::${address_type}::controller::${address_controller}::bus::${address_bus}::port::${address_port}" => $anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port},
-			}});
+# 			$anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port} = "channel - ".$type;
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				"server::${server}::${source}::address::${address_type}::controller::${address_controller}::bus::${address_bus}::port::${address_port}" => $anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port},
+# 			}});
 		}
 		elsif ($type eq "spicevmc")
 		{
@@ -432,11 +459,12 @@ sub _parse_definition
 				"server::${server}::${source}::device::channel::spicevmc::target::name"        => $anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{target}{name},
 			}});
 			
+			### TODO: Store the parts in some format that allows representing it better to the user and easier to find "open slots".
 			# Add to system bus list
-			$anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port} = "channel - ".$type;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::${server}::${source}::address::${address_type}::controller::${address_controller}::bus::${address_bus}::port::${address_port}" => $anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port},
-			}});
+# 			$anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port} = "channel - ".$type;
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				"server::${server}::${source}::address::${address_type}::controller::${address_controller}::bus::${address_bus}::port::${address_port}" => $anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$address_controller}{bus}{$address_bus}{port}{$address_port},
+# 			}});
 		}
 	}
 	
@@ -539,16 +567,17 @@ sub _parse_definition
 				"server::${server}::${source}::device::controller::${type}::index::${index}::address::function" => $anvil->data->{server}{$server}{$source}{device}{controller}{$type}{'index'}{$index}{address}{function},
 			}});
 			
+			### TODO: Store the parts in some format that allows representing it better to the user and easier to find "open slots".
 			# Add to system bus list
 			# Controller type: [pci], alias: (pci.2), index: [2]
 			# - Model: [pcie-root-port]
 			# - Target chassis: [2], port: [0x11]
 			# - Bus type: [pci], domain: [0x0000], bus: [0x00], slot: [0x02], function: [0x1]
 			#      server::test_server::from_memory::address::virtio-serial::controller::0::bus::0::port::2: [channel - spicevmc]
-			$anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$type}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain} = $address_domain;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::${server}::${source}::address::${address_type}::controller::${type}::bus::${address_bus}::slot::${address_slot}::function::${address_function}::domain" => $anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$type}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain},
-			}});
+# 			$anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$type}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain} = $address_domain;
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 				"server::${server}::${source}::address::${address_type}::controller::${type}::bus::${address_bus}::slot::${address_slot}::function::${address_function}::domain" => $anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$type}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain},
+# 			}});
 		}
 	}
 	
@@ -558,50 +587,82 @@ sub _parse_definition
 		#print Dumper $hash_ref;
 		my $device        = $hash_ref->{device};
 		my $type          = $hash_ref->{type};
+		my $alias         = $hash_ref->{alias}->[0]->{name};
 		my $device_target = $hash_ref->{target}->[0]->{dev};
 		my $device_bus    = $hash_ref->{target}->[0]->{bus};
 		my $address_type  = $hash_ref->{address}->[0]->{type};
 		my $address_bus   = $hash_ref->{address}->[0]->{bus};
 		my $boot_order    = defined $hash_ref->{boot}->[0]->{order} ? $hash_ref->{boot}->[0]->{order} : 99;
+		my $driver_name   = $hash_ref->{driver}->[0]->{name};
+		my $driver_type   = $hash_ref->{driver}->[0]->{type};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			device        => $device,
 			type          => $type,
+			alias         => $alias, 
 			device_target => $device_target, 
 			device_bus    => $device_bus, 
 			address_type  => $address_type, 
 			address_bus   => $address_bus, 
 			boot_order    => $boot_order, 
+			driver_name   => $driver_name, 
+			driver_type   => $driver_type,
 		}});
 		
+		# Record common data
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{alias}         = $alias;
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{boot_order}    = $boot_order;
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{type}          = $type;
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{type} = $address_type;
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{bus}  = $address_bus;
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{name}  = $driver_name;
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{device_bus}    = $device_bus;
+		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{type}  = $driver_type;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"server::${server}::${source}::device::${device}::target::${device_target}::address::type" => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{type},
+			"server::${server}::${source}::device::${device}::target::${device_target}::address::bus"  => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{bus},
+			"server::${server}::${source}::device::${device}::target::${device_target}::alias"         => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{alias},
+			"server::${server}::${source}::device::${device}::target::${device_target}::boot_order"    => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{boot_order},
+			"server::${server}::${source}::device::${device}::target::${device_target}::device_bus"    => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{device_bus},
+			"server::${server}::${source}::device::${device}::target::${device_target}::driver::name"  => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{name},
+			"server::${server}::${source}::device::${device}::target::${device_target}::driver::type"  => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{type},
+			"server::${server}::${source}::device::${device}::target::${device_target}::type"          => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{type},
+		}});
+		
+		# Record type-specific data
 		if ($device eq "disk")
 		{
 			my $address_slot     = $hash_ref->{address}->[0]->{slot};
 			my $address_domain   = $hash_ref->{address}->[0]->{domain};
 			my $address_function = $hash_ref->{address}->[0]->{function};
 			my $device_path      = $hash_ref->{source}->[0]->{dev};
+			my $driver_io        = $hash_ref->{driver}->[0]->{io};
+			my $driver_cache     = $hash_ref->{driver}->[0]->{cache};
 			
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{type}     = $address_type;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{domain}   = $address_domain;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{bus}      = $address_bus;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{slot}     = $address_slot;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{function} = $address_function;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{path}              = $device_path;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{domain}   = $address_domain;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{slot}     = $address_slot;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{function} = $address_function;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{path}              = $device_path;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{io}        = $driver_io;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{cache}     = $driver_cache;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::${server}::${source}::device::${device}::address::type"     => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{type},
-				"server::${server}::${source}::device::${device}::address::domain"   => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{domain},
-				"server::${server}::${source}::device::${device}::address::bus"      => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{bus},
-				"server::${server}::${source}::device::${device}::address::slot"     => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{slot},
-				"server::${server}::${source}::device::${device}::address::function" => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{function},
-				"server::${server}::${source}::device::${device}::path"              => $anvil->data->{server}{$server}{$source}{device}{$device}{path},
+				"server::${server}::${source}::device::${device}::target::${device_target}::address::domain"   => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{domain},
+				"server::${server}::${source}::device::${device}::target::${device_target}::address::slot"     => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{slot},
+				"server::${server}::${source}::device::${device}::target::${device_target}::address::function" => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{function},
+				"server::${server}::${source}::device::${device}::target::${device_target}::path"              => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{path},
+				"server::${server}::${source}::device::${device}::target::${device_target}::driver::io"        => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{io},
+				"server::${server}::${source}::device::${device}::target::${device_target}::driver::cache"     => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{cache},
 			}});
 			
 			$anvil->data->{server}{$server}{$source}{device}{$device_path}{on_lv}    = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       : "";
 			$anvil->data->{server}{$server}{$source}{device}{$device_path}{resource} = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} : "";
+			$anvil->data->{server}{$server}{$source}{device}{$device_path}{target}   = $device_target;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"server::${server}::${source}::device::${device_path}::on_lv"    => $anvil->data->{server}{$server}{$source}{device}{$device_path}{on_lv},
 				"server::${server}::${source}::device::${device_path}::resource" => $anvil->data->{server}{$server}{$source}{device}{$device_path}{resource},
+				"server::${server}::${source}::device::${device_path}::target"   => $anvil->data->{server}{$server}{$source}{device}{$device_path}{target},
 			}});
 			
+			### TODO: Store the parts in some format that allows representing it better to the user and easier to find "open slots".
 # 			$anvil->data->{server}{$server}{$source}{address}{$device_bus}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain} = $address_domain;
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 # 				"server::${server}::${source}::address::${address_type}::controller::${type}::bus::${address_bus}::slot::${address_slot}::function::${address_function}::domain" => $anvil->data->{server}{$server}{$source}{address}{$address_type}{controller}{$type}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain},
@@ -615,42 +676,19 @@ sub _parse_definition
 			my $address_unit       = $hash_ref->{address}->[0]->{unit};
 			my $address_target     = $hash_ref->{address}->[0]->{target};
 			
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{controller} = $address_controller;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{unit}       = $address_unit;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{address}{target}     = $address_target;
-			$anvil->data->{server}{$server}{$source}{device}{$device}{path}                = $device_path;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{controller} = $address_controller;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{unit}       = $address_unit;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{target}     = $address_target;
+			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{path}                = $device_path;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::${server}::${source}::device::${device}::address::controller" => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{controller},
-				"server::${server}::${source}::device::${device}::address::unit"       => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{unit},
-				"server::${server}::${source}::device::${device}::address::target"     => $anvil->data->{server}{$server}{$source}{device}{$device}{address}{target},
-				"server::${server}::${source}::device::${device}::path"                => $anvil->data->{server}{$server}{$source}{device}{$device}{path},
+				"server::${server}::${source}::device::${device}::target::${device_target}::address::controller" => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{controller},
+				"server::${server}::${source}::device::${device}::target::${device_target}::address::unit"       => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{unit},
+				"server::${server}::${source}::device::${device}::target::${device_target}::address::target"     => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{target},
+				"server::${server}::${source}::device::${device}::target::${device_target}::path"                => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{path},
 			}});
 		
 		}
 	}
-	die;
-	
-	# Pull out other devices
-	foreach my $device (sort {$a cmp $b} keys %{$server_xml->{devices}->[0]})
-	{
-		next if $device eq "emulator";
-		next if $device eq "channel";
-		print "Device: [$device] -> [".$server_xml->{devices}->[0]->{$device}."] (".@{$server_xml->{devices}->[0]->{$device}}."))\n";
-		
-		foreach my $hash_ref (@{$server_xml->{devices}->[0]->{$device}})
-		{
-			# video, memballoon, rng and sound don't have type.
-			my $type = defined $hash_ref->{type} ? $hash_ref->{type} : "";
-			print "- Type: [$type]\n";
-			#print Dumper $hash_ref;
-			if ($type)
-			{
-				
-			}
-		}
-	}
-	
-	die;
 	
 	return(0);
 }
