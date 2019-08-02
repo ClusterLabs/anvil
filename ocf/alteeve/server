@@ -392,6 +392,14 @@ sub validate_all
 	
 	# Read in an parse the server's XML.
 	$anvil->Server->get_status({debug => 2, server => $anvil->data->{environment}{OCF_RESKEY_name}});
+
+	# Is the name in the definition file what we expect?
+	validate_name($anvil);
+	
+	# Make sure the emulator it wants is the one we have.
+	validate_emulator($anvil);
+	
+	# Which DRBD resources do I need?
 	
 	
 	return(0);
@@ -452,7 +460,29 @@ sub validate_emulator
 {
 	my ($anvil) = @_;
 	
-
+	# What emulator is this using?
+	my $server   = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $emulator = $anvil->data->{server}{$server}{from_disk}{info}{emulator};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		emulator                                       => $emulator,
+		"server::${server}::from_disk::info::emulator" => $anvil->data->{server}{$server}{from_disk}{info}{emulator}
+	}});
+	if (not -e $emulator)
+	{
+		# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0401", variables => { 
+			emulator        => $emulator,
+			definition_file => $anvil->data->{server}{definition_file}, 
+		}});
+		$anvil->nice_exit({exit_code => 5});
+	}
+	if (not -x $emulator)
+	{
+		# We can't execute it. Exit with OCF_ERR_PERM (4).
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0402", variables => { emulator => $emulator }});
+		$anvil->nice_exit({exit_code => 4});
+	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0364"});
 	
 	return(0);
 }
@@ -462,7 +492,21 @@ sub validate_name
 {
 	my ($anvil) = @_;
 	
-
+	# Is the name in the definition file what we expect?
+	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server                                     => $server,
+		"server::${server}::from_disk::info::name" => $anvil->data->{server}{$server}{from_disk}{info}{name}, 
+	}});
+	if ($server ne $anvil->data->{server}{$server}{from_disk}{info}{name})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0403", variables => { 
+			server => $server,
+			name   => $anvil->data->{server}{definition_xml}->{name}, 
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0363"});
 	
 	return(0);
 }

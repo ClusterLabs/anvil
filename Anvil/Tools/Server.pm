@@ -80,12 +80,15 @@ This looks on an Anvil! for what servers are running where.
 
 
 =cut
+sub find
+{
+}
 
 =head2 get_status
 
-This reads in a server's XML definition file from disk, if available, and from memory, if the server is running. The XML is analyzed and data is stored in the following locations;
+This reads in a server's XML definition file from disk, if available, and from memory, if the server is running. The XML is analyzed and data is stored under 'server::<server_name>::from_disk::x' for data from the on-disk XML and 'server::<server_name>::from_memory::x'. 
 
- - 
+
 
 Any pre-existing data on the server is flushed before the new information is processed.
 
@@ -141,6 +144,9 @@ sub get_status
 		delete $anvil->data->{server}{$server};
 	}
 	$anvil->data->{server}{$server}{from_memory}{host} = "";
+	
+	# We're going to map DRBD devices to resources, so we need to collect that data now. 
+	$anvil->DRBD->get_devices({debug => $debug});
 	
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
@@ -212,8 +218,6 @@ sub get_status
 		});
 	}
 	
-	die;
-	
 	return(0);
 }
 
@@ -261,9 +265,6 @@ sub _parse_definition
 		return(1);
 	}
 	
-	# We're going to map DRBD devices to resources, so we need to collect that data now.
-	$anvil->DRBD->get_devices({debug => $debug});
-	
 	my $xml        = XML::Simple->new();
 	my $server_xml = "";
 	eval { $server_xml = $xml->XMLin($definition, KeyAttr => {}, ForceArray => 1) };
@@ -290,7 +291,7 @@ sub _parse_definition
 	$anvil->data->{server}{$server}{$source}{info}{boot_menu}    = $server_xml->{os}->[0]->{bootmenu}->[0]->{enable};
 	$anvil->data->{server}{$server}{$source}{info}{architecture} = $server_xml->{os}->[0]->{type}->[0]->{arch};
 	$anvil->data->{server}{$server}{$source}{info}{machine}      = $server_xml->{os}->[0]->{type}->[0]->{machine};
-	$anvil->data->{server}{$server}{$source}{info}{id}           = $server_xml->{id};
+	$anvil->data->{server}{$server}{$source}{info}{id}           = exists $server_xml->{id} ? $server_xml->{id} : 0;
 	$anvil->data->{server}{$server}{$source}{info}{emulator}     = $server_xml->{devices}->[0]->{emulator}->[0];
 	$anvil->data->{server}{$server}{$source}{info}{acpi}         = exists $server_xml->{features}->[0]->{acpi} ? 1 : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
