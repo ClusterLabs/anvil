@@ -399,6 +399,16 @@ sub validate_all
 	# Make sure the emulator it wants is the one we have.
 	validate_emulator($anvil);
 	
+	# These tests are only needed if we're about to boot the server
+	if (($anvil->data->{switches}{start}) or ($anvil->data->{switches}{migrate_from}))
+	{
+		# Check that we have enough RAM.
+		validate_ram($anvil);
+	}
+	
+	# Validate bridges
+	validate_bridges($anvil);
+	
 	# Which DRBD resources do I need?
 	
 	
@@ -410,6 +420,40 @@ sub validate_bridges
 {
 	my ($anvil) = @_;
 	
+	# Get my bridge list
+	$anvil->System->get_bridges({debug => 2});
+	
+	# Find the Optical drives and DRBD devices.
+	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
+	foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{from_disk}{device}{interface}})
+	{
+		# See if we have this bridge
+		my $found  = 0;
+		my $bridge = $anvil->data->{server}{$server}{from_disk}{device}{interface}{$mac}{bridge};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge => $bridge }});
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface_name => $interface_name }});
+			if ((exists $anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}) && ($anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found}))
+			{
+				$found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+				last;
+			}
+		}
+		
+		if ($found)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0368", variables => { bridge => $bridge }});
+		}
+		else
+		{
+			# Missing bridge.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0369", variables => { bridge => $bridge }});
+			$anvil->nice_exit({exit_code => 5});
+		}
+	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0366"});
 	
 	return(0);
 }
@@ -516,7 +560,27 @@ sub validate_ram
 {
 	my ($anvil) = @_;
 	
-
+	# How mcuh RAM does the server need and how much do we have free?
+	my $server           = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $server_ram_bytes = $anvil->data->{server}{$server}{from_disk}{memory};
+	my $available        = $anvil->System->get_free_memory({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_ram_bytes => $anvil->Convert->add_commas({number => $server_ram_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}).")", 
+		available        => $anvil->Convert->add_commas({number => $available})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available}).")", 
+	}});
+	if ($server_ram_bytes > $available)
+	{
+		# Not enough free memory.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0404", variables => { 
+			name                => $server, 
+			ram                 => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}), 
+			ram_bytes           => $anvil->Convert->add_commas({number => $server_ram_bytes}), 
+			available_ram       => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}), 
+			available_ram_bytes => $anvil->Convert->add_commas({number => $available}), 
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0365"});
 	
 	return(0);
 }

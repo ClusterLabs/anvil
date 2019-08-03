@@ -20,6 +20,8 @@ my $THIS_FILE = "System.pm";
 # check_daemon
 # check_if_configured
 # check_memory
+# get_bridges
+# get_free_memory
 # get_host_type
 # enable_daemon
 # find_matching_ip
@@ -539,6 +541,139 @@ sub check_memory
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { used_ram => $used_ram }});
 	return($used_ram);
+}
+
+=hed2 get_bridges
+
+This finds a list of bridges on the host. Bridges that are found are stored is '
+
+=cut
+sub get_bridges
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_bridges()" }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{bridge}." -json -details link show"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Delete any previously known data
+	if (exists $anvil->data->{'local'}{network}{bridges})
+	{
+		delete $anvil->data->{'local'}{network}{bridges};
+	};
+	
+	my $json        = JSON->new->allow_nonref;
+	my $bridge_data = $json->decode($output);
+	#print Dumper $bridge_data;
+	foreach my $hash_ref (@{$bridge_data})
+	{
+		# If the ifname and master are the same, it's a bridge.
+		my $type           = "interface";
+		my $interface_name = $hash_ref->{ifname};
+		my $master_bridge  = $hash_ref->{master};
+		if ($interface_name eq $master_bridge)
+		{
+			$type = "bridge";
+			$anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"local::network::bridges::bridge::${interface_name}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found}, 
+			}});
+		}
+		else
+		{
+			# Store this interface under the bridge.
+			$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface_name} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface_name}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface_name}, 
+			}});
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			interface_name => $interface_name,
+			master_bridge  => $master_bridge, 
+			type           => $type, 
+		}});
+		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
+		{
+			if (ref($hash_ref->{$key}) eq "ARRAY")
+			{
+				$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key} = [];
+				foreach my $value (sort {$a cmp $b} @{$hash_ref->{$key}})
+				{
+					push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}}, $value;
+				}
+				for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}}; $i++)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"local::network::bridges::${type}::${interface_name}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}->[$i], 
+					}});
+				}
+			}
+			else
+			{
+				$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key} = $hash_ref->{$key};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"local::network::bridges::${type}::${interface_name}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}, 
+				}});
+			}
+		}
+	}
+	
+	# Summary of found bridges.
+	foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"local::network::bridges::bridge::${interface_name}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found}, 
+		}});
+	}
+	
+	return(0);
+}
+
+=head2 get_free_memory
+
+This returns, in bytes, host much free memory is available on the local system.
+
+=cut
+### TODO: Make this work on remote systems.
+sub get_free_memory
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_free_memory()" }});
+	
+	my $available               = 0;
+	my ($free_output, $free_rc) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{free}." --bytes"});
+	foreach my $line (split/\n/, $free_output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
+		{
+			my $total     = $1;
+			my $used      = $2;
+			my $free      = $3;
+			my $shared    = $4;
+			my $cache     = $5;
+			   $available = $6;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				total     => $total." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $total})."})", 
+				used      => $used." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used})."})",
+				free      => $free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free})."})", 
+				shared    => $shared." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $shared})."})", 
+				cache     => $cache." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $cache})."})", 
+				available => $available." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available})."})", 
+			}});
+		}
+	}
+	
+	return($available);
 }
 
 =head2 get_host_type
