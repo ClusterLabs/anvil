@@ -391,9 +391,10 @@ sub validate_all
 	###       if the server is running elsewhere.
 	
 	# Read in an parse the server's XML.
-	$anvil->Server->get_status({debug => 2, server => $anvil->data->{environment}{OCF_RESKEY_name}});
-
-	# Is the name in the definition file what we expect?
+	$anvil->System->check_storage({debug => 3});
+	$anvil->Server->get_status({debug => 3, server => $anvil->data->{environment}{OCF_RESKEY_name}});
+	
+	# Is the name in the definition file what we expect (and did we read the XML data at all)?
 	validate_name($anvil);
 	
 	# Make sure the emulator it wants is the one we have.
@@ -409,8 +410,8 @@ sub validate_all
 	# Validate bridges
 	validate_bridges($anvil);
 	
-	# Which DRBD resources do I need?
-	
+	# Validate storage (Disks and optical media)
+	validate_storage($anvil);
 	
 	return(0);
 }
@@ -463,7 +464,54 @@ sub validate_storage
 {
 	my ($anvil) = @_;
 	
+	### TODO: When checking on a running server, use 'from_memory'.
+	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $source = "from_disk";
+	if (exists $anvil->data->{server}{$server}{from_memory})
+	{
+		$source = "from_memory";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server => $server,
+		source => $source, 
+	}});
 	
+	### TODO: If we're called with a status and find an ISO file missing and eject it instead of failing.
+	###       For now, we just fault out.
+	# Do the optical discs in the drive exist? If not, we'll eject it if we're about to boot and fail if
+	# we're about to migrate. We skip this check if we're migrating off or shutting down the server.
+	if ((exists $anvil->data->{server}{$server}{$source}{device}{cdrom}) && (not $anvil->data->{switches}{migrate_to}) && (not $anvil->data->{switches}{stop}))
+	{
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{$source}{device}{cdrom}{target}})
+		{
+			if ($anvil->data->{server}{$server}{$source}{device}{cdrom}{target}{$device_target}{path})
+			{
+				my $file = $anvil->data->{server}{$server}{$source}{device}{cdrom}{target}{$device_target}{path};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+				if (not -e $file)
+				{
+					# It doesn't exist. Exit with OCF_ERR_INSTALLED (5).
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0398", variables => { file => $file }});
+					$anvil->nice_exit({exit_code => 5});
+				}
+				elsif (not -r $file)
+				{
+					# We can't read it. Exit with OCF_ERR_PERM (4).
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0399", variables => { file => $file }});
+					$anvil->nice_exit({exit_code => 4});
+				}
+				else
+				{
+					# We're OK.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0400", variables => { file => $file }});
+				}
+			}
+		}
+	}
+	
+	# Verify DRBD devices now
+	validate_storage_drbd($anvil);
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0367"});
 	
 	return(0);
 }
@@ -474,7 +522,54 @@ sub validate_storage_drbd
 {
 	my ($anvil) = @_;
 	
-
+	# Now check storage.
+	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $source = "from_disk";
+	foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{$source}{device}{disk}{target}})
+	{
+		my $drbd_device   = $anvil->data->{server}{$server}{$source}{device}{disk}{target}{$device_target}{path};
+		my $drbd_resource = $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_device}{resource};
+		my $on_lv         = $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_device}{on};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			drbd_device   => $drbd_device,
+			drbd_resource => $drbd_resource, 
+			on_lv         => $on_lv, 
+		}});
+		
+		# If the logical volume here here and active?
+		if ((not $on_lv) or (not exists $anvil->data->{lvm}{'local'}{lv}{$on_lv}))
+		{
+			# LV not found
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 0, priority => "err", key => "log_0374", variables => { drbd_device => $drbd_device, lv_path => $on_lv }});
+			$anvil->nice_exit({exit_code => 5});
+		}
+		elsif (not $anvil->data->{lvm}{'local'}{lv}{$on_lv}{active})
+		{
+			# LV not active. If we're starting the server or we're the migration target, try to 
+			# activate it.
+			my $active = $anvil->System->activate_lv({debug => 2, path => $on_lv});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active => $active }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0413", variables => { lv_path => $on_lv }});
+			
+			if (not $active)
+			{
+				# Boo :(
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 0, priority => "err", key => "log_0375", variables => { drbd_device => $drbd_device, lv_path => $on_lv }});
+				$anvil->nice_exit({exit_code => 5});
+			}
+		}
+		
+		# LV is good if I am still alive.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0376", variables => { 
+			drbd_device => $drbd_device,
+			lv_path     => $on_lv, 
+		}});
+		
+	}
+	
+	print "I am: [".$anvil->data->{drbd}{host}{'local'}."]. my peer is: [".$anvil->data->{drbd}{host}{peer}."]\n";
+	
+	die;
 	
 	return(0);
 }
@@ -536,17 +631,28 @@ sub validate_name
 {
 	my ($anvil) = @_;
 	
-	# Is the name in the definition file what we expect?
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server                                     => $server,
 		"server::${server}::from_disk::info::name" => $anvil->data->{server}{$server}{from_disk}{info}{name}, 
 	}});
-	if ($server ne $anvil->data->{server}{$server}{from_disk}{info}{name})
+	
+	# If we failed to read the XML, the server probably doesn't exist.
+	if (not $anvil->data->{server}{$server}{from_disk}{xml})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0403", variables => { 
 			server => $server,
 			name   => $anvil->data->{server}{definition_xml}->{name}, 
+		}});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Is the name in the definition file what we expect?
+	if ($server ne $anvil->data->{server}{$server}{from_disk}{info}{name})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0403", variables => { 
+			server => $server,
+			name   => $anvil->data->{server}{$server}{from_disk}{info}{name}, 
 		}});
 		$anvil->nice_exit({exit_code => 1});
 	}

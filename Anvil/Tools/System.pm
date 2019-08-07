@@ -15,11 +15,13 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
 
 ### Methods;
+# activate_lv
 # call
 # change_shell_user_password
 # check_daemon
 # check_if_configured
 # check_memory
+# check_storage
 # get_bridges
 # get_free_memory
 # get_host_type
@@ -93,7 +95,7 @@ sub parent
 	# Defend against memory leads. See Scalar::Util'.
 	if (not isweak($self->{HANDLE}{TOOLS}))
 	{
-		weaken($self->{HANDLE}{TOOLS});;
+		weaken($self->{HANDLE}{TOOLS});
 	}
 	
 	return ($self->{HANDLE}{TOOLS});
@@ -103,6 +105,61 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 activate_lv
+
+This takes a logical volume path and tries to activate it. If it is successfully activated, C<< 1 >> is returned. If the activation fails for any reason, C<< 0 >> is returned.
+
+ my $activated = $anvil->System->activate_lv({path => "/dev/foo/bar"});
+ 
+Parameters;
+
+=head3 path (required)
+
+This is the full path to the logical volume to activate.
+
+=cut
+sub activate_lv
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->call()" }});
+	
+	my $path      = defined $parameter->{path} ? $parameter->{path} : "";
+	my $activated = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		path => $path, 
+	}});
+	
+	if (not $path)
+	{
+		# Woops!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->activate_lv()", parameter => "path" }});
+		return($activated);
+	}
+	if ((not -e $path) or (not -b $path))
+	{
+		# Bad path
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0064", variables => { path => $path }});
+	}
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{lvchange}." --activate y ".$path});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# A non-zero return code indicates failure, but we'll check directly.
+	$anvil->System->check_storage({debug => $debug, scan => 2});
+	
+	# Check if it worked.
+	$activated = $anvil->data->{lvm}{'local'}{lv}{$path}{active};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { activated => $activated }});
+	
+	return($activated);
+}
 
 =head2 call
 
@@ -543,7 +600,161 @@ sub check_memory
 	return($used_ram);
 }
 
-=hed2 get_bridges
+=head2 check_storage
+
+Thic gathers LVM data from the local system.
+
+Parameters;
+
+=head4 scan (optional, default '1')
+
+Setting this to C<< 0 >> will disable scanning prior to data collection. When enabled, C<< pvscan; vgscan; lvscan >> are called before the C<< pvs >>, C<< vgs >> and C<< lvs >> calls used to collect the data this parses.
+
+=cut
+sub check_storage
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_storage()" }});
+	
+	my $scan = defined $parameter->{scan} ? $parameter->{scan} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { scan => $scan }});
+	
+	# Do a scan, if requested.
+	if ($scan)
+	{
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvscan}." && ".$anvil->data->{path}{exe}{vgscan}." && ".$anvil->data->{path}{exe}{lvscan}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
+	# Gather PV data.
+	my ($pvs_output, $pvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvs}." --units b --noheadings --separator \\\#\\\!\\\# -o pv_name,vg_name,pv_fmt,pv_attr,pv_size,pv_free,pv_used,pv_uuid"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		pvs_output      => $pvs_output,
+		pvs_return_code => $pvs_return_code, 
+	}});
+	foreach my $line (split/\n/, $pvs_output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		my ($this_pv, $used_by_vg, $format, $attributes, $total_size, $free_size, $used_size, $uuid) = (split /#!#/, $line);
+		$total_size =~ s/B$//;
+		$free_size  =~ s/B$//;
+		$used_size  =~ s/B$//;
+		
+		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_by_vg} = $used_by_vg;
+		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{attributes} = $attributes;
+		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{total_size} = $total_size;
+		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{free_size}  = $free_size;
+		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_size}  = $used_size;
+		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{uuid}       = $uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lvm::local::pv::${this_pv}::used_by_vg" => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_by_vg},
+			"lvm::local::pv::${this_pv}::attributes" => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{attributes},
+			"lvm::local::pv::${this_pv}::total_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{total_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{total_size}}).")",
+			"lvm::local::pv::${this_pv}::free_size"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{free_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{free_size}}).")",
+			"lvm::local::pv::${this_pv}::used_size"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_size}}).")",
+			"lvm::local::pv::${this_pv}::uuid"       => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{uuid},
+		}});
+	}
+	
+	# Gather VG data.
+	my ($vgs_output, $vgs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{vgs}." --units b --noheadings --separator \\\#\\\!\\\# -o vg_name,vg_attr,vg_extent_size,vg_extent_count,vg_uuid,vg_size,vg_free_count,vg_free,pv_name"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		vgs_output      => $vgs_output,
+		vgs_return_code => $vgs_return_code, 
+	}});
+	foreach my $line (split/\n/, $vgs_output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		my ($this_vg, $attributes, $pe_size, $total_pe, $uuid, $vg_size, $free_pe, $vg_free, $pv_name) = split /#!#/, $line;
+		$pe_size    = "" if not defined $pe_size;
+		$vg_size    = "" if not defined $vg_size;
+		$vg_free    = "" if not defined $vg_free;
+		$attributes = "" if not defined $attributes;
+		
+		$pe_size =~ s/B$//;
+		$vg_size =~ s/B$//;
+		$vg_free =~ s/B$//;
+		
+		my $used_pe = 0;
+		if (($total_pe) && ($free_pe))
+		{
+			$used_pe = $total_pe - $free_pe;
+		}
+		my $used_space = 0;
+		if (($vg_size) && ($vg_free))
+		{
+			$used_space = $vg_size - $vg_free;
+		}
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{pe_size}    = $pe_size;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{total_pe}   = $total_pe;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{uuid}       = $uuid;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{size}       = $vg_size;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_pe}    = $used_pe;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_space} = $used_space;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_pe}    = $free_pe;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_space} = $vg_free;
+		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{pv_name}    = $pv_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lvm::local::vg::${this_vg}::pe_size"    => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{pe_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{pe_size}}).")",
+			"lvm::local::vg::${this_vg}::total_pe"   => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{total_pe},
+			"lvm::local::vg::${this_vg}::uuid"       => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{uuid},
+			"lvm::local::vg::${this_vg}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{size}}).")",
+			"lvm::local::vg::${this_vg}::used_pe"    => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_pe},
+			"lvm::local::vg::${this_vg}::used_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_space}}).")",
+			"lvm::local::vg::${this_vg}::free_pe"    => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_pe},
+			"lvm::local::vg::${this_vg}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_space}}).")",
+			"lvm::local::vg::${this_vg}::pv_name"    => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{pv_name},
+		}});
+	}
+	
+	# And finally, the LV data.
+	my ($lvs_output, $lvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{lvs}." --units b --noheadings --separator \\\#\\\!\\\# -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		lvs_output      => $lvs_output,
+		lvs_return_code => $lvs_return_code, 
+	}});
+	foreach my $line (split/\n/, $lvs_output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		my ($lv_name, $on_vg, $attributes, $total_size, $uuid, $path, $devices) = (split /#!#/, $line);
+
+		$total_size =~ s/B$//;
+		$devices    =~ s/\(\d+\)//g;	# Strip the starting PE number
+
+		$anvil->data->{lvm}{'local'}{lv}{$path}{name}       = $lv_name;
+		$anvil->data->{lvm}{'local'}{lv}{$path}{on_vg}      = $on_vg;
+		$anvil->data->{lvm}{'local'}{lv}{$path}{active}     = ($attributes =~ /.{4}(.{1})/)[0] eq "a" ? 1 : 0;
+		$anvil->data->{lvm}{'local'}{lv}{$path}{attributes} = $attributes;
+		$anvil->data->{lvm}{'local'}{lv}{$path}{total_size} = $total_size;
+		$anvil->data->{lvm}{'local'}{lv}{$path}{uuid}       = $uuid;
+		$anvil->data->{lvm}{'local'}{lv}{$path}{on_devices} = $devices;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lvm::local::lv::${path}::name"       => $anvil->data->{lvm}{'local'}{lv}{$path}{name},
+			"lvm::local::lv::${path}::on_vg"      => $anvil->data->{lvm}{'local'}{lv}{$path}{on_vg},
+			"lvm::local::lv::${path}::active"     => $anvil->data->{lvm}{'local'}{lv}{$path}{active},
+			"lvm::local::lv::${path}::attributes" => $anvil->data->{lvm}{'local'}{lv}{$path}{attributes},
+			"lvm::local::lv::${path}::total_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{lv}{$path}{total_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{lv}{$path}{total_size}}).")",
+			"lvm::local::lv::${path}::uuid"       => $anvil->data->{lvm}{'local'}{lv}{$path}{uuid},
+			"lvm::local::lv::${path}::on_devices" => $anvil->data->{lvm}{'local'}{lv}{$path}{on_devices},
+		}});
+	}
+	
+	return(0);
+}
+
+=head2 get_bridges
 
 This finds a list of bridges on the host. Bridges that are found are stored is '
 
@@ -556,7 +767,7 @@ sub get_bridges
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_bridges()" }});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{bridge}." -json -details link show"});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{bridge}." -json -details link show"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 

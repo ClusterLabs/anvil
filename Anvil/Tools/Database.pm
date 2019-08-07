@@ -101,7 +101,7 @@ sub parent
 	# Defend against memory leads. See Scalar::Util'.
 	if (not isweak($self->{HANDLE}{TOOLS}))
 	{
-		weaken($self->{HANDLE}{TOOLS});;
+		weaken($self->{HANDLE}{TOOLS});
 	}
 	
 	return ($self->{HANDLE}{TOOLS});
@@ -6789,7 +6789,7 @@ ORDER BY
 					"sys::database::table::${table}::last_updated"                => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 					"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 				}});
-				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}) });;
+				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{last_updated} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}) });
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0106", variables => { 
 					seconds => $difference, 
 					table   => $table, 
@@ -6808,7 +6808,7 @@ ORDER BY
 					"sys::database::table::${table}::row_count"                => $anvil->data->{sys}{database}{table}{$table}{row_count}, 
 					"sys::database::table::${table}::uuid::${uuid}::row_count" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
 				}});
-				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}) });;
+				my $difference = $anvil->Convert->add_commas({number => ($anvil->data->{sys}{database}{table}{$table}{row_count} - $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}) });
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0219", variables => { 
 					missing => $difference, 
 					table   => $table, 

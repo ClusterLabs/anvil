@@ -282,7 +282,7 @@ sub download_file
 	while(<$file_handle>)
 	{
 		chomp;
-		my $line = $anvil->Words->clean_spaces({string => $_});;
+		my $line = $anvil->Words->clean_spaces({string => $_});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0017", variables => { line => $line }});
 		
 		# Check for problems

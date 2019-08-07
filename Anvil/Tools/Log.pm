@@ -75,7 +75,7 @@ sub parent
 	# Defend against memory leads. See Scalar::Util'.
 	if (not isweak($self->{HANDLE}{TOOLS}))
 	{
-		weaken($self->{HANDLE}{TOOLS});;
+		weaken($self->{HANDLE}{TOOLS});
 	}
 	
 	return ($self->{HANDLE}{TOOLS});
@@ -691,7 +691,7 @@ sub variables
 		}
 		my $raw = "";
 		# NOTE: If you change this, be sure to update Tools.t
-		if ($entries <= 4)
+		if ($entries <= 3)
 		{
 			# Put all the entries on one line.
 			foreach my $key (sort {$a cmp $b} keys %{$list})

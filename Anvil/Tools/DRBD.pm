@@ -64,7 +64,7 @@ sub parent
 	# Defend against memory leads. See Scalar::Util'.
 	if (not isweak($self->{HANDLE}{TOOLS}))
 	{
-		weaken($self->{HANDLE}{TOOLS});;
+		weaken($self->{HANDLE}{TOOLS});
 	}
 	
 	return ($self->{HANDLE}{TOOLS});
@@ -166,8 +166,10 @@ sub get_devices
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	$anvil->data->{drbd}{'dump-xml'}{parsed}     = $dump_xml;
+	#print Dumper $dump_xml;
 	$anvil->data->{drbd}{config}{'auto-promote'} = 0;
+	$anvil->data->{drbd}{host}{'local'}          = "";
+	$anvil->data->{drbd}{host}{peer}             = "";
 	
 	foreach my $hash_ref (@{$dump_xml->{resource}})
 	{
@@ -210,11 +212,11 @@ sub get_devices
 		{
 			### TODO: Handle external metadata
 			my $host  = $host_href->{name};
-			my $local = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 			if (($host eq $anvil->_hostname) or ($host eq $anvil->_short_hostname))
 			{
-				$local = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'local' => $local }});
+				$anvil->data->{drbd}{host}{'local'} = $host;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'drbd::host::local' => $anvil->data->{drbd}{host}{'local'} }});
 			}
 			foreach my $volume_href (@{$host_href->{volume}})
 			{
@@ -231,7 +233,7 @@ sub get_devices
 					"drbd::config::${this_resource}::volume::${volume}::meta-disk"  => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{'meta-disk'},
 					"drbd::config::${this_resource}::volume::${volume}::backing_lv" => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{backing_lv},
 				}});
-				if ($local)
+				if (($anvil->data->{drbd}{host}{'local'}) && ($anvil->data->{drbd}{host}{'local'} eq $host))
 				{
 					$anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{on}       = $lv_path;
 					$anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{resource} = $this_resource;
@@ -241,6 +243,58 @@ sub get_devices
 						"drbd::local::drbd_path::${drbd_path}::resource" => $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{resource},
 						"drbd::local::lv_path::${lv_path}::under"        => $anvil->data->{drbd}{'local'}{lv_path}{$lv_path}{under},
 					}});
+				}
+			}
+		}
+		
+		### NOTE: Connections are listed as 'host A <-> Host B (options), 'host A <-> Host C 
+		###       (options) and 'host B <-> Host C (options)'. So first we see which entry has 
+		###       fencing, and ignore the others. The one with real fencing, we figure out which is 
+		###       us (if any) and the other has to be the peer.
+		# Find my peer, if I am myself a node.
+		if (($anvil->data->{drbd}{host}{'local'}) && (not $anvil->data->{drbd}{host}{peer}))
+		{
+			#print Dumper $hash_ref->{connection};
+			foreach my $hash_ref (@{$hash_ref->{connection}})
+			{
+				# Look in 'section' for fencing data.
+				my $fencing  = "";
+				my $protocol = "";
+				#print Dumper $hash_ref;
+				foreach my $section_ref (@{$hash_ref->{section}})
+				{
+					next if $section_ref->{name} ne "net";
+					foreach my $option_ref (@{$section_ref->{option}})
+					{
+						if ($option_ref->{name} eq "fencing")
+						{
+							$fencing = $option_ref->{value};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fencing => $fencing }});
+						}
+						elsif ($option_ref->{name} eq "protocol")
+						{
+							$protocol = $option_ref->{value};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { protocol => $protocol }});
+						}
+					}
+				}
+				
+				# If the protocol is 'resource-and-stonith', we care. Otherwise it's a 
+				# connection involving DR and we don't.
+				next if $fencing ne "resource-and-stonith";
+				
+				# If we're still alive, this should be our connection to our peer.
+				foreach my $host_ref (@{$hash_ref->{host}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						'drbd::host::local' => $anvil->data->{drbd}{host}{'local'},
+						'host_ref->name'    => $host_ref->{name}, 
+					}});
+					next if $host_ref->{name} eq $anvil->data->{drbd}{host}{'local'};
+					
+					# Found the peer.
+					$anvil->data->{drbd}{host}{peer} = $host_ref->{name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'drbd::host::peer' => $anvil->data->{drbd}{host}{peer} }});
 				}
 			}
 		}

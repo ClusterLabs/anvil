@@ -686,9 +686,9 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0371">Recording the local connection details for the resource: [#!variable!resource!#] -> [#!variable!address!#:#!variable!port!#].</key>
 		<key name="log_0372">Recording the peer's connection details for the resource: [#!variable!resource!#] -> [#!variable!address!#:#!variable!port!#].</key>
 		<key name="log_0373">Checking that the DRBD device: [#!variable!device_path!#] is ready.</key>
-		<key name="log_0374">The server wants to use: [#!variable!device_path!#] as a hard drive, but we couldn't find the backing logical volume on this node.</key>
-		<key name="log_0375">The server wants to use: [#!variable!device_path!#] as a hard drive, but the backing logical volume: [#!variable!lv!#] doesn't exist on this node.</key>
-		<key name="log_0376">The server wants to use: [#!variable!device_path!#] as a hard drive, which is backed by the logical volume: [#!variable!lv!#]. Will check that is is ready.</key>
+		<key name="log_0374">The server wants to use: [#!variable!drbd_device!#] as a hard drive, but we couldn't find the backing logical volume: [#!variable!lv_path!#] on this node.</key>
+		<key name="log_0375">The server wants to use: [#!variable!drbd_device!#] as a hard drive, but the backing logical volume: [#!variable!lv_path!#] is inactive and an attempt to activate it failed.</key>
+		<key name="log_0376">The server wants to use: [#!variable!drbd_device!#] as a hard drive, which is backed by the logical volume: [#!variable!lv_path!#]. It is ready to use.</key>
 		<key name="log_0377">The attempt to read the DRBD status returned a non-zero code: [#!variable!return_code!#]. The returned output (if any) was: [#!variable!status_json!#].</key>
 		<key name="log_0378">The DRBD resource for this server is not running yet.</key>
 		<key name="log_0379">Bringing up the resource: [#!variable!resource!#] for the server's: [#!variable!device_path!#] disk.</key>
@@ -730,6 +730,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 ====
 		</key>
 		<key name="log_0412">The server: [#!variable!server!#] is already on this node in the state: [#!variable!state!#], aborting the migration request.</key>
+		<key name="log_0413">The logical volume: [#!variable!lv_path!#] is inactive. Attempting to activate it now.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1014,6 +1015,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0061">The download job with UUID: [#!variable!job_uuid!#] is not valid.</key>
 		<key name="error_0062">The download job with UUID: [#!variable!job_uuid!#] is already being handled by another process.</key>
 		<key name="error_0063">Something went wrong trying to download: [#!variable!packages!#]. The return code should have been '0'. but: [#!variable!return_code!#] was received. Is a package missing upstream?</key>
+		<key name="error_0064">A request to active the logical volume: [#!variable!path!#] was made, but that path doesn't exist or isn't a block device.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

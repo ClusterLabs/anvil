@@ -63,7 +63,7 @@ sub parent
 	# Defend against memory leads. See Scalar::Util'.
 	if (not isweak($self->{HANDLE}{TOOLS}))
 	{
-		weaken($self->{HANDLE}{TOOLS});;
+		weaken($self->{HANDLE}{TOOLS});
 	}
 	
 	return ($self->{HANDLE}{TOOLS});
@@ -208,7 +208,12 @@ sub get_status
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"server::${server}::disk::xml" => $anvil->data->{server}{$server}{disk}{xml},
 	}});
-	if ($anvil->data->{server}{$server}{from_disk}{xml})
+	if (($anvil->data->{server}{$server}{from_disk}{xml} eq "!!errer!!") or (not $anvil->data->{server}{$server}{from_disk}{xml}))
+	{
+		# Failed to read it.
+		$anvil->data->{server}{$server}{from_disk}{xml} = "";
+	}
+	else
 	{
 		$anvil->Server->_parse_definition({
 			debug      => $debug,
@@ -655,13 +660,13 @@ sub _parse_definition
 				"server::${server}::${source}::device::${device}::target::${device_target}::driver::cache"     => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{cache},
 			}});
 			
-			$anvil->data->{server}{$server}{$source}{device}{$device_path}{on_lv}    = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       : "";
-			$anvil->data->{server}{$server}{$source}{device}{$device_path}{resource} = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} : "";
-			$anvil->data->{server}{$server}{$source}{device}{$device_path}{target}   = $device_target;
+			$anvil->data->{server}{$server}{device}{$device_path}{on_lv}    = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       : "";
+			$anvil->data->{server}{$server}{device}{$device_path}{resource} = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} : "";
+			$anvil->data->{server}{$server}{device}{$device_path}{target}   = $device_target;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::${server}::${source}::device::${device_path}::on_lv"    => $anvil->data->{server}{$server}{$source}{device}{$device_path}{on_lv},
-				"server::${server}::${source}::device::${device_path}::resource" => $anvil->data->{server}{$server}{$source}{device}{$device_path}{resource},
-				"server::${server}::${source}::device::${device_path}::target"   => $anvil->data->{server}{$server}{$source}{device}{$device_path}{target},
+				"server::${server}::device::${device_path}::on_lv"    => $anvil->data->{server}{$server}{device}{$device_path}{on_lv},
+				"server::${server}::device::${device_path}::resource" => $anvil->data->{server}{$server}{device}{$device_path}{resource},
+				"server::${server}::device::${device_path}::target"   => $anvil->data->{server}{$server}{device}{$device_path}{target},
 			}});
 			
 			### TODO: Store the parts in some format that allows representing it better to the user and easier to find "open slots".

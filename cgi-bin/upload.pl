@@ -63,8 +63,8 @@ if ($cgi->param())
 	### NOTE: The timing is a guide only. The AJAX does a lot of work before this script is invoked. It 
 	###       might be better to just remove the timing stuff entirely...
 	my $size             = (stat($out_file))[7];
-	my $say_size_human   = $anvil->Convert->add_commas({number => $size});
-	my $say_size_comma   = $anvil->Convert->bytes_to_human_readable({'bytes' => $size});
+	my $say_size_human   = $anvil->Convert->bytes_to_human_readable({'bytes' => $size});
+	my $say_size_comma   = $anvil->Convert->add_commas({number => $size});
 	my $took             = time - $start;
 	   $took             = 1 if not $took;
 	my $say_took         = $anvil->Convert->add_commas({number => $took});

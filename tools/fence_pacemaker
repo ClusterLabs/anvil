@@ -556,7 +556,7 @@ sub kill_target
 	my $start_time = time;
 	my $end_time   = $start_time + 300;
 	my $fenced     = 0;
-	to_log($conf, {message => "start_time: [$start_time], end_time: [$return_code]", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "start_time: [$start_time], end_time: [$end_time]", 'line' => __LINE__, level => 2});
 	until ($fenced)
 	{
 		# This will exit 
