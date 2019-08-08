@@ -731,6 +731,11 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		</key>
 		<key name="log_0412">The server: [#!variable!server!#] is already on this node in the state: [#!variable!state!#], aborting the migration request.</key>
 		<key name="log_0413">The logical volume: [#!variable!lv_path!#] is inactive. Attempting to activate it now.</key>
+		<key name="log_0414">The DRBD device: [#!variable!drbd_device!#] wasn't found in any DRBD resources on this machine.</key>
+		<key name="log_0415">- Seeing if the server: [#!variable!server!#] is running already.</key>
+		<key name="log_0416">The server: [#!variable!server!#] is already running. Exiting successfully.</key>
+		<key name="log_0417">The server: [#!variable!server!#] is already running on: [#!variable!host!#]. This appears to be a DR host, which is outside pacemaker. Exiting with OCF_ERR_CONFIGURED (6) to prevent pacemaker from trying to start the server on the other node.</key>
+		<key name="log_0418">The server: [#!variable!server!#] is already running on: [#!variable!host!#]. This appears to be our peer. Exiting with OCF_ERR_INSTALLED (5) to tell pacemaker to try to start it on the other node.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

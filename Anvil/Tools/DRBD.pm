@@ -78,7 +78,6 @@ sub parent
 
 This finds all of the configured '/dev/drbdX' devices and maps them to their resource names.
 
-
 Parameters;
 
 =head3 password (optional)
@@ -116,13 +115,8 @@ sub get_devices
 		target      => $target, 
 	}});
 	
-	# Clear the hash where we'll store the data.
-	if (exists $anvil->data->{drbd}{'dump-xml'})
-	{
-		delete $anvil->data->{drbd}{'dump-xml'};
-	}
-	
 	# Is this a local call or a remote call?
+	my $host       = $anvil->_short_hostname;
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
 	my $output     = "";
 	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
@@ -136,7 +130,9 @@ sub get_devices
 			password    => $password,
 			remote_user => $remote_user, 
 		});
+		$host = $target;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host                             => $host,
 			error                            => $error,
 			output                           => $output,
 			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
@@ -150,6 +146,12 @@ sub get_devices
 			output                           => $output,
 			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
 		}});
+	}
+	
+	# Clear the hash where we'll store the data.
+	if (exists $anvil->data->{drbd}{config}{$host})
+	{
+		delete $anvil->data->{drbd}{config}{$host};
 	}
 	
 	my $xml      = XML::Simple->new();
@@ -167,9 +169,10 @@ sub get_devices
 	}
 	
 	#print Dumper $dump_xml;
-	$anvil->data->{drbd}{config}{'auto-promote'} = 0;
-	$anvil->data->{drbd}{host}{'local'}          = "";
-	$anvil->data->{drbd}{host}{peer}             = "";
+	$anvil->data->{drbd}{config}{$host}{'auto-promote'} = 0;
+	$anvil->data->{drbd}{config}{$host}{host}          = "";
+	$anvil->data->{drbd}{config}{$host}{peer}          = "";
+	$anvil->data->{drbd}{config}{$host}{nodes}         = {};
 	
 	foreach my $hash_ref (@{$dump_xml->{resource}})
 	{
@@ -178,20 +181,20 @@ sub get_devices
 		{
 			foreach my $host_href (@{$connection_href->{host}})
 			{
-				my $host                                                                       = $host_href->{name};
-				my $port                                                                       = $host_href->{address}->[0]->{port};
-				my $ip_address                                                                 = $host_href->{address}->[0]->{content};
-				   $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_family}  = $host_href->{address}->[0]->{family};
-				   $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_address} = $host_href->{address}->[0]->{content};
-				   $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{port}       = $port;
-				   $anvil->data->{drbd}{ip_addresses}{$ip_address}                             = 1;
-				   $anvil->data->{drbd}{tcp_ports}{$port}                                      = 1;
+				my $this_host                                                                                        = $host_href->{name};
+				my $port                                                                                             = $host_href->{address}->[0]->{port};
+				my $ip_address                                                                                       = $host_href->{address}->[0]->{content};
+				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{connection}{$this_host}{ip_family}  = $host_href->{address}->[0]->{family};
+				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{connection}{$this_host}{ip_address} = $host_href->{address}->[0]->{content};
+				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{connection}{$this_host}{port}       = $port;
+				   $anvil->data->{drbd}{config}{$host}{ip_addresses}{$ip_address}                                    = $this_host;
+				   $anvil->data->{drbd}{config}{$host}{tcp_ports}{$port}                                             = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"drbd::config::${this_resource}::connection::${host}::ip_family"  => $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_family},
-					"drbd::config::${this_resource}::connection::${host}::ip_address" => $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{ip_address},
-					"drbd::config::${this_resource}::connection::${host}::port"       => $anvil->data->{drbd}{config}{$this_resource}{connection}{$host}{port},
-					"drbd::ip_addresses::${ip_address}"                               => $anvil->data->{drbd}{ip_addresses}{$ip_address}, 
-					"drbd::tcp_ports::${port}"                                        => $anvil->data->{drbd}{tcp_ports}{$port},
+					"drbd::config::${host}::resource::${this_resource}::connection::${this_host}::ip_family"  => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{connection}{$this_host}{ip_family},
+					"drbd::config::${host}::resource::${this_resource}::connection::${this_host}::ip_address" => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{connection}{$this_host}{ip_address},
+					"drbd::config::${host}::resource::${this_resource}::connection::${this_host}::port"       => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{connection}{$this_host}{port},
+					"drbd::config::${host}::ip_addresses::${ip_address}"                                      => $anvil->data->{drbd}{config}{$host}{ip_addresses}{$ip_address}, 
+					"drbd::config::${host}::tcp_ports::${port}"                                               => $anvil->data->{drbd}{config}{$host}{tcp_ports}{$port},
 				}});
 			}
 			foreach my $section_href (@{$connection_href->{section}})
@@ -200,9 +203,9 @@ sub get_devices
 				foreach my $option_href (@{$section_href->{option}})
 				{
 					my $variable = $option_href->{name};
-					$anvil->data->{drbd}{config}{$this_resource}{section}{$section}{$variable} = $option_href->{value};
+					$anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{section}{$section}{$variable} = $option_href->{value};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"drbd::config::${this_resource}::section::${section}::${variable}" => $anvil->data->{drbd}{config}{$this_resource}{section}{$section}{$variable},
+						"drbd::config::${host}::resource::${this_resource}::section::${section}::${variable}" => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{section}{$section}{$variable},
 					}});
 				}
 			}
@@ -211,37 +214,41 @@ sub get_devices
 		foreach my $host_href (@{$hash_ref->{host}})
 		{
 			### TODO: Handle external metadata
-			my $host  = $host_href->{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
-			if (($host eq $anvil->_hostname) or ($host eq $anvil->_short_hostname))
+			my $this_host = $host_href->{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				this_host                 => $this_host,
+				'$anvil->_hostname'       => $anvil->_hostname, 
+				'$anvil->_short_hostname' => $anvil->_short_hostname, 
+			}});
+			if (($this_host eq $anvil->_hostname) or ($this_host eq $anvil->_short_hostname))
 			{
-				$anvil->data->{drbd}{host}{'local'} = $host;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'drbd::host::local' => $anvil->data->{drbd}{host}{'local'} }});
+				$anvil->data->{drbd}{config}{$host}{host} = $this_host;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::config::${host}::host" => $anvil->data->{drbd}{config}{$host}{host} }});
 			}
 			foreach my $volume_href (@{$host_href->{volume}})
 			{
-				my $volume                                                                    = $volume_href->{vnr};
-				my $drbd_path                                                                 = $volume_href->{device}->[0]->{content};
-				my $lv_path                                                                   = $volume_href->{disk}->[0];
-				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_path}   = $drbd_path;
-				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_minor}  = $volume_href->{device}->[0]->{minor};
-				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{'meta-disk'} = $volume_href->{'meta-disk'}->[0];
-				   $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{backing_lv}  = $lv_path;
+				my $volume                                                                                     = $volume_href->{vnr};
+				my $drbd_path                                                                                  = $volume_href->{device}->[0]->{content};
+				my $lv_path                                                                                    = $volume_href->{disk}->[0];
+				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_path}   = $drbd_path;
+				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_minor}  = $volume_href->{device}->[0]->{minor};
+				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{'meta-disk'} = $volume_href->{'meta-disk'}->[0];
+				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{backing_lv}  = $lv_path;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"drbd::config::${this_resource}::volume::${volume}::drbd_path"  => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_path},
-					"drbd::config::${this_resource}::volume::${volume}::drbd_minor" => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{drbd_minor},
-					"drbd::config::${this_resource}::volume::${volume}::meta-disk"  => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{'meta-disk'},
-					"drbd::config::${this_resource}::volume::${volume}::backing_lv" => $anvil->data->{drbd}{config}{$this_resource}{volume}{$volume}{backing_lv},
+					"drbd::config::${host}::resource::${this_resource}::volume::${volume}::drbd_path"  => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_path},
+					"drbd::config::${host}::resource::${this_resource}::volume::${volume}::drbd_minor" => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_minor},
+					"drbd::config::${host}::resource::${this_resource}::volume::${volume}::meta-disk"  => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{'meta-disk'},
+					"drbd::config::${host}::resource::${this_resource}::volume::${volume}::backing_lv" => $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{backing_lv},
 				}});
-				if (($anvil->data->{drbd}{host}{'local'}) && ($anvil->data->{drbd}{host}{'local'} eq $host))
+				if (($anvil->data->{drbd}{config}{$host}{host}) && ($anvil->data->{drbd}{config}{$host}{host} eq $this_host))
 				{
-					$anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{on}       = $lv_path;
-					$anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{resource} = $this_resource;
-					$anvil->data->{drbd}{'local'}{lv_path}{$lv_path}{under}        = $drbd_path;
+					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on}       = $lv_path;
+					$anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource} = $this_resource;
+					$anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under}        = $drbd_path;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"drbd::local::drbd_path::${drbd_path}::on"       => $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{on},
-						"drbd::local::drbd_path::${drbd_path}::resource" => $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_path}{resource},
-						"drbd::local::lv_path::${lv_path}::under"        => $anvil->data->{drbd}{'local'}{lv_path}{$lv_path}{under},
+						"drbd::config::${host}::drbd_path::${drbd_path}::on"       => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{on},
+						"drbd::config::${host}::drbd_path::${drbd_path}::resource" => $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_path}{resource},
+						"drbd::config::${host}::lv_path::${lv_path}::under"        => $anvil->data->{drbd}{config}{$host}{lv_path}{$lv_path}{under},
 					}});
 				}
 			}
@@ -252,7 +259,7 @@ sub get_devices
 		###       fencing, and ignore the others. The one with real fencing, we figure out which is 
 		###       us (if any) and the other has to be the peer.
 		# Find my peer, if I am myself a node.
-		if (($anvil->data->{drbd}{host}{'local'}) && (not $anvil->data->{drbd}{host}{peer}))
+		if (($anvil->data->{drbd}{config}{$host}{host}) && (not $anvil->data->{drbd}{config}{$host}{peer}))
 		{
 			#print Dumper $hash_ref->{connection};
 			foreach my $hash_ref (@{$hash_ref->{connection}})
@@ -287,14 +294,14 @@ sub get_devices
 				foreach my $host_ref (@{$hash_ref->{host}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						'drbd::host::local' => $anvil->data->{drbd}{host}{'local'},
-						'host_ref->name'    => $host_ref->{name}, 
+						"drbd::config::${host}::host" => $anvil->data->{drbd}{config}{$host}{host},
+						"host_ref->name"              => $host_ref->{name}, 
 					}});
-					next if $host_ref->{name} eq $anvil->data->{drbd}{host}{'local'};
+					next if $host_ref->{name} eq $anvil->data->{drbd}{config}{$host}{host};
 					
 					# Found the peer.
-					$anvil->data->{drbd}{host}{peer} = $host_ref->{name};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'drbd::host::peer' => $anvil->data->{drbd}{host}{peer} }});
+					$anvil->data->{drbd}{config}{$host}{peer} = $host_ref->{name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::config::${host}::peer" => $anvil->data->{drbd}{config}{$host}{peer} }});
 				}
 			}
 		}

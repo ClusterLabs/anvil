@@ -315,11 +315,90 @@ sub start_server
 	# Make sure things are sane.
 	validate_all($anvil);
 	
+	# Is the server already running somewhere?
+	find_server($anvil);
+	#$anvil->Server->find({server => $server});
+	
+	### TODO: 
+	my $host = $anvil->_short_hostname;
+	print "I am: [".$anvil->data->{drbd}{config}{$host}{host}."]. my peer is: [".$anvil->data->{drbd}{config}{$host}{peer}."]\n";
+	
 	die;
 	
 	# If we're still alive, then we didn't see the server in the list of running servers, which is really weird.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0311", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 1});
+}
+
+# This uses the DRBD information to find other peers and see if the server is running on them.
+sub find_server
+{
+	my ($anvil) = @_;
+	
+	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $host   = $anvil->_short_hostname;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0415", variables => { server => $server }});
+	foreach my $ip_address (sort {$a cmp $b} keys %{$anvil->data->{drbd}{config}{$host}{ip_addresses}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_address => $ip_address }});
+		$anvil->Server->find({
+			debug       => 3, 
+			target      => $ip_address,
+			remote_user => "root", 
+		});
+	}
+	
+	foreach my $this_server (sort {$a cmp $b} keys %{$anvil->data->{server}{location}})
+	{
+		my $status = $anvil->data->{server}{location}{$this_server}{status};
+		my $host   = $anvil->data->{server}{location}{$this_server}{host};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			this_server => $this_server, 
+			status      => $status, 
+			host        => $host, 
+		}});
+	}
+	if ((exists $anvil->data->{server}{location}{$server}) && ($anvil->data->{server}{location}{$server}{host}))
+	{
+		# The server is running. If it is running here, exit with success. If it's running elsewhere,
+		# exit with a failure.
+		my $status = $anvil->data->{server}{location}{$server}{status};
+		my $host   = $anvil->data->{server}{location}{$server}{host};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			status => $status, 
+			host   => $host, 
+		}});
+		
+		if ($host eq $anvil->_hostname)
+		{
+			# Already running, we're good, and we're done.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0416", variables => { server => $server }});
+			$anvil->nice_exit({exit_code => 0});
+		}
+		elsif ($host =~ /dr(\d+)$/)
+		{
+			# The server is running elsewhere. If the peer host is DR, exit with 
+			# OCF_ERR_CONFIGURED (6) so that pacemaker doesn't try to also start the server on 
+			# the other node, because we don't know the state of it here.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0417", variables => { 
+				server => $server,
+				host   => $host, 
+			}});
+			$anvil->nice_exit({exit_code => 6});
+		}
+		else
+		{
+			# It looks like it's running on the peer. So we'll exit OCF_ERR_INSTALLED (5) to tell
+			# pacemaker to try to start it on our peer.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0418", variables => { 
+				server => $server,
+				host   => $host, 
+			}});
+			$anvil->nice_exit({exit_code => 6});
+		}
+	}
+	
+	return(0);
 }
 
 # This shuts down the server if possible.
@@ -350,7 +429,7 @@ sub server_status
 	{
 		# Set a sane default of 20 seconds.
 		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "warn", key => "log_0331", variables => { logout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "warn", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
 	
 	$anvil->nice_exit({exit_code => 0});
@@ -391,8 +470,8 @@ sub validate_all
 	###       if the server is running elsewhere.
 	
 	# Read in an parse the server's XML.
-	$anvil->System->check_storage({debug => 3});
-	$anvil->Server->get_status({debug => 3, server => $anvil->data->{environment}{OCF_RESKEY_name}});
+	$anvil->System->check_storage({debug => 2});
+	$anvil->Server->get_status({debug => 2, server => $anvil->data->{environment}{OCF_RESKEY_name}});
 	
 	# Is the name in the definition file what we expect (and did we read the XML data at all)?
 	validate_name($anvil);
@@ -525,12 +604,28 @@ sub validate_storage_drbd
 	# Now check storage.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source = "from_disk";
+	my $host   = $anvil->_short_hostname;
+	
+	# Did I find a resource for each disk?
+	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{device}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"server::${server}::device::${device_path}::resource" => $anvil->data->{server}{$server}{device}{$device_path}{resource},
+		}});
+		if (not $anvil->data->{server}{$server}{device}{$device_path}{resource})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 0, priority => "err", key => "log_0414", variables => { drbd_device => $device_path }});
+			$anvil->nice_exit({exit_code => 5});
+		}
+	}
+	
 	foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{$source}{device}{disk}{target}})
 	{
 		my $drbd_device   = $anvil->data->{server}{$server}{$source}{device}{disk}{target}{$device_target}{path};
-		my $drbd_resource = $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_device}{resource};
-		my $on_lv         = $anvil->data->{drbd}{'local'}{drbd_path}{$drbd_device}{on};
+		my $drbd_resource = $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource};
+		my $on_lv         = $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host          => $host, 
 			drbd_device   => $drbd_device,
 			drbd_resource => $drbd_resource, 
 			on_lv         => $on_lv, 
@@ -567,9 +662,8 @@ sub validate_storage_drbd
 		
 	}
 	
-	print "I am: [".$anvil->data->{drbd}{host}{'local'}."]. my peer is: [".$anvil->data->{drbd}{host}{peer}."]\n";
-	
-	die;
+	### NOTE: Checking/Managing firewall ports is expensive option, so DRBD ports are permanently opened 
+	###       when a resource is created.
 	
 	return(0);
 }

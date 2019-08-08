@@ -625,22 +625,46 @@ sub check_storage
 	# Do a scan, if requested.
 	if ($scan)
 	{
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvscan}." && ".$anvil->data->{path}{exe}{vgscan}." && ".$anvil->data->{path}{exe}{lvscan}});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvscan}." 2>/dev/null"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output      => $output,
-			return_code => $return_code, 
+			output          => $output,
+			return_code     => $return_code, 
+			redirect_stderr => 0, 
+		}});
+		
+		$output      = "";
+		$return_code = "";
+		($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{vgscan}." 2>/dev/null"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output          => $output,
+			return_code     => $return_code, 
+			redirect_stderr => 0, 
+		}});
+		
+		$output      = "";
+		$return_code = "";
+		($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{lvscan}." 2>/dev/null"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output          => $output,
+			return_code     => $return_code, 
+			redirect_stderr => 0, 
 		}});
 	}
 	
+	### NOTE: In case: 'lvm.conf -> filter = [ "r|/dev/drbd.*|" ]' isn't set, we'll get warnings about 
+	###       DRBD devices being "wrong medium type" when Secondary. We check for and ignore these 
+	###       warnings.
 	# Gather PV data.
-	my ($pvs_output, $pvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvs}." --units b --noheadings --separator \\\#\\\!\\\# -o pv_name,vg_name,pv_fmt,pv_attr,pv_size,pv_free,pv_used,pv_uuid"});
+	my ($pvs_output, $pvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvs}." --units b --noheadings --separator \\\#\\\!\\\# -o pv_name,vg_name,pv_fmt,pv_attr,pv_size,pv_free,pv_used,pv_uuid 2>/dev/null"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		pvs_output      => $pvs_output,
 		pvs_return_code => $pvs_return_code, 
+		redirect_stderr => 0, 
 	}});
 	foreach my $line (split/\n/, $pvs_output)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
+		next if $line =~ /Wrong medium type/i;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		
 		my ($this_pv, $used_by_vg, $format, $attributes, $total_size, $free_size, $used_size, $uuid) = (split /#!#/, $line);
@@ -665,14 +689,16 @@ sub check_storage
 	}
 	
 	# Gather VG data.
-	my ($vgs_output, $vgs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{vgs}." --units b --noheadings --separator \\\#\\\!\\\# -o vg_name,vg_attr,vg_extent_size,vg_extent_count,vg_uuid,vg_size,vg_free_count,vg_free,pv_name"});
+	my ($vgs_output, $vgs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{vgs}." --units b --noheadings --separator \\\#\\\!\\\# -o vg_name,vg_attr,vg_extent_size,vg_extent_count,vg_uuid,vg_size,vg_free_count,vg_free,pv_name 2>/dev/null"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		vgs_output      => $vgs_output,
 		vgs_return_code => $vgs_return_code, 
+		redirect_stderr => 0, 
 	}});
 	foreach my $line (split/\n/, $vgs_output)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
+		next if $line =~ /Wrong medium type/i;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		
 		my ($this_vg, $attributes, $pe_size, $total_pe, $uuid, $vg_size, $free_pe, $vg_free, $pv_name) = split /#!#/, $line;
@@ -718,14 +744,16 @@ sub check_storage
 	}
 	
 	# And finally, the LV data.
-	my ($lvs_output, $lvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{lvs}." --units b --noheadings --separator \\\#\\\!\\\# -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices"});
+	my ($lvs_output, $lvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{lvs}." --units b --noheadings --separator \\\#\\\!\\\# -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices 2>/dev/null"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		lvs_output      => $lvs_output,
 		lvs_return_code => $lvs_return_code, 
+		redirect_stderr => 0, 
 	}});
 	foreach my $line (split/\n/, $lvs_output)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
+		next if $line =~ /Wrong medium type/i;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		
 		my ($lv_name, $on_vg, $attributes, $total_size, $uuid, $path, $devices) = (split /#!#/, $line);
@@ -1502,7 +1530,7 @@ sub is_local
 	my $is_local = 0;
 	if (($host eq $anvil->_hostname)       or 
 	    ($host eq $anvil->_short_hostname) or 
-	    ($host eq "localhost")          or 
+	    ($host eq "localhost")             or 
 	    ($host eq "127.0.0.1"))
 	{
 		# It's local

@@ -75,13 +75,107 @@ sub parent
 
 =head2 find
 
-This looks on an Anvil! for what servers are running where.
+This will look on the local or a remote machine for the list of servers that are running. 
 
+The list is stored as; 
 
+ server::location::<server>::status = <status>
+ server::location::<server>::host   = <hostname>
+
+Parameters;
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default 'root')
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
 
 =cut
 sub find
 {
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	}});
+	
+	my $host_type    = $anvil->System->get_host_type({debug => $debug});
+	my $host         = $anvil->_hostname;
+	my $virsh_output = "";
+	my $return_code  = "";
+	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	{
+		# Remote call.
+		($host, my $error, my $host_return_code) = $anvil->Remote->call({
+			debug       => 2, 
+			shell_call  => $anvil->data->{path}{exe}{hostnamectl}." --static", 
+			target      => $target,
+			remote_user => "root", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host             => $host,
+			error            => $error,
+			host_return_code => $host_return_code, 
+		}});
+		($virsh_output, $error, $return_code) = $anvil->Remote->call({
+			debug       => 2, 
+			shell_call  => $anvil->data->{path}{exe}{virsh}." list --all", 
+			target      => $target,
+			remote_user => "root", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			virsh_output => $virsh_output,
+			error        => $error,
+			return_code  => $return_code, 
+		}});
+	}
+	else
+	{
+		($virsh_output, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			virsh_output => $virsh_output,
+			return_code  => $return_code,
+		}});
+	}
+	
+	foreach my $line (split/\n/, $virsh_output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^\d+ (.*) (.*?)$/)
+		{
+			my $server_name                                         = $1;
+			   $anvil->data->{server}{location}{$server_name}{status} = $2;
+			   $anvil->data->{server}{location}{$server_name}{host}   = $host;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"server::location::${server_name}::status" => $anvil->data->{server}{location}{$server_name}{status}, 
+				"server::location::${server_name}::host"   => $anvil->data->{server}{location}{$server_name}{host}, 
+			}});
+		}
+	}
+	
+	return(0);
 }
 
 =head2 get_status
@@ -146,7 +240,13 @@ sub get_status
 	$anvil->data->{server}{$server}{from_memory}{host} = "";
 	
 	# We're going to map DRBD devices to resources, so we need to collect that data now. 
-	$anvil->DRBD->get_devices({debug => $debug});
+	$anvil->DRBD->get_devices({
+		debug       => $debug,
+		password    => $password,
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	});
 	
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
@@ -189,6 +289,7 @@ sub get_status
 		$anvil->data->{server}{$server}{from_memory}{host} = $host;
 		$anvil->Server->_parse_definition({
 			debug      => $debug,
+			host       => $host,
 			server     => $server, 
 			source     => "from_memory",
 			definition => $anvil->data->{server}{$server}{from_memory}{xml}, 
@@ -206,7 +307,7 @@ sub get_status
 		file        => $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml",
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"server::${server}::disk::xml" => $anvil->data->{server}{$server}{disk}{xml},
+		"server::${server}::from_disk::xml" => $anvil->data->{server}{$server}{from_disk}{xml},
 	}});
 	if (($anvil->data->{server}{$server}{from_disk}{xml} eq "!!errer!!") or (not $anvil->data->{server}{$server}{from_disk}{xml}))
 	{
@@ -217,6 +318,7 @@ sub get_status
 	{
 		$anvil->Server->_parse_definition({
 			debug      => $debug,
+			host       => $host,
 			server     => $server, 
 			source     => "from_disk",
 			definition => $anvil->data->{server}{$server}{from_disk}{xml}, 
@@ -249,9 +351,12 @@ sub _parse_definition
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
+	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->_short_hostname;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server     => $server,
 		source     => $source, 
 		definition => $definition, 
+		host       => $host, 
 	}});
 	
 	if (not $server)
@@ -408,15 +513,15 @@ sub _parse_definition
 			my $address_port       = $hash_ref->{address}->[0]->{port};
 			
 			# Store
-			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{source}{mode}        = $hash_ref->{source}->[0]->{mode};
-			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{source}{path}        = $hash_ref->{source}->[0]->{path};
-			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{alias}               = $hash_ref->{alias}->[0]->{name};
+			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{source}{mode}        = defined $hash_ref->{source}->[0]->{mode} ? $hash_ref->{source}->[0]->{mode} : "";
+			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{source}{path}        = defined $hash_ref->{source}->[0]->{path} ? $hash_ref->{source}->[0]->{path} : "";
+			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{alias}               = defined $hash_ref->{alias}->[0]->{name}  ? $hash_ref->{alias}->[0]->{name}  : "";
 			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{address}{type}       = $address_type;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{address}{bus}        = $address_bus;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{address}{controller} = $address_controller;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{address}{port}       = $address_port;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{target}{type}        = $hash_ref->{target}->[0]->{type};
-			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{target}{'state'}     = $hash_ref->{target}->[0]->{'state'};
+			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{target}{'state'}     = defined $hash_ref->{target}->[0]->{'state'} ? $hash_ref->{target}->[0]->{'state'} : "";
 			$anvil->data->{server}{$server}{$source}{device}{channel}{unix}{target}{name}        = $hash_ref->{target}->[0]->{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"server::${server}::${source}::device::channel::unix::source::mode"        => $anvil->data->{server}{$server}{$source}{device}{channel}{unix}{source}{mode},
@@ -447,13 +552,13 @@ sub _parse_definition
 			my $address_port       = $hash_ref->{address}->[0]->{port};
 			
 			# Store
-			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{alias}               = $hash_ref->{alias}->[0]->{name};
+			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{alias}               = defined $hash_ref->{alias}->[0]->{name} ? $hash_ref->{alias}->[0]->{name} : "";
 			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{address}{type}       = $address_type;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{address}{bus}        = $address_bus;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{address}{controller} = $address_controller;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{address}{port}       = $address_port;
 			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{target}{type}        = $hash_ref->{target}->[0]->{type};
-			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{target}{'state'}     = $hash_ref->{target}->[0]->{'state'};
+			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{target}{'state'}     = defined $hash_ref->{target}->[0]->{'state'} ? $hash_ref->{target}->[0]->{'state'} : "";
 			$anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{target}{name}        = $hash_ref->{target}->[0]->{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"server::${server}::${source}::device::channel::spicevmc::alias"               => $anvil->data->{server}{$server}{$source}{device}{channel}{spicevmc}{alias},
@@ -479,9 +584,9 @@ sub _parse_definition
 	foreach my $hash_ref (@{$server_xml->{devices}->[0]->{console}})
 	{
 		$anvil->data->{server}{$server}{$source}{device}{console}{type}        = $hash_ref->{type};
-		$anvil->data->{server}{$server}{$source}{device}{console}{tty}         = $hash_ref->{tty};
-		$anvil->data->{server}{$server}{$source}{device}{console}{alias}       = $hash_ref->{alias}->[0]->{name};
-		$anvil->data->{server}{$server}{$source}{device}{console}{source}      = $hash_ref->{source}->[0]->{path};
+		$anvil->data->{server}{$server}{$source}{device}{console}{tty}         = defined $hash_ref->{tty}                 ? $hash_ref->{tty}                 : "";
+		$anvil->data->{server}{$server}{$source}{device}{console}{alias}       = defined $hash_ref->{alias}->[0]->{name}  ? $hash_ref->{alias}->[0]->{name}  : "";
+		$anvil->data->{server}{$server}{$source}{device}{console}{source}      = defined $hash_ref->{source}->[0]->{path} ? $hash_ref->{source}->[0]->{path} : "";
 		$anvil->data->{server}{$server}{$source}{device}{console}{target_type} = $hash_ref->{target}->[0]->{type};
 		$anvil->data->{server}{$server}{$source}{device}{console}{target_port} = $hash_ref->{target}->[0]->{port};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -532,7 +637,7 @@ sub _parse_definition
 		}
 		
 		# Store the data
-		$anvil->data->{server}{$server}{$source}{device}{controller}{$type}{'index'}{$index}{alias} = $hash_ref->{alias}->[0]->{name};
+		$anvil->data->{server}{$server}{$source}{device}{controller}{$type}{'index'}{$index}{alias} = defined $hash_ref->{alias}->[0]->{name} ? $hash_ref->{alias}->[0]->{name} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"server::${server}::${source}::device::controller::${type}::index::${index}::alias" => $anvil->data->{server}{$server}{$source}{device}{controller}{$type}{'index'}{$index}{alias},
 		}});
@@ -594,7 +699,7 @@ sub _parse_definition
 		#print Dumper $hash_ref;
 		my $device        = $hash_ref->{device};
 		my $type          = $hash_ref->{type};
-		my $alias         = $hash_ref->{alias}->[0]->{name};
+		my $alias         = defined $hash_ref->{alias}->[0]->{name} ? $hash_ref->{alias}->[0]->{name} : "";
 		my $device_target = $hash_ref->{target}->[0]->{dev};
 		my $device_bus    = $hash_ref->{target}->[0]->{bus};
 		my $address_type  = $hash_ref->{address}->[0]->{type};
@@ -660,13 +765,21 @@ sub _parse_definition
 				"server::${server}::${source}::device::${device}::target::${device_target}::driver::cache"     => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{cache},
 			}});
 			
-			$anvil->data->{server}{$server}{device}{$device_path}{on_lv}    = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{on}       : "";
-			$anvil->data->{server}{$server}{device}{$device_path}{resource} = defined $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{'local'}{drbd_path}{$device_path}{resource} : "";
+			$anvil->data->{server}{$server}{device}{$device_path}{on_lv}    = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       : "";
+			$anvil->data->{server}{$server}{device}{$device_path}{resource} = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} : "";
 			$anvil->data->{server}{$server}{device}{$device_path}{target}   = $device_target;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				host                                                  => $host,
 				"server::${server}::device::${device_path}::on_lv"    => $anvil->data->{server}{$server}{device}{$device_path}{on_lv},
 				"server::${server}::device::${device_path}::resource" => $anvil->data->{server}{$server}{device}{$device_path}{resource},
 				"server::${server}::device::${device_path}::target"   => $anvil->data->{server}{$server}{device}{$device_path}{target},
+			}});
+			
+			# Keep a list of DRBD resources used by this server.
+			my $drbd_resource                                                  = $anvil->data->{server}{$server}{device}{$device_path}{resource};
+			   $anvil->data->{server}{$server}{drbd}{resource}{$drbd_resource} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"server::${server}::drbd::resource::${drbd_resource}" => $anvil->data->{server}{$server}{drbd}{resource}{$drbd_resource},
 			}});
 			
 			### TODO: Store the parts in some format that allows representing it better to the user and easier to find "open slots".
@@ -704,8 +817,8 @@ sub _parse_definition
 		my $mac = $hash_ref->{mac}->[0]->{address};
 		
 		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{bridge}            = $hash_ref->{source}->[0]->{bridge};
-		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{alias}             = $hash_ref->{alias}->[0]->{name};
-		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{target}            = $hash_ref->{target}->[0]->{dev};
+		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{alias}             = defined $hash_ref->{alias}->[0]->{name} ? $hash_ref->{alias}->[0]->{name} : "";
+		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{target}            = defined $hash_ref->{target}->[0]->{dev} ? $hash_ref->{target}->[0]->{dev} : "";
 		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{model}             = $hash_ref->{model}->[0]->{type};
 		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{address}{bus}      = $hash_ref->{address}->[0]->{bus};
 		$anvil->data->{server}{$server}{$source}{device}{interface}{$mac}{address}{domain}   = $hash_ref->{address}->[0]->{domain};
