@@ -12,6 +12,8 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Server.pm";
 
 ### Methods;
+# boot
+# find
 # get_status
 
 =pod
@@ -72,6 +74,100 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 boot
+
+=cut
+sub boot
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $server      = defined $parameter->{server}      ? $parameter->{server}      : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $success     = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		port        => $port, 
+		remote_user => $remote_user, 
+		server      => $server, 
+		target      => $target, 
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->get_status()", parameter => "server" }});
+		return(1);
+	}
+	
+	# Is this a local call or a remote call?
+	my $shell_call  = $anvil->data->{path}{exe}{virsh}." create ".$anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+	my $output      = "";
+	my $return_code = "";
+	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	{
+		# Remote call.
+		($output, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			error       => $error,
+			return_code => $return_code,
+		}});
+	}
+	else
+	{
+		# Local.
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	
+	# Wait up to five seconds for the server to appear.
+	my $wait = 5;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'wait' => $wait }});
+	while($wait)
+	{
+		$anvil->Server->find({debug => $debug});
+		if ((exists $anvil->data->{server}{location}{$server}) && ($anvil->data->{server}{location}{$server}{host}))
+		{
+			# Success!
+			$wait    = 0;
+			$success = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				'wait'  => $wait,
+				success => $success, 
+			}});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0421", variables => { 
+				server => $server, 
+				host   => $anvil->data->{server}{location}{$server}{host},
+			}});
+		}
+		
+		if ($wait)
+		{
+			$wait--;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'wait' => $wait }});
+			sleep 1;
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
+	return($success);
+}
 
 =head2 find
 
@@ -165,12 +261,12 @@ sub find
 		
 		if ($line =~ /^\d+ (.*) (.*?)$/)
 		{
-			my $server_name                                         = $1;
-			   $anvil->data->{server}{location}{$server_name}{status} = $2;
-			   $anvil->data->{server}{location}{$server_name}{host}   = $host;
+			my $server                                           = $1;
+			   $anvil->data->{server}{location}{$server}{status} = $2;
+			   $anvil->data->{server}{location}{$server}{host}   = $host;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"server::location::${server_name}::status" => $anvil->data->{server}{location}{$server_name}{status}, 
-				"server::location::${server_name}::host"   => $anvil->data->{server}{location}{$server_name}{host}, 
+				"server::location::${server}::status" => $anvil->data->{server}{location}{$server}{status}, 
+				"server::location::${server}::host"   => $anvil->data->{server}{location}{$server}{host}, 
 			}});
 		}
 	}
@@ -231,6 +327,7 @@ sub get_status
 	
 	if (not $server)
 	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->get_status()", parameter => "server" }});
 		return(1);
 	}
 	if (exists $anvil->data->{server}{$server})
@@ -765,14 +862,18 @@ sub _parse_definition
 				"server::${server}::${source}::device::${device}::target::${device_target}::driver::cache"     => $anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{cache},
 			}});
 			
-			$anvil->data->{server}{$server}{device}{$device_path}{on_lv}    = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       : "";
-			$anvil->data->{server}{$server}{device}{$device_path}{resource} = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} : "";
+			my $on_lv    = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       : "";
+			my $resource = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} : "";
+			$anvil->data->{server}{$server}{device}{$device_path}{on_lv}    = $on_lv;
+			$anvil->data->{server}{$server}{device}{$device_path}{resource} = $resource;
 			$anvil->data->{server}{$server}{device}{$device_path}{target}   = $device_target;
+			$anvil->data->{server}{$server}{resource}{$resource}            = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				host                                                  => $host,
 				"server::${server}::device::${device_path}::on_lv"    => $anvil->data->{server}{$server}{device}{$device_path}{on_lv},
 				"server::${server}::device::${device_path}::resource" => $anvil->data->{server}{$server}{device}{$device_path}{resource},
 				"server::${server}::device::${device_path}::target"   => $anvil->data->{server}{$server}{device}{$device_path}{target},
+				"server::${server}::resource::${resource}"            => $anvil->data->{server}{$server}{resource}{$resource}, 
 			}});
 			
 			# Keep a list of DRBD resources used by this server.

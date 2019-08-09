@@ -14,6 +14,7 @@ my $THIS_FILE = "DRBD.pm";
 ### Methods;
 # get_devices
 # get_status
+# manage_resource
 
 =pod
 
@@ -173,6 +174,31 @@ sub get_devices
 	$anvil->data->{drbd}{config}{$host}{host}          = "";
 	$anvil->data->{drbd}{config}{$host}{peer}          = "";
 	$anvil->data->{drbd}{config}{$host}{nodes}         = {};
+	
+	foreach my $hash_ref (@{$dump_xml->{common}->[0]->{section}})
+	{
+		my $name = $hash_ref->{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
+		if ($name eq "options")
+		{
+			foreach my $option_ref (@{$hash_ref->{option}})
+			{
+				my $variable = $option_ref->{name};
+				my $value    = $option_ref->{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable => $variable,
+					value    => $variable, 
+				}});
+				if ($variable eq "auto-promote")
+				{
+					$anvil->data->{drbd}{config}{$host}{'auto-promote'} = $value =~ /^y/i ? 1 : 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"drbd::config::${host}::auto-promote" => $anvil->data->{drbd}{config}{$host}{'auto-promote'},
+					}});
+				}
+			}
+		}
+	}
 	
 	foreach my $hash_ref (@{$dump_xml->{resource}})
 	{
@@ -364,7 +390,7 @@ sub get_status
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
-	my $host       = $anvil->_short_hostname({debug => $debug});
+	my $host       = $anvil->_short_hostname();
 	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
 	{
 		# Clear the hash where we'll store the data.
@@ -563,6 +589,109 @@ sub get_status
 	}
 	
 	return(0);
+}
+
+=head2 manage_resource
+
+This takes a task, C<< up >>, C<< down >>, C<< primary >>, or C<< secondary >> and a resource name and acts on the request.
+
+This returns the return code from the C<< drbdadm >> call. If C<< 255 >> is returned, then we did not get the actual return code from C<< drbdadm >>.
+
+B<NOTE>: This just makes the call, it doesn't wait or watch for the action to actually finish.
+
+Parameters;
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default 'root')
+
+=head3 resource (required)
+
+This is the name of the resource being acted upon.
+
+=head3 task (required)
+
+This is the action to take. Valid tasks are: C<< up >>, C<< down >>, C<< primary >>, and C<< secondary >>.
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
+
+=cut
+sub manage_resource
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $resource    = defined $parameter->{resource}    ? $parameter->{resource}    : "";
+	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		port        => $port, 
+		remote_user => $remote_user,
+		resource    => $resource,  
+		task        => $task, 
+		target      => $target, 
+	}});
+	
+	if (not $resource)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->manage_resource()", parameter => "resource" }});
+		return(1);
+	}
+	if (not $task)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->manage_resource()", parameter => "task" }});
+		return(1);
+	}
+	
+	### TODO: Sanity check the resource name and task requested.
+	
+	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
+	my $output      = "";
+	my $return_code = 255; 
+	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	{
+		# Remote call.
+		($output, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
+	{
+		# Local.
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	
+	return($return_code);
 }
 
 # =head3
