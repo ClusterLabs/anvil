@@ -524,8 +524,20 @@ sub stop_server
 	
 	# Stopping the server is simply a question of "is the server running?" and, if so, stop it. Once 
 	# stopped, we stop the DRBD resource on both nodes.
-	my $server                 = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	
+	# We don't (for now) set 'wait', so this won't return until/unless the server actually shuts down.
+	my $success = $anvil->Server->shutdown({debug => 2, server => $server});
+	if (not $success)
+	{
+		# Something went wrong. Details should be in the logs.
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	### TODO: Left off here.
+	# Now stop the DRBD resource(s).
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0324", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 0});
 }
 

@@ -739,6 +739,12 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0419">The server: [#!variable!server!#] needs the DRBD resource: [#!variable!resource!#]. Bringing it up locally and on the peer: [#!variable!peer!#] (via IP: #!variable!peer_ip!#).</key>
 		<key name="log_0420">DRBD's 'auto-promote' is disabled. Promoting the resource: [#!variable!resource!#].</key>
 		<key name="log_0421">The server: [#!variable!server!#] is now running on the host: [#!variable!host!#].</key>
+		<key name="log_0422">The request to shutdown the server: [#!variable!server!#] was given the wait period of: [#!variable!wait!#], which is not a valid number of seconds.</key>
+		<key name="log_0423">The server: [#!variable!server!#] is already off.</key>
+		<key name="log_0424">The server: [#!variable!server!#] will now be forced off!</key>
+		<key name="log_0425">The server: [#!variable!server!#] will now be gracefully shut down.</key>
+		<key name="log_0426">The server: [#!variable!server!#] is now off.</key>
+		<key name="log_0427">[ Warning ] - The server: [#!variable!server!#] is not yet off after: [#!variable!wait!#] seconds. Giving up waiting.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

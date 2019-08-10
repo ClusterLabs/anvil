@@ -15,6 +15,7 @@ my $THIS_FILE = "Server.pm";
 # boot
 # find
 # get_status
+# shutdown
 
 =pod
 
@@ -77,6 +78,24 @@ sub parent
 
 =head2 boot
 
+This takes a server name and tries to boot it (using C<< virsh create /mnt/shared/definition/<server>.xml >>. It requires that any supporting systems already be started (ie: DRBD resource is up).
+
+If booted, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
+
+ my ($booted) = $anvil->Server->boot({server => "test_server"});
+
+Parameters;
+
+=head3 definition (optional, see below for default)
+
+This is the full path to the XML definition file to use to boot the server.
+
+By default, the definition file used will be named C<< <server>.xml >> in the C<< path::directories::shared::deinitions >> directory. 
+
+=head3 server (required)
+
+This is the name of the server, as it appears in C<< virsh >>.
+
 =cut
 sub boot
 {
@@ -85,56 +104,34 @@ sub boot
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
-	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
-	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $server      = defined $parameter->{server}      ? $parameter->{server}      : "";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
-	my $success     = 0;
+	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
+	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
+	my $success    = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
-		port        => $port, 
-		remote_user => $remote_user, 
-		server      => $server, 
-		target      => $target, 
+		server     => $server, 
+		definition => $definition, 
 	}});
 	
 	if (not $server)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->get_status()", parameter => "server" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->boot()", parameter => "server" }});
 		return(1);
+	}
+	if (not $definition)
+	{
+		$definition = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { efinition => $definition }});
 	}
 	
 	# Is this a local call or a remote call?
-	my $shell_call  = $anvil->data->{path}{exe}{virsh}." create ".$anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
-	my $output      = "";
-	my $return_code = "";
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
-	{
-		# Remote call.
-		($output, my $error, $return_code) = $anvil->Remote->call({
-			debug       => $debug, 
-			shell_call  => $shell_call, 
-			target      => $target,
-			port        => $port, 
-			password    => $password,
-			remote_user => $remote_user, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output      => $output, 
-			error       => $error,
-			return_code => $return_code,
-		}});
-	}
-	else
-	{
-		# Local.
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output      => $output,
-			return_code => $return_code,
-		}});
-	}
+	my ($output, $return_code) = $anvil->System->call({
+		debug      => $debug, 
+		shell_call => $anvil->data->{path}{exe}{virsh}." create ".$definition,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
 	
 	# Wait up to five seconds for the server to appear.
 	my $wait = 5;
@@ -215,6 +212,12 @@ sub find
 		target      => $target, 
 	}});
 	
+	# Clear any old data
+	if (exists $anvil->data->{server}{location})
+	{
+		delete $anvil->data->{server}{location};
+	}
+	
 	my $host_type    = $anvil->System->get_host_type({debug => $debug});
 	my $host         = $anvil->_hostname;
 	my $virsh_output = "";
@@ -277,8 +280,6 @@ sub find
 =head2 get_status
 
 This reads in a server's XML definition file from disk, if available, and from memory, if the server is running. The XML is analyzed and data is stored under 'server::<server_name>::from_disk::x' for data from the on-disk XML and 'server::<server_name>::from_memory::x'. 
-
-
 
 Any pre-existing data on the server is flushed before the new information is processed.
 
@@ -423,6 +424,216 @@ sub get_status
 	}
 	
 	return(0);
+}
+
+=head2 shutdown
+
+This takes a server name and tries to shut it down. If the server was found locally, the shut down is requested and this method will wait for the server to actually shut down before returning.
+
+If shut down, C<< 1 >> is returned. If the server wasn't found or another problem occurs, C<< 0 >> is returned.
+
+ my ($shutdown) = $anvil->Server->shutdown({server => "test_server"});
+
+Parameters;
+
+=head3 force (optional, default '0')
+
+Normally, a graceful shutdown is requested. This requires that the guest respond to ACPI power button events. If the guest won't respond, or for some other reason you want to immediately force the server off, set this to C<< 1 >>.
+
+B<WARNING>: Setting this to C<< 1 >> results in the immediate shutdown of the server! Same as if you pulled the power out of a traditional machine.
+
+=head3 server (required)
+
+This is the name of the server (as it appears in C<< virsh >>) to shut down.
+
+=head3 wait (optional, default '0')
+
+By default, this method will wait indefinetly for the server to shut down before returning. If this is set to a non-zero number, the method will wait that number of seconds for the server to shut dwwn. If the server is still not off by then, C<< 0 >> is returned.
+
+=cut
+sub shutdown
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	my $force  = defined $parameter->{force}  ? $parameter->{force}  : 0;
+	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 0;
+	my $success = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		force  => $force, 
+		server => $server, 
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->shutdown()", parameter => "server" }});
+		return($success);
+	}
+	if (($wait) && ($wait =~ /\D/))
+	{
+		# Bad value.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0422", variables => { server => $server, 'wait' => $wait }});
+		return($success);
+	}
+	
+	# Is the server running? 
+	$anvil->Server->find({debug => $debug});
+	
+	# And?
+	if (exists $anvil->data->{server}{location}{$server})
+	{
+		my $shutdown = 1;
+		my $status   = $anvil->data->{server}{location}{$server}{status};
+		my $task     = "shutdown";
+		if ($force)
+		{
+			$task = "destroy";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0424", variables => { server => $server }});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0425", variables => { server => $server }});
+		}
+		if ($status eq "shut off")
+		{
+			# Already off. 
+			$success = 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0423", variables => { server => $server }});
+			return($success);
+		}
+		elsif ($state eq "paused")
+		{
+			# The server is paused. Resume it, wait a few, then proceed with the shutdown.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0314", variables => { server => $server }});
+			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." resume $server"});
+			if ($return_code)
+			{
+				# Looks like virsh isn't running.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0315", variables => { 
+					server      => $server,
+					return_code => $return_code, 
+					output      => $output, 
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0316"});
+			sleep 3;
+		}
+		elsif ($state eq "pmsuspended")
+		{
+			# The server is suspended. Resume it, wait a few, then proceed with the shutdown.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0317", variables => { server => $server }});
+			my ($output, $return_code) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{virsh}." dompmwakeup $server"});
+			if ($return_code)
+			{
+				# Looks like virsh isn't running.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0318", variables => { 
+					server      => $server,
+					return_code => $return_code, 
+					output      => $output, 
+				}});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0319"});
+			sleep 30;
+		}
+		elsif (($state eq "idle") or ($state eq "crashed"))
+		{
+			# The server needs to be destroyed.
+			$task = "destroy";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0322", variables => { 
+				server  => $server,
+				'state' => $state, 
+			}});
+		}
+		elsif ($state eq "in shutdown")
+		{
+			# The server is already shutting down
+			$shutdown = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0320", variables => { server => $server }});
+		}
+		elsif ($state ne "running")
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0325", variables => { 
+				server  => $server,
+				'state' => $state, 
+			}});
+			return($success);
+		}
+		
+		# Shut it down.
+		if ($shutdown)
+		{
+			my ($output, $return_code) = $anvil->System->call({
+				debug      => $debug, 
+				shell_call => $anvil->data->{path}{exe}{virsh}." ".$task." ".$server,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+		}
+	}
+	else
+	{
+		# Server wasn't found, assume it's off.
+		$success = 1;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0423", variables => { server => $server }});
+		return($success);
+	}
+	
+	# Wait indefinetely for the server to exit.
+	my $stop_waiting = 0;
+	if ($wait)
+	{
+		$stop_waiting = time + $wait;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_waiting => $stop_waiting }});
+	};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'wait' => $wait }});
+	until($success)
+	{
+		# Update
+		$anvil->Server->find({debug => $debug});
+		if ((exists $anvil->data->{server}{location}{$server}) && ($anvil->data->{server}{location}{$server}{status}))
+		{
+			my $status = $anvil->data->{server}{location}{$server}{status};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
+			
+			if ($status eq "shut off")
+			{
+				# Success! It should be undefined, but we're not the place to worry about 
+				# that.
+				$success = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0426", variables => { server => $server }});
+			}
+		}
+		else
+		{
+			# Success!
+			$success = 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0426", variables => { server => $server }});
+		}
+		
+		if (($stop_waiting) && (time > $stop_waiting))
+		{
+			# Give up waiting.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0427", variables => { 
+				server => $server,
+				'wait' => $wait,
+			}});
+		}
+		else
+		{
+			# Sleep a second and then try again.
+			sleep 1;
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
+	return($success);
 }
 
 # =head3
