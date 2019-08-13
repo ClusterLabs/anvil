@@ -504,7 +504,7 @@ sub shutdown
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0423", variables => { server => $server }});
 			return($success);
 		}
-		elsif ($state eq "paused")
+		elsif ($status eq "paused")
 		{
 			# The server is paused. Resume it, wait a few, then proceed with the shutdown.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0314", variables => { server => $server }});
@@ -522,7 +522,7 @@ sub shutdown
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0316"});
 			sleep 3;
 		}
-		elsif ($state eq "pmsuspended")
+		elsif ($status eq "pmsuspended")
 		{
 			# The server is suspended. Resume it, wait a few, then proceed with the shutdown.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0317", variables => { server => $server }});
@@ -540,26 +540,26 @@ sub shutdown
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0319"});
 			sleep 30;
 		}
-		elsif (($state eq "idle") or ($state eq "crashed"))
+		elsif (($status eq "idle") or ($status eq "crashed"))
 		{
 			# The server needs to be destroyed.
 			$task = "destroy";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0322", variables => { 
-				server  => $server,
-				'state' => $state, 
+				server => $server,
+				status => $status, 
 			}});
 		}
-		elsif ($state eq "in shutdown")
+		elsif ($status eq "in shutdown")
 		{
 			# The server is already shutting down
 			$shutdown = 0;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0320", variables => { server => $server }});
 		}
-		elsif ($state ne "running")
+		elsif ($status ne "running")
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0325", variables => { 
-				server  => $server,
-				'state' => $state, 
+				server => $server,
+				status => $status, 
 			}});
 			return($success);
 		}

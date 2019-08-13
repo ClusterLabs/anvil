@@ -344,6 +344,48 @@ sub start_server
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# This stops the DRBD resource(s) that ran under a server.
+sub stop_drbd_resource
+{
+	my ($anvil) = @_;
+	
+	my $server  = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $host    = $anvil->_short_hostname;
+	my $peer    = $anvil->data->{drbd}{config}{$host}{peer};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server  => $server,
+		host    => $host, 
+		peer    => $peer,
+	}});
+	
+	# Start DRBD locally.
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{resource}})
+	{
+		my $peer_ip = $anvil->data->{drbd}{config}{$host}{resource}{$resource}{connection}{$peer}{ip_address};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0408", variables => { 
+			server   => $server,
+			peer     => $peer, 
+			peer_ip  => $peer_ip, 
+			resource => $resource,
+		}});
+	
+		# Bring the peer's resource down.
+		$anvil->DRBD->manage_resource({
+			resource => $resource, 
+			task     => "down",
+			target   => $peer_ip, 
+		});
+		
+		# Bring the local resource down
+		$anvil->DRBD->manage_resource({
+			resource => $resource, 
+			task     => "down",
+		});
+	}
+	
+	return(0);
+}
+
 # This starts the drbd resource(s) for the requested server.
 sub start_drbd_resource
 {
@@ -526,7 +568,11 @@ sub stop_server
 	# stopped, we stop the DRBD resource on both nodes.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	
-	# We don't (for now) set 'wait', so this won't return until/unless the server actually shuts down.
+	# Read in an parse the server's XML.
+	$anvil->System->check_storage({debug => 2});
+	$anvil->Server->get_status({debug => 2, server => $server});
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0313", variables => { server => $server }});
 	my $success = $anvil->Server->shutdown({debug => 2, server => $server});
 	if (not $success)
 	{
@@ -534,8 +580,8 @@ sub stop_server
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	### TODO: Left off here.
 	# Now stop the DRBD resource(s).
+	stop_drbd_resource($anvil);
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0324", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 0});

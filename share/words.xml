@@ -720,7 +720,7 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0405">The definition file: [#!variable!definition_file!#] for the server: [#!variable!server!#] does not exist here!</key>
 		<key name="log_0406">The definition file: [#!variable!definition_file!#] for the server: [#!variable!server!#] can not be read!</key>
 		<key name="log_0407">The server's disk: [#!variable!device_path!#] is part of the resource: [#!variable!resource!#] which was already started.</key>
-		<key name="log_0408">Taking down the resource: [#!variable!resource!#] for the server's: [#!variable!device_path!#] disk.</key>
+		<key name="log_0408">The server: [#!variable!server!#] no longer needs the DRBD resource: [#!variable!resource!#]. Taking it down on peer: [#!variable!peer!#] (via IP: #!variable!peer_ip!#) and then taking it down locally.</key>
 		<key name="log_0409">The server's disk: [#!variable!device_path!#] is part of the resource: [#!variable!resource!#] which was already taken down.</key>
 		<key name="log_0410">The DRBD resource: [#!variable!resource!#] local role is: [#!variable!role!#]. Promoting to primary now.</key>
 		<key name="log_0411">
