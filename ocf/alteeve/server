@@ -720,7 +720,7 @@ sub validate_storage
 	### TODO: When checking on a running server, use 'from_memory'.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source = "from_disk";
-	if (exists $anvil->data->{server}{$server}{from_memory})
+	if ($anvil->data->{server}{$server}{from_memory}{host})
 	{
 		$source = "from_memory";
 	}
@@ -783,6 +783,7 @@ sub validate_storage_drbd
 	# Did I find a resource for each disk?
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{device}})
 	{
+		next if not $device_path;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"server::${server}::device::${device_path}::resource" => $anvil->data->{server}{$server}{device}{$device_path}{resource},
 		}});

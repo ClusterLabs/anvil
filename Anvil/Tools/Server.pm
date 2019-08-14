@@ -1006,15 +1006,15 @@ sub _parse_definition
 	{
 		#print Dumper $hash_ref;
 		my $device        = $hash_ref->{device};
-		my $type          = $hash_ref->{type};
-		my $alias         = defined $hash_ref->{alias}->[0]->{name} ? $hash_ref->{alias}->[0]->{name} : "";
 		my $device_target = $hash_ref->{target}->[0]->{dev};
-		my $device_bus    = $hash_ref->{target}->[0]->{bus};
-		my $address_type  = $hash_ref->{address}->[0]->{type};
-		my $address_bus   = $hash_ref->{address}->[0]->{bus};
-		my $boot_order    = defined $hash_ref->{boot}->[0]->{order} ? $hash_ref->{boot}->[0]->{order} : 99;
-		my $driver_name   = $hash_ref->{driver}->[0]->{name};
-		my $driver_type   = $hash_ref->{driver}->[0]->{type};
+		my $type          = defined $hash_ref->{type}                 ? $hash_ref->{type}                 : "";
+		my $alias         = defined $hash_ref->{alias}->[0]->{name}   ? $hash_ref->{alias}->[0]->{name}   : "";
+		my $device_bus    = defined $hash_ref->{target}->[0]->{bus}   ? $hash_ref->{target}->[0]->{bus}   : "";
+		my $address_type  = defined $hash_ref->{address}->[0]->{type} ? $hash_ref->{address}->[0]->{type} : "";
+		my $address_bus   = defined $hash_ref->{address}->[0]->{bus}  ? $hash_ref->{address}->[0]->{bus}  : "";
+		my $boot_order    = defined $hash_ref->{boot}->[0]->{order}   ? $hash_ref->{boot}->[0]->{order}   : 99;
+		my $driver_name   = defined $hash_ref->{driver}->[0]->{name}  ? $hash_ref->{driver}->[0]->{name}  : "";
+		my $driver_type   = defined $hash_ref->{driver}->[0]->{type}  ? $hash_ref->{driver}->[0]->{type}  : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			device        => $device,
 			type          => $type,
@@ -1027,6 +1027,19 @@ sub _parse_definition
 			driver_name   => $driver_name, 
 			driver_type   => $driver_type,
 		}});
+		
+		# A device path can come from 'dev' or 'file'.
+		my $device_path = "";
+		if (defined $hash_ref->{source}->[0]->{dev})
+		{
+			$device_path = $hash_ref->{source}->[0]->{dev};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device_path => $device_path }});
+		}
+		else
+		{
+			$device_path = $hash_ref->{source}->[0]->{file};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device_path => $device_path }});
+		}
 		
 		# Record common data
 		$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{alias}         = $alias;
@@ -1051,12 +1064,11 @@ sub _parse_definition
 		# Record type-specific data
 		if ($device eq "disk")
 		{
-			my $address_slot     = $hash_ref->{address}->[0]->{slot};
-			my $address_domain   = $hash_ref->{address}->[0]->{domain};
-			my $address_function = $hash_ref->{address}->[0]->{function};
-			my $device_path      = $hash_ref->{source}->[0]->{dev};
-			my $driver_io        = $hash_ref->{driver}->[0]->{io};
-			my $driver_cache     = $hash_ref->{driver}->[0]->{cache};
+			my $address_slot     = defined $hash_ref->{address}->[0]->{slot}     ? $hash_ref->{address}->[0]->{slot}     : "";
+			my $address_domain   = defined $hash_ref->{address}->[0]->{domain}   ? $hash_ref->{address}->[0]->{domain}   : "";
+			my $address_function = defined $hash_ref->{address}->[0]->{function} ? $hash_ref->{address}->[0]->{function} : "";
+			my $driver_io        = defined $hash_ref->{driver}->[0]->{io}        ? $hash_ref->{driver}->[0]->{io}        : "";
+			my $driver_cache     = defined $hash_ref->{driver}->[0]->{cache}     ? $hash_ref->{driver}->[0]->{cache}     : "";
 			
 			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{domain}   = $address_domain;
 			$anvil->data->{server}{$server}{$source}{device}{$device}{target}{$device_target}{address}{slot}     = $address_slot;
@@ -1103,7 +1115,6 @@ sub _parse_definition
 		else
 		{
 			# Looks like IDE is no longer supported on RHEL 8.
-			my $device_path        = defined $hash_ref->{source}->[0]->{file} ? $hash_ref->{source}->[0]->{file} : "";
 			my $address_controller = $hash_ref->{address}->[0]->{controller};
 			my $address_unit       = $hash_ref->{address}->[0]->{unit};
 			my $address_target     = $hash_ref->{address}->[0]->{target};
