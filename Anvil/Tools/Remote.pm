@@ -17,6 +17,7 @@ my $THIS_FILE = "Remote.pm";
 ### Methods;
 # add_target_to_known_hosts
 # call
+# test_access
 # _call_ssh_keyscan
 # _check_known_hosts_for_target
 
@@ -118,7 +119,7 @@ sub add_target_to_known_hosts
 	my $delete_if_found = defined $parameter->{delete_if_found} ? $parameter->{delete_if_found} : 0;
 	my $port            = defined $parameter->{port}            ? $parameter->{port}            : 22;
 	my $target          = defined $parameter->{target}          ? $parameter->{target}          : "";
-	my $user            = defined $parameter->{user}            ? $parameter->{user}            : $<; 
+	my $user            = defined $parameter->{user}            ? $parameter->{user}            : getpwuid($<); 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		delete_if_found => $delete_if_found,
 		port            => $port, 
@@ -288,12 +289,12 @@ sub call
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	
 	# Now pick up the rest of the variables.
-	my $close       = defined $parameter->{'close'}     ? $parameter->{'close'}     : 0;
-	my $no_cache    = defined $parameter->{no_cache}    ? $parameter->{no_cache}    : 0;
-	my $password    = defined $parameter->{password}    ? $parameter->{password}    : $anvil->data->{sys}{root_password};
-	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : 0;
-	my $shell_call  = defined $parameter->{shell_call}  ? $parameter->{shell_call}  : "";
-	my $timeout     = defined $parameter->{timeout}     ? $parameter->{timeout}     : 10;
+	my $close       = defined $parameter->{'close'}    ? $parameter->{'close'}    : 0;
+	my $no_cache    = defined $parameter->{no_cache}   ? $parameter->{no_cache}   : 0;
+	my $password    = defined $parameter->{password}   ? $parameter->{password}   : $anvil->data->{sys}{root_password};
+	my $secure      = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
+	my $shell_call  = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
+	my $timeout     = defined $parameter->{timeout}    ? $parameter->{timeout}    : 10;
 	my $start_time  = time;
 	my $ssh_fh      = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
@@ -472,11 +473,11 @@ sub call
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
 				
 				# Make sure we know the fingerprint of the remote machine
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => $< }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => getpwuid($<) }});
 				$anvil->Remote->add_target_to_known_hosts({
 					debug  => $debug, 
 					target => $target, 
-					user   => $<,
+					user   => getpwuid($<),
 				});
 			}
 			elsif ($connect_output =~ /Connection refused/i)
@@ -635,6 +636,75 @@ sub call
 	return($output, $error, $return_code);
 }
 
+=head2 test_access
+
+This attempts to log into the target to verify that the target is up and reachable. It returns C<< 1 >> on access, C<< 0 >> otherwise.
+
+ my $access = $anvil->Remote->test_access({});
+
+Parameters;
+
+=head3 password (optional)
+
+This is the password used to connect to the remote target as the given user.
+
+B<NOTE>: Passwordless SSH is supported. If you can ssh to the target as the given user without a password, then no password needs to be given here.
+
+=head3 port (optional, default '22')
+
+This is the TCP port to use when connecting to the C<< target >> over SSH.
+
+=head3 target (required)
+
+This is the IP address or (resolvable) host name of the machine who's key we're recording.
+
+=head3 user (optional, defaults to user running this method)
+
+This is the user who we're recording the key for. 
+
+=cut
+sub test_access
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password = defined $parameter->{password} ? $parameter->{password} : $anvil->data->{sys}{root_password};
+	my $port     = defined $parameter->{port}     ? $parameter->{port}     : 22;
+	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
+	my $user     = defined $parameter->{user}     ? $parameter->{user}     : getpwuid($<); 
+	my $access   = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		port     => $port, 
+		target   => $target,
+		user     => $user,
+	}});
+	
+	# Call the target
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		debug       => $debug, 
+		password    => $password, 
+		shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
+		target      => $target,
+		remote_user => $user, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		error       => $error,
+		return_code => $return_code, 
+	}});
+	
+	if ($output)
+	{
+		$access = 1;
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
+	return($access);
+}
+
 # =head3
 # 
 # Private Functions;
@@ -680,7 +750,7 @@ sub _call_ssh_keyscan
 	my $known_hosts = defined $parameter->{known_hosts} ? $parameter->{known_hosts} : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	my $user        = defined $parameter->{user}        ? $parameter->{user}        : $<;
+	my $user        = defined $parameter->{user}        ? $parameter->{user}        : getpwuid($<);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		known_hosts => $known_hosts, 
 		port        => $port, 
@@ -769,7 +839,7 @@ sub _check_known_hosts_for_target
 	my $known_hosts     = defined $parameter->{known_hosts}     ? $parameter->{known_hosts}     : "";
 	my $port            = defined $parameter->{port}            ? $parameter->{port}            : "";
 	my $target          = defined $parameter->{target}          ? $parameter->{target}          : "";
-	my $user            = defined $parameter->{user}            ? $parameter->{user}            : $<;
+	my $user            = defined $parameter->{user}            ? $parameter->{user}            : getpwuid($<);
 	my $known_machine   = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		delete_if_found => $delete_if_found,

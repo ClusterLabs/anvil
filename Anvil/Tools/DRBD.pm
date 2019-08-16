@@ -12,9 +12,11 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "DRBD.pm";
 
 ### Methods;
+# allow_two_primaries
 # get_devices
 # get_status
 # manage_resource
+# reload_defaults
 
 =pod
 
@@ -74,6 +76,147 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 allow_two_primaries
+
+This enables dual-primary for the given resource. This is meant to be called prior to a live migration, and should be disabled again as soon as possible via C<< DRBD->reload_defaults >>.
+
+Parameters; 
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default 'root')
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 resource (required)
+
+This is the name of the resource to enable two primaries on.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
+
+=head3 target_node_id (optional, but see condition below)
+
+This is the DRBD target node's (connection) ID that we're enabling dual-primary with. If this is not passed, but C<< drbd::status::<local_short_hostname>::resource::<resource>::connection::<peer_name>::peer-node-id >> is set, it will be used. Otherwise this argument is required.
+
+=cut
+sub allow_two_primaries
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password       = defined $parameter->{password}       ? $parameter->{password}       : "";
+	my $port           = defined $parameter->{port}           ? $parameter->{port}           : "";
+	my $remote_user    = defined $parameter->{remote_user}    ? $parameter->{remote_user}    : "root";
+	my $resource       = defined $parameter->{resource}       ? $parameter->{resource}       : "";
+	my $target         = defined $parameter->{target}         ? $parameter->{target}         : "local";
+	my $target_node_id = defined $parameter->{target_node_id} ? $parameter->{target_node_id} : "";
+	my $return_code    = 255; 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password       => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		port           => $port, 
+		remote_user    => $remote_user,
+		resource       => $resource, 
+		target         => $target, 
+		target_node_id => $target_node_id, 
+	}});
+	
+	if (not $resource)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->allow_two_primaries()", parameter => "resource" }});
+		return($return_code);
+	}
+	
+	# Do we need to scan devices?
+	my $host = $anvil->_short_hostname;
+	if (not $anvil->data->{drbd}{config}{$host}{peer})
+	{
+		# Get our device list.
+		$anvil->DRBD->get_devices({
+			debug       => $debug,
+			password    => $password,
+			port        => $port, 
+			remote_user => $remote_user, 
+			target      => $target, 
+		});
+	}
+	
+	my $peer_name = $anvil->data->{drbd}{config}{$host}{peer};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { peer_name => $peer_name }});
+	if ($target_node_id !~ /^\d+$/)
+	{
+		# Can we find it?
+		if ($anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'} =~ /^\d+$/)
+		{
+			$target_node_id = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_node_id => $target_node_id }});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->allow_two_primaries()", parameter => "target_node_id" }});
+			return($return_code);
+		}
+	}
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0350", variables => { 
+		resource       => $resource,
+		target_name    => $peer_name, 
+		target_node_id => $target_node_id, 
+	}});
+	
+	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$resource." ".$target_node_id." --allow-two-primaries=yes";
+	my $output     = "";
+	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	{
+		# Remote call.
+		($output, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
+	{
+		# Local.
+		($output, $return_code) = $anvil->System->call({
+			debug      => $debug,
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	
+	if ($return_code)
+	{
+		# Something went wrong.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0356", variables => { 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+	}
+	
+	return($return_code);
+}
 
 =head2 get_devices
 
@@ -688,6 +831,104 @@ sub manage_resource
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output,
 			return_code => $return_code,
+		}});
+	}
+	
+	return($return_code);
+}
+
+=head2 reload_defaults
+
+This switches DRBD back to running using the values in the config files. Specifically, it calls C<< drbdadm adjust all >>.
+
+The return code from the C<< drbdadm >> call is returned by this method.
+
+Parameters;
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default 'root')
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 resource (required)
+
+This is the name of the resource to reload the default configuration for (ie: disable dual primary, pickup changes from the config file, etc)..
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
+
+=cut
+sub reload_defaults
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $resource    = defined $parameter->{resource}    ? $parameter->{resource}    : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $return_code = 255; 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		port        => $port, 
+		remote_user => $remote_user,
+		resource    => $resource,  
+		target      => $target, 
+	}});
+	
+	if (not $resource)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->allow_two_primaries()", parameter => "resource" }});
+		return($return_code);
+	}
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0355"});
+	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
+	my $output      = "";
+	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	{
+		# Remote call.
+		($output, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
+	{
+		# Local.
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	
+	if ($return_code)
+	{
+		# Something went wrong.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0356", variables => { 
+			return_code => $return_code, 
+			output      => $output, 
 		}});
 	}
 	

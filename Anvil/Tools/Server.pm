@@ -15,6 +15,7 @@ my $THIS_FILE = "Server.pm";
 # boot
 # find
 # get_status
+# migrate
 # shutdown
 
 =pod
@@ -227,6 +228,7 @@ sub find
 		# Remote call.
 		($host, my $error, my $host_return_code) = $anvil->Remote->call({
 			debug       => 2, 
+			password    => $password, 
 			shell_call  => $anvil->data->{path}{exe}{hostnamectl}." --static", 
 			target      => $target,
 			remote_user => "root", 
@@ -238,6 +240,7 @@ sub find
 		}});
 		($virsh_output, $error, $return_code) = $anvil->Remote->call({
 			debug       => 2, 
+			password    => $password, 
 			shell_call  => $anvil->data->{path}{exe}{virsh}." list --all", 
 			target      => $target,
 			remote_user => "root", 
@@ -306,7 +309,6 @@ This is the name of the server we're gathering data on.
 This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
 
 =cut
-# NOTE: the version is set in anvil.spec by sed'ing the release and arch onto anvil.version in anvil-core's %post
 sub get_status
 {
 	my $self      = shift;
@@ -633,6 +635,102 @@ sub shutdown
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
+	return($success);
+}
+
+=head2 migrate
+
+This will migrate (push or pull) a server from one node to another. If the migration was successful, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned with a (hopefully) useful error being logged.
+
+NOTE: It is assumed that sanity checks are completed before this method is called.
+
+Parameters;
+
+=head3 server (required)
+
+This is the name of the server being migrated.
+
+=head3 source (optional)
+
+This is the host name (or IP) of the host that we're pulling the server from.
+
+If set, the server will be pulled.
+
+=head3 target (optional, defaukt is the full local hostname)
+
+This is the host name (or IP) Of the host that the server will be pushed to, if C<< source >> is not set. When this is not passed, the local full host name is used as default.
+
+=cut
+sub migrate
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
+	my $source  = defined $parameter->{source} ? $parameter->{source} : "";
+	my $target  = defined $parameter->{target} ? $parameter->{target} : $anvil->_hostname;
+	my $success = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server => $server, 
+		source => $source, 
+		target => $target, 
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->migrate()", parameter => "server" }});
+		return($success);
+	}
+	
+	# Enable dual-primary for any resources we know about for this server.
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+		my ($return_code) = $anvil->DRBD->allow_two_primaries({
+			debug    => $debug, 
+			resource => $resource, 
+		});
+	}
+
+	my $migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
+	if ($source)
+	{
+		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { migration_command => $migration_command }});
+	
+	# Call the migration now
+	my ($output, $return_code) = $anvil->System->call({shell_call => $migration_command});
+	if ($return_code)
+	{
+		# Something went wrong.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0353", variables => { 
+			server      => $server, 
+			target      => $target, 
+			return_code => $return_code, 
+			output      => $output, 
+		}});
+	}
+	else
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0354"});
+		
+		$success = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+	}
+	
+	# Switch off dual-primary.
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{resource}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+		$anvil->DRBD->reload_defaults({
+			debug    => $debug, 
+			resource => $resource, 
+		});
+	}
+	
 	return($success);
 }
 
@@ -1028,6 +1126,8 @@ sub _parse_definition
 			driver_type   => $driver_type,
 		}});
 		
+		### NOTE: Live migration won't work unless the '/dev/drbdX' devices are block. If they come 
+		###       up as 'file', virsh will refuse to migrate with a lack of shared storage error.
 		# A device path can come from 'dev' or 'file'.
 		my $device_path = "";
 		if (defined $hash_ref->{source}->[0]->{dev})

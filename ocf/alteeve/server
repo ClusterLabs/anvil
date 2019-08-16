@@ -146,7 +146,7 @@ if ($anvil->data->{switches}{test1})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n01.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n01.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n02.digimer.ca";
-	#print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test2})
 {
@@ -155,19 +155,13 @@ if ($anvil->data->{switches}{test2})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n02.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n02.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n01.digimer.ca";
-	#print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test3})
 {
 	$anvil->data->{environment}{OCF_RESKEY_name}             = "test_server";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "el8-a01n01.digimer.ca";
-	#print "Running test 3; Boot: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
-}
-if ($anvil->data->{switches}{test4})
-{
-	$anvil->data->{environment}{OCF_RESKEY_name}             = "test_server";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "el8-a01n01.digimer.ca";
-	#print "Running test 3; Shut down: [".$anvil->data->{environment}{OCF_RESKEY_name}."] locally.\n";
+	#print "Running test 3; Boot or shutdown of: [".$anvil->data->{environment}{OCF_RESKEY_name}."].\n";
 }
 
 # This is for debugging.
@@ -614,6 +608,9 @@ sub migrate_server
 {
 	my ($anvil) = @_;
 	
+	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
+	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
+	###       ASAP is high). Maybe we'll enforce this and require a '--force' switch later?
 	# If we were given 'migrate_to', we need to make sure the storage is UpToDate on the peer for all 
 	# backing resources. We can't check the target's bridges, but the migation will fail if one is 
 	# missing. 
@@ -623,11 +620,173 @@ sub migrate_server
 	my $source = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source};
 	my $target = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server => $server, 
-		source => $source, 
-		target => $target,
+		server                   => $server, 
+		source                   => $source, 
+		target                   => $target,
+		'switches::migrate_to'   => $anvil->data->{switches}{migrate_to}, 
+		'switches::migrate_from' => $anvil->data->{switches}{migrate_from}, 
 	}});
 	
+	# Get a view of the servers locally and our peer.
+	validate_all($anvil);
+	
+	# The actual migration command will involve enabling dual primary, then beginning the migration. The
+	# virsh call will depend on if we're pushing or pulling. Once the migration completes, regardless of
+	# success or failure, dual primary will be disabled again.
+	my $migration_command = "";
+	my $migrated          = 0;
+	if ($anvil->data->{switches}{migrate_to})
+	{
+		# Can I even connect to the target?
+		my ($access) = $anvil->Remote->test_access({debug => 2, target => $target});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+		if (not $access)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0429", variables => { 
+				server => $server,
+				target => $target,
+			}});
+			### TODO: I wonder if this should be exit'ed with '6'?
+			$anvil->nice_exit({exit_code => 5});
+		}
+		
+		# Find the server
+		$anvil->Server->find({debug => 3});
+		
+		my $server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
+		my $server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_host   => $server_host, 
+			server_status => $server_status, 
+		}});
+		
+		if (not $server_host)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0344", variables => { server => $server }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Get the DRBD status.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0387"});
+		$anvil->DRBD->get_status({debug => 2});
+		
+		# Make sure all resource(s) are ready for the server.
+		my $all_up_to_date = 1;
+		my $host           = $anvil->_short_hostname;
+		my $peer_name      = $anvil->data->{drbd}{config}{$host}{peer};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host      => $host, 
+			peer_name => $peer_name, 
+		}});
+		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{resource}})
+		{
+			my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
+			my $peer_node_id     = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				peer_node_id     => $peer_node_id, 
+				resource         => $resource,
+				connection_state => $connection_state, 
+			}});
+			if (lc($connection_state) ne "connected")
+			{
+				# Try to bring the resource up on the peer now.
+				$anvil->DRBD->manage_resource({
+					resource => $resource, 
+					task     => "up",
+					target   => $target, 
+				});
+				
+				# We'll give it 20 seconds.
+				my $wait = 20;
+				while($wait)
+				{
+					$anvil->DRBD->get_status({debug => 2});
+					$connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						resource         => $resource,
+						connection_state => $connection_state, 
+					}});
+					
+					if (lc($connection_state) ne "connected")
+					{
+						# It's up!
+						$wait = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'wait' => $wait }});
+					}
+					else
+					{
+						$wait--;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'wait' => $wait }});
+						
+						if (not $wait)
+						{
+							# We're done waiting.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0428", variables => { 
+								server           => $server,
+								target           => $target,
+								resource         => $resource,
+								connection_state => $connection_state,
+							}});
+							### TODO: I wonder if this should be exit'ed with '6'?
+							$anvil->nice_exit({exit_code => 5});
+						}
+					}
+				}
+				
+			}
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}})
+			{
+				my $peer_disk_state   = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'peer-disk-state'};
+				my $percent_in_sync   = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'percent-in-sync'};
+				my $replication_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{volume}{$volume}{'replication-state'};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					volume            => $volume, 
+					peer_disk_state   => $peer_disk_state,
+					percent_in_sync   => $percent_in_sync,
+					replication_state => $replication_state,
+				}});
+				
+				if (lc($peer_disk_state) ne "uptodate")
+				{
+					$all_up_to_date = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_up_to_date => $all_up_to_date }});
+				}
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_up_to_date => $all_up_to_date }});
+		if (not $all_up_to_date)
+		{
+			### TODO: If we decide later to block migration to Inconsistent peers, here's where we'd do it.
+		}
+		
+		# If we're still alive, we're ready to migrate.
+		($migrated) = $anvil->Server->migrate({
+			debug  => 2, 
+			server => $server, 
+			target => $target 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { migrated => $migrated }});
+	}
+	elsif ($anvil->data->{switches}{migrate_from})
+	{
+		$anvil->Server->find({debug => 3, target => $target});
+		
+		my $host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
+		my $status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host   => $host, 
+			status => $status, 
+		}});
+	}
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { migrated => $migrated }});
+	if (not $migrated)
+	{
+		# Exit
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0357"});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	# If we made it here, we succeeded.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0360"});
@@ -644,7 +803,7 @@ sub validate_all
 	###       if the server is running elsewhere.
 	
 	# Read in an parse the server's XML.
-	$anvil->System->check_storage({debug => 2});
+	$anvil->System->check_storage({debug => 3});
 	$anvil->Server->get_status({debug => 2, server => $anvil->data->{environment}{OCF_RESKEY_name}});
 	
 	# Is the name in the definition file what we expect (and did we read the XML data at all)?
@@ -675,7 +834,7 @@ sub validate_bridges
 	my ($anvil) = @_;
 	
 	# Get my bridge list
-	$anvil->System->get_bridges({debug => 2});
+	$anvil->System->get_bridges({debug => 3});
 	
 	# Find the Optical drives and DRBD devices.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
@@ -724,7 +883,7 @@ sub validate_storage
 	{
 		$source = "from_memory";
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server => $server,
 		source => $source, 
 	}});
@@ -784,7 +943,7 @@ sub validate_storage_drbd
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{device}})
 	{
 		next if not $device_path;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"server::${server}::device::${device_path}::resource" => $anvil->data->{server}{$server}{device}{$device_path}{resource},
 		}});
 		if (not $anvil->data->{server}{$server}{device}{$device_path}{resource})
@@ -799,7 +958,7 @@ sub validate_storage_drbd
 		my $drbd_device   = $anvil->data->{server}{$server}{$source}{device}{disk}{target}{$device_target}{path};
 		my $drbd_resource = $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource};
 		my $on_lv         = $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			host          => $host, 
 			drbd_device   => $drbd_device,
 			drbd_resource => $drbd_resource, 
@@ -843,26 +1002,6 @@ sub validate_storage_drbd
 	return(0);
 }
 
-# This processes the DRBD setup JSON data
-sub check_drbd_status
-{
-	my ($anvil, $status_json) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { status_json => $status_json }});
-	
-	
-	return(0);
-}
-
-# This makes sure that any media in the server's optical drive exists here and is readable.
-sub validate_storage_optical
-{
-	my ($anvil) = @_;
-	
-
-	
-	return(0);
-}
-
 # This verifies that the requested emulator exists and can be used.
 sub validate_emulator
 {
@@ -871,7 +1010,7 @@ sub validate_emulator
 	# What emulator is this using?
 	my $server   = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $emulator = $anvil->data->{server}{$server}{from_disk}{info}{emulator};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		emulator                                       => $emulator,
 		"server::${server}::from_disk::info::emulator" => $anvil->data->{server}{$server}{from_disk}{info}{emulator}
 	}});
@@ -901,7 +1040,7 @@ sub validate_name
 	my ($anvil) = @_;
 	
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server                                     => $server,
 		"server::${server}::from_disk::info::name" => $anvil->data->{server}{$server}{from_disk}{info}{name}, 
 	}});
@@ -938,8 +1077,8 @@ sub validate_ram
 	# How mcuh RAM does the server need and how much do we have free?
 	my $server           = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $server_ram_bytes = $anvil->data->{server}{$server}{from_disk}{memory};
-	my $available        = $anvil->System->get_free_memory({debug => 2});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	my $available        = $anvil->System->get_free_memory({debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server_ram_bytes => $anvil->Convert->add_commas({number => $server_ram_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}).")", 
 		available        => $anvil->Convert->add_commas({number => $available})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available}).")", 
 	}});

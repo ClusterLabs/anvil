@@ -1096,3 +1096,22 @@ sleep 30
 pcs stonith create fence-virsh fence_virsh ipaddr=192.168.100.1 login=root passwd=christine pcmk_host_map="amy:rhel8-1;anna:rhel8-2;clara:rhel8-3;fanny:rhel8-4"
 
 
+
+if [ ! -e '/dev/an-a01n01_vg0/srv09-psql_0' ];
+then
+    /sbin/lvcreate -L 69GiB -n srv09-psql_0 an-a01n01_vg0
+fi
+virt-install --connect qemu:///system \
+  --name srv09-psql \
+  --ram 4096 \
+  --arch x86_64 \
+  --vcpus 2 \
+  --cpu Nehalem,+fsgsbase \
+  --cdrom '/shared/files/Win2016_Server_64-bit_English.iso' \
+  --boot menu=on \
+  --disk path='/shared/files/virtio-win.iso',device=cdrom --force\
+  --os-variant win2k8 \
+  --network bridge=ifn_bridge1,model=virtio \
+  --disk path=/dev/an-a01n01_vg0/srv09-psql_0,bus=virtio,cache=writethrough \
+  --graphics spice \
+  --noautoconsole --wait -1 > /var/log/anvil-server_srv09-psql.log &
