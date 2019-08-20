@@ -156,6 +156,16 @@ sub allow_two_primaries
 	if ($target_node_id !~ /^\d+$/)
 	{
 		# Can we find it?
+		if (not exists $anvil->data->{drbd}{status})
+		{
+			$anvil->DRBD->get_status({
+				debug       => 2,
+				password    => $password,
+				port        => $port, 
+				remote_user => $remote_user,
+				target      => $target, 
+			});
+		}
 		if ($anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'} =~ /^\d+$/)
 		{
 			$target_node_id = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'};
