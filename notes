@@ -1124,3 +1124,4 @@ pcs constraint show --full
 pcs constraint remove cli-ban-test_server-on-el8-a01n01
 
 
+pcs constraint remove $(pcs constraint show --full | grep ban-test_server | perl -pe 's/^.*?id:(.*?)\)/$1/')

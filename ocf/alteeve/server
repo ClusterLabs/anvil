@@ -800,15 +800,19 @@ sub migrate_server
 		# Pull the server here. Start by verifying it's on the 'meta_on_node' host.
 		# Scan locally and on our peer
 		$anvil->Server->find({debug => 2});
-		$anvil->Server->find({debug => 2, target => $meta_on_node});
+		$anvil->Server->find({debug => 2, target => $meta_on_node, refresh => 0});
 		
-		my $host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
-		my $status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+		my $host       = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
+		my $short_host = ($host =~ /^(.*?)\..*$/)[0];
+		my $status      = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host   => $host, 
-			status => $status, 
-			target => $target,
+			host       => $host, 
+			short_host => $short_host, 
+			status     => $status, 
+			target     => $target,
 		}});
+		
+		# Convert the host to a short name, in case the node's name is the short version.
 		
 		my $server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
 		my $server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
@@ -821,11 +825,8 @@ sub migrate_server
 		# make sure it is running and, if so, return '0'. The 'meta_on_node' is the new host.
 		if (($target eq $anvil->_hostname) or ($target eq $anvil->_short_hostname) or ($target eq $meta_on_node))
 		{
-			# Yup. All we want to do if make sure it is running here.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0345", variables => { server => $server }});
-			
 			# If it's running, we're succesfully out.
-			if (($host eq $target) && ($status eq "running"))
+			if ((($host eq $target) or ($short_host eq $target)) && ($status eq "running"))
 			{
 				# Success!
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0347", variables => { server => $server }});
