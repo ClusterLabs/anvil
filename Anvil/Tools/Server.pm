@@ -186,6 +186,10 @@ This is the password to use when connecting to a remote machine. If not set, but
 
 This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
 
+=head3 refresh (optional, default '0')
+
+Is set to C<< 1 >>, and previously seen servers and their information is cleared.
+
 =head3 remote_user (optional, default 'root')
 
 If C<< target >> is set, this will be the user we connect to the remote machine as.
@@ -204,17 +208,19 @@ sub find
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $refresh     = defined $parameter->{refresh}     ? $parameter->{refresh}     : 0;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
 		port        => $port, 
+		refresh     => $refresh, 
 		remote_user => $remote_user, 
 		target      => $target, 
 	}});
 	
 	# Clear any old data
-	if (exists $anvil->data->{server}{location})
+	if ((exists $anvil->data->{server}{location}) && ($refresh))
 	{
 		delete $anvil->data->{server}{location};
 	}

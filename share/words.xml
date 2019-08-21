@@ -747,6 +747,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0427">[ Warning ] - The server: [#!variable!server!#] is not yet off after: [#!variable!wait!#] seconds. Giving up waiting.</key>
 		<key name="log_0428">[ Error ] - The server: [#!variable!server!#] can't by migrated to: [#!variable!target!#] because the resource: [#!variable!resource!#] isn't connected. The current connection state is: [#!variable!connection_state!#].</key>
 		<key name="log_0429">[ Error ] - The server: [#!variable!server!#] can't by migrated to: [#!variable!target!#] because we can't reach it at all right now.</key>
+		<key name="log_0430">The migration of the server: [#!variable!server!#] over to: [#!variable!target!#] isn't needed, it's already running on the target. Exiting successfully.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

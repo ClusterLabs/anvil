@@ -1115,3 +1115,12 @@ virt-install --connect qemu:///system \
   --disk path=/dev/an-a01n01_vg0/srv09-psql_0,bus=virtio,cache=writethrough \
   --graphics spice \
   --noautoconsole --wait -1 > /var/log/anvil-server_srv09-psql.log &
+
+  
+# Migration;
+pcs resource move test_server 
+# (then remove the constraint);
+pcs constraint show --full
+pcs constraint remove cli-ban-test_server-on-el8-a01n01
+
+

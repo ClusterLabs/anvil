@@ -98,6 +98,9 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
+# For the logs...
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0115", variables => { program => 'ocf:alteeve:'.$THIS_FILE }});
+
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
 $anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-c7 
@@ -616,13 +619,15 @@ sub migrate_server
 	# missing. 
 	# If we're given 'migrate_from', we're pulling the server towards us, so we can check both brdiges
 	# and storage.
-	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $source = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source};
-	my $target = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
+	my $server       = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $source       = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source};
+	my $target       = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
+	my $meta_on_node = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server                   => $server, 
 		source                   => $source, 
 		target                   => $target,
+		meta_on_node             => $meta_on_node,
 		'switches::migrate_to'   => $anvil->data->{switches}{migrate_to}, 
 		'switches::migrate_from' => $anvil->data->{switches}{migrate_from}, 
 	}});
@@ -647,12 +652,8 @@ sub migrate_server
 			$anvil->nice_exit({exit_code => 5});
 		}
 		
-		# Get a view of the servers locally and our peer.
-		validate_all($anvil);
-		
 		# Find the server
 		$anvil->Server->find({debug => 3});
-		
 		my $server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
 		my $server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -660,11 +661,37 @@ sub migrate_server
 			server_status => $server_status, 
 		}});
 		
+		# Is it already on the target?
+		if (not $server_status)
+		{
+			# Maybe...
+			$anvil->Server->find({debug => 3, target => $target});
+			$server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
+			$server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_host   => $server_host, 
+				server_status => $server_status, 
+			}});
+			
+			if (($server_host eq $target) && (($server_status) && ($server_status eq "running")))
+			{
+				# Already over there, we're done.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0430", variables => { 
+					server => $server,
+					target => $target,
+				}});
+				$anvil->nice_exit({exit_code => 0});
+			}
+		}
+		
 		if (not $server_host)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0344", variables => { server => $server }});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		
+		# Get a view of the servers locally and our peer.
+		validate_all($anvil);
 		
 		# Get the DRBD status.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0387"});
@@ -771,16 +798,17 @@ sub migrate_server
 	elsif ($anvil->data->{switches}{migrate_from})
 	{
 		# Pull the server here. Start by verifying it's on the 'meta_on_node' host.
-		my $meta_on_node = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node};
-		my $host         = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
-		my $status       = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host         => $host, 
-			status       => $status, 
-			meta_on_node => $meta_on_node, 
-			target       => $target,
-		}});
+		# Scan locally and on our peer
+		$anvil->Server->find({debug => 2});
 		$anvil->Server->find({debug => 2, target => $meta_on_node});
+		
+		my $host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
+		my $status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host   => $host, 
+			status => $status, 
+			target => $target,
+		}});
 		
 		my $server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
 		my $server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
@@ -791,13 +819,13 @@ sub migrate_server
 		
 		# This is called after a migration. If that is the case here, the target will be us. Just 
 		# make sure it is running and, if so, return '0'. The 'meta_on_node' is the new host.
-		if ($meta_on_node eq $target)
+		if (($target eq $anvil->_hostname) or ($target eq $anvil->_short_hostname) or ($target eq $meta_on_node))
 		{
 			# Yup. All we want to do if make sure it is running here.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0345", variables => { server => $server }});
 			
 			# If it's running, we're succesfully out.
-			if ($status eq "running")
+			if (($host eq $target) && ($status eq "running"))
 			{
 				# Success!
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0347", variables => { server => $server }});
