@@ -114,7 +114,15 @@ sub parent
 
 =head2 archive_database
 
-NOTE: Not implemented yet.
+This method takes an array reference of database tables and check each to see if their history schema version needs to be archived or not.
+
+Parameters;
+
+=head3 tables (required, hash reference)
+
+This is an B<< array reference >> of tables to archive. 
+
+B<< NOTE >>: The array is processed in B<< reverse >> order! This is done to allow the same array used to create/sync tables to be used without modification (foreign keys will be archived/removed before primary keys)
 
 =cut
 sub archive_database
@@ -124,6 +132,19 @@ sub archive_database
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->archive_database()" }});
+	
+	my $tables = defined $parameter->{tables} ? $parameter->{tables} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		tables => $tables, 
+	}});
+	
+	# If the 'tables' parameter is an array reference, add it to 'sys::database::check_tables' (creating
+	# it, if needed).
+	if (ref($tables) ne "ARRAY")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0432"});
+		return(1);
+	}
 	
 	# Is archiving disabled?
 	if (not $anvil->data->{sys}{database}{archive}{trigger})
@@ -140,18 +161,11 @@ sub archive_database
 		return(1);
 	}
 	
-	# If we don't have an array of tables, we have nothing to do.
-	if ((not exists $anvil->data->{sys}{database}{check_tables}) or (ref(@{$anvil->data->{sys}{database}{check_tables}} ne "ARRAY")))
-	{
-		return(1);
-	}
-	
 	# We'll use the list of tables created for _find_behind_databases()'s 'sys::database::check_tables' 
 	# array, but in reverse so that tables with primary keys (first in the array) are archived last.
-	foreach my $table (reverse(@{$anvil->data->{sys}{database}{check_tables}}))
+	foreach my $table (reverse(@{$tables}))
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
-		
 		$anvil->Database->_archive_table({table => $table});
 	}
 	
@@ -1554,6 +1568,12 @@ sub get_local_uuid
 =head2 initialize
 
 This will initialize a database using a given file.
+
+Parameters;
+
+=head3 sql_file (required)
+
+This is the full (or relative) path and file nane to use when initializing the database. 
 
 =cut
 sub initialize
@@ -5192,6 +5212,14 @@ WHERE
 
 This reads, sets or updates the database lock file timestamp.
 
+Parameters;
+
+=head3 do (required, default 'get')
+
+This controls whether we're setting (C<< set >>) or checking for (C<< get >>) a lock file on the local system. 
+
+If setting, or if checking and a lock file is found, the timestamp (in unixtime) in the lock fike is returned. If a lock file isn't found, C<< 0 >> is returned.
+
 =cut
 sub lock_file
 {
@@ -5660,7 +5688,7 @@ sub query
 
 =head2 quote
 
-This quotes a string for safe use in database queries/writes.
+This quotes a string for safe use in database queries/writes. It operates exactly as C<< DBI >>'s C<< quote >> method. This method is simply a wrapper that uses the C<< DBI >> handle set as the currently active read database.
 
 Example;
 

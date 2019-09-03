@@ -504,6 +504,8 @@ pcs property set stonith-enabled=true
 
 pcs resource create hypervisor systemd:libvirtd op monitor interval=60
 pcs resource clone hypervisor clone-max=2 notify="false" 
+pcs resource create drbd systemd:drbd op monitor interval=60
+pcs resource clone drbd clone-max=2 notify="false" 
 
 pcs resource update test_server ocf:alteeve:server name="test_server" meta allow-migrate="true" op monitor interval="60"
 

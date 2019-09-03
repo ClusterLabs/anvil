@@ -3,7 +3,7 @@
 #   This is the resource agent used to manage servers on the Anvil! Intelligent Availability platform.
 #
 #   License: GNU General Public License (GPL) v2+
-#            (c) 1997-2018 - Alteeve's Niche! Inc.
+#            (c) 1997-2019 - Alteeve's Niche! Inc.
 # 
 # WARNING: This is a pretty purpose-specific resource agent. No effort was made to test this on an rgmanager
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
@@ -132,8 +132,22 @@ if ($anvil->data->{environment}{PCMK_debug})
 	$anvil->Log->level({set => 3});
 }
 
+# Originally, this was designed to start and stop a server's DRBD resources on demand. Early testing appears
+# to show this prone to higher risk of fencing if something goes wrong. As such, we're changing the default
+# behaviour to leave DRBD resources up. Set this to '1' (here or by switch) to revert back to the old 
+# behaviour.
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 0;
+
 # Get any command line switches.
 $anvil->Get->switches;
+
+if ($anvil->data->{switches}{stop_drbd_resources})
+{
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = 1;
+}
+
+#$anvil->DRBD->get_status({debug => 2});
+#die;
 
 # Something for the logs
 if ((not $anvil->data->{switches}{metadaata}) and (not $anvil->data->{switches}{'meta-data'}))
@@ -315,7 +329,7 @@ sub start_server
 	# Is the server already running somewhere?
 	find_server($anvil);
 	
-	# Start the resource
+	# Start the resource, if needed.
 	start_drbd_resource($anvil);
 	
 	# Still alive? Boot!
@@ -383,7 +397,7 @@ sub stop_drbd_resource
 	return(0);
 }
 
-# This starts the drbd resource(s) for the requested server.
+# This starts the drbd resource(s) for the requested server, if needed.
 sub start_drbd_resource
 {
 	my ($anvil) = @_;
@@ -396,6 +410,37 @@ sub start_drbd_resource
 		host    => $host, 
 		peer    => $peer,
 	}});
+	
+	# Do we need startup?
+	my $startup_needed = 0;
+	$anvil->DRBD->get_status({debug => 3});
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{resource}})
+	{
+		# Is the current resource up locally already? If it is, we're done.
+		my $role = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { role => $role }});
+		
+		if ((lc($role) ne "secondary") && (lc($role) ne "primary"))
+		{
+			$startup_needed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_needed => $startup_needed }});
+			last;
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0419", variables => { 
+				resource => $resource,
+				role     => $role, 
+			}});
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_needed => $startup_needed }});
+	if (not $startup_needed)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0431"});
+		return(0);
+	}
 	
 	# Start DRBD locally.
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{resource}})
@@ -578,7 +623,13 @@ sub stop_server
 	}
 	
 	# Now stop the DRBD resource(s).
-	stop_drbd_resource($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'environment::OCF_RESKEY_CRM_meta_stop_drbd_resources' => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources}, 
+	}});
+	if ($anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources})
+	{
+		stop_drbd_resource($anvil);
+	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0324", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 0});

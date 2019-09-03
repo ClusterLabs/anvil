@@ -1000,6 +1000,8 @@ sub _set_paths
 			},
 			exe			=>	{
 				'anvil-change-password'		=>	"/usr/sbin/anvil-change-password",
+				'anvil-check-memory'		=>	"/usr/sbin/anvil-check-memory",
+				'anvil-configure-host'		=>	"/usr/sbin/anvil-configure-host",
 				'anvil-daemon'			=>	"/usr/sbin/anvil-daemon",
 				'anvil-download-file'		=>	"/usr/sbin/anvil-download-file",
 				'anvil-file-details'		=>	"/usr/sbin/anvil-file-details",
@@ -1066,7 +1068,6 @@ sub _set_paths
 				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
 				stonith_admin			=>	"/usr/sbin/stonith_admin",
 				strings				=>	"/usr/bin/strings",
-				'striker-configure-host'	=>	"/usr/sbin/striker-configure-host",
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",
 				'striker-manage-peers'		=>	"/usr/sbin/striker-manage-peers",
 				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",

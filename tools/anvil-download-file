@@ -75,7 +75,6 @@ if ((not $anvil->data->{switches}{abort}) && (not $anvil->data->{switches}{url})
 {
 	get_job_details($anvil);
 }
-die;
 
 # Do what now?
 if ($anvil->data->{switches}{abort})

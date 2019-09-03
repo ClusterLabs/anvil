@@ -2013,7 +2013,41 @@ sub rsync
 
 =head2 scan_directory
 
-TODO: Wtite this...
+This takes a directory and scan its contents. What is found is stored in the following hashes;
+
+ scan::directories::<parent_directory>::directory = <parent directory>
+ scan::directories::<parent_directory>::name      = <file or directory name>
+ scan::directories::<parent_directory>::type      = 'file', 'directory' or 'symlink' (other special types are ignored entirely)
+
+If the fule is a directory, this is also set;
+
+ scan::directories::<parent_directory>::mode = <the mode of the directory, already masked>
+
+If the file is a symlink, this is also set;
+
+ scan::directories::<parent_directory>::target = <target file>
+
+If the file is an actual file, the following information is set;
+
+ scan::directories::<parent_directory>::mode       = <the mode of the file, already masked>
+ scan::directories::<parent_directory>::user_id    = <numeric user ID of the owner>
+ scan::directories::<parent_directory>::group_id   = <numeric group ID of the owner>
+ scan::directories::<parent_directory>::size       = <size in bytes>
+ scan::directories::<parent_directory>::mtime      = <last modification time, in unixtime>
+ scan::directories::<parent_directory>::mimetype   = <mimetype, as returned by File::MimeInfo->mimetype>
+ scan::directories::<parent_directory>::executable = '0' or '1'
+
+Parameters;
+
+=head3 directory (required)
+
+This is the full path to the directory to scan. 
+
+=head3 recursive (optional, default '0')
+
+If set to C<< 1 >>, any directories found will be scanned as well.
+
+B<< NOTE >>: Symlinks that point to directories will B<< NOT >> be scanned.
 
 =cut
 ### TODO: Make this work on remote systems
@@ -2065,14 +2099,20 @@ sub scan_directory
 			"scan::directories::${full_path}::name"      => $anvil->data->{scan}{directories}{$full_path}{name}, 
 			full_path                                    => $full_path,
 		}});
-		if ((-d $full_path) && ($recursive))
+		if (-d $full_path)
 		{
 			# This is a directory, dive into it is asked.
+			my @details = stat($full_path);
 			$anvil->data->{scan}{directories}{$full_path}{type} = "directory";
+			$anvil->data->{scan}{directories}{$full_path}{mode} = sprintf("04%o", $details[2] & 07777);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"scan::directories::${full_path}::type" => $anvil->data->{scan}{directories}{$full_path}{type}, 
+				"scan::directories::${full_path}::mode" => $anvil->data->{scan}{directories}{$full_path}{mode}, 
 			}});
-			$anvil->Storage->scan_directory({debug => $debug, directory => $full_path, recursive => $recursive});
+			if ($recursive)
+			{
+				$anvil->Storage->scan_directory({debug => $debug, directory => $full_path, recursive => $recursive});
+			}
 		}
 		elsif (-l $full_path)
 		{

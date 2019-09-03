@@ -748,6 +748,9 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0428">[ Error ] - The server: [#!variable!server!#] can't by migrated to: [#!variable!target!#] because the resource: [#!variable!resource!#] isn't connected. The current connection state is: [#!variable!connection_state!#].</key>
 		<key name="log_0429">[ Error ] - The server: [#!variable!server!#] can't by migrated to: [#!variable!target!#] because we can't reach it at all right now.</key>
 		<key name="log_0430">The migration of the server: [#!variable!server!#] over to: [#!variable!target!#] isn't needed, it's already running on the target. Exiting successfully.</key>
+		<key name="log_0431">All DRBD resources appear to be up, skipping individual DRBD resource startup.</key>
+		<key name="log_0432"><![CDATA[Database->archive_database() was not passed an array reference of tables to archive. Please pass an array reference using the 'tables' parameter.]]></key>
+		<key name="log_0433">The 'smaps' proc file for the process ID: [#!variable!pid!#] was not found. Did the program just close?</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1033,6 +1036,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0062">The download job with UUID: [#!variable!job_uuid!#] is already being handled by another process.</key>
 		<key name="error_0063">Something went wrong trying to download: [#!variable!packages!#]. The return code should have been '0'. but: [#!variable!return_code!#] was received. Is a package missing upstream?</key>
 		<key name="error_0064">A request to active the logical volume: [#!variable!path!#] was made, but that path doesn't exist or isn't a block device.</key>
+		<key name="error_0065"><![CDATA[No program name given (via --program <name>), unable to proceed.]]></key>
+		<key name="error_0066"><![CDATA[The program: [#!variable!program!#] was not found to be running on this system.]]></key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

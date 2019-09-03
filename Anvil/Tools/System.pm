@@ -564,7 +564,13 @@ sub check_if_configured
 
 =head2 check_memory
 
-# Not yet written...
+This calls 'anvil-check-memory' with the given program name, and looks at the output to see how much RAM that program uses (if it is even running).
+
+Parameters;
+
+=head3 program_name (required)
+
+This is the name of the program (as seen in the output of C<< ps aux >>) to check the RAM of.
 
 =cut
 sub check_memory
@@ -585,18 +591,19 @@ sub check_memory
 	
 	my $used_ram = 0;
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{''}." --program $program_name"});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-check-memory'}." --program $program_name"});
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line =~ /= (\d+) /)
 		{
 			$used_ram = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { used_ram => $used_ram }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				used_ram => $anvil->Convert->add_commas({number => $used_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used_ram}).")",
+			}});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { used_ram => $used_ram }});
 	return($used_ram);
 }
 
@@ -918,6 +925,8 @@ sub get_free_memory
 =head2 get_host_type
 
 This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
+
+ my $type = $anvil->System->get_host_type();
 
 First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
 

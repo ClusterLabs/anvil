@@ -1,0 +1,119 @@
+#!/usr/bin/perl
+# 
+# This reports the total memory used by all processes with to passed-in program name.
+# 
+# The size in bytes is returned. If '0' is reported, check the exit code to see why.
+# 
+# This software was created by Alteeve's Niche! Inc. and has been released under the terms of the GNU GPL 
+# version 2.
+#
+# https://alteeve.com
+# 
+# Exit Codes:
+# 0  - Success
+# 1  - No program name passed-in.
+# 2  - No PIDs found for the passed-in program name.
+# 3  - No PID returned by pgrep
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+
+$anvil->data->{switches}{program} = ""; 
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::program' => $anvil->data->{switches}{program}, 
+}});
+
+$anvil->data->{memory}{total} = 0;
+
+# If we weren't given a program, exit
+if (not $anvil->data->{switches}{program})
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0065"});
+	print "#!error!#\n";
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Find the PID(s) of the program.
+$anvil->data->{sys}{pids} = $anvil->System->pids({ignore_me => 1, program_name => $anvil->data->{switches}{program}});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'sys::pids' => $anvil->data->{sys}{pids} }});
+
+my $pids_found = @{$anvil->data->{sys}{pids}};
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { pids_found => $pids_found }});
+
+if (not $pids_found)
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0066", variables => { prorgram => $anvil->data->{switches}{program} }});
+	print $anvil->data->{switches}{program}." = ".$anvil->data->{memory}{total}."\n";
+	$anvil->nice_exit({exit_code => 2});
+}
+
+# Read in the smaps for each pid
+foreach my $pid (sort {$a cmp $b} @{$anvil->data->{sys}{pids}})
+{
+	my $smaps_path = "/proc/".$pid."/smaps";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { smaps_path => $smaps_path }});
+	
+	# This will store the amount of RAM used by this specific PID.
+	$an->data->{memory}{pid}{$pid} = 0;
+	
+	if (not -e $smaps_path)
+	{
+		# It is possible that the program just closed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => "log_0433", variables => { pid => $pid }});
+		next;
+	}
+	
+	# Read in the file.
+	my $body = $anvil->Storage->read_file({file => $smaps_path});
+	foreach my $line (split/\n/, $body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { line => $line }});
+		if ($line =~ /^Private_Dirty:\s+(\d+) (.*B)$/)
+		{
+			my $size = $1;
+			my $type = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				type => $type,
+				size => $size,
+			}});
+			next if not $size;
+			next if $size =~ /\D/;
+			
+			# This uses 'kB' for 'KiB' >_>
+			$type =  lc($type);
+			$type =~ s/b$/ib/ if $type !~ /ib$/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+			
+			my $size_in_bytes = $anvil->Convert->human_readable_to_bytes({size => $size, type => $type, base2 => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				size_in_bytes => $anvil->Convert->add_commas({number => $size_in_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size_in_bytes}).")",
+			}});
+			
+			$anvil->data->{memory}{pid}{$pid} += $size_in_bytes;
+			$anvil->data->{memory}{total}     += $size_in_bytes;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"memory::pid::${pid}" => $anvil->Convert->add_commas({number => $anvil->data->{memory}{pid}{$pid}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{memory}{pid}{$pid}}).")",
+				'memory::total'       => $anvil->Convert->add_commas({number => $anvil->data->{memory}{total}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{memory}{total}}).")",
+			}});
+		}
+	}
+}
+
+# Report and exit.
+print $anvil->data->{switches}{program}." = ".$an->data->{memory}{total}." # ".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{memory}{total}})."\n";
+$anvil->nice_exit({exit_code => 0});

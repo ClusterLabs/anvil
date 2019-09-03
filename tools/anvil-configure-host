@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This is called when striker needs to configure the local network and user accounts.
+# This is called when striker, an node or a DR host needs to configure the local network and user accounts.
 # 
 # Exit codes;
 # 0 = Normal exit.
@@ -114,47 +114,65 @@ sub update_passwords
 {
 	my ($anvil) = @_;
 	
-	# Set the passwords
-	my $password  = $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
-	my $temp_file = "/tmp/anvil-".$anvil->Get->uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
+	# Is this a striker dashboard, node or DR host?
+	my $type = $anvil->System->get_host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type => $type }});
 	
-	# Write the password into a temporary file.
-	my $error = $anvil->Storage->write_file({
-		body      => $password,
-		file      => $temp_file,
-		group     => "root", 
-		mode      => "0600",
-		overwrite => 1,
-		secure    => 1,
-		user      => "root",
-	});
-	
-	# Call anvil-change-password
-	if ($error)
+	if ($type eq "dashboard")
 	{
-		# Couldn't write the temp file.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0030", variables => { file => $temp_file }});
-		$anvil->nice_exit({code => 5});
+		# Set the passwords
+		my $password  = $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
+		my $temp_file = "/tmp/anvil-".$anvil->Get->uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
+		
+		# Write the password into a temporary file.
+		my $error = $anvil->Storage->write_file({
+			body      => $password,
+			file      => $temp_file,
+			group     => "root", 
+			mode      => "0600",
+			overwrite => 1,
+			secure    => 1,
+			user      => "root",
+		});
+		
+		# Call anvil-change-password
+		if ($error)
+		{
+			# Couldn't write the temp file.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0030", variables => { file => $temp_file }});
+			$anvil->nice_exit({code => 5});
+		}
+		else
+		{
+			my $return_code            = "";
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file });
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output, return_code => $return_code }});
+			foreach my $line (split/\n/, $output)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { line => $line }});
+			}
+			
+			# Unlink the temp file.
+			unlink $temp_file;
+			
+			if ($return_code)
+			{
+				# Something went wrong
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0011", variables => { return_code => $return_code }});
+			}
+		}
 	}
 	else
 	{
-		my $return_code            = "";
-		my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { output => $output, return_code => $return_code }});
-		foreach my $line (split/\n/, $output)
+		if ($type eq "node")
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { line => $line }});
+			# We'll need to update pcsd's password as well.
 		}
 		
-		# Unlink the temp file.
-		unlink $temp_file;
+		# Set passwords that are common to nodes and DR hosts. 
 		
-		if ($return_code)
-		{
-			# Something went wrong
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0011", variables => { return_code => $return_code }});
-		}
+		
 	}
 	
 	$anvil->Job->update_progress({
@@ -644,6 +662,7 @@ sub reconfigure_network
 		}
 	}
 	
+	# We're half-way there.
 	$anvil->Job->update_progress({
 		progress => 50, 
 		job_uuid => $anvil->data->{job}{uuid},

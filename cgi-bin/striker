@@ -1255,7 +1255,7 @@ sub configure_striker
 			debug           => 3,
 			file            => $THIS_FILE, 
 			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'striker-configure-host'}, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}, 
 			job_data        => "form::config_step2", 
 			job_name        => "configure::network", 
 			job_title       => "job_0001", 

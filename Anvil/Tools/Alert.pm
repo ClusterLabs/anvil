@@ -508,6 +508,7 @@ INSERT INTO
 	return(0);
 }
 
+### TODO: Write this, maybe? Or remove it and ->warning()?
 =head2 error
 
 =cut
