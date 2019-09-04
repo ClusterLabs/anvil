@@ -751,6 +751,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0431">All DRBD resources appear to be up, skipping individual DRBD resource startup.</key>
 		<key name="log_0432"><![CDATA[Database->archive_database() was not passed an array reference of tables to archive. Please pass an array reference using the 'tables' parameter.]]></key>
 		<key name="log_0433">The 'smaps' proc file for the process ID: [#!variable!pid!#] was not found. Did the program just close?</key>
+		<key name="log_0434">- The DRBD resource: [#!variable!resource!#] is in the role: [#!variable!role!#] already, no need to bring it up.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

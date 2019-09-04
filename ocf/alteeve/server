@@ -98,9 +98,6 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
-# For the logs...
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0115", variables => { program => 'ocf:alteeve:'.$THIS_FILE }});
-
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
 $anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-c7 
@@ -146,14 +143,8 @@ if ($anvil->data->{switches}{stop_drbd_resources})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = 1;
 }
 
-#$anvil->DRBD->get_status({debug => 2});
-#die;
-
 # Something for the logs
-if ((not $anvil->data->{switches}{metadaata}) and (not $anvil->data->{switches}{'meta-data'}))
-{
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "log_0298"});
-}
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, key => "log_0298"});
 
 ### TEST: to be removed later
 if ($anvil->data->{switches}{test1})
@@ -163,7 +154,7 @@ if ($anvil->data->{switches}{test1})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n01.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n01.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n02.digimer.ca";
-	print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	#print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test2})
 {
@@ -172,7 +163,7 @@ if ($anvil->data->{switches}{test2})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n02.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n02.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n01.digimer.ca";
-	print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	#print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test3})
 {
@@ -428,7 +419,7 @@ sub start_drbd_resource
 		}
 		else
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0419", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0434", variables => { 
 				resource => $resource,
 				role     => $role, 
 			}});

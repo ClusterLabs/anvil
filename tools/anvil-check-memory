@@ -69,7 +69,7 @@ foreach my $pid (sort {$a cmp $b} @{$anvil->data->{sys}{pids}})
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { smaps_path => $smaps_path }});
 	
 	# This will store the amount of RAM used by this specific PID.
-	$an->data->{memory}{pid}{$pid} = 0;
+	$anvil->data->{memory}{pid}{$pid} = 0;
 	
 	if (not -e $smaps_path)
 	{
@@ -115,5 +115,5 @@ foreach my $pid (sort {$a cmp $b} @{$anvil->data->{sys}{pids}})
 }
 
 # Report and exit.
-print $anvil->data->{switches}{program}." = ".$an->data->{memory}{total}." # ".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{memory}{total}})."\n";
+print $anvil->data->{switches}{program}." = ".$anvil->data->{memory}{total}." # ".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{memory}{total}})."\n";
 $anvil->nice_exit({exit_code => 0});
