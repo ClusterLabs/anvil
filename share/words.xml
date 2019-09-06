@@ -248,6 +248,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0141">Changing the default zone to: [#!variable!zone!#].</key>
 		<key name="message_0142">* Download progress: [#!variable!percentage!# %], Downloaded: [#!variable!downloaded!#], Current rate: [#!variable!current_rate!#], Average Rate: [#!variable!average_rate!#], Time Running: [#!variable!running_time!#], Estimated left: [#!variable!estimated_left!#].</key>
 		<key name="message_0143">The zone: [#!variable!zone!#]'s user-land file: [#!variable!file!#] exists. Skipping checking the configuration of this zone.</key>
+		<key name="message_0144">Red Hat user</key>
+		<key name="message_0145">Red Hat password</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -911,6 +913,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0118">Prepare a new machine for use as an Anvil! node or DR (disaster recovery) host. This process will setup the repository, install the appropriate anvil packages and link it to the Anvil! databases on the Strikers you choose.</key>
 		<key name="striker_0119">Anvil! File Manager.</key>
 		<key name="striker_0120">Saving File...</key>
+		<key name="striker_0121">Prepare Node or DR Host</key>
+		<key name="striker_0122">Please enter the IP address and root password of the target machine you want to configure.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

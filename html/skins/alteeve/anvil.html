@@ -43,12 +43,7 @@
 			</tr>
 			<tr>
 				<td colspan="2" class="title">
-					#!string!striker_0117!#
-				</td>
-			</tr>
-			<tr>
-				<td colspan="2">
-					#!string!striker_0118!#
+					#!string!striker_0121!#
 				</td>
 			</tr>
 			<tr>
@@ -57,20 +52,61 @@
 				</td>
 			</tr>
 			<tr>
-				<td class="main_option_icon">
-					<a href="?anvil=true&task=prep-host"><img src="#!data!skin::url!#/images/prep-host_icon.png" class="top_icon" ></a>
-				</td>
-				<td class="main_option">
-					<a href="?anvil=true&task=sync">#!string!striker_0116!#</a>
+				<td colspan="2">
+					#!string!striker_0122!#
 				</td>
 			</tr>
 			<tr>
-				<td class="main_option_icon">
-					<a href="?anvil=true&task=create"><img src="#!data!skin::url!#/images/build-anvil_icon.png" class="top_icon" ></a>
-				</td>
-				<td class="main_option">
-					<a href="?anvil=true&task=sync">#!string!striker_0114!#</a>
+				<td colspan="2">
+					&nbsp;
 				</td>
 			</tr>
+			<form name="host_setup" action="" method="post">
+			<tr>
+				#!variable!form!#
+			</tr>
+			<input type="hidden" name="anvil" id="anvil" value="1">
+			<input type="hidden" name="task"  id="prep-host" value="1">
+			</form>
 		</table>
 <!-- end prep-host-main -->
+
+<!-- start host-setup-menu1 -->
+			<table align="center" class="anvil_main_menu">
+				<div id="host-setup">
+				<tr>
+					<td>
+						<input type="text" name="ip_address" id="ip_address" value="#!variable!ip_address!#" autocomplete="off" placeholder="#!string!striker_0024!#" />
+					</td>
+					<td>
+						&nbsp;
+					</td>
+					<td>
+						<input type="password" name="password" id="password" value="#!variable!password!#" autocomplete="off" placeholder="#!string!striker_0051!#" />
+					</td>
+				</tr>
+				<tr>
+					<td colspan="3">
+						<input type="radio" name="type" value="node" id="node" class="radio" #!variable!node_checked!#> #!string!message_0116!#" <br />
+						<input type="radio" name="type" value="dr" id="dr" class="radio" #!variable!dr_checked!#> #!string!message_0117!#"
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<input type="text" name="rh_user" id="rh_user" value="#!variable!rh_user!#" placeholder="#!string!message_0144!#" />
+					</td>
+					<td>
+						&nbsp;
+					</td>
+					<td>
+						<input type="password" name="rh_password" id="rh_password" value="#!variable!rh_password!#" placeholder="#!string!message_0145!#" />
+					</td>
+				</tr>
+				<tr>
+					<td colspan="3">
+						<input type="submit" name="login" id="login" class="button" value="#!string!striker_0049!#">
+					</td>
+				</tr>
+				</div>
+			</table>
+<!-- end host-setup-menu1 -->

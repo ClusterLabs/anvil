@@ -275,7 +275,11 @@ sub parse_banged_string
 	
 	# Setup default values
 	my $out_string = "";
-	my $key_string = defined $parameter->{key_string}  ? $parameter->{key_string}  : 0;
+	my $key_string = defined $parameter->{key_string} ? $parameter->{key_string} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
+	
+	# If the string ended with newline before the final '!!', it will break things.
+	$key_string =~ s/\n!!/!!/gs;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
 	
 	# There might be multiple keys, split by newlines.

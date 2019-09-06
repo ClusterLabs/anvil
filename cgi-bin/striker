@@ -528,18 +528,24 @@ sub process_prep_host_page
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{form}{refresh_link} = "?jobs=true&task=prep-host";
-	$anvil->data->{form}{back_link}    = "?jobs=true";
+	my $ip_address   = defined $anvil->data->{cgi}{ip_address}{value}  ? $anvil->data->{cgi}{ip_address}{value}  : "";
+	my $rh_user      = defined $anvil->data->{cgi}{rh_user}{value}     ? $anvil->data->{cgi}{rh_user}{value}     : "";
+	my $rh_password  = defined $anvil->data->{cgi}{rh_password}{value} ? $anvil->data->{cgi}{rh_password}{value} : "";
+	my $node_checked = "checked";
+	my $dr_checked   = "";
+	my $form_body    = $anvil->Template->get({file => "anvil.html", name => "host-setup-menu1", variables => {
+		ip_address   => $ip_address,
+		node_checked => $node_checked, 
+		dr_checked   => $dr_checked, 
+	}});
+	
+	$anvil->data->{form}{refresh_link} = "?anvil=true&task=prep-host";
+	$anvil->data->{form}{back_link}    = "?anvil=true";
 	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
-	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "jobs", variables => {
-		title_id    => "", 
-		message_id  => "", 
-		title       => "#!string!striker_0096!#", 
-		description => "#!string!striker_0115!#", 
-		job_list    => $anvil->Job->html_list({debug => 2, ended_within => 300}), 
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "prep-host-main", variables => {
+		form => $form_body, 
 	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 	
 	return(0);
 }

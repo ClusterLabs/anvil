@@ -35,9 +35,6 @@ configure by Gregor Cresnar from the Noun Project (https://thenounproject.com/te
 customize by Trusted Icons from the Noun Project (https://thenounproject.com/term/customize/538026/)
 - configure_icon.png
 
-configure by iconesia from the Noun Project (https://thenounproject.com/term/configure/1651241/)
-- build_icon.png
-
 power by Blair Adams from the Noun Project (https://thenounproject.com/search/?q=power&i=865890)
 - power_icon.png
 
@@ -51,6 +48,9 @@ Task by Ramesha from the Noun Project (https://thenounproject.com/term/task/1212
 - tasks_icon.png
 
 Setup by Eucalyp from the Noun Project (https://thenounproject.com/term/setup/1453246/)
+- build_icon.png
+
+configure by iconesia from the Noun Project (https://thenounproject.com/term/configure/1651241/)
 - prep-host_icon.png
 
 Folder by Mint Shirt from the Noun Project (https://thenounproject.com/term/folder/402164/)
