@@ -75,20 +75,48 @@
 			<table align="center" class="anvil_main_menu">
 				<div id="host-setup">
 				<tr>
-					<td>
-						<input type="text" name="ip_address" id="ip_address" value="#!variable!ip_address!#" autocomplete="off" placeholder="#!string!striker_0024!#" />
-					</td>
-					<td>
-						&nbsp;
-					</td>
-					<td>
-						<input type="password" name="password" id="password" value="#!variable!password!#" autocomplete="off" placeholder="#!string!striker_0051!#" />
+					<td colspan="3">
+						#!string!message_0146!#"
 					</td>
 				</tr>
 				<tr>
 					<td colspan="3">
 						<input type="radio" name="type" value="node" id="node" class="radio" #!variable!node_checked!#> #!string!message_0116!#" <br />
 						<input type="radio" name="type" value="dr" id="dr" class="radio" #!variable!dr_checked!#> #!string!message_0117!#"
+					</td>
+				</tr>
+				<tr>
+					<td colspan="3">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="3">
+						#!string!message_0147!#"
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<input type="text" name="host_ip_address" id="host_ip_address" value="#!variable!ip_address!#" placeholder="#!string!striker_0024!#" />
+					</td>
+					<td>
+						&nbsp;
+					</td>
+					<td>
+						<!-- 
+						This combination of input type text, disk characters and autocomplete=off prevents browsers from pre-filling password and offering to save passwords.
+						-->
+						<input type="text" name="host_password" id="host_password" value="#!variable!password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!striker_0051!#" />
+					</td>
+				</tr>
+				<tr>
+					<td colspan="3">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="3">
+						#!string!message_0148!#"
 					</td>
 				</tr>
 				<tr>
@@ -99,12 +127,17 @@
 						&nbsp;
 					</td>
 					<td>
-						<input type="password" name="rh_password" id="rh_password" value="#!variable!rh_password!#" placeholder="#!string!message_0145!#" />
+						<input type="text" name="rh_password" id="rh_password" value="#!variable!rh_password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!message_0145!#" />
 					</td>
 				</tr>
 				<tr>
 					<td colspan="3">
-						<input type="submit" name="login" id="login" class="button" value="#!string!striker_0049!#">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="3">
+						<input type="submit" name="connect" id="connect" class="button" value="#!string!striker_0049!#">
 					</td>
 				</tr>
 				</div>

@@ -250,6 +250,9 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0143">The zone: [#!variable!zone!#]'s user-land file: [#!variable!file!#] exists. Skipping checking the configuration of this zone.</key>
 		<key name="message_0144">Red Hat user</key>
 		<key name="message_0145">Red Hat password</key>
+		<key name="message_0146">What kind of machine will this host be?</key>
+		<key name="message_0147"><![CDATA[What is the host's <b>current</b> IP address and password?]]></key>
+		<key name="message_0148"><![CDATA[(Optional); If this is a RHEL 8 host and has not yet been subscribed,<br />you can enter your Red Hat subscription credentials below.<br />If needed, the host will be subscribed during setup.]]></key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

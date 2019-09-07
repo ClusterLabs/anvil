@@ -293,8 +293,11 @@ sub cgi
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
 			}
 			
-			# Append to 'sys::cgi_string'
-			$anvil->data->{sys}{cgi_string} .= "$variable=".$anvil->data->{cgi}{$variable}{value}."&";
+			# Append to 'sys::cgi_string', so long as the variable doesn't have 'passwd' or 'password' in it.
+			if (($variable !~ /password/) && ($variable !~ /passwd/))
+			{
+				$anvil->data->{sys}{cgi_string} .= "$variable=".$anvil->data->{cgi}{$variable}{value}."&";
+			}
 		}
 	}
 	
