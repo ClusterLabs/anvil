@@ -831,7 +831,7 @@ AND
 		my $secure        = $this_variable =~ /passw/ ? 1 : 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			this_variable => $this_variable, 
-			this_value    => (($anvil->Log->secure) or (not $secure)) ? $this_value : $anvil->Words->string({key => "log_0186"}), 
+			this_value    => not $secure ? $this_value : $anvil->Log->is_secure($this_value), 
 		}});
 		
 		$anvil->_make_hash_reference($anvil->data->{variables}, $this_variable, $this_value);

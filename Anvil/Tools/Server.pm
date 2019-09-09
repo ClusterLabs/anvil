@@ -212,7 +212,7 @@ sub find
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		refresh     => $refresh, 
 		remote_user => $remote_user, 
@@ -328,7 +328,7 @@ sub get_status
 	my $server      = defined $parameter->{server}      ? $parameter->{server}      : "";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 

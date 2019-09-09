@@ -123,7 +123,7 @@ sub allow_two_primaries
 	my $target_node_id = defined $parameter->{target_node_id} ? $parameter->{target_node_id} : "";
 	my $return_code    = 255; 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password       => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password       => $anvil->Log->is_secure($password),
 		port           => $port, 
 		remote_user    => $remote_user,
 		resource       => $resource, 
@@ -263,7 +263,7 @@ sub get_devices
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 
@@ -534,7 +534,7 @@ sub get_status
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 
@@ -793,7 +793,7 @@ sub manage_resource
 	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user,
 		resource    => $resource,  
@@ -890,7 +890,7 @@ sub reload_defaults
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	my $return_code = 255; 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user,
 		resource    => $resource,  

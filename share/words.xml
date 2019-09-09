@@ -864,7 +864,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0066">Access to this machine via: [#!variable!network!#].</key>
 		<key name="striker_0067">Save</key>
 		<key name="striker_0068">Delete</key>
-		<key name="striker_0069">[db_user@]hostname_or_ip[:tcp_port]</key>
+		<key name="striker_0069">[db_user@]hostname_or_ip[:pgsql_port][,ssh=ssh_port]</key>
 		<key name="striker_0070">Add</key>
 		<key name="striker_0071">Ping</key>
 		<key name="striker_0072">Bi-directional</key>

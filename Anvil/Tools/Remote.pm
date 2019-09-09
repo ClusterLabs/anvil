@@ -300,9 +300,9 @@ sub call
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		'close'    => $close, 
-		password   => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password   => $anvil->Log->is_secure($password), 
 		secure     => $secure, 
-		shell_call => ((not $anvil->Log->secure) && ($secure)) ? $anvil->Words->string({key => "log_0186"}) : $shell_call,
+		shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
 		ssh_fh     => $ssh_fh,
 		start_time => $start_time, 
 		port       => $port, 
@@ -676,7 +676,7 @@ sub test_access
 	my $user     = defined $parameter->{user}     ? $parameter->{user}     : getpwuid($<); 
 	my $access   = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-		password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password => $anvil->Log->is_secure($password), 
 		port     => $port, 
 		target   => $target,
 		user     => $user,

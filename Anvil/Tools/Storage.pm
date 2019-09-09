@@ -150,7 +150,7 @@ sub backup
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		fatal       => $fatal, 
 		port        => $port, 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		target      => $target,
 		remote_user => $remote_user, 
 		source_file => $source_file,
@@ -642,7 +642,7 @@ sub copy_file
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		overwrite   => $overwrite,
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		remote_user => $remote_user, 
 		source_file => $source_file, 
 		target_file => $target_file,
@@ -958,7 +958,7 @@ sub make_directory
 		group       => $group, 
 		mode        => $mode,
 		port        => $port, 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		remote_user => $remote_user, 
 		target      => $target,
 		user        => $user,
@@ -1157,7 +1157,7 @@ sub move_file
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		overwrite   => $overwrite,
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		remote_user => $remote_user, 
 		source_file => $source_file, 
 		target_file => $target_file,
@@ -1548,7 +1548,7 @@ sub read_file
 		file        => $file,
 		force_read  => $force_read, 
 		port        => $port, 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		remote_user => $remote_user, 
 		secure      => $secure, 
 		target      => $target,
@@ -1861,7 +1861,7 @@ sub rsync
 	my $failed      = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		destination => $destination,
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		port        => $port, 
 		source      => $source,
 		switches    => $switches,
@@ -2319,11 +2319,11 @@ sub update_config
 	my $update      = 0;
 	my $new_file    = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		port        => $port, 
 		secure      => $secure,
 		target      => $target,
-		value       => ((not $secure) or ($anvil->Log->secure)) ? $value : $anvil->Words->string({key => "log_0186"}),
+		value       => (not $secure) ? $value : $anvil->Log->is_secure($value),
 		variable    => $variable, 
 		remote_user => $remote_user, 
 	}});
@@ -2360,7 +2360,7 @@ sub update_config
 			my $is_secure     =  $this_variable =~ /passw/i ? 1 : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 				this_variable => $this_variable,
-				this_value    => ((not $is_secure) or ($anvil->Log->secure)) ? $this_value : $anvil->Words->string({key => "log_0186"}),
+				this_value    => not $is_secure ? $this_value : $anvil->Log->is_secure($this_value),
 			}});
 			if ($this_variable eq $variable)
 			{
@@ -2481,9 +2481,9 @@ sub update_file
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $update      = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-		body        => ((not $body) or ($anvil->Log->secure)) ? $body : $anvil->Words->string({key => "log_0186"}),
+		body        => (not $body) ? $body : $anvil->Log->is_secure($body),
 		file        => $file, 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		port        => $port, 
 		secure      => $secure,
 		target      => $target,
@@ -2676,7 +2676,7 @@ sub write_file
 		mode        => $mode,
 		overwrite   => $overwrite,
 		port        => $port, 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password    => $anvil->Log->is_secure($password), 
 		secure      => $secure,
 		target      => $target,
 		user        => $user,
@@ -2948,7 +2948,7 @@ sub _create_rsync_wrapper
 	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
 	my $password = defined $parameter->{password} ? $parameter->{password} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}), 
+		password => $anvil->Log->is_secure($password), 
 		target   => $target, 
 	}});
 	

@@ -442,6 +442,33 @@ sub entry
 	return(0);
 }
 
+=head2 is_secure
+
+This method takes a password string. If C<< Log->secure >> is C<< 1 >>, the same string is returned. If not, C<< #!string!log_0186!# >> is returned. 
+
+ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+ 	user     => $user,
+ 	host     => $host, 
+ 	password => $anvil->Log->is_secure($password),
+ }});
+
+B<< NOTE >>: Unlike most methods, this one does not take a hash reference for the parameters. It takes the string directly.
+
+=cut
+sub is_secure
+{
+	my $self     = shift;
+	my $password = shift;
+	my $anvil    = $self->parent;
+	
+	if (not $anvil->Log->secure)
+	{
+		$password = "#!string!log_0186!#";
+	}
+	
+	return($password);
+}
+
 =head2 language
 
 This sets or returns the log language ISO code.

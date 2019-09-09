@@ -129,7 +129,7 @@ sub anvil_version
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
 	my $version     = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password    => $anvil->Log->secure ? $password : $anvil->Words->string({key => "log_0186"}),
+		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 
@@ -188,9 +188,7 @@ fi;
 
 This reads in the CGI variables passed in by a form or URL.
 
-This will read the 'cgi_list' CGI variable for a comma-separated list of CGI variables to read in. So your form must set this in order for this method to work.
-
-If the variable 'file' is passed, it will be treated as a binary stream containing an uploaded file.
+This method takes no parameters.
 
 =cut
 sub cgi
@@ -218,19 +216,6 @@ sub cgi
 			push @{$cgis}, $variable;
 		}
 	}
-	elsif (defined $cgi->param("cgi_list"))
-	{
-		### TODO: Get rid of this
-		# This is a fall-back list we really shouldn't need.
-		my $cgi_list = $cgi->param("cgi_list");
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_list => $cgi_list }});
-		
-		foreach my $variable (split/,/, $cgi_list)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
-			push @{$cgis}, $variable;
-		}
-	}
 	
 	$cgi_count = @{$cgis};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cgi_count => $cgi_count }});
@@ -245,7 +230,7 @@ sub cgi
 	# Now read in the variables.
 	foreach my $variable (sort {$a cmp $b} @{$cgis})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable => $variable }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
 		
 		$anvil->data->{cgi}{$variable}{value}       = "";
 		$anvil->data->{cgi}{$variable}{mime_type}   = "string";
@@ -316,7 +301,7 @@ sub cgi
 			}
 		}
 		
-		# Now loop again in the order that the variables were passed is 'cgi_list'.
+		# Now loop again.
 		foreach my $variable (@{$cgis})
 		{
 			next if $anvil->data->{cgi}{$variable} eq "";
@@ -351,7 +336,7 @@ sub cgi
 				# This is a password and we're not logging sensitive data, obfuscate it.
 				$censored_value = $anvil->Words->string({key => "log_0186"});
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 				"cgi::${variable}::$say_value" => $censored_value,
 			}});
 		}
