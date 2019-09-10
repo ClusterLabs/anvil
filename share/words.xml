@@ -864,7 +864,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0066">Access to this machine via: [#!variable!network!#].</key>
 		<key name="striker_0067">Save</key>
 		<key name="striker_0068">Delete</key>
-		<key name="striker_0069">[db_user@]hostname_or_ip[:pgsql_port][,ssh=ssh_port]</key>
+		<key name="striker_0069">[db_user@]host[:pgsql_port][,ssh=ssh_port]</key>
 		<key name="striker_0070">Add</key>
 		<key name="striker_0071">Ping</key>
 		<key name="striker_0072">Bi-directional</key>
@@ -1046,6 +1046,10 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0064">A request to active the logical volume: [#!variable!path!#] was made, but that path doesn't exist or isn't a block device.</key>
 		<key name="error_0065"><![CDATA[No program name given (via --program <name>), unable to proceed.]]></key>
 		<key name="error_0066"><![CDATA[The program: [#!variable!program!#] was not found to be running on this system.]]></key>
+		<key name="error_0067"><![CDATA[The password file: [#!variable!file!#] was not found.]]></key>
+		<key name="error_0068"><![CDATA[There was a problem reading the password file: [#!variable!file!#].]]></key>
+		<key name="error_0069"><![CDATA[Unable to access the host: [#!variable!host!#].]]></key>
+		<key name="error_0070"><![CDATA[Unable to find the host UUID on the host: [#!variable!host!#].]]></key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

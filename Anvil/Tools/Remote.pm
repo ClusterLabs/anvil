@@ -570,12 +570,14 @@ sub call
 		{
 			# Call with a timeout
 			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call."; ".$anvil->data->{path}{exe}{echo}." return_code:\$?");
+			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
 		}
 		else
 		{
 			# Call without a timeout.
 			($output, $error) = $ssh_fh->capture2($shell_call);
+			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
 		}
 		# Was there a problem?

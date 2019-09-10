@@ -1540,7 +1540,7 @@ sub read_file
 	my $force_read  = defined $parameter->{force_read}  ? $parameter->{force_read}  : 1;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
-	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : 0;
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

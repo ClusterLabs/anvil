@@ -27,6 +27,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 ### NOTE: We'll print the headers only when we need to. If we print them here, it will block cookies being set.
 # Setup some variables.
@@ -974,17 +975,17 @@ sub add_sync_peer
 	my ($anvil) = @_;
 	
 	# Break up the user, host and port. If anything goes wrong, we'll set an error and send it back.
-	my $user     = $anvil->data->{sys}{database}{user};
-	my $host     = $anvil->data->{cgi}{new_peer_access}{value};
-	my $password = $anvil->data->{cgi}{new_peer_password}{value};
-	my $name     = $anvil->data->{sys}{database}{name};
-	my $ping     = $anvil->data->{cgi}{new_peer_ping}{value} eq "on" ? 1 : 0;
+	my $pgsql_user = $anvil->data->{sys}{database}{user};
+	my $host       = $anvil->data->{cgi}{new_peer_access}{value};
+	my $password   = $anvil->data->{cgi}{new_peer_password}{value};
+	my $db_name    = $anvil->data->{sys}{database}{name};
+	my $ping       = $anvil->data->{cgi}{new_peer_ping}{value} eq "on" ? 1 : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		user     => $user,
-		host     => $host, 
-		password => $anvil->Log->is_secure($password),
-		name     => $name,
-		ping     => $ping,
+		pgsql_user => $pgsql_user,
+		host       => $host, 
+		password   => $anvil->Log->is_secure($password),
+		db_name    => $db_name,
+		ping       => $ping,
 	}});
 	
 	my $pgsql_port = 5432;
@@ -1003,22 +1004,22 @@ sub add_sync_peer
 	}
 	if ($host =~ /^(.*?)\@(.*?):(\d+)$/)
 	{
-		$user = $1;
-		$host = $2;
+		$pgsql_user = $1;
+		$host       = $2;
 		$pgsql_port = $3;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host       => $host,
 			pgsql_port => $pgsql_port,
-			user       => $user, 
+			pgsql_user => $pgsql_user, 
 		}});
 	}
 	elsif ($host =~ /^(.*?)\@(.*?)$/)
 	{
-		$user = $1;
-		$host = $2;
+		$pgsql_user = $1;
+		$host       = $2;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host => $host,
-			user => $user, 
+			host       => $host,
+			pgsql_user => $pgsql_user, 
 		}});
 	}
 	elsif ($host =~ /^(.*?):(\d+)$/)
@@ -1034,7 +1035,7 @@ sub add_sync_peer
 		ssh_port   => $ssh_port,
 		host       => $host, 
 		pgsql_port => $pgsql_port,
-		user       => $user, 
+		pgsql_user => $pgsql_user, 
 	}});
 	
 	# Is the host a domain or IP?
@@ -1058,7 +1059,7 @@ sub add_sync_peer
 	{
 		# Can we connect to the peer?
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug      => 2,
+			debug      => 3,
 			shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid",
 			password   => $password, 
 			target     => $host,
@@ -1129,7 +1130,7 @@ sub add_sync_peer
 	{
 		my $pgpass_file =  "/tmp/.pgpass"; 
 		   $password    =~ s/:/\:/g;
-		my $body        =  $host.":".$pgsql_port.":".$name.":".$user.":".$password;
+		my $body        =  $host.":".$pgsql_port.":".$db_name.":".$pgsql_user.":".$password;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
 			body => $body,
 		}});
@@ -1142,7 +1143,7 @@ sub add_sync_peer
 		});
 		
 		# This will return '1' only, if it works.
-		my ($db_access, $return_code) = $anvil->System->call({shell_call => "PGPASSFILE=\"".$pgpass_file."\" ".$anvil->data->{path}{exe}{psql}." --host ".$host." --port ".$pgsql_port." --dbname ".$name." --username ".$user." --no-password --tuples-only --no-align --command \"SELECT 1\""});
+		my ($db_access, $return_code) = $anvil->System->call({shell_call => "PGPASSFILE=\"".$pgpass_file."\" ".$anvil->data->{path}{exe}{psql}." --host ".$host." --port ".$pgsql_port." --dbname ".$db_name." --username ".$pgsql_user." --no-password --tuples-only --no-align --command \"SELECT 1\""});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_access => $db_access, return_code => $return_code }});
 		if ($db_access ne "1")
 		{
@@ -1228,7 +1229,7 @@ sub add_sync_peer
 		{
 			# Show the screen the confirm the addition.
 			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-new-peer", variables => { 
-				access        => $user."@".$host.":".$pgsql_port,
+				access        => $pgsql_user."@".$host.":".$pgsql_port,
 				ping          => $anvil->data->{cgi}{new_peer_ping}{value}        ? "#!string!unit_0001!#" : "#!string!unit_0002!#",
 				bidirectional => $anvil->data->{cgi}{new_peer_bidirection}{value} ? "#!string!unit_0001!#" : "#!string!unit_0002!#",
 			}});

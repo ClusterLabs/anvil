@@ -463,7 +463,7 @@ sub is_secure
 	
 	if (not $anvil->Log->secure)
 	{
-		$password = "#!string!log_0186!#";
+		$password = $anvil->Words->string({key => "log_0186"});
 	}
 	
 	return($password);
