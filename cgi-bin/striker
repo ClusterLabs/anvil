@@ -988,11 +988,11 @@ sub add_sync_peer
 		ping       => $ping,
 	}});
 	
-	my $pgsql_port = 5432;
-	my $ssh_port   = 22;
-	my $peer_uuid  = "";
-	my $peer_host  = "";
-	my $use_ip     = ""; # This will contain the local IP to use for the peer to setup comms with us
+	my $pgsql_port     = 5432;
+	my $ssh_port       = 22;
+	my $peer_host_uuid = "";
+	my $peer_host_name = "";
+	my $use_ip         = ""; # This will contain the local IP to use for the peer to setup comms with us
 	if ($host =~ /,ssh=(\d+)$/)
 	{
 		$ssh_port =  $1;
@@ -1083,23 +1083,28 @@ sub add_sync_peer
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 			if ($line =~ /host_name=(.*)$/)
 			{
-				$peer_host = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host => $peer_host }});
+				# We collect this, but apparently not for any real reason...
+				$peer_host_name = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_name => $peer_host_name }});
 			}
 			if ($line =~ /host_uuid=(.*)$/)
 			{
-				$peer_uuid = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_uuid => $peer_uuid }});
+				$peer_host_uuid = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_uuid => $peer_host_uuid }});
 			}
 		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			peer_host_name => $peer_host_name,
+			peer_host_uuid => $peer_host_uuid, 
+		}});
 		
 		# Make sure the database entry is gone (striker-get-peer-data should have removed it, but lets be safe).
 		my $query = "DELETE FROM states WHERE state_name = ".$anvil->Database->quote("peer::".$host."::password").";";
 		$anvil->Database->write({uuid => $anvil->data->{sys}{host_uuid}, debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
 		
-		if (not $anvil->Validate->is_uuid({uuid => $peer_uuid}))
+		if (not $anvil->Validate->is_uuid({uuid => $peer_host_uuid}))
 		{
-			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $peer_uuid }}) }});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $peer_host_uuid }}) }});
 		}
 		
 		# Lastly, if bi-directional is set, make sure we have a way to talk to it.
@@ -1169,7 +1174,7 @@ sub add_sync_peer
 		if ($anvil->data->{cgi}{confirm}{value})
 		{
 			# OK, save the job!
-			my $job_command = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$peer_uuid." --host ".$host." --port ".$pgsql_port." --ping ".$ping;
+			my $job_command = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$peer_host_uuid." --host ".$host." --port ".$pgsql_port." --ping ".$ping;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				job_command => $job_command,
 				password    => $anvil->Log->is_secure($password),

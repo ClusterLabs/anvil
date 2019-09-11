@@ -420,9 +420,9 @@ sub change_owner
 	my $group  = defined $parameter->{group}  ? $parameter->{group}  : getgrgid($();
 	my $user   = defined $parameter->{user}   ? $parameter->{user}   : getpwuid($<);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		path => $path,
-		group  => $group,
-		user   => $user,
+		path  => $path,
+		group => $group,
+		user  => $user,
 	}});
 	
 	# Make sure the user and group and just one digit or word.

@@ -1031,6 +1031,7 @@ sub _set_paths
 				expect				=>	"/usr/bin/expect", 
 				'firewall-cmd'			=>	"/usr/bin/firewall-cmd",
 				free				=>	"/usr/bin/free",
+				gcc				=>	"/usr/bin/gcc",
 				getent				=>	"/usr/bin/getent",
 				gethostip			=>	"/usr/bin/gethostip",
 				'grep'				=>	"/usr/bin/grep", 

@@ -758,6 +758,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0433">The 'smaps' proc file for the process ID: [#!variable!pid!#] was not found. Did the program just close?</key>
 		<key name="log_0434">- The DRBD resource: [#!variable!resource!#] is in the role: [#!variable!role!#] already, no need to bring it up.</key>
 		<key name="log_0435">Program: [#!variable!program!#] running as the real user: [#!variable!real_user!# (#!variable!real_uid!#)] and effective user: [#!variable!effective_user!# (#!variable!effective_uid!#)].</key>
+		<key name="log_0436">The setuid c-wrapper: [#!variable!wrapper!#] already exists, no need to create it.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1051,6 +1052,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0068"><![CDATA[There was a problem reading the password from the database.]]></key>
 		<key name="error_0069"><![CDATA[Unable to access the host: [#!variable!host!#].]]></key>
 		<key name="error_0070"><![CDATA[Unable to find the host UUID on the host: [#!variable!host!#].]]></key>
+		<key name="error_0071">Something went wrong trying to write: [#!variable!file!#], unable to proceed.</key>
+		<key name="error_0072">Something went wrong trying to compile the C-program: [#!variable!file!#], unable to proceed.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
