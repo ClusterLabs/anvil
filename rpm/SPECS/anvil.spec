@@ -82,6 +82,7 @@ Requires:       anvil-striker-extra
 Requires:       createrepo
 Requires:       dhcp-server
 Requires:       firefox
+Requires:       gcc
 Requires:       gdm
 Requires:       httpd
 Requires:       kernel-core

@@ -2670,7 +2670,7 @@ sub write_file
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $error       = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-		body        => $secure ? $anvil->Words->string({key => "log_0186"}) : $body,
+		body        => (not $secure) ? $body : $anvil->Log->is_secure($body),
 		file        => $file,
 		group       => $group, 
 		mode        => $mode,
@@ -2687,10 +2687,9 @@ sub write_file
 	$user  =~ s/^(\S+)\s.*$/$1/;
 	$group =~ s/^(\S+)\s.*$/$1/;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		group     => $group, 
-		user      => $user,
+		group => $group, 
+		user  => $user,
 	}});
-	
 	
 	# Make sure the passed file is a full path and file name.
 	if ($file !~ /^\/\w/)
@@ -2865,10 +2864,13 @@ fi";
 			# Nope.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
 			$error = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
 		}
 		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
 		if (not $error)
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
 			if (not -e $directory)
 			{
 				# Don't pass the mode as the file's mode is likely not executable.
@@ -2882,6 +2884,7 @@ fi";
 			
 			# If 'secure' is set, the file will probably contain sensitive data so touch the file and set
 			# the mode before writing it.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { secure => $secure }});
 			if ($secure)
 			{
 				$anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{touch}." ".$file});
@@ -2890,15 +2893,21 @@ fi";
 			
 			# Now write the file.
 			my $shell_call = $file;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0013", variables => { shell_call => $shell_call }});
-			open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0013", variables => { shell_call => $shell_call }});
+			#open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			open (my $file_handle, ">", $shell_call) or die "Failed to write: [$shell_call], error was: [".$!."]\n";;
 			print $file_handle $body;
 			close $file_handle;
 			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode }});
 			if ($mode)
 			{
 				$anvil->Storage->change_mode({debug => $debug, path => $file, mode => $mode});
 			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				user  => $user,
+				group => $group, 
+			}});
 			if (($user) or ($group))
 			{
 				$anvil->Storage->change_owner({debug => $debug, path => $file, user => $user, group => $group});
@@ -2906,6 +2915,7 @@ fi";
 		}
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
 	return($error);
 }
 

@@ -4371,6 +4371,8 @@ sub insert_or_update_states
 	my $state_host_uuid = defined $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
 	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                              => $uuid, 
+		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
 		uuid            => $uuid, 
 		file            => $file, 
 		line            => $line, 
@@ -4379,6 +4381,15 @@ sub insert_or_update_states
 		state_host_uuid => $state_host_uuid, 
 		state_note      => $state_note, 
 	}});
+	
+	# If we were passed a database UUID, check for the open handle.
+	if ($uuid)
+	{
+		$anvil->data->{cache}{database_handle}{$uuid} = "" if not defined $anvil->data->{cache}{database_handle}{$uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
+		}});
+	}
 	
 	if (not $state_name)
 	{

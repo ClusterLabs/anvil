@@ -757,6 +757,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0432"><![CDATA[Database->archive_database() was not passed an array reference of tables to archive. Please pass an array reference using the 'tables' parameter.]]></key>
 		<key name="log_0433">The 'smaps' proc file for the process ID: [#!variable!pid!#] was not found. Did the program just close?</key>
 		<key name="log_0434">- The DRBD resource: [#!variable!resource!#] is in the role: [#!variable!role!#] already, no need to bring it up.</key>
+		<key name="log_0435">Program: [#!variable!program!#] running as the real user: [#!variable!real_user!# (#!variable!real_uid!#)] and effective user: [#!variable!effective_user!# (#!variable!effective_uid!#)].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -869,7 +870,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0071">Ping</key>
 		<key name="striker_0072">Bi-directional</key>
 		<key name="striker_0073">When checked, the Anvil! will ping the peer before trying to connect to the database. This speeds up skipping a database that is offline, but won't help if the databsae is behind a router. When unchecked, connections will be a touch faster when the database is available.</key>
-		<key name="striker_0074">When checked, the peer will be configure to add the local database as a peer at the same time that we add it to this system.</key>
+		<key name="striker_0074">When checked, the peer will be configured to add the local database as a peer at the same time that we add it to this system.</key>
 		<key name="striker_0075">Access</key>
 		<key name="striker_0076"><![CDATA[This tells Striker how to connect to the peer. The default username is '<span class="fixed_width">admin</span>', and the default port is '<span class="fixed_width">5432</span>'. If the peer uses these, then you only need to specify the IP address or hostname of the peer. If the user name is not '<span class="fixed_width">admin</span>', then you need to use the format '<span class="fixed_width">user@host</span>. If the TCP port is not '<span class="fixed_width">5432</span>', then you need to use '<span class="fixed_width">host:port</span>. If both user and port are different, use the format '<span class="fixed_width">user@host:port</span>'.]]></key>
 		<key name="striker_0077"><![CDATA[If '#!string!striker_0072!#' is set, we will need to update the peer's configuration. If the peer's SSH port is not '<span class="fixed_width">22</span>', you can append: '<span class="fixed_width">,ssh=X</span>' where 'X' is the SSH TCP port.]]></key>
@@ -1046,8 +1047,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0064">A request to active the logical volume: [#!variable!path!#] was made, but that path doesn't exist or isn't a block device.</key>
 		<key name="error_0065"><![CDATA[No program name given (via --program <name>), unable to proceed.]]></key>
 		<key name="error_0066"><![CDATA[The program: [#!variable!program!#] was not found to be running on this system.]]></key>
-		<key name="error_0067"><![CDATA[The password file: [#!variable!file!#] was not found.]]></key>
-		<key name="error_0068"><![CDATA[There was a problem reading the password file: [#!variable!file!#].]]></key>
+		<key name="error_0067"><![CDATA[Unable to connect to the database, unable to read the peer's password.]]></key>
+		<key name="error_0068"><![CDATA[There was a problem reading the password from the database.]]></key>
 		<key name="error_0069"><![CDATA[Unable to access the host: [#!variable!host!#].]]></key>
 		<key name="error_0070"><![CDATA[Unable to find the host UUID on the host: [#!variable!host!#].]]></key>
 		

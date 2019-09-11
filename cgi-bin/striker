@@ -1057,69 +1057,66 @@ sub add_sync_peer
 	}
 	else
 	{
-		# Can we connect to the peer?
-		my ($output, $error, $return_code) = $anvil->Remote->call({
+		my $state_uuid = $anvil->Database->insert_or_update_states({
 			debug      => 3,
-			shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid",
-			password   => $password, 
-			target     => $host,
-			port       => $ssh_port, 
+			file       => $THIS_FILE, 
+			line       => __LINE__, 
+			state_name => "peer::".$host."::password",
+			state_note => $password, 
+			uuid       => $anvil->data->{sys}{host_uuid}, # Only write to our DB, no reason to store elsewhere
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
+		
+		my ($output, $error, $return_code) = $anvil->System->call({
+			debug      => 2,
+			shell_call => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}." --target root\@".$host.":".$ssh_port." --state-uuid ".$state_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output, 
 			error       => $error,
 			return_code => $return_code, 
 		}});
-		if ($error)
+		
+		# Pull out the details
+		foreach my $line (split/\n/, $output)
 		{
-			# No access
-			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0003"}) }});
-		}
-		else
-		{
-			# We got the peer's UUID. Get the hostname as well.
-			$peer_uuid = lc($output);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_uuid => $peer_uuid }});
-			
-			if (not $anvil->Validate->is_uuid({uuid => $peer_uuid}))
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /host_name=(.*)$/)
 			{
-				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $peer_uuid }}) }});
-			}
-			else
-			{
-				my ($error, $output, $return_code) = $anvil->Remote->call({
-					debug       => 2,
-					password    => $password, 
-					target      => $host,
-					port        => $ssh_port, 
-					shell_call  => $anvil->data->{path}{exe}{hostnamectl}." --static",
-					return_code => $return_code, 
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output => $output, 
-					error  => $error,
-				}});
-				
-				$peer_host = $output;
+				$peer_host = $1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host => $peer_host }});
-				
-				# Lastly, if bi-directional is set, make sure we have a way to talk to it.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
-				if ($anvil->data->{cgi}{new_peer_bidirection}{value} eq "on")
-				{
-					# See which of our IPs match theirs. If the peer is a hostname, first 
-					$use_ip = $anvil->System->find_matching_ip({host => $host});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
-					
-					if ((not $use_ip) or ($use_ip eq "!!error!!"))
-					{
-						# Can't do bi-directional
-						$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0008", variables => { host => $host }}) }});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"form::error_massage" => $anvil->data->{form}{error_massage},
-						}});
-					}
-				}
+			}
+			if ($line =~ /host_uuid=(.*)$/)
+			{
+				$peer_uuid = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_uuid => $peer_uuid }});
+			}
+		}
+		
+		# Make sure the database entry is gone (striker-get-peer-data should have removed it, but lets be safe).
+		my $query = "DELETE FROM states WHERE state_name = ".$anvil->Database->quote("peer::".$host."::password").";";
+		$anvil->Database->write({uuid => $anvil->data->{sys}{host_uuid}, debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		if (not $anvil->Validate->is_uuid({uuid => $peer_uuid}))
+		{
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $peer_uuid }}) }});
+		}
+		
+		# Lastly, if bi-directional is set, make sure we have a way to talk to it.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
+		if ($anvil->data->{cgi}{new_peer_bidirection}{value} eq "on")
+		{
+			# See which of our IPs match theirs. If the peer is a hostname, first 
+			$use_ip = $anvil->System->find_matching_ip({host => $host});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
+			
+			if ((not $use_ip) or ($use_ip eq "!!error!!"))
+			{
+				# Can't do bi-directional
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0008", variables => { host => $host }}) }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"form::error_massage" => $anvil->data->{form}{error_massage},
+				}});
 			}
 		}
 	}
