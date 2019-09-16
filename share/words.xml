@@ -218,7 +218,7 @@ NOTE: Please be patient!
 		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
 		<key name="message_0115">Striker Dashboard</key>
 		<key name="message_0116">Anvil! Node</key>
-		<key name="message_0117">Dsaster Recovery (DR) Host</key>
+		<key name="message_0117">Disaster Recovery (DR) Host</key>
 		<key name="message_0118">Regenerating the source repository metadata.</key>
 		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is the 'anvil-striker-extra' package installed?</key>
 		<key name="message_0120">
@@ -252,7 +252,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0145">Red Hat password</key>
 		<key name="message_0146">What kind of machine will this host be?</key>
 		<key name="message_0147"><![CDATA[What is the host's <b>current</b> IP address and password?]]></key>
-		<key name="message_0148"><![CDATA[(Optional); If this is a RHEL 8 host and has not yet been subscribed,<br />you can enter your Red Hat subscription credentials below.<br />If needed, the host will be subscribed during setup.]]></key>
+		<key name="message_0148"><![CDATA[This is a RHEL host and has not yet been subscribed.<br />You can enter your Red Hat subscription credentials below.<br />The host will be subscribed during setup.]]></key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -759,6 +759,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0434">- The DRBD resource: [#!variable!resource!#] is in the role: [#!variable!role!#] already, no need to bring it up.</key>
 		<key name="log_0435">Program: [#!variable!program!#] running as the real user: [#!variable!real_user!# (#!variable!real_uid!#)] and effective user: [#!variable!effective_user!# (#!variable!effective_uid!#)].</key>
 		<key name="log_0436">The setuid c-wrapper: [#!variable!wrapper!#] already exists, no need to create it.</key>
+		<key name="log_0437">The anvil version cache file: [#!variable!file!#] for: [#!variable!target!#] needs to be created/updated.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -913,13 +914,21 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0113">Anvil! Configuration and Management.</key>
 		<key name="striker_0114">Create a new Anvil! system.</key>
 		<key name="striker_0115">Any running jobs, or jobs that have ended recently, are displayed below.</key>
-		<key name="striker_0116">Prepare a host for use as an Anvil! node or disaster recovery target.</key>
+		<key name="striker_0116">Initialize an Anvil! node or disaster recovery target.</key>
 		<key name="striker_0117">Initial host configuration.</key>
 		<key name="striker_0118">Prepare a new machine for use as an Anvil! node or DR (disaster recovery) host. This process will setup the repository, install the appropriate anvil packages and link it to the Anvil! databases on the Strikers you choose.</key>
 		<key name="striker_0119">Anvil! File Manager.</key>
 		<key name="striker_0120">Saving File...</key>
 		<key name="striker_0121">Prepare Node or DR Host</key>
 		<key name="striker_0122">Please enter the IP address and root password of the target machine you want to configure.</key>
+		<key name="striker_0123">'root' Password</key>
+		<key name="striker_0124"><![CDATA[The test connection was successful!<br />If you initialize, the target will have the Alteeve repo added and: [#!variable!package!#] installed.<br />The target will be configured to use this and our peer's databases.]]></key>
+		<key name="striker_0125">Initialize Host</key>
+		<key name="striker_0126">Current host name</key>
+		<key name="striker_0127">Host UUID</key>
+		<key name="striker_0128">Initialize</key>
+		<key name="striker_0129">The target will now be initialized. How long this takes will depend on how fast files can be downloaded and, when needed, how long it takes to register with Red Hat and add the needed repositories.</key>
+		<key name="striker_0130">Configure the network on a node or DR host.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -965,6 +974,9 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_warning_0007">The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
 		<key name="striker_warning_0008">Unable to find a local IP on the same subnet as the IP/host: [#!variable!host!#] given for the target. Bi-directional setup not currently possible.</key>
 		<key name="striker_warning_0009">The subtask request for manipulating the 'Install Target' feature is not valid. It should be 'enabled' or 'disabled'</key>	<!-- NOTE: 'enabled' and 'disabled' are variable values, don't translate them. -->
+		<key name="striker_warning_0010">The IP address is not a valid IPv4 address</key>
+		<key name="striker_warning_0011">The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
+		<key name="striker_warning_0012">Failed to log into the host. Is the IP or root user's password right?</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

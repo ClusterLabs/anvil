@@ -138,8 +138,27 @@ sub anvil_version
 	# Is this a local call or a remote call?
 	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
 	{
-		# Remote call.
-		my $shell_call = "
+		# Remote call. If we're running as the apache user, we need to read the cached version for 
+		# the peer. otherwise, after we read the version, will write the cached version.
+		my $user       = getpwuid($<);
+		my $cache_file = $anvil->data->{path}{directories}{anvil}."/anvil.".$target.".version";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			cache_file => $cache_file, 
+			user       => $user,
+		}});
+		if ($user eq "apache")
+		{
+			# Try to read the local cached version.
+			if (-e $cache_file)
+			{
+				# Read it in.
+				$version = $anvil->Storage->read_file({file => $cache_file});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+			}
+		}
+		else
+		{
+			my $shell_call = "
 if [ -e ".$anvil->data->{path}{configs}{'anvil.version'}." ];
 then
     cat ".$anvil->data->{path}{configs}{'anvil.version'}.";
@@ -147,22 +166,60 @@ else
    echo 0;
 fi;
 ";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
-		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug       => $debug, 
-			shell_call  => $shell_call, 
-			target      => $target,
-			port        => $port, 
-			password    => $password,
-			remote_user => $remote_user, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			error  => $error,
-			output => $output,
-		}});
-		
-		$version = defined $output ? $output : "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+			my ($output, $error, $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error  => $error,
+				output => $output,
+			}});
+			
+			$version = defined $output ? $output : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+			
+			# Create/Update the cache file.
+			if ($version)
+			{
+				my $update_cache = 1;
+				my $old_version  = "";
+				if (-e $cache_file)
+				{
+					$old_version = $anvil->Storage->read_file({file => $cache_file});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_version => $old_version }});
+					if ($old_version eq $version)
+					{
+						# No need to update
+						$update_cache = 0;
+					}
+					else
+					{
+						
+					}
+				}
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_cache => $update_cache }});
+				if ($update_cache)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0437", variables => { 
+						target => $target, 
+						file   => $cache_file, 
+					}});
+					$anvil->Storage->write_file({
+						debug     => $debug, 
+						file      => $cache_file, 
+						body      => $version,
+						mode      => "0666",
+						overwrite => 1,
+					});
+				}
+			}
+		}
 	}
 	else
 	{

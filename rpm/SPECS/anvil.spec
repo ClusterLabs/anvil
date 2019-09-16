@@ -84,6 +84,7 @@ Requires:       dhcp-server
 Requires:       firefox
 Requires:       gcc
 Requires:       gdm
+Requires:       gnome-terminal
 Requires:       httpd
 Requires:       kernel-core
 Requires:       nmap

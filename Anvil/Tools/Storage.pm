@@ -1638,7 +1638,7 @@ sub read_file
 			{
 				# Something went wrong...
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0162", variables => { 
-					remote_file => $remote_user."\@".$target.$file,
+					remote_file => $remote_user."\@".$target.":".$file,
 					local_file  => $temp_file, 
 				}});
 				return("!!error!!");

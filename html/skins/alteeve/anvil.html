@@ -20,7 +20,15 @@
 					<a href="?anvil=true&task=prep-host"><img src="#!data!skin::url!#/images/prep-host_icon.png" class="top_icon" ></a>
 				</td>
 				<td class="main_option">
-					<a href="?anvil=true&task=sync">#!string!striker_0116!#</a>
+					<a href="?anvil=true&task=prep-host">#!string!striker_0116!#</a>
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<a href="?anvil=true&task=prep-network"><img src="#!data!skin::url!#/images/configure-network.png" class="top_icon" ></a>
+				</td>
+				<td class="main_option">
+					<a href="?anvil=true&task=prep-network">#!string!striker_0130!#</a>
 				</td>
 			</tr>
 			<tr>
@@ -66,7 +74,7 @@
 				#!variable!form!#
 			</tr>
 			<input type="hidden" name="anvil" id="anvil" value="1">
-			<input type="hidden" name="task"  id="prep-host" value="1">
+			<input type="hidden" name="task"  id="task"  value="prep-host">
 			</form>
 		</table>
 <!-- end prep-host-main -->
@@ -76,13 +84,13 @@
 				<div id="host-setup">
 				<tr>
 					<td colspan="3">
-						#!string!message_0146!#"
+						#!string!message_0146!#
 					</td>
 				</tr>
 				<tr>
 					<td colspan="3">
-						<input type="radio" name="type" value="node" id="node" class="radio" #!variable!node_checked!#> #!string!message_0116!#" <br />
-						<input type="radio" name="type" value="dr" id="dr" class="radio" #!variable!dr_checked!#> #!string!message_0117!#"
+						<input type="radio" name="type" value="node" id="node" class="radio" #!variable!node_checked!#> #!string!message_0116!# <br />
+						<input type="radio" name="type" value="dr" id="dr" class="radio" #!variable!dr_checked!#> #!string!message_0117!#
 					</td>
 				</tr>
 				<tr>
@@ -92,12 +100,12 @@
 				</tr>
 				<tr>
 					<td colspan="3">
-						#!string!message_0147!#"
+						#!string!message_0147!#
 					</td>
 				</tr>
 				<tr>
 					<td>
-						<input type="text" name="host_ip_address" id="host_ip_address" value="#!variable!ip_address!#" placeholder="#!string!striker_0024!#" />
+						<input type="text" name="host_ip_address" id="host_ip_address" value="#!variable!host_ip_address!#" placeholder="#!string!striker_0024!#" />
 					</td>
 					<td>
 						&nbsp;
@@ -106,28 +114,7 @@
 						<!-- 
 						This combination of input type text, disk characters and autocomplete=off prevents browsers from pre-filling password and offering to save passwords.
 						-->
-						<input type="text" name="host_password" id="host_password" value="#!variable!password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!striker_0051!#" />
-					</td>
-				</tr>
-				<tr>
-					<td colspan="3">
-						&nbsp;
-					</td>
-				</tr>
-				<tr>
-					<td colspan="3">
-						#!string!message_0148!#"
-					</td>
-				</tr>
-				<tr>
-					<td>
-						<input type="text" name="rh_user" id="rh_user" value="#!variable!rh_user!#" placeholder="#!string!message_0144!#" />
-					</td>
-					<td>
-						&nbsp;
-					</td>
-					<td>
-						<input type="text" name="rh_password" id="rh_password" value="#!variable!rh_password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!message_0145!#" />
+						<input type="text" name="host_password" id="host_password" value="#!variable!password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!striker_0123!#" />
 					</td>
 				</tr>
 				<tr>
@@ -143,3 +130,107 @@
 				</div>
 			</table>
 <!-- end host-setup-menu1 -->
+
+<!-- start confirm-initialize-host -->
+			<table align="center">
+				<form name="confirm-new-peer" action="" method="post">
+				<tr>
+					<td class="menu_title">
+						#!string!striker_0078!#
+					</td>
+				</tr>
+				<tr>
+					<td class="menu_details">
+						#!string!striker_0124!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+				#!variable!redhat!#
+				<tr>
+					<td>
+						<table align="center" class="data_table">
+							<div id="confirm-new-peer">
+							<tr>
+								<td class="top_padded_cell">
+									#!string!striker_0125!#:
+								</td>
+								<td class="top_padded_cell" class="fixed_width">
+									#!variable!access!#
+								</td>
+							</tr>
+							<tr>
+								<td class="padded_cell">
+									#!string!striker_0126!#:
+								</td>
+								<td class="padded_cell" class="fixed_width">
+									#!variable!host_name!#
+								</td>
+							</tr>
+							<tr>
+								<td class="padded_cell">
+									#!string!striker_0127!#:
+								</td>
+								<td class="padded_cell" class="fixed_width">
+									#!variable!host_uuid!#
+								</td>
+							</tr>
+							<tr>
+								<td class="button_cell" style="text-align: left;">
+									<a href="/cgi-bin/striker?anvil=true&task=prep-host&host_ip_address=#!data!cgi::host_ip_address::value!#" class="button">#!string!striker_0098!#</a>
+								</td>
+								<td class="button_cell" style="text-align: right;">
+									<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0128!#">
+								</td>
+							</tr>
+							<input type="hidden" name="anvil"           id="anvil"           value="#!data!cgi::anvil::value!#">
+							<input type="hidden" name="connect"         id="connect"         value="#!data!cgi::connect::value!#">
+							<input type="hidden" name="host_ip_address" id="host_ip_address" value="#!data!cgi::host_ip_address::value!#">
+							<input type="hidden" name="host_password"   id="host_password"   value="#!data!cgi::host_password::value!#">
+							<input type="hidden" name="type"            id="type"            value="#!data!cgi::striker::value!#">
+							<input type="hidden" name="task"            id="task"            value="#!data!cgi::task::value!#">
+							</div>
+						</table>
+					</td>
+				</tr>
+				</form>
+			</table>
+<!-- end confirm-initialize-host -->
+
+<!-- start host-setup-redhat -->
+				<tr>
+					<td>
+						<table align="center" width="90%">
+							<tr>
+								<td colspan="3">
+									#!string!message_0148!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<input type="text" name="rh_user" id="rh_user" value="#!variable!rh_user!#" placeholder="#!string!message_0144!#" />
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									<input type="text" name="rh_password" id="rh_password" value="#!variable!rh_password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!message_0145!#" />
+								</td>
+							</tr>
+							<tr>
+								<td colspan="3">
+									&nbsp;
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+<!-- end host-setup-redhat -->

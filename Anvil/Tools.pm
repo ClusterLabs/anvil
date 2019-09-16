@@ -48,6 +48,7 @@ use Anvil::Tools::Job;
 use Anvil::Tools::Log;
 use Anvil::Tools::Remote;
 use Anvil::Tools::Server;
+use Anvil::Tools::Striker;
 use Anvil::Tools::Storage;
 use Anvil::Tools::System;
 use Anvil::Tools::Template;
@@ -127,6 +128,7 @@ sub new
 			JOB				=>	Anvil::Tools::Job->new(),
 			REMOTE				=>	Anvil::Tools::Remote->new(),
 			SERVER				=>	Anvil::Tools::Server->new(),
+			STRIKER				=>	Anvil::Tools::Striker->new(),
 			STORAGE				=>	Anvil::Tools::Storage->new(),
 			SYSTEM				=>	Anvil::Tools::System->new(),
 			TEMPLATE			=>	Anvil::Tools::Template->new(),
@@ -166,6 +168,7 @@ sub new
 	$anvil->Job->parent($anvil);
 	$anvil->Remote->parent($anvil);
 	$anvil->Server->parent($anvil);
+	$anvil->Striker->parent($anvil);
 	$anvil->Storage->parent($anvil);
 	$anvil->System->parent($anvil);
 	$anvil->Template->parent($anvil);
@@ -533,6 +536,18 @@ sub Server
 	my $self = shift;
 	
 	return ($self->{HANDLE}{SERVER});
+}
+
+=head2 Striker
+
+Access the C<Striker.pm> methods via 'C<< $anvil->Striker->method >>'.
+
+=cut
+sub Striker
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{STRIKER});
 }
 
 =head2 Storage
@@ -975,6 +990,7 @@ sub _set_paths
 				'redhat-release'		=>	"/etc/redhat-release",
 			},
 			directories		=>	{
+				anvil				=>	"/etc/anvil",
 				backups				=>	"/root/anvil-backups",
 				'cgi-bin'			=>	"/var/www/cgi-bin",
 				firewalld_services		=>	"/usr/lib/firewalld/services",
@@ -1014,6 +1030,7 @@ sub _set_paths
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
 				bridge				=>	"/usr/sbin/bridge",
 				'call_striker-get-peer-data'	=>	"/usr/sbin/call_striker-get-peer-data",
+				cat				=>	"/usr/bin/cat",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",
 				cibadmin			=>	"/usr/sbin/cibadmin",
@@ -1076,6 +1093,7 @@ sub _set_paths
 				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",
 				stty				=>	"/usr/bin/stty",
 				su				=>	"/usr/bin/su",
+				'subscription-manager'		=>	"/usr/sbin/subscription-manager",
 				systemctl			=>	"/usr/bin/systemctl",
 				timeout				=>	"/usr/bin/timeout",
 				touch				=>	"/usr/bin/touch",

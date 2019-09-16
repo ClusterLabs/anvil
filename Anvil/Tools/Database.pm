@@ -867,8 +867,9 @@ sub connect
 				password => $password,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				remote_version => $remote_version, 
-				local_version  => $local_version,
+				's1:host'           => $host, 
+				's2:remote_version' => $remote_version, 
+				's3:local_version'  => $local_version,
 			}});
 			# TODO: Periodically, we fail to get the remote version. For now, we proceed if 
 			#       everything else is OK. Might be better to pause a re-try... To be determined.
@@ -5925,6 +5926,9 @@ sub resync_databases
 	# 'sys::database::check_tables'
 	foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
 	{
+		# We don't sync 'states' as it's transient and sometimes per-DB.
+		next if $table eq "states";
+		
 		# If the 'schema' is 'public', there is no table in the history schema. If there is a host 
 		# column, the resync will be restricted to entries from this host uuid.
 		my $schema      = $anvil->data->{sys}{database}{table}{$table}{schema};
@@ -6095,12 +6099,12 @@ sub resync_databases
 					die $THIS_FILE." ".__LINE__."; This row's modified_date wasn't the first column returned in query: [$query]\n" if not $modified_date;
 					die $THIS_FILE." ".__LINE__."; This row's UUID column: [$uuid_column] wasn't the second column returned in query: [$query]\n" if not $row_uuid;
 					
-					# Record this in the unified and local hashes. 						# This table isn't restricted to given hosts.
+					# Record this in the unified and local hashes.
 					$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
-					$anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}     = $column_value;
+					$anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}   = $column_value;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"db_data::unified::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}" => $anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
-						"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}"   => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
+						"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}::${column_name}" => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}, 
 					}});
 				}
 			}
@@ -6110,7 +6114,6 @@ sub resync_databases
 		foreach my $modified_date (sort {$b cmp $a} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
-			
 			foreach my $row_uuid (sort {$a cmp $b} keys %{$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}})
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
@@ -6281,7 +6284,7 @@ sub resync_databases
 					to_write  => $to_write_count,
 					host_name => $anvil->Get->host_name({host_uuid => $uuid}), 
 				}});
-				$anvil->Database->write({uuid => $uuid, query => $merged, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $merged, source => $THIS_FILE, line => __LINE__});
 				undef $merged;
 			}
 		}
@@ -6714,6 +6717,9 @@ sub _find_behind_databases
 		# behind and a resync will be needed.
 		foreach my $table (@{$anvil->data->{sys}{database}{check_tables}})
 		{
+			# We don't sync 'states' as it's transient and sometimes per-DB.
+			next if $table eq "states";
+			
 			# Does this table exist yet?
 			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table).";";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -6811,6 +6817,9 @@ ORDER BY
 	# databases. If it has, trigger a resync.
 	foreach my $table (sort {$a cmp $b} keys %{$anvil->data->{sys}{database}{table}})
 	{
+		# We don't sync 'states' as it's transient and sometimes per-DB.
+		next if $table eq "states";
+		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
 			"sys::database::table::${table}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{row_count}, 

@@ -830,7 +830,7 @@ sub check_setuid_wrappers
 	if (-e $anvil->data->{path}{exe}{'call_striker-get-peer-data'})
 	{
 		# Exists, skipping.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0436", variables => { wrapper => $anvil->data->{path}{exe}{'call_striker-get-peer-data'} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0436", variables => { wrapper => $anvil->data->{path}{exe}{'call_striker-get-peer-data'} }});
 	}
 	else
 	{

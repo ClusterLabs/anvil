@@ -1410,6 +1410,7 @@ CREATE TABLE alert_sent (
 ALTER TABLE updated OWNER TO admin;
 
 
+-- NOTE: We don't resync this table! It's meant to be a transient data store, sometimes on a per-DB basis
 -- This stores state information, like the whether migrations are happening and so on.
 CREATE TABLE states (
     state_uuid         uuid                        not null    primary key,

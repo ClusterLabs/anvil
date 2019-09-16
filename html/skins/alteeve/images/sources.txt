@@ -30,7 +30,7 @@ Refresh by Denis Klyuchnikov from the Noun Project (https://thenounproject.com/t
 - refresh.png
 
 configure by Gregor Cresnar from the Noun Project (https://thenounproject.com/term/configure/485294/)
-- striker_configure.png
+- striker_configure.png / configure-network.png
 
 customize by Trusted Icons from the Noun Project (https://thenounproject.com/term/customize/538026/)
 - configure_icon.png

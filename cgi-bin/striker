@@ -57,8 +57,8 @@ if (not -e $anvil->data->{path}{data}{host_uuid})
 	print_and_exit($anvil);
 }
 
-$anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+$anvil->Database->connect({debug => 3});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -257,7 +257,7 @@ sub process_task
 	$anvil->data->{cgi}{login}{value}  = "" if not defined $anvil->data->{cgi}{login}{value};
 	$anvil->data->{cgi}{logout}{value} = "" if not defined $anvil->data->{cgi}{logout}{value};
 	$anvil->data->{cgi}{save}{value}   = "" if not defined $anvil->data->{cgi}{save}{value};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"cgi::login::value"  => $anvil->data->{cgi}{login}{value},
 		"cgi::logout::value" => $anvil->data->{cgi}{logout}{value},
 		"cgi::save::value"   => $anvil->data->{cgi}{save}{value},
@@ -503,10 +503,18 @@ sub process_anvil_menu
 	$anvil->data->{form}{back_link}    = "?striker=true";
 	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'cgi::task::value'   => $anvil->data->{cgi}{task}{value}, 
+		'cgi::action::value' => $anvil->data->{cgi}{action}{value}, 
+	}});
 	
 	if ($anvil->data->{cgi}{task}{value} eq "prep-host")
 	{
 		process_prep_host_page($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "configure-network")
+	{
+		#process_configure_network($anvil);
 	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "manifest")
 	{
@@ -529,24 +537,180 @@ sub process_prep_host_page
 {
 	my ($anvil) = @_;
 	
-	my $ip_address   = defined $anvil->data->{cgi}{ip_address}{value}  ? $anvil->data->{cgi}{ip_address}{value}  : "";
-	my $rh_user      = defined $anvil->data->{cgi}{rh_user}{value}     ? $anvil->data->{cgi}{rh_user}{value}     : "";
-	my $rh_password  = defined $anvil->data->{cgi}{rh_password}{value} ? $anvil->data->{cgi}{rh_password}{value} : "";
-	my $node_checked = "checked";
-	my $dr_checked   = "";
-	my $form_body    = $anvil->Template->get({file => "anvil.html", name => "host-setup-menu1", variables => {
-		ip_address   => $ip_address,
-		node_checked => $node_checked, 
-		dr_checked   => $dr_checked, 
+	my $host_ip_address = defined $anvil->data->{cgi}{host_ip_address}{value} ? $anvil->data->{cgi}{host_ip_address}{value} : "";
+	my $host_password   = defined $anvil->data->{cgi}{host_password}{value}   ? $anvil->data->{cgi}{host_password}{value}   : "";
+	my $rh_user         = defined $anvil->data->{cgi}{rh_user}{value}         ? $anvil->data->{cgi}{rh_user}{value}         : "";
+	my $rh_password     = defined $anvil->data->{cgi}{rh_password}{value}     ? $anvil->data->{cgi}{rh_password}{value}     : "";
+	my $type            = defined $anvil->data->{cgi}{type}{value}            ? $anvil->data->{cgi}{type}{value}            : "";
+	my $connect         = defined $anvil->data->{cgi}{'connect'}{value}       ? $anvil->data->{cgi}{'connect'}{value}       : "";
+	my $confirm         = defined $anvil->data->{cgi}{confirm}{value}         ? $anvil->data->{cgi}{confirm}{value}         : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_ip_address => $host_ip_address,
+		host_password   => $anvil->Log->is_secure($host_password), 
+		rh_user         => $rh_user, 
+		rh_password     => $anvil->Log->is_secure($rh_password), 
+		type            => $type, 
+		'connect'       => $connect, 
+		confirm         => $confirm, 
 	}});
 	
-	$anvil->data->{form}{refresh_link} = "?anvil=true&task=prep-host";
-	$anvil->data->{form}{back_link}    = "?anvil=true";
-	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
-	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
-	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "prep-host-main", variables => {
-		form => $form_body, 
+	# Is the IP or hostname valid?
+	my $ssh_port = 22;
+	if ($host_ip_address =~ /:(\d+)$/)
+	{
+		$ssh_port        =  $1;
+		$host_ip_address =~ s/:(\d+)$//;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		ssh_port        => $ssh_port,
+		host_ip_address => $host_ip_address, 
 	}});
+	
+	# If we've been passed 'connect', verify we can connect.
+	if (($connect) && ($confirm))
+	{
+		# Save the job
+		my $job_command = $anvil->data->{path}{exe}{'striker-initialize-host'}."  --target root\@".$host_ip_address.":".$ssh_port." --type".$type;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			job_command => $job_command,
+			password    => $anvil->Log->is_secure($host_password),
+		}});
+		
+		# Store the peer's password as the job data
+		my $job_data = "password=".$host_password; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data => $job_data }});
+		
+		# Store the job
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 3,
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_command     => $job_command, 
+			job_data        => $job_data, 
+			job_name        => "striker-peer::add", 
+			job_title       => "job_0011", 
+			job_description => "job_0012", 
+			job_progress    => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		# We don't need to store anything as hidden variables, we'll read it back from the database 
+		# later.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
+			title_id    => "",
+			message_id  => "",
+			reload_url  => "/cgi-bin/".$THIS_FILE."?anvil=true&task=prep-host",
+			title       => "#!string!striker_0044!#",
+			description => "#!string!striker_0129!#",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+	}
+	elsif ($connect)
+	{
+		if (not $anvil->Validate->is_ipv4({ip => $host_ip_address}))
+		{
+			# Bad IP
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0010"}) }});
+		}
+		elsif (($ssh_port < 1) or ($ssh_port > 65535))
+		{
+			# Bad port
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0011"}) }});
+		}
+		else
+		{
+			# Can we connect?
+			my $target_host_name = "";
+			my $target_host_uuid = "";
+			my ($connected, $data) = $anvil->Striker->get_peer_data({
+				debug    => 3,
+				target   => $host_ip_address, 
+				password => $host_password,
+				port     => $ssh_port, 
+			});
+			foreach my $key (sort {$a cmp $b} keys %{$data})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "data->{$key}" => $data->{$key} }});
+			}
+			if ($data->{host_name})
+			{
+				# We collect this, but apparently not for any real reason...
+				$target_host_name = $data->{host_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_name => $target_host_name }});
+			}
+			if ($data->{host_uuid})
+			{
+				$target_host_uuid = $data->{host_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				target_host_name => $target_host_name,
+				target_host_uuid => $target_host_uuid, 
+			}});
+			
+			# If the target is RHEL and it is not registered, offer the user to provide the RH user and password.
+			my $rh_template = "";
+			if (($data->{host_os} =~ /^rhel/) && ($data->{os_registered} ne "yes"))
+			{
+				$rh_template = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat", variables => { 
+					rh_user     => $rh_user,
+					rh_password => $rh_password, 
+				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { rh_template => $rh_template }});
+			}
+			
+			if (not $connected)
+			{
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0012"}) }});
+			}
+			elsif (not $target_host_uuid)
+			{
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $target_host_uuid }}) }});
+			}
+			else
+			{
+				# Connected! Ask th euser to confirm.
+				$anvil->data->{form}{body} = $anvil->Template->get({file => "anvil.html", name => "confirm-initialize-host", variables => { 
+					'package' => $type eq "dr" ? "anvil-dr" : "anvil-node",
+					redhat    => $rh_template, 
+					access    => "root\@".$host_ip_address.":".$ssh_port,
+					host_name => $target_host_name, 
+					host_uuid => $target_host_uuid,
+				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+			}
+		}
+	}
+	
+	if ((not $anvil->data->{form}{body}) or ($anvil->data->{form}{error_massage}))
+	{
+		my $node_checked = "checked";
+		my $dr_checked   = "";
+		if ($type eq "dr")
+		{
+			$node_checked = "";
+			$dr_checked   = "checked";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			node_checked => $node_checked,
+			dr_checked   => $dr_checked, 
+		}});
+		
+		my $form_body = $anvil->Template->get({file => "anvil.html", name => "host-setup-menu1", variables => {
+			host_ip_address => $host_ip_address,
+			node_checked    => $node_checked, 
+			dr_checked      => $dr_checked, 
+		}});
+		
+		$anvil->data->{form}{refresh_link} = "?anvil=true&task=prep-host";
+		$anvil->data->{form}{back_link}    = "?anvil=true";
+		$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+		$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+		$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "prep-host-main", variables => {
+			form => $form_body, 
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+	}
 	
 	return(0);
 }
@@ -1057,52 +1221,29 @@ sub add_sync_peer
 	}
 	else
 	{
-		my $state_uuid = $anvil->Database->insert_or_update_states({
-			debug      => 3,
-			file       => $THIS_FILE, 
-			line       => __LINE__, 
-			state_name => "peer::".$host."::password",
-			state_note => $password, 
-			uuid       => $anvil->data->{sys}{host_uuid}, # Only write to our DB, no reason to store elsewhere
+		my ($connected, $data) = $anvil->Striker->get_peer_data({
+			debug    => 2,
+			target   => $host, 
+			password => $password,
+			port     => $ssh_port, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
-		
-		my ($output, $error, $return_code) = $anvil->System->call({
-			debug      => 2,
-			shell_call => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}." --target root\@".$host.":".$ssh_port." --state-uuid ".$state_uuid,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output, 
-			error       => $error,
-			return_code => $return_code, 
-		}});
-		
-		# Pull out the details
-		foreach my $line (split/\n/, $output)
+		if ($data->{host_name})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			if ($line =~ /host_name=(.*)$/)
-			{
-				# We collect this, but apparently not for any real reason...
-				$peer_host_name = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_name => $peer_host_name }});
-			}
-			if ($line =~ /host_uuid=(.*)$/)
-			{
-				$peer_host_uuid = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_uuid => $peer_host_uuid }});
-			}
+			# We collect this, but apparently not for any real reason...
+			$peer_host_name = $data->{host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_name => $peer_host_name }});
+		}
+		if ($data->{host_uuid})
+		{
+			$peer_host_uuid = $data->{host_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_host_uuid => $peer_host_uuid }});
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			peer_host_name => $peer_host_name,
 			peer_host_uuid => $peer_host_uuid, 
 		}});
 		
-		# Make sure the database entry is gone (striker-get-peer-data should have removed it, but lets be safe).
-		my $query = "DELETE FROM states WHERE state_name = ".$anvil->Database->quote("peer::".$host."::password").";";
-		$anvil->Database->write({uuid => $anvil->data->{sys}{host_uuid}, debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
-		
-		if (not $anvil->Validate->is_uuid({uuid => $peer_host_uuid}))
+		if ((not $connected) or (not $peer_host_uuid))
 		{
 			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $peer_host_uuid }}) }});
 		}
@@ -1111,7 +1252,7 @@ sub add_sync_peer
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
 		if ($anvil->data->{cgi}{new_peer_bidirection}{value} eq "on")
 		{
-			# See which of our IPs match theirs. If the peer is a hostname, first 
+			# See which of our IPs match theirs. If the peer is a hostname, first, find the IP.
 			$use_ip = $anvil->System->find_matching_ip({host => $host});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
 			
