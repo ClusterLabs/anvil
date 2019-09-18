@@ -12,7 +12,8 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Striker.pm";
 
 ### Methods;
-# 
+# get_local_repo
+# get_peer_data
 
 =pod
 
@@ -73,6 +74,98 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 get_local_repo
+
+This builds the body of an RPM repo for the local machine. If, for some reason, this machine can't be used as a repo, an empty string will be returned.
+
+The method takes no paramters.
+
+=cut
+sub get_local_repo
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_peer_data()" }});
+	
+	# What is the repo directory?
+	my $document_root = "";
+	my $httpd_conf    = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{httpd_conf} });
+	foreach my $line (split/\n/, $httpd_conf)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^DocumentRoot\s+"(\/.*?)"/)
+		{
+			$document_root = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { document_root => $document_root }});
+			last;
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { document_root => $document_root }});
+	if (not $document_root)
+	{
+		# Problem with apache.
+		return("");
+	}
+	
+	$anvil->Storage->scan_directory({
+		debug      => $debug,
+		directory  => $document_root,
+		recursive  => 1, 
+		no_files   => 1,
+		search_for => "repodata",
+	});
+	my $directory = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "scan::searched" => $anvil->data->{scan}{searched} }});
+	if ($anvil->data->{scan}{searched})
+	{
+		$directory =  $anvil->data->{scan}{searched};
+		$directory =~ s/^$document_root//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	if (not $directory)
+	{
+		# No repo found.
+		return("");
+	}
+	
+	# What are my IPs?
+	$anvil->System->get_ips();
+	my $base_url = "";
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
+		if ($anvil->data->{sys}{network}{interface}{$interface}{ip})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::network::interface::${interface}::ip" => $anvil->data->{sys}{network}{interface}{$interface}{ip} }});
+			if (not $base_url)
+			{
+				$base_url = "baseurl=http://".$anvil->data->{sys}{network}{interface}{$interface}{ip}.$directory;
+			}
+			else
+			{
+				$base_url .= "\n        http://".$anvil->data->{sys}{network}{interface}{$interface}{ip}.$directory;
+			}
+		}
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base_url => $base_url }});
+	
+	# Create the local repo file body
+	my $repo = "[".$anvil->_short_hostname."-repo]
+name=Repo on ".$anvil->_hostname."
+".$base_url."
+enabled=1
+gpgcheck=0
+timeout=5
+skip_if_unavailable=1";
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { repo => $repo }});
+	return($repo);
+}
 
 =head2 get_peer_data
 
@@ -143,49 +236,48 @@ sub get_peer_data
 		uuid       => $anvil->data->{sys}{host_uuid}, # Only write to our DB, no reason to store elsewhere
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
-	my ($output, $error, $return_code) = $anvil->System->call({
+	my ($output, $return_code) = $anvil->System->call({
 		debug      => $debug,
 		shell_call => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}." --target root\@".$target.":".$port." --state-uuid ".$state_uuid,
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
-		error       => $error, 
 		return_code => $return_code, 
 	}});
 	
 	# Pull out the details
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line =~ /connected=(.*)$/)
 		{
 			# We collect this, but apparently not for any real reason...
 			$connected = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connected => $connected }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
 		}
 		if ($line =~ /host_name=(.*)$/)
 		{
 			# We collect this, but apparently not for any real reason...
 			$data->{host_name} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'data->{host_name}' => $data->{host_name} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'data->{host_name}' => $data->{host_name} }});
 		}
 		if ($line =~ /host_uuid=(.*)$/)
 		{
 			$data->{host_uuid} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'data->{host_uuid}' => $data->{host_uuid} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'data->{host_uuid}' => $data->{host_uuid} }});
 		}
 		if ($line =~ /host_os=(.*)$/)
 		{
 			$data->{host_os} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'data->{host_os}' => $data->{host_os} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'data->{host_os}' => $data->{host_os} }});
 		}
 		if ($line =~ /os_registered=(.*)$/)
 		{
 			$data->{os_registered} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'data->{os_registered}' => $data->{os_registered} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'data->{os_registered}' => $data->{os_registered} }});
 		}
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		connected               => $connected, 
 		'data->{host_name}'     => $data->{host_name},
 		'data->{host_uuid}'     => $data->{host_uuid},

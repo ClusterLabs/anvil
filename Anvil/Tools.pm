@@ -983,6 +983,7 @@ sub _set_paths
 			},
 			data			=>	{
 				group				=>	"/etc/group",
+				httpd_conf			=>	"/etc/httpd/conf/httpd.conf",
 				host_ssh_key			=>	"/etc/ssh/ssh_host_ecdsa_key.pub",
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
 				host_uuid			=>	"/etc/anvil/host.uuid",
@@ -1088,6 +1089,7 @@ sub _set_paths
 				stonith_admin			=>	"/usr/sbin/stonith_admin",
 				strings				=>	"/usr/bin/strings",
 				'striker-get-peer-data'		=>	"/usr/sbin/striker-get-peer-data",
+				'striker-initialize-host'	=>	"/usr/sbin/striker-initialize-host",
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",
 				'striker-manage-peers'		=>	"/usr/sbin/striker-manage-peers",
 				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",

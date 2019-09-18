@@ -760,6 +760,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0435">Program: [#!variable!program!#] running as the real user: [#!variable!real_user!# (#!variable!real_uid!#)] and effective user: [#!variable!effective_user!# (#!variable!effective_uid!#)].</key>
 		<key name="log_0436">The setuid c-wrapper: [#!variable!wrapper!#] already exists, no need to create it.</key>
 		<key name="log_0437">The anvil version cache file: [#!variable!file!#] for: [#!variable!target!#] needs to be created/updated.</key>
+		<key name="log_0438"><![CDATA[[ Error ] - No job was found for the 'job_uuid': [#!variable!job_uuid!#].]]></key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -963,6 +964,36 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
 		<key name="job_0018">Download a file</key>
 		<key name="job_0019">The referenced file will be downloaded by the target host.</key>
+		<key name="job_0020">Initialize a new Anvil! Node</key>
+		<key name="job_0021">Initialize a new DR Host</key>
+		<key name="job_0022">The target will be setup to talk to this and our peer dashboards. When initialization is complete, you will be able to map the target's network.</key>
+		<key name="job_0023">Connecting to the target: [#!variable!target!#]...</key>
+		<key name="job_0024">Connected!</key>
+		<key name="job_0025">Unable to connect to: [#!variable!target!#]. Will keep trying for another: [#!variable!timeout!#] seconds...</key>
+		<key name="job_0026">Unable to connect, the job has failed.</key>
+		<key name="job_0027">'Initialize host' job: [#!data!switches::job-uuid!#] picked up.</key>
+		<key name="job_0028">Adding repositories.</key>
+		<key name="job_0029">Added the repository for this dashboard.</key>
+		<key name="job_0030">Red Hat subscription information provides, attempting to register now.</key>
+		<key name="job_0031">This machine is already registered with Red Hat. Skipping it.</key>
+		<key name="job_0032">Unable to reach the Red Hat subscription service. Is the Internet working on this host?</key>
+		<key name="job_0033">Please be patient, subscription can take a while to complete.</key>
+		<key name="job_0034">Success!</key>
+		<key name="job_0035">
+Failure! The return code: [#!variable!return_code!#] was received ('0' was expected). Possibly helpful information:
+* Output: [#!variable!output!#]
+* Error: [#!variable!error!#]
+		</key>
+		<key name="job_0036">Adding the repo: [#!variable!repo!#]</key>
+		<key name="job_0037">Verifying the the needed repos are enabled now.</key>
+		<key name="job_0038">[ Warning ] - The repo: [#!variable!repo!#] is not subcribed to this system! Initialization will continue, but it might fail.</key>
+		<key name="job_0039">Updating the target's operating system prior to package install.</key>
+		<key name="job_0040">[ Note ] - This step can take a while to finish, and there will be no input here until it completes.</key>
+		<key name="job_0041">Removing conflicting packages.</key>
+		<key name="job_0042">Will now install: [#!variable!package!#].</key>
+		<key name="job_0043">Verifying installation.</key>
+		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::configs::anvil.conf!#.</key>
+		<key name="job_0045">Success!</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1066,6 +1097,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0070"><![CDATA[Unable to find the host UUID on the host: [#!variable!host!#].]]></key>
 		<key name="error_0071">Something went wrong trying to write: [#!variable!file!#], unable to proceed.</key>
 		<key name="error_0072">Something went wrong trying to compile the C-program: [#!variable!file!#], unable to proceed.</key>
+		<key name="error_0073">The job UUID was not passed via '--job-uuid' and no unclaimed job was found in the database.</key>
+		<key name="error_0074">The initialization target: [#!variable!target!#] is not accessible. Will keep trying...</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

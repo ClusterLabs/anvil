@@ -454,16 +454,7 @@ How to rebuild all of the packages in the Alteeve RHEL 8 repo;
 
 # Register if RHEL proper;
 subscription-manager register --username <user> --password <secret> --auto-attach --force
-subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms
-subscription-manager repos --enable rhel-8-for-x86_64-appstream-source-rpms
-subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms
-subscription-manager repos --enable rhel-8-for-x86_64-baseos-source-rpms
-subscription-manager repos --enable rhel-8-for-x86_64-highavailability-rpms
-subscription-manager repos --enable rhel-8-for-x86_64-highavailability-source-rpms
-subscription-manager repos --enable rhel-8-for-x86_64-supplementary-rpms
-subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
-subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms
-subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
+
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-source-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-supplementary-source-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms
@@ -474,6 +465,12 @@ subscription-manager repos --enable rhel-8-for-x86_64-highavailability-source-rp
 subscription-manager repos --enable codeready-builder-for-rhel-8-x86_64-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-highavailability-rpms
 subscription-manager repos --enable rhel-8-for-x86_64-appstream-rpms
+
+repos => {
+	'rhel-8-for-x86_64-highavailability-rpms'         => 0,
+	'codeready-builder-for-rhel-8-x86_64-rpms'        => 0,
+}
+
 
 * Packages to install;
 

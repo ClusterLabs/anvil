@@ -570,14 +570,19 @@ sub process_prep_host_page
 	if (($connect) && ($confirm))
 	{
 		# Save the job
-		my $job_command = $anvil->data->{path}{exe}{'striker-initialize-host'}."  --target root\@".$host_ip_address.":".$ssh_port." --type".$type;
+		my $job_command = $anvil->data->{path}{exe}{'striker-initialize-host'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			job_command => $job_command,
 			password    => $anvil->Log->is_secure($host_password),
 		}});
 		
 		# Store the peer's password as the job data
-		my $job_data = "password=".$host_password; 
+		my $job_data =  "password=".$host_password."\n";
+		   $job_data .= "rh_password=".$rh_password."\n";
+		   $job_data .= "rh_user=".$rh_user."\n";
+		   $job_data .= "host_ip_address=".$host_ip_address."\n";
+		   $job_data .= "ssh_port=".$ssh_port."\n";
+		   $job_data .= "type=".$type."\n"; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data => $job_data }});
 		
 		# Store the job
@@ -587,9 +592,9 @@ sub process_prep_host_page
 			line            => __LINE__, 
 			job_command     => $job_command, 
 			job_data        => $job_data, 
-			job_name        => "striker-peer::add", 
-			job_title       => "job_0011", 
-			job_description => "job_0012", 
+			job_name        => "initialize::".$type."::".$host_ip_address, 
+			job_title       => $type eq "dr" ? "job_0021" : "job_0020", 
+			job_description => "job_0022", 
 			job_progress    => 0,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
@@ -599,7 +604,7 @@ sub process_prep_host_page
 		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
 			title_id    => "",
 			message_id  => "",
-			reload_url  => "/cgi-bin/".$THIS_FILE."?anvil=true&task=prep-host",
+			reload_url  => "/cgi-bin/".$THIS_FILE."?anvil=true&",
 			title       => "#!string!striker_0044!#",
 			description => "#!string!striker_0129!#",
 		}});

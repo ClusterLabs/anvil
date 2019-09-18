@@ -260,7 +260,7 @@ B<NOTE>: If the C<< target >> is presented in the format C<< target:port >>, the
 
 =head3 timeout (optional, default '10')
 
-B<NOTE>: This is the timeout for the command to return. This is NOT the connection timeout!
+B<NOTE>: This is the timeout for the command to return, in seconds. This is NOT the connection timeout!
 
 If this is set to a numeric whole number, then the called shell command will have the set number of seconds to complete. If this is set to C<< 0 >>, then no timeout will be used.
 
@@ -563,13 +563,19 @@ sub call
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { ssh_fh => $ssh_fh }});
 	if ($ssh_fh =~ /^Net::OpenSSH/)
 	{
+		# The shell_call can't end is a newline. Conveniently, we want the return code. By adding 
+		# this, we ensure it doesn't end in a new-line (and we can't blindly strip off the last 
+		# new-line because of 'EOF' type cat's). 
+		$shell_call .= "\n".$anvil->data->{path}{exe}{echo}." return_code:\$?";
+		
 		# Make sure the output variables are clean and then make the call.
 		$output = ""; 
 		$error  = "";
 		if ($timeout)
 		{
 			# Call with a timeout
-			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call."; ".$anvil->data->{path}{exe}{echo}." return_code:\$?");
+			#($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call."; ".$anvil->data->{path}{exe}{echo}." return_code:\$?");
+			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call);
 			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
 		}
@@ -580,6 +586,7 @@ sub call
 			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
 		}
+		
 		# Was there a problem?
 		if ($ssh_fh->error)
 		{
@@ -589,6 +596,7 @@ sub call
 				connection => $ssh_fh_key, 
 				error      => $ssh_fh->error,
 			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { error => $error }});
 		}
 		
 		# Take the last new line off.

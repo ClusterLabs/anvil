@@ -22,6 +22,7 @@ my $THIS_FILE = "Database.pm";
 # disconnect
 # get_alert_recipients
 # get_hosts
+# get_job_details
 # get_jobs
 # get_local_uuid
 # initialize
@@ -1374,6 +1375,123 @@ FROM
 	return($return);
 }
 
+=head2 get_job_details
+
+This gets the details for a given job. If the job is found, a hash reference is returned containing the tables that were read in.
+
+Parameters;
+
+=head3 job_uuid (default switches::job-uuid)
+
+This is the C<< job_uuid >> of the job being retrieved. 
+
+=cut
+sub get_job_details
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $return   = "";
+	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		job_uuid => $job_uuid, 
+	}});
+	
+	# If we didn't get a job_uuid, see if 'swtiches::job-uuid' is set.
+	if ((not $job_uuid) && ($anvil->data->{switches}{'job-uuid'}))
+	{
+		$job_uuid = $anvil->data->{switches}{'job-uuid'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+	}
+	
+	if (not $job_uuid)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->get_job_details()", parameter => "get_jobs" }});
+		return($return);
+	}
+	
+	my $query = "
+SELECT 
+    job_host_uuid, 
+    job_command, 
+    job_data, 
+    job_picked_up_by, 
+    job_picked_up_at, 
+    job_updated, 
+    job_name, 
+    job_progress, 
+    job_title, 
+    job_description, 
+    job_status, 
+    modified_date
+FROM 
+    jobs 
+WHERE 
+    job_uuid = ".$anvil->Database->quote($job_uuid)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	if (not $count)
+	{
+		# Job wasn't found.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0438", variables => { job_uuid => $job_uuid }});
+		return($return);
+	}
+	
+	my $job_host_uuid       =         $results->[0]->[0];
+	my $job_command         =         $results->[0]->[1];
+	my $job_data            = defined $results->[0]->[2] ? $results->[0]->[2] : "";
+	my $job_picked_up_by    =         $results->[0]->[3];
+	my $job_picked_up_at    =         $results->[0]->[4]; 
+	my $job_updated         =         $results->[0]->[5];
+	my $job_name            =         $results->[0]->[6];
+	my $job_progress        =         $results->[0]->[7];
+	my $job_title           =         $results->[0]->[8];
+	my $job_description     =         $results->[0]->[9];
+	my $job_status          =         $results->[0]->[10];
+	my $modified_date       =         $results->[0]->[11];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		job_host_uuid       => $job_host_uuid,
+		job_command         => $job_command,
+		job_data            => $job_data,
+		job_picked_up_by    => $job_picked_up_by,
+		job_picked_up_at    => $job_picked_up_at,
+		job_updated         => $job_updated,
+		job_name            => $job_name, 
+		job_progress        => $job_progress,
+		job_title           => $job_title, 
+		job_description     => $job_description,
+		job_status          => $job_status, 
+		modified_date       => $modified_date, 
+	}});
+	
+	$return = {
+		job_host_uuid       => $job_host_uuid,
+		job_command         => $job_command,
+		job_data            => $job_data,
+		job_picked_up_by    => $job_picked_up_by,
+		job_picked_up_at    => $job_picked_up_at,
+		job_updated         => $job_updated,
+		job_name            => $job_name, 
+		job_progress        => $job_progress,
+		job_title           => $job_title, 
+		job_description     => $job_description,
+		job_status          => $job_status, 
+		modified_date       => $modified_date, 
+	};
+	
+	return($return);
+}
+
 =head2 get_jobs
 
 This gets the list of running jobs.
@@ -1491,6 +1609,28 @@ WHERE
 	
 	my $return_count = @{$return};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_count => $return_count }});
+	
+	if ($return_count)
+	{
+		foreach my $hash_ref (@{$return})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				job_uuid         => $hash_ref->{job_uuid},
+				job_command      => $hash_ref->{job_command},
+				job_data         => $hash_ref->{job_data},
+				job_picked_up_by => $hash_ref->{job_picked_up_by},
+				job_picked_up_at => $hash_ref->{job_picked_up_at},
+				job_updated      => $hash_ref->{job_updated},
+				job_name         => $hash_ref->{job_name}, 
+				job_progress     => $hash_ref->{job_progress},
+				job_title        => $hash_ref->{job_title}, 
+				job_description  => $hash_ref->{job_description},
+				job_status       => $hash_ref->{job_status}, 
+				modified_date    => $hash_ref->{modified_date}, 
+			}});
+		}
+	}
+	
 	return($return);
 }
 
@@ -3458,6 +3598,7 @@ sub insert_or_update_jobs
 	my $job_description      = defined $parameter->{job_description}      ? $parameter->{job_description}      : "";
 	my $job_status           = defined $parameter->{job_status}           ? $parameter->{job_status}           : "";
 	my $update_progress_only = defined $parameter->{update_progress_only} ? $parameter->{update_progress_only} : 0;
+	my $clear_status         = defined $parameter->{clear_status}         ? $parameter->{clear_status}         : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                 => $uuid, 
 		file                 => $file, 
@@ -3475,6 +3616,7 @@ sub insert_or_update_jobs
 		job_description      => $job_description, 
 		job_status           => $job_status, 
 		update_progress_only => $update_progress_only, 
+		clear_status         => $clear_status, 
 	}});
 	
 	# If I have a job_uuid and update_progress_only is true, I only need the progress.
@@ -3721,7 +3863,7 @@ SET ";
 						query  => $query, 
 					}});
 				}
-				if (($job_status ne "") && ($old_job_status ne $job_status))
+				if (($clear_status) or (($job_status ne "") && ($old_job_status ne $job_status)))
 				{
 					$update =  1;
 					$query  .= "

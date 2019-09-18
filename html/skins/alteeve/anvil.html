@@ -190,7 +190,7 @@
 							<input type="hidden" name="connect"         id="connect"         value="#!data!cgi::connect::value!#">
 							<input type="hidden" name="host_ip_address" id="host_ip_address" value="#!data!cgi::host_ip_address::value!#">
 							<input type="hidden" name="host_password"   id="host_password"   value="#!data!cgi::host_password::value!#">
-							<input type="hidden" name="type"            id="type"            value="#!data!cgi::striker::value!#">
+							<input type="hidden" name="type"            id="type"            value="#!data!cgi::type::value!#">
 							<input type="hidden" name="task"            id="task"            value="#!data!cgi::task::value!#">
 							</div>
 						</table>
@@ -202,13 +202,18 @@
 
 <!-- start host-setup-redhat -->
 				<tr>
+					<td class="menu_details">
+						#!string!message_0148!#
+					</td>
+				</tr>
+				<tr>
+					<td>
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
 					<td>
 						<table align="center" width="90%">
-							<tr>
-								<td colspan="3">
-									#!string!message_0148!#
-								</td>
-							</tr>
 							<tr>
 								<td>
 									<input type="text" name="rh_user" id="rh_user" value="#!variable!rh_user!#" placeholder="#!string!message_0144!#" />
@@ -218,11 +223,6 @@
 								</td>
 								<td>
 									<input type="text" name="rh_password" id="rh_password" value="#!variable!rh_password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!message_0145!#" />
-								</td>
-							</tr>
-							<tr>
-								<td colspan="3">
-									&nbsp;
 								</td>
 							</tr>
 						</table>

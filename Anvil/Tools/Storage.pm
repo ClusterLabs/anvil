@@ -2043,11 +2043,19 @@ Parameters;
 
 This is the full path to the directory to scan. 
 
+=head4 no_files (optional, default 0)
+
+If set to C<< 1 >>, this scans directories only, ignoring files and symlinks.
+
 =head3 recursive (optional, default '0')
 
 If set to C<< 1 >>, any directories found will be scanned as well.
 
 B<< NOTE >>: Symlinks that point to directories will B<< NOT >> be scanned.
+
+=head3 search_for (optional)
+
+If set, the string will be searched for. If it is found, the B<< directory it is in >> will be stored in C<< scan::searched >>. The scan will end at this point, even if C<< recursive >> is set.
 
 =cut
 ### TODO: Make this work on remote systems
@@ -2059,12 +2067,19 @@ sub scan_directory
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Set a default if nothing was passed.
-	my $directory = defined $parameter->{directory} ? $parameter->{directory} : "";
-	my $recursive = defined $parameter->{recursive} ? $parameter->{recursive} : 0;
+	my $directory  = defined $parameter->{directory}  ? $parameter->{directory}  : "";
+	my $no_files   = defined $parameter->{no_files}   ? $parameter->{no_files}   : 0;
+	my $recursive  = defined $parameter->{recursive}  ? $parameter->{recursive}  : 0;
+	my $search_for = defined $parameter->{search_for} ? $parameter->{search_for} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		directory => $directory,
-		recursive => $recursive, 
+		directory  => $directory,
+		no_files   => $no_files, 
+		recursive  => $recursive, 
+		search_for => $search_for, 
 	}});
+	
+	# Setup the search variable, if needed.
+	$anvil->data->{scan}{searched} = "" if not exists $anvil->data->{scan}{searched};
 	
 	# Does this directory exist?
 	if (not $directory)
@@ -2099,6 +2114,16 @@ sub scan_directory
 			"scan::directories::${full_path}::name"      => $anvil->data->{scan}{directories}{$full_path}{name}, 
 			full_path                                    => $full_path,
 		}});
+		
+		if (($search_for) && ($file eq $search_for))
+		{
+			# Found what we're looking for, we're done.
+			$anvil->data->{scan}{searched} = $directory;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"scan::searched" => $anvil->data->{scan}{searched}, 
+			}});
+			return(0);
+		}
 		if (-d $full_path)
 		{
 			# This is a directory, dive into it is asked.
@@ -2109,12 +2134,18 @@ sub scan_directory
 				"scan::directories::${full_path}::type" => $anvil->data->{scan}{directories}{$full_path}{type}, 
 				"scan::directories::${full_path}::mode" => $anvil->data->{scan}{directories}{$full_path}{mode}, 
 			}});
-			if ($recursive)
+			if (($recursive) && (not $anvil->data->{scan}{searched}))
 			{
-				$anvil->Storage->scan_directory({debug => $debug, directory => $full_path, recursive => $recursive});
+				$anvil->Storage->scan_directory({
+					debug      => $debug, 
+					directory  => $full_path, 
+					recursive  => $recursive,
+					no_files   => $no_files,
+					search_for => $search_for,
+				});
 			}
 		}
-		elsif (-l $full_path)
+		elsif ((-l $full_path) && (not $no_files))
 		{
 			# Symlink
 			$anvil->data->{scan}{directories}{$full_path}{type}   = "symlink";
@@ -2124,7 +2155,7 @@ sub scan_directory
 				"scan::directories::${full_path}::taarget" => $anvil->data->{scan}{directories}{$full_path}{taarget}, 
 			}});
 		}
-		elsif (-f $full_path)
+		elsif ((-f $full_path) && (not $no_files))
 		{
 			# Normal file.
 			my @details = stat($full_path);
@@ -2149,7 +2180,6 @@ sub scan_directory
 		}
 	}
 	closedir(DIRECTORY);
-	
 	
 	return(0);
 }

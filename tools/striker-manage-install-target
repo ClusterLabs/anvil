@@ -132,8 +132,8 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 8});
 }
-update_progress($anvil, 1, "clear");
-update_progress($anvil, 2, "log_0239");
+update_progress($anvil, 0, "clear");
+update_progress($anvil, 1, "log_0239");
 
 # If we're being asked to disable, just do so and exit.
 if ($anvil->data->{switches}{disable})
