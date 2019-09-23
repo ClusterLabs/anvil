@@ -169,6 +169,7 @@ mkdir -p %{buildroot}/%{_sbindir}/scancore-agents/
 mkdir -p %{buildroot}/%{_sysconfdir}/anvil/
 mkdir -p %{buildroot}/%{_localstatedir}/www/
 mkdir -p %{buildroot}/%{_usr}/share/anvil/
+mkdir -p %{buildroot}/%{_usr}/lib/ocf/resource.d/alteeve
 install -d -p Anvil %{buildroot}/%{_datadir}/perl5/
 install -d -p html %{buildroot}/%{_localstatedir}/www/
 install -d -p cgi-bin %{buildroot}/%{_localstatedir}/www/
@@ -183,6 +184,7 @@ cp -R -p scancore-agents %{buildroot}/%{_sbindir}/
 cp -R -p anvil.conf %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p anvil.version %{buildroot}/%{_sysconfdir}/anvil/
 cp -R -p share/* %{buildroot}/%{_usr}/share/anvil/
+cp -R -p ocf/alteeve/server %{buildroot}/%{_usr}/lib/ocf/resource.d/alteeve
 
 
 %pre core
@@ -234,15 +236,6 @@ firewall-cmd --add-service=postgresql
 firewall-cmd --add-service=postgresql --permanent
 
 %pre node
-echo "Copying the OCF resource agent into place.
-if [ ! -d /usr/lib/ocf/resource.d/anvil ];
-then
-    mkdir /usr/lib/ocf/resource.d/anvil
-fi
-if [ ! -e /usr/lib/ocf/resource.d/anvil/server ];
-then
-    cp -R -p ocf/alteeve/* /usr/lib/ocf/resource.d/anvil/
-fi
 
 ### Remove stuff - Disabled for now, messes things up during upgrades
 %postun core
@@ -287,7 +280,7 @@ fi
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
-%{_usr}/lib/ocf/resource.d/alteeve/*
+%{_usr}/lib/ocf/resource.d/alteeve/server
 
 %files dr
 #<placeholder for node specific files>
@@ -299,10 +292,10 @@ fi
 - Added installation of ocf:alteeve:server resource agent to nodes.
 - Updated the source.
 
-* Sat Feb 01 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-23
+* Sat Feb 02 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-23
 - Updated the source.
 
-* Sat Jan 30 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-22
+* Wed Jan 30 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-22
 - Finished swapping over to RHEL8. Fedora support now removed.
 
 * Sat Jan 05 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-21
