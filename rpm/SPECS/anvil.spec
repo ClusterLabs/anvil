@@ -294,7 +294,7 @@ fi
 
 
 %changelog
-* <TODO> Madison Kelly <mkelly@alteeve.ca> 3.0-24
+* Sun Sep 22 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-24
 - Added syslinux to core requirements.
 - Added installation of ocf:alteeve:server resource agent to nodes.
 - Updated the source.
