@@ -761,6 +761,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0436">The setuid c-wrapper: [#!variable!wrapper!#] already exists, no need to create it.</key>
 		<key name="log_0437">The anvil version cache file: [#!variable!file!#] for: [#!variable!target!#] needs to be created/updated.</key>
 		<key name="log_0438"><![CDATA[[ Error ] - No job was found for the 'job_uuid': [#!variable!job_uuid!#].]]></key>
+		<key name="log_0439">No databases available yet, continuing to wait.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -994,6 +995,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0043">Verifying installation.</key>
 		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::configs::anvil.conf!#.</key>
 		<key name="job_0045">Success!</key>
+		<key name="job_0046">Adding our database connection information to the target's anvil.conf file!</key>
+		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1099,6 +1102,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0072">Something went wrong trying to compile the C-program: [#!variable!file!#], unable to proceed.</key>
 		<key name="error_0073">The job UUID was not passed via '--job-uuid' and no unclaimed job was found in the database.</key>
 		<key name="error_0074">The initialization target: [#!variable!target!#] is not accessible. Will keep trying...</key>
+		<key name="error_0075">There are no databases available. Will check periodically, waiting until one becomes available.</key>
+		<key name="error_0076">There was a problem adding out database to the target's anvil.conf file.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

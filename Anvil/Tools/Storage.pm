@@ -156,7 +156,7 @@ sub backup
 		source_file => $source_file,
 	}});
 	
-	my $proceed = 0;
+	my $proceed     = 0;
 	my $target_file = "";
 	if (not $source_file)
 	{
@@ -171,11 +171,12 @@ sub backup
 		if ($fatal) { $anvil->nice_exit({code => 1}); }
 	}
 	
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Make sure the source file exists, is a file and can be read.
 		my $shell_call = "
 if [ -e '".$source_file."' ]; 
+then
     if [ -f '".$source_file."' ];
     then
         if [ -r '".$source_file."' ];
@@ -668,19 +669,22 @@ sub copy_file
 		file      => $file,
 	}});
 	
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Copying on a remote system.
 		my $proceed    = 1;
 		my $shell_call = "
 if [ -e '".$source_file."' ]; 
+then
     ".$anvil->data->{path}{exe}{echo}." 'source file exists'
 else
     ".$anvil->data->{path}{exe}{echo}." 'source file not found'
 fi
-if [ -d '".$target_file."' ];
+if [ -e '".$target_file."' ];
+then
     ".$anvil->data->{path}{exe}{echo}." 'target file exists'
 elif [ -d '".$directory."' ];
+then
     ".$anvil->data->{path}{exe}{echo}." 'target directory exists'
 else
     ".$anvil->data->{path}{exe}{echo}." 'target directory not found'
@@ -726,7 +730,7 @@ fi";
 				}});
 				return(1);
 			}
-			if (($line1 eq "source file exists") && (not $overwrite))
+			if (($line1 eq "target file exists") && (not $overwrite))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0046", variables => {
 					method      => "copy_file",
@@ -984,7 +988,7 @@ sub make_directory
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { working_directory => $working_directory }});
 		
 		# Are we working locally or remotely?
-		if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+		if ($anvil->Network->is_remote($target))
 		{
 			# Assemble the command
 			my $shell_call = "
@@ -1193,7 +1197,7 @@ sub move_file
 		}});
 	}
 	
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Copying on a remote system.
 		my $proceed    = 1;
@@ -1561,7 +1565,7 @@ sub read_file
 	}
 	
 	# Reading locally or remote?
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote. Make sure the passed file is a full path and file name.
 		if ($file !~ /^\/\w/)
@@ -1913,7 +1917,7 @@ sub rsync
 	# If local, call rsync directly. If remote, setup the rsync wrapper
 	my $wrapper_script = "";
 	my $shell_call     = $anvil->data->{path}{exe}{rsync}." ".$switches." ".$source." ".$destination;
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# If we didn't get a port, but the target is pre-configured for a port, use it.
 		if ((not $parameter->{port}) && ($anvil->data->{hosts}{$target}{port}))
@@ -2414,7 +2418,7 @@ sub update_config
 	# Did we see the variable?
 	if (not $seen)
 	{
-		if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+		if ($anvil->Network->is_remote($target))
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0175", variables => { 
 				variable => $variable, 
@@ -2743,7 +2747,7 @@ sub write_file
 	}});
 	
 	# Now, are we writing locally or on a remote system?
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# If we didn't get a port, but the target is pre-configured for a port, use it.
 		if ((not $parameter->{port}) && ($anvil->data->{hosts}{$target}{port}))

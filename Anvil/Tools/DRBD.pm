@@ -186,7 +186,7 @@ sub allow_two_primaries
 	
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$resource." ".$target_node_id." --allow-two-primaries=yes";
 	my $output     = "";
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call.
 		($output, my $error, $return_code) = $anvil->Remote->call({
@@ -273,7 +273,7 @@ sub get_devices
 	my $host       = $anvil->_short_hostname;
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
 	my $output     = "";
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call.
 		($output, my $error, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->Remote->call({
@@ -544,7 +544,7 @@ sub get_status
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
 	my $host       = $anvil->_short_hostname();
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Clear the hash where we'll store the data.
 		$host = $target;
@@ -817,7 +817,7 @@ sub manage_resource
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	my $output      = "";
 	my $return_code = 255; 
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call.
 		($output, my $error, $return_code) = $anvil->Remote->call({
@@ -906,7 +906,7 @@ sub reload_defaults
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0355"});
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
 	my $output      = "";
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call.
 		($output, my $error, $return_code) = $anvil->Remote->call({

@@ -241,7 +241,7 @@ sub reconfigure_network
 	}
 	
 	# Get the current list of IPs and MAC addresses.
-	$anvil->System->get_ips();
+	$anvil->Network->get_ips();
 	
 	# Now configure the network.
 	my $dns = defined $anvil->data->{variables}{form}{config_step2}{dns}{value} ? [split/,/, $anvil->data->{variables}{form}{config_step2}{dns}{value}] : [];

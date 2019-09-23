@@ -45,12 +45,12 @@ sub update_network
 {
 	my ($anvil) = @_;
 	
-	# Run 'ip addr' to see what IPs are in use. The results will be stored in:
-	$anvil->System->get_ips();
+	# Run 'ip addr' to see what IPs are in use.
+	$anvil->Network->get_ips();
 	
 	# We'll read through '/sys/class/net' looking for network interfaces.
-	# * 'sys::network::interface::<iface_name>::ip'     - If an IP address is set
-	# * 'sys::network::interface::<iface_name>::subnet' - If an IP is set
+	# * 'network::local::interface::<iface_name>::ip'     - If an IP address is set
+	# * 'network::local::interface::<iface_name>::subnet' - If an IP is set
 	my $directory = "/sys/class/net";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
 	
@@ -111,10 +111,10 @@ sub update_network
 			my $down_delay           = "";
 			my $bond_master          = "";
 			
-			if (exists $anvil->data->{sys}{network}{interface}{$interface})
+			if (exists $anvil->data->{network}{'local'}{interface}{$interface})
 			{
-				$ip_address  = $anvil->data->{sys}{network}{interface}{$interface}{ip}     ? $anvil->data->{sys}{network}{interface}{$interface}{ip}     : "";
-				$subnet_mask = $anvil->data->{sys}{network}{interface}{$interface}{subnet} ? $anvil->data->{sys}{network}{interface}{$interface}{subnet} : "";
+				$ip_address  = $anvil->data->{network}{'local'}{interface}{$interface}{ip}     ? $anvil->data->{network}{'local'}{interface}{$interface}{ip}     : "";
+				$subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet} ? $anvil->data->{network}{'local'}{interface}{$interface}{subnet} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					ip_address  => $ip_address, 
 					subnet_mask => $subnet_mask,
@@ -319,9 +319,9 @@ sub update_network
 			my $subnet_mask          = $anvil->data->{network}{interfaces}{by_name}{$interface}{subnet_mask};
 			my $type                 = $anvil->data->{network}{interfaces}{by_name}{$interface}{type};
 			my $up_delay             = $anvil->data->{network}{interfaces}{by_name}{$interface}{up_delay};
-			my $default_gateway      = $anvil->data->{sys}{network}{interface}{$interface}{default_gateway};
-			my $gateway              = $anvil->data->{sys}{network}{interface}{$interface}{gateway};
-			my $dns                  = $anvil->data->{sys}{network}{interface}{$interface}{dns};
+			my $default_gateway      = $anvil->data->{network}{'local'}{interface}{$interface}{default_gateway};
+			my $gateway              = $anvil->data->{network}{'local'}{interface}{$interface}{gateway};
+			my $dns                  = $anvil->data->{network}{'local'}{interface}{$interface}{dns};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				active_slave         => $active_slave, 
 				bond_mode            => $bond_mode, 
@@ -700,14 +700,14 @@ WHERE
 		
 		# Did we see this IP on this scan? If not, set on_type to DELETEd.
 		my $found = 0;
-		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				interface                                   => $interface,
-				ip_address_address                          => $ip_address_address, 
-				"sys::network::interface::${interface}::ip" => $anvil->data->{sys}{network}{interface}{$interface}{ip}, 
+				interface                                     => $interface,
+				ip_address_address                            => $ip_address_address, 
+				"network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip}, 
 			}});
-			if ((defined $anvil->data->{sys}{network}{interface}{$interface}{ip}) && ($anvil->data->{sys}{network}{interface}{$interface}{ip} eq $ip_address_address))
+			if ((defined $anvil->data->{network}{'local'}{interface}{$interface}{ip}) && ($anvil->data->{network}{'local'}{interface}{$interface}{ip} eq $ip_address_address))
 			{
 				$found = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { found => $found }});

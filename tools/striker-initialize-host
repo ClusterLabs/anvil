@@ -10,6 +10,7 @@
 # 3 = Job detauls not found in the database.
 # 4 = Unable to connect to the target.
 # 5 = Failed to install the anvil package.
+# 6 = Failed to add our database to the target's anvil.conf file.
 # 
 
 use strict;
@@ -66,6 +67,79 @@ sub add_databases
 {
 	my ($anvil) = @_;
 	
+	# Normally, we'd use the BCN IPs to tell the peer how to reach our database, but it's entirely 
+	# possible at this stage that the target doesn't have a BCN IP. So we need to figure out what IP it
+	# has and we have that are on the same subnet. 
+	# Scan our network and the target's network, then compare them.
+	update_progress($anvil, 95, "job_0046");
+	my $target = $anvil->data->{data}{host_ip_address};
+	$anvil->Network->get_ips();
+	$anvil->Network->get_ips({
+		target      => $target,
+		remote_user => "root",
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+	});
+	my ($match) = $anvil->Network->find_matches({
+		debug  => 3,
+		first  => 'local',
+		second => $target, 
+	});
+	
+	# We'll sort in reverse order, so if there is a BCN address, we'll use it.
+	my $host_uuid   = $anvil->data->{sys}{host_uuid};
+	my $db_host     = "";
+	my $db_port     = "";
+	my $db_password = "";
+	foreach my $interface (sort {$a cmp $b} keys %{$match->{'local'}})
+	{
+		my $local_ip = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			interface => $interface, 
+			local_ip  => $local_ip,
+		}});
+		if (($local_ip) && ($anvil->Validate->is_ipv4({ip => $local_ip})))
+		{
+			$db_host     = $local_ip;
+			$db_port     = $anvil->data->{database}{$host_uuid}{port};
+			$db_password = $anvil->data->{database}{$host_uuid}{password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				db_host     => $db_host,
+				db_port     => $db_port, 
+				db_password => $anvil->Log->is_secure($db_password),
+			}});
+		}
+		last if $db_host;
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { db_host => $db_host }});
+	if ($db_host)
+	{
+		my $failed = $anvil->Database->manage_anvil_conf({
+			debug        => 2, 
+			target       => $target,
+			remote_user  => "root",
+			password     => $anvil->data->{data}{password}, 
+			port         => $anvil->data->{data}{ssh_port}, 
+			db_host_uuid => $anvil->data->{sys}{host_uuid}, 
+			db_host      => $db_host,
+			db_port      => $db_port,
+			db_password  => $db_password, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
+		if ($failed)
+		{
+			# Something went wrong
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0076"});
+			update_progress($anvil, 100, "error_0076");
+			$anvil->nice_exit({exit_code => 6});
+		}
+		else
+		{
+			# Success! We're done@
+			update_progress($anvil, 100, "job_0047");
+		}
+	}
 	
 	return(0);
 }
@@ -93,12 +167,12 @@ EOF
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug      => 3, 
-			shell_call => $shell_call, 
-			password   => $anvil->data->{data}{password}, 
-			port       => $anvil->data->{data}{ssh_port}, 
-			target     => $anvil->data->{data}{host_ip_address},
-			user       => "root",
+			debug       => 3, 
+			shell_call  => $shell_call, 
+			password    => $anvil->data->{data}{password}, 
+			port        => $anvil->data->{data}{ssh_port}, 
+			target      => $anvil->data->{data}{host_ip_address},
+			remote_user => "root",
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			error       => $error,
@@ -120,12 +194,12 @@ EOF
 		# We'll attach subscriptions if this is set
 		my $subscribe = 1;
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug      => 3,
-			shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." identity", 
-			password   => $anvil->data->{data}{password}, 
-			port       => $anvil->data->{data}{ssh_port}, 
-			target     => $anvil->data->{data}{host_ip_address},
-			user       => "root", 
+			debug       => 3,
+			shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." identity", 
+			password    => $anvil->data->{data}{password}, 
+			port        => $anvil->data->{data}{ssh_port}, 
+			target      => $anvil->data->{data}{host_ip_address},
+			remote_user => "root", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			output      => $output, 
@@ -146,13 +220,13 @@ EOF
 			my $bash_password =  $anvil->data->{data}{rh_password};
 			   $bash_password =~ s/'/\\\'/g;
 			my ($output, $error, $return_code) = $anvil->Remote->call({
-				debug      => 3,
-				shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." register --username ".$anvil->data->{data}{rh_user}." --password '".$bash_password."' --auto-attach --force",
-				password   => $anvil->data->{data}{password}, 
-				port       => $anvil->data->{data}{ssh_port}, 
-				target     => $anvil->data->{data}{host_ip_address},
-				user       => "root", 
-				timeout    => 300,
+				debug       => 3,
+				shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." register --username ".$anvil->data->{data}{rh_user}." --password '".$bash_password."' --auto-attach --force",
+				password    => $anvil->data->{data}{password}, 
+				port        => $anvil->data->{data}{ssh_port}, 
+				target      => $anvil->data->{data}{host_ip_address},
+				remote_user => "root", 
+				timeout     => 300,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output, 
@@ -202,13 +276,13 @@ EOF
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0036", variables => { repo => 'codeready-builder-for-rhel-8-x86_64-rpms' }});
 			update_progress($anvil, 10, "job_0036,!!repo!codeready-builder-for-rhel-8-x86_64-rpms!!");
 			my ($output, $error, $return_code) = $anvil->Remote->call({
-				debug      => 3,
-				shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable codeready-builder-for-rhel-8-x86_64-rpms",
-				password   => $anvil->data->{data}{password}, 
-				port       => $anvil->data->{data}{ssh_port}, 
-				target     => $anvil->data->{data}{host_ip_address},
-				user       => "root", 
-				timeout    => 300,
+				debug       => 3,
+				shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable codeready-builder-for-rhel-8-x86_64-rpms",
+				password    => $anvil->data->{data}{password}, 
+				port        => $anvil->data->{data}{ssh_port}, 
+				target      => $anvil->data->{data}{host_ip_address},
+				remote_user => "root", 
+				timeout     => 300,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output, 
@@ -221,15 +295,15 @@ EOF
 			if ($anvil->data->{data}{type} eq "node")
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0036", variables => { repo => 'rhel-8-for-x86_64-highavailability-rpms' }});
-				update_progress($anvil, 11, "job_0036,!!repo!rhel-8-for-x86_64-highavailability-rpms!!");
+				update_progress($anvil, 15, "job_0036,!!repo!rhel-8-for-x86_64-highavailability-rpms!!");
 				my ($output, $error, $return_code) = $anvil->Remote->call({
-					debug      => 3,
-					shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable rhel-8-for-x86_64-highavailability-rpms",
-					password   => $anvil->data->{data}{password}, 
-					port       => $anvil->data->{data}{ssh_port}, 
-					target     => $anvil->data->{data}{host_ip_address},
-					user       => "root", 
-					timeout    => 300,
+					debug       => 3,
+					shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable rhel-8-for-x86_64-highavailability-rpms",
+					password    => $anvil->data->{data}{password}, 
+					port        => $anvil->data->{data}{ssh_port}, 
+					target      => $anvil->data->{data}{host_ip_address},
+					remote_user => "root", 
+					timeout     => 300,
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output, 
@@ -242,18 +316,18 @@ EOF
 			}
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0037"});
-			update_progress($anvil, 12, "job_0037");
+			update_progress($anvil, 20, "job_0037");
 			undef $output;
 			undef $error;
 			undef $return_code;
 			($output, $error, $return_code) = $anvil->Remote->call({
-				debug      => 3,
-				shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." repos --list-enabled",
-				password   => $anvil->data->{data}{password}, 
-				port       => $anvil->data->{data}{ssh_port}, 
-				target     => $anvil->data->{data}{host_ip_address},
-				user       => "root", 
-				timeout    => 300,
+				debug       => 3,
+				shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." repos --list-enabled",
+				password    => $anvil->data->{data}{password}, 
+				port        => $anvil->data->{data}{ssh_port}, 
+				target      => $anvil->data->{data}{host_ip_address},
+				remote_user => "root", 
+				timeout     => 300,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output, 
@@ -278,7 +352,7 @@ EOF
 				if (not $anvil->data->{repos}{$repo})
 				{
 					# Well this is a problem...
-					update_progress($anvil, 11, "job_0038,!!repo!".$repo."!!");
+					update_progress($anvil, 25, "job_0038,!!repo!".$repo."!!");
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0038", variables => { repo => $repo }});
 				}
 			}
@@ -286,18 +360,18 @@ EOF
 	}
 	
 	# Call an OS update.
-	update_progress($anvil, 20, "job_0039");
-	update_progress($anvil, 25, "job_0040");
+	update_progress($anvil, 29, "job_0039");
+	update_progress($anvil, 30, "job_0040");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0039"});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0040"});
 	my ($output, $error, $return_code) = $anvil->Remote->call({
-		debug      => 3,
-		shell_call => $anvil->data->{path}{exe}{'dnf'}." -y update",
-		password   => $anvil->data->{data}{password}, 
-		port       => $anvil->data->{data}{ssh_port}, 
-		target     => $anvil->data->{data}{host_ip_address},
-		user       => "root", 
-		timeout    => 3600,
+		debug       => 3,
+		shell_call  => $anvil->data->{path}{exe}{'dnf'}." -y update",
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+		timeout     => 3600,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output, 
@@ -312,13 +386,13 @@ EOF
 	undef $error;
 	undef $return_code;
 	($output, $error, $return_code) = $anvil->Remote->call({
-		debug      => 3,
-		shell_call => $anvil->data->{path}{exe}{'dnf'}." -y remove biosdevname",
-		password   => $anvil->data->{data}{password}, 
-		port       => $anvil->data->{data}{ssh_port}, 
-		target     => $anvil->data->{data}{host_ip_address},
-		user       => "root", 
-		timeout    => 300,
+		debug       => 3,
+		shell_call  => $anvil->data->{path}{exe}{'dnf'}." -y remove biosdevname",
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+		timeout     => 300,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output, 
@@ -335,13 +409,13 @@ EOF
 	undef $error;
 	undef $return_code;
 	($output, $error, $return_code) = $anvil->Remote->call({
-		debug      => 3,
-		shell_call => $anvil->data->{path}{exe}{'dnf'}." -y install ".$package,
-		password   => $anvil->data->{data}{password}, 
-		port       => $anvil->data->{data}{ssh_port}, 
-		target     => $anvil->data->{data}{host_ip_address},
-		user       => "root", 
-		timeout    => 3600,
+		debug       => 3,
+		shell_call  => $anvil->data->{path}{exe}{'dnf'}." -y install ".$package,
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+		timeout     => 3600,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output, 
@@ -355,13 +429,13 @@ EOF
 	undef $error;
 	undef $return_code;
 	($output, $error, $return_code) = $anvil->Remote->call({
-		debug      => 3,
-		shell_call => $anvil->data->{path}{exe}{'dnf'}." list installed ".$package,
-		password   => $anvil->data->{data}{password}, 
-		port       => $anvil->data->{data}{ssh_port}, 
-		target     => $anvil->data->{data}{host_ip_address},
-		user       => "root", 
-		timeout    => 3600,
+		debug       => 3,
+		shell_call  => $anvil->data->{path}{exe}{'dnf'}." list installed ".$package,
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+		timeout     => 3600,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output, 

@@ -433,15 +433,15 @@ sub setup_boot_environment
 	###       We;re going to need the '.treeinfo' as well in anvil-striker-extra
 	###       - https://docs.fedoraproject.org/en-US/fedora/f28/install-guide/advanced/Network_based_Installations/
 	# Get my BCN IP and active OS.
-	$anvil->System->get_ips();
+	$anvil->Network->get_ips();
 	my $bcn_interface = "";
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface => $interface }});
 		next if $interface !~ /^bcn/;
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::network::${interface}::ip" => $anvil->data->{sys}{network}{interface}{$interface}{ip} }});
-		if ($anvil->Validate->is_ipv4({ip => $anvil->data->{sys}{network}{interface}{$interface}{ip} }))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::local::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
+		if ($anvil->Validate->is_ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }))
 		{
 			$bcn_interface = $interface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bcn_interface => $bcn_interface }});
@@ -457,10 +457,10 @@ sub setup_boot_environment
 		$anvil->nice_exit({code => 2});
 	}
 	
-	my $bcn_ip      = $anvil->data->{sys}{network}{interface}{$bcn_interface}{ip};
-	my $bcn_subnet  = $anvil->data->{sys}{network}{interface}{$bcn_interface}{subnet};
-	my $bcn_network = $anvil->Get->network({ip => $bcn_ip, subnet => $bcn_subnet});
-	my $dns         = $anvil->data->{sys}{network}{interface}{$bcn_interface}{dns} ? $anvil->data->{sys}{network}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
+	my $bcn_ip      = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{ip};
+	my $bcn_subnet  = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{subnet};
+	my $bcn_network = $anvil->Network->get_network({ip => $bcn_ip, subnet => $bcn_subnet});
+	my $dns         = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} ? $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
 	my $domain      = "localdomain";
 	my $base_url    = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
 	if ($anvil->_hostname =~ /\./)

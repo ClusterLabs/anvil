@@ -40,6 +40,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_variables
 # lock_file
 # locking
+# manage_anvil_conf
 # mark_active
 # query
 # quote
@@ -1653,7 +1654,7 @@ sub get_local_uuid
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_local_uuid()" }});
 	
 	my $local_uuid      = "";
-	my $network_details = $anvil->Get->network_details;
+	my $network_details = $anvil->Network->get_network_details;
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -5646,6 +5647,453 @@ sub locking
 	# Now return.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	return($set);
+}
+
+=head2 manage_anvil_conf
+
+This adds, removes or updates a database entry in a machine's anvil.conf file. This returns C<< 0 >> on success, C<< 1 >> if there was a problem.
+
+Parameters;
+
+=head3 db_host (required)
+
+This is the IP address or host name of the database server.
+
+=head3 db_host_uuid (required)
+
+This is the C<< host_uuid >> of the server hosting the database we will be managing.
+
+=head3 db_password (required)
+
+This is the password used to log into the database. 
+
+=head3 db_ping (optional, default '1')
+
+This sets whether the target will ping the DB server before trying to connect. See C<< Database->connect >> for more information.
+
+=head3 db_port (optional, default '5432')
+
+This is the port used to connect to the database server.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+B<< NOTE >>: Do not confuse this with C<< db_password >>. This is the password to log into the remote machine being managed.
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+B<< NOTE >>: Do not confuse this with C<< db_port >>. This is the port used to SSH into a remote machine.
+
+=head3 remote_user (optional)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+B<< NOTE >>: Do not confuse this with C<< db_user >>. This is the user to use when logging into the machine being managed.
+
+=head3 remove (optional, default '0')
+
+If set to C<< 1 >>, any existing extries for C<< host_uuid >> will be removed from that machine being managed.
+
+B<< NOTE >>: When this is set to C<< 1 >>, C<< db_password >> and C<< db_host >> are not required.
+
+=head3 target (optional)
+
+If set, the file will be read from the target machine. This must be either an IP address or a resolvable host name. 
+
+The file will be copied to the local system using C<< $anvil->Storage->rsync() >> and stored in C<< /tmp/<file_path_and_name>.<target> >>. if C<< cache >> is set, the file will be preserved locally. Otherwise it will be deleted once it has been read into memory.
+
+B<< Note >>: the temporary file will be prefixed with the path to the file name, with the C<< / >> converted to C<< _ >>.
+
+=cut
+sub manage_anvil_conf
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->manage_anvil_conf()" }});
+	
+	my $db_password  = defined $parameter->{db_password}  ? $parameter->{db_password}  : "";
+	my $db_ping      = defined $parameter->{db_ping}      ? $parameter->{db_ping}      : 1;
+	my $db_port      = defined $parameter->{db_port}      ? $parameter->{db_port}      : 5432;
+	my $db_host      = defined $parameter->{db_host}      ? $parameter->{db_host}      : "";
+	my $db_host_uuid = defined $parameter->{db_host_uuid} ? $parameter->{db_host_uuid} : "";
+	my $password     = defined $parameter->{password}     ? $parameter->{password}     : "";
+	my $port         = defined $parameter->{port}         ? $parameter->{port}         : 22;
+	my $remote_user  = defined $parameter->{remote_user}  ? $parameter->{remote_user}  : "root";
+	my $remove       = defined $parameter->{remove}       ? $parameter->{remove}       : 0;
+	my $target       = defined $parameter->{target}       ? $parameter->{target}       : "local";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		db_password  => $anvil->Log->is_secure($db_password), 
+		db_ping      => $db_ping, 
+		db_port      => $db_port, 
+		db_host_uuid => $db_host_uuid, 
+		password     => $anvil->Log->is_secure($password), 
+		port         => $port, 
+		remote_user  => $remote_user, 
+		remove       => $remove,
+		target       => $target,
+	}});
+	
+	if (not $db_host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->manage_anvil_conf()", parameter => "db_host_uuid" }});
+		return(1);
+	}
+	elsif (not $anvil->Validate->is_uuid({uuid => $db_host_uuid}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0031", variables => { db_host_uuid => $db_host_uuid }});
+		return(1);
+	}
+	if (not $remove)
+	{
+		if (not $db_host)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->manage_anvil_conf()", parameter => "db_host" }});
+			return(0);
+		}
+		if (not $db_password)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->manage_anvil_conf()", parameter => "db_password" }});
+			return(0);
+		}
+	}
+	
+	# Read in the anvil.conf
+	my ($anvil_conf) = $anvil->Storage->read_file({
+		debug       => $debug, 
+		file        => $anvil->data->{path}{configs}{'anvil.conf'},
+		force_read  => 1, 
+		port        => $port, 
+		password    => $anvil->Log->is_secure($password), 
+		remote_user => $remote_user, 
+		secure      => 1, 
+		target      => $target,
+	});
+	
+	if ($anvil_conf eq "!!error!!")
+	{
+		# Something went wrong.
+		return(1);
+	}
+	
+	# Now walk through the file and look for '### end db list ###'
+	my $rewrite            = 0;
+	my $host_variable      = "database::${db_host_uuid}::host";
+	my $host_different     = 1;
+	my $port_variable      = "database::${db_host_uuid}::port";
+	my $port_different     = 1;
+	my $password_variable  = "database::${db_host_uuid}::password";
+	my $password_different = 1;
+	my $ping_variable      = "database::${db_host_uuid}::ping";
+	my $ping_different     = 1;
+	my $delete_reported    = 0;
+	my $update_reported    = 0;
+	my $new_body           = "";
+	my $just_deleted       = 0;
+	my $test_line          = "database::${db_host_uuid}::";
+	my $insert             = "";
+	my $host_seen          = 0;
+	
+	# If we're not removing, and we don't find the entry at all, this will be inserted.
+	if (not $remove)
+	{
+		$insert =  $host_variable."		=	".$db_host."\n";
+		$insert .= $port_variable."		=	".$port."\n";
+		$insert .= $password_variable."	=	".$password."\n";
+		$insert .= $ping_variable."		=	".$db_ping."\n";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_variable     => $host_variable, 
+		port_variable     => $port_variable, 
+		password_variable => $anvil->Log->is_secure($password_variable), 
+		ping_variable     => $ping_variable,
+		insert            => $anvil->Log->is_secure($insert), 
+		test_line         => $test_line, 
+	}});
+	
+	foreach my $line (split/\n/, $anvil_conf)
+	{
+		# Secure password lines ? 
+		my $secure = (($line =~ /password/) && ($line !~ /^#/)) ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => $secure, level => $debug, list => { line => $line }});
+
+		# If I removed an entry, I also want to delete the white space after it.
+		if (($just_deleted) && ((not $line) or ($line =~ /^\s+$/)))
+		{
+			$just_deleted = 0;
+			next;
+		}
+		$just_deleted = 0;
+		
+		# If we've hit the end of the DB list, see if we need to insert a new entry.
+		if ($line eq "### end db list ###")
+		{
+			# If I've not seen this DB, enter it.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { 
+				host_seen => $host_seen,
+				remove    => $remove,
+			}});
+			if ((not $host_seen) && (not $remove))
+			{
+				$new_body .= $insert."\n";
+				$rewrite  =  1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { 
+					new_body => $new_body,
+					rewrite  => $rewrite,
+				}});
+			}
+		}
+		
+		# Now Skip any more comments.
+		if ($line =~ /^#/)
+		{
+			$new_body .= $line."\n";
+			next;
+		}
+		# Process lines with the 'var = val' format
+		if ($line =~ /^(.*?)(\s*)=(\s*)(.*)$/)
+		{
+			my $variable    = $1;
+			my $left_space  = $2;
+			my $right_space = $3; 
+			my $value       = $4;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:variable"    => $variable,
+				"s2:value"       => $value, 
+				"s3:left_space"  => $left_space, 
+				"s4:right_space" => $right_space, 
+			}});
+			
+			# Is the the host line we're possibly updating?
+			if ($variable eq $host_variable)
+			{
+				# Yup. Are we removing it, or do we need to edit it?
+				$host_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:value"     => $value,
+					"s2:db_host"   => $db_host, 
+					"s3:host_seen" => $host_seen, 
+				}});
+				if ($remove)
+				{
+					# Remove the line
+					$delete_reported = 1;
+					$just_deleted    = 1;
+					$rewrite         = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						just_deleted    => $just_deleted, 
+						rewrite         => $rewrite,
+						delete_reported => $delete_reported, 
+					}});
+					next;
+				}
+				elsif ($value eq $db_host)
+				{
+					# No change.
+					$host_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_different => $host_different }});
+				}
+				else
+				{
+					# Needs to be updated.
+					$line    = $variable.$left_space."=".$right_space.$db_host;
+					$rewrite = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						line    => $line,
+						rewrite => $rewrite, 
+					}});
+				}
+			}
+			elsif ($variable eq $port_variable)
+			{
+				# Port line
+				$host_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:value"     => $value,
+					"s2:port"      => $port, 
+					"s3:host_seen" => $host_seen, 
+				}});
+				if ($remove)
+				{
+					# Remove it
+					$delete_reported = 1;
+					$just_deleted    = 1;
+					$rewrite         = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						delete_reported => $delete_reported, 
+						just_deleted    => $just_deleted, 
+						rewrite         => $rewrite,
+					}});
+					next;
+				}
+				elsif ($value eq $port)
+				{
+					# No change.
+					$port_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port_different => $port_different }});
+				}
+				else
+				{
+					# Needs to be updated.
+					$update_reported = 1;
+					$line            = $variable.$left_space."=".$right_space.$port;
+					$rewrite         = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						update_reported => $update_reported, 
+						line            => $line,
+						rewrite         => $rewrite, 
+					}});
+				}
+			}
+			elsif ($variable eq $password_variable)
+			{
+				# Password
+				$host_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+					"s1:value"     => $value,
+					"s2:password"  => $anvil->Log->is_secure($password), 
+					"s3:host_seen" => $host_seen, 
+				}});
+				if ($remove)
+				{
+					# Remove it
+					$delete_reported = 1;
+					$just_deleted    = 1;
+					$rewrite         = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						delete_reported => $delete_reported, 
+						just_deleted    => $just_deleted, 
+						rewrite         => $rewrite,
+					}});
+					next;
+				}
+				elsif ($value eq $password)
+				{
+					# No change.
+					$password_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { password_different => $password_different }});
+				}
+				else
+				{
+					# Changed, update it
+					$update_reported = 1;
+					$line            = $variable.$left_space."=".$right_space.$password;
+					$rewrite         = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						update_reported => $update_reported, 
+						line            => $anvil->Log->is_secure($line),
+						rewrite         => $rewrite, 
+					}});
+				}
+			}
+			elsif ($variable eq $ping_variable)
+			{
+				# Ping?
+				$host_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:value"     => $value,
+					"s2:db_ping"   => $db_ping, 
+					"s3:host_seen" => $host_seen, 
+				}});
+				if ($remove)
+				{
+					# Remove it
+					$delete_reported = 1;
+					$just_deleted    = 1;
+					$rewrite         = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						delete_reported => $delete_reported, 
+						just_deleted    => $just_deleted, 
+						rewrite         => $rewrite,
+					}});
+					next;
+				}
+				elsif ($value eq $db_ping)
+				{
+					# No change.
+					$ping_different = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ping_different => $ping_different }});
+				}
+				else
+				{
+					# Changed, update
+					$update_reported = 1;
+					$line            = $variable.$left_space."=".$right_space.$db_ping;
+					$rewrite         = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						update_reported => $update_reported, 
+						line            => $line,
+						rewrite         => $rewrite, 
+					}});
+				}
+			}
+		}
+		# Add the (modified?) line to the new body.
+		$new_body .= $line."\n";
+	}
+
+	# If there was a change, write the file out.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:new_body' => $new_body, 
+		's2:rewrite'  => $rewrite,
+	}});
+	
+	if ($rewrite)
+	{
+		# Backup the original
+		my $backup_file = $anvil->Storage->backup({
+			debug       => 2,
+			secure      => 1, 
+			file        => $anvil->data->{path}{configs}{'anvil.conf'},
+			password    => $password, 
+			port        => $port, 
+			remote_user => $remote_user, 
+			target      => $target,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+		
+		# Now update!
+		my ($failed) = $anvil->Storage->write_file({
+			secure      => 1, 
+			file        => $anvil->data->{path}{configs}{'anvil.conf'}, 
+			body        => $new_body, 
+			user        => "admin", 
+			group       => "admin", 
+			mode        => "0644",
+			overwrite   => 1,
+			password    => $anvil->Log->is_secure($password), 
+			port        => $port, 
+			remote_user => $remote_user, 
+			target      => $target,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+		if ($failed)
+		{
+			# Simething went weong.
+			return(1);
+		}
+		
+		# If this is a local update, disconnect (if no connections exist, will still clear out known 
+		# databases), the re-read the new config.
+		if (not $anvil->Network->is_remote($target))
+		{
+			$anvil->Database->disconnect;
+			
+			# Re-read the config.
+			sleep 1;
+			$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+			
+			# Reconnect
+			$anvil->Database->connect();
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+		}
+	}
+	
+	return(0);
 }
 
 =head2 mark_active

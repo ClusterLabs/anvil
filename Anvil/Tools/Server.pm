@@ -229,7 +229,7 @@ sub find
 	my $host         = $anvil->_hostname;
 	my $virsh_output = "";
 	my $return_code  = "";
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call.
 		($host, my $error, my $host_return_code) = $anvil->Remote->call({
@@ -357,7 +357,7 @@ sub get_status
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
 	my $host       = $anvil->_short_hostname;
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call.
 		$host = $target;

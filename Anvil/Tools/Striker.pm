@@ -134,21 +134,21 @@ sub get_local_repo
 	}
 	
 	# What are my IPs?
-	$anvil->System->get_ips();
+	$anvil->Network->get_ips();
 	my $base_url = "";
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
-		if ($anvil->data->{sys}{network}{interface}{$interface}{ip})
+		if ($anvil->data->{network}{'local'}{interface}{$interface}{ip})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::network::interface::${interface}::ip" => $anvil->data->{sys}{network}{interface}{$interface}{ip} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
 			if (not $base_url)
 			{
-				$base_url = "baseurl=http://".$anvil->data->{sys}{network}{interface}{$interface}{ip}.$directory;
+				$base_url = "baseurl=http://".$anvil->data->{network}{'local'}{interface}{$interface}{ip}.$directory;
 			}
 			else
 			{
-				$base_url .= "\n        http://".$anvil->data->{sys}{network}{interface}{$interface}{ip}.$directory;
+				$base_url .= "\n        http://".$anvil->data->{network}{'local'}{interface}{$interface}{ip}.$directory;
 			}
 		}
 	}

@@ -27,7 +27,6 @@ my $THIS_FILE = "System.pm";
 # get_host_type
 # enable_daemon
 # find_matching_ip
-# get_ips
 # get_uptime
 # get_os_type
 # hostname
@@ -958,7 +957,7 @@ sub get_host_type
 		$host_type = $anvil->data->{sys}{host_type};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	}
-	elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/))
+	elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/) or ($host_name =~ /new-node+$/))
 	{
 		$host_type = "node";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
@@ -968,7 +967,7 @@ sub get_host_type
 		$host_type = "dashboard";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	}
-	elsif ($host_name =~ /dr\d+$/)
+	elsif (($host_name =~ /dr\d+$/) or ($host_name =~ /new-dr$/))
 	{
 		$host_type = "dr";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
@@ -1059,18 +1058,18 @@ sub find_matching_ip
 	}
 	
 	# Get my local IPs
-	$anvil->System->get_ips({debug => $debug});
+	$anvil->Network->get_ips({debug => $debug});
 	
 	my $ip = NetAddr::IP->new($host);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 	
 	# Look through our IPs. First match wins.
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{sys}{network}{interface}})
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
-		next if not $anvil->data->{sys}{network}{interface}{$interface}{ip};
-		my $this_ip     = $anvil->data->{sys}{network}{interface}{$interface}{ip};
-		my $this_subnet = $anvil->data->{sys}{network}{interface}{$interface}{subnet};
+		next if not $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+		my $this_ip     = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+		my $this_subnet = $anvil->data->{network}{'local'}{interface}{$interface}{subnet};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:this_ip"     => $this_ip,
 			"s2:this_subnet" => $this_subnet, 
@@ -1094,256 +1093,6 @@ sub find_matching_ip
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_ip => $local_ip }});
 	return($local_ip);
-}
-
-=head2 get_ips
-
-This method checks the local system for interfaces and stores them in:
-
-* C<< sys::network::interface::<iface_name>::ip >>              - If an IP address is set
-* C<< sys::network::interface::<iface_name>::subnet >>          - If an IP is set
-* C<< sys::network::interface::<iface_name>::mac >>             - Always set.
-* C<< sys::network::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
-* C<< sys::network::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
-* C<< sys::network::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
-
-To aid in look-up by MAC address, C<< sys::mac::<mac_address>::iface >> is also set.
-
-No parameters are accepted by this method.
-
-=cut
-sub get_ips
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_ips()" }});
-	
-	my $in_iface                = "";
-	my ($ip_addr, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ip}." addr list"});
-	foreach my $line (split/\n/, $ip_addr)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /^\d+: (.*?): /)
-		{
-			$in_iface = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_iface => $in_iface }});
-			
-			$anvil->data->{sys}{network}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{ip};
-			$anvil->data->{sys}{network}{interface}{$in_iface}{subnet}          = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{subnet};
-			$anvil->data->{sys}{network}{interface}{$in_iface}{mac}             = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{mac};
-			$anvil->data->{sys}{network}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{default_gateway};
-			$anvil->data->{sys}{network}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{gateway};
-			$anvil->data->{sys}{network}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{sys}{network}{interface}{$in_iface}{dns};
-		}
-		next if not $in_iface;
-		if ($in_iface eq "lo")
-		{
-			# We don't care about 'lo'.
-			delete $anvil->data->{sys}{network}{interface}{$in_iface};
-			next;
-		}
-		if ($line =~ /inet (.*?)\/(.*?) /)
-		{
-			my $ip   = $1;
-			my $cidr = $2;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip, cidr => $cidr }});
-			
-			my $subnet = $cidr;
-			if (($cidr =~ /^\d{1,2}$/) && ($cidr >= 0) && ($cidr <= 32))
-			{
-				# Convert to subnet
-				$subnet = $anvil->Convert->cidr({cidr => $cidr});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet => $subnet }});
-			}
-			
-			$anvil->data->{sys}{network}{interface}{$in_iface}{ip}     = $ip;
-			$anvil->data->{sys}{network}{interface}{$in_iface}{subnet} = $subnet;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:sys::network::interface::${in_iface}::ip"     => $anvil->data->{sys}{network}{interface}{$in_iface}{ip},
-				"s2:sys::network::interface::${in_iface}::subnet" => $anvil->data->{sys}{network}{interface}{$in_iface}{subnet},
-			}});
-		}
-		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
-		{
-			my $mac                                                    = $1;
-			   $anvil->data->{sys}{network}{interface}{$in_iface}{mac} = $mac;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::network::interface::${in_iface}::mac" => $anvil->data->{sys}{network}{interface}{$in_iface}{mac},
-			}});
-			
-			# We only record the mac in 'sys::mac' if this isn't a bond.
-			my $test_file = "/proc/net/bonding/".$in_iface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_file => $test_file }});
-			if (not -e $test_file)
-			{
-				$anvil->data->{sys}{mac}{$mac}{iface} = $in_iface;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::mac::${mac}::iface" => $anvil->data->{sys}{mac}{$mac}{iface}, 
-				}});
-			}
-		}
-	}
-	
-	# Read the config files for the interfaces we've found.
-	local(*DIRECTORY);
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { "path::directories::ifcfg" => $anvil->data->{path}{directories}{ifcfg} }});
-	opendir(DIRECTORY, $anvil->data->{path}{directories}{ifcfg});
-	while(my $file = readdir(DIRECTORY))
-	{
-		next if $file eq ".";
-		next if $file eq "..";
-		next if $file eq "ifcfg-lo";
-		next if $file !~ /^ifcfg/;
-		next if $file =~ /\.bak$/;
-		my $full_path =  $anvil->data->{path}{directories}{ifcfg}."/".$file;
-		   $full_path =~ s/\/\///g;
-		next if not -f $full_path;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
-		
-		# Read the file.
-		my $file_body = $anvil->Storage->read_file({file => $full_path});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"s1:full_path" => $full_path,
-			"s2:file_body" => $file_body, 
-		}});
-		
-		# Break it apart and store any variables.
-		my $temp      = {};
-		my $interface = "";
-		foreach my $line (split/\n/, $file_body)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-			next if $line =~ /^#/;
-			if ($line =~ /(.*?)=(.*)/)
-			{
-				my $variable =  $1;
-				my $value    =  $2;
-				   $value    =~ s/^"(.*)"$/$1/;
-				$temp->{$variable} = $value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "temp->{$variable}" => $temp->{$variable} }});
-				
-				if (uc($variable) eq "DEVICE")
-				{
-					$interface = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "interface" => $interface }});
-				}
-			}
-			
-			if ($interface)
-			{
-				$anvil->data->{sys}{network}{interface}{$interface}{file} = $full_path;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"sys::network::interface::${interface}::file" => $anvil->data->{sys}{network}{interface}{$interface}{file},
-				}});
-				foreach my $variable (sort {$a cmp $b} keys %{$temp})
-				{
-					$anvil->data->{sys}{network}{interface}{$interface}{variable}{$variable} = $temp->{$variable};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"sys::network::interface::${interface}::file::variable::${variable}" => $anvil->data->{sys}{network}{interface}{$interface}{variable}{$variable},
-					}});
-				}
-			}
-		}
-	}
-	closedir(DIRECTORY);
-	
-	# Get the routing info.
-	my $lowest_metric            = 99999999;
-	my $route_interface          = "";
-	my $route_ip                 = "";
-	(my $ip_route, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ip}." route show"});
-	foreach my $line (split/\n/, $ip_route)
-	{
-		$line = $anvil->Words->clean_spaces({ string => $line });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /default via (.*?) dev (.*?) proto .*? metric (\d+)/i)
-		{
-			my $this_ip        = $1;
-			my $this_interface = $2;
-			my $metric         = $3;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				's1:this_ip'        => $this_ip,
-				's2:this_interface' => $this_interface, 
-				's3:metric'         => $metric, 
-				's4:lowest_metric'  => $lowest_metric, 
-			}});
-			
-			if ($metric < $lowest_metric)
-			{
-				$lowest_metric   = $metric;
-				$route_interface = $this_interface;
-				$route_ip        = $this_ip;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					lowest_metric   => $lowest_metric,
-					route_interface => $route_interface, 
-					route_ip        => $route_ip, 
-				}});
-			}
-		}
-	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		route_interface => $route_interface, 
-		route_ip        => $route_ip, 
-	}});
-	
-	# If I got a route, get the DNS.
-	if ($route_interface)
-	{
-		# I want to build the DNS list from only the interface that is used for routing.
-		my $in_interface             = "";
-		my $dns_list                 = "";
-		my $dns_hash                 = {};
-		my ($ip_route, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{nmcli}." dev show"});
-		foreach my $line (split/\n/, $ip_route)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-			if ($line =~ /GENERAL.DEVICE:\s+(.*)$/)
-			{
-				$in_interface = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_interface => $in_interface }});
-			}
-			if (not $line)
-			{
-				$in_interface = "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_interface => $in_interface }});
-			}
-			
-			next if $in_interface ne $route_interface;
-			
-			if ($line =~ /IP4.DNS\[(\d+)\]:\s+(.*)/i)
-			{
-				my $order = $1;
-				my $ip    = $2;
-				
-				$dns_hash->{$order} = $ip;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "dns_hash->{$order}" => $dns_hash->{$order} }});
-			}
-		}
-		
-		foreach my $order (sort {$a cmp $b} keys %{$dns_hash})
-		{
-			$dns_list .= $dns_hash->{$order}.", ";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:dns_hash->{$order}" => $dns_hash->{$order}, 
-				"s2:dns_list"           => $dns_list, 
-			}});
-		}
-		$dns_list =~ s/, $//;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dns_list => $dns_list }});
-		
-		$anvil->data->{sys}{network}{interface}{$route_interface}{default_gateway} = 1;
-		$anvil->data->{sys}{network}{interface}{$route_interface}{gateway}         = $route_ip;
-		$anvil->data->{sys}{network}{interface}{$route_interface}{dns}             = $dns_list;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"sys::network::interface::${route_interface}::default_gateway" => $anvil->data->{sys}{network}{interface}{$route_interface}{default_gateway}, 
-			"sys::network::interface::${route_interface}::gateway"         => $anvil->data->{sys}{network}{interface}{$route_interface}{gateway}, 
-			"sys::network::interface::${route_interface}::dns"             => $anvil->data->{sys}{network}{interface}{$route_interface}{dns}, 
-		}});
-	}
-	
-	return(0);
 }
 
 =head2 get_uptime
@@ -1549,7 +1298,7 @@ sub is_local
 	else
 	{
 		# Get the list of current IPs and see if they match.
-		my $network = $anvil->Get->network_details;
+		my $network = $anvil->Network->get_network_details;
 		foreach my $interface (keys %{$network->{interface}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network->interface::${interface}::ip" => $network->{interface}{$interface}{ip} }});
@@ -2373,7 +2122,7 @@ sub ping
 		my $error  = "";
 		
 		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our hostname.
-		if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+		if ($anvil->Network->is_remote($target))
 		{
 			### Remote calls
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});

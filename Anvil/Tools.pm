@@ -23,6 +23,7 @@ my $THIS_FILE = "Tools.pm";
 # data
 # environment
 # nice_exit
+# refresh
 # _add_hash_reference
 # _anvil_version
 # _hostname
@@ -46,6 +47,7 @@ use Anvil::Tools::DRBD;
 use Anvil::Tools::Get;
 use Anvil::Tools::Job;
 use Anvil::Tools::Log;
+use Anvil::Tools::Network;
 use Anvil::Tools::Remote;
 use Anvil::Tools::Server;
 use Anvil::Tools::Striker;
@@ -126,6 +128,7 @@ sub new
 			GET				=>	Anvil::Tools::Get->new(),
 			LOG				=>	Anvil::Tools::Log->new(),
 			JOB				=>	Anvil::Tools::Job->new(),
+			NETWORK				=>	Anvil::Tools::Network->new(),
 			REMOTE				=>	Anvil::Tools::Remote->new(),
 			SERVER				=>	Anvil::Tools::Server->new(),
 			STRIKER				=>	Anvil::Tools::Striker->new(),
@@ -166,6 +169,7 @@ sub new
 	$anvil->Get->parent($anvil);
 	$anvil->Log->parent($anvil);
 	$anvil->Job->parent($anvil);
+	$anvil->Network->parent($anvil);
 	$anvil->Remote->parent($anvil);
 	$anvil->Server->parent($anvil);
 	$anvil->Striker->parent($anvil);
@@ -407,6 +411,26 @@ sub nice_exit
 	exit($exit_code);
 }
 
+=head2 refresh
+
+This method re-reads the configuration file and resets paths, defaults and re-reads the words file(s).
+
+=cut
+sub refresh
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	$anvil->_set_paths();
+	$anvil->_set_defaults();	# This reset the log level
+	$anvil->Storage->read_config();	# This reset the log level also
+	$anvil->Get->switches;		# Re-read to let switches override again.
+	$anvil->Words->read();
+	
+	return(0);
+}
 
 #############################################################################################################
 # Public methods used to access sub modules.                                                                #
@@ -512,6 +536,18 @@ sub Log
 	my $self = shift;
 	
 	return ($self->{HANDLE}{LOG});
+}
+
+=head2 Network
+
+Access the C<Network.pm> methods via 'C<< $anvil->Network->method >>'.
+
+=cut
+sub Network
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{NETWORK});
 }
 
 =head2 Remote
@@ -1063,6 +1099,7 @@ sub _set_paths
 				'iptables-save'			=>	"/usr/sbin/iptables-save",
 				journalctl			=>	"/usr/bin/journalctl",
 				logger				=>	"/usr/bin/logger",
+				ls				=>	"/usr/bin/ls",
 				lvchange			=>	"/usr/sbin/lvchange",
 				lvs				=>	"/usr/sbin/lvs", 
 				lvscan				=>	"/usr/sbin/lvscan", 

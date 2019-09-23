@@ -20,8 +20,6 @@ my $THIS_FILE = "Get.pm";
 # date_and_time
 # host_uuid
 # md5sum
-# network
-# network_details
 # switches
 # users_home
 # uuid
@@ -136,7 +134,7 @@ sub anvil_version
 	}});
 	
 	# Is this a local call or a remote call?
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call. If we're running as the apache user, we need to read the cached version for 
 		# the peer. otherwise, after we read the version, will write the cached version.
@@ -690,131 +688,6 @@ sub md5sum
 	}
 	
 	return($sum);
-}
-
-=head2 network
-
-This takes an IP address and subnet and returns the network it belongs too. For example;
-
- my $network = $anvil->Get->network({ip => "10.2.4.1", subnet => "255.255.0.0"});
-
-This would set C<< $network >> to C<< 10.2.0.0 >>.
-
-If the network can't be caluclated for any reason, and empty string will be returned.
-
-Parameters;
-
-=head3 ip (required)
-
-This is the IPv4 IP address being calculated.
-
-=head3 subnet (required)
-
-This is the subnet of the IP address being calculated.
-
-=cut
-sub network
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	
-	my $network = "";
-	my $ip      = defined $parameter->{ip}     ? $parameter->{ip}     : "";
-	my $subnet  = defined $parameter->{subnet} ? $parameter->{subnet} : "";
-	
-	if (not $ip)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->network()", parameter => "ip" }});
-	}
-	if (not $subnet)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->network()", parameter => "subnet" }});
-	}
-	
-	my $block = Net::Netmask->new($ip."/".$subnet);
-	my $base  = $block->base();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base => $base }});
-	
-	if ($anvil->Validate->is_ipv4({ip => $base}))
-	{
-		$network = $base;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network => $network }});
-	}
-	
-	return($network);
-}
-
- 
-### TODO: Is this a waste of time / duplicate of System->get_ips()?
-=head2 network_details
-
-This method returns the local hostname and IP addresses.
-
-It returns a hash reference containing data in the following keys:
-
-C<< hostname >> = <name>
-C<< interface::<interface>::ip >> = <ip_address>
-C<< interface::<interface>::netmask >> = <dotted_decimal_subnet>
-
-=cut
-sub network_details
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	
-	my $network                      = {};
-	my ($hostname, $return_code)     = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
-	(my $ip_addr_list, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." addr list"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		hostname     => $hostname, 
-		ip_addr_list => $ip_addr_list,
-	}});
-	$network->{hostname} = $hostname;
-	
-	my $in_interface = "";
-	my $ip_address   = "";
-	my $subnet_mask  = "";
-	foreach my $line (split/\n/, $ip_addr_list)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /^\d+: (.*?):/)
-		{
-			$in_interface = $1;
-			$ip_address   = "";
-			$subnet_mask  = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_interface => $in_interface }});
-			next if $in_interface eq "lo";
-			$network->{interface}{$in_interface}{ip}      = "--";
-			$network->{interface}{$in_interface}{netmask} = "--";
-		}
-		if ($in_interface)
-		{
-			next if $in_interface eq "lo";
-			if ($line =~ /inet (.*?)\/(.*?) /)
-			{
-				$ip_address   = $1;
-				$subnet_mask  = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					ip_address  => $ip_address,
-					subnet_mask => $subnet_mask, 
-				}});
-				
-				if ((($subnet_mask =~ /^\d$/) or ($subnet_mask =~ /^\d\d$/)) && ($subnet_mask < 25))
-				{
-					$subnet_mask = $anvil->Convert->cidr({cidr => $subnet_mask});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet_mask => $subnet_mask }});
-				}
-				$network->{interface}{$in_interface}{ip}      = $ip_address;
-				$network->{interface}{$in_interface}{netmask} = $subnet_mask;
-			}
-		}
-	}
-	
-	return($network);
 }
 
 =head2 switches
