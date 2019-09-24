@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        24%{?dist}
+Release:        25%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -287,6 +287,9 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+* Mon Sep 23 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-25
+- Fixed a couple bugs found in the previous release.
+
 * Sun Sep 22 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-24
 - Added syslinux to core requirements.
 - Added installation of ocf:alteeve:server resource agent to nodes.

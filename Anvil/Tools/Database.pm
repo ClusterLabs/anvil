@@ -1653,14 +1653,12 @@ sub get_local_uuid
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_local_uuid()" }});
 	
-	my $local_uuid      = "";
-	my $network_details = $anvil->Network->get_network_details;
+	my $local_uuid = "";
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network_details->hostname" => $network_details->{hostname},
-			"database::${uuid}::host"   => $anvil->data->{database}{$uuid}{host},
-		}});
+		my $db_host = $anvil->data->{database}{$uuid}{host};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { db_host => $db_host }});
+		
 		# If the uuid matches our host_uuid or if the hostname matches ours (or is localhost), return
 		# that UUID.
 		if ($uuid eq $anvil->Get->host_uuid)
@@ -1669,7 +1667,7 @@ sub get_local_uuid
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 			last;
 		}
-		elsif (($network_details->{hostname} eq $anvil->data->{database}{$uuid}{host}) or ($anvil->data->{database}{$uuid}{host} eq "localhost"))
+		elsif ($anvil->Network->is_local($db_host))
 		{
 			$local_uuid = $uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
@@ -1677,13 +1675,17 @@ sub get_local_uuid
 		}
 	}
 	
+	# Get out IPs.
+	$anvil->Network->get_ips({debug => $debug});
+	
+	# Look for matches
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 	if (not $local_uuid)
 	{
-		foreach my $interface (sort {$a cmp $b} keys %{$network_details->{interface}})
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
-			my $ip_address  = $network_details->{interface}{$interface}{ip};
-			my $subnet_mask = $network_details->{interface}{$interface}{netmask};
+			my $ip_address  = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+			my $subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ip_address  => $ip_address,
 				subnet_mask => $subnet_mask,
