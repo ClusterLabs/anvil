@@ -73,7 +73,9 @@ selinux --permissive
 %packages
 @^minimal-environment
 alteeve-el8-repo
+perl
 rsync
+vim
 
 %end
 

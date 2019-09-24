@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+# 
+# This parses the current IP addresses on the local system and writes them to /etc/issue so that they're seen
+# by a user at the login prompt. This is meant to be useful during the initialization and setup stages, so 
+# it's expected to run before the Anvil::Tools module is installed. As such, it doesn't use those modules.
+# 
+
+use strict;
+use warnings;
+use IO::Handle;
+
+my $shell_call = "/usr/sbin/ip ip list all";
+my $issue      = '\S
+Kernel \r on an \m
+';
+my $interface  = "";
+open (my $file_handle, $shell_call.$redirect."; ".$anvil->data->{path}{exe}{echo}." return_code:\$? |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+while(<$file_handle>)
+{
+	chomp;
+	my $line =  $_;
+	   $line =~ s/\n$//;
+	   $line =~ s/\r$//;
+	if ($line =~ /^\d+: (.*?): </)
+	{
+		$interface = $1
+		print "In interface: [".$interface."]\n";
+	}
+	next if not $interface;
+	if ($line =~ / inet (\d+\.\d+\.\d+\.\d+)\//)
+	{
+		my $ip = $1; 
+		print "- IP: [".$ip."]\n";
+	}
+}
+close $file_handle;
+
+
+exit(0);
+

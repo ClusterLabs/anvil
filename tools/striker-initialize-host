@@ -194,14 +194,14 @@ EOF
 		# We'll attach subscriptions if this is set
 		my $subscribe = 1;
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug       => 3,
+			debug       => 2,
 			shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." identity", 
 			password    => $anvil->data->{data}{password}, 
 			port        => $anvil->data->{data}{ssh_port}, 
 			target      => $anvil->data->{data}{host_ip_address},
 			remote_user => "root", 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output, 
 			error       => $error, 
 			return_code => $return_code,
@@ -220,7 +220,7 @@ EOF
 			my $bash_password =  $anvil->data->{data}{rh_password};
 			   $bash_password =~ s/'/\\\'/g;
 			my ($output, $error, $return_code) = $anvil->Remote->call({
-				debug       => 3,
+				debug       => 2,
 				shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." register --username ".$anvil->data->{data}{rh_user}." --password '".$bash_password."' --auto-attach --force",
 				password    => $anvil->data->{data}{password}, 
 				port        => $anvil->data->{data}{ssh_port}, 
@@ -592,7 +592,7 @@ sub get_job_details
 	$anvil->data->{data}{say_target} = "root\@".$anvil->data->{data}{host_ip_address}.":".$anvil->data->{data}{ssh_port};
 	
 	# Update that we've picked the job up.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0027"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0027,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!"});
 	update_progress($anvil, 0, "clear");
 	update_progress($anvil, 1, "job_0027");
 	

@@ -972,7 +972,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0024">Connected!</key>
 		<key name="job_0025">Unable to connect to: [#!variable!target!#]. Will keep trying for another: [#!variable!timeout!#] seconds...</key>
 		<key name="job_0026">Unable to connect, the job has failed.</key>
-		<key name="job_0027">'Initialize host' job: [#!data!switches::job-uuid!#] picked up.</key>
+		<key name="job_0027">'Initialize host' job: [#!variable!switches::job-uuid!#] picked up.</key>
 		<key name="job_0028">Adding repositories.</key>
 		<key name="job_0029">Added the repository for this dashboard.</key>
 		<key name="job_0030">Red Hat subscription information provides, attempting to register now.</key>
@@ -993,7 +993,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0041">Removing conflicting packages.</key>
 		<key name="job_0042">Will now install: [#!variable!package!#].</key>
 		<key name="job_0043">Verifying installation.</key>
-		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::configs::anvil.conf!#.</key>
+		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::log::file!#.</key>
 		<key name="job_0045">Success!</key>
 		<key name="job_0046">Adding our database connection information to the target's anvil.conf file!</key>
 		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
