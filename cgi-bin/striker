@@ -664,6 +664,7 @@ sub process_prep_host_page
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { rh_template => $rh_template }});
 			}
 			
+			### NOTE: Left off here. Need to pick up the message from a bad/changed fingerprint when it's the cause of a failed login. Create a button to remove the bad key.
 			if (not $connected)
 			{
 				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0012"}) }});

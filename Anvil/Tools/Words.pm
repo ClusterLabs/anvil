@@ -278,9 +278,57 @@ sub parse_banged_string
 	my $key_string = defined $parameter->{key_string} ? $parameter->{key_string} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
 	
-	# If the string ended with newline before the final '!!', it will break things.
-	$key_string =~ s/\n!!/!!/gs;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
+	# Some variable values will be multi-line strings. We need to replace the new-lines in those 
+	# multi-line values into '##br##' so that we can do a proper variable insertion. We can't simply 
+	# replace all new-lines, however, as it's normal to have multiple keys, each on their own line.
+	if ($key_string =~ /\n/gs)
+	{
+		my $in_value   = 0;
+		my $new_string = "";
+		foreach my $line (split/\n/, $key_string)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if (($line =~ /^\w.*?,!!/) && ($line !~ /!!$/))
+			{
+				$in_value   =  1;
+				$new_string .= $line."##br##";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					in_value   => $in_value, 
+					new_string => $new_string,
+				}});
+			}
+			elsif ($in_value)
+			{
+				if ($line =~ /!!$/)
+				{
+					$in_value   =  0;
+					$new_string .= $line."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						in_value   => $in_value, 
+						new_string => $new_string,
+					}});
+				}
+				else
+				{
+					$new_string .= $line."##br##";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						in_value   => $in_value, 
+						new_string => $new_string,
+					}});
+				}
+			}
+			else
+			{
+				$new_string .= $line."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					in_value   => $in_value, 
+					new_string => $new_string,
+				}});
+			}
+		}
+		$new_string =~ s/\n$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_string => $new_string }});
+	}
 	
 	# There might be multiple keys, split by newlines.
 	foreach my $message (split/\n/, $key_string)
@@ -353,7 +401,9 @@ sub parse_banged_string
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
+	# Switch the breaks back to new-lines
+	$out_string =~ s/##br##/\n/gs;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
 	return($out_string);
 }
 

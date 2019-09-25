@@ -73,7 +73,7 @@ selinux --permissive
 %packages
 @^minimal-environment
 alteeve-el8-repo
-perl
+perl-interpreter
 rsync
 vim
 
@@ -105,6 +105,98 @@ mkdir -p /mnt/sysimage/root/install_logs/run
 rsync -av /tmp         /mnt/sysimage/root/install_logs/
 rsync -av /run/install /mnt/sysimage/root/install_logs/run/
 rsync -av /var/log     /mnt/sysimage/root/install_logs/var/
+
+echo 'Writing out the initial /etc/issue script.'
+reset
+cat << EOF > /mnt/sysimage/usr/sbin/anvil-update-issue
+#!/usr/bin/perl
+# 
+# This parses the current IP addresses on the local system and writes them to /etc/issue so that they're seen
+# by a user at the login prompt. This is meant to be useful during the initialization and setup stages, so 
+# it's expected to run before the Anvil::Tools module is installed. As such, it doesn't use those modules.
+# 
+
+use strict;
+use warnings;
+use IO::Handle;
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+\$| = 1;
+
+my \$THIS_FILE           =  (\$0 =~ /^.*\/(.*)\$/)[0];
+my \$running_directory   =  (\$0 =~ /^(.*?)\/\$THIS_FILE\$/)[0];
+if ((\$running_directory =~ /^\./) && (\$ENV{PWD}))
+{
+        \$running_directory =~ s/^\./\$ENV{PWD}/;
+}
+
+my \$shell_call = "/usr/sbin/ip addr list";
+my \$new_issue  = '\S
+Kernel \r on an \m
+';
+my \$ips        = {};
+my \$interface  = "";
+open (my \$file_handle, \$shell_call." 2>&1 |") or die "Failed to call: [".\$shell_call."], error was: [".\$!."]\n";
+while(<\$file_handle>)
+{
+        chomp;
+        my \$line =  \$_;
+           \$line =~ s/\n\$//;
+           \$line =~ s/\r\$//;
+        if (\$line =~ /^\d+: (.*?): </)
+        {
+                \$interface = \$1;
+        }
+        next if not \$interface;
+        next if \$interface eq "lo";
+        if (\$line =~ / inet (\d+\.\d+\.\d+\.\d+\/\d+) /)
+        {
+                my \$ip = \$1; 
+                \$ips->{\$interface} = \$ip;
+        }
+}
+close \$file_handle;
+
+if (keys %{\$ips})
+{
+        \$new_issue .= "\nActive IPs:\n";
+        foreach my \$interface (sort {\$a cmp \$b} keys %{\$ips})
+        {
+                \$new_issue .= "- ".\$interface.": ".\$ips->{\$interface}."\n";
+        }
+        \$new_issue .= "\n";
+}
+
+# Read in the current issue file and see if there is any difference.
+my \$old_issue  = "";
+my \$issue_file = "/etc/issue";
+open (\$file_handle, "<", \$issue_file) or die "Failed to read: [".\$issue_file."], error was: [".\$!."]\n";
+while(<\$file_handle>)
+{
+        ### NOTE: Don't chop this, we want to record exactly what we read
+        \$old_issue .= \$_;
+}
+close \$file_handle;
+
+my \$update = \$new_issue eq \$old_issue ? 0 : 1;
+if (\$update)
+{
+        open (my \$file_handle, ">", \$issue_file) or die "Failed to write: [".\$issue_file."], the error was: [".\$!."]\n";
+        print \$file_handle \$new_issue;
+        close \$file_handle;
+}
+
+exit(0);
+EOF
+chmod 755 /mnt/sysimage/usr/sbin/anvil-update-issue
+
+# Add this to crontab.
+cat << EOF > /mnt/sysimage/var/spool/cron/root
+MAILTO=""
+* * * * * /usr/sbin/anvil-update-issue >> /var/log/anvil.cron 2>&1 
+EOF
+chown 0:0 /mnt/sysimage/var/spool/cron/root
+chmod 0600 /mnt/sysimage/var/spool/cron/root
 
 %end
 

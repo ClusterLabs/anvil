@@ -9,12 +9,23 @@ use strict;
 use warnings;
 use IO::Handle;
 
-my $shell_call = "/usr/sbin/ip ip list all";
-my $issue      = '\S
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $shell_call = "/usr/sbin/ip addr list";
+my $new_issue  = '\S
 Kernel \r on an \m
 ';
+my $ips        = {};
 my $interface  = "";
-open (my $file_handle, $shell_call.$redirect."; ".$anvil->data->{path}{exe}{echo}." return_code:\$? |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."], error was: [".$!."]\n";
 while(<$file_handle>)
 {
 	chomp;
@@ -23,18 +34,45 @@ while(<$file_handle>)
 	   $line =~ s/\r$//;
 	if ($line =~ /^\d+: (.*?): </)
 	{
-		$interface = $1
-		print "In interface: [".$interface."]\n";
+		$interface = $1;
 	}
 	next if not $interface;
-	if ($line =~ / inet (\d+\.\d+\.\d+\.\d+)\//)
+	next if $interface eq "lo";
+	if ($line =~ / inet (\d+\.\d+\.\d+\.\d+\/\d+) /)
 	{
 		my $ip = $1; 
-		print "- IP: [".$ip."]\n";
+		$ips->{$interface} = $ip;
 	}
 }
 close $file_handle;
 
+if (keys %{$ips})
+{
+	$new_issue .= "\nActive IPs:\n";
+	foreach my $interface (sort {$a cmp $b} keys %{$ips})
+	{
+		$new_issue .= "- ".$interface.": ".$ips->{$interface}."\n";
+	}
+	$new_issue .= "\n";
+}
+
+# Read in the current issue file and see if there is any difference.
+my $old_issue  = "";
+my $issue_file = "/etc/issue";
+open ($file_handle, "<", $issue_file) or die "Failed to read: [".$issue_file."], error was: [".$!."]\n";
+while(<$file_handle>)
+{
+	### NOTE: Don't chop this, we want to record exactly what we read
+	$old_issue .= $_;
+}
+close $file_handle;
+
+my $update = $new_issue eq $old_issue ? 0 : 1;
+if ($update)
+{
+	open (my $file_handle, ">", $issue_file) or die "Failed to write: [".$issue_file."], the error was: [".$!."]\n";
+	print $file_handle $new_issue;
+	close $file_handle;
+}
 
 exit(0);
-

@@ -432,6 +432,8 @@ sub call
 		my $connected   = 0;
 		my $message_key = "message_0005";
 		my $last_loop   = 2;
+		my $bad_file    = "";
+		my $bad_line    = "";
 		foreach (my $i = 0; $i <= $last_loop; $i++)
 		{
 			last if $connected;
@@ -442,8 +444,8 @@ sub call
 					batch_mode => 1,
 				);
 			};
+			$connect_output =~ s/\r//gs;
 			$connect_output =~ s/\n$//; 
-			$connect_output =~ s/\r$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				's1:i'              => $i, 
 				's2:target'         => $target, 
@@ -465,6 +467,28 @@ sub call
 				$i           = $last_loop;
 				$message_key = "message_0003";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+			}
+			elsif ($connect_output =~ /IDENTIFICATION HAS CHANGED/i)
+			{
+				# Host's ID has changed, rebuilt? Find the line and file to tell the user.
+				foreach my $line (split/\n/, $connect_output)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+					if ($line =~ /Offending .*? key in (\/.*?known_hosts):(\d+)$/)
+					{
+						$bad_file = $1;
+						$bad_line = $2;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							bad_file => $bad_file,
+							bad_line => $bad_line, 
+						}});
+					}
+				}
+				$message_key = "message_0149";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+				
+				# TODO: Store this in the states table and have a function that makes 
+				#       removing the offending line from the WebUI.
 			}
 			elsif ($connect_output =~ /Host key verification failed/i)
 			{
@@ -549,6 +573,8 @@ sub call
 			target     => $target.":".$port,
 			error      => $ssh_fh->error,
 			connection => $ssh_fh_key, 
+			file       => $bad_file, 
+			line       => $bad_line, 
 		};
 		if (not $connected)
 		{
@@ -600,8 +626,8 @@ sub call
 		}
 		
 		# Take the last new line off.
-		$output =~ s/\n$//; $output =~ s/\r$//;
-		$error  =~ s/\n$//; $error  =~ s/\r$//;
+		$output =~ s/\n$//; $output =~ s/\r//g;
+		$error  =~ s/\n$//; $error  =~ s/\r//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
 			error   => $error,
 			output  => $output, 

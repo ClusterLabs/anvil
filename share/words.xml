@@ -253,6 +253,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0146">What kind of machine will this host be?</key>
 		<key name="message_0147"><![CDATA[What is the host's <b>current</b> IP address and password?]]></key>
 		<key name="message_0148"><![CDATA[This is a RHEL host and has not yet been subscribed.<br />You can enter your Red Hat subscription credentials below.<br />The host will be subscribed during setup.]]></key>
+		<key name="message_0149">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -972,7 +973,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0024">Connected!</key>
 		<key name="job_0025">Unable to connect to: [#!variable!target!#]. Will keep trying for another: [#!variable!timeout!#] seconds...</key>
 		<key name="job_0026">Unable to connect, the job has failed.</key>
-		<key name="job_0027">'Initialize host' job: [#!variable!switches::job-uuid!#] picked up.</key>
+		<key name="job_0027">'Initialize host' job: [#!variable!job-uuid!#] picked up.</key>
 		<key name="job_0028">Adding repositories.</key>
 		<key name="job_0029">Added the repository for this dashboard.</key>
 		<key name="job_0030">Red Hat subscription information provides, attempting to register now.</key>

@@ -1018,10 +1018,11 @@ sub _set_paths
 				ssh_config			=>	"/etc/ssh/ssh_config",
 			},
 			data			=>	{
+				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
 				group				=>	"/etc/group",
+				issue				=>	"/etc/issue",
 				httpd_conf			=>	"/etc/httpd/conf/httpd.conf",
 				host_ssh_key			=>	"/etc/ssh/ssh_host_ecdsa_key.pub",
-				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
 				host_uuid			=>	"/etc/anvil/host.uuid",
 				passwd				=>	"/etc/passwd",
 				'redhat-release'		=>	"/etc/redhat-release",

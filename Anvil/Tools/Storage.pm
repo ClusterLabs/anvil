@@ -2928,8 +2928,8 @@ fi";
 			# Now write the file.
 			my $shell_call = $file;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0013", variables => { shell_call => $shell_call }});
-			#open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
-			open (my $file_handle, ">", $shell_call) or die "Failed to write: [$shell_call], error was: [".$!."]\n";;
+			open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			#open (my $file_handle, ">", $shell_call) or die "Failed to write: [$shell_call], error was: [".$!."]\n";;
 			print $file_handle $body;
 			close $file_handle;
 			

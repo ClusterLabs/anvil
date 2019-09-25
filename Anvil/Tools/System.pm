@@ -1298,11 +1298,11 @@ sub is_local
 	else
 	{
 		# Get the list of current IPs and see if they match.
-		my $network = $anvil->Network->get_network_details;
-		foreach my $interface (keys %{$network->{interface}})
+		$anvil->Network->get_ips;
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network->interface::${interface}::ip" => $network->{interface}{$interface}{ip} }});
-			if ($host eq $network->{interface}{$interface}{ip})
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
+			if ($host eq $anvil->data->{network}{'local'}{interface}{$interface}{ip})
 			{
 				$is_local = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
