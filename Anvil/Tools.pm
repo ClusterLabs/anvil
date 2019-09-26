@@ -1061,6 +1061,7 @@ sub _set_paths
 				'anvil-file-details'		=>	"/usr/sbin/anvil-file-details",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
+				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
 				'anvil-report-memory'		=>	"/usr/sbin/anvil-report-memory",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",

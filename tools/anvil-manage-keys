@@ -1,0 +1,268 @@
+#!/usr/bin/perl
+# 
+# This removes a bad key from a 
+# 
+# This program is setuid 'admin' and calls a (new) peer to read its hostname and system UUID. It takes the 
+# target's password in via a file.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = No database connection.
+# 2 = No offending keys found.
+# 3 = 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
+# passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->Get->switches;
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0077"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+### TODO: Store the state_uuid(s) of the key(s) to remove.
+# If we don't have a state_uuid, pick it up from the job_data
+
+# Read in the details and make sure the bad the bad key is on our system.
+my $query = "SELECT 
+    state_uuid, 
+    state_name, 
+    state_note 
+FROM 
+    states 
+WHERE 
+    state_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})." 
+AND 
+    state_name LIKE 'host_key_changed::%'
+;";
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+my $count   = @{$results};
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	results => $results, 
+	count   => $count, 
+}});
+if (not $count)
+{
+	# No bad keys found on this host.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0078"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 2});
+}
+my $progress = 0;
+update_progress($anvil, 0, "clear");
+$progress += 5;
+update_progress($anvil, $progress, "job_0048");
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0048"});
+foreach my $row (@{$results})
+{
+	
+	my $state_uuid = $row->[0];
+	my $state_name = $row->[1];
+	my $state_note = $row->[2];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		state_uuid => $state_uuid, 
+		state_name => $state_name, 
+		state_note => $state_note, 
+	}});
+	
+	# Pull out the details.
+	my $bad_file = "";
+	my $bad_line = "";
+	foreach my $pair (split/,/, $state_note)
+	{
+		my ($variable, $value) = ($pair =~ /^(.*?)=(.*)$/);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			pair     => $pair, 
+			variable => $variable, 
+			value    => $value,
+		}});
+		if ($variable eq "file")
+		{
+			$bad_file = $value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_file => $bad_file }});
+		}
+		if ($variable eq "line")
+		{
+			$bad_line = $value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_line => $bad_line }});
+		}
+	}
+	my ($target, $user) = ($state_name =~ /host_key_changed::(.*)::(.*)$/);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		target   => $target, 
+		user     => $user, 
+		bad_file => $bad_file, 
+		bad_line => $bad_line, 
+	}});
+	
+	$progress += 5; $progress = 95 if $progress > 95;
+	update_progress($anvil, $progress, "job_0049,!!line!:".$bad_line.",!!file!".$bad_file."!!,!!target!".$target."!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0049", variables => {
+		line   => $bad_line,
+		file   => $bad_file, 
+		target => $target, 
+	}});
+	
+	# Read in the file, if it exists.
+	if (not -e $bad_file)
+	{
+		$progress += 10; $progress = 95 if $progress > 95;
+		update_progress($anvil, $progress, "job_0050,!!file!".$bad_file."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0050", variables => { file => $bad_file }});
+		
+		# Remove this job and go on to the next bad key (if any).
+		delete_state($anvil, $state_uuid);
+		next; 
+	}
+	
+	# Read in the file
+	my ($old_body) = $anvil->Storage->read_file({file => $bad_file});
+	if ($old_body eq "!!error!!")
+	{
+		# Failed to read the file
+		$progress += 10; $progress = 95 if $progress > 95;
+		update_progress($anvil, $progress, "job_0052,!!file!".$bad_file."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0052", variables => { file => $bad_file }});
+		
+		# Remove this job and go on to the next bad key (if any).
+		delete_state($anvil, $state_uuid);
+		next; 
+	}
+	
+	# Find our key
+	my $line_number = 0;
+	my $new_body    = "";
+	my $update      = 0;
+	foreach my $line (split/\n/, $old_body)
+	{
+		$line_number++;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:line_number' => $line_number,
+			's2:bad_line'    => $bad_line,
+			's3:line'        => $line, 
+		}});
+		if ($line_number eq $bad_line)
+		{
+			# Verify that this is, indeed, the right line.
+			if ($line =~ /^$target /)
+			{
+				# Found it!
+				$progress += 5; $progress = 95 if $progress > 95;
+				update_progress($anvil, $progress, "job_0053");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0053"});
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				last;
+			}
+			else
+			{
+				# Line found, but not for the target.
+				$progress += 10; $progress = 95 if $progress > 95;
+				update_progress($anvil, $progress, "job_0054,!!line!".$bad_line."!!,!!file!".$bad_file."!!,!!target!".$target."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0054", variables => {
+					line =>   $bad_line, 
+					file =>   $bad_file, 
+					target => $target, 
+				}});
+				
+				# Remove this job and go on to the next bad key (if any).
+				delete_state($anvil, $state_uuid);
+				last; 
+			}
+		}
+		else
+		{
+			$new_body .= $line."\n";
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:old_body' => $old_body', 
+		's2:new_body' => $new_body, 
+		's3:update'   => $update,
+	}});
+	if ($update)
+	{
+		# Write the file out.
+		$progress += 5; $progress = 95 if $progress > 95;
+		update_progress($anvil, $progress, "job_0055,!!file!".$bad_file."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0055", variables => { file => $bad_file }});
+	}
+	
+}
+
+# Done.
+update_progress($anvil, 100, "job_0051");
+$anvil->nice_exit({code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This deletes a state entry.
+sub delete_state
+{
+	my ($anvil, $state_uuid) = @_;
+	
+	# Delete it so long as we have a UUID.
+	if ($state_uuid)
+	{
+		my $query = "DELETE FROM states	WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+		$anvil->Database->write({debug => 2, query => $merged, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
+# This updates the progress if we were called with a job UUID.
+sub update_progress
+{
+	my ($anvil, $progress, $message) = @_;
+	
+	# Log the progress percentage.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		progress         => $progress,
+		message          => $message, 
+		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid}, 
+	}});
+	
+	if ($anvil->data->{jobs}{job_uuid})
+	{
+		$anvil->Job->update_progress({
+			debug    => 3, 
+			progress => $progress, 
+			message  => $message, 
+			job_uuid => $anvil->data->{jobs}{job_uuid},
+		});
+	}
+	
+	return(0);
+}

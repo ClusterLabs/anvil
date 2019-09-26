@@ -4517,8 +4517,6 @@ sub insert_or_update_states
 	my $state_host_uuid = defined $parameter->{state_host_uuid} ? $parameter->{state_host_uuid} : $anvil->data->{sys}{host_uuid};
 	my $state_note      = defined $parameter->{state_note}      ? $parameter->{state_note}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid                              => $uuid, 
-		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
 		uuid            => $uuid, 
 		file            => $file, 
 		line            => $line, 

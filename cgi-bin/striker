@@ -388,6 +388,10 @@ sub process_striker_menu
 	{
 		process_power($anvil, "poweroff");
 	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "keys")
+	{
+		process_keys($anvil, "poweroff");
+	}
 	else
 	{
 		# What we show for the reboot icon and text depends on if a reboot is pending.
@@ -433,6 +437,23 @@ sub process_striker_menu
 			install_target_subtask => $install_target_subtask, 
 		}});
 		
+		# Are there any bad keys?
+		my $query = "SELECT state_uuid, state_note FROM states WHERE state_name LIKE 'host_key_changed::%';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		my $broken_key_icon    = $count ? "broken_key_icon_on.png"  : "broken_key_icon_off.png";
+		my $broken_key_message = $count ? "#!string!striker_0132!#" : "#!string!striker_0131!#";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			broken_key_icon    => $broken_key_icon, 
+			broken_key_message => $broken_key_message,
+		}});
+		
 		# The 'back' goes home
 		$anvil->data->{form}{back_link}    = "?";
 		$anvil->data->{form}{refresh_link} = "?striker=true";
@@ -442,6 +463,8 @@ sub process_striker_menu
 			install_target_icon    => $install_target_icon, 
 			install_target_title   => $install_target_title, 
 			install_target_subtask => $install_target_subtask, 
+			broken_key_icon        => $broken_key_icon,
+			broken_key_message     => $broken_key_message,
 		}});
 	}
 	
@@ -465,6 +488,104 @@ sub process_jobs_menu
 		job_list    => $anvil->Job->html_list({debug => 2, ended_within => 300}), 
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+	
+	return(0);
+}
+
+# This handles removing old keys.
+sub process_keys
+{
+	my ($anvil) = @_;
+	
+	### TODO: Left off here... Create a check-box list of state_uuid(s) the user selected, if any, and store them as a comma-separated list.
+	
+	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
+	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
+	if ($anvil->data->{cgi}{confirm}{value})
+	{
+		# Record the job!
+		my $job_data = "";
+		
+		
+		die;
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}, 
+			job_data        => "", 
+			job_name        => "manage::keys", 
+			job_title       => "job_0056", 
+			job_description => "job_0057", 
+			job_progress    => 0,
+			job_host_uuid   => $anvil->data->{sys}{host_uuid},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+		
+		# We don't need to store anything as hidden variables, we'll read it back from the database 
+		# later.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "job recorded", variables => {
+			title_id    => "",
+			message_id  => "",
+			reload_url  => "/cgi-bin/".$THIS_FILE,
+			title       => "#!string!job_0056!#",
+			description => "#!string!job_0057!#",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
+	}
+	else
+	{
+		# Get a list of bad keys we know about and ask the user which they want to remove
+		my $query = "
+SELECT 
+    state_uuid, 
+    state_host_uuid, 
+    state_name, 
+    state_note 
+FROM 
+    states 
+AND 
+    state_name LIKE 'host_key_changed::%'
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# No bad keys found on this host.
+			$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "no-bad-keys"});
+		}
+		else
+		{
+			# Build a list of check-boxes / bad keys.
+			my $bad_key_list = "";
+			foreach my $row (@{$results})
+			{
+				
+				my $state_uuid      = $row->[0];
+				my $state_host_uuid = $row->[1];
+				my $state_name      = $row->[2];
+				my $state_note      = $row->[3];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					state_uuid      => $state_uuid, 
+					state_host_uuid => $state_host_uuid, 
+					state_name      => $state_name, 
+					state_note      => $state_note, 
+				}});
+			}
+		}
+		
+		die;
+		#Show the screen the confirm the addition.
+		$anvil->data->{form}{body} = $anvil->Template->get({file => "striker.html", name => "confirm-action", variables => { 
+			title         => "#!string!job_0056!#", 
+			message       => "#!string!!#",
+			hidden_fields => "",
+		}});
+	}
 	
 	return(0);
 }
@@ -667,7 +788,58 @@ sub process_prep_host_page
 			### NOTE: Left off here. Need to pick up the message from a bad/changed fingerprint when it's the cause of a failed login. Create a button to remove the bad key.
 			if (not $connected)
 			{
-				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0012"}) }});
+				# Is it because the target's key is bad or has changed?
+				my $query = "SELECT state_uuid, state_note FROM states WHERE state_name LIKE ".$anvil->Database->quote("host_key_changed::".$host_ip_address."::%").";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					results => $results, 
+					count   => $count,
+				}});
+				if ($count)
+				{
+					# Yup, key has changed.
+					my $state_uuid = $results->[0]->[0];
+					my $state_note = $results->[0]->[1];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						state_uuid => $state_uuid, 
+						state_note => $state_note,
+					}});
+					my $bad_file = "";
+					my $bad_line = "";
+					foreach my $pair (split/,/, $state_note)
+					{
+						my ($variable, $value) = ($pair =~ /^(.*?)=(.*)$/);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							pair     => $pair, 
+							variable => $variable, 
+							value    => $value,
+						}});
+						if ($variable eq "file")
+						{
+							$bad_file = $value;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_file => $bad_file }});
+						}
+						if ($variable eq "line")
+						{
+							$bad_line = $value;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_line => $bad_line }});
+						}
+					}
+					my $error_message = $anvil->Words->string({key => "striker_warning_0013", variables => { 
+						file => $bad_file, 
+						line => $bad_line, 
+					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error_message => $error_message }});
+					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
+				}
+				else
+				{
+					# Nope, some other issue
+					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0012"}) }});
+				}
 			}
 			elsif (not $target_host_uuid)
 			{
@@ -773,7 +945,6 @@ sub process_power
 	my ($anvil, $task) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
 	
-	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
 	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
 	if ($anvil->data->{cgi}{confirm}{value})
 	{
@@ -836,7 +1007,6 @@ sub process_update
 {
 	my ($anvil) = @_;
 	
-	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
 	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
 	if ($anvil->data->{cgi}{confirm}{value})
 	{
@@ -1474,17 +1644,16 @@ sub check_availability
 {
 	my ($anvil) = @_;
 	
-	my $debug     = 3;
 	my $available = 1;
 	
 	# Check maintenance mode.
-	my $maintenance_mode = $anvil->System->maintenance_mode({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { maintenance_mode => $maintenance_mode }});
+	my $maintenance_mode = $anvil->System->maintenance_mode({debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { maintenance_mode => $maintenance_mode }});
 	
 	if ($maintenance_mode)
 	{
 		$available = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { available => $available }});
 		
 		# If we have any running or recently finished jobs, we'll desplay them below.
 		$anvil->data->{say}{maintenance} = $anvil->Template->get({file => "striker.html", name => "striker-offline", variables => {
@@ -1514,11 +1683,11 @@ AND
 AND 
     job_host_uuid =  ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			results => $results, 
 			count   => $count,
 		}});
@@ -1530,7 +1699,7 @@ AND
 			my $unixtime    = $results->[0]->[2];
 			my $seconds_ago = $anvil->Convert->add_commas({number => (time - $unixtime)});
 			$available   = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				available   => $available,
 				percent     => $percent,
 				seconds_ago => $seconds_ago, 
@@ -1544,11 +1713,11 @@ AND
 				title       => "#!string!striker_0046!#",
 				description => $anvil->Words->string({key => "striker_0047", variables => { percent => $percent, timestamp => $timestamp, seconds_ago => $seconds_ago }}),
 			}});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'say::maintenance' => $anvil->data->{say}{maintenance} }});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { available => $available }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { available => $available }});
 	return($available);
 }
 
@@ -3007,8 +3176,7 @@ z = Device Sequence
 sub generate_ip
 {
 	my ($anvil, $network, $network_sequence, $device_sequence) = @_;
-	my $debug = 3;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		network          => $network,
 		network_sequence => $network_sequence, 
 		device_sequence  => $device_sequence, 
@@ -3020,7 +3188,7 @@ sub generate_ip
 	# The subnet's second octet will be '+X' where 'X' is the sequence.
 	my $default_ip      = $anvil->data->{defaults}{network}{$network}{subnet};
 	my $default_netmark = $anvil->data->{defaults}{network}{$network}{netmask};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		default_ip      => $default_ip,
 		default_netmark => $default_netmark, 
 	}});
@@ -3029,7 +3197,7 @@ sub generate_ip
 	{
 		# Valid values.
 		my ($ip_octet1, $ip_octet2, $ip_octet3, $ip_octet4) = (split/\./, $default_ip);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			ip_octet1 => $ip_octet1,
 			ip_octet2 => $ip_octet2,
 			ip_octet3 => $ip_octet3,
@@ -3046,7 +3214,7 @@ sub generate_ip
 			$ip_octet3 = $anvil->data->{defaults}{network}{$network}{striker_octet3};
 			$ip_octet4 = $device_sequence;
 			$ip        = $ip_octet1.".".$ip_octet2.".".$ip_octet3.".".$ip_octet4;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:ip_octet2" => $ip_octet2,
 				"s2:ip_octet3" => $ip_octet3,
 				"s3:ip_octet4" => $ip_octet4,
@@ -3060,6 +3228,6 @@ sub generate_ip
 		$ip = "#!error!#";
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip => $ip }});
 	return($ip);
 }

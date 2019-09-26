@@ -471,6 +471,7 @@ sub call
 			elsif ($connect_output =~ /IDENTIFICATION HAS CHANGED/i)
 			{
 				# Host's ID has changed, rebuilt? Find the line and file to tell the user.
+				my $user = getpwuid($<);
 				foreach my $line (split/\n/, $connect_output)
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -487,8 +488,23 @@ sub call
 				$message_key = "message_0149";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
 				
-				# TODO: Store this in the states table and have a function that makes 
-				#       removing the offending line from the WebUI.
+				# If I have a database connection, record this bad entry in 'states'.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::connections' => $anvil->data->{sys}{database}{connections} }});
+				if (not $anvil->data->{sys}{database}{connections})
+				{
+					# Try to connect
+					$anvil->Database->connect();
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+				}
+				if ($anvil->data->{sys}{database}{connections})
+				{
+					my ($state_uuid) = $anvil->Database->insert_or_update_states({
+						debug      => 2, 
+						state_name => "host_key_changed::".$target."::".$user, 
+						state_note => "file=".$bad_file.",line=".$bad_line, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
+				}
 			}
 			elsif ($connect_output =~ /Host key verification failed/i)
 			{

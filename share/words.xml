@@ -932,6 +932,10 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0128">Initialize</key>
 		<key name="striker_0129">The target will now be initialized. How long this takes will depend on how fast files can be downloaded and, when needed, how long it takes to register with Red Hat and add the needed repositories.</key>
 		<key name="striker_0130">Configure the network on a node or DR host.</key>
+		<key name="striker_0131">This option will allow old machine keys to be removed. This is not currently needed.</key>
+		<key name="striker_0132">There are one or more broken keys, blocking access to target machines. If a target has been rebuilt, you can clear the old keys here.</key>
+		<key name="striker_0133">Manage Changed Keys</key>
+		<key name="striker_0134">There are no known bad keys at this time.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -955,7 +959,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">Poweroff Striker</key>
 		<key name="job_0008">This system will be powered off momentarily. It will not respond until it has turned back on.</key>
-		<key name="job_0009">Reboot..</key>
+		<key name="job_0009">Reboot...</key>
 		<key name="job_0010">Powering off...</key>
 		<key name="job_0011">Add a Striker Peer</key>
 		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
@@ -998,6 +1002,16 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0045">Success!</key>
 		<key name="job_0046">Adding our database connection information to the target's anvil.conf file!</key>
 		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
+		<key name="job_0048">Removing bad machine keys.</key>
+		<key name="job_0049">Removing line: [#!variable!line!#] from: [#!variable!file!#] for the target machine: [#!variable!target!#].</key>
+		<key name="job_0050">[ Error ] - The known hosts file: [#!variable!file!#] was not found. Skipping it.</key>
+		<key name="job_0051">Finished.</key>
+		<key name="job_0052">[ Error ] - There was a problem reading the known hosts file: [#!variable!file!#]. Skipping it.</key>
+		<key name="job_0053">Found the offending line, removing it.</key>
+		<key name="job_0054">[ Error ] - The line number: [#!variable!line!#] in: [#!variable!file!#] does not appear to be for the target: [#!variable!target!#]. Has the file already been updated? Skipping it.</key>
+		<key name="job_0055">Rewriing: [#!variable!file!#].</key>
+		<key name="job_0056">Manage Keys</key>
+		<key name="job_0057">The bad keys will be removed from the specified files.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1012,6 +1026,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="striker_warning_0010">The IP address is not a valid IPv4 address</key>
 		<key name="striker_warning_0011">The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
 		<key name="striker_warning_0012">Failed to log into the host. Is the IP or root user's password right?</key>
+		<key name="striker_warning_0013">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. Problem file: [#!variable!file!#:#!variable!line!#].</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -1105,6 +1120,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0074">The initialization target: [#!variable!target!#] is not accessible. Will keep trying...</key>
 		<key name="error_0075">There are no databases available. Will check periodically, waiting until one becomes available.</key>
 		<key name="error_0076">There was a problem adding out database to the target's anvil.conf file.</key>
+		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
+		<key name="error_0078">Did not find any offending keys on this host, exiting.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

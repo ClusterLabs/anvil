@@ -193,7 +193,10 @@ chmod 755 /mnt/sysimage/usr/sbin/anvil-update-issue
 # Add this to crontab.
 cat << EOF > /mnt/sysimage/var/spool/cron/root
 MAILTO=""
+# First one keeps the list updated, the second one to make sure the list is 
+# there before the first login page is shown.
 * * * * * /usr/sbin/anvil-update-issue >> /var/log/anvil.cron 2>&1 
+@reboot /usr/sbin/anvil-update-issue >> /var/log/anvil.cron 2>&1 
 EOF
 chown 0:0 /mnt/sysimage/var/spool/cron/root
 chmod 0600 /mnt/sysimage/var/spool/cron/root

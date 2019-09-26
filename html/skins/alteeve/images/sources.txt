@@ -55,3 +55,6 @@ configure by iconesia from the Noun Project (https://thenounproject.com/term/con
 
 Folder by Mint Shirt from the Noun Project (https://thenounproject.com/term/folder/402164/)
 - files_icon.png
+
+Broken Key by I Putu Kharismayadi from the Noun Project (https://thenounproject.com/term/folder/1481931/)
+ - broken_key.png
