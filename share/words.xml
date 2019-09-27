@@ -800,6 +800,10 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="header_0009">Peer Connections</key>
 		<key name="header_0010">Ping</key>
 		<key name="header_0011">Jobs</key>
+		<key name="header_0012">Target</key>
+		<key name="header_0013">User</key>
+		<key name="header_0014">File</key>
+		<key name="header_0015">Line</key>
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
@@ -936,6 +940,15 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0132">There are one or more broken keys, blocking access to target machines. If a target has been rebuilt, you can clear the old keys here.</key>
 		<key name="striker_0133">Manage Changed Keys</key>
 		<key name="striker_0134">There are no known bad keys at this time.</key>
+		<key name="striker_0135">Add or remove Striker peers.</key>
+		<key name="striker_0136">Peer dashboards are Striker machines whose databases this Striker will use to record data. If this machine ever needs to be replaced, or goes offline for a period of time, it will automatically pull the data back from any peers that it is missing.</key>
+		<key name="striker_0137"><![CDATA[
+The machines responding when we try to connect to the targets below are responding with a different "fingerprint". This indicates that the target is no longer the machine we saw before.<br />
+<br />
+<span class="warning">Warning</span>: If you haven't rebuilt the target, then the "broken key" could actually be a "<a href="https://en.wikipedia.org/wiki/Man-in-the-middle_attack" target="_new" class="highlight">man in the middle<a/>" attack. Verify that the target has changed for a known reason before proceeding!<br />
+<br />
+If you are comfortable that the target has changed for a known reason, you can select the broken keys below to have them removed.<br />
+		]]></key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1011,7 +1024,10 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0054">[ Error ] - The line number: [#!variable!line!#] in: [#!variable!file!#] does not appear to be for the target: [#!variable!target!#]. Has the file already been updated? Skipping it.</key>
 		<key name="job_0055">Rewriing: [#!variable!file!#].</key>
 		<key name="job_0056">Manage Keys</key>
-		<key name="job_0057">The bad keys will be removed from the specified files.</key>
+		<key name="job_0057">The selected bad key(s) will be removed from the specified files.</key>
+		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a progrem error, skipping this.</key>
+		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
+		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1122,6 +1138,11 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0076">There was a problem adding out database to the target's anvil.conf file.</key>
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
 		<key name="error_0078">Did not find any offending keys on this host, exiting.</key>
+		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
+		<key name="error_0080">No job UUID was passwed .</key>
+		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
+		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
+		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

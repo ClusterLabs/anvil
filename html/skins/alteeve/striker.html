@@ -1,3 +1,96 @@
+<!-- start broken-key-entry -->
+						<tr>
+							<td>
+								<input type="checkbox" id="#!variable!checkbox_name!#" name="#!variable!checkbox_name!#" #!variable!checkbox_checked!# />
+							</td>
+							<td class="column_row_value_fixed">
+								#!variable!user!#
+							</td>
+							<td class="column_row_value_fixed">
+								#!variable!target!#
+							</td>
+							<td class="column_row_value_fixed">
+								#!variable!file!#
+							</td>
+							<td class="column_row_value_fixed">
+								#!variable!line!#
+							</td>
+						</tr>
+<!-- end broken-key-entry -->
+
+<!-- start broken-key-list -->
+		<table align="center">
+			<tr>
+				<td class="menu_title">
+					#!string!striker_0133!#
+				</td>
+			</tr>
+			<tr>
+				<td class="menu_details">
+					#!string!striker_0137!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td align="center">
+					<table class="data_table">
+						<form name="broken_keys" action="" method="post">
+						<tr>
+							<td>
+								&nbsp;
+							</td>
+							<!-- User -->
+							<td class="column_header">
+								#!string!header_0013!#
+							</td>
+							</td>
+							<!-- Target -->
+							<td class="column_header">
+								#!string!header_0012!#
+							</td>
+							<!-- File -->
+							<td class="column_header">
+								#!string!header_0014!#
+							</td>
+							<!-- Line -->
+							<td class="column_header">
+								#!string!header_0015!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="5">
+								&nbsp;
+							</td>
+						</tr>
+#!variable!bad_keys!#
+						<tr>
+							<td colspan="5">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td class="button_cell" colspan="5" align="center">
+								<input type="submit" id="delete" name="delete" class="button" value="#!string!striker_0068!#" />
+							</td>
+						</tr>
+						<input type="hidden" name="striker" value="true" />
+						<input type="hidden" name="task"    value="keys" />
+						</form>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+		</table>
+<!-- end broken-key-list -->
+
 <!-- start confirm-action -->
 			<table align="center">
 				<form name="confirm-update" action="" method="post">
@@ -446,12 +539,12 @@
 		<table align="center">
 			<tr>
 				<td class="menu_title">
-					Add or remove Striker peers.
+					#!string!striker_0135!#
 				</td>
 			</tr>
 			<tr>
 				<td class="menu_details">
-					Peer dashboards are Striker machines whose databases this Striker will use to record data. If this machine ever needs to be replaced, or goes offline for a period of time, it will automatically pull the data back from any peers that it is missing.
+					#!string!striker_0136!#
 				</td>
 			</tr>
 			<tr>
