@@ -803,7 +803,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="header_0012">Target</key>
 		<key name="header_0013">User</key>
 		<key name="header_0014">File</key>
-		<key name="header_0015">Line</key>
+		<key name="header_0015">On Host</key>
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
@@ -1020,7 +1020,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0050">[ Error ] - The known hosts file: [#!variable!file!#] was not found. Skipping it.</key>
 		<key name="job_0051">Finished.</key>
 		<key name="job_0052">[ Error ] - There was a problem reading the known hosts file: [#!variable!file!#]. Skipping it.</key>
-		<key name="job_0053">Found the offending line, removing it.</key>
+		<key name="job_0053">Found an entry for the target at line: [#!variable!line!#], removing it.</key>
 		<key name="job_0054">[ Error ] - The line number: [#!variable!line!#] in: [#!variable!file!#] does not appear to be for the target: [#!variable!target!#]. Has the file already been updated? Skipping it.</key>
 		<key name="job_0055">Rewriing: [#!variable!file!#].</key>
 		<key name="job_0056">Manage Keys</key>
@@ -1042,7 +1042,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="striker_warning_0010">The IP address is not a valid IPv4 address</key>
 		<key name="striker_warning_0011">The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
 		<key name="striker_warning_0012">Failed to log into the host. Is the IP or root user's password right?</key>
-		<key name="striker_warning_0013">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. Problem file: [#!variable!file!#:#!variable!line!#].</key>
+		<key name="striker_warning_0013"><![CDATA[The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

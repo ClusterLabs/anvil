@@ -390,13 +390,13 @@ sub parse_banged_string
 			}
 			
 			# Parse the line now.
-			$out_string .= $anvil->Words->string({key => $key, variables => $variables});
+			$out_string .= $anvil->Words->string({debug => $debug, key => $key, variables => $variables});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
 		}
 		else
 		{
 			# This key is just a key, no variables.
-			$out_string .= $anvil->Words->string({key => $message});
+			$out_string .= $anvil->Words->string({test => 0, key => $message});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
 		}
 	}
@@ -616,8 +616,9 @@ sub string
 				$loops++;
 				die "$THIS_FILE ".__LINE__."; Infinite loop detected while processing the string: [".$string."] from the key: [$key] in language: [$language], exiting.\n" if $loops > $limit;
 			}
-			print $THIS_FILE." ".__LINE__."; [ Error ] - The method Words->string() was asked to process the string: [".$string."] which has insertion variables, but nothing was passed to the 'variables' parameter.\n" if $test;
-			return("#!error!#");
+			my $error = "[ Error ] - The method Words->string() was asked to process the string: [".$string."] which has insertion variables, but nothing was passed to the 'variables' parameter.";
+			print $THIS_FILE." ".__LINE__."; $error\n" if $test;
+			return($error);
 		}
 		
 		# We set the 'loop' variable to '1' and check it at the end of each pass. This is done 

@@ -477,6 +477,8 @@ sub call
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 					if ($line =~ /Offending .*? key in (\/.*?known_hosts):(\d+)$/)
 					{
+						# NOTE: We don't use the line now, but we're recording it 
+						#       anyway in case it happens to be useful in the future.
 						$bad_file = $1;
 						$bad_line = $2;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

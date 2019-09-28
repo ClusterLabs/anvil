@@ -497,8 +497,6 @@ sub process_keys
 {
 	my ($anvil) = @_;
 	
-	### TODO: Left off here... Create a check-box list of state_uuid(s) the user selected, if any, and store them as a comma-separated list.
-	
 	### NOTE: This doesn't update Striker (the Alteeve) stack yet, just the base OK.
 	my $show_list = 1;
 	$anvil->data->{cgi}{'delete'}{value} = "" if not defined $anvil->data->{cgi}{'delete'}{value};
@@ -558,14 +556,17 @@ sub process_keys
 		# Get a list of bad keys we know about and ask the user which they want to remove
 		my $query = "
 SELECT 
-    state_uuid, 
-    state_host_uuid, 
-    state_name, 
-    state_note 
+    a.state_uuid, 
+    b.host_name, 
+    a.state_name, 
+    a.state_note 
 FROM 
-    states 
+    states a, 
+    hosts b 
 WHERE 
-    state_name LIKE 'host_key_changed::%'
+    a.state_host_uuid = b.host_uuid 
+AND 
+    a.state_name LIKE 'host_key_changed::%'
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -586,15 +587,15 @@ WHERE
 			foreach my $row (@{$results})
 			{
 				
-				my $state_uuid      = $row->[0];
-				my $state_host_uuid = $row->[1];
-				my $state_name      = $row->[2];
-				my $state_note      = $row->[3];
+				my $state_uuid = $row->[0];
+				my $host_name  = $row->[1];
+				my $state_name = $row->[2];
+				my $state_note = $row->[3];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					state_uuid      => $state_uuid, 
-					state_host_uuid => $state_host_uuid, 
-					state_name      => $state_name, 
-					state_note      => $state_note, 
+					state_uuid => $state_uuid, 
+					host_name  => $host_name, 
+					state_name => $state_name, 
+					state_note => $state_note, 
 				}});
 				
 				my $bad_file = "";
@@ -626,7 +627,6 @@ WHERE
 					bad_line => $bad_line, 
 				}});
 				
-				
 				my $checkbox_key = "state_uuid_".$state_uuid;
 				my $checked      = "";
 				if ((exists $anvil->data->{cgi}{$checkbox_key}) && ($anvil->data->{cgi}{$checkbox_key}{value}))
@@ -639,7 +639,7 @@ WHERE
 					target           => $target,
 					user             => $user,
 					file             => $bad_file, 
-					line             => $bad_line, 
+					host             => $host_name, 
 				}});
 			}
 			

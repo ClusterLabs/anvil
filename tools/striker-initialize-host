@@ -233,7 +233,15 @@ EOF
 				error       => $error, 
 				return_code => $return_code,
 			}});
-			if ($return_code)
+			if ($return_code eq "70")
+			{
+				# No Internet (or can't reach the subscriion servers)
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0032"});
+				update_progress($anvil, 10, "job_0032");
+				$subscribe = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subscribe => $subscribe }});
+			}
+			elsif ($return_code)
 			{
 				# Something went wrong
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0035", variables => { 
@@ -592,9 +600,9 @@ sub get_job_details
 	$anvil->data->{data}{say_target} = "root\@".$anvil->data->{data}{host_ip_address}.":".$anvil->data->{data}{ssh_port};
 	
 	# Update that we've picked the job up.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0027,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0027", variables => { 'job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 	update_progress($anvil, 0, "clear");
-	update_progress($anvil, 1, "job_0027");
+	update_progress($anvil, 1, "job_0027,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 	
 	return(0);
 }
