@@ -59,7 +59,7 @@ timezone #!variable!timezone!#
 lang en_CA.UTF-8
 
 # Network information
-network --hostname=#!variable!hostname!#
+network --hostname=#!variable!host_name!#
 # Root and admin passwords are '#!variable!password!#'
 rootpw --plaintext #!variable!password!#
 user --name=admin --password "#!variable!password!#" --plaintext --gecos "admin" --groups wheel

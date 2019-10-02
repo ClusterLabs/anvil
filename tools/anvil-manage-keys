@@ -2,7 +2,7 @@
 # 
 # This removes a bad key from a 
 # 
-# This program is setuid 'admin' and calls a (new) peer to read its hostname and system UUID. It takes the 
+# This program is setuid 'admin' and calls a (new) peer to read its host name and system UUID. It takes the 
 # target's password in via a file.
 # 
 # Exit codes;

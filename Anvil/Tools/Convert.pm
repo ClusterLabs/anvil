@@ -15,7 +15,7 @@ my $THIS_FILE = "Convert.pm";
 # add_commas
 # bytes_to_human_readable
 # cidr
-# hostname_to_ip
+# host_name_to_ip
 # human_readable_to_bytes
 # round
 # time
@@ -605,38 +605,38 @@ sub cidr
 	return($output);
 }
 
-=head2 hostname_to_ip
+=head2 host_name_to_ip
 
-This method takes a hostname and tries to convert it to an IP address. If it fails, it will return C<< 0 >>.
+This method takes a host name and tries to convert it to an IP address. If it fails, it will return C<< 0 >>.
 
 Parameters;
 
-=head3 hostname
+=head3 host_name
 
 This is the host name (or domain name) to try and convert to an IP address.
 
 =cut
-sub hostname_to_ip
+sub host_name_to_ip
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $hostname = defined $parameter->{hostname} ? $parameter->{hostname} : "";
-	my $ip       = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hostname => $hostname }});
+	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : "";
+	my $ip        = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
 	
-	if (not $hostname)
+	if (not $host_name)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->hostname_to_ip()", parameter => "hostnmae" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->host_name_to_ip()", parameter => "host_name" }});
 		return($ip);
 	}
 	
 	### TODO: Check local cached information later.
 	
 	# Try to resolve it using 'gethostip'.
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{gethostip}." -d $hostname"});
+	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{gethostip}." -d $host_name"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{

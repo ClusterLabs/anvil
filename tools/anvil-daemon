@@ -519,7 +519,7 @@ sub check_ssh_keys
 					's2:host_key_public_key' => $host_key_public_key,
 				}});
 				
-				# The key in the file might have a different trailing suffix (user@hostname)
+				# The key in the file might have a different trailing suffix (user@host_name)
 				# and doesn't really matter. So we search by the key type and public key to 
 				# see if it exists already.
 				my $found     = 0;
@@ -687,10 +687,10 @@ WHERE
 		# If the host name is the long host name, create another entry with the short name.
 		if ($host_name =~ /^(.*?)\./)
 		{
-			my $short_hostname = $1;
-			$anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$short_hostname} = $host_key;
+			my $short_host_name = $1;
+			$anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$short_host_name} = $host_key;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"peers::ssh_keys::${host_uuid}::host::${short_hostname}" => $anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$short_hostname}, 
+				"peers::ssh_keys::${host_uuid}::host::${short_host_name}" => $anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$short_host_name}, 
 			}});
 		}
 		

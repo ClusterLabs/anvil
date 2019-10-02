@@ -105,7 +105,7 @@ This is the IP or host name of the machine to read the version of. If this is no
 
 =head3 target_node_id (optional, but see condition below)
 
-This is the DRBD target node's (connection) ID that we're enabling dual-primary with. If this is not passed, but C<< drbd::status::<local_short_hostname>::resource::<resource>::connection::<peer_name>::peer-node-id >> is set, it will be used. Otherwise this argument is required.
+This is the DRBD target node's (connection) ID that we're enabling dual-primary with. If this is not passed, but C<< drbd::status::<local_short_host_name>::resource::<resource>::connection::<peer_name>::peer-node-id >> is set, it will be used. Otherwise this argument is required.
 
 =cut
 sub allow_two_primaries
@@ -138,7 +138,7 @@ sub allow_two_primaries
 	}
 	
 	# Do we need to scan devices?
-	my $host = $anvil->_short_hostname;
+	my $host = $anvil->_short_host_name;
 	if (not $anvil->data->{drbd}{config}{$host}{peer})
 	{
 		# Get our device list.
@@ -270,7 +270,7 @@ sub get_devices
 	}});
 	
 	# Is this a local call or a remote call?
-	my $host       = $anvil->_short_hostname;
+	my $host       = $anvil->_short_host_name;
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
 	my $output     = "";
 	if ($anvil->Network->is_remote($target))
@@ -395,11 +395,11 @@ sub get_devices
 			### TODO: Handle external metadata
 			my $this_host = $host_href->{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				this_host                 => $this_host,
-				'$anvil->_hostname'       => $anvil->_hostname, 
-				'$anvil->_short_hostname' => $anvil->_short_hostname, 
+				this_host                  => $this_host,
+				'$anvil->_host_name'       => $anvil->_host_name, 
+				'$anvil->_short_host_name' => $anvil->_short_host_name, 
 			}});
-			if (($this_host eq $anvil->_hostname) or ($this_host eq $anvil->_short_hostname))
+			if (($this_host eq $anvil->_host_name) or ($this_host eq $anvil->_short_host_name))
 			{
 				$anvil->data->{drbd}{config}{$host}{host} = $this_host;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::config::${host}::host" => $anvil->data->{drbd}{config}{$host}{host} }});
@@ -494,11 +494,11 @@ sub get_devices
 
 This parses the DRBD status on the local or remote system. The data collected is stored in the following hashes;
 
- - drbd::status::<hostname>::resource::<resource_name>::{ap-in-flight,congested,connection-state,peer-node-id,rs-in-flight}
- - drbd::status::<hostname>::resource::<resource_name>::connection::<peer_hostname>::volume::<volume>::{has-online-verify-details,has-sync-details,out-of-sync,peer-client,peer-disk-state,pending,percent-in-sync,received,replication-state,resync-suspended,sent,unacked}
+ - drbd::status::<host_name>::resource::<resource_name>::{ap-in-flight,congested,connection-state,peer-node-id,rs-in-flight}
+ - drbd::status::<host_name>::resource::<resource_name>::connection::<peer_host_name>::volume::<volume>::{has-online-verify-details,has-sync-details,out-of-sync,peer-client,peer-disk-state,pending,percent-in-sync,received,replication-state,resync-suspended,sent,unacked}
  - # If the volume is resyncing, these additional values will be set:
- - drbd::status::<hostname>::resource::<resource_name>::connection::<peer_hostname>::volume::<volume>::{db-dt MiB-s,db0-dt0 MiB-s,db1-dt1 MiB-s,estimated-seconds-to-finish,percent-resync-done,rs-db0-sectors,rs-db1-sectors,rs-dt-start-ms,rs-dt0-ms,rs-dt1-ms,rs-failed,rs-paused-ms,rs-same-csum,rs-total,want}
- - drbd::status::<hostname>::resource::<resource>::devices::volume::<volume>::{al-writes,bm-writes,client,disk-state,lower-pending,minor,quorum,read,size,upper-pending,written}
+ - drbd::status::<host_name>::resource::<resource_name>::connection::<peer_host_name>::volume::<volume>::{db-dt MiB-s,db0-dt0 MiB-s,db1-dt1 MiB-s,estimated-seconds-to-finish,percent-resync-done,rs-db0-sectors,rs-db1-sectors,rs-dt-start-ms,rs-dt0-ms,rs-dt1-ms,rs-failed,rs-paused-ms,rs-same-csum,rs-total,want}
+ - drbd::status::<host_name>::resource::<resource>::devices::volume::<volume>::{al-writes,bm-writes,client,disk-state,lower-pending,minor,quorum,read,size,upper-pending,written}
 
 If any data for the host was stored in a previous call, it will be deleted before the new data is collected and stored.
 
@@ -543,7 +543,7 @@ sub get_status
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
-	my $host       = $anvil->_short_hostname();
+	my $host       = $anvil->_short_host_name();
 	if ($anvil->Network->is_remote($target))
 	{
 		# Clear the hash where we'll store the data.

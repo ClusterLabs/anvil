@@ -29,7 +29,7 @@ my $THIS_FILE = "System.pm";
 # find_matching_ip
 # get_uptime
 # get_os_type
-# hostname
+# host_name
 # is_local
 # maintenance_mode
 # manage_firewall
@@ -65,7 +65,7 @@ Provides all methods related to storage on a system.
  # Access to methods using '$anvil->System->X'. 
  # 
  # Example using 'system_call()';
- my ($hostname, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostname}});
+ my ($host_name, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
 
 =head1 METHODS
 
@@ -164,7 +164,7 @@ sub activate_lv
 
 This method makes a system call and returns the output (with the last new-line removed) and the return code. If there is a problem, 'C<< #!error!# >>' is returned and the error will be logged.
 
- my ($output, $return_code) = $anvil->System->call({shell_call => "hostname"});
+ my ($output, $return_code) = $anvil->System->call({shell_call => "host_name"});
 
 Parameters;
 
@@ -949,7 +949,7 @@ sub get_host_type
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_host_type()" }});
 	
 	my $host_type = "";
-	my $host_name = $anvil->_short_hostname;
+	my $host_name = $anvil->_short_host_name;
 	   $host_type = "unknown";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_type        => $host_type,
@@ -1018,7 +1018,7 @@ sub enable_daemon
 
 =head2 find_matching_ip
 
-This takes an IP (or hostname, which is translated to an IP using local resources), and tries to figure out which local IP address is on the same subnet.
+This takes an IP (or host name, which is translated to an IP using local resources), and tries to figure out which local IP address is on the same subnet.
 
 If no match is found, an empty string is returned. If there is an error, C<< !!error!! >> is returned.
 
@@ -1053,7 +1053,7 @@ sub find_matching_ip
 	if (not $anvil->Validate->is_ipv4({ip => $host}))
 	{
 		# This will be '0' if it failed, and pre-validated if it returns an IP.
-		$host = $anvil->Convert->hostname_to_ip({hostname => $host});
+		$host = $anvil->Convert->host_name_to_ip({host_name => $host});
 		if (not $host)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0211", variables => { host => $parameter->{host} }});
@@ -1192,56 +1192,102 @@ sub get_os_type
 	return($os_type, $os_arch);
 }
 
-=head2 hostname
+=head2 host_name
 
-Get or set the local hostname. The current (or new) "static" (traditional) host name and the "pretty" (descriptive) host names are returned.
+Get or set the local host name. The current (or new) "static" (traditional) host name and the "pretty" (descriptive) host names are returned.
 
  # Get the current host name.
- my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname();
+ my ($traditional_host_name, $descriptive_host_name) = $anvil->System->host_name();
 
  # Set the traditional host name.
- my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname({set => "an-striker01.alteeve.com");
+ my ($traditional_host_name, $descriptive_host_name) = $anvil->System->host_name({set => "an-striker01.alteeve.com");
 
  # Set the traditional and descriptive host names.
- my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname({set => "an-striker01.alteeve.com", pretty => "Alteeve - Striker 01");
+ my ($traditional_host_name, $descriptive_host_name) = $anvil->System->host_name({set => "an-striker01.alteeve.com", pretty => "Alteeve - Striker 01");
 
-The current host name (or the new hostname if C<< set >> was used) is returned as a string.
+The current host name (or the new host name if C<< set >> was used) is returned as a string.
 
 Parameters;
 
-=head3 set (optional)
+=head3 password (optional)
 
-If set, this will become the new host name.
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
 
 =head3 pretty (optional)
 
 If set, this will be set as the "pretty" host name.
 
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 set (optional)
+
+If set, this will become the new host name.
+
+=head3 target (optional)
+
+This is the IP or host name of the machine to read the version of. If this is not set, the local system's version is checked.
+
 =cut
-sub hostname
+sub host_name
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->hostname()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->host_name()" }});
 	
-	my $pretty = $parameter->{pretty} ? $parameter->{pretty} : "";
-	my $set    = $parameter->{set}    ? $parameter->{set}    : "";
+	my $pretty      = defined $parameter->{pretty}      ? $parameter->{pretty}      : "";
+	my $set         = defined $parameter->{set}         ? $parameter->{set}         : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		pretty => $pretty, 
-		set    => $set, 
+		pretty      => $pretty, 
+		set         => $set, 
+		target      => $target, 
+		port        => $port, 
+		remote_user => $remote_user, 
+		password    => $anvil->Log->is_secure($password), 
 	}});
 	
-	# Set
+	# Set?
 	if ($set)
 	{
-		# TODO: Sanity check the host name
 		my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." set-hostname $set";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		my $output      = "";
+		my $return_code = "";
+		if ($anvil->Network->is_remote($target))
+		{
+			($output, my $error, $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error  => $error,
+				output => $output,
+			}});
+		}
+		else
+		{
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
 	}
 	
 	# Pretty
@@ -1252,19 +1298,100 @@ sub hostname
 		my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." set-hostname --pretty \"$pretty\"";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		my $output      = "";
+		my $return_code = "";
+		if ($anvil->Network->is_remote($target))
+		{
+			($output, my $error, $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error  => $error,
+				output => $output,
+			}});
+		}
+		else
+		{
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
 	}
 	
-	# Get the static (traditional) hostname
-	my ($hostname, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { hostname => $hostname, return_code => $return_code }});
+	# Get the static (traditional) host name
+	my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." --static";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
-	# Get the pretty (descriptive) hostname
-	(my $descriptive, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostnamectl}." --pretty"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { descriptive => $descriptive, return_code => $return_code }});
+	my $host_name   = "";
+	my $descriptive = "";
+	my $output      = "";
+	my $return_code = "";
+	if ($anvil->Network->is_remote($target))
+	{
+		($host_name, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_name => $host_name,
+			output    => $output,
+		}});
+	}
+	else
+	{
+		($host_name, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_name    => $host_name, 
+			return_code  => $return_code,
+		}});
+	}
 	
-	return($hostname, $descriptive);
+	# Get the pretty (descriptive) host name
+	$shell_call = $anvil->data->{path}{exe}{hostnamectl}." --pretty";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	$output      = "";
+	$return_code = "";
+	if ($anvil->Network->is_remote($target))
+	{
+		($descriptive, my $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			descriptive => $descriptive,
+			output      => $output,
+		}});
+	}
+	else
+	{
+		($descriptive, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			descriptive => $descriptive, 
+			return_code => $return_code,
+		}});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_name   => $host_name, 
+		return_code => $return_code,
+	}});
+	return($host_name, $descriptive);
 }
 
 =head2 is_local
@@ -1290,9 +1417,9 @@ sub is_local
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	
 	my $is_local = 0;
-	if (($host eq $anvil->_hostname)       or 
-	    ($host eq $anvil->_short_hostname) or 
-	    ($host eq "localhost")             or 
+	if (($host eq $anvil->_host_name)       or 
+	    ($host eq $anvil->_short_host_name) or 
+	    ($host eq "localhost")              or 
 	    ($host eq "127.0.0.1"))
 	{
 		# It's local
@@ -1974,7 +2101,7 @@ sub pids
 
 =head2 ping
 
-This method will attempt to ping a target, by hostname or IP, and returns C<< 1 >> if successful, and C<< 0 >> if not.
+This method will attempt to ping a target, by host name or IP, and returns C<< 1 >> if successful, and C<< 0 >> if not.
 
 Example;
 
@@ -2094,7 +2221,7 @@ sub ping
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { payload => $payload }});
 	}
 	
-	# Build the call. Note that we use 'timeout' because if there is no connection and the hostname is 
+	# Build the call. Note that we use 'timeout' because if there is no connection and the host name is 
 	# used to ping and DNS is not available, it could take upwards of 30 seconds time timeout otherwise.
 	my $shell_call = "";
 	if ($timeout)
@@ -2125,7 +2252,7 @@ sub ping
 		my $output = "";
 		my $error  = "";
 		
-		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our hostname.
+		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our host name.
 		if ($anvil->Network->is_remote($target))
 		{
 			### Remote calls

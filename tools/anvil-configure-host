@@ -188,54 +188,54 @@ sub reconfigure_network
 {
 	my ($anvil) = @_;
 	
-	my $reboot_needed   = 0;
-	my $prefix          = $anvil->data->{variables}{form}{config_step1}{prefix}{value};
-	my $sequence        = $anvil->data->{variables}{form}{config_step1}{sequence}{value};
-	my $domain          = $anvil->data->{variables}{form}{config_step1}{domain}{value};
-	my $organization    = $anvil->data->{variables}{form}{config_step1}{organization}{value};
-	my $bcn_count       = 1;	# TODO: This should be coming from the form, even though it's only '1' for now.
-	my $sn_count        = 0;	# TODO: This should be coming from the form, even though it's always '0' for Strikers.
-	my $ifn_count       = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
-	my $new_hostname    = defined $anvil->data->{variables}{form}{config_step2}{hostname}{value} ? $anvil->data->{variables}{form}{config_step2}{hostname}{value} : $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
-	my $pretty_hostname = $organization." - Striker ".sprintf("%02d", $sequence);
+	my $reboot_needed    = 0;
+	my $prefix           = $anvil->data->{variables}{form}{config_step1}{prefix}{value};
+	my $sequence         = $anvil->data->{variables}{form}{config_step1}{sequence}{value};
+	my $domain           = $anvil->data->{variables}{form}{config_step1}{domain}{value};
+	my $organization     = $anvil->data->{variables}{form}{config_step1}{organization}{value};
+	my $bcn_count        = 1;	# TODO: This should be coming from the form, even though it's only '1' for now.
+	my $sn_count         = 0;	# TODO: This should be coming from the form, even though it's always '0' for Strikers.
+	my $ifn_count        = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
+	my $new_host_name    = defined $anvil->data->{variables}{form}{config_step2}{host_name}{value} ? $anvil->data->{variables}{form}{config_step2}{host_name}{value} : $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
+	my $pretty_host_name = $organization." - Striker ".sprintf("%02d", $sequence);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { 
-		prefix          => $prefix, 
-		sequence        => $sequence,
-		domain          => $domain, 
-		organization    => $organization, 
-		bcn_count       => $bcn_count, 
-		ifn_count       => $ifn_count, 
-		new_hostname    => $new_hostname, 
-		pretty_hostname => $pretty_hostname, 
+		prefix           => $prefix, 
+		sequence         => $sequence,
+		domain           => $domain, 
+		organization     => $organization, 
+		bcn_count        => $bcn_count, 
+		ifn_count        => $ifn_count, 
+		new_host_name    => $new_host_name, 
+		pretty_host_name => $pretty_host_name, 
 	}});
 	
-	# Set the hostname
-	my ($hostname, $descriptive_hostname) = $anvil->System->hostname({set => $new_hostname, pretty => $pretty_hostname, debug => 3});
+	# Set the host_name
+	my ($host_name, $descriptive_host_name) = $anvil->System->host_name({set => $new_host_name, pretty => $pretty_host_name, debug => 3});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		hostname             => $hostname,
-		descriptive_hostname => $descriptive_hostname, 
+		host_name             => $host_name,
+		descriptive_host_name => $descriptive_host_name, 
 	}});
-	if ($hostname eq $new_hostname)
+	if ($host_name eq $new_host_name)
 	{
 		# Success
 		$anvil->Job->update_progress({
 			progress => 10, 
-			message  => "message_0016,!!hostname!$new_hostname!!", 
+			message  => "message_0016,!!host_name!$new_host_name!!", 
 			job_uuid => $anvil->data->{job}{uuid},
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0016", variables => { hostname => $new_hostname }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0016", variables => { host_name => $new_host_name }});
 	}
 	else
 	{
 		# Failed
 		$anvil->Job->update_progress({
 			progress => 0, 
-			message  => "message_0017,!!hostname!$new_hostname!!,!!bad_hostname!$hostname!!", 
+			message  => "message_0017,!!host_name!$new_host_name!!,!!bad_host_name!$host_name!!", 
 			job_uuid => $anvil->data->{job}{uuid},
 		});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0017", variables => { 
-			hostname     => $new_hostname,
-			bad_hostname => $hostname,
+			host_name     => $new_host_name,
+			bad_host_name => $host_name,
 		}});
 		$anvil->nice_exit({code => 4});
 	}

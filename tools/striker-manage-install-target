@@ -199,7 +199,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list
 }});
 
 # If this isn't a Striker dashboard, exit.
-if ($anvil->_short_hostname !~ /striker/)
+if ($anvil->_short_host_name !~ /striker/)
 {
 	print $anvil->Words->string({key => "error_0044"})."\n";
 	update_progress($anvil, 100, "error_0044");
@@ -463,9 +463,9 @@ sub setup_boot_environment
 	my $dns         = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} ? $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
 	my $domain      = "localdomain";
 	my $base_url    = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
-	if ($anvil->_hostname =~ /\./)
+	if ($anvil->_host_name =~ /\./)
 	{
-		$domain =  $anvil->_hostname;
+		$domain =  $anvil->_host_name;
 		$domain =~ s/^.*?\.//;
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -480,7 +480,7 @@ sub setup_boot_environment
 	
 	### NOTE: The DNS range is a bit tricky, so for now, we'll assume that the BCN is always a /16 
 	###       network. Someday this might change, and if so, we'll need to make this a lot smarter.
-	my $striker_number =  ($anvil->_short_hostname =~ /striker(\d+)/)[0];
+	my $striker_number =  ($anvil->_short_host_name =~ /striker(\d+)/)[0];
 	   $striker_number =  1 if not $striker_number;
 	   $striker_number =~ s/^0//;
 	my $third_octet    =  (10 * $striker_number) + 4;
@@ -580,15 +580,15 @@ sub setup_boot_environment
 			$say_type = "#!string!message_0117!#";
 		}
 		my $kickstart_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "kickstart", variables => { 
-			type     => $type,
-			say_type => $say_type, 
-			hostname => "new-".$type.".".$domain,
-			os       => $anvil->data->{host_os}{os_type},
-			url      => $base_url."/os/",
-			keyboard => $anvil->data->{kickstart}{keyboard} ? $anvil->data->{kickstart}{keyboard} : $anvil->data->{defaults}{kickstart}{keyboard},
-			timezone => $anvil->data->{kickstart}{timezone} ? $anvil->data->{kickstart}{timezone} : $anvil->data->{defaults}{kickstart}{timezone},
-			password => $anvil->data->{kickstart}{password} ? $anvil->data->{kickstart}{password} : $anvil->data->{defaults}{kickstart}{password},
-			debug    => 0,	# This isn't the same as the rest of our code, just '1' or '0'.
+			type      => $type,
+			say_type  => $say_type, 
+			host_name => "new-".$type.".".$domain,
+			os        => $anvil->data->{host_os}{os_type},
+			url       => $base_url."/os/",
+			keyboard  => $anvil->data->{kickstart}{keyboard} ? $anvil->data->{kickstart}{keyboard} : $anvil->data->{defaults}{kickstart}{keyboard},
+			timezone  => $anvil->data->{kickstart}{timezone} ? $anvil->data->{kickstart}{timezone} : $anvil->data->{defaults}{kickstart}{timezone},
+			password  => $anvil->data->{kickstart}{password} ? $anvil->data->{kickstart}{password} : $anvil->data->{defaults}{kickstart}{password},
+			debug     => 0,	# This isn't the same as the rest of our code, just '1' or '0'.
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { kickstart_body => $kickstart_body }});
 		
@@ -1418,7 +1418,6 @@ sub load_packages
 			"harfbuzz.x86_64",
 			"hdparm.x86_64",
 			"hicolor-icon-theme.noarch",
-			"hostname.x86_64",
 			"htop.x86_64",
 			"httpd-filesystem.noarch",
 			"httpd-tools.x86_64",

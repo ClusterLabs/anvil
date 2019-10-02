@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This program is setuid 'admin' and calls a (new) peer to read its hostname and system UUID. It takes the 
+# This program is setuid 'admin' and calls a (new) peer to read its host name and system UUID. It takes the 
 # target's password in via a file.
 # 
 # Exit codes;
@@ -72,7 +72,7 @@ sub set_host_name
 	### TODO: Left off here;
 	###       - Validate host name
 	###       - Update progress values
-	###       - Set hostnamectl
+	###       - Set host_namectl
 	if ((not defined $anvil->data->{data}{host_name}) or (not $anvil->data->{data}{host_name}))
 	{
 		return(0);
@@ -83,7 +83,7 @@ sub set_host_name
 	
 	if (not $anvil->Validate->is_domain_name({name => $anvil->data->{data}{host_name}}))
 	{
-		# Bad hostname.
+		# Bad host_name.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0062", variables => { host_name => $anvil->data->{data}{host_name} }});
 		$anvil->data->{job}{progress} += 5;
 		update_progress($anvil, $anvil->data->{job}{progress}, "job_0062,!!host_name!".$anvil->data->{data}{host_name}."!!");
@@ -91,7 +91,14 @@ sub set_host_name
 	}
 	
 	# Try to set the host name now.
-	my ($host_name, $descriptive_host_name) = $anvil->System->hostname({debug => 2, set => $anvil->data->{data}{host_name}});
+	my ($host_name, $descriptive_host_name) = $anvil->System->host_name({
+		debug       => 2, 
+		set         => $anvil->data->{data}{host_name},
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root",
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		host_name             => $host_name,
 		descriptive_host_name => $descriptive_host_name, 
@@ -219,7 +226,7 @@ sub add_repos
 		# NOTE: We can't use Storage->write_file() because the target may not have 'rsync' installed
 		#       yet.
 		my $shell_call = "
-".$anvil->data->{path}{exe}{cat}." > /etc/yum.repos.d/".$anvil->_short_hostname.".repo << EOF
+".$anvil->data->{path}{exe}{cat}." > /etc/yum.repos.d/".$anvil->_short_host_name.".repo << EOF
 $repo
 EOF
 ";

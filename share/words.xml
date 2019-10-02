@@ -40,8 +40,8 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="message_0013">#!free!#</key>
 		<key name="message_0014">One or more files on disk have changed. Exiting to reload.</key>
 		<key name="message_0015">The reconfigure of the network has begun.</key>
-		<key name="message_0016">The hostname: [#!variable!hostname!#] has been set.</key>
-		<key name="message_0017">Failed to set the hostname: [#!variable!hostname!#]! The hostname is currently [#!variable!bad_hostname!#]. This is probably a program error.</key>
+		<key name="message_0016">The host name: [#!variable!host_name!#] has been set.</key>
+		<key name="message_0017">Failed to set the host name: [#!variable!host_name!#]! The host name is currently [#!variable!bad_host_name!#]. This is probably a program error.</key>
 		<key name="message_0018">What would you like the new password to be?</key>
 		<key name="message_0019">Please enter the password again to confirm.</key>
 		<key name="message_0020">About to update the local passwords (shell users, database and web interface).</key>
@@ -823,7 +823,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0014">Step 1</key>
 		<key name="striker_0015">IFN Count</key>
 		<key name="striker_0016">Host name</key>
-		<key name="striker_0017">This is the hostname for this Striker dashboard. Generally it is a good idea to stick with the default.</key>
+		<key name="striker_0017">This is the host name for this Striker dashboard. Generally it is a good idea to stick with the default.</key>
 		<key name="striker_0018">Back-Channel Network link #!variable!number!#</key>
 		<key name="striker_0019">This is where you configure the network to enable access this Back-Channel Network.</key>
 		<key name="striker_0020">Storage Network link #!variable!number!#</key>
@@ -882,7 +882,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="striker_0073">When checked, the Anvil! will ping the peer before trying to connect to the database. This speeds up skipping a database that is offline, but won't help if the databsae is behind a router. When unchecked, connections will be a touch faster when the database is available.</key>
 		<key name="striker_0074">When checked, the peer will be configured to add the local database as a peer at the same time that we add it to this system.</key>
 		<key name="striker_0075">Access</key>
-		<key name="striker_0076"><![CDATA[This tells Striker how to connect to the peer. The default username is '<span class="fixed_width">admin</span>', and the default port is '<span class="fixed_width">5432</span>'. If the peer uses these, then you only need to specify the IP address or hostname of the peer. If the user name is not '<span class="fixed_width">admin</span>', then you need to use the format '<span class="fixed_width">user@host</span>. If the TCP port is not '<span class="fixed_width">5432</span>', then you need to use '<span class="fixed_width">host:port</span>. If both user and port are different, use the format '<span class="fixed_width">user@host:port</span>'.]]></key>
+		<key name="striker_0076"><![CDATA[This tells Striker how to connect to the peer. The default username is '<span class="fixed_width">admin</span>', and the default port is '<span class="fixed_width">5432</span>'. If the peer uses these, then you only need to specify the IP address or host name of the peer. If the user name is not '<span class="fixed_width">admin</span>', then you need to use the format '<span class="fixed_width">user@host</span>. If the TCP port is not '<span class="fixed_width">5432</span>', then you need to use '<span class="fixed_width">host:port</span>. If both user and port are different, use the format '<span class="fixed_width">user@host:port</span>'.]]></key>
 		<key name="striker_0077"><![CDATA[If '#!string!striker_0072!#' is set, we will need to update the peer's configuration. If the peer's SSH port is not '<span class="fixed_width">22</span>', you can append: '<span class="fixed_width">,ssh=X</span>' where 'X' is the SSH TCP port.]]></key>
 		<key name="striker_0078">Please verify</key>
 		<key name="striker_0079">Peer</key>
@@ -1060,7 +1060,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
 		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
 		<key name="error_0011">Something went wrong while trying to update the password. The return code was: [#!variable!return_code!#], but '0' was expected.</key>
-		<key name="error_0012"><![CDATA[The <a href="https://en.wikipedia.org/wiki/Hostname" target="_new">hostname</a> has to be set to a valid value.]]></key>
+		<key name="error_0012"><![CDATA[The <a href="https://en.wikipedia.org/wiki/Hostname" target="_new">host name</a> has to be set to a valid value.]]></key>
 		<key name="error_0013">A user name must be set. This is usually 'admin'.</key>
 		<key name="error_0014">You must set a password. There are no complexity rules, but a long password is strongly recommended.</key>
 		<key name="error_0015">A DNS entry is bad. One or more IPv4 addresses can be specified, with a comma separating multiple IPs.</key>

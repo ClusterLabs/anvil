@@ -352,7 +352,7 @@ sub stop_drbd_resource
 	my ($anvil) = @_;
 	
 	my $server  = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host    = $anvil->_short_hostname;
+	my $host    = $anvil->_short_host_name;
 	my $peer    = $anvil->data->{drbd}{config}{$host}{peer};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server  => $server,
@@ -394,7 +394,7 @@ sub start_drbd_resource
 	my ($anvil) = @_;
 	
 	my $server  = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host    = $anvil->_short_hostname;
+	my $host    = $anvil->_short_host_name;
 	my $peer    = $anvil->data->{drbd}{config}{$host}{peer};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server  => $server,
@@ -527,7 +527,7 @@ sub find_server
 	my ($anvil) = @_;
 	
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host   = $anvil->_short_hostname;
+	my $host   = $anvil->_short_host_name;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0415", variables => { server => $server }});
 	foreach my $ip_address (sort {$a cmp $b} keys %{$anvil->data->{drbd}{config}{$host}{ip_addresses}})
 	{
@@ -560,7 +560,7 @@ sub find_server
 			host   => $host, 
 		}});
 		
-		if ($host eq $anvil->_hostname)
+		if ($host eq $anvil->_host_name)
 		{
 			# Already running, we're good, and we're done.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0416", variables => { server => $server }});
@@ -741,7 +741,7 @@ sub migrate_server
 		
 		# Make sure all resource(s) are ready for the server.
 		my $all_up_to_date = 1;
-		my $host           = $anvil->_short_hostname;
+		my $host           = $anvil->_short_host_name;
 		my $peer_name      = $anvil->data->{drbd}{config}{$host}{peer};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host      => $host, 
@@ -865,7 +865,7 @@ sub migrate_server
 		
 		# This is called after a migration. If that is the case here, the target will be us. Just 
 		# make sure it is running and, if so, return '0'. The 'meta_on_node' is the new host.
-		if (($target eq $anvil->_hostname) or ($target eq $anvil->_short_hostname) or ($target eq $meta_on_node))
+		if (($target eq $anvil->_host_name) or ($target eq $anvil->_short_host_name) or ($target eq $meta_on_node))
 		{
 			# If it's running, we're succesfully out.
 			if ((($host eq $target) or ($short_host eq $target)) && ($status eq "running"))
@@ -1050,7 +1050,7 @@ sub validate_storage_drbd
 	# Now check storage.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source = "from_disk";
-	my $host   = $anvil->_short_hostname;
+	my $host   = $anvil->_short_host_name;
 	
 	# Did I find a resource for each disk?
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$server}{device}})

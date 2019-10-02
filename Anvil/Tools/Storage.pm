@@ -2974,7 +2974,7 @@ Parameters;
 
 =head3 target (required)
 
-This is the IP address or (resolvable) hostname of the remote machine.
+This is the IP address or (resolvable) host name of the remote machine.
 
 =head3 password (required)
 

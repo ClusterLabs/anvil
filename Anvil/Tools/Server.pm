@@ -174,7 +174,7 @@ This will look on the local or a remote machine for the list of servers that are
 The list is stored as; 
 
  server::location::<server>::status = <status>
- server::location::<server>::host   = <hostname>
+ server::location::<server>::host   = <host_name>
 
 Parameters;
 
@@ -226,7 +226,7 @@ sub find
 	}
 	
 	my $host_type    = $anvil->System->get_host_type({debug => $debug});
-	my $host         = $anvil->_hostname;
+	my $host         = $anvil->_host_name;
 	my $virsh_output = "";
 	my $return_code  = "";
 	if ($anvil->Network->is_remote($target))
@@ -356,7 +356,7 @@ sub get_status
 	
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
-	my $host       = $anvil->_short_hostname;
+	my $host       = $anvil->_short_host_name;
 	if ($anvil->Network->is_remote($target))
 	{
 		# Remote call.
@@ -662,7 +662,7 @@ This is the host name (or IP) of the host that we're pulling the server from.
 
 If set, the server will be pulled.
 
-=head3 target (optional, defaukt is the full local hostname)
+=head3 target (optional, defaukt is the full local host name)
 
 This is the host name (or IP) Of the host that the server will be pushed to, if C<< source >> is not set. When this is not passed, the local full host name is used as default.
 
@@ -676,7 +676,7 @@ sub migrate
 	
 	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
 	my $source  = defined $parameter->{source} ? $parameter->{source} : "";
-	my $target  = defined $parameter->{target} ? $parameter->{target} : $anvil->_hostname;
+	my $target  = defined $parameter->{target} ? $parameter->{target} : $anvil->_host_name;
 	my $success = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server => $server, 
@@ -763,7 +763,7 @@ sub _parse_definition
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
-	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->_short_hostname;
+	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->_short_host_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server     => $server,
 		source     => $source, 

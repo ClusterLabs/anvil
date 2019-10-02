@@ -742,7 +742,7 @@ sub process_prep_host_page
 		confirm           => $confirm, 
 	}});
 	
-	# Is the IP or hostname valid?
+	# Is the IP or host name valid?
 	my $ssh_port = 22;
 	if ($host_ip_address =~ /:(\d+)$/)
 	{
@@ -949,7 +949,7 @@ sub process_prep_host_page
 			dr_checked   => $dr_checked, 
 		}});
 		
-		my $host_name         =  $anvil->_hostname;
+		my $host_name         =  $anvil->_host_name;
 		   $host_name         =~ s/striker\d\d/xxx/;
 		my $default_host_name = $host_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1518,7 +1518,7 @@ sub add_sync_peer
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::new_peer_bidirection::value" => $anvil->data->{cgi}{new_peer_bidirection}{value} }});
 		if ($anvil->data->{cgi}{new_peer_bidirection}{value} eq "on")
 		{
-			# See which of our IPs match theirs. If the peer is a hostname, first, find the IP.
+			# See which of our IPs match theirs. If the peer is a host name, first, find the IP.
 			$use_ip = $anvil->System->find_matching_ip({host => $host});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
 			
@@ -1598,7 +1598,7 @@ sub add_sync_peer
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
 			if ($use_ip)
 			{
-				# See which of our IPs match theirs. If the peer is a hostname, first
+				# See which of our IPs match theirs. If the peer is a host name, first
 				my $host_uuid   =  $anvil->Get->host_uuid;
 				my $sql_port    =  $anvil->data->{database}{$host_uuid}{port};
 				my $job_command =  $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$use_ip." --port ".$sql_port." --ping ".$ping;
@@ -1948,7 +1948,7 @@ ORDER BY
 		step1_welcome_message_id => "",
 		organization             => $anvil->data->{cgi}{organization}{value},
 		prefix                   => $anvil->data->{cgi}{prefix}{value},
-		hostname                 => $anvil->data->{cgi}{hostname}{value},
+		host_name                 => $anvil->data->{cgi}{host_name}{value},
 		striker_user             => $anvil->data->{cgi}{striker_user}{value},
 		striker_password         => $anvil->data->{cgi}{striker_password}{value},
 		networks                 => $networks,
@@ -2269,16 +2269,16 @@ ORDER BY
 # 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { say_dg_iface => $say_dg_iface }});
 	
 	# Hostname
-	my $say_default_hostname = $anvil->data->{cgi}{prefix}{value}."-striker0".$anvil->data->{cgi}{sequence}{value}.".".$anvil->data->{cgi}{domain}{value};
-	my $hostname_class       = $anvil->data->{cgi}{hostname}{alert} ? "input_alert" : "input_clear";
-	my $say_hostname         = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
-		name          => "hostname",
-		id            => "hostname",
+	my $say_default_host_name = $anvil->data->{cgi}{prefix}{value}."-striker0".$anvil->data->{cgi}{sequence}{value}.".".$anvil->data->{cgi}{domain}{value};
+	my $host_name_class       = $anvil->data->{cgi}{host_name}{alert} ? "input_alert" : "input_clear";
+	my $say_host_name         = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "host_name",
+		id            => "host_name",
 		field         => "#!string!striker_0016!#",
 		description   => "#!string!striker_0017!#",
-		value         => defined $anvil->data->{cgi}{hostname}{value} ? $anvil->data->{cgi}{hostname}{value} : $say_default_hostname,
+		value         => defined $anvil->data->{cgi}{host_name}{value} ? $anvil->data->{cgi}{host_name}{value} : $say_default_host_name,
 		default_value => "",
-		class         => $hostname_class,
+		class         => $host_name_class,
 		extra         => "",
 	}});
 	
@@ -2327,7 +2327,7 @@ ORDER BY
 		striker_password_form    => $say_striker_password,
 		gateway_form             => $say_gateway,
 		dns_form                 => $say_dns,
-		hostname_form            => $say_hostname,
+		host_name_form            => $say_host_name,
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { step2_body => $step2_body }});
 	
@@ -2343,10 +2343,10 @@ sub sanity_check_step2
 	my $sane = 1;
 	
 	# Do we have a host name, striker user and password?
-	if (not $anvil->Validate->form_field({name => "hostname", type => "domain_name"}))
+	if (not $anvil->Validate->form_field({name => "host_name", type => "domain_name"}))
 	{
 		$anvil->data->{form}{error_massage}  = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0012"}) }});
-		$anvil->data->{cgi}{hostname}{alert} = 1;
+		$anvil->data->{cgi}{host_name}{alert} = 1;
 		$sane                                = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 	}
@@ -2354,8 +2354,8 @@ sub sanity_check_step2
 	{
 		# Record the answer.
 		$anvil->Database->insert_or_update_variables({
-			variable_name         => "form::config_step2::hostname::value", 
-			variable_value        => $anvil->data->{cgi}{hostname}{value}, 
+			variable_name         => "form::config_step2::host_name::value", 
+			variable_value        => $anvil->data->{cgi}{host_name}{value}, 
 			variable_default      => "", 
 			variable_description  => "striker_0017", 
 			variable_section      => "config_step2", 
@@ -2919,13 +2919,13 @@ sub config_step1
 		}});
 		
 		# If we don't have an organization name, prefix, domain name or sequence number, try to parse it from
-		# the current static and pretty hostnames.
-		my ($traditional_hostname, $descriptive_hostname) = $anvil->System->hostname();
+		# the current static and pretty host_names.
+		my ($traditional_host_name, $descriptive_host_name) = $anvil->System->host_name();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			traditional_hostname => $traditional_hostname, 
-			descriptive_hostname => $descriptive_hostname, 
+			traditional_host_name => $traditional_host_name, 
+			descriptive_host_name => $descriptive_host_name, 
 		}});
-		if ($descriptive_hostname =~ /^(.*?) - Striker (\d+)/)
+		if ($descriptive_host_name =~ /^(.*?) - Striker (\d+)/)
 		{
 			my $organization = $1;
 			my $sequence     = $2;
@@ -2951,7 +2951,7 @@ sub config_step1
 				}});
 			}
 		}
-		if ($traditional_hostname =~ /^(.*?)-striker\d+\.(.*)$/)
+		if ($traditional_host_name =~ /^(.*?)-striker\d+\.(.*)$/)
 		{
 			my $prefix = $1;
 			my $domain = $2;

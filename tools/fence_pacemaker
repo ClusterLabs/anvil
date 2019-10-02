@@ -255,7 +255,7 @@ sub identify_peer
 	my $target_host = "";
 	my $target_ip   = $conf->{environment}{DRBD_PEER_ADDRESS};
 	
-	# First, can we translate the IP to a hostname?
+	# First, can we translate the IP to a host name?
 	my $shell_call = $conf->{path}{exe}{getent}." hosts ".$target_ip;
 	to_log($conf, {message => "Calling: [$shell_call]", 'line' => __LINE__, level => 2});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";

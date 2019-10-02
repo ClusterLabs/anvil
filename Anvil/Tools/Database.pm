@@ -1021,8 +1021,8 @@ sub connect
 			
 			# Set the first ID to be the one I read from later. Alternatively, if this host is 
 			# local, use it.
-			if (($host eq $anvil->_hostname)       or 
-			    ($host eq $anvil->_short_hostname) or 
+			if (($host eq $anvil->_host_name)       or 
+			    ($host eq $anvil->_short_host_name) or 
 			    ($host eq "localhost")             or 
 			    ($host eq "127.0.0.1")             or 
 			    (not $anvil->data->{sys}{database}{read_uuid}))
@@ -1144,7 +1144,7 @@ sub connect
 		}});
 		
 		### TODO: Is this still an issue? If so, then we either need to require that the DB host 
-		###       matches the actual hostname (dumb) or find another way of mapping the host name.
+		###       matches the actual host name (dumb) or find another way of mapping the host name.
 		# Query to see if the newly connected host is in the DB yet. If it isn't, don't send an
 		# alert as it'd cause a duplicate UUID error.
 # 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->Database->quote($anvil->data->{database}{$uuid}{host}).";";
@@ -1659,7 +1659,7 @@ sub get_local_uuid
 		my $db_host = $anvil->data->{database}{$uuid}{host};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { db_host => $db_host }});
 		
-		# If the uuid matches our host_uuid or if the hostname matches ours (or is localhost), return
+		# If the uuid matches our host_uuid or if the host name matches ours (or is localhost), return
 		# that UUID.
 		if ($uuid eq $anvil->Get->host_uuid)
 		{
@@ -3062,7 +3062,7 @@ The is the host's public key used by other machines to validate this machine whe
 
 =head3 host_name (required)
 
-This default value is the local hostname.
+This default value is the local host name.
 
 =head3 host_type (required)
 
@@ -3085,7 +3085,7 @@ sub insert_or_update_hosts
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $host_key  = defined $parameter->{host_key}  ? $parameter->{host_key}  : "";
-	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_hostname;
+	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_host_name;
 	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->get_host_type;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -5457,7 +5457,7 @@ sub locking
 	}});
 	
 	# These are used to ID this lock.
-	my $source_name = $anvil->_hostname;
+	my $source_name = $anvil->_host_name;
 	my $source_uuid = $anvil->data->{sys}{host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		source_name => $source_name, 
@@ -5521,7 +5521,7 @@ sub locking
 			}});
 			
 			# Log that the lock has been released.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0039", variables => { host => $anvil->_hostname }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0039", variables => { host => $anvil->_host_name }});
 		}
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
@@ -5551,7 +5551,7 @@ sub locking
 		}});
 		
 		# Log that we've renewed the lock.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0044", variables => { host => $anvil->_hostname }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0044", variables => { host => $anvil->_host_name }});
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 		return($set);
@@ -5640,7 +5640,7 @@ sub locking
 			}});
 			
 			# Log that we've got the lock.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $anvil->_hostname }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $anvil->_host_name }});
 		}
 	}
 	

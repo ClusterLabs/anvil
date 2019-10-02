@@ -187,12 +187,12 @@ This does a remote call over SSH. The connection is held open and the file handl
 
 Example;
 
- # Call 'hostname' on a node.
+ # Call 'hostnamectl' on a node.
  my ($output, $error, $return_code) = $anvil->Remote->call({
  	target      => "an-a01n01.alteeve.com",
  	password    => "super secret password",
  	remote_user => "admin",
- 	shell_call  => "/usr/bin/hostname",
+ 	shell_call  => "/usr/bin/hostnamectl",
  });
  
  # Make a call with sensitive data that you want logged only if $anvil->Log->secure is set and close the 
@@ -390,7 +390,7 @@ sub call
 	# If the target is a host name, convert it to an IP.
 	if (not $anvil->Validate->is_ipv4({ip => $target}))
 	{
-		my $new_target = $anvil->Convert->hostname_to_ip({hostname => $target});
+		my $new_target = $anvil->Convert->host_name_to_ip({host_name => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_target => $new_target }});
 		if ($new_target)
 		{

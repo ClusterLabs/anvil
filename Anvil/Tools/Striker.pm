@@ -155,8 +155,8 @@ sub get_local_repo
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base_url => $base_url }});
 	
 	# Create the local repo file body
-	my $repo = "[".$anvil->_short_hostname."-repo]
-name=Repo on ".$anvil->_hostname."
+	my $repo = "[".$anvil->_short_host_name."-repo]
+name=Repo on ".$anvil->_host_name."
 ".$base_url."
 enabled=1
 gpgcheck=0

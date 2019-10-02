@@ -654,7 +654,7 @@ sub is_remote
 	my $anvil  = $self->parent;
 	
 	my $remote = 0;
-	if (($target) && ($target ne "local") && ($target ne $anvil->_hostname) && ($target ne $anvil->_short_hostname))
+	if (($target) && ($target ne "local") && ($target ne $anvil->_host_name) && ($target ne $anvil->_short_host_name))
 	{
 		# It's a remote system
 		$remote = 1;
