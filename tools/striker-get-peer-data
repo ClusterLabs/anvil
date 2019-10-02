@@ -319,7 +319,21 @@ sub get_password
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	my $query = "SELECT state_note FROM states WHERE state_uuid=".$anvil->Database->quote($anvil->data->{switches}{'state-uuid'}).";";
+	# Do we have a (valid) state_uuid?
+	if (not $anvil->data->{switches}{'state-uuid'})
+	{
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0083"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'state-uuid'}}))
+	{
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0082", variables => {state_uuid => $anvil->data->{switches}{'state-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $query = "SELECT state_note FROM states WHERE state_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'state-uuid'}).";";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
 	my $password = $anvil->Database->query({uuid => $anvil->data->{sys}{host_uuid}, debug => 3, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];

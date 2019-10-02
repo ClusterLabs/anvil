@@ -463,11 +463,11 @@ AND
 					remote_user => $remote_user, 
 					password    => $password,
 					target      => $ip, 
-					return_code => $return_code, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					error  => $error,
-					output => $output,
+					error       => $error,
+					output      => $output,
+					return_code => $return_code, 
 				}});
 				foreach my $line (split/\n/, $output)
 				{

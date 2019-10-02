@@ -287,8 +287,8 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-26
-- 
+* Wed Oct 02 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-26
+- Updated source
 
 * Mon Sep 23 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-25
 - Fixed a couple bugs found in the previous release.
