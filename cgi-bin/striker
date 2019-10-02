@@ -257,7 +257,7 @@ sub process_task
 	$anvil->data->{cgi}{login}{value}  = "" if not defined $anvil->data->{cgi}{login}{value};
 	$anvil->data->{cgi}{logout}{value} = "" if not defined $anvil->data->{cgi}{logout}{value};
 	$anvil->data->{cgi}{save}{value}   = "" if not defined $anvil->data->{cgi}{save}{value};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"cgi::login::value"  => $anvil->data->{cgi}{login}{value},
 		"cgi::logout::value" => $anvil->data->{cgi}{logout}{value},
 		"cgi::save::value"   => $anvil->data->{cgi}{save}{value},
@@ -721,21 +721,25 @@ sub process_prep_host_page
 {
 	my ($anvil) = @_;
 	
-	my $host_ip_address = defined $anvil->data->{cgi}{host_ip_address}{value} ? $anvil->data->{cgi}{host_ip_address}{value} : "";
-	my $host_password   = defined $anvil->data->{cgi}{host_password}{value}   ? $anvil->data->{cgi}{host_password}{value}   : "";
-	my $rh_user         = defined $anvil->data->{cgi}{rh_user}{value}         ? $anvil->data->{cgi}{rh_user}{value}         : "";
-	my $rh_password     = defined $anvil->data->{cgi}{rh_password}{value}     ? $anvil->data->{cgi}{rh_password}{value}     : "";
-	my $type            = defined $anvil->data->{cgi}{type}{value}            ? $anvil->data->{cgi}{type}{value}            : "";
-	my $connect         = defined $anvil->data->{cgi}{'connect'}{value}       ? $anvil->data->{cgi}{'connect'}{value}       : "";
-	my $confirm         = defined $anvil->data->{cgi}{confirm}{value}         ? $anvil->data->{cgi}{confirm}{value}         : "";
+	my $host_name         = defined $anvil->data->{cgi}{host_name}{value}         ? $anvil->data->{cgi}{host_name}{value}         : "";
+	my $default_host_name = defined $anvil->data->{cgi}{default_host_name}{value} ? $anvil->data->{cgi}{default_host_name}{value} : "";
+	my $host_ip_address   = defined $anvil->data->{cgi}{host_ip_address}{value}   ? $anvil->data->{cgi}{host_ip_address}{value}   : "";
+	my $host_password     = defined $anvil->data->{cgi}{host_password}{value}     ? $anvil->data->{cgi}{host_password}{value}     : "";
+	my $rh_user           = defined $anvil->data->{cgi}{rh_user}{value}           ? $anvil->data->{cgi}{rh_user}{value}           : "";
+	my $rh_password       = defined $anvil->data->{cgi}{rh_password}{value}       ? $anvil->data->{cgi}{rh_password}{value}       : "";
+	my $type              = defined $anvil->data->{cgi}{type}{value}              ? $anvil->data->{cgi}{type}{value}              : "";
+	my $connect           = defined $anvil->data->{cgi}{'connect'}{value}         ? $anvil->data->{cgi}{'connect'}{value}         : "";
+	my $confirm           = defined $anvil->data->{cgi}{confirm}{value}           ? $anvil->data->{cgi}{confirm}{value}           : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		host_ip_address => $host_ip_address,
-		host_password   => $anvil->Log->is_secure($host_password), 
-		rh_user         => $rh_user, 
-		rh_password     => $anvil->Log->is_secure($rh_password), 
-		type            => $type, 
-		'connect'       => $connect, 
-		confirm         => $confirm, 
+		host_name         => $host_name, 
+		default_host_name => $default_host_name, 
+		host_ip_address   => $host_ip_address,
+		host_password     => $anvil->Log->is_secure($host_password), 
+		rh_user           => $rh_user, 
+		rh_password       => $anvil->Log->is_secure($rh_password), 
+		type              => $type, 
+		'connect'         => $connect, 
+		confirm           => $confirm, 
 	}});
 	
 	# Is the IP or hostname valid?
@@ -760,6 +764,12 @@ sub process_prep_host_page
 			password    => $anvil->Log->is_secure($host_password),
 		}});
 		
+		my $say_host_name = "host_name=\n";
+		if (($host_name) && ($host_name ne $default_host_name))
+		{
+			$say_host_name = "host_name=".$host_name."\n";
+		}
+		
 		# Store the peer's password as the job data
 		my $job_data =  "password=".$host_password."\n";
 		   $job_data .= "rh_password=".$rh_password."\n";
@@ -767,6 +777,7 @@ sub process_prep_host_page
 		   $job_data .= "host_ip_address=".$host_ip_address."\n";
 		   $job_data .= "ssh_port=".$ssh_port."\n";
 		   $job_data .= "type=".$type."\n"; 
+		   $job_data .= $say_host_name; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { job_data => $job_data }});
 		
 		# Store the job
@@ -912,11 +923,12 @@ sub process_prep_host_page
 			{
 				# Connected! Ask th euser to confirm.
 				$anvil->data->{form}{body} = $anvil->Template->get({file => "anvil.html", name => "confirm-initialize-host", variables => { 
-					'package' => $type eq "dr" ? "anvil-dr" : "anvil-node",
-					redhat    => $rh_template, 
-					access    => "root\@".$host_ip_address.":".$ssh_port,
-					host_name => $target_host_name, 
-					host_uuid => $target_host_uuid,
+					'package'         => $type eq "dr" ? "anvil-dr" : "anvil-node",
+					redhat            => $rh_template, 
+					access            => "root\@".$host_ip_address.":".$ssh_port,
+					host_name         => $target_host_name, 
+					host_uuid         => $target_host_uuid,
+					default_host_name => $default_host_name, 
 				}});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "form::body" => $anvil->data->{form}{body} }});
 			}
@@ -937,10 +949,25 @@ sub process_prep_host_page
 			dr_checked   => $dr_checked, 
 		}});
 		
+		my $host_name         =  $anvil->_hostname;
+		   $host_name         =~ s/striker\d\d/xxx/;
+		my $default_host_name = $host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			default_host_name => $default_host_name, 
+			host_name         => $host_name,
+		}});
+		if ((exists $anvil->data->{cgi}{host_name}) && ($anvil->data->{cgi}{host_name}{value}))
+		{
+			$host_name = $anvil->data->{cgi}{host_name}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+		}
+		
 		my $form_body = $anvil->Template->get({file => "anvil.html", name => "host-setup-menu1", variables => {
-			host_ip_address => $host_ip_address,
-			node_checked    => $node_checked, 
-			dr_checked      => $dr_checked, 
+			host_name         => $host_name,
+			default_host_name => $default_host_name, 
+			host_ip_address   => $host_ip_address,
+			node_checked      => $node_checked, 
+			dr_checked        => $dr_checked, 
 		}});
 		
 		$anvil->data->{form}{refresh_link} = "?anvil=true&task=prep-host";

@@ -110,7 +110,7 @@ then
 fi;
 ";
 	my ($file_body, $error, $return_code) = $anvil->Remote->call({
-		debug      => 2,
+		debug      => 3,
 		shell_call => $shell_call,
 		user       => $anvil->data->{target}{user}, 
 		target     => $anvil->data->{target}{host}, 
@@ -139,7 +139,7 @@ fi;
 		# Is it subscribed? This isn't the best call to make, but it seems to be the one that returns
 		# the fastest. Return code of '0' is registered, return code of '1' is not or not verified.
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug      => 2,
+			debug      => 3,
 			shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." identity", 
 			user       => $anvil->data->{target}{user}, 
 			target     => $anvil->data->{target}{host}, 
@@ -190,7 +190,7 @@ sub get_host_name
 	my ($anvil) = @_;
 	
 	my ($host_name, $error, $return_code) = $anvil->Remote->call({
-		debug      => 2,
+		debug      => 3,
 		shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
 		user       => $anvil->data->{target}{user}, 
 		target     => $anvil->data->{target}{host}, 
@@ -213,7 +213,7 @@ sub get_host_uuid
 	
 	# This is the first thing called, so start by verifying we can talk to the target at all.
 	my $access = $anvil->Remote->test_access({
-		debug    => 2,
+		debug    => 3,
 		user     => $anvil->data->{target}{user}, 
 		target   => $anvil->data->{target}{host}, 
 		port     => $anvil->data->{target}{port}, 
@@ -239,7 +239,7 @@ then
 fi;
 ";
 	my ($file_body, $error, $return_code) = $anvil->Remote->call({
-		debug      => 2,
+		debug      => 3,
 		shell_call => $shell_call,
 		user       => $anvil->data->{target}{user}, 
 		target     => $anvil->data->{target}{host}, 
@@ -259,7 +259,7 @@ fi;
 	{
 		# No good, Try dmidecode.
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug      => 2,
+			debug      => 3,
 			shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid",
 			user       => $anvil->data->{target}{user}, 
 			target     => $anvil->data->{target}{host}, 

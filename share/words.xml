@@ -254,6 +254,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0147"><![CDATA[What is the host's <b>current</b> IP address and password?]]></key>
 		<key name="message_0148"><![CDATA[This is a RHEL host and has not yet been subscribed.<br />You can enter your Red Hat subscription credentials below.<br />The host will be subscribed during setup.]]></key>
 		<key name="message_0149">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
+		<key name="message_0150">Set the new host name.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1028,6 +1029,9 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a progrem error, skipping this.</key>
 		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
 		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
+		<key name="job_0061">Setting the host name to: [#!variable!host_name!#]...</key>
+		<key name="job_0062">[ Error ] - The host name: [#!variable!host_name!#] is invalid. Skipping host name setup.</key>
+		<key name="job_0063">[ Error ] - Something went wrong. The host name was set to: [#!variable!host_name!#], but the host name returned was: [#!variable!current_host_name!#].</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

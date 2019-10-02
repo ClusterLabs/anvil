@@ -133,7 +133,7 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 8});
 }
 update_progress($anvil, 0, "clear");
-update_progress($anvil, 1, "log_0239");
+update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 
 # If we're being asked to disable, just do so and exit.
 if ($anvil->data->{switches}{disable})
@@ -392,8 +392,8 @@ sub check_refresh
 		# It's been long enough (or it's the first time), refresh.
 		$anvil->data->{switches}{refresh} = 1;
 		my $variables = { seconds => $anvil->Convert->add_commas({number => $anvil->data->{'install-manifest'}{'refresh-period'}}) };
-		print $anvil->Words->string({key => "log_0239", variables => $variables})."\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0239", variables => $variables});
+		print $anvil->Words->string({key => "log_0238", variables => $variables})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0238", variables => $variables});
 		return(0);
 	}
 	elsif ($difference > 0)

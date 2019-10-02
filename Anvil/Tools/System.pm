@@ -350,6 +350,10 @@ sub call
 		}
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	return($output, $return_code);
 }
 

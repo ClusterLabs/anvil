@@ -50,8 +50,10 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+$anvil->data->{job}{progress} = 0;
 get_job_details($anvil);
 wait_for_access($anvil);
+set_host_name($anvil);
 add_repos($anvil);
 add_databases($anvil);
 
@@ -62,6 +64,59 @@ $anvil->nice_exit({code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# Set the host name, if needed.
+sub set_host_name
+{
+	my ($anvil) = @_;
+	
+	### TODO: Left off here;
+	###       - Validate host name
+	###       - Update progress values
+	###       - Set hostnamectl
+	if ((not defined $anvil->data->{data}{host_name}) or (not $anvil->data->{data}{host_name}))
+	{
+		return(0);
+	}
+	$anvil->data->{job}{progress} += 5;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0061", variables => { host_name => $anvil->data->{data}{host_name} }});
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0061,!!host_name!".$anvil->data->{data}{host_name}."!!");
+	
+	if (not $anvil->Validate->is_domain_name({name => $anvil->data->{data}{host_name}}))
+	{
+		# Bad hostname.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0062", variables => { host_name => $anvil->data->{data}{host_name} }});
+		$anvil->data->{job}{progress} += 5;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0062,!!host_name!".$anvil->data->{data}{host_name}."!!");
+		return(1);
+	}
+	
+	# Try to set the host name now.
+	my ($host_name, $descriptive_host_name) = $anvil->System->hostname({debug => 2, set => $anvil->data->{data}{host_name}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name             => $host_name,
+		descriptive_host_name => $descriptive_host_name, 
+	}});
+	if ($host_name eq $anvil->data->{data}{host_name})
+	{
+		# Success!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0034"});
+		$anvil->data->{job}{progress} += 5;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0034");
+	}
+	else
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0063", variables => { 
+			host_name         => $anvil->data->{data}{host_name},
+			current_host_name => $host_name, 
+		}});
+		$anvil->data->{job}{progress} += 5;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0063,!!host_name!".$anvil->data->{data}{host_name}."!!,!!current_host_name!".$host_name."!!");
+		return(1);
+	}
+	
+	return(0);
+}
+
 # Add any databases we're using to the initialized host.
 sub add_databases
 {
@@ -71,7 +126,8 @@ sub add_databases
 	# possible at this stage that the target doesn't have a BCN IP. So we need to figure out what IP it
 	# has and we have that are on the same subnet. 
 	# Scan our network and the target's network, then compare them.
-	update_progress($anvil, 95, "job_0046");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0046");
 	my $target = $anvil->data->{data}{host_ip_address};
 	$anvil->Network->get_ips();
 	$anvil->Network->get_ips({
@@ -112,6 +168,7 @@ sub add_databases
 		last if $db_host;
 	}
 	
+	### TODO: Left off here. The password written to the target isn't right. Also, host.uuid is failing to be written.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { db_host => $db_host }});
 	if ($db_host)
 	{
@@ -150,7 +207,8 @@ sub add_repos
 	my ($anvil) = @_;
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0028"});
-	update_progress($anvil, 6, "job_0028");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0028");
 	
 	# Add the local repo.
 	my $repo = $anvil->Striker->get_local_repo({debug => 3});
@@ -180,7 +238,8 @@ EOF
 			return_code => $return_code, 
 		}});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0029"});
-		update_progress($anvil, 7, "job_0029");
+		$anvil->data->{job}{progress} += 5;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0029");
 	}
 	
 	# If I have a Red Hat user and password, try to subscribe this syste,.
@@ -189,7 +248,8 @@ EOF
 		# If there's no internet, this will fail. If the network is up, we can see if the 
 		# registration is still needed.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0030"});
-		update_progress($anvil, 7, "job_0030");
+		$anvil->data->{job}{progress} += 5;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0030");
 		
 		# We'll attach subscriptions if this is set
 		my $subscribe = 1;
@@ -210,13 +270,15 @@ EOF
 		{
 			# Already registered.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0031"});
-			update_progress($anvil, 10, "job_0031");
+			$anvil->data->{job}{progress} += 5; 
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0031");
 		}
 		elsif ($return_code eq "1")
 		{
 			# Registration is needed. This can take a while, so we give it a generous timeout.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0033"});
-			update_progress($anvil, 8, "job_0033");
+			$anvil->data->{job}{progress} += 5;
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0033");
 			my $bash_password =  $anvil->data->{data}{rh_password};
 			   $bash_password =~ s/'/\\\'/g;
 			my ($output, $error, $return_code) = $anvil->Remote->call({
@@ -237,7 +299,8 @@ EOF
 			{
 				# No Internet (or can't reach the subscriion servers)
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0032"});
-				update_progress($anvil, 10, "job_0032");
+				$anvil->data->{job}{progress} += 5;
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0032");
 				$subscribe = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subscribe => $subscribe }});
 			}
@@ -249,7 +312,8 @@ EOF
 					error       => $error, 
 					return_code => $return_code,
 				}});
-				update_progress($anvil, 10, "job_0035,!!return_code!".$return_code."!!,!!output!".$output."!!,!!error!".$error."!!");
+				$anvil->data->{job}{progress} += 5; 
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0035,!!return_code!".$return_code."!!,!!output!".$output."!!,!!error!".$error."!!");
 				$subscribe = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subscribe => $subscribe }});
 			}
@@ -257,14 +321,16 @@ EOF
 			{
 				# Success!
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0034"});
-				update_progress($anvil, 9, "job_0034");
+				$anvil->data->{job}{progress} += 5;
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0034");
 			}
 		}
 		elsif ($return_code eq "70")
 		{
 			# No Internet (or can't reach the subscriion servers)
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0032"});
-			update_progress($anvil, 10, "job_0032");
+			$anvil->data->{job}{progress} += 5;
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0032");
 			$subscribe = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subscribe => $subscribe }});
 		}
@@ -282,7 +348,8 @@ EOF
 			# need 'rhel-8-for-x86_64-highavailability-rpms'
 			# We blindly subscribe, then we'll check that they're actually subscribed.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0036", variables => { repo => 'codeready-builder-for-rhel-8-x86_64-rpms' }});
-			update_progress($anvil, 10, "job_0036,!!repo!codeready-builder-for-rhel-8-x86_64-rpms!!");
+			$anvil->data->{job}{progress} += 5;
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0036,!!repo!codeready-builder-for-rhel-8-x86_64-rpms!!");
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				debug       => 3,
 				shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable codeready-builder-for-rhel-8-x86_64-rpms",
@@ -303,7 +370,8 @@ EOF
 			if ($anvil->data->{data}{type} eq "node")
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0036", variables => { repo => 'rhel-8-for-x86_64-highavailability-rpms' }});
-				update_progress($anvil, 15, "job_0036,!!repo!rhel-8-for-x86_64-highavailability-rpms!!");
+				$anvil->data->{job}{progress} += 5;
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0036,!!repo!rhel-8-for-x86_64-highavailability-rpms!!");
 				my ($output, $error, $return_code) = $anvil->Remote->call({
 					debug       => 3,
 					shell_call  => $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable rhel-8-for-x86_64-highavailability-rpms",
@@ -324,7 +392,8 @@ EOF
 			}
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0037"});
-			update_progress($anvil, 20, "job_0037");
+			$anvil->data->{job}{progress} += 5;
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0037");
 			undef $output;
 			undef $error;
 			undef $return_code;
@@ -360,7 +429,8 @@ EOF
 				if (not $anvil->data->{repos}{$repo})
 				{
 					# Well this is a problem...
-					update_progress($anvil, 25, "job_0038,!!repo!".$repo."!!");
+					$anvil->data->{job}{progress} += 5;
+					update_progress($anvil, $anvil->data->{job}{progress}, "job_0038,!!repo!".$repo."!!");
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0038", variables => { repo => $repo }});
 				}
 			}
@@ -368,8 +438,10 @@ EOF
 	}
 	
 	# Call an OS update.
-	update_progress($anvil, 29, "job_0039");
-	update_progress($anvil, 30, "job_0040");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0039");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0040");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0039"});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0040"});
 	my ($output, $error, $return_code) = $anvil->Remote->call({
@@ -388,7 +460,8 @@ EOF
 	}});
 	
 	# Now remove biosdevname
-	update_progress($anvil, 50, "job_0041");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0041");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0041"});
 	undef $output;
 	undef $error;
@@ -410,8 +483,10 @@ EOF
 	
 	# Install the anvil package now.
 	my $package = $anvil->data->{data}{type} eq "dr" ? "anvil-dr" : "anvil-node";
-	update_progress($anvil, 70, "job_0042,!!package!".$package."!!");
-	update_progress($anvil, 75, "job_0040");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0042,!!package!".$package."!!");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0040");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0042", variables => { 'package' => $package }});
 	undef $output;
 	undef $error;
@@ -431,7 +506,8 @@ EOF
 		return_code => $return_code,
 	}});
 	
-	update_progress($anvil, 80, "job_0043");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0043");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0043"});
 	undef $output;
 	undef $error;
@@ -462,7 +538,8 @@ EOF
 	{
 		# Found it!
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0045"});
-		update_progress($anvil, 90, "job_0045");
+		$anvil->data->{job}{progress} += 5;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0045");
 	}
 	
 	return(0);
@@ -475,7 +552,8 @@ sub wait_for_access
 	
 	# Test access
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0023", variables => { target => $anvil->data->{data}{say_target} }});
-	update_progress($anvil, 2, "job_0023,!!target!".$anvil->data->{data}{say_target}."!!");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0023,!!target!".$anvil->data->{data}{say_target}."!!");
 	my $waiting = 1;
 	my $access  = 0;
 	my $timeout = time + 600;
@@ -493,7 +571,8 @@ sub wait_for_access
 		if ($access)
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0024"});
-			update_progress($anvil, 5, "job_0024");
+			$anvil->data->{job}{progress} += 5;
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0024");
 			$waiting = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 		}
@@ -508,10 +587,11 @@ sub wait_for_access
 			else
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0025", variables => {
-					target    => $anvil->data->{data}{say_target},
-					time_left => $time_left, 
+					target  => $anvil->data->{data}{say_target},
+					timeout => $time_left, 
 				}});
-				update_progress($anvil, 3, "job_0025,!!timeout!".$time_left."!!");
+				$anvil->data->{job}{progress} += 5;
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0025,!!target!".$anvil->data->{data}{say_target}."!!,!!timeout!".$time_left."!!");
 				sleep 5;
 			}
 		}
@@ -602,7 +682,8 @@ sub get_job_details
 	# Update that we've picked the job up.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0027", variables => { 'job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 	update_progress($anvil, 0, "clear");
-	update_progress($anvil, 1, "job_0027,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
+	$anvil->data->{job}{progress} += 5;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0027,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 	
 	return(0);
 }
@@ -612,6 +693,7 @@ sub update_progress
 {
 	my ($anvil, $progress, $message) = @_;
 
+	$progress = 95 if $progress > 100;
 	if (not $anvil->data->{switches}{'job-uuid'})
 	{
 		return(0);

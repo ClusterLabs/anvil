@@ -596,7 +596,8 @@ sub host_uuid
 		elsif (($< == 0) or ($> == 0))
 		{
 			# Create the UUID file.
-			($uuid, my $return_code) = lc($anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"}));
+			($uuid, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"});
+			$uuid = lc($uuid);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				uuid        => $uuid, 
 				return_code => $return_code,

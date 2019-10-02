@@ -5802,8 +5802,8 @@ sub manage_anvil_conf
 	if (not $remove)
 	{
 		$insert =  $host_variable."		=	".$db_host."\n";
-		$insert .= $port_variable."		=	".$port."\n";
-		$insert .= $password_variable."	=	".$password."\n";
+		$insert .= $port_variable."		=	".$db_port."\n";
+		$insert .= $password_variable."	=	".$db_password."\n";
 		$insert .= $ping_variable."		=	".$db_ping."\n";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
