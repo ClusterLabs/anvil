@@ -12,10 +12,13 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Network.pm";
 
 ### Methods;
+# check_internet
 # find_matches
 # get_ips
 # get_network
 # is_local
+# is_remote
+# ping
 
 =pod
 
@@ -75,6 +78,123 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 check_internet
+
+This method tries to connect to the internet. If successful, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
+
+Paramters;
+
+=head3 domains (optional, default 'defaults::network::test::domains')
+
+If passed an array reference, the domains in the array will be checked in the order they are found in the array. As soon as any respond to a ping, the check exits and C<< 1 >> is returned.
+
+If not passed, C<< defaults::network::test::domains >> are used.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 remote_user (optional)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 target (optional)
+
+If set, the file will be read from the target machine. This must be either an IP address or a resolvable host name. 
+
+=head3 tries (optional, default 3)
+
+This is how many times we'll try to ping the target. Pings are done one ping at a time, so that if the first ping succeeds, the test can exit quickly and return success. 
+
+=cut
+sub check_internet
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
+	
+	my $access      = 0;
+	my $domains     = defined $parameter->{domains}     ? $parameter->{domains}     : $anvil->data->{defaults}{network}{test}{domains};
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $tries       = defined $parameter->{tries}       ? $parameter->{tries}       : 3;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		domains     => $domains, 
+		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target,
+		tries       => $tries, 
+	}});
+	
+	if (ref($domains) eq "ARRAY")
+	{
+		my $domain_count = @{$domains};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { domain_count => $domain_count }});
+		if (not $domain_count)
+		{
+			# Array is empty
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0440", variables => { name => "domain" }});
+			return($access);
+		}
+	}
+	else
+	{
+		# Domains isn't an array.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0218", variables => { name => "domain", value => $domains }});
+		return($access);
+	}
+	
+	if (($tries =~ /\D/) or ($tries < 1))
+	{
+		# Invalid
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0441", variables => { name => "tries", value => $tries }});
+		return($access);
+	}
+	
+	foreach my $domain (@{$domains})
+	{
+		# Is the domain valid?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { domain => $domain }});
+		
+		if ((not $anvil->Validate->is_domain_name({debug => $debug, name => $domain})) and 
+		    (not $anvil->Validate->is_ipv4({debug => $debug, ip => $domain})))
+		{
+			# Not valid, skip
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0442", variables => { name => $domain }});
+			next;
+		}
+		
+		my $pinged = $anvil->Network->ping({
+			debug       => $debug, 
+			target      => $target,
+			port        => $port,
+			password    => $password, 
+			remote_user => $remote_user,
+			ping        => $domain, 
+			count       => 3,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pinged => $pinged }});
+		if ($pinged)
+		{
+			$access = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
+		}
+		last if $pinged;
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
+	return($access);
+}
 
 =head2 find_matches
 
@@ -631,6 +751,59 @@ sub get_network
 	return($network);
 }
 
+### TODO: Merge the logic with ->is_remote and then make one of them simply invert the output of the other.
+=head2 is_local
+
+This method takes a host name or IP address and looks to see if it matches the local system. If it does, it returns C<< 1 >>. Otherwise it returns C<< 0 >>.
+
+Parameters;
+
+=head3 host (required)
+
+This is the host name (or IP address) to check against the local system.
+
+=cut
+sub is_local
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_is_local()" }});
+	
+	my $host = $parameter->{host} ? $parameter->{host} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	
+	my $is_local = 0;
+	if (($host eq $anvil->_host_name)       or 
+	    ($host eq $anvil->_short_host_name) or 
+	    ($host eq "localhost")              or 
+	    ($host eq "127.0.0.1"))
+	{
+		# It's local
+		$is_local = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+	}
+	else
+	{
+		# Get the list of current IPs and see if they match.
+		$anvil->Network->get_ips;
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
+			if ($host eq $anvil->data->{network}{'local'}{interface}{$interface}{ip})
+			{
+				$is_local = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+				last;
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+	return($is_local);
+}
+
 =head2 is_remote
 
 This looks at the C<< target >> and determines if it relates to the local system or not. If the C<< target >> is remote, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
@@ -668,6 +841,229 @@ sub is_remote
 # Private Functions;
 # 
 # =cut
+
+=head2 ping
+
+This method will attempt to ping a target, by host name or IP, and returns C<< 1 >> if successful, and C<< 0 >> if not.
+
+Example;
+
+ # Test access to the internet. Allow for three attempts to account for network jitter.
+ my $pinged = $anvil->Network->ping({
+ 	ping  => "google.ca", 
+ 	count => 3,
+ });
+ 
+ # Test 9000-byte jumbo-frame access to a target over the BCN.
+ my $jumbo_to_peer = $anvil->Network->ping({
+ 	ping     => "an-a01n02.bcn", 
+ 	count    => 1, 
+ 	payload  => 9000, 
+ 	fragment => 0,
+ });
+ 
+ # Check to see if an Anvil! node has internet access
+ my $pinged = $anvil->Network->ping({
+ 	target      => "an-a01n01.alteeve.com",
+ 	port        => 22,
+	password    => "super secret", 
+	remote_user => "admin",
+ 	ping        => "google.ca", 
+ 	count       => 3,
+ });
+
+Parameters;
+
+=head3 count (optional, default '1')
+
+This tells the method how many time to try to ping the target. The method will return as soon as any ping attemp succeeds (unlike pinging from the command line, which always pings the requested count times).
+
+=head3 debug (optional, default '3')
+
+This is an optional way to alter to level at which this method is logged. Useful when the caller is trying to debug a problem. Generally this can be ignored.
+
+=head3 fragment (optional, default '1')
+
+When set to C<< 0 >>, the ping will fail if the packet has to be fragmented. This is meant to be used along side C<< payload >> for testing MTU sizes.
+
+=head3 password (optional)
+
+This is the password used to access a remote machine. This is used when pinging from a remote machine to a given ping target.
+
+=head3 payload (optional)
+
+This can be used to force the ping packet size to a larger number of bytes. It is most often used along side C<< fragment => 0 >> as a way to test if jumbo frames are working as expected.
+
+B<NOTE>: The payload will have 28 bytes removed to account for ICMP overhead. So if you want to test an MTU of '9000', specify '9000' here. You do not need to account for the ICMP overhead yourself.
+
+=head3 port (optional, default '22')
+
+This is the port used to access a remote machine. This is used when pinging from a remote machine to a given ping target.
+
+B<NOTE>: See C<< Remote->call >> for additional information on specifying the SSH port as part of the target.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user we will use to log into the remote machine to run the actual ping.
+
+=head3 target (optional)
+
+This is the host name or IP address of a remote machine that you want to run the ping on. This is used to test a remote machine's access to a given ping target.
+
+=head3 timeout (optional, default '1')
+
+This is how long we will wait for a ping to return, in seconds. Any real number is allowed (C<< 1 >> (one second), C<< 0.25 >> (1/4 second), etc). If set to C<< 0 >>, we will wait for the ping command to exit without limit.
+
+=cut
+sub ping
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->ping()" }});
+	
+# 	my $start_time = [gettimeofday];
+# 	print "Start time: [".$start_time->[0].".".$start_time->[1]."]\n";
+# 	
+# 	my $ping_time = tv_interval ($start_time, [gettimeofday]);
+# 	print "[".$ping_time."] - Pinged: [$host]\n";
+	
+	# If we were passed a target, try pinging from it instead of locally
+	my $count       = defined $parameter->{count}       ? $parameter->{count}       : 1;	# How many times to try to ping it? Will exit as soon as one succeeds
+	my $fragment    = defined $parameter->{fragment}    ? $parameter->{fragment}    : 1;	# Allow fragmented packets? Set to '0' to check MTU.
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $payload     = defined $parameter->{payload}     ? $parameter->{payload}     : 0;	# The size of the ping payload. Use when checking MTU.
+	my $ping        = defined $parameter->{ping}        ? $parameter->{ping}        : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $timeout     = defined $parameter->{timeout}     ? $parameter->{timeout}     : 1;	# This sets the 'timeout' delay.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		count       => $count, 
+		fragment    => $fragment, 
+		payload     => $payload, 
+		password    => $anvil->Log->is_secure($password),
+		ping        => $ping, 
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	}});
+	
+	# Was timeout specified as a simple integer?
+	if (($timeout !~ /^\d+$/) && ($timeout !~ /^\d+\.\d+$/))
+	{
+		# The timeout was invalid, switch it to 1
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
+		$timeout = 1;
+	}
+	
+	# If the payload was set, take 28 bytes off to account for ICMP overhead.
+	if ($payload)
+	{
+		$payload -= 28;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { payload => $payload }});
+	}
+	
+	# Build the call. Note that we use 'timeout' because if there is no connection and the host name is 
+	# used to ping and DNS is not available, it could take upwards of 30 seconds time timeout otherwise.
+	my $shell_call = "";
+	if ($timeout)
+	{
+		$shell_call = $anvil->data->{path}{exe}{timeout}." $timeout ";
+	}
+	$shell_call .= $anvil->data->{path}{exe}{'ping'}." -W 1 -n $ping -c 1";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	if (not $fragment)
+	{
+		$shell_call .= " -M do";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	}
+	if ($payload)
+	{
+		$shell_call .= " -s $payload";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	}
+	$shell_call .= " || ".$anvil->data->{path}{exe}{echo}." timeout";
+	
+	my $pinged            = 0;
+	my $average_ping_time = 0;
+	foreach my $try (1..$count)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count, try => $try }});
+		last if $pinged;
+		
+		my $output = "";
+		my $error  = "";
+		
+		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our host name.
+		if ($anvil->Network->is_remote($target))
+		{
+			### Remote calls
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+			($output, $error, my $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error       => $error,
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
+		else
+		{
+			### Local calls
+			($output, my $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		}
+		
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /(\d+) packets transmitted, (\d+) received/)
+			{
+				# This isn't really needed, but might help folks watching the logs.
+				my $pings_sent     = $1;
+				my $pings_received = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					pings_sent     => $pings_sent,
+					pings_received => $pings_received, 
+				}});
+				
+				if ($pings_received)
+				{
+					# Contact!
+					$pinged = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pinged => $pinged }});
+				}
+				else
+				{
+					# Not yet... Sleep to give time for transient network problems to 
+					# pass.
+					sleep 1;
+				}
+			}
+			if ($line =~ /min\/avg\/max\/mdev = .*?\/(.*?)\//)
+			{
+				$average_ping_time = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { average_ping_time => $average_ping_time }});
+			}
+		}
+	}
+	
+	# 0 == Ping failed
+	# 1 == Ping success
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		pinged            => $pinged,
+		average_ping_time => $average_ping_time,
+	}});
+	return($pinged, $average_ping_time);
+}
 
 #############################################################################################################
 # Private functions                                                                                         #

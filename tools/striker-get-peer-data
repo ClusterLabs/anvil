@@ -72,9 +72,16 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	'target::password' => $anvil->Log->is_secure($anvil->data->{target}{password}),
 }});
 
-my ($host_uuid)                = get_host_uuid($anvil);
-my ($host_name)                = get_host_name($anvil);
-my ($host_os,, $os_registered) = get_host_os($anvil);
+my ($host_uuid)               = get_host_uuid($anvil);
+my ($host_name)               = get_host_name($anvil);
+my ($host_os, $os_registered) = get_host_os($anvil);
+my $internet                  = $anvil->Network->check_internet({
+	remote_user => $anvil->data->{target}{user},
+	target      => $anvil->data->{target}{host},
+	port        => $anvil->data->{target}{port}, 
+	password    => $anvil->data->{target}{password},
+	tries       => 1,
+});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	host_uuid     => $host_uuid, 
 	host_name     => $host_name, 
@@ -86,6 +93,7 @@ print "host_name=".$host_name."\n";
 print "host_uuid=".$host_uuid."\n";
 print "host_os=".$host_os."\n";
 print "os_registered=".$os_registered."\n";
+print "internet=".$internet."\n";
 
 $anvil->nice_exit({code => 0});
 
@@ -139,14 +147,14 @@ fi;
 		# Is it subscribed? This isn't the best call to make, but it seems to be the one that returns
 		# the fastest. Return code of '0' is registered, return code of '1' is not or not verified.
 		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug      => 3,
+			debug      => 2,
 			shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." identity", 
 			user       => $anvil->data->{target}{user}, 
 			target     => $anvil->data->{target}{host}, 
 			port       => $anvil->data->{target}{port}, 
 			password   => $anvil->data->{target}{password}, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output, 
 			error       => $error, 
 			return_code => $return_code,

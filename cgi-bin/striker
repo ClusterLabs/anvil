@@ -619,10 +619,9 @@ AND
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_line => $bad_line }});
 					}
 				}
-				my ($target, $user) = ($state_name =~ /host_key_changed::(.*)::(.*)$/);
+				my ($target) = ($state_name =~ /host_key_changed::(.*)$/);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					target   => $target, 
-					user     => $user, 
 					bad_file => $bad_file, 
 					bad_line => $bad_line, 
 				}});
@@ -637,7 +636,6 @@ AND
 					checkbox_name    => $checkbox_key,
 					checkbox_checked => $checked,
 					target           => $target,
-					user             => $user,
 					file             => $bad_file, 
 					host             => $host_name, 
 				}});
@@ -849,21 +847,26 @@ sub process_prep_host_page
 			}});
 			
 			# If the target is RHEL and it is not registered, offer the user to provide the RH user and password.
-			my $rh_template = "";
+			my $redhat_message = "";
+			my $redhat_form    = "";
 			if (($data->{host_os} =~ /^rhel/) && ($data->{os_registered} ne "yes"))
 			{
-				$rh_template = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat", variables => { 
+				$redhat_message = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-message"});
+				$redhat_form = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-form", variables => { 
 					rh_user     => $rh_user,
 					rh_password => $rh_password, 
 				}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { rh_template => $rh_template }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					redhat_form    => $redhat_form,
+					redhat_message => $redhat_message,
+				}});
 			}
 			
-			### NOTE: Left off here. Need to pick up the message from a bad/changed fingerprint when it's the cause of a failed login. Create a button to remove the bad key.
+			# Did we connect?
 			if (not $connected)
 			{
-				# Is it because the target's key is bad or has changed?
-				my $query = "SELECT state_uuid, state_note FROM states WHERE state_name LIKE ".$anvil->Database->quote("host_key_changed::".$host_ip_address."::%").";";
+				# Nope. Is it because the target's key is bad or has changed?
+				my $query = "SELECT state_uuid, state_note FROM states WHERE state_name LIKE ".$anvil->Database->quote("host_key_changed::".$host_ip_address).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				
 				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -922,11 +925,19 @@ sub process_prep_host_page
 			else
 			{
 				# Connected! Ask th euser to confirm.
+				my $new_host_name = "#!string!striker_0139!#";
+				if ((exists $anvil->data->{cgi}{host_name}) && ($anvil->data->{cgi}{host_name}{value}))
+				{
+					$new_host_name = $anvil->data->{cgi}{host_name}{value};
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_host_name => $new_host_name }});
 				$anvil->data->{form}{body} = $anvil->Template->get({file => "anvil.html", name => "confirm-initialize-host", variables => { 
 					'package'         => $type eq "dr" ? "anvil-dr" : "anvil-node",
-					redhat            => $rh_template, 
+					redhat_message    => $redhat_message, 
+					redhat_form       => $redhat_form,
 					access            => "root\@".$host_ip_address.":".$ssh_port,
-					host_name         => $target_host_name, 
+					current_host_name => $target_host_name, 
+					new_host_name     => $new_host_name,
 					host_uuid         => $target_host_uuid,
 					default_host_name => $default_host_name, 
 				}});

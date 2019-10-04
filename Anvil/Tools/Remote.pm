@@ -502,7 +502,7 @@ sub call
 				{
 					my ($state_uuid) = $anvil->Database->insert_or_update_states({
 						debug      => 2, 
-						state_name => "host_key_changed::".$target."::".$user, 
+						state_name => "host_key_changed::".$target, 
 						state_note => "file=".$bad_file.",line=".$bad_line, 
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});

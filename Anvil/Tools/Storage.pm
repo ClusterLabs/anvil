@@ -2470,6 +2470,10 @@ The return code indicates success; C<< 0 >> is returns if anything goes wrong. C
 
 Parameters;
 
+=head3 backup (optional, default '1')
+
+If the file needs to be updated, and if this is set to C<< 1 >>, a backup will be make before the file is updated.
+
 =head3 body (optional)
 
 This is the new body of the file. It should always be set, of course, but it is optional in case the new file is supposed to be empty.
@@ -2506,6 +2510,7 @@ sub update_file
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	my $backup      = defined $parameter->{backup}      ? $parameter->{backup}      : 1;
 	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
 	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
@@ -2515,6 +2520,7 @@ sub update_file
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $update      = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		backup      => $backup,
 		body        => (not $body) ? $body : $anvil->Log->is_secure($body),
 		file        => $file, 
 		password    => $anvil->Log->is_secure($password), 
@@ -2569,17 +2575,20 @@ sub update_file
 		$update = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { update => $update }});
 		
-		# Backup the file now.
-		my $backup_file = $anvil->Storage->backup({
-			file        => $file,
-			debug       => $debug, 
-			target      => $target,
-			port        => $port, 
-			user        => $remote_user, 
-			password    => $password,
-			remote_user => $remote_user, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+		if ($backup)
+		{
+			# Backup the file now.
+			my $backup_file = $anvil->Storage->backup({
+				file        => $file,
+				debug       => $debug, 
+				target      => $target,
+				port        => $port, 
+				user        => $remote_user, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+		}
 	}
 	else
 	{
@@ -2634,6 +2643,10 @@ This writes out a file, either locally or on a remote system. It can optionally 
 Returns C<< 0 >> on success. C<< 1 >> or an error string will be returned otherwise.
 
 Parameters;
+
+=head3 backup (optional, default '1')
+
+When writing to a file that already exists, and C<< overwrite >> is true, the existing backup will be backed up prior to being rewritten.
 
 =head3 body (optional)
 
@@ -2691,6 +2704,7 @@ sub write_file
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	my $backup      = defined $parameter->{backup}      ? $parameter->{backup}      : 1;
 	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
 	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
 	my $group       = defined $parameter->{group}       ? $parameter->{group}       : getgrgid($();
@@ -2704,6 +2718,7 @@ sub write_file
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $error       = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		backup      => $backup, 
 		body        => (not $secure) ? $body : $anvil->Log->is_secure($body),
 		file        => $file,
 		group       => $group, 
@@ -2790,19 +2805,20 @@ fi";
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
 					$error = 1;
 				}
-			}
-			else
-			{
-				# Back it up.
-				my $backup_file = $anvil->Storage->backup({
-					file       => $file,
-					debug      => $debug, 
-					target     => $target,
-					port       => $port, 
-					user       => $remote_user, 
-					password   => $password,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+				
+				if ($backup)
+				{
+					# Back it up.
+					my $backup_file = $anvil->Storage->backup({
+						debug    => $debug, 
+						file     => $file,
+						target   => $target,
+						port     => $port, 
+						user     => $remote_user, 
+						password => $password,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+				}
 			}
 			
 			# Make sure the directory exists on the remote machine. In this case, we'll use 'mkdir -p' if it isn't.
@@ -2893,12 +2909,25 @@ fi";
 	else
 	{
 		# Local
-		if ((-e $file) && (not $overwrite))
+		if (-e $file)
 		{
-			# Nope.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
-			$error = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+			if (not $overwrite)
+			{
+				# Nope.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0040", variables => { file => $file }});
+				$error = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+			}
+			
+			if ($backup)
+			{
+				# Back it up.
+				my $backup_file = $anvil->Storage->backup({
+					debug => $debug, 
+					file  => $file,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+			}
 		}
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});

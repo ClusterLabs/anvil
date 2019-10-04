@@ -983,6 +983,9 @@ sub _set_defaults
 				subnet		=>	"10.100.0.0",
 				netmask		=>	"255.255.0.0",
 			},
+			test		=>	{
+				domains		=>	["alteeve.com", "redhat.com", "google.com"],
+			},
 		},
 		template	=>	{
 			html		=>	"alteeve",

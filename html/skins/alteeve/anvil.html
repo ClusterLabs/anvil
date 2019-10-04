@@ -165,7 +165,7 @@
 						&nbsp;
 					</td>
 				</tr>
-				#!variable!redhat!#
+				#!variable!redhat_message!#
 				<tr>
 					<td>
 						<table align="center" class="data_table">
@@ -174,26 +174,35 @@
 								<td class="top_padded_cell">
 									#!string!striker_0125!#:
 								</td>
-								<td class="top_padded_cell" class="fixed_width">
-									#!variable!access!#
+								<td class="top_padded_cell">
+									<span class="fixed_width">#!variable!access!#</span>
 								</td>
 							</tr>
 							<tr>
 								<td class="padded_cell">
 									#!string!striker_0126!#:
 								</td>
-								<td class="padded_cell" class="fixed_width">
-									#!variable!host_name!#
+								<td class="padded_cell">
+									<span class="fixed_width">#!variable!current_host_name!#</span>
+								</td>
+							</tr>
+							<tr>
+								<td class="padded_cell">
+									#!string!striker_0138!#:
+								</td>
+								<td class="padded_cell">
+									<span class="fixed_width">#!variable!new_host_name!#</span>
 								</td>
 							</tr>
 							<tr>
 								<td class="padded_cell">
 									#!string!striker_0127!#:
 								</td>
-								<td class="padded_cell" class="fixed_width">
-									#!variable!host_uuid!#
+								<td class="padded_cell">
+									<span class="fixed_width">#!variable!host_uuid!#</span>
 								</td>
 							</tr>
+							#!variable!redhat_form!#
 							<tr>
 								<td class="button_cell" style="text-align: left;">
 									<a href="/cgi-bin/striker?anvil=true&task=prep-host&host_ip_address=#!data!cgi::host_ip_address::value!#" class="button">#!string!striker_0098!#</a>
@@ -218,7 +227,7 @@
 			</table>
 <!-- end confirm-initialize-host -->
 
-<!-- start host-setup-redhat -->
+<!-- start host-setup-redhat-message -->
 				<tr>
 					<td class="menu_details">
 						#!string!message_0148!#
@@ -229,26 +238,23 @@
 						&nbsp;
 					</td>
 				</tr>
-				<tr>
-					<td>
-						<table align="center" width="90%">
+<!-- end host-setup-redhat-message -->
+
+<!-- start host-setup-redhat-form -->
 							<tr>
-								<td>
+								<td class="padded_cell">
+									#!string!message_0144!#:
+								</td>
+								<td class="padded_cell">
 									<input type="text" name="rh_user" id="rh_user" value="#!variable!rh_user!#" placeholder="#!string!message_0144!#" />
 								</td>
-								<td>
-									&nbsp;
+							</tr>
+							<tr>
+								<td class="padded_cell">
+									#!string!message_0145!#:
 								</td>
-								<td>
+								<td class="padded_cell">
 									<input type="text" name="rh_password" id="rh_password" value="#!variable!rh_password!#" style="text-security:disc; -webkit-text-security:disc;" autocomplete="off" placeholder="#!string!message_0145!#" />
 								</td>
 							</tr>
-						</table>
-					</td>
-				</tr>
-				<tr>
-					<td>
-						&nbsp;
-					</td>
-				</tr>
-<!-- end host-setup-redhat -->
+<!-- end host-setup-redhat-form -->

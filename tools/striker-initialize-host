@@ -175,8 +175,7 @@ sub add_databases
 		last if $db_host;
 	}
 	
-	### TODO: Left off here. The password written to the target isn't right. Also, host.uuid is failing to be written.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { db_host => $db_host }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_host => $db_host }});
 	if ($db_host)
 	{
 		my $failed = $anvil->Database->manage_anvil_conf({
@@ -203,6 +202,13 @@ sub add_databases
 			# Success! We're done@
 			update_progress($anvil, 100, "job_0047");
 		}
+	}
+	else
+	{
+		### TODO: LEft off here; change the message to a proper one.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0076"});
+		update_progress($anvil, 100, "error_0076");
+		$anvil->nice_exit({exit_code => 6});
 	}
 	
 	return(0);
@@ -557,10 +563,14 @@ sub wait_for_access
 {
 	my ($anvil) = @_;
 	
+	### TODO: If the keys changed, the user may have been prompted to fix the keys for the admin user, 
+	###       but not the 'root' user. This, we may fail to access the node as this runs as 'root'. Tell
+	###       the user to check for bad keys and clear them if/when access fails.
 	# Test access
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0023", variables => { target => $anvil->data->{data}{say_target} }});
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0023,!!target!".$anvil->data->{data}{say_target}."!!");
+	$anvil->data->{job}{progress} += 5;
 	my $waiting = 1;
 	my $access  = 0;
 	my $timeout = time + 600;
@@ -597,7 +607,6 @@ sub wait_for_access
 					target  => $anvil->data->{data}{say_target},
 					timeout => $time_left, 
 				}});
-				$anvil->data->{job}{progress} += 5;
 				update_progress($anvil, $anvil->data->{job}{progress}, "job_0025,!!target!".$anvil->data->{data}{say_target}."!!,!!timeout!".$time_left."!!");
 				sleep 5;
 			}
