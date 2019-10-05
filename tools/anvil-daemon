@@ -321,6 +321,10 @@ sub check_ssh_keys
 {
 	my ($anvil) = @_;
 	
+	### TODO: When a node is rebuilt, this causes the old keys to be reloaded between when we delete the entries. We need to delete the keys for the target IP from the 'ip_addresses' table.
+	return(0);
+	
+	
 	# Get a list of machine host keys and user public keys from other machines.
 	get_other_keys($anvil);
 	
@@ -345,6 +349,7 @@ sub check_ssh_keys
 			# Create it.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0272", variables => { user => $user, directory => $ssh_directory }});
 			$anvil->Storage->make_directory({
+				debug     => 2,
 				directory => $ssh_directory, 
 				user      => $user,
 				group     => $user, 
@@ -383,7 +388,10 @@ sub check_ssh_keys
 		}
 	
 		# Now read in the key.
-		my $users_public_key =  $anvil->Storage->read_file({file => $ssh_public_key_file});
+		my $users_public_key =  $anvil->Storage->read_file({
+			debug => 2,
+			file  => $ssh_public_key_file,
+		});
 		   $users_public_key =~ s/\n$//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { users_public_key => $users_public_key }});
 		
@@ -404,7 +412,10 @@ sub check_ssh_keys
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { known_hosts_file => $known_hosts_file }});
 		if (-e $known_hosts_file)
 		{
-			$known_hosts_file_body = $anvil->Storage->read_file({file => $known_hosts_file});
+			$known_hosts_file_body = $anvil->Storage->read_file({
+				debug => 2,
+				file  => $known_hosts_file,
+			});
 			$known_hosts_old_body  = $known_hosts_file_body;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { known_hosts_file_body => $known_hosts_file_body }});
 		}
@@ -417,7 +428,10 @@ sub check_ssh_keys
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { authorized_keys_file => $authorized_keys_file }});
 		if (-e $authorized_keys_file)
 		{
-			$authorized_keys_file_body = $anvil->Storage->read_file({file => $authorized_keys_file});
+			$authorized_keys_file_body = $anvil->Storage->read_file({
+				debug => 2,
+				file  => $authorized_keys_file,
+			});
 			$authorized_keys_old_body  = $authorized_keys_file_body;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { authorized_keys_file_body => $authorized_keys_file_body }});
 		}
@@ -1296,6 +1310,7 @@ sub run_jobs
 		file      => $output_json, 
 		body      => $jobs_file, 
 		overwrite => 1,
+		backup    => 0,
 		mode      => "0644", 
 		user      => "apache", 
 		group     => "apache"

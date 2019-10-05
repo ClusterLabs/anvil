@@ -450,6 +450,9 @@ EOF
 		}
 	}
 	
+	### NOTE: This seems dumb without internet, but it's worth calling anyway in case the repo on the 
+	###       Striker has newer packages. If we go right to installing packages and one of them is newer
+	###       than an installed dependency, the install could fail. This prevents that.
 	# Call an OS update.
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0039");

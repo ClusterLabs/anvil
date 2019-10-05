@@ -255,6 +255,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0148"><![CDATA[This is a RHEL host and has not yet been subscribed. You can enter your Red Hat subscription credentials below. If the host has internet access, the host will be subscribed during setup.]]></key>
 		<key name="message_0149">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">Set the new host name.</key>
+		<key name="message_0151">This is a RHEL host and has not yet been subscribed, but there is no internet access detected. OS Updates likely won't work, nor will subscribing the system. These tasks will be deferred until later in the setup process.</key>
+		<key name="message_0152">There is no internet access detected. OS Updates likely won't work and will be deferred until later in the setup process.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -533,8 +535,8 @@ The body of the file: [#!variable!file!#] does not match the new body. The file 
 		<key name="log_0236">Skipping the RPM repository refresh. The next scheduled refresh will be done in: [#!variable!next_refresh!#] second(s). Override with '--force'.</key>
 		<key name="log_0237">RPM repository refresh required, [#!data!path::directories::packages!#] doesn't exist (likely this is the first run or the directory was deleted).</key>
 		<key name="log_0238">RPM repository refresh required, it has been more than: [#!variable!seconds!#] seconds since the last refresh (or no previous refresh was logged).</key>
-		<key name="log_0239">'Install Target' job: [#!data!switches::job-uuid!#] picked up.</key>
-		<key name="log_0240">'Install Target' job: [#!data!switches::job-uuid!#] aborted, system not yet configured.</key>
+		<key name="log_0239">'Install Target' job: [#!variable!job-uuid!#] picked up.</key>
+		<key name="log_0240">'Install Target' job: [#!variable!job-uuid!#] aborted, system not yet configured.</key>
 		<key name="log_0241">Package list loaded.</key>
 		<key name="log_0242">It looks like a user tried to upload a file without actually doing so.</key>
 		<key name="log_0243">[ Error ] - Failed to delete the file: [#!variable!file!#].</key>

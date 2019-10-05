@@ -183,7 +183,7 @@ if (not $configured)
 	print $anvil->Words->string({key => "error_0046"})."\n";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0046"});
 	
-	update_progress($anvil, 100, "log_0240");
+	update_progress($anvil, 100, "log_0240,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 	$anvil->nice_exit({exit_code => 9});
 }
 
@@ -763,7 +763,7 @@ sub setup_boot_environment
 			# Something went wrong.
 			print $anvil->Words->string({key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }})."\n";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }});
-			update_progress($anvil, 100, "log_0023,!!file!".$anvil->data->{path}{configs}{'dnf.conf'}."!!,!!refresh!return!".$return."!!");
+			update_progress($anvil, 100, "log_0233,!!file!".$anvil->data->{path}{configs}{'dnf.conf'}."!!,!!return!".$return."!!");
 			$anvil->nice_exit({code => 3});
 		}
 		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'} }})."\n";

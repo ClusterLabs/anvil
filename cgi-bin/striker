@@ -820,8 +820,9 @@ sub process_prep_host_page
 			# Can we connect?
 			my $target_host_name = "";
 			my $target_host_uuid = "";
+			my $has_internet     = 0;
 			my ($connected, $data) = $anvil->Striker->get_peer_data({
-				debug    => 3,
+				debug    => 2,
 				target   => $host_ip_address, 
 				password => $host_password,
 				port     => $ssh_port, 
@@ -841,6 +842,11 @@ sub process_prep_host_page
 				$target_host_uuid = $data->{host_uuid};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
 			}
+			if ($data->{internet})
+			{
+				$has_internet = $data->{internet};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { has_internet => $has_internet }});
+			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				target_host_name => $target_host_name,
 				target_host_uuid => $target_host_uuid, 
@@ -851,15 +857,29 @@ sub process_prep_host_page
 			my $redhat_form    = "";
 			if (($data->{host_os} =~ /^rhel/) && ($data->{os_registered} ne "yes"))
 			{
-				$redhat_message = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-message"});
-				$redhat_form = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-form", variables => { 
-					rh_user     => $rh_user,
-					rh_password => $rh_password, 
-				}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					redhat_form    => $redhat_form,
-					redhat_message => $redhat_message,
-				}});
+				# If we don't have internet access, tell the user they can register later.
+				if ($has_internet)
+				{
+					$redhat_message = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-message", variables => { message => "#!string!message_0148!#" }});
+					$redhat_form = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-form", variables => { 
+						rh_user     => $rh_user,
+						rh_password => $rh_password, 
+					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						redhat_form    => $redhat_form,
+						redhat_message => $redhat_message,
+					}});
+				}
+				else
+				{
+					$redhat_message = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-message", variables => { message => "#!string!message_0151!#" }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { redhat_message => $redhat_message }});
+				}
+			}
+			elsif (not $has_internet)
+			{
+				$redhat_message = $anvil->Template->get({file => "anvil.html", name => "host-setup-redhat-message", variables => { message => "#!string!message_01512#" }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { redhat_message => $redhat_message }});
 			}
 			
 			# Did we connect?

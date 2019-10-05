@@ -169,9 +169,15 @@ skip_if_unavailable=1";
 
 =head2 get_peer_data
 
-This calls the C<< call_striker-get-peer-data >> program to try to connect to the target (as C<< root >>). If successful, it will return the target's host UUID (either by reading C<< /etc/anvil/host.uuid >> if it exists, or using C<< dmidecode >> if not). 
+This calls the C<< call_striker-get-peer-data >> program to try to connect to the target (as C<< root >>). This method returns a string variable and a hash reference. The string variable will be C<< 1 >> if we connected successfully, C<< 0 >> if not. The hash reference will contain parsed details about the peer, assuming it connected. If the connection failed, the hash reference will exist but the values will be empty.
 
-This method will return a string variable with C<< 1 >> if the peer was reached, or C<< 0 >> if it was not. It will also return a hash reference containing the collected data.
+Keys in the hash;
+
+* C<< host_uuid >> - The host's UUID.
+* C<< host_name >> - The host's current (static) host name.
+* C<< host_os >> - This is the host's operating system and version. The OS is returned as C<< rhel >> or C<< centos >>. The version is returned as C<< 8.x >>.
+* C<< internet >> - This indicates if the target was found to have a a working Internet connection.
+* C<< os_registered >> - This indicates if the OS is registered with Red Hat (if the OS is C<< rhel >>). It will be C<< yes >>, C<< no >> or C<< unknown >>.
 
  my ($connected, $data) = $anvil->Striker->get_peer_data({target => 10.255.1.218, password => "Initial1"});
  if ($connected)
@@ -217,6 +223,7 @@ sub get_peer_data
 		host_uuid     => "",
 		host_name     => "",
 		host_os       => "",
+		internet      => 0,
 		os_registered => "", 
 	};
 	
@@ -227,6 +234,7 @@ sub get_peer_data
 		return($connected, $data);
 	}
 	
+	# Record the password in the database so that we don't pass it over the command line.
 	my $state_uuid = $anvil->Database->insert_or_update_states({
 		debug      => $debug,
 		file       => $THIS_FILE, 
@@ -276,12 +284,18 @@ sub get_peer_data
 			$data->{os_registered} = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'data->{os_registered}' => $data->{os_registered} }});
 		}
+		if ($line =~ /internet=(.*)$/)
+		{
+			$data->{internet} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'data->{internet}' => $data->{internet} }});
+		}
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		connected               => $connected, 
 		'data->{host_name}'     => $data->{host_name},
 		'data->{host_uuid}'     => $data->{host_uuid},
 		'data->{host_os}'       => $data->{host_os},
+		'data->{internet}'      => $data->{internet},
 		'data->{os_registered}' => $data->{os_registered}, 
 	}});
 	
@@ -289,6 +303,7 @@ sub get_peer_data
 	my $query = "DELETE FROM states WHERE state_name = ".$anvil->Database->quote("peer::".$target."::password").";";
 	$anvil->Database->write({uuid => $anvil->data->{sys}{host_uuid}, debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 	
+	# Verify that the host UUID is actually valid.
 	if (not $anvil->Validate->is_uuid({uuid => $data->{host_uuid}}))
 	{
 		$data->{host_uuid} = "";

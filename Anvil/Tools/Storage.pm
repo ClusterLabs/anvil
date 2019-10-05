@@ -144,7 +144,7 @@ sub backup
 	my $fatal       = defined $parameter->{fatal}       ? $parameter->{fatal}       : 1;
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
-	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $source_file = defined $parameter->{file}        ? $parameter->{file}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -240,7 +240,10 @@ fi";
 				target      => $target,
 				source_file => $source_file,
 			}});
-			if ($fatal) { $anvil->nice_exit({code => 1}); }
+			if ($fatal)
+			{
+				$anvil->nice_exit({code => 1});
+			}
 		}
 	}
 	else
@@ -277,7 +280,7 @@ fi";
 		my ($directory, $file) = ($source_file =~ /^(\/.*)\/(.*)$/);
 		my $timestamp          = $anvil->Get->date_and_time({file_name => 1});
 		my $backup_directory   = $anvil->data->{path}{directories}{backups}.$directory;
-		my $backup_target      = $file.".".$timestamp;
+		my $backup_target      = $file.".".$timestamp.".".$anvil->Get->uuid({short => 1});
 		   $target_file        = $backup_directory."/".$backup_target; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			directory        => $directory, 
