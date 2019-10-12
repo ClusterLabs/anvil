@@ -769,6 +769,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0440">The variable: [#!variable!name!#] is an array reference, but it doesn't have any entries in it.</key>
 		<key name="log_0441">The variable: [#!variable!name!#] was expected to be a positive integer, but: [#!variable!value!#] was received.</key>
 		<key name="log_0442">The domain: [#!variable!name!#] does not appear to be a valid domain name or an ipv4 IP address. Skipping it.</key>
+		<key name="log_0443">The bridge output wasn't in JSON format. Received: [#!variable!output!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1154,6 +1155,13 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
+		<key name="error_0084">Unable to find a common network between the target and this machine. This shouldn't be possible, given we're able to talk to it. This is probably a program error.</key>
+		<key name="error_0085">The URL: [#!variable!url!#] is not supported. The URL must start with 'http://', 'https://' or 'ftp://'.</key>
+		<key name="error_0086">The requested URL: [#!variable!url!#] was not found on the remote server.</key>
+		<key name="error_0087">The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
+		<key name="error_0088">The requested URL: [#!variable!url!#] failed because the remote host refused the connection.</key>
+		<key name="error_0089">The requested URL: [#!variable!url!#] failed because there is no route to that host.</key>
+		<key name="error_0090">The requested URL: [#!variable!url!#] failed because the network is unreachable.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

@@ -11,8 +11,9 @@
 # 2 = Job not found.
 # 3 = No offending keys found.
 # 
-# TODO: We might want to offer an option to remove all keys found for a given target. Somehow, at least in 
-#       testing, multiple keys got into a single known_hosts file.
+# TODO: Record the keys we remove, then check for the same keys on any other machine we know about. If any 
+#       are found on those machines, create a job for that host to remove the same.
+#       Also, look in the 'ip_addresses' table for any matching keys and delete them.
 # 
 
 use strict;

@@ -2,10 +2,10 @@
 # 
 # This updates things like the current network configuration, shared file data and writes it out to a json file.
 # 
-# 
 use strict;
 use warnings;
 use Anvil::Tools;
+use Data::Dumper;
 
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
@@ -62,6 +62,7 @@ sub update_network
 		bridges    => {},
 	};
 	
+	# Walk through the sysfs files.
 	local(*DIRECTORY);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
@@ -110,6 +111,10 @@ sub update_network
 			my $up_delay             = "";
 			my $down_delay           = "";
 			my $bond_master          = "";
+			
+			# These are variables that will be needed if this is a bridge interface
+			my $bridge_id          = "";
+			my $bridge_stp_enabled = "";
 			
 			if (exists $anvil->data->{network}{'local'}{interface}{$interface})
 			{
@@ -190,16 +195,45 @@ sub update_network
 				# No, but it's slaved to one.
 				my $target      = readlink($full_path."/master");
 				   $bond_master = ($target =~ /^.*\/(.*)$/)[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					target      => $target,
 					bond_master => $bond_master, 
 				}});
+			}
+			elsif (-d $full_path."/bridge")
+			{
+				# It's a bridge
+				$type               =  "bridge";
+				$bridge_id          =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/bridge_id"});
+				$bridge_stp_enabled =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/stp_state"});
+				$bridge_id          =~ s/\n$//;
+				$bridge_stp_enabled =~ s/\n$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					bridge_id          => $bridge_id, 
+					bridge_stp_enabled => $bridge_stp_enabled, 
+					type               => $type,
+				}});
+				if ($bridge_stp_enabled eq "0")
+				{
+					$bridge_stp_enabled = "disabled";
+				}
+				elsif ($bridge_stp_enabled eq "1")
+				{
+					$bridge_stp_enabled = "enabled_kernel";
+				}
+				elsif ($bridge_stp_enabled eq "2")
+				{
+					$bridge_stp_enabled = "enabled_userland";
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridge_stp_enabled => $bridge_stp_enabled }});
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				active_slave         => $active_slave, 
 				bond_master          => $bond_master, 
 				bond_mode            => $bond_mode, 
+				bridge_id            => $bridge_id, 
+				bridge_stp_enabled   => $bridge_stp_enabled, 
 				down_delay           => $down_delay, 
 				duplex               => $duplex, 
 				interface            => $interface,
@@ -233,28 +267,29 @@ sub update_network
 			}
 			
 			# Find the media, if possible.
-			my $shell_call = $anvil->data->{path}{exe}{ethtool}." $interface";
-			my $ethtool    = $anvil->System->call({shell_call => $shell_call});
+			my ($ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
 			foreach my $line (split/\n/, $ethtool)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 				if ($line =~ /Supported ports: \[ (.*?) \]/i)
 				{
 					$media = lc($1);
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { media => $media }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { media => $media }});
 					last;
 				}
 			}
 			
 			# Record this interface
 			$anvil->data->{seen}{$type}{$interface} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "seen::${type}::${interface}" => $anvil->data->{seen}{$type}{$interface} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "seen::${type}::${interface}" => $anvil->data->{seen}{$type}{$interface} }});
 			
 			# Log
 			$anvil->data->{network}{interfaces}{by_name}{$interface} = {
 				active_slave         => $active_slave, 
 				bond_mode            => $bond_mode, 
 				bond_master          => $bond_master, 
+				bridge_id            => $bridge_id, 
+				bridge_stp_enabled   => $bridge_stp_enabled, 
 				down_delay           => $down_delay, 
 				duplex               => $duplex,
 				ip_address           => $ip_address, 
@@ -275,6 +310,8 @@ sub update_network
 				"network::interfaces::by_name::${interface}::active_slave"           => $anvil->data->{network}{interfaces}{by_name}{$interface}{active_slave},
 				"network::interfaces::by_name::${interface}::bond_mode"              => $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_mode},
 				"network::interfaces::by_name::${interface}::bond_master"            => $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_master},
+				"network::interfaces::by_name::${interface}::bridge_id"              => $anvil->data->{network}{interfaces}{by_name}{$interface}{bridge_id}, 
+				"network::interfaces::by_name::${interface}::bridge_stp_enabled"     => $anvil->data->{network}{interfaces}{by_name}{$interface}{bridge_stp_enabled}, 
 				"network::interfaces::by_name::${interface}::down_delay"             => $anvil->data->{network}{interfaces}{by_name}{$interface}{down_delay},
 				"network::interfaces::by_name::${interface}::duplex"                 => $anvil->data->{network}{interfaces}{by_name}{$interface}{duplex},
 				"network::interfaces::by_name::${interface}::ip_address"             => $anvil->data->{network}{interfaces}{by_name}{$interface}{ip_address},
@@ -296,14 +333,25 @@ sub update_network
 	closedir(DIRECTORY);
 	
 	# We need to record bonds first so that their UUIDs are available when recording interfaces.
-	foreach my $processing ("bond", "interface")
+	foreach my $processing ("bond", "interface", "bridge")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { processing => $processing }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { processing => $processing }});
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{interfaces}{by_name}})
 		{
+			# Skip if this isn't the device type we're working on.
+			my $type = $anvil->data->{network}{interfaces}{by_name}{$interface}{type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:interface'  => $interface, 
+				's2:type'       => $type, 
+				's3:processing' => $processing, 
+			}});
+			next if $processing ne $anvil->data->{network}{interfaces}{by_name}{$interface}{type};
+			
 			my $active_slave         = $anvil->data->{network}{interfaces}{by_name}{$interface}{active_slave};
 			my $bond_mode            = $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_mode};
 			my $bond_master          = $anvil->data->{network}{interfaces}{by_name}{$interface}{bond_master};
+			my $bridge_id            = $anvil->data->{network}{interfaces}{by_name}{$interface}{bridge_id};
+			my $bridge_stp_enabled   = $anvil->data->{network}{interfaces}{by_name}{$interface}{bridge_stp_enabled};
 			my $down_delay           = $anvil->data->{network}{interfaces}{by_name}{$interface}{down_delay};
 			my $duplex               = $anvil->data->{network}{interfaces}{by_name}{$interface}{duplex};
 			my $ip_address           = $anvil->data->{network}{interfaces}{by_name}{$interface}{ip_address};
@@ -317,7 +365,6 @@ sub update_network
 			my $primary_slave        = $anvil->data->{network}{interfaces}{by_name}{$interface}{primary_slave};
 			my $speed                = $anvil->data->{network}{interfaces}{by_name}{$interface}{speed};
 			my $subnet_mask          = $anvil->data->{network}{interfaces}{by_name}{$interface}{subnet_mask};
-			my $type                 = $anvil->data->{network}{interfaces}{by_name}{$interface}{type};
 			my $up_delay             = $anvil->data->{network}{interfaces}{by_name}{$interface}{up_delay};
 			my $default_gateway      = $anvil->data->{network}{'local'}{interface}{$interface}{default_gateway};
 			my $gateway              = $anvil->data->{network}{'local'}{interface}{$interface}{gateway};
@@ -343,13 +390,13 @@ sub update_network
 				primary_slave        => $primary_slave, 
 				speed                => $speed,
 				subnet_mask          => $subnet_mask, 
-				type                 => $type,
 				up_delay             => $up_delay, 
 			}});
 			
 			if (($type eq $processing) && ($type eq "bond"))
 			{
 				my $bond_uuid = $anvil->Database->insert_or_update_bonds({
+					debug                     => 3,
 					file                      => $THIS_FILE,
 					line                      => __LINE__,
 					bond_name                 => $interface,
@@ -365,10 +412,11 @@ sub update_network
 					bond_up_delay             => $up_delay, 
 					bond_down_delay           => $down_delay, 
 				});
-				$anvil->data->{bond_by_name}{$interface} = $bond_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "bond_by_name::${interface}" => $anvil->data->{bond_by_name}{$interface} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_uuid => $bond_uuid }});
 				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bond_uuid => $bond_uuid }});
+				$anvil->data->{bond_by_name}{$interface} = $bond_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "bond_by_name::${interface}" => $anvil->data->{bond_by_name}{$interface} }});
+				
 				if (($bond_uuid) && ($ip_address))
 				{
 					my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
@@ -388,16 +436,17 @@ sub update_network
 			if (($type eq $processing) && ($type eq "interface"))
 			{
 				my $say_bond_uuid = "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bond_master => $bond_master }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_master => $bond_master }});
 				if (($bond_master) && ($anvil->data->{bond_by_name}{$bond_master}))
 				{
 					$say_bond_uuid = $anvil->data->{bond_by_name}{$bond_master};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"bond_by_name::${bond_master}" => $anvil->data->{bond_by_name}{$bond_master}, 
 						say_bond_uuid                  => $say_bond_uuid,
 					}});
 				}
 				my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
+					debug                         => 3,
 					file                          => $THIS_FILE,
 					line                          => __LINE__,
 					network_interface_bond_uuid   => $say_bond_uuid, 
@@ -410,10 +459,10 @@ sub update_network
 					network_interface_mtu         => $mtu, 
 					network_interface_speed       => $speed, 
 				});
-				$anvil->data->{interface_by_name}{$interface} = $network_interface_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "interface_by_name::${interface}" => $anvil->data->{interface_by_name}{$interface} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
 				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_uuid => $network_interface_uuid }});
+				$anvil->data->{interface_by_name}{$interface} = $network_interface_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "interface_by_name::${interface}" => $anvil->data->{interface_by_name}{$interface} }});
 				if (($network_interface_uuid) && ($ip_address))
 				{
 					my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
@@ -421,6 +470,39 @@ sub update_network
 						line                       => __LINE__,
 						ip_address_on_type         => $type, 
 						ip_address_on_uuid         => $network_interface_uuid, 
+						ip_address_address         => $ip_address, 
+						ip_address_subnet_mask     => $subnet_mask, 
+						ip_address_gateway         => $gateway, 
+						ip_address_default_gateway => $default_gateway, 
+						ip_address_dns             => $dns, 
+					});
+				}
+			}
+			
+			### TODO: Left off here. Add 'insert_or_update_bridge_interfaces' and see why bridges aren't being saved.
+			if (($type eq $processing) && ($type eq "bridge"))
+			{
+				my $bridge_uuid = $anvil->Database->insert_or_update_bridges({
+					debug              => 3,
+					file               => $THIS_FILE,
+					line               => __LINE__,
+					bridge_name        => $interface, 
+					bridge_id          => $bridge_id, 
+					bridge_mac         => $mac_address, 
+					bridge_mtu         => $mtu, 
+					bridge_stp_enabled => $bridge_stp_enabled, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_uuid => $bridge_uuid }});
+				
+				$anvil->data->{bridge_by_name}{$interface} = $bridge_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "bridge_by_name::${interface}" => $anvil->data->{bridge_by_name}{$interface} }});
+				if (($bridge_uuid) && ($ip_address))
+				{
+					my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
+						file                       => $THIS_FILE,
+						line                       => __LINE__,
+						ip_address_on_type         => $type, 
+						ip_address_on_uuid         => $bridge_uuid, 
 						ip_address_address         => $ip_address, 
 						ip_address_subnet_mask     => $subnet_mask, 
 						ip_address_gateway         => $gateway, 
@@ -498,7 +580,7 @@ AND
 		{
 			# Mark it as deleted.
 			my $query = "UPDATE bonds SET bond_mode = 'DELETED' WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
-			$anvil->Database->write({debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
+			$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 			
 			# Remove it from the hash so we don't add it to the .json and .xml files.
 			delete $anvil->data->{bonds}{$bond_uuid};
@@ -510,6 +592,8 @@ SELECT
     bridge_uuid, 
     bridge_name, 
     bridge_id, 
+    bridge_mac, 
+    bridge_mtu, 
     bridge_stp_enabled 
 FROM 
     bridges 
@@ -527,16 +611,24 @@ AND
 	}});
 	foreach my $row (@{$results})
 	{
-		my $bridge_uuid = $row->[0];
-		my $bridge_name = $row->[1];
+		my $bridge_uuid        = $row->[0];
+		my $bridge_name        = $row->[1];
+		my $bridge_id          = $row->[2];
+		my $bridge_mac         = $row->[3];
+		my $bridge_mtu         = $row->[4];
+		my $bridge_stp_enabled = $row->[5];
 		$anvil->data->{bridges}{$bridge_uuid} = {
 			bridge_name        => $bridge_name,
-			bridge_id          => $row->[2],
-			bridge_stp_enabled => $row->[3],
+			bridge_id          => $bridge_id,
+			bridge_mac         => $bridge_mac, 
+			bridge_mtu         => $bridge_mtu, 
+			bridge_stp_enabled => $bridge_stp_enabled,
 		};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"bridges::${bridge_uuid}::bridge_name"        => $anvil->data->{bridges}{$bridge_uuid}{bridge_name},
 			"bridges::${bridge_uuid}::bridge_id"          => $anvil->data->{bridges}{$bridge_uuid}{bridge_id},
+			"bridges::${bridge_uuid}::bridge_mac"         => $anvil->data->{bridges}{$bridge_uuid}{bridge_mac},
+			"bridges::${bridge_uuid}::bridge_mtu"         => $anvil->data->{bridges}{$bridge_uuid}{bridge_mtu},
 			"bridges::${bridge_uuid}::bridge_stp_enabled" => $anvil->data->{bridges}{$bridge_uuid}{bridge_stp_enabled},
 		}});
 		
@@ -745,6 +837,39 @@ WHERE
 			$anvil->Database->write({debug => 2, query => $query, source => $THIS_FILE, line => __LINE__});
 		}
 	}
+	
+	# Now record the interfaces on bridges.
+	$anvil->Network->bridge_info({debug => 2});
+	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{'local'}})
+	{
+		my $bridge_uuid = $anvil->data->{bridge_by_name}{$bridge_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bridge_name => $bridge_name,
+			bridge_uuid => $bridge_uuid, 
+		}});
+		
+		foreach my $interface_name (sort {$a cmp $b} @{$anvil->data->{bridge}{'local'}{$bridge_name}{interfaces}})
+		{
+			my $interface_uuid = exists $anvil->data->{bond_by_name}{$interface_name} ? $anvil->data->{bond_by_name}{$interface_name} : $anvil->data->{interface_by_name}{$interface_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				interface_name => $interface_name,
+				interface_uuid => $interface_uuid, 
+			}});
+			
+			my $bridge_interfaces_uuid = $anvil->Database->insert_or_update_bridge_interfaces({
+				debug                                   => 2,
+				file                                    => $THIS_FILE, 
+				line                                    => __LINE__, 
+				bridge_interface_bridge_uuid            => $bridge_uuid, 
+				bridge_interface_network_interface_uuid => $interface_uuid, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				bridge_interfaces_uuid => $bridge_interfaces_uuid, 
+			}});
+		}
+	}
+	
+	die;
 	
 	$network_json =~ s/,$//s;
 	$network_json .= "]}\n";

@@ -12,12 +12,15 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Network.pm";
 
 ### Methods;
+# bridge_info
 # check_internet
+# download
 # find_matches
 # get_ips
 # get_network
 # is_local
 # is_remote
+# load_ips
 # ping
 
 =pod
@@ -79,6 +82,131 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+=head2 bridge_info
+
+This calls C<< bridge >> to get data on interfaces connected to bridges. A list of interfaces to connected to each bridge is stored here;
+
+* bridge::<target>::<bridge_name>::interfaces = Array reference of interfaces connected this bridge
+
+The rest of the variable / value pairs are stored here. See C<< man bridge -> state >> for more information of these values
+
+* bridge::<target>::<bridge_name>::<interface_name>::<variable> = <value>
+
+The common variables are;
+
+* bridge::<target>::<bridge_name>::<interface_name>::ifindex = Interface index number.
+* bridge::<target>::<bridge_name>::<interface_name>::flags = An array reference storing the flags set for the interface on the bridge.
+* bridge::<target>::<bridge_name>::<interface_name>::mtu = The maximum transmitable unit size, in bytes.
+* bridge::<target>::<bridge_name>::<interface_name>::state = The state of the bridge.
+* bridge::<target>::<bridge_name>::<interface_name>::priority = The priority for this interface.
+* bridge::<target>::<bridge_name>::<interface_name>::cost = The cost of this interface.
+
+Paramters;
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 remote_user (optional)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 target (optional, default 'local')
+
+If set, the bridge data will be read from the target machine. This needs to be the IP address or (resolvable) host name of the target.
+
+=cut
+sub bridge_info
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->bridge_info()" }});
+	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	}});
+	
+	my $shell_call = $anvil->data->{path}{exe}{bridge}." -json -pretty link show";
+	my $output     = "";
+	if ($anvil->Network->is_remote($target))
+	{
+		# Remote call
+		($output, my $error, my $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call,
+			target      => $target,
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:error'       => $error,
+			's3:return_code' => $return_code, 
+		}});
+	}
+	else
+	{
+		# Local call.
+		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+	}
+	
+	# Did I get usable data?
+	if ($output !~ /^\[/)
+	{
+		# Bad data.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0443", variables => { output => $output }});
+		return(1);
+	}
+	
+	my $json        = JSON->new->allow_nonref;
+	my $bridge_data = $json->decode($output);
+	foreach my $hash_ref (@{$bridge_data})
+	{
+		my $bridge    = $hash_ref->{master};
+		my $interface = $hash_ref->{ifname};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:bridge'    => $bridge,
+			's2:interface' => $interface, 
+		}});
+		if ((not exists $anvil->data->{bridge}{$target}{$bridge}) or (ref($anvil->data->{bridge}{$target}{$bridge}{interfaces}) ne "ARRAY"))
+		{
+			$anvil->data->{bridge}{$target}{$bridge}{interfaces} = [];
+		}
+		push @{$anvil->data->{bridge}{$target}{$bridge}{interfaces}}, $interface;
+		
+		# Now store the rest of the data.
+		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
+		{
+			next if $key eq "master";
+			next if $key eq "ifname";
+			$anvil->data->{bridge}{$target}{$bridge}{$interface}{$key} = $hash_ref->{$key};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"bridge::${target}::${bridge}::${interface}::${key}" => $anvil->data->{bridge}{$target}{$bridge}{$interface}{$key}, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
 =head2 check_internet
 
 This method tries to connect to the internet. If successful, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
@@ -118,7 +246,7 @@ sub check_internet
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_internet()" }});
 	
 	my $access      = 0;
 	my $domains     = defined $parameter->{domains}     ? $parameter->{domains}     : $anvil->data->{defaults}{network}{test}{domains};
@@ -194,6 +322,211 @@ sub check_internet
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
 	return($access);
+}
+
+=head2 download
+
+This downloads a file from a network target and saves it to a local file. This must be called on a local system so that the download progress can be reported.
+
+On success, the saved file is returned. On failure, an empty string is returned.
+
+Parameters;
+
+=head3 save_to (optional)
+
+If set, this is where the file will be downloaded to. If this ends with C<< / >>, the file name is preserved from the C<< url >> and will be saved in the C<< save_to >>'s directory with the original file name. Otherwise, the downlaoded file is saved with the file name given. As such, be careful about the trailing C<< / >>!
+
+When not specified, the file name in the URL will be used and the file will be saved in the active user's home directory.
+
+=head3 status (optional, default '1')
+
+When set to C<< 1 >>, a periodic status message is printed. When set to C<< 0 >>, no status will be printed.
+
+=head3 url (required)
+
+This is the URL to the file to download.
+
+=cut
+sub download
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_ips()" }});
+	
+	my $save_to = defined $parameter->{save_to} ? $parameter->{save_to} : "";
+	my $status  = defined $parameter->{status}  ? $parameter->{status}  : 1;
+	my $url     = defined $parameter->{url}     ? $parameter->{url}     : "";
+	my $uuid    = $anvil->Get->uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		save_to => $save_to,
+		status  => $status, 
+		url     => $url, 
+		uuid    => $uuid, 
+	}});
+	
+	if (not $url)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->download()", parameter => "url" }});
+		return("");
+	}
+	elsif (($url !~ /^ftp\:\/\//) && ($url !~ /^http\:\/\//) && ($url !~ /^https\:\/\//))
+	{
+		# Invalid URL.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0085", variables => { url => $url }});
+		return("");
+	}
+	
+	# The name of the file to be downloaded will be used if the path isn't specified, or if it ends in '/'.
+	my $source_file = ($url =~ /^.*\/(.*)$/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source_file => $source_file }});
+	
+	if (not $save_to)
+	{
+		$save_to = $anvil->Get->users_home({debug => $debug})."/".$source_file;
+		$save_to =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { save_to => $save_to }});
+	}
+	elsif ($save_to =~ /\/$/)
+	{
+		$save_to .= "/".$source_file;
+		$save_to =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { save_to => $save_to }});
+	}
+	
+	### TODO: Make this work well as a job
+	my $status_file      = "/tmp/".$source_file.".download_status";
+	my $bytes_downloaded = 0;
+	my $running_time     = 0;
+	my $average_rate     = 0;
+	my $start_printed    = 0;
+	my $percent          = 0;
+	my $rate             = 0;	# Bytes/sec
+	my $downloaded       = 0;	# Bytes
+	my $time_left        = 0;	# Seconds
+	my $report_interval  = 5;	# Seconds between status file update
+	my $next_report      = time + $report_interval;
+	
+	# This should print to a status file
+	print "uuid=$uuid bytes_downloaded=0 percent=0 current_rate=0 average_rate=0 seconds_running=0 seconds_left=0 url=$url save_to=$save_to\n" if $status;;
+	
+	# Download command
+	my $unix_start = 0;
+	my $shell_call = $anvil->data->{path}{exe}{wget}." -c --progress=dot:binary ".$url." -O ".$save_to;
+	my $output = "";
+	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+	while(<$file_handle>)
+	{
+		chomp;
+		my $line =  $_;
+		   $line =~ s/^\s+//;
+		   $line =~ s/\s+$//;
+		   $line =~ s/\s+/ /g;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0017", variables => { line => $line }});
+		if (($line =~ /404/) && ($line =~ /Not Found/i))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0086", variables => { urk => $url }});
+			return("");
+		}
+		if ($line =~ /Name or service not known/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0087", variables => { urk => $url }});
+			return("");
+		}
+		if ($line =~ /Connection refused/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0088", variables => { urk => $url }});
+			return("");
+		}
+		if ($line =~ /route to host/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0089", variables => { urk => $url }});
+			return("");
+		}
+		if ($line =~ /Network is unreachable/i)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0090", variables => { urk => $url }});
+			return("");
+		}
+		
+		if ($line =~ /^(\d+)K .*? (\d+)% (.*?) (\d+.*)$/)
+		{
+			$downloaded = $1;
+			$percent    = $2;
+			$rate       = $3;
+			$time_left  = $4;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				downloaded => $downloaded,
+				percent    => $percent,
+				rate       => $rate,
+				time_left  => $time_left,
+			}});
+			
+			if (not $start_printed)
+			{
+				### NOTE: This is meant to be parsed by a script, so don't translate it.
+				print "started:$uuid\n" if $status;
+				$start_printed = 1;
+			}
+			
+			### NOTE: According to: http://savannah.gnu.org/bugs/index.php?22765, wget uses base-2.
+			# Convert
+			   $bytes_downloaded = $downloaded * 1024;
+			my $say_downloaded   = $anvil->Convert->bytes_to_human_readable({'bytes' => $bytes_downloaded});
+			my $say_percent      = $percent."%";
+			my $byte_rate        = $anvil->Convert->human_readable_to_bytes({size => $rate, base2 => 1});
+			my $say_rate         = $anvil->Convert->bytes_to_human_readable({'bytes' => $byte_rate})."/s";
+			   $running_time     = time - $unix_start;
+			my $say_running_time = $anvil->Convert->time({'time' => $running_time, translate => 1});
+			# Time left is a bit more complicated
+			my $days    = 0;
+			my $hours   = 0;
+			my $minutes = 0;
+			my $seconds = 0;
+			if ($time_left =~ /(\d+)d/)
+			{
+				$days = $1;
+				#print "$THIS_FILE ".__LINE__."; == days: [$days]\n";
+			}
+			if ($time_left =~ /(\d+)h/)
+			{
+				$hours = $1;
+				#print "$THIS_FILE ".__LINE__."; == hours: [$hours]\n";
+			}
+			if ($time_left =~ /(\d+)m/)
+			{
+				$minutes = $1;
+				#print "$THIS_FILE ".__LINE__."; == minutes: [$minutes]\n";
+			}
+			if ($time_left =~ /(\d+)s/)
+			{
+				$seconds = $1;
+				#print "$THIS_FILE ".__LINE__."; == seconds: [$seconds]\n";
+			}
+			my $seconds_left     = (($days * 86400) + ($hours * 3600) + ($minutes * 60) + $seconds);
+			my $say_time_left    = $anvil->Convert->time({'time' => $seconds_left, long => 1, translate => 1});
+			   $running_time     = 1 if not $running_time;
+			   $average_rate     = int($bytes_downloaded / $running_time);
+			my $say_average_rate = $anvil->Convert->bytes_to_human_readable({'bytes' => $average_rate})."/s";
+			
+			#print "$THIS_FILE ".__LINE__."; downloaded: [$downloaded], bytes_downloaded: [$bytes_downloaded], say_downloaded: [$say_downloaded], percent: [$percent], rate: [$rate], byte_rate: [$byte_rate], say_rate: [$say_rate], time_left: [$time_left]\n";
+			if (time > $next_report)
+			{
+				#print "$THIS_FILE ".__LINE__."; say_downloaded: [$say_downloaded], percent: [$percent], say_rate: [$say_rate], running_time: [$running_time], say_running_time: [$say_running_time], seconds_left: [$seconds_left], say_time_left: [$say_time_left]\n";
+				#print "$file; Downloaded: [$say_downloaded]/[$say_percent], Rate/Avg: [$say_rate]/[$say_average_rate], Running: [$say_running_time], Left: [$say_time_left]\n";
+				#print "$THIS_FILE ".__LINE__."; bytes_downloaded=$bytes_downloaded, percent=$percent, current_rate=$byte_rate, average_rate=$average_rate, seconds_running=$running_time, seconds_left=$seconds_left, save_to=$save_to\n";
+				$next_report += $report_interval;
+				
+				# This should print to a status file
+				print "uuid=$uuid bytes_downloaded=$bytes_downloaded percent=$percent current_rate=$byte_rate average_rate=$average_rate seconds_running=$running_time seconds_left=$seconds_left url=$url save_to=$save_to\n" if $status;
+			}
+		}
+	}
+	close $file_handle;
+	chomp($output);
+	
+	return($save_to);
 }
 
 =head2 find_matches
@@ -299,6 +632,193 @@ sub find_matches
 	}
 	
 	return($match);
+}
+
+=head2 load_ips
+
+This method loads and stores the same data as the C<< get_ips >> method, but does so by loading data from the database, instead of collecting it directly from the host. As such, it can also be used by C<< find_matches >>.
+
+The loaded data will be stored as:
+
+* C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
+* C<< network::<target>::interface::<iface_name>::subnet >>          - If an IP is set
+* C<< network::<target>::interface::<iface_name>::mac >>             - Always set.
+* C<< network::<target>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
+* C<< network::<target>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
+* C<< network::<target>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
+
+Parameters;
+
+=head3 host_uuid (required)
+
+This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load.
+
+=head3 target (optional, default is 'host_uuid' value)
+
+This is the optional C<< target >> string to use in the hash where the data is stored.
+
+=cut
+sub load_ips
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
+	
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
+	my $target    = defined $parameter->{target}    ? $parameter->{target}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		target    => $target, 
+		host_uuid => $host_uuid,
+	}});
+	
+	if (not $host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->get_network()", parameter => "ip" }});
+		return("");
+	}
+	
+	if (not $target)
+	{
+		$target = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+	}
+	
+	my $query = "
+SELECT 
+    ip_address_address, 
+    ip_address_subnet_mask, 
+    ip_address_gateway, 
+    ip_address_default_gateway, 
+    ip_address_dns, 
+    ip_address_on_type, 
+    ip_address_on_uuid 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_on_type != 'DELETED' 
+AND 
+    ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)."
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $ip_address_address         = $row->[0]; 
+		my $ip_address_subnet_mask     = $row->[1]; 
+		my $ip_address_gateway         = $row->[2]; 
+		my $ip_address_default_gateway = $row->[3]; 
+		my $ip_address_dns             = $row->[4]; 
+		my $ip_address_on_type         = $row->[5]; 
+		my $ip_address_on_uuid         = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ip_address_address         => $ip_address_address,
+			ip_address_subnet_mask     => $ip_address_subnet_mask,
+			ip_address_gateway         => $ip_address_gateway,
+			ip_address_default_gateway => $ip_address_default_gateway,
+			ip_address_dns             => $ip_address_dns,
+			ip_address_on_type         => $ip_address_on_type,
+			ip_address_on_uuid         => $ip_address_on_uuid,
+		}});
+		
+		my $interface_name = "";
+		my $interface_mac  = "";
+		if ($ip_address_on_type eq "interface")
+		{
+			my $query = "
+SELECT 
+    network_interface_name, 
+    network_interface_mac_address 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			
+			$interface_name = $results->[0]->[0];
+			$interface_mac  = $results->[0]->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name => $interface_name, 
+				interface_mac  => $interface_mac, 
+			}});
+		}
+		elsif ($ip_address_on_type eq "bond")
+		{
+			my $query = "
+SELECT 
+    bond_name, 
+    bond_mac_address 
+FROM 
+    bonds 
+WHERE 
+    bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			
+			$interface_name = $results->[0]->[0];
+			$interface_mac  = $results->[0]->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name => $interface_name, 
+				interface_mac  => $interface_mac, 
+			}});
+		}
+		elsif ($ip_address_on_type eq "bridge")
+		{
+			my $query = "
+SELECT 
+    bond_name, 
+    bond_mac_address 
+FROM 
+    bonds 
+WHERE 
+    bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			
+			$interface_name = $results->[0]->[0];
+			$interface_mac  = $results->[0]->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name => $interface_name, 
+				interface_mac  => $interface_mac, 
+			}});
+		}
+
+		
+		$anvil->data->{network}{$target}{interface}{$interface_name}{ip}              = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{ip};
+		$anvil->data->{network}{$target}{interface}{$interface_name}{subnet}          = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{subnet};
+		$anvil->data->{network}{$target}{interface}{$interface_name}{mac}             = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{mac};
+		$anvil->data->{network}{$target}{interface}{$interface_name}{default_gateway} = 0  if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{default_gateway};
+		$anvil->data->{network}{$target}{interface}{$interface_name}{gateway}         = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{gateway};
+		$anvil->data->{network}{$target}{interface}{$interface_name}{dns}             = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{dns};
+	}
+	
+	
+	return(0);
 }
 
 =head2 get_ips

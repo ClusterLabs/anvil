@@ -982,7 +982,9 @@ CREATE TABLE bridges (
     bridge_host_uuid      uuid                        not null,
     bridge_name           text                        not null,
     bridge_id             text                        not null,
-    bridge_stp_enabled    text                        not null,
+    bridge_mac            text                        not null,
+    bridge_mtu            text                        not null,
+    bridge_stp_enabled    text                        not null,                  -- 0 = disabled, 1 = kernel STP, 2 = user STP
     modified_date         timestamp with time zone    not null,
     
     FOREIGN KEY(bridge_host_uuid) REFERENCES hosts(host_uuid)
@@ -995,6 +997,8 @@ CREATE TABLE history.bridges (
     bridge_host_uuid      uuid,
     bridge_name           text,
     bridge_id             text,
+    bridge_mac            text,
+    bridge_mtu            text,
     bridge_stp_enabled    text,
     modified_date         timestamp with time zone    not null
 );
@@ -1007,17 +1011,21 @@ DECLARE
 BEGIN
     SELECT INTO history_bridges * FROM bridges WHERE bridge_uuid = new.bridge_uuid;
     INSERT INTO history.bridges
-        (bridge_uuid,
-         bridge_host_uuid,
-         bridge_name,
-         bridge_id,
-         bridge_stp_enabled,
+        (bridge_uuid, 
+         bridge_host_uuid, 
+         bridge_name, 
+         bridge_id, 
+         bridge_mac, 
+         bridge_mtu, 
+         bridge_stp_enabled, 
          modified_date)
     VALUES
         (history_bridges.bridge_uuid, 
          history_bridges.bridge_host_uuid, 
          history_bridges.bridge_name, 
          history_bridges.bridge_id, 
+         history_bridges.bridge_mac, 
+         history_bridges.bridge_mtu, 
          history_bridges.bridge_stp_enabled, 
          history_bridges.modified_date);
     RETURN NULL;
@@ -1029,6 +1037,63 @@ ALTER FUNCTION history_bridges() OWNER TO admin;
 CREATE TRIGGER trigger_bridges
     AFTER INSERT OR UPDATE ON bridges
     FOR EACH ROW EXECUTE PROCEDURE history_bridges();
+
+
+-- This records which interfaces are connect to which bridges
+CREATE TABLE bridge_interfaces (
+    bridge_interface_uuid                      uuid                        not null    primary key,
+    bridge_interface_host_uuid                 uuid                        not null,
+    bridge_interface_bridge_uuid               uuid                        not null,
+    bridge_interface_network_interface_uuid    uuid                        not null,
+    bridge_interface_note                      text                        not null,                 -- Will have 'DELETED' when removed, or the server name the device connects to otherwise.
+    modified_date                              timestamp with time zone    not null,
+    
+    FOREIGN KEY(bridge_interface_host_uuid)              REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(bridge_interface_bridge_uuid)            REFERENCES bridges(bridge_uuid), 
+    FOREIGN KEY(bridge_interface_network_interface_uuid) REFERENCES network_interfaces(network_interface_uuid) 
+);
+ALTER TABLE bridge_interfaces OWNER TO admin;
+
+CREATE TABLE history.bridge_interfaces (
+    history_id                                 bigserial,
+    bridge_interface_uuid                      uuid,
+    bridge_interface_host_uuid                 uuid,
+    bridge_interface_bridge_uuid               uuid,
+    bridge_interface_network_interface_uuid    uuid,
+    bridge_interface_note                      text,
+    modified_date                              timestamp with time zone    not null
+);
+ALTER TABLE history.bridge_interfaces OWNER TO admin;
+
+CREATE FUNCTION history_bridge_interfaces() RETURNS trigger
+AS $$
+DECLARE
+    history_bridge_interfaces RECORD;
+BEGIN
+    SELECT INTO history_bridge_interfaces * FROM bridge_interfaces WHERE bridge_interface_uuid = new.bridge_interface_uuid;
+    INSERT INTO history.bridge_interfaces
+        (bridge_interface_uuid, 
+         bridge_interface_host_uuid, 
+         bridge_interface_bridge_uuid, 
+         bridge_interface_network_interface_uuid, 
+         bridge_interface_note, 
+         modified_date)
+    VALUES
+        (history_bridge_interfaces.bridge_interface_uuid, 
+         history_bridge_interfaces.bridge_interface_host_uuid, 
+         history_bridge_interfaces.bridge_interface_bridge_uuid, 
+         history_bridge_interfaces.bridge_interface_network_interface_uuid, 
+         history_bridge_interfaces.bridge_interface_note, 
+         history_bridge_interfaces.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_bridge_interfaces() OWNER TO admin;
+
+CREATE TRIGGER trigger_bridge_interfaces
+    AFTER INSERT OR UPDATE ON bridge_interfaces
+    FOR EACH ROW EXECUTE PROCEDURE history_bridge_interfaces();
 
 
 -- This stores information about network ip addresss. 
@@ -1374,6 +1439,53 @@ ALTER FUNCTION history_definitions() OWNER TO admin;
 CREATE TRIGGER trigger_definitions
     AFTER INSERT OR UPDATE ON definitions
     FOR EACH ROW EXECUTE PROCEDURE history_definitions();
+
+
+-- It stores a general list of OUI (Organizationally Unique Identifier) to allow lookup of MAC address to 
+-- owning company. Data for this comes from http://standards-oui.ieee.org/oui/oui.txt and is stored by 
+-- striker-parse-oui. It is a generic reference table, so it's not bound to any one host.
+CREATE TABLE oui (
+    oui_uuid            uuid                        not null    primary key,
+    oui_mac_prefix      text                        not null,                   -- This is the first 12 bits / 3 bytes of the MAC address
+    oui_company_name    text                        not null,                   -- This is the name of the owning company, as recorded in the OUI list.
+    modified_date       timestamp with time zone    not null 
+);
+ALTER TABLE oui OWNER TO admin;
+
+CREATE TABLE history.oui (
+    history_id          bigserial,
+    oui_uuid            uuid,
+    oui_mac_prefix      text,
+    oui_company_name    text,
+    modified_date       timestamp with time zone    not null
+);
+ALTER TABLE history.oui OWNER TO admin;
+
+CREATE FUNCTION history_oui() RETURNS trigger
+AS $$
+DECLARE
+    history_oui RECORD;
+BEGIN
+    SELECT INTO history_oui * FROM oui WHERE oui_uuid = new.oui_uuid;
+    INSERT INTO history.oui
+        (oui_uuid, 
+         oui_mac_prefix, 
+         oui_company_name, 
+         modified_date)
+    VALUES
+        (history_oui.oui_uuid, 
+         history_oui.oui_mac_prefix, 
+         history_oui.oui_company_name, 
+         history_oui.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_oui() OWNER TO admin;
+
+CREATE TRIGGER trigger_oui
+    AFTER INSERT OR UPDATE ON oui
+    FOR EACH ROW EXECUTE PROCEDURE history_oui();
 
 
 -- ------------------------------------------------------------------------------------------------------- --

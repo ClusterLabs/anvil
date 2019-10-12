@@ -1174,6 +1174,7 @@ sub _set_paths
 			},
 			urls			=>	{
 				skins				=>	"/skins",
+				oui_file			=>	"http://standards.ieee.org/develop/regauth/oui/oui.txt",
 			},
 			words			=>	{
 				'words.xml'			=>	"/usr/share/anvil/words.xml",

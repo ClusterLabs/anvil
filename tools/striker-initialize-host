@@ -53,8 +53,8 @@ if (not $anvil->data->{sys}{database}{connections})
 $anvil->data->{job}{progress} = 0;
 get_job_details($anvil);
 wait_for_access($anvil);
-set_host_name($anvil);
-add_repos($anvil);
+#set_host_name($anvil);
+#add_repos($anvil);
 add_databases($anvil);
 
 $anvil->nice_exit({code => 0});
@@ -205,10 +205,27 @@ sub add_databases
 	}
 	else
 	{
-		### TODO: LEft off here; change the message to a proper one.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0076"});
-		update_progress($anvil, 100, "error_0076");
+		### TODO: Left off here; change the message to a proper one.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0084"});
+		update_progress($anvil, 100, "error_0084");
 		$anvil->nice_exit({exit_code => 6});
+	}
+	
+	# Now add any peers we know about.
+	foreach my $uuid (keys %{$anvil->data->{database}})
+	{
+		next if $uuid eq $anvil->data->{sys}{host_uuid};
+		
+		# This is a peer.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
+			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
+			"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}),
+			"database::${uuid}::ping"     => $anvil->data->{database}{$uuid}{ping},
+		}});
+		
+		# The host may not be able to reach the 'host' that we can. So get the IPs we know about for
+		# this host and see if we can find a match.
 	}
 	
 	return(0);
