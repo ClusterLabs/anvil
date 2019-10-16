@@ -1025,11 +1025,11 @@ sub time
 	}
 	
 	# The suffix used for each unit of time will depend on the requested suffix type.
-	my $suffix_seconds = $long ? " #!string!suffix_0002!#" : " #!string!suffix_0007!#";
-	my $suffix_minutes = $long ? " #!string!suffix_0003!#" : " #!string!suffix_0008!#";
-	my $suffix_hours   = $long ? " #!string!suffix_0004!#" : " #!string!suffix_0009!#";
-	my $suffix_days    = $long ? " #!string!suffix_0005!#" : " #!string!suffix_0010!#";
-	my $suffix_weeks   = $long ? " #!string!suffix_0006!#" : " #!string!suffix_0011!#";
+	my $suffix_seconds = $long ? " #!string!suffix_0007!#" : " #!string!suffix_0002!#";
+	my $suffix_minutes = $long ? " #!string!suffix_0008!#" : " #!string!suffix_0003!#";
+	my $suffix_hours   = $long ? " #!string!suffix_0009!#" : " #!string!suffix_0004!#";
+	my $suffix_days    = $long ? " #!string!suffix_0010!#" : " #!string!suffix_0005!#";
+	my $suffix_weeks   = $long ? " #!string!suffix_0011!#" : " #!string!suffix_0006!#";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		suffix_seconds => $suffix_seconds,
 		suffix_minutes => $suffix_minutes, 

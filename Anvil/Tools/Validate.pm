@@ -300,6 +300,55 @@ sub is_domain_name
 	return($valid);
 }
 
+=head2 is_hex
+
+Checks if the passed-in string contains only hexidecimal characters. A prefix of C<< 0x >> is allowed.
+
+Parameters;
+
+=head3 sloppy (optional, default '0')
+
+If set to C<< 1 >>, the string will be allowed to contain C<< : >> and C<< - >> and a closing C<< h >>characters (as found in MAC addresses, for example). 
+
+=head3 string (required)
+
+This is the string to validate
+
+=cut
+sub is_hex
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $sloppy = defined $parameter->{sloppy} ? $parameter->{sloppy} : "";
+	my $string = defined $parameter->{string} ? $parameter->{string} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		sloppy => $sloppy, 
+		string => $string,
+	}});
+	
+	if ($sloppy)
+	{
+		$string =~ s/-//g;
+		$string =~ s/://g;
+		$string =~ s/h$//gi;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+	}
+	
+	my $valid = 1;
+	if ($string !~ /^(0[xX])*[0-9a-fA-F]+$/)
+	{
+		# There's something un-hexxy about this.
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
 =head2 is_ipv4
 
 Checks if the passed-in string is an IPv4 address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.

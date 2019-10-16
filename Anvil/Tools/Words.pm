@@ -114,6 +114,7 @@ sub clean_spaces
 	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
 	   $string =~ s/^\s+//;
 	   $string =~ s/\s+$//;
+	   $string =~ s/\r//g;
 	   $string =~ s/\s+/ /g;
 	
 	return($string);

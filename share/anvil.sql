@@ -1445,19 +1445,21 @@ CREATE TRIGGER trigger_definitions
 -- owning company. Data for this comes from http://standards-oui.ieee.org/oui/oui.txt and is stored by 
 -- striker-parse-oui. It is a generic reference table, so it's not bound to any one host.
 CREATE TABLE oui (
-    oui_uuid            uuid                        not null    primary key,
-    oui_mac_prefix      text                        not null,                   -- This is the first 12 bits / 3 bytes of the MAC address
-    oui_company_name    text                        not null,                   -- This is the name of the owning company, as recorded in the OUI list.
-    modified_date       timestamp with time zone    not null 
+    oui_uuid               uuid                        not null    primary key,
+    oui_mac_prefix         text                        not null,                   -- This is the first 12 bits / 3 bytes of the MAC address
+    oui_company_name       text                        not null,                   -- This is the name of the owning company, as recorded in the OUI list.
+    oui_company_address    text                        not null,                   -- This is the company's registered address.
+    modified_date          timestamp with time zone    not null 
 );
 ALTER TABLE oui OWNER TO admin;
 
 CREATE TABLE history.oui (
-    history_id          bigserial,
-    oui_uuid            uuid,
-    oui_mac_prefix      text,
-    oui_company_name    text,
-    modified_date       timestamp with time zone    not null
+    history_id             bigserial, 
+    oui_uuid               uuid, 
+    oui_mac_prefix         text, 
+    oui_company_name       text, 
+    oui_company_address    text, 
+    modified_date          timestamp with time zone    not null
 );
 ALTER TABLE history.oui OWNER TO admin;
 
@@ -1471,11 +1473,13 @@ BEGIN
         (oui_uuid, 
          oui_mac_prefix, 
          oui_company_name, 
+         oui_company_address, 
          modified_date)
     VALUES
         (history_oui.oui_uuid, 
          history_oui.oui_mac_prefix, 
          history_oui.oui_company_name, 
+         history_oui.oui_company_address, 
          history_oui.modified_date);
     RETURN NULL;
 END;

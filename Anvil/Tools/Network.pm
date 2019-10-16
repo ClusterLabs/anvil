@@ -332,6 +332,12 @@ On success, the saved file is returned. On failure, an empty string is returned.
 
 Parameters;
 
+=head3 overwrite (optional, default '0')
+
+When set, if the output file already exists, the existing file will be removed before the download is called.
+
+B<< NOTE >>: If the output file already exists and is 0-bytes, it is removed and the download proceeds regardless of this setting.
+
 =head3 save_to (optional)
 
 If set, this is where the file will be downloaded to. If this ends with C<< / >>, the file name is preserved from the C<< url >> and will be saved in the C<< save_to >>'s directory with the original file name. Otherwise, the downlaoded file is saved with the file name given. As such, be careful about the trailing C<< / >>!
@@ -355,15 +361,17 @@ sub download
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_ips()" }});
 	
-	my $save_to = defined $parameter->{save_to} ? $parameter->{save_to} : "";
-	my $status  = defined $parameter->{status}  ? $parameter->{status}  : 1;
-	my $url     = defined $parameter->{url}     ? $parameter->{url}     : "";
-	my $uuid    = $anvil->Get->uuid();
+	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
+	my $save_to   = defined $parameter->{save_to}   ? $parameter->{save_to}   : "";
+	my $status    = defined $parameter->{status}    ? $parameter->{status}    : 1;
+	my $url       = defined $parameter->{url}       ? $parameter->{url}       : "";
+	my $uuid      = $anvil->Get->uuid();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		save_to => $save_to,
-		status  => $status, 
-		url     => $url, 
-		uuid    => $uuid, 
+		overwrite => $overwrite, 
+		save_to   => $save_to,
+		status    => $status, 
+		url       => $url, 
+		uuid      => $uuid, 
 	}});
 	
 	if (not $url)
@@ -386,13 +394,35 @@ sub download
 	{
 		$save_to = $anvil->Get->users_home({debug => $debug})."/".$source_file;
 		$save_to =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { save_to => $save_to }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, list => { save_to => $save_to }});
 	}
 	elsif ($save_to =~ /\/$/)
 	{
 		$save_to .= "/".$source_file;
 		$save_to =~ s/\/\//\//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { save_to => $save_to }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, list => { save_to => $save_to }});
+	}
+	
+	# Does the download file exist already?
+	if (-e $save_to)
+	{
+		# If overwrite is set, or if the file is zero-bytes, remove it.
+		my $size = (stat($save_to))[7];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			size => $size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",
+		}});
+		if (($overwrite) or ($size == 0))
+		{
+			unlink $save_to;
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0094", variables => { 
+				url     => $url,
+				save_to => $save_to, 
+			}});
+			return("");
+		}
 	}
 	
 	### TODO: Make this work well as a job
@@ -407,6 +437,7 @@ sub download
 	my $time_left        = 0;	# Seconds
 	my $report_interval  = 5;	# Seconds between status file update
 	my $next_report      = time + $report_interval;
+	my $error            = 0;
 	
 	# This should print to a status file
 	print "uuid=$uuid bytes_downloaded=0 percent=0 current_rate=0 average_rate=0 seconds_running=0 seconds_left=0 url=$url save_to=$save_to\n" if $status;;
@@ -426,28 +457,55 @@ sub download
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0017", variables => { line => $line }});
 		if (($line =~ /404/) && ($line =~ /Not Found/i))
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0086", variables => { urk => $url }});
-			return("");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0086", variables => { url => $url }});
+			$error = 1;;
 		}
 		if ($line =~ /Name or service not known/i)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0087", variables => { urk => $url }});
-			return("");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0087", variables => { url => $url }});
+			$error = 1;;
 		}
 		if ($line =~ /Connection refused/i)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0088", variables => { urk => $url }});
-			return("");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0088", variables => { url => $url }});
+			$error = 1;;
 		}
 		if ($line =~ /route to host/i)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0089", variables => { urk => $url }});
-			return("");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0089", variables => { url => $url }});
+			$error = 1;;
 		}
 		if ($line =~ /Network is unreachable/i)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0090", variables => { urk => $url }});
-			return("");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0090", variables => { url => $url }});
+			$error = 1;;
+		}
+		if ($line =~ /ERROR (\d+): (.*)$/i)
+		{
+			my $error_code    = $1;
+			my $error_message = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error_code    => $error_code,
+				error_message => $error_message, 
+			}});
+			
+			if ($error_code eq "403")
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0091", variables => { url => $url }});
+			}
+			elsif ($error_code eq "404")
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0092", variables => { url => $url }});
+			}
+			else
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0093", variables => { 
+					url           => $url,
+					error_code    => $error_code, 
+					error_message => $error_message, 
+				}});
+			}
+			$error = 1;;
 		}
 		
 		if ($line =~ /^(\d+)K .*? (\d+)% (.*?) (\d+.*)$/)
@@ -525,6 +583,25 @@ sub download
 	}
 	close $file_handle;
 	chomp($output);
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+	if ($error)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { save_to => $save_to }});
+		if (-e $save_to)
+		{
+			# Unlink the output file, it's empty.
+			my $size = (stat($save_to))[7];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				size => $size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",
+			}});
+			if (not $size)
+			{
+				unlink $save_to;
+			}
+		}
+		return("");
+	}
 	
 	return($save_to);
 }

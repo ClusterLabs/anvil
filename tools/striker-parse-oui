@@ -1,0 +1,244 @@
+#!/usr/bin/perl
+# 
+# This periodically reads in http://standards-oui.ieee.org/oui/oui.txt, if possible, and parses it to update/
+# populate the oui database table.
+# 
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 0});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+my $oui_file = $anvil->Get->users_home({debug => 3})."/oui.txt";
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_file => $oui_file }});
+
+my $download = 1;
+my $process  = 0;
+if (-e $oui_file)
+{
+	# How long ago did we download it?
+	my $mtime = (stat($oui_file))[9];
+	my $size  = (stat($oui_file))[7];
+	my $age   = time - $mtime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:oui_file' => $oui_file, 
+		's2:mtime'    => $mtime." (".$anvil->Get->date_and_time({use_time => $mtime}).")",
+		's3:age'      => $anvil->Convert->add_commas({number => $age})." (".$anvil->Convert->time({'time' => $age, translate => 1}).")", 
+		's4:size'     => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")", 
+	}});
+	if (($age < 259200) && ($size > 0))
+	{
+		# It's less than three days old, don't download. Do parse though (for now at least)
+		$download = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { download => $download }});
+	}
+	if ((not $download) && ($size > 0))
+	{
+		$process = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { process => $process }});
+	}
+}
+
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { download => $download }});
+if ($download)
+{
+	my $download_file = $anvil->Network->download({
+		debug     => 2,
+		url       => $anvil->data->{path}{urls}{oui_file},
+		save_to   => $oui_file,
+		overwrite => 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { download_file => $download_file }});
+	
+	if (($download_file) && ($download_file eq $oui_file))
+	{
+		$process = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { process => $process }});
+	}
+	else
+	{
+		# Something went wrong. Even if the file exists, there's no sense processing it.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0095", variables => { 
+			url  => $anvil->data->{path}{urls}{oui_file},
+			file => $oui_file,
+		}});
+	}
+}
+
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	oui_file => $oui_file, 
+	process  => $process,
+}});
+if ((-e $oui_file) && ($process))
+{
+	$anvil->Database->connect;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, exit.
+		print $anvil->Words->string({key => "error_0003"})."\n";
+		$anvil->nice_exit({exit_code => 2});
+	}
+	
+	process_oui($anvil, $oui_file);
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This actually processes the OUI file.
+sub process_oui
+{
+	my ($anvil, $oui_file) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_file => $oui_file }});
+	
+	# Read in the file.
+	my $oui        = "";
+	my $vendor     = "";
+	my $address    = "";
+	my $lines      = 0;
+	my ($oui_body) = $anvil->Storage->read_file({
+		debug      => 3,
+		file       => $oui_file,
+		cache      => 0, 
+		force_read => 1
+	});
+	
+	### TODO: For some reason, ending the file on an empty line wasn't triggering the save of the last 
+	###       record. So the EOF line/check was added, at least until I can get undumb enough to see what
+	###       the real problem is.
+	# The OUI list doesn't include an entry for Red Hat / 52:54:00. So we'll inject it here.
+	$oui_body .= "
+52-54-00   (hex)                Red Hat, Inc.
+525400     (base 16)            Red Hat, Inc.
+                                100 East Davie Street
+                                Raleigh  NC  27601
+                                US
+
+EOF
+";
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_body => $oui_body }});
+	foreach my $line (split/\n/, $oui_body)
+	{
+		$lines++;
+		$line = $anvil->Words->clean_spaces({'string' => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 's1:lines' => $lines, 's2:line' => $line }});
+		
+		if ((not $line) or ($line eq "EOF"))
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui => $oui }});
+			if ($oui)
+			{
+				$address =~ s/, $//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					oui     => $oui, 
+					vendor  => $vendor, 
+					address => $address, 
+				}});
+				if (not $address)
+				{
+					# This isn't translated
+					$address = "<unknown>";
+				}
+				
+				# NOTE: There are duplicates in the OUI file, so we'll string te entries together
+				if ((exists $anvil->data->{oui}{$oui}) && ($anvil->data->{oui}{$oui}{name}))
+				{
+					$anvil->data->{oui}{$oui}{name}    .= " / ".$vendor;
+					$anvil->data->{oui}{$oui}{address} .= " / ". $address;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						"oui::${oui}::name"    => $anvil->data->{oui}{$oui}{name}, 
+						"oui::${oui}::address" => $anvil->data->{oui}{$oui}{address}, 
+					}});
+				}
+				else
+				{
+					$anvil->data->{oui}{$oui}{name}    = $vendor;
+					$anvil->data->{oui}{$oui}{address} = $address;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						"oui::${oui}::name"    => $anvil->data->{oui}{$oui}{name}, 
+						"oui::${oui}::address" => $anvil->data->{oui}{$oui}{address}, 
+					}});
+				}
+			}
+			$oui     = "";
+			$vendor  = "";
+			$address = "";
+			next;
+		}
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		if ($line =~ /^(\w\w-\w\w-\w\w)\s+\(hex\)\s+(.*)/)
+		{
+			$oui    =  $1;
+			$vendor =  $2;
+			$oui    =~ s/-/:/g;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				oui    => $oui, 
+				vendor => $vendor, 
+			}});
+			next;
+		}
+		next if not $oui;
+		if ($line =~ /^(\w\w\w\w\w\w)\s+\(base 16\)\s+(.*)/)
+		{
+			my $oui2    =  $1;
+			my $vendor2 =  $2;
+			   $oui2    =~ s/-/:/g;
+			   $oui2    =~ s/^(\w\w)(\w\w)(\w\w)$/$1:$2:$3/g;
+			   $oui     =  $oui2    if not $oui;
+			   $vendor  =  $vendor2 if not $vendor;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				oui     => $oui, 
+				oui2    => $oui2, 
+				vendor  => $vendor, 
+				vendor2 => $vendor2, 
+			}});
+			next;
+		}
+		else
+		{
+			$address .= "$line, ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { address => $address }});
+		}
+	}
+	
+	# Record the details.
+	foreach my $oui (sort {$a cmp $b} keys %{$anvil->data->{oui}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"oui::${oui}::name"    => $anvil->data->{oui}{$oui}{name}, 
+			"oui::${oui}::address" => $anvil->data->{oui}{$oui}{address}, 
+		}});
+		my ($oui_uuid) = $anvil->Database->insert_or_update_oui({
+			debug               => 3,
+			file                => $THIS_FILE, 
+			line                => __LINE__, 
+			oui_mac_prefix      => $oui, 
+			oui_company_address => $anvil->data->{oui}{$oui}{address},
+			oui_company_name    => $anvil->data->{oui}{$oui}{name}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_uuid => $oui_uuid }});
+	}
+	
+	return(0);
+}

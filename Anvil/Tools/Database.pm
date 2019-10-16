@@ -35,6 +35,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
 # insert_or_update_network_interfaces
+# insert_or_update_oui
 # insert_or_update_sessions
 # insert_or_update_states
 # insert_or_update_users
@@ -4516,6 +4517,196 @@ INSERT INTO
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_network_interfaces()" }});
 	return($network_interface_uuid);
+}
+
+=head2 insert_or_update_oui
+
+This updates (or inserts) a record in the C<< oui >> (Organizationally Unique Identifier) table used for converting network MAC addresses to the company that owns it. The C<< oui_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+B<< NOTE >>: This is one of the rare tables that doesn't have an owning host UUID.
+
+Parameters;
+
+=head3 oui_uuid (optional)
+
+If passed, the column with that specific C<< oui_uuid >> will be updated, if it exists.
+
+=head3 oui_mac_prefix (required)
+
+This is the first 6 bytes of the MAC address owned by C<< oui_company_name >>.
+
+=head3 oui_company_address (optional)
+
+This is the registered address of the company that owns the OUI.
+
+=head3 oui_company_name (required)
+
+This is the name of the company that owns the C<< oui_mac_prefix >>.
+
+=cut
+sub insert_or_update_oui
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_oui()" }});
+	
+	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
+	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
+	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
+	my $oui_uuid            = defined $parameter->{oui_uuid}            ? $parameter->{oui_uuid}            : "";
+	my $oui_mac_prefix      = defined $parameter->{oui_mac_prefix}      ? $parameter->{oui_mac_prefix}      : "";
+	my $oui_company_address = defined $parameter->{oui_company_address} ? $parameter->{oui_company_address} : "";
+	my $oui_company_name    = defined $parameter->{oui_company_name}    ? $parameter->{oui_company_name}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                => $uuid, 
+		file                => $file, 
+		line                => $line, 
+		oui_uuid            => $oui_uuid, 
+		oui_mac_prefix      => $oui_mac_prefix, 
+		oui_company_address => $oui_company_address,
+		oui_company_name    => $oui_company_name, 
+	}});
+	
+	if (not $oui_mac_prefix)
+	{
+		# No user_uuid Throw an error and return.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_oui()", parameter => "oui_mac_prefix" }});
+		return("");
+	}
+	if (not $oui_company_name)
+	{
+		# No user_uuid Throw an error and return.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_oui()", parameter => "oui_company_name" }});
+		return("");
+	}
+	
+	# If the MAC isn't 6 or 8 bytes long (8 being xx:xx:xx), or isn't a valid hex string, abort.
+	if (((length($oui_mac_prefix) != 6) && (length($oui_mac_prefix) != 8)) or (not $anvil->Validate->is_hex({debug => $debug, string => $oui_mac_prefix, sloppy => 1})))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0096", variables => { oui_mac_prefix => $oui_mac_prefix }});
+		return("");
+	}
+	
+	# If I don't have an oui_uuid, try to find one.
+	if (not $oui_uuid)
+	{
+		my $query = "
+SELECT 
+    oui_uuid 
+FROM 
+    oui 
+WHERE 
+    oui_mac_prefix = ".$anvil->Database->quote($oui_mac_prefix)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$oui_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { oui_uuid => $oui_uuid }});
+		}
+	}
+	
+	# If I have an oui_uuid, see if an update is needed. If there still isn't an oui_uuid, INSERT it.
+	if ($oui_uuid)
+	{
+		# Load the old data and see if anything has changed.
+		my $query = "
+SELECT 
+    oui_mac_prefix, 
+    oui_company_address, 
+    oui_company_name 
+FROM 
+    oui 
+WHERE 
+    oui_uuid = ".$anvil->Database->quote($oui_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a oui_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "oui_uuid", uuid => $oui_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_oui_mac_prefix      = $row->[0];
+			my $old_oui_company_address = $row->[1];
+			my $old_oui_company_name    = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_oui_mac_prefix      => $old_oui_mac_prefix, 
+				old_oui_company_address => $old_oui_company_address, 
+				oui_company_name        => $old_oui_company_name, 
+			}});
+			
+			# Anything change?
+			if (($old_oui_mac_prefix      ne $oui_mac_prefix)      or 
+			    ($old_oui_company_address ne $oui_company_address) or 
+			    ($old_oui_company_name    ne $oui_company_name))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    oui 
+SET 
+    oui_mac_prefix      = ".$anvil->Database->quote($oui_mac_prefix).", 
+    oui_company_address = ".$anvil->Database->quote($oui_company_address).", 
+    oui_company_name    = ".$anvil->Database->quote($oui_company_name).", 
+    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    oui_uuid            = ".$anvil->Database->quote($oui_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		# Save it.
+		$oui_uuid = $anvil->Get->uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { oui_uuid => $oui_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    oui 
+(
+    oui_uuid, 
+    oui_mac_prefix, 
+    oui_company_address, 
+    oui_company_name, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($oui_uuid).",  
+    ".$anvil->Database->quote($oui_mac_prefix).", 
+    ".$anvil->Database->quote($oui_company_address).", 
+    ".$anvil->Database->quote($oui_company_name).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($oui_uuid);
 }
 
 =head2 insert_or_update_sessions

@@ -149,15 +149,17 @@ my $now_time = time;
 # Once a minute, we'll check the md5sums and see if we should restart. 
 # Once a day, we'll refresh an Install Target's RPM repository (has no effect on non-Striker dashboards).
 $anvil->data->{timing}{minute_checks}        = 60;
+$anvil->data->{timing}{daily_checks}         = 86400;
 $anvil->data->{timing}{repo_update_interval} = 86400;
 $anvil->data->{timing}{next_minute_check}    = $now_time - 1;
-$anvil->data->{timing}{next_repo_check}      = $now_time;			# We want to run on daemon startup
+$anvil->data->{timing}{next_daily_check}     = $now_time - 1;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 	"s1:timing::minute_checks"        => $anvil->data->{timing}{minute_checks}, 
+	"s1:timing::daily_checks"         => $anvil->data->{timing}{daily_checks}, 
 	"s2:timing::repo_update_interval" => $anvil->data->{timing}{repo_update_interval}, 
 	"s3:now_time"                     => $now_time, 
 	"s4:timing::next_minute_check"    => $anvil->data->{timing}{next_minute_check}, 
-	"s5:timing::next_repo_check"      => $anvil->data->{timing}{next_repo_check}, 
+	"s4:timing::next_daily_check"     => $anvil->data->{timing}{next_daily_check}, 
 }});
 
 # When we periodically check if system files have changed, we'll also ask Database>connect() to check if it 
@@ -217,7 +219,7 @@ sub handle_periodic_tasks
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"s1:now_time"                  => $now_time, 
 		"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
-		"s3:timing::next_repo_check"   => $anvil->data->{timing}{next_repo_check}, 
+		"s3:timing::next_daily_check"  => $anvil->data->{timing}{next_daily_check}, 
 	}});
 	
 	# Time to run once per minute tasks.
@@ -286,30 +288,49 @@ sub handle_periodic_tasks
 		}
 	}
 	
-	### NOTE: We call it once/day, but this will also trigger on restart of anvil-daemon. As such, we
-	###       don't use '--force' and let striker-manage-install-target skip the repo update if it happened
-	###       recently enough.
-	# Is it time to refresh RPM packages on Install Target hosts?
-	if ($now_time >= $anvil->data->{timing}{next_repo_check})
+	# Now check to see if it's time to run daily tasks.
+	if ($now_time >= $anvil->data->{timing}{next_daily_check})
 	{
-		# Record a job, don't call it directly. It takes too long to run.
-		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-			file            => $THIS_FILE, 
-			line            => __LINE__, 
-			job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --refresh", 
-			job_data        => "", 
-			job_name        => "install-target::refresh", 
-			job_title       => "job_0015", 
-			job_description => "job_0017", 
-			job_progress    => 0,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+		### NOTE: We call it once/day, but this will also trigger on restart of anvil-daemon. As such, we
+		###       don't use '--force' and let striker-manage-install-target skip the repo update if it happened
+		###       recently enough.
+		my $type = $anvil->System->get_host_type();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+		
+		if ($type eq "dashboard")
+		{
+			# Record a job, don't call it directly. It takes too long to run.
+			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+				file            => $THIS_FILE, 
+				line            => __LINE__, 
+				job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --refresh", 
+				job_data        => "", 
+				job_name        => "install-target::refresh", 
+				job_title       => "job_0015", 
+				job_description => "job_0017", 
+				job_progress    => 0,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+			
+			# Update the OUI data.
+			($job_uuid) = $anvil->Database->insert_or_update_jobs({
+				file            => $THIS_FILE, 
+				line            => __LINE__, 
+				job_command     => $anvil->data->{path}{exe}{'striker-parse-oui'}, 
+				job_data        => "", 
+				job_name        => "oui-data::refresh", 
+				job_title       => "job_0064", 
+				job_description => "job_0065", 
+				job_progress    => 0,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+		}
 		
 		# Update the next check time.
-		$anvil->data->{timing}{next_repo_check} = $now_time + $anvil->data->{timing}{repo_update_interval};
+		$anvil->data->{timing}{next_daily_check} = $now_time + $anvil->data->{timing}{daily_checks};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			"s1:timing::repo_update_interval" => $anvil->data->{timing}{repo_update_interval},
-			"s2:timing::next_repo_check"      => $anvil->data->{timing}{next_repo_check}, 
+			"s1:timing::daily_checks"     => $anvil->data->{timing}{daily_checks},
+			"s2:timing::next_daily_check" => $anvil->data->{timing}{next_daily_check}, 
 		}});
 	}
 	
