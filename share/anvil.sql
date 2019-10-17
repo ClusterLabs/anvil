@@ -1492,6 +1492,56 @@ CREATE TRIGGER trigger_oui
     FOR EACH ROW EXECUTE PROCEDURE history_oui();
 
 
+-- It stores a general list of MAC addresses to IP addresses. This may belong to equipment outside the 
+-- Anvil!, so there's no reference to other tables or a host_uuid.
+CREATE TABLE mac_to_ip (
+    mac_to_ip_uuid           uuid                        not null    primary key,
+    mac_to_ip_mac_address    text                        not null, 
+    mac_to_ip_ip_address     text                        not null, 
+    mac_to_ip_note           text                        not null,                   -- This is a free-form note, and may contain a server name or host name, if we know it.
+    modified_date            timestamp with time zone    not null 
+);
+ALTER TABLE mac_to_ip OWNER TO admin;
+
+CREATE TABLE history.mac_to_ip (
+    history_id               bigserial, 
+    mac_to_ip_uuid           uuid, 
+    mac_to_ip_mac_address    text, 
+    mac_to_ip_ip_address     text, 
+    mac_to_ip_note           text, 
+    modified_date            timestamp with time zone    not null
+);
+ALTER TABLE history.mac_to_ip OWNER TO admin;
+
+CREATE FUNCTION history_mac_to_ip() RETURNS trigger
+AS $$
+DECLARE
+    history_mac_to_ip RECORD;
+BEGIN
+    SELECT INTO history_mac_to_ip * FROM mac_to_ip WHERE mac_to_ip_uuid = new.mac_to_ip_uuid;
+    INSERT INTO history.mac_to_ip
+        (mac_to_ip_uuid, 
+         mac_to_ip_mac_address, 
+         mac_to_ip_ip_address, 
+         mac_to_ip_note, 
+         modified_date)
+    VALUES
+        (history_mac_to_ip.mac_to_ip_uuid, 
+         history_mac_to_ip.mac_to_ip_mac_address, 
+         history_mac_to_ip.mac_to_ip_ip_address, 
+         history_mac_to_ip.mac_to_ip_note, 
+         history_mac_to_ip.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_mac_to_ip() OWNER TO admin;
+
+CREATE TRIGGER trigger_mac_to_ip
+    AFTER INSERT OR UPDATE ON mac_to_ip
+    FOR EACH ROW EXECUTE PROCEDURE history_mac_to_ip();
+
+
 -- ------------------------------------------------------------------------------------------------------- --
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --
 -- ------------------------------------------------------------------------------------------------------- --

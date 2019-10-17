@@ -770,6 +770,13 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0441">The variable: [#!variable!name!#] was expected to be a positive integer, but: [#!variable!value!#] was received.</key>
 		<key name="log_0442">The domain: [#!variable!name!#] does not appear to be a valid domain name or an ipv4 IP address. Skipping it.</key>
 		<key name="log_0443">The bridge output wasn't in JSON format. Received: [#!variable!output!#].</key>
+		<key name="log_0444">
+[ Warning ] - Parsed the IP: [#!variable!ip!#] and MAC: [#!variable!mac!#], but something seems wrong. The section in question was:
+====
+#!variable!section!#
+====
+		</key>
+		<key name="log_0445">[ NOTE ] - We're about to do a ping scan of: [#!variable!range!#]. This could take a long time, please be patient!</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1042,6 +1049,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0063">[ Error ] - Something went wrong. The host name was set to: [#!variable!host_name!#], but the host name returned was: [#!variable!current_host_name!#].</key>
 		<key name="job_0064">OUI Database.</key>
 		<key name="job_0065">Refresh the 'OUI' database used to cross reference MAC addresses to the companies that own them.</key>
+		<key name="job_0066">Network Scan.</key>
+		<key name="job_0067">This job does a simple ping scan of the networks connected to this host. Any detected hosts have their MAC / IP addresses recorded. This is designed to help determine IP addresses assigned to servers hosted on the Anvil! system.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1170,6 +1179,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0094">Aborting the download of: [#!variable!url!#] to: [#!variable!save_to!#]. The target file already exists and 'overwrite' was not set.</key>
 		<key name="error_0095">There was a problem downloading: [#!variable!url!#] to: [#!variable!file!#]. Aborting parsing of the OUI data.</key>
 		<key name="error_0096">The 'oui_mac_prefix': [#!variable!oui_mac_prefix!#] string doesn't appear to be a valid 6-byte hex string.</key>
+		<key name="error_0097"><![CDATA[The network range: [#!variable!range!#] does not appear to be valid. It must be '<ip>/<subnet>' (subnet can be dotted-decimal or CIDR notation) or be 'bcn', 'sn', 'ifn' or a specific variant like 'bcn1', 'sn2', or 'ifn2'. Alternatively, so not use '--network X' at all and all networks with host is connected to will be scanned.]]></key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

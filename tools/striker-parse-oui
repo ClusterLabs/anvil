@@ -3,6 +3,8 @@
 # This periodically reads in http://standards-oui.ieee.org/oui/oui.txt, if possible, and parses it to update/
 # populate the oui database table.
 # 
+# TODO: * Handle jobs properly
+
 use strict;
 use warnings;
 use Anvil::Tools;
@@ -127,11 +129,8 @@ sub process_oui
 	###       the real problem is.
 	# The OUI list doesn't include an entry for Red Hat / 52:54:00. So we'll inject it here.
 	$oui_body .= "
-52-54-00   (hex)                Red Hat, Inc.
-525400     (base 16)            Red Hat, Inc.
-                                100 East Davie Street
-                                Raleigh  NC  27601
-                                US
+52-54-00   (hex)                QEMU Virtual NIC
+525400     (base 16)            QEMU Virtual NIC
 
 EOF
 ";

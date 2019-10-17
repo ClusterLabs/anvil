@@ -1,0 +1,279 @@
+#!/usr/bin/perl
+# 
+# This periodically runs a basic ping sweep using nmap to find devices on the given network. As devices are 
+# found, they may be further processed (ie: to see if a MAC address matches a server to find the IP address
+# of a hosted server). 
+#
+# Exit codes;
+# 0 = Normal exit
+# 1 = No databases available.
+# 2 = The '--network X' value is not valid.
+# 
+# TODO: * Support '--dhcp' where, if set, we look up the DHCP range offered by the Striker dashboard(s) and
+#         scan just the lease range. This should speed up discovery of new/replacement foundation pack 
+#         equipment.
+#       * Handle jobs properly
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 0});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Do we have a specified network to scan?
+$anvil->data->{switches}{network} = "";
+$anvil->Get->switches;
+
+scan($anvil);
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This scans any networks passed in.
+sub scan
+{
+	my ($anvil) = @_;
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::network" => $anvil->data->{switches}{network} }});
+	if ($anvil->data->{switches}{network})
+	{
+		# If this network is a specific subnet, scan it. If the network is 'bcn', 'sn', 'ifn' or 
+		# 'bcnX', 'snX', 'snX', find the network on the appropriate interfaces and use it's network.
+		if ($anvil->data->{switches}{network} =~ /^(\d+.*?)\/(\d+.*)$/)
+		{
+			my $ip     = $1;
+			my $subnet = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::network" => $anvil->data->{switches}{network} }});
+			
+			my $ip_valid     = $anvil->Validate->is_ipv4({ip => $ip});
+			my $subnet_valid = $anvil->Validate->is_ipv4({ip => $subnet});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				ip_valid     => $ip_valid,
+				subnet_valid => $subnet_valid, 
+			}});
+			if (not $subnet_valid)
+			{
+				# Migt be cidr
+				if (($subnet =~ /^\d+$/) && ($subnet >= 0) && ($subnet <= 32))
+				{
+					# Valid CIDR address
+					$subnet_valid = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subnet_valid => $subnet_valid }});
+				}
+			}
+			
+			if ((not $ip_valid) or (not $subnet_valid))
+			{
+				# Bail out.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0097", variables => { range => $anvil->data->{switches}{network} }});
+				$anvil->nice_exit({exit_code => 2});
+			}
+			else
+			{
+				# Scan it!
+				call_nmap($anvil, $anvil->data->{switches}{network});
+			}
+		}
+		else
+		{
+			# If the address is [bc|s|if]n[X], scan it.
+			$anvil->Network->get_ips();
+			my $target  = "local";
+			my $to_scan = [];
+			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$target}{interface}})
+			{
+				my $ip     = $anvil->data->{network}{$target}{interface}{$interface}{ip};
+				my $subnet = $anvil->data->{network}{$target}{interface}{$interface}{subnet};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ip     => $ip,
+					subnet => $subnet,
+				}});
+				if (($ip) && ($subnet))
+				{
+					# Is this one we're interested in?
+					my $network_name = $anvil->data->{switches}{network};
+					if ($interface =~ /^$network_name/)
+					{
+						# Yup!
+						my $network = $anvil->Network->get_network({ip => $ip, subnet => $subnet});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+						
+						if ($network)
+						{
+							# Scan it.
+							my $address = $network."/".$subnet;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
+							push @{$to_scan}, $address;
+						}
+					}
+				}
+			}
+			
+			# Scan what we found
+			foreach my $address (sort {$a cmp $b} @{$to_scan})
+			{
+				call_nmap($anvil, $address);
+			}
+		}
+	}
+	else
+	{
+		# Scan all the networks we have. 
+		$anvil->Network->get_ips();
+		my $target  = "local";
+		my $to_scan = [];
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$target}{interface}})
+		{
+			my $ip     = $anvil->data->{network}{$target}{interface}{$interface}{ip};
+			my $subnet = $anvil->data->{network}{$target}{interface}{$interface}{subnet};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				ip     => $ip,
+				subnet => $subnet,
+			}});
+			if (($ip) && ($subnet))
+			{
+				my $network = $anvil->Network->get_network({ip => $ip, subnet => $subnet});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+				
+				if ($network)
+				{
+					# Scan it.
+					my $address = $network."/".$subnet;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
+					push @{$to_scan}, $address;
+				}
+			}
+		}
+		
+		# Scan what we found
+		foreach my $address (sort {$a cmp $b} @{$to_scan})
+		{
+			call_nmap($anvil, $address);
+		}
+	}
+	
+	return(0);
+}
+
+# This calls nmap and parses
+sub call_nmap
+{
+	my ($anvil, $address) = @_;
+	
+	# The subnet can't be dotted decimal, so convert it to CIDR notation, if needed.
+	my ($ip, $subnet) = ($address =~ /^(\d+.*?)\/(\d.*)$/);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		ip     => $ip, 
+		subnet => $subnet,
+	}});
+	if ($anvil->Validate->is_ipv4({ip => $subnet}))
+	{
+		# Convert to CIDR
+		my $cidr = $anvil->Convert->cidr({subnet => $subnet});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cidr => $cidr }});
+		
+		if (($cidr >= 0) && ($cidr <= 32))
+		{
+			$address = $ip."/".$cidr;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
+		}
+	}
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "log_0445", variables  => { range => $address }});
+	my ($nmap_data, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmap}." -sn -n ".$address });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		nmap_data   => $nmap_data, 
+		return_code => $return_code,
+	}});
+	
+	my $this_ip  = "";
+	my $this_mac = "";
+	my $section  = "";
+	foreach my $line (split/\n/, $nmap_data)
+	{
+		$line = $anvil->Words->clean_spaces({'string' => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		
+		$section .= $line."\n";
+		
+		if ($line =~ /^Nmap scan report for (\d+\.\d+\.\d+\.\d+)$/i)
+		{
+			$this_ip  = $1;
+			$this_mac = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_mac' => $this_mac, 
+				's2:this_ip'  => $this_ip,
+			}});
+		}
+		if ($line =~ /MAC Address: (.*?) \(/)
+		{
+			$this_mac = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_mac' => $this_mac, 
+				's2:this_ip'  => $this_ip,
+			}});
+			
+			# Sane?
+			my $mac_valid = $anvil->Validate->is_hex({string => $this_mac, sloppy => 1});
+			my $ip_valid  = $anvil->Validate->is_ipv4({ip => $this_ip});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				mac_valid => $mac_valid, 
+				ip_valid  => $ip_valid,
+			}});
+			
+			# Store
+			if (($mac_valid) && ($ip_valid))
+			{
+				my ($mac_to_ip_uuid) = $anvil->Database->insert_or_update_mac_to_ip({
+					debug                 => 3,
+					file                  => $THIS_FILE, 
+					line                  => __LINE__, 
+					mac_to_ip_mac_address => $this_mac, 
+					mac_to_ip_ip_address  => $this_ip,
+					update_note           => 0, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac_to_ip_uuid => $mac_to_ip_uuid }});
+			}
+			else
+			{
+				# Parse error
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0444", variables => { 
+					ip      => $this_ip,
+					mac     => $this_mac,
+					section => $section,
+				}});
+			}
+			
+			$section = "";
+		}
+	}
+	
+	return(0);
+}

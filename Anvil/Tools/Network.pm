@@ -359,7 +359,7 @@ sub download
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_ips()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->download()" }});
 	
 	my $overwrite = defined $parameter->{overwrite} ? $parameter->{overwrite} : 0;
 	my $save_to   = defined $parameter->{save_to}   ? $parameter->{save_to}   : "";

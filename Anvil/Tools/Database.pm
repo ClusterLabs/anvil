@@ -4519,6 +4519,222 @@ INSERT INTO
 	return($network_interface_uuid);
 }
 
+=head2 insert_or_update_mac_to_ip
+
+This updates (or inserts) a record in the C<< mac_to_ip >> table used for tracking what MAC addresses have what IP addresses.
+
+If there is an error, an empty string is returned.
+
+B<< NOTE >>: The information is this table IS NOT AUTHORITATIVE! It's generally updated daily, so the information here could be stale.
+
+Parameters;
+
+=head3 mac_to_ip_uuid (optional)
+
+If passed, the column with that specific C<< mac_to_ip_uuid >> will be updated, if it exists.
+
+=head3 mac_to_ip_ip_address (required)
+
+This is the IP address seen in use by the associated C<< mac_to_ip_mac_address >>.
+
+=head3 mac_to_ip_mac_address (required)
+
+This is the MAC address associated with the IP in by C<< mac_to_ip_ip_address >>.
+
+=head3 mac_to_ip_note (optional)
+
+This is a free-form field to store information about the host (like the host name).
+
+=head3 update_note (optional, default '1')
+
+When set to C<< 0 >> and nothing was passed for C<< mac_to_ip_note >>, the note will not be changed if a note exists.
+
+B<< NOTE >>: If C<< mac_to_ip_note >> is set, it will be updated regardless of this parameter.
+
+=cut
+sub insert_or_update_mac_to_ip
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_mac_to_ip()" }});
+	
+	my $uuid                  = defined $parameter->{uuid}                  ? $parameter->{uuid}                  : "";
+	my $file                  = defined $parameter->{file}                  ? $parameter->{file}                  : "";
+	my $line                  = defined $parameter->{line}                  ? $parameter->{line}                  : "";
+	my $mac_to_ip_uuid        = defined $parameter->{mac_to_ip_uuid}        ? $parameter->{mac_to_ip_uuid}        : "";
+	my $mac_to_ip_mac_address = defined $parameter->{mac_to_ip_mac_address} ? $parameter->{mac_to_ip_mac_address} : "";
+	my $mac_to_ip_note        = defined $parameter->{mac_to_ip_note}        ? $parameter->{mac_to_ip_note}        : "";
+	my $mac_to_ip_ip_address  = defined $parameter->{mac_to_ip_ip_address}  ? $parameter->{mac_to_ip_ip_address}  : "";
+	my $update_note           = defined $parameter->{update_note}           ? $parameter->{update_note}           : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                  => $uuid, 
+		file                  => $file, 
+		line                  => $line, 
+		mac_to_ip_uuid        => $mac_to_ip_uuid, 
+		mac_to_ip_mac_address => $mac_to_ip_mac_address, 
+		mac_to_ip_note        => $mac_to_ip_note,
+		mac_to_ip_ip_address  => $mac_to_ip_ip_address, 
+		update_note           => $update_note, 
+	}});
+	
+	if (not $mac_to_ip_mac_address)
+	{
+		# No user_uuid Throw an error and return.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_mac_to_ip()", parameter => "mac_to_ip_mac_address" }});
+		return("");
+	}
+	if (not $mac_to_ip_ip_address)
+	{
+		# No user_uuid Throw an error and return.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_mac_to_ip()", parameter => "mac_to_ip_ip_address" }});
+		return("");
+	}
+	
+	# If the MAC isn't 12 or 17 bytes long (18 being xx:xx:xx:xx:xx:xx), or isn't a valid hex string, abort.
+	if (((length($mac_to_ip_mac_address) != 12) && (length($mac_to_ip_mac_address) != 17)) or (not $anvil->Validate->is_hex({debug => $debug, string => $mac_to_ip_mac_address, sloppy => 1})))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0096", variables => { mac_to_ip_mac_address => $mac_to_ip_mac_address }});
+		return("");
+	}
+	
+	# If I don't have an mac_to_ip_uuid, try to find one.
+	if (not $mac_to_ip_uuid)
+	{
+		my $query = "
+SELECT 
+    mac_to_ip_uuid 
+FROM 
+    mac_to_ip 
+WHERE 
+    mac_to_ip_mac_address = ".$anvil->Database->quote($mac_to_ip_mac_address)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$mac_to_ip_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac_to_ip_uuid => $mac_to_ip_uuid }});
+		}
+	}
+	
+	# If I have an mac_to_ip_uuid, see if an update is needed. If there still isn't an mac_to_ip_uuid, INSERT it.
+	if ($mac_to_ip_uuid)
+	{
+		# Load the old data and see if anything has changed.
+		my $query = "
+SELECT 
+    mac_to_ip_mac_address, 
+    mac_to_ip_ip_address, 
+    mac_to_ip_note 
+FROM 
+    mac_to_ip 
+WHERE 
+    mac_to_ip_uuid = ".$anvil->Database->quote($mac_to_ip_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a mac_to_ip_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "mac_to_ip_uuid", uuid => $mac_to_ip_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_mac_to_ip_mac_address = $row->[0];
+			my $old_mac_to_ip_ip_address  = $row->[1];
+			my $old_mac_to_ip_note        = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_mac_to_ip_mac_address => $old_mac_to_ip_mac_address, 
+				old_mac_to_ip_ip_address  => $old_mac_to_ip_ip_address, 
+				old_mac_to_ip_note        => $old_mac_to_ip_note, 
+			}});
+			
+			my $include_note = 1;
+			if ((not $update_note) && (not $mac_to_ip_note))
+			{
+				# Don't evaluate the note. Make the old note empty so it doesn't trigger an 
+				# update below.
+				$include_note        = 0;
+				$old_mac_to_ip_note = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					include_note       => $include_note, 
+					old_mac_to_ip_note => $old_mac_to_ip_note, 
+				}});
+			}
+			
+			# Anything change?
+			if (($old_mac_to_ip_mac_address ne $mac_to_ip_mac_address) or 
+			    ($old_mac_to_ip_ip_address  ne $mac_to_ip_ip_address)  or 
+			    ($old_mac_to_ip_note        ne $mac_to_ip_note))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    mac_to_ip 
+SET 
+    mac_to_ip_mac_address = ".$anvil->Database->quote($mac_to_ip_mac_address).", 
+    mac_to_ip_ip_address  = ".$anvil->Database->quote($mac_to_ip_ip_address).", ";
+			if ($include_note)
+			{
+				$query .= "
+    mac_to_ip_note        = ".$anvil->Database->quote($mac_to_ip_note).", ";
+			}
+			$query .= "
+    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    mac_to_ip_uuid        = ".$anvil->Database->quote($mac_to_ip_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		# Save it.
+		$mac_to_ip_uuid = $anvil->Get->uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac_to_ip_uuid => $mac_to_ip_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    mac_to_ip 
+(
+    mac_to_ip_uuid, 
+    mac_to_ip_mac_address, 
+    mac_to_ip_ip_address, 
+    mac_to_ip_note, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($mac_to_ip_uuid).",  
+    ".$anvil->Database->quote($mac_to_ip_mac_address).", 
+    ".$anvil->Database->quote($mac_to_ip_ip_address).", 
+    ".$anvil->Database->quote($mac_to_ip_note).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$query =~ s/'NULL'/NULL/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($mac_to_ip_uuid);
+}
+
 =head2 insert_or_update_oui
 
 This updates (or inserts) a record in the C<< oui >> (Organizationally Unique Identifier) table used for converting network MAC addresses to the company that owns it. The C<< oui_uuid >> referencing the database row will be returned.
@@ -4653,7 +4869,7 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_oui_mac_prefix      => $old_oui_mac_prefix, 
 				old_oui_company_address => $old_oui_company_address, 
-				oui_company_name        => $old_oui_company_name, 
+				old_oui_company_name    => $old_oui_company_name, 
 			}});
 			
 			# Anything change?

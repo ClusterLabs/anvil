@@ -312,18 +312,32 @@ sub handle_periodic_tasks
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
 			
-			# Update the OUI data.
-			($job_uuid) = $anvil->Database->insert_or_update_jobs({
-				file            => $THIS_FILE, 
-				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'striker-parse-oui'}, 
-				job_data        => "", 
-				job_name        => "oui-data::refresh", 
-				job_title       => "job_0064", 
-				job_description => "job_0065", 
-				job_progress    => 0,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+			### TODO: Restore this when these tools hand jobs properly
+# 			# Update the OUI data.
+# 			($job_uuid) = $anvil->Database->insert_or_update_jobs({
+# 				file            => $THIS_FILE, 
+# 				line            => __LINE__, 
+# 				job_command     => $anvil->data->{path}{exe}{'striker-parse-oui'}, 
+# 				job_data        => "", 
+# 				job_name        => "oui-data::refresh", 
+# 				job_title       => "job_0064", 
+# 				job_description => "job_0065", 
+# 				job_progress    => 0,
+# 			});
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
+# 			
+# 			# Scan the networks
+# 			($job_uuid) = $anvil->Database->insert_or_update_jobs({
+# 				file            => $THIS_FILE, 
+# 				line            => __LINE__, 
+# 				job_command     => $anvil->data->{path}{exe}{'striker-scan-network'}, 
+# 				job_data        => "", 
+# 				job_name        => "scan-network::refresh", 
+# 				job_title       => "job_0066", 
+# 				job_description => "job_0067", 
+# 				job_progress    => 0,
+# 			});
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
 		}
 		
 		# Update the next check time.
