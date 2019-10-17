@@ -34,6 +34,15 @@ $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 0});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0005"});
+	$anvil->nice_exit({code => 5});
+}
+
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
@@ -44,17 +53,49 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Do we have a specified network to scan?
-$anvil->data->{switches}{network} = "";
+$anvil->data->{switches}{network}    = "";
+$anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::network"  => $anvil->data->{switches}{network},
+	"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}, 
+}});
+
+update_progress($anvil, 0, "clear");
+update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
+$anvil->data->{progress} = 1;
 
 scan($anvil);
 
+# We're done
+print $anvil->Words->string({key => "message_0025"})."\n";
+update_progress($anvil, 100, "message_0025");
 $anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# If this is being called as a job, this will allow the progress to be updated.
+sub update_progress
+{
+	my ($anvil, $progress, $message) = @_;
+	$progress = 95 if $progress > 100;
+
+	if (not $anvil->data->{switches}{'job-uuid'})
+	{
+		return(0);
+	}
+	
+	$anvil->Job->update_progress({
+		progress => $progress, 
+		message  => $message,
+		job_uuid => $anvil->data->{switches}{'job-uuid'},
+	});
+	
+	return(0);
+}
 
 # This scans any networks passed in.
 sub scan
@@ -92,6 +133,7 @@ sub scan
 			if ((not $ip_valid) or (not $subnet_valid))
 			{
 				# Bail out.
+				update_progress($anvil, 100, "error_0097,!!range!".$anvil->data->{switches}{network}."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0097", variables => { range => $anvil->data->{switches}{network} }});
 				$anvil->nice_exit({exit_code => 2});
 			}
@@ -206,6 +248,8 @@ sub call_nmap
 		}
 	}
 	
+	$anvil->data->{progress} += 10;
+	update_progress($anvil, $anvil->data->{progress}, "log_0445,!!range!".$address."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "log_0445", variables  => { range => $address }});
 	my ($nmap_data, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmap}." -sn -n ".$address });
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -251,6 +295,13 @@ sub call_nmap
 			# Store
 			if (($mac_valid) && ($ip_valid))
 			{
+				$anvil->data->{progress} += 1;
+				$anvil->data->{progress} = 95 if $anvil->data->{progress} > 95;
+				update_progress($anvil, $anvil->data->{progress}, "log_0446,!!ip!".$this_ip."!!,!!mac!".$this_mac."!!,!!section!".$section."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "log_0446", variables => { 
+					ip      => $this_ip,
+					mac     => $this_mac,
+				}});
 				my ($mac_to_ip_uuid) = $anvil->Database->insert_or_update_mac_to_ip({
 					debug                 => 3,
 					file                  => $THIS_FILE, 
@@ -264,6 +315,8 @@ sub call_nmap
 			else
 			{
 				# Parse error
+				$anvil->data->{progress} += 2;
+				update_progress($anvil, $anvil->data->{progress}, "log_0444,!!ip!".$this_ip."!!,!!mac!".$this_mac."!!,!!section!".$section."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0444", variables => { 
 					ip      => $this_ip,
 					mac     => $this_mac,

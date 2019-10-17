@@ -25,6 +25,25 @@ $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 0});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	print $anvil->Words->string({key => "error_0003"})."\n";
+	$anvil->nice_exit({exit_code => 2});
+}
+
+$anvil->data->{switches}{'job-uuid'} = "";
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}, 
+}});
+
+update_progress($anvil, 0, "clear");
+update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
+$anvil->data->{progress} = 1;
+
 my $oui_file = $anvil->Get->users_home({debug => 3})."/oui.txt";
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_file => $oui_file }});
 
@@ -58,6 +77,11 @@ if (-e $oui_file)
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { download => $download }});
 if ($download)
 {
+	update_progress($anvil, 10, "log_0447,!!url!".$anvil->data->{path}{urls}{oui_file}."!!,!!file!".$oui_file."!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0095", variables => { 
+		url  => $anvil->data->{path}{urls}{oui_file},
+		file => $oui_file,
+	}});
 	my $download_file = $anvil->Network->download({
 		debug     => 2,
 		url       => $anvil->data->{path}{urls}{oui_file},
@@ -74,6 +98,7 @@ if ($download)
 	else
 	{
 		# Something went wrong. Even if the file exists, there's no sense processing it.
+		update_progress($anvil, 50, "error_0095,!!url!".$anvil->data->{path}{urls}{oui_file}."!!,!!file!".$oui_file."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0095", variables => { 
 			url  => $anvil->data->{path}{urls}{oui_file},
 			file => $oui_file,
@@ -87,24 +112,37 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list
 }});
 if ((-e $oui_file) && ($process))
 {
-	$anvil->Database->connect;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-	if (not $anvil->data->{sys}{database}{connections})
-	{
-		# No databases, exit.
-		print $anvil->Words->string({key => "error_0003"})."\n";
-		$anvil->nice_exit({exit_code => 2});
-	}
-	
 	process_oui($anvil, $oui_file);
 }
 
+# We're done
+print $anvil->Words->string({key => "message_0025"})."\n";
+update_progress($anvil, 100, "message_0025");
 $anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# If this is being called as a job, this will allow the progress to be updated.
+sub update_progress
+{
+	my ($anvil, $progress, $message) = @_;
+
+	if (not $anvil->data->{switches}{'job-uuid'})
+	{
+		return(0);
+	}
+	
+	$anvil->Job->update_progress({
+		progress => $progress, 
+		message  => $message,
+		job_uuid => $anvil->data->{switches}{'job-uuid'},
+	});
+	
+	return(0);
+}
 
 # This actually processes the OUI file.
 sub process_oui
@@ -113,10 +151,11 @@ sub process_oui
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_file => $oui_file }});
 	
 	# Read in the file.
+	update_progress($anvil, 25, "log_0448,!!file!".$oui_file."!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0448", variables => { file => $oui_file }});
 	my $oui        = "";
 	my $vendor     = "";
 	my $address    = "";
-	my $lines      = 0;
 	my ($oui_body) = $anvil->Storage->read_file({
 		debug      => 3,
 		file       => $oui_file,
@@ -138,9 +177,8 @@ EOF
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_body => $oui_body }});
 	foreach my $line (split/\n/, $oui_body)
 	{
-		$lines++;
 		$line = $anvil->Words->clean_spaces({'string' => $line});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 's1:lines' => $lines, 's2:line' => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		
 		if ((not $line) or ($line eq "EOF"))
 		{
@@ -222,6 +260,10 @@ EOF
 	}
 	
 	# Record the details.
+	my $records = keys %{$anvil->data->{oui}};
+	   $records = $anvil->Convert->add_commas({number => $records });
+	update_progress($anvil, 50, "log_0449,!!records!".$records."!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0449", variables => { records => $records }});
 	foreach my $oui (sort {$a cmp $b} keys %{$anvil->data->{oui}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 

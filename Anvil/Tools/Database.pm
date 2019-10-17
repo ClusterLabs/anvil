@@ -1669,7 +1669,7 @@ sub get_local_uuid
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 			last;
 		}
-		elsif ($anvil->Network->is_local($db_host))
+		elsif ($anvil->Network->is_local({host => $db_host}))
 		{
 			$local_uuid = $uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});

@@ -776,7 +776,11 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 #!variable!section!#
 ====
 		</key>
-		<key name="log_0445">[ NOTE ] - We're about to do a ping scan of: [#!variable!range!#]. This could take a long time, please be patient!</key>
+		<key name="log_0445">[ Note ] - We're about to do a ping scan of: [#!variable!range!#]. This could take a long time, please be patient! If you think this process is hung, please run 'pgrep nmap' on the host. If a process is returned, this is still running. We go slow to avoid upsetting network security devices or admin.</key>
+		<key name="log_0446">Found the network device: [#!variable!mac!#] usingt the IP address: [#!variable!ip!#].</key>
+		<key name="log_0447">About to download: [#!variable!url!#] and save it to: [#!variable!file!#].</key>
+		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>
+		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
