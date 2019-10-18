@@ -199,7 +199,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list
 }});
 
 # If this isn't a Striker dashboard, exit.
-if ($anvil->_short_host_name !~ /striker/)
+if ($anvil->System->get_host_type ne "dashboard")
 {
 	print $anvil->Words->string({key => "error_0044"})."\n";
 	update_progress($anvil, 100, "error_0044");

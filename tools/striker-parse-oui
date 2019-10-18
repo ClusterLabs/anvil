@@ -3,7 +3,8 @@
 # This periodically reads in http://standards-oui.ieee.org/oui/oui.txt, if possible, and parses it to update/
 # populate the oui database table.
 # 
-# TODO: * Handle jobs properly
+# TODO: 
+# 
 
 use strict;
 use warnings;
@@ -229,6 +230,7 @@ EOF
 			$oui    =  $1;
 			$vendor =  $2;
 			$oui    =~ s/-/:/g;
+			$oui    =  lc($oui);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				oui    => $oui, 
 				vendor => $vendor, 
@@ -242,6 +244,7 @@ EOF
 			my $vendor2 =  $2;
 			   $oui2    =~ s/-/:/g;
 			   $oui2    =~ s/^(\w\w)(\w\w)(\w\w)$/$1:$2:$3/g;
+			   $oui2    =  lc($oui2);
 			   $oui     =  $oui2    if not $oui;
 			   $vendor  =  $vendor2 if not $vendor;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 

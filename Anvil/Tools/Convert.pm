@@ -1001,9 +1001,9 @@ sub time
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $time      = $parameter->{'time'}    ? $parameter->{'time'}    : 0;
-	my $long      = $parameter->{long}      ? $parameter->{long}      : 0;
-	my $translate = $parameter->{translate} ? $parameter->{translate} : 0;
+	my $time      = defined $parameter->{'time'}    ? $parameter->{'time'}    : 0;
+	my $long      = defined $parameter->{long}      ? $parameter->{long}      : 0;
+	my $translate = defined $parameter->{translate} ? $parameter->{translate} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		'time'    => $time,
 		long      => $long, 

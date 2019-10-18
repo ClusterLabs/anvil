@@ -8,11 +8,11 @@
 # 0 = Normal exit
 # 1 = No databases available.
 # 2 = The '--network X' value is not valid.
+# 3 = Not yet time to rescan.
 # 
 # TODO: * Support '--dhcp' where, if set, we look up the DHCP range offered by the Striker dashboard(s) and
 #         scan just the lease range. This should speed up discovery of new/replacement foundation pack 
 #         equipment.
-#       * Handle jobs properly
 
 use strict;
 use warnings;
@@ -32,7 +32,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 0});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -44,7 +44,7 @@ if (($< != 0) && ($> != 0))
 }
 
 $anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -55,16 +55,19 @@ if (not $anvil->data->{sys}{database}{connections})
 # Do we have a specified network to scan?
 $anvil->data->{switches}{network}    = "";
 $anvil->data->{switches}{'job-uuid'} = "";
+$anvil->data->{switches}{force}      = "";
 $anvil->Get->switches;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	"switches::network"  => $anvil->data->{switches}{network},
 	"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}, 
+	"switches::force"    => $anvil->data->{switches}{force}, 
 }});
 
 update_progress($anvil, 0, "clear");
 update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 $anvil->data->{progress} = 1;
 
+check_if_time($anvil);
 scan($anvil);
 
 # We're done
@@ -93,6 +96,83 @@ sub update_progress
 		message  => $message,
 		job_uuid => $anvil->data->{switches}{'job-uuid'},
 	});
+	
+	return(0);
+}
+
+# This checks to see if it's time to run the scan yet or not. If not, it will exit the program. If so, it 
+# returns with '0'.
+sub check_if_time
+{
+	my ($anvil) = @_;
+	
+	# NOTE: We only scan once a day, unless 'force' is used.
+	if ($anvil->data->{switches}{force})
+	{
+		return(0);
+	}
+	elsif ($anvil->data->{switches}{network})
+	{
+		# We're being asked to scan a specific network.
+		return(0);
+	}
+	elsif (not $anvil->data->{switches}{'job-uuid'})
+	{
+		# No job_uuid, so a manual call.
+		return(0);
+	}
+	else
+	{
+		my ($unixtime, $variable_uuid, $modified_date) = $anvil->Database->read_variable({variable_name => "network-scan::scanned"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			unixtime      => $unixtime, 
+			variable_uuid => $variable_uuid, 
+			modified_date => $modified_date, 
+		}});
+		if (($unixtime eq "") or ($unixtime =~ /\D/))
+		{
+			$unixtime = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { unixtime => $unixtime }});
+		}
+		
+		### TODO: Allow the user to set a "scan time" that will wait until the local time is after a
+		###       certain time before scaning. Also, allow the user to disable auto-scan entirely.
+		# If the database variable 'network-scan::scanned' is not set, or is more than 24 hours old, 
+		# scan.
+		$anvil->data->{'network-scan'}{'scan-period'} =  86400 if not defined $anvil->data->{'network-scan'}{'scan-period'};
+		$anvil->data->{'network-scan'}{'scan-period'} =~ s/,//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			'network-scan::scan-period' => $anvil->data->{'network-scan'}{'scan-period'}, 
+		}});
+		if ($anvil->data->{'network-scan'}{'scan-period'} =~ /\D/)
+		{
+			$anvil->data->{'network-scan'}{'scan-period'} = 86400;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'network-scan::scan-period' => $anvil->data->{'network-scan'}{'scan-period'}, 
+			}});
+		}
+		my $time_now   = time;
+		my $next_scan  = $unixtime + $anvil->data->{'network-scan'}{'scan-period'};
+		my $difference = ($next_scan - $time_now);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:time_now'   => $time_now, 
+			's2:next_scan'  => $next_scan, 
+			's3:difference' => $difference, 
+		}});
+		if ((not $variable_uuid) or ($unixtime !~ /^\d+/) or ($difference < 0))
+		{
+			# It's been long enough (or it's the first time), scan.
+			return(0);
+		}
+		elsif ($difference > 0)
+		{
+			# Log when the next scan will happen and then exit.
+			my $say_when = $anvil->Convert->time({'time' => $difference, long => 1});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0450", variables => { next_scan => $anvil->Convert->add_commas({number => $say_when}) }});
+			update_progress($anvil, 100, "log_0450,!!next_scan!".$anvil->Convert->add_commas({number => $say_when})."!!");
+			$anvil->nice_exit({exit_code => 3});
+		}
+	}
 	
 	return(0);
 }
@@ -221,6 +301,21 @@ sub scan
 		}
 	}
 	
+	# Update the rescan time to now, if no specific network was given.
+	if (not $anvil->data->{switches}{network})
+	{
+		$anvil->Database->insert_or_update_variables({
+			debug                 => 3,
+			variable_name         => "network-scan::scanned", 
+			variable_value        => time, 
+			variable_default      => "", 
+			variable_description  => "striker_0140", 
+			variable_section      => "system", 
+			variable_source_uuid  => $anvil->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+	}
+	
 	return(0);
 }
 
@@ -279,6 +374,7 @@ sub call_nmap
 		if ($line =~ /MAC Address: (.*?) \(/)
 		{
 			$this_mac = $1;
+			$this_mac = lc($this_mac);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:this_mac' => $this_mac, 
 				's2:this_ip'  => $this_ip,
@@ -297,10 +393,10 @@ sub call_nmap
 			{
 				$anvil->data->{progress} += 1;
 				$anvil->data->{progress} = 95 if $anvil->data->{progress} > 95;
-				update_progress($anvil, $anvil->data->{progress}, "log_0446,!!ip!".$this_ip."!!,!!mac!".$this_mac."!!,!!section!".$section."!!");
+				update_progress($anvil, $anvil->data->{progress}, "log_0446,!!ip!".$this_ip."!!,!!mac!".$this_mac."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "log_0446", variables => { 
-					ip      => $this_ip,
-					mac     => $this_mac,
+					ip  => $this_ip,
+					mac => $this_mac,
 				}});
 				my ($mac_to_ip_uuid) = $anvil->Database->insert_or_update_mac_to_ip({
 					debug                 => 3,

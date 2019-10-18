@@ -781,6 +781,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0447">About to download: [#!variable!url!#] and save it to: [#!variable!file!#].</key>
 		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>
 		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now.</key>
+		<key name="log_0450">Skipping the network scan. The next scheduled scan will be done in: [#!variable!next_scan!#] second(s). Override with '--force'.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -969,6 +970,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		]]></key>
 		<key name="striker_0138">New host name</key>
 		<key name="striker_0139"><![CDATA[<unchanged>]]></key>
+		<key name="striker_0140">Indicates when the last time the networks connected to this host were scanned. The scan is done to help find the IP addresses assigned to hosted servers and virtual machine equipment. The scan is a simple, sequential nmap ping scan in an attempt to be as non-invasive as possible. The frequency of these scans can be controlled by setting 'network-scan::scan-period' to a number of seconds (the current value is: [#!data!network-scan::scan-period!# seconds]).</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

@@ -337,7 +337,6 @@ sub handle_periodic_tasks
 				job_progress    => 0,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { job_uuid => $job_uuid }});
-			die;
 		}
 		
 		# Update the next check time.
