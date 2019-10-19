@@ -6376,7 +6376,7 @@ sub manage_anvil_conf
 	my $port         = defined $parameter->{port}         ? $parameter->{port}         : 22;
 	my $remote_user  = defined $parameter->{remote_user}  ? $parameter->{remote_user}  : "root";
 	my $remove       = defined $parameter->{remove}       ? $parameter->{remove}       : 0;
-	my $target       = defined $parameter->{target}       ? $parameter->{target}       : "local";
+	my $target       = defined $parameter->{target}       ? $parameter->{target}       : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		db_password  => $anvil->Log->is_secure($db_password), 
 		db_ping      => $db_ping, 
@@ -6730,7 +6730,7 @@ sub manage_anvil_conf
 		
 		# If this is a local update, disconnect (if no connections exist, will still clear out known 
 		# databases), the re-read the new config.
-		if (not $anvil->Network->is_remote($target))
+		if ($anvil->Network->is_local({host => $target}))
 		{
 			$anvil->Database->disconnect;
 			

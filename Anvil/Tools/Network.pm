@@ -19,7 +19,6 @@ my $THIS_FILE = "Network.pm";
 # get_ips
 # get_network
 # is_local
-# is_remote
 # load_ips
 # ping
 
@@ -115,7 +114,7 @@ If C<< target >> is set, this is the TCP port number used to connect to the remo
 
 If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
 
-=head3 target (optional, default 'local')
+=head3 target (optional, default '')
 
 If set, the bridge data will be read from the target machine. This needs to be the IP address or (resolvable) host name of the target.
 
@@ -131,7 +130,7 @@ sub bridge_info
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password), 
 		port        => $port, 
@@ -141,7 +140,16 @@ sub bridge_info
 	
 	my $shell_call = $anvil->data->{path}{exe}{bridge}." -json -pretty link show";
 	my $output     = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local call.
+		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+	}
+	else
 	{
 		# Remote call
 		($output, my $error, my $return_code) = $anvil->Remote->call({
@@ -156,15 +164,6 @@ sub bridge_info
 			's1:output'      => $output,
 			's2:error'       => $error,
 			's3:return_code' => $return_code, 
-		}});
-	}
-	else
-	{
-		# Local call.
-		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:output'      => $output,
-			's2:return_code' => $return_code, 
 		}});
 	}
 	
@@ -182,24 +181,26 @@ sub bridge_info
 	{
 		my $bridge    = $hash_ref->{master};
 		my $interface = $hash_ref->{ifname};
+		my $host      = $target ? $target : "local";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:bridge'    => $bridge,
 			's2:interface' => $interface, 
+			's3:host'      => $host,
 		}});
-		if ((not exists $anvil->data->{bridge}{$target}{$bridge}) or (ref($anvil->data->{bridge}{$target}{$bridge}{interfaces}) ne "ARRAY"))
+		if ((not exists $anvil->data->{bridge}{$host}{$bridge}) or (ref($anvil->data->{bridge}{$host}{$bridge}{interfaces}) ne "ARRAY"))
 		{
-			$anvil->data->{bridge}{$target}{$bridge}{interfaces} = [];
+			$anvil->data->{bridge}{$host}{$bridge}{interfaces} = [];
 		}
-		push @{$anvil->data->{bridge}{$target}{$bridge}{interfaces}}, $interface;
+		push @{$anvil->data->{bridge}{$host}{$bridge}{interfaces}}, $interface;
 		
 		# Now store the rest of the data.
 		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
 		{
 			next if $key eq "master";
 			next if $key eq "ifname";
-			$anvil->data->{bridge}{$target}{$bridge}{$interface}{$key} = $hash_ref->{$key};
+			$anvil->data->{bridge}{$host}{$bridge}{$interface}{$key} = $hash_ref->{$key};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"bridge::${target}::${bridge}::${interface}::${key}" => $anvil->data->{bridge}{$target}{$bridge}{$interface}{$key}, 
+				"bridge::${host}::${bridge}::${interface}::${key}" => $anvil->data->{bridge}{$host}{$bridge}{$interface}{$key}, 
 			}});
 		}
 	}
@@ -253,7 +254,7 @@ sub check_internet
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $tries       = defined $parameter->{tries}       ? $parameter->{tries}       : 3;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		domains     => $domains, 
@@ -947,7 +948,7 @@ sub get_ips
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password), 
 		port        => $port, 
@@ -955,11 +956,24 @@ sub get_ips
 		target      => $target,
 	}});
 	
+	# This is used in the hash reference when storing the data.
+	my $host = $target ? $target : "local";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	
 	# Reading locally or remote?
 	my $in_iface   = "";
 	my $shell_call = $anvil->data->{path}{exe}{ip}." addr list";
 	my $output     = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local call.
+		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+	}
+	else
 	{
 		# Remote call
 		($output, my $error, my $return_code) = $anvil->Remote->call({
@@ -976,15 +990,6 @@ sub get_ips
 			's3:return_code' => $return_code, 
 		}});
 	}
-	else
-	{
-		# Local call.
-		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:output'      => $output,
-			's2:return_code' => $return_code, 
-		}});
-	}
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -993,18 +998,18 @@ sub get_ips
 			$in_iface = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_iface => $in_iface }});
 			
-			$anvil->data->{network}{$target}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{network}{$target}{interface}{$in_iface}{ip};
-			$anvil->data->{network}{$target}{interface}{$in_iface}{subnet}          = "" if not defined $anvil->data->{network}{$target}{interface}{$in_iface}{subnet};
-			$anvil->data->{network}{$target}{interface}{$in_iface}{mac}             = "" if not defined $anvil->data->{network}{$target}{interface}{$in_iface}{mac};
-			$anvil->data->{network}{$target}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$target}{interface}{$in_iface}{default_gateway};
-			$anvil->data->{network}{$target}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$target}{interface}{$in_iface}{gateway};
-			$anvil->data->{network}{$target}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$target}{interface}{$in_iface}{dns};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{ip};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet}          = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{subnet};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{mac}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{mac};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{gateway};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
 		}
 		next if not $in_iface;
 		if ($in_iface eq "lo")
 		{
 			# We don't care about 'lo'.
-			delete $anvil->data->{network}{$target}{interface}{$in_iface};
+			delete $anvil->data->{network}{$host}{interface}{$in_iface};
 			next;
 		}
 		if ($line =~ /inet (.*?)\/(.*?) /)
@@ -1021,19 +1026,19 @@ sub get_ips
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet => $subnet }});
 			}
 			
-			$anvil->data->{network}{$target}{interface}{$in_iface}{ip}     = $ip;
-			$anvil->data->{network}{$target}{interface}{$in_iface}{subnet} = $subnet;
+			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}     = $ip;
+			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet} = $subnet;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:network::${target}::interface::${in_iface}::ip"     => $anvil->data->{network}{$target}{interface}{$in_iface}{ip},
-				"s2:network::${target}::interface::${in_iface}::subnet" => $anvil->data->{network}{$target}{interface}{$in_iface}{subnet},
+				"s1:network::${host}::interface::${in_iface}::ip"     => $anvil->data->{network}{$host}{interface}{$in_iface}{ip},
+				"s2:network::${host}::interface::${in_iface}::subnet" => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet},
 			}});
 		}
 		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
 		{
 			my $mac                                                        = $1;
-			   $anvil->data->{network}{$target}{interface}{$in_iface}{mac} = $mac;
+			   $anvil->data->{network}{$host}{interface}{$in_iface}{mac} = $mac;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${target}::interface::${in_iface}::mac" => $anvil->data->{network}{$target}{interface}{$in_iface}{mac},
+				"network::${host}::interface::${in_iface}::mac" => $anvil->data->{network}{$host}{interface}{$in_iface}{mac},
 			}});
 			
 			# We only record the mac in 'network::mac' if this isn't a bond.
@@ -1053,7 +1058,16 @@ sub get_ips
 	# we'll read them all in.
 	$shell_call = $anvil->data->{path}{exe}{ls}." ".$anvil->data->{path}{directories}{ifcfg};
 	$output     = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local call.
+		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+	}
+	else
 	{
 		# Remote call
 		($output, my $error, my $return_code) = $anvil->Remote->call({
@@ -1070,19 +1084,11 @@ sub get_ips
 			's3:return_code' => $return_code, 
 		}});
 	}
-	else
-	{
-		# Local call.
-		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:output'      => $output,
-			's2:return_code' => $return_code, 
-		}});
-	}
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		next if $line !~ /^ifcfg-/;
+		
 		my $full_path = $anvil->data->{path}{directories}{ifcfg}."/".$line;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
 		
@@ -1108,30 +1114,34 @@ sub get_ips
 			next if $line =~ /^#/;
 			if ($line =~ /(.*?)=(.*)/)
 			{
-				my $variable =  $1;
-				my $value    =  $2;
-				   $value    =~ s/^"(.*)"$/$1/;
-				$temp->{$variable} = $value;
+				my $variable          =  $1;
+				my $value             =  $2;
+				   $value             =~ s/^"(.*)"$/$1/;
+				   $temp->{$variable} =  $value;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "temp->{$variable}" => $temp->{$variable} }});
 				
 				if (uc($variable) eq "DEVICE")
 				{
+					# If this isn't a device we saw in 'ip addr', skip it by just not setting the interface variable
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+					last if not exists $anvil->data->{network}{$host}{interface}{$value};
+					
 					$interface = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "interface" => $interface }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
 				}
 			}
 			
 			if ($interface)
 			{
-				$anvil->data->{network}{$target}{interface}{$interface}{file} = $full_path;
+				$anvil->data->{network}{$host}{interface}{$interface}{file} = $full_path;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"network::${target}::interface::${interface}::file" => $anvil->data->{network}{$target}{interface}{$interface}{file},
+					"network::${host}::interface::${interface}::file" => $anvil->data->{network}{$host}{interface}{$interface}{file},
 				}});
 				foreach my $variable (sort {$a cmp $b} keys %{$temp})
 				{
-					$anvil->data->{network}{$target}{interface}{$interface}{variable}{$variable} = $temp->{$variable};
+					$anvil->data->{network}{$host}{interface}{$interface}{variable}{$variable} = $temp->{$variable};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"network::${target}::interface::${interface}::file::variable::${variable}" => $anvil->data->{network}{$target}{interface}{$interface}{variable}{$variable},
+						"network::${host}::interface::${interface}::file::variable::${variable}" => $anvil->data->{network}{$host}{interface}{$interface}{variable}{$variable},
 					}});
 				}
 			}
@@ -1144,7 +1154,16 @@ sub get_ips
 	my $route_ip        = "";
 	   $shell_call      = $anvil->data->{path}{exe}{ip}." route show";
 	   $output          = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local call.
+		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+	}
+	else
 	{
 		# Remote call
 		($output, my $error, my $return_code) = $anvil->Remote->call({
@@ -1159,15 +1178,6 @@ sub get_ips
 			's1:output'      => $output,
 			's2:error'       => $error,
 			's3:return_code' => $return_code, 
-		}});
-	}
-	else
-	{
-		# Local call.
-		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:output'      => $output,
-			's2:return_code' => $return_code, 
 		}});
 	}
 	foreach my $line (split/\n/, $output)
@@ -1212,7 +1222,16 @@ sub get_ips
 		my $dns_hash     = {};
 		my $shell_call   = $anvil->data->{path}{exe}{nmcli}." dev show";
 		my $output       = "";
-		if ($anvil->Network->is_remote($target))
+		if ($anvil->Network->is_local({host => $target}))
+		{
+			# Local call.
+			($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:output'      => $output,
+				's2:return_code' => $return_code, 
+			}});
+		}
+		else
 		{
 			# Remote call
 			($output, my $error, my $return_code) = $anvil->Remote->call({
@@ -1227,15 +1246,6 @@ sub get_ips
 				's1:output'      => $output,
 				's2:error'       => $error,
 				's3:return_code' => $return_code, 
-			}});
-		}
-		else
-		{
-			# Local call.
-			($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				's1:output'      => $output,
-				's2:return_code' => $return_code, 
 			}});
 		}
 		foreach my $line (split/\n/, $output)
@@ -1275,13 +1285,13 @@ sub get_ips
 		$dns_list =~ s/, $//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dns_list => $dns_list }});
 		
-		$anvil->data->{network}{$target}{interface}{$route_interface}{default_gateway} = 1;
-		$anvil->data->{network}{$target}{interface}{$route_interface}{gateway}         = $route_ip;
-		$anvil->data->{network}{$target}{interface}{$route_interface}{dns}             = $dns_list;
+		$anvil->data->{network}{$host}{interface}{$route_interface}{default_gateway} = 1;
+		$anvil->data->{network}{$host}{interface}{$route_interface}{gateway}         = $route_ip;
+		$anvil->data->{network}{$host}{interface}{$route_interface}{dns}             = $dns_list;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${target}::interface::${route_interface}::default_gateway" => $anvil->data->{network}{$target}{interface}{$route_interface}{default_gateway}, 
-			"network::${target}::interface::${route_interface}::gateway"         => $anvil->data->{network}{$target}{interface}{$route_interface}{gateway}, 
-			"network::${target}::interface::${route_interface}::dns"             => $anvil->data->{network}{$target}{interface}{$route_interface}{dns}, 
+			"network::${host}::interface::${route_interface}::default_gateway" => $anvil->data->{network}{$host}{interface}{$route_interface}{default_gateway}, 
+			"network::${host}::interface::${route_interface}::gateway"         => $anvil->data->{network}{$host}{interface}{$route_interface}{gateway}, 
+			"network::${host}::interface::${route_interface}::dns"             => $anvil->data->{network}{$host}{interface}{$route_interface}{dns}, 
 		}});
 	}
 	
@@ -1348,7 +1358,6 @@ sub get_network
 	return($network);
 }
 
-### TODO: Merge the logic with ->is_remote and then make one of them simply invert the output of the other.
 =head2 is_local
 
 This method takes a host name or IP address and looks to see if it matches the local system. If it does, it returns C<< 1 >>. Otherwise it returns C<< 0 >>.
@@ -1366,7 +1375,11 @@ sub is_local
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_is_local()" }});
+	
+	# To avoid deep recurssion, we set this on the first call so that anything below that re-calls us just gets a quick '1' and returns
+	$anvil->data->{env}{checking_local} = 0 if not defined $anvil->data->{env}{checking_local};
+	return(1) if $anvil->data->{env}{checking_local};
+	$anvil->data->{env}{checking_local} = 1;
 	
 	my $host = $parameter->{host} ? $parameter->{host} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
@@ -1383,8 +1396,10 @@ sub is_local
 	}
 	else
 	{
+		### NOTE: We use the undocumented 'is_local' parameter to avoid ->get_ips() calling us, 
+		###       causing a recursive loop.
 		# Get the list of current IPs and see if they match.
-		$anvil->Network->get_ips;
+		$anvil->Network->get_ips({debug => 3});
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
@@ -1398,39 +1413,8 @@ sub is_local
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+	delete $anvil->data->{env}{checking_local};
 	return($is_local);
-}
-
-=head2 is_remote
-
-This looks at the C<< target >> and determines if it relates to the local system or not. If the C<< target >> is remote, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
-
- if ($anvil->Network->is_remote($target))
- {
-	# Do something remotely
- }
- else
- {
-	# Do something locally
- }
-
-B<< NOTE >>: Unlike most methods, this one does not take a hash reference for the parameters. It takes the string directly.
-
-=cut
-sub is_remote
-{
-	my $self   = shift;
-	my $target = shift;
-	my $anvil  = $self->parent;
-	
-	my $remote = 0;
-	if (($target) && ($target ne "local") && ($target ne $anvil->_host_name) && ($target ne $anvil->_short_host_name))
-	{
-		# It's a remote system
-		$remote = 1;
-	}
-	
-	return($remote);
 }
 
 # =head3
@@ -1594,7 +1578,13 @@ sub ping
 		my $error  = "";
 		
 		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our host name.
-		if ($anvil->Network->is_remote($target))
+		if ($anvil->Network->is_local({host => $target}))
+		{
+			### Local calls
+			($output, my $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		}
+		else
 		{
 			### Remote calls
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
@@ -1611,12 +1601,6 @@ sub ping
 				output      => $output,
 				return_code => $return_code, 
 			}});
-		}
-		else
-		{
-			### Local calls
-			($output, my $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 		}
 		
 		foreach my $line (split/\n/, $output)

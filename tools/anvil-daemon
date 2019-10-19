@@ -1085,7 +1085,7 @@ sub prep_database
 	if ($host_type eq "dashboard")
 	{
 		my ($database_output, $return_code) = $anvil->System->call({
-			debug      => 3, 
+			debug      => 2, 
 			shell_call => $anvil->data->{path}{exe}{'striker-prep-database'}, 
 			source     => $THIS_FILE, 
 			line       => __LINE__,

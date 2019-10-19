@@ -1263,8 +1263,18 @@ sub host_name
 		
 		my $output      = "";
 		my $return_code = "";
-		if ($anvil->Network->is_remote($target))
+		if ($anvil->Network->is_local({host => $target}))
 		{
+			# Local call
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+		else
+		{
+			# Remote call
 			($output, my $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				shell_call  => $shell_call, 
@@ -1276,14 +1286,6 @@ sub host_name
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				error  => $error,
 				output => $output,
-			}});
-		}
-		else
-		{
-			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				output      => $output, 
-				return_code => $return_code,
 			}});
 		}
 	}
@@ -1298,8 +1300,18 @@ sub host_name
 		
 		my $output      = "";
 		my $return_code = "";
-		if ($anvil->Network->is_remote($target))
+		if ($anvil->Network->is_local({host => $target}))
 		{
+			# Local call
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+		else
+		{
+			# Remote call
 			($output, my $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				shell_call  => $shell_call, 
@@ -1313,14 +1325,6 @@ sub host_name
 				output => $output,
 			}});
 		}
-		else
-		{
-			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				output      => $output, 
-				return_code => $return_code,
-			}});
-		}
 	}
 	
 	# Get the static (traditional) host name
@@ -1331,8 +1335,18 @@ sub host_name
 	my $descriptive = "";
 	my $output      = "";
 	my $return_code = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
 	{
+		# Local call
+		($host_name, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_name    => $host_name, 
+			return_code  => $return_code,
+		}});
+	}
+	else
+	{
+		# Remote call
 		($host_name, my $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
@@ -1346,14 +1360,6 @@ sub host_name
 			output    => $output,
 		}});
 	}
-	else
-	{
-		($host_name, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			host_name    => $host_name, 
-			return_code  => $return_code,
-		}});
-	}
 	
 	# Get the pretty (descriptive) host name
 	$shell_call = $anvil->data->{path}{exe}{hostnamectl}." --pretty";
@@ -1361,8 +1367,18 @@ sub host_name
 	
 	$output      = "";
 	$return_code = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
 	{
+		# Local call
+		($descriptive, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			descriptive => $descriptive, 
+			return_code => $return_code,
+		}});
+	}
+	else
+	{
+		# Remove call
 		($descriptive, my $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
@@ -1374,14 +1390,6 @@ sub host_name
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			descriptive => $descriptive,
 			output      => $output,
-		}});
-	}
-	else
-	{
-		($descriptive, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			descriptive => $descriptive, 
-			return_code => $return_code,
 		}});
 	}
 	

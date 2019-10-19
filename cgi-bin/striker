@@ -696,7 +696,7 @@ sub process_anvil_menu
 	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "configure-network")
 	{
-		#process_configure_network($anvil);
+		process_configure_network($anvil);
 	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "manifest")
 	{
@@ -709,6 +709,25 @@ sub process_anvil_menu
 		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "main-menu", variables => {
 		}});
 	}
+	
+	return(0);
+}
+
+# This handles configuring a remote target's network interfaces (renaming them, bonding and bridging them).
+sub process_configure_network
+{
+	my ($anvil) = @_;
+	
+	my $host_name       = defined $anvil->data->{cgi}{host_name}{value}         ? $anvil->data->{cgi}{host_name}{value}         : "";
+	my $host_ip_address = defined $anvil->data->{cgi}{host_ip_address}{value}   ? $anvil->data->{cgi}{host_ip_address}{value}   : "";
+	my $host_password   = defined $anvil->data->{cgi}{host_password}{value}     ? $anvil->data->{cgi}{host_password}{value}     : "";
+	my $confirm         = defined $anvil->data->{cgi}{confirm}{value}           ? $anvil->data->{cgi}{confirm}{value}           : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name         => $host_name, 
+		host_ip_address   => $host_ip_address,
+		host_password     => $anvil->Log->is_secure($host_password), 
+		confirm           => $confirm, 
+	}});
 	
 	return(0);
 }

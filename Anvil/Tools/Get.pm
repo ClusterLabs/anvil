@@ -124,7 +124,7 @@ sub anvil_version
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $version     = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
@@ -134,7 +134,20 @@ sub anvil_version
 	}});
 	
 	# Is this a local call or a remote call?
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		$version = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.version'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
+		
+		# Did we actually read a version?
+		if ($version eq "!!error!!")
+		{
+			$version = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { version => $version }});
+		}
+	}
+	else
 	{
 		# Remote call. If we're running as the apache user, we need to read the cached version for 
 		# the peer. otherwise, after we read the version, will write the cached version.
@@ -217,19 +230,6 @@ fi;
 					});
 				}
 			}
-		}
-	}
-	else
-	{
-		# Local.
-		$version = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'anvil.version'}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { version => $version }});
-		
-		# Did we actually read a version?
-		if ($version eq "!!error!!")
-		{
-			$version = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { version => $version }});
 		}
 	}
 	

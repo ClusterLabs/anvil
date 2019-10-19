@@ -119,7 +119,7 @@ sub allow_two_primaries
 	my $port           = defined $parameter->{port}           ? $parameter->{port}           : "";
 	my $remote_user    = defined $parameter->{remote_user}    ? $parameter->{remote_user}    : "root";
 	my $resource       = defined $parameter->{resource}       ? $parameter->{resource}       : "";
-	my $target         = defined $parameter->{target}         ? $parameter->{target}         : "local";
+	my $target         = defined $parameter->{target}         ? $parameter->{target}         : "";
 	my $target_node_id = defined $parameter->{target_node_id} ? $parameter->{target_node_id} : "";
 	my $return_code    = 255; 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -186,7 +186,19 @@ sub allow_two_primaries
 	
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." net-options ".$resource." ".$target_node_id." --allow-two-primaries=yes";
 	my $output     = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		($output, $return_code) = $anvil->System->call({
+			debug      => $debug,
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
 	{
 		# Remote call.
 		($output, my $error, $return_code) = $anvil->Remote->call({
@@ -199,18 +211,6 @@ sub allow_two_primaries
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error       => $error,
-			output      => $output,
-			return_code => $return_code,
-		}});
-	}
-	else
-	{
-		# Local.
-		($output, $return_code) = $anvil->System->call({
-			debug      => $debug,
-			shell_call => $shell_call,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output,
 			return_code => $return_code,
 		}});
@@ -261,7 +261,7 @@ sub get_devices
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -273,7 +273,16 @@ sub get_devices
 	my $host       = $anvil->_short_host_name;
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
 	my $output     = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		($output, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output                           => $output,
+			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
+		}});
+	}
+	else
 	{
 		# Remote call.
 		($output, my $error, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->Remote->call({
@@ -288,15 +297,6 @@ sub get_devices
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host                             => $host,
 			error                            => $error,
-			output                           => $output,
-			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
-		}});
-	}
-	else
-	{
-		# Local.
-		($output, $anvil->data->{drbd}{'drbdadm-xml'}{return_code}) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output                           => $output,
 			"drbd::drbdadm-xml::return_code" => $anvil->data->{drbd}{'drbdadm-xml'}{return_code},
 		}});
@@ -532,7 +532,7 @@ sub get_status
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -544,7 +544,22 @@ sub get_status
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
 	my $host       = $anvil->_short_host_name();
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Clear the hash where we'll store the data.
+		if (exists $anvil->data->{drbd}{status}{$host})
+		{
+			delete $anvil->data->{drbd}{status}{$host};
+		}
+		
+		# Local.
+		($output, $anvil->data->{drbd}{status}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output                               => $output,
+			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
+		}});
+	}
+	else
 	{
 		# Clear the hash where we'll store the data.
 		$host = $target;
@@ -564,21 +579,6 @@ sub get_status
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error                                => $error,
-			output                               => $output,
-			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
-		}});
-	}
-	else
-	{
-		# Clear the hash where we'll store the data.
-		if (exists $anvil->data->{drbd}{status}{$host})
-		{
-			delete $anvil->data->{drbd}{status}{$host};
-		}
-		
-		# Local.
-		($output, $anvil->data->{drbd}{status}{return_code}) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output                               => $output,
 			"drbd::status::${host}::return_code" => $anvil->data->{drbd}{status}{return_code},
 		}});
@@ -791,7 +791,7 @@ sub manage_resource
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $resource    = defined $parameter->{resource}    ? $parameter->{resource}    : "";
 	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -817,7 +817,16 @@ sub manage_resource
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
 	my $output      = "";
 	my $return_code = 255; 
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
 	{
 		# Remote call.
 		($output, my $error, $return_code) = $anvil->Remote->call({
@@ -830,15 +839,6 @@ sub manage_resource
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error       => $error,
-			output      => $output,
-			return_code => $return_code,
-		}});
-	}
-	else
-	{
-		# Local.
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output,
 			return_code => $return_code,
 		}});
@@ -887,7 +887,7 @@ sub reload_defaults
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $resource    = defined $parameter->{resource}    ? $parameter->{resource}    : "";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $return_code = 255; 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
@@ -906,7 +906,16 @@ sub reload_defaults
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, key => "log_0355"});
 	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
 	my $output      = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
 	{
 		# Remote call.
 		($output, my $error, $return_code) = $anvil->Remote->call({
@@ -919,15 +928,6 @@ sub reload_defaults
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error       => $error,
-			output      => $output,
-			return_code => $return_code,
-		}});
-	}
-	else
-	{
-		# Local.
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output,
 			return_code => $return_code,
 		}});

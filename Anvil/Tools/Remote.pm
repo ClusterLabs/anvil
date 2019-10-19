@@ -309,6 +309,13 @@ sub call
 		target     => $target,
 	}});
 	
+	# In case 'target' is 'local', change it to ''.
+	if ($target eq "local")
+	{
+		$target = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+	}
+	
 	if (not $shell_call)
 	{
 		# No shell call

@@ -211,7 +211,7 @@ sub find
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $refresh     = defined $parameter->{refresh}     ? $parameter->{refresh}     : 1;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -230,7 +230,16 @@ sub find
 	my $host         = $anvil->_host_name;
 	my $virsh_output = "";
 	my $return_code  = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local call
+		($virsh_output, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			virsh_output => $virsh_output,
+			return_code  => $return_code,
+		}});
+	}
+	else
 	{
 		# Remote call.
 		($host, my $error, my $host_return_code) = $anvil->Remote->call({
@@ -256,14 +265,6 @@ sub find
 			virsh_output => $virsh_output,
 			error        => $error,
 			return_code  => $return_code, 
-		}});
-	}
-	else
-	{
-		($virsh_output, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			virsh_output => $virsh_output,
-			return_code  => $return_code,
 		}});
 	}
 	
@@ -327,7 +328,7 @@ sub get_status
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $server      = defined $parameter->{server}      ? $parameter->{server}      : "";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -335,16 +336,20 @@ sub get_status
 		target      => $target, 
 	}});
 	
+	# This is used in the hash reference when storing the data.
+	my $host = $target ? $target : "local";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	
 	if (not $server)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->get_status()", parameter => "server" }});
 		return(1);
 	}
-	if (exists $anvil->data->{server}{$target}{$server})
+	if (exists $anvil->data->{server}{$host}{$server})
 	{
-		delete $anvil->data->{server}{$target}{$server};
+		delete $anvil->data->{server}{$host}{$server};
 	}
-	$anvil->data->{server}{$target}{$server}{from_memory}{host} = "";
+	$anvil->data->{server}{$host}{$server}{from_memory}{host} = "";
 	
 	# We're going to map DRBD devices to resources, so we need to collect that data now. 
 	$anvil->DRBD->get_devices({
@@ -357,12 +362,21 @@ sub get_status
 	
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
-	my $host       = $anvil->_short_host_name;
-	if ($anvil->Network->is_remote($target))
+	my $this_host  = $anvil->_short_host_name;
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		($anvil->data->{server}{$host}{$server}{from_memory}{xml}, $anvil->data->{server}{$host}{$server}{from_memory}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"server::${host}::${server}::from_memory::xml"         => $anvil->data->{server}{$host}{$server}{from_memory}{xml},
+			"server::${host}::${server}::from_memory::return_code" => $anvil->data->{server}{$host}{$server}{from_memory}{return_code},
+		}});
+	}
+	else
 	{
 		# Remote call.
-		$host = $target;
-		($anvil->data->{server}{$target}{$server}{from_memory}{xml}, my $error, $anvil->data->{server}{$target}{$server}{from_memory}{return_code}) = $anvil->Remote->call({
+		$this_host = $target;
+		($anvil->data->{server}{$host}{$server}{from_memory}{xml}, my $error, $anvil->data->{server}{$host}{$server}{from_memory}{return_code}) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
 			target      => $target,
@@ -372,39 +386,30 @@ sub get_status
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error                                     => $error,
-			"server::${target}::${server}::from_memory::xml"         => $anvil->data->{server}{$target}{$server}{from_memory}{xml},
-			"server::${target}::${server}::from_memory::return_code" => $anvil->data->{server}{$target}{$server}{from_memory}{return_code},
-		}});
-	}
-	else
-	{
-		# Local.
-		($anvil->data->{server}{$target}{$server}{from_memory}{xml}, $anvil->data->{server}{$target}{$server}{from_memory}{return_code}) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"server::${target}::${server}::from_memory::xml"         => $anvil->data->{server}{$target}{$server}{from_memory}{xml},
-			"server::${target}::${server}::from_memory::return_code" => $anvil->data->{server}{$target}{$server}{from_memory}{return_code},
+			"server::${host}::${server}::from_memory::xml"         => $anvil->data->{server}{$host}{$server}{from_memory}{xml},
+			"server::${host}::${server}::from_memory::return_code" => $anvil->data->{server}{$host}{$server}{from_memory}{return_code},
 		}});
 	}
 	
 	# If the return code was non-zero, we can't parse the XML.
-	if ($anvil->data->{server}{$target}{$server}{from_memory}{return_code})
+	if ($anvil->data->{server}{$host}{$server}{from_memory}{return_code})
 	{
-		$anvil->data->{server}{$target}{$server}{from_memory}{xml} = "";
+		$anvil->data->{server}{$host}{$server}{from_memory}{xml} = "";
 	}
 	else
 	{
-		$anvil->data->{server}{$target}{$server}{from_memory}{host} = $host;
+		$anvil->data->{server}{$host}{$server}{from_memory}{host} = $this_host;
 		$anvil->Server->_parse_definition({
 			debug      => $debug,
-			host       => $host,
+			host       => $this_host,
 			server     => $server, 
 			source     => "from_memory",
-			definition => $anvil->data->{server}{$target}{$server}{from_memory}{xml}, 
+			definition => $anvil->data->{server}{$host}{$server}{from_memory}{xml}, 
 		});
 	}
 	
 	# Now get the on-disk XML.
-	($anvil->data->{server}{$target}{$server}{from_disk}{xml}) = $anvil->Storage->read_file({
+	($anvil->data->{server}{$host}{$server}{from_disk}{xml}) = $anvil->Storage->read_file({
 		debug       => $debug, 
 		password    => $password,
 		port        => $port, 
@@ -414,21 +419,21 @@ sub get_status
 		file        => $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml",
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"server::${target}::${server}::from_disk::xml" => $anvil->data->{server}{$target}{$server}{from_disk}{xml},
+		"server::${host}::${server}::from_disk::xml" => $anvil->data->{server}{$host}{$server}{from_disk}{xml},
 	}});
-	if (($anvil->data->{server}{$target}{$server}{from_disk}{xml} eq "!!errer!!") or (not $anvil->data->{server}{$target}{$server}{from_disk}{xml}))
+	if (($anvil->data->{server}{$host}{$server}{from_disk}{xml} eq "!!errer!!") or (not $anvil->data->{server}{$host}{$server}{from_disk}{xml}))
 	{
 		# Failed to read it.
-		$anvil->data->{server}{$target}{$server}{from_disk}{xml} = "";
+		$anvil->data->{server}{$host}{$server}{from_disk}{xml} = "";
 	}
 	else
 	{
 		$anvil->Server->_parse_definition({
 			debug      => $debug,
-			host       => $host,
+			host       => $this_host,
 			server     => $server, 
 			source     => "from_disk",
-			definition => $anvil->data->{server}{$target}{$server}{from_disk}{xml}, 
+			definition => $anvil->data->{server}{$host}{$server}{from_disk}{xml}, 
 		});
 	}
 	
@@ -457,7 +462,7 @@ Is set to C<< 0 >>, any previously seen servers and their information is cleared
 
 If C<< target >> is set, this will be the user we connect to the remote machine as.
 
-=head3 target (optional, default 'local')
+=head3 target (optional, default '')
 
 This is the IP or host name of the host to map the network of hosted servers on.
 
@@ -473,7 +478,7 @@ sub map_network
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $server      = defined $parameter->{server}      ? $parameter->{server}      : "";
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "local";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -485,7 +490,16 @@ sub map_network
 	# Get a list of servers. 
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." list";
 	my $output     = "";
-	if ($anvil->Network->is_remote($target))
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Local.
+		($output, my $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+	}
+	else
 	{
 		# Remote call.
 		($output, my $error, my $return_code) = $anvil->Remote->call({
@@ -498,15 +512,6 @@ sub map_network
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error       => $error,
-			output      => $output,
-			return_code => $return_code,
-		}});
-	}
-	else
-	{
-		# Local.
-		($output, my $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output,
 			return_code => $return_code,
 		}});
@@ -535,10 +540,13 @@ sub map_network
 				target      => $target, 
 			});
 			
-			foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server}{from_memory}{device}{interface}})
+			# This is used in the hash reference when storing the data.
+			my $host = $target ? $target : "local";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+			foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}})
 			{
-				my $device = $anvil->data->{server}{$target}{$server}{from_memory}{device}{interface}{$mac}{target};
-				my $bridge = $anvil->data->{server}{$target}{$server}{from_memory}{device}{interface}{$mac}{bridge};
+				my $device = $anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}{$mac}{target};
+				my $bridge = $anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}{$mac}{bridge};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					's1:device' => $device, 
 					's2:mac'    => $mac,
@@ -584,7 +592,6 @@ sub migrate
 	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
 	my $source  = defined $parameter->{source} ? $parameter->{source} : "";
 	my $target  = defined $parameter->{target} ? $parameter->{target} : $anvil->_host_name;
-	#my $target  = defined $parameter->{target} ? $parameter->{target} : "local";
 	my $success = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server => $server, 
