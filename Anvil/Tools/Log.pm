@@ -248,11 +248,19 @@ sub entry
 	my $source    = defined $parameter->{source}    ? $parameter->{source}    : "";
 	my $tag       = defined $parameter->{tag}       ? $parameter->{tag}       : $anvil->data->{defaults}{'log'}{tag};
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
+	
 	$anvil->data->{loop}{count} = 0 if not defined $anvil->data->{loop}{count};
 	$anvil->data->{loop}{count}++;
-	print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [".$level."], defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."], loop::count: [".$anvil->data->{loop}{count}."]\n" if $test;
+	print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [".$level."], defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."], loop::count: [".$anvil->data->{loop}{count}."], source: [".$source."], line: [".$line."], key: [".$key."], variables: [".$variables."]\n" if $test;
+	if (($test) && (ref($variables) eq "HASH"))
+	{
+		foreach my $key (sort {$a cmp $b} keys %{$variables})
+		{
+			print $THIS_FILE." ".__LINE__.";           - key: [".$key."] -> [".$variables->{$key}."]\n";
+		}
+	}
 	# The counter needs to be longer than any conceivable file line count we might read.
-	if ($anvil->data->{loop}{count} > 500000)
+	if ($anvil->data->{loop}{count} > 5000000)
 	{
 		if ($anvil->environment eq "html")
 		{
@@ -292,10 +300,12 @@ sub entry
 	# Exit immediately if this isn't going to be logged
 	if ($level > $anvil->Log->level)
 	{
+		$anvil->data->{loop}{count}--;
 		return(1);
 	}
 	if (($secure) && (not $anvil->Log->secure))
 	{
+		$anvil->data->{loop}{count}--;
 		return(2);
 	}
 	
@@ -343,6 +353,7 @@ sub entry
 		$string .= "$line; ";
 		print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
 	}
+	print $THIS_FILE." ".__LINE__."; loop::count: [".$anvil->data->{loop}{count}."] " if $test;
 	
 	# If I have a raw string, do no more processing.
 	print $THIS_FILE." ".__LINE__."; raw: [".$raw."], key: [".$key."]\n" if $test;
@@ -386,6 +397,7 @@ sub entry
 		### TODO: Periodically check the log file size. If it's over a gigabyte, archive it
 		
 		# Open the file?
+		$anvil->data->{HANDLE}{'log'}{main} = "" if not defined $anvil->data->{HANDLE}{'log'}{main};
 		print $THIS_FILE." ".__LINE__."; HANDLE::log::main: [".$anvil->data->{HANDLE}{'log'}{main}."]\n" if $test;
 		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
@@ -420,7 +432,7 @@ sub entry
 		
 		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
 		print { $anvil->data->{HANDLE}{'log'}{main} } $string;
-		$anvil->data->{loop}{count} = 0;		
+		$anvil->data->{loop}{count} = 0;
 	}
 	else
 	{
@@ -432,6 +444,9 @@ sub entry
 			SYSLOG_FACILITY   => $secure ? "authpriv" : $facility,
 			SYSLOG_IDENTIFIER => $tag,
 		);
+		
+		# Reset the loop counter
+		$anvil->data->{loop}{count} = 0;
 	}
 	
 	if ($print)
@@ -439,6 +454,7 @@ sub entry
 		print $print_string."\n";
 	}
 	
+	$anvil->data->{loop}{count}--;
 	return(0);
 }
 
@@ -679,7 +695,7 @@ sub variables
 	
 	# Exit immediately if this isn't going to be logged
 	print $THIS_FILE." ".__LINE__."; debug: [".$debug."], level: [".$level."], Log->level: [".$anvil->Log->level."]\n" if $test;
-	die if $test;
+	#die if $test;
 	if (not defined $level)
 	{
 		die $THIS_FILE." ".__LINE__."; Log->variables() called without 'level': [".$level."] defined from: [$source : $line]\n";
@@ -688,7 +704,7 @@ sub variables
 	{
 		die $THIS_FILE." ".__LINE__."; Log->variables() called without Log->level: [".$anvil->Log->level."] defined from: [$source : $line]\n";
 	}
-	#print "level: [$level], logging: [".$anvil->Log->level."], secure: [$secure], logging secure: [".$anvil->Log->secure."]\n";
+	print "level: [$level], logging: [".$anvil->Log->level."], secure: [$secure], logging secure: [".$anvil->Log->secure."]\n" if $test;
 	if ($level > $anvil->Log->level)
 	{
 		return(1);

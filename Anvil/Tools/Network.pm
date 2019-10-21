@@ -964,7 +964,8 @@ sub get_ips
 	my $in_iface   = "";
 	my $shell_call = $anvil->data->{path}{exe}{ip}." addr list";
 	my $output     = "";
-	if ($anvil->Network->is_local({host => $target}))
+	my $is_local   = $anvil->Network->is_local({host => $target});
+	if ($is_local)
 	{
 		# Local call.
 		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
@@ -1058,7 +1059,7 @@ sub get_ips
 	# we'll read them all in.
 	$shell_call = $anvil->data->{path}{exe}{ls}." ".$anvil->data->{path}{directories}{ifcfg};
 	$output     = "";
-	if ($anvil->Network->is_local({host => $target}))
+	if ($is_local)
 	{
 		# Local call.
 		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
@@ -1154,7 +1155,7 @@ sub get_ips
 	my $route_ip        = "";
 	   $shell_call      = $anvil->data->{path}{exe}{ip}." route show";
 	   $output          = "";
-	if ($anvil->Network->is_local({host => $target}))
+	if ($is_local)
 	{
 		# Local call.
 		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
@@ -1222,7 +1223,7 @@ sub get_ips
 		my $dns_hash     = {};
 		my $shell_call   = $anvil->data->{path}{exe}{nmcli}." dev show";
 		my $output       = "";
-		if ($anvil->Network->is_local({host => $target}))
+		if ($is_local)
 		{
 			# Local call.
 			($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
@@ -1369,6 +1370,7 @@ Parameters;
 This is the host name (or IP address) to check against the local system.
 
 =cut
+### NOTE: Do not log in here, it will cause a recursive loop!
 sub is_local
 {
 	my $self      = shift;
@@ -1376,45 +1378,49 @@ sub is_local
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	# To avoid deep recurssion, we set this on the first call so that anything below that re-calls us just gets a quick '1' and returns
-	$anvil->data->{env}{checking_local} = 0 if not defined $anvil->data->{env}{checking_local};
-	return(1) if $anvil->data->{env}{checking_local};
-	$anvil->data->{env}{checking_local} = 1;
-	
 	my $host = $parameter->{host} ? $parameter->{host} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	return(1) if not $host;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host => $host,
+	}});
 	
-	my $is_local = 0;
+	# If we've checked this host before, return the cached answer
+	if (exists $anvil->data->{cache}{is_local}{$host})
+	{
+		return($anvil->data->{cache}{is_local}{$host});
+	}
+	
+	$anvil->data->{cache}{is_local}{$host} = 0;
 	if (($host eq $anvil->_host_name)       or 
 	    ($host eq $anvil->_short_host_name) or 
 	    ($host eq "localhost")              or 
 	    ($host eq "127.0.0.1"))
 	{
 		# It's local
-		$is_local = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+		$anvil->data->{cache}{is_local}{$host} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::is_local::${host}" => $anvil->data->{cache}{is_local}{$host} }});
 	}
 	else
 	{
-		### NOTE: We use the undocumented 'is_local' parameter to avoid ->get_ips() calling us, 
-		###       causing a recursive loop.
 		# Get the list of current IPs and see if they match.
-		$anvil->Network->get_ips({debug => 3});
+		if (not exists $anvil->data->{network}{'local'}{interface})
+		{
+			$anvil->Network->get_ips({debug => 9999});
+		}
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
+			#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
 			if ($host eq $anvil->data->{network}{'local'}{interface}{$interface}{ip})
 			{
-				$is_local = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+				$anvil->data->{cache}{is_local}{$host} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::is_local::${host}" => $anvil->data->{cache}{is_local}{$host} }});
 				last;
 			}
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
-	delete $anvil->data->{env}{checking_local};
-	return($is_local);
+	#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+	return($anvil->data->{cache}{is_local}{$host});
 }
 
 # =head3

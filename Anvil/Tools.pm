@@ -240,7 +240,7 @@ sub new
 	# If the local './tools.conf' file exists, read it in.
 	if (-r $anvil->data->{path}{configs}{'anvil.conf'})
 	{
-		$anvil->Storage->read_config({debug => $debug, file => $anvil->data->{path}{configs}{'anvil.conf'}});
+		$anvil->Storage->read_config({debug => 3, file => $anvil->data->{path}{configs}{'anvil.conf'}});
 		
 		### TODO: Should anvil.conf override parameters?
 		# Let parameters override config file values.
@@ -720,7 +720,7 @@ sub _host_name
 	else
 	{
 		# The environment variable isn't set. Call 'hostnamectl' on the command line.
-		($host_name, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
+		($host_name, my $return_code) = $anvil->System->call({debug => 9999, shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
 	}
 	
 	return($host_name);

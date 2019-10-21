@@ -1651,7 +1651,6 @@ sub read_file
 		return("!!error!!");
 	}
 	
-	### NOTE: This is called by 'is_local', so it pre-sets 'is_local' to avoid a deep recursion.
 	# Reading locally or remote?
 	if ($anvil->Network->is_local({host => $target}))
 	{

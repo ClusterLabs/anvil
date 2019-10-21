@@ -53,16 +53,21 @@ my $process  = 0;
 if (-e $oui_file)
 {
 	# How long ago did we download it?
-	my $mtime = (stat($oui_file))[9];
-	my $size  = (stat($oui_file))[7];
-	my $age   = time - $mtime;
+	my $refresh_time   = 259200;
+	my $modified_time  = (stat($oui_file))[9];
+	my $size           = (stat($oui_file))[7];
+	my $age            = time - $modified_time;
+	my $download_after = $refresh_time - $age;
+	   $download_after = 0 if $download_after < 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:oui_file' => $oui_file, 
-		's2:mtime'    => $mtime." (".$anvil->Get->date_and_time({use_time => $mtime}).")",
-		's3:age'      => $anvil->Convert->add_commas({number => $age})." (".$anvil->Convert->time({'time' => $age, translate => 1}).")", 
-		's4:size'     => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")", 
+		's1:oui_file'       => $oui_file, 
+		's2:modified_time'  => $modified_time." (".$anvil->Get->date_and_time({use_time => $modified_time}).")",
+		's3:age'            => $anvil->Convert->add_commas({number => $age})." (".$anvil->Convert->time({'time' => $age, translate => 1}).")", 
+		's4:refresh_time'   => $anvil->Convert->add_commas({number => $refresh_time})." (".$anvil->Convert->time({'time' => $refresh_time, translate => 1}).")", 
+		's5:download_after' => $anvil->Convert->add_commas({number => $download_after})." (".$anvil->Convert->time({'time' => $download_after, translate => 1}).")", 
+		's6:size'           => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")", 
 	}});
-	if (($age < 259200) && ($size > 0))
+	if (($download_after) && ($size > 0))
 	{
 		# It's less than three days old, don't download. Do parse though (for now at least)
 		$download = 0;
