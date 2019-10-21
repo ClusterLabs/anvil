@@ -287,8 +287,8 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-27
-- 
+* Sun Oct 20 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-27
+- Updated source
 
 * Wed Oct 02 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-26
 - Updated source
