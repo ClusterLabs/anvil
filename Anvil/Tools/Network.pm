@@ -727,13 +727,13 @@ The loaded data will be stored as:
 
 Parameters;
 
+=head3 host (optional, default is 'host_uuid' value)
+
+This is the optional C<< target >> string to use in the hash where the data is stored.
+
 =head3 host_uuid (required)
 
 This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load.
-
-=head3 target (optional, default is 'host_uuid' value)
-
-This is the optional C<< target >> string to use in the hash where the data is stored.
 
 =cut
 sub load_ips
@@ -745,9 +745,9 @@ sub load_ips
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
 	
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
-	my $target    = defined $parameter->{target}    ? $parameter->{target}    : "";
+	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		target    => $target, 
+		host      => $host, 
 		host_uuid => $host_uuid,
 	}});
 	
@@ -757,10 +757,10 @@ sub load_ips
 		return("");
 	}
 	
-	if (not $target)
+	if (not $host)
 	{
-		$target = $host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+		$host = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	}
 	
 	my $query = "
@@ -832,6 +832,21 @@ WHERE
 				interface_name => $interface_name, 
 				interface_mac  => $interface_mac, 
 			}});
+			
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac}             = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
+				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
+				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
+				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
+				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
+				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+			}});
 		}
 		elsif ($ip_address_on_type eq "bond")
 		{
@@ -858,17 +873,32 @@ WHERE
 				interface_name => $interface_name, 
 				interface_mac  => $interface_mac, 
 			}});
+			
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac}             = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
+				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
+				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
+				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
+				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
+				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+			}});
 		}
 		elsif ($ip_address_on_type eq "bridge")
 		{
 			my $query = "
 SELECT 
-    bond_name, 
-    bond_mac_address 
+    bridge_name, 
+    bridge_mac_address 
 FROM 
-    bonds 
+    bridges 
 WHERE 
-    bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
+    bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -884,17 +914,23 @@ WHERE
 				interface_name => $interface_name, 
 				interface_mac  => $interface_mac, 
 			}});
+			
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac}             = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
+				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
+				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
+				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
+				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
+				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+			}});
 		}
-
-		
-		$anvil->data->{network}{$target}{interface}{$interface_name}{ip}              = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{ip};
-		$anvil->data->{network}{$target}{interface}{$interface_name}{subnet}          = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{subnet};
-		$anvil->data->{network}{$target}{interface}{$interface_name}{mac}             = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{mac};
-		$anvil->data->{network}{$target}{interface}{$interface_name}{default_gateway} = 0  if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{default_gateway};
-		$anvil->data->{network}{$target}{interface}{$interface_name}{gateway}         = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{gateway};
-		$anvil->data->{network}{$target}{interface}{$interface_name}{dns}             = "" if not defined $anvil->data->{network}{$target}{interface}{$interface_name}{dns};
 	}
-	
 	
 	return(0);
 }
