@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        27%{?dist}
+Release:        28%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -287,6 +287,9 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-28
+- Updated source
+
 * Sun Oct 20 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-27
 - Updated source
 

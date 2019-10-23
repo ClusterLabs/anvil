@@ -88,7 +88,9 @@ sub parent
 
 =head2 entry
 
-This method writes an entry to the journald logs, provided the log entry's level is equal to or higher than the active log level. The exception is if the log entry contains sensitive data, like a password, and 'C<< log::secure >> is set to 'C<< 0 >>' (the default).
+This method writes an entry to either the log files or to the journald logs, provided the log entry's level is equal to or higher than the active log level. The exception is if the log entry contains sensitive data, like a password, and 'C<< log::secure >> is set to 'C<< 0 >>' (the default). In this case, the sensitive log / data will be listed as suppressed. 
+
+B<< NOTE >>: Deciding if the logs go to a file or journald is determined by checking to see if C<< path::log::main >> is set. If it isn't, journald is used. If it is (default), the file is used. If writing to a log file, and if C<< path::log::alert >> is also set, any entry with a set C<< priority >> (see below) is logged to both files.
 
 Here is a simple example of writing a simple log entry at log log level 1.
 
@@ -185,6 +187,14 @@ B<< NOTE >>: This honours the log level. That is to say, it will only print the 
 
 =head3 priority (optional)
 
+What this does depends on if we're logging to a file or not. 
+
+=head4 File
+
+If set, the log entry will also be written to the C<< path::log::alert >> log file, with a prefix indicating 'Error', 'Warning' or 'Note'. This is meant to make it easier to filter out important messages from general log entries. Note that these log entries are also still written to C<< path::log::main >>, so that these messages can be seen in context.
+
+=head4 Journald
+
 This is an optional log priority (level) name. By default, the following priorities will be used based on the log level of the message.
 
 * 0 = notice
@@ -251,7 +261,7 @@ sub entry
 	
 	$anvil->data->{loop}{count} = 0 if not defined $anvil->data->{loop}{count};
 	$anvil->data->{loop}{count}++;
-	print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [".$level."], defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."], loop::count: [".$anvil->data->{loop}{count}."], source: [".$source."], line: [".$line."], key: [".$key."], variables: [".$variables."]\n" if $test;
+	print $THIS_FILE." ".__LINE__."; [ Debug ] - level: [".$level."], defaults::log::level: [".$anvil->data->{defaults}{'log'}{level}."], logging secure? [".$anvil->Log->secure."], priority: [".$priority."], source: [".$source."], line: [".$line."], key: [".$key."], variables: [".$variables."]\n" if $test;
 	if (($test) && (ref($variables) eq "HASH"))
 	{
 		foreach my $key (sort {$a cmp $b} keys %{$variables})
@@ -310,10 +320,24 @@ sub entry
 	}
 	
 	# Build the priority, if not set by the user.
+	my $log_to_alert = "";
 	my $priority_string = $secure ? "authpriv" : $facility;
 	if ($priority)
 	{
 		$priority_string .= ".$priority";
+		if ($priority =~ /^err/i)
+		{
+			$log_to_alert = $anvil->Words->string({test => $test, language => $language, key => "prefix_0001"});
+		}
+		elsif ($priority =~ /^alert/i)
+		{
+			$log_to_alert = $anvil->Words->string({test => $test, language => $language, key => "prefix_0002"});;
+		}
+		elsif ($priority =~ /^info/i)
+		{
+			$log_to_alert = $anvil->Words->string({test => $test, language => $language, key => "prefix_0003"});;
+		}
+		print $THIS_FILE." ".__LINE__."; priority_string: [".$priority_string."], log_to_alert: [".$log_to_alert."]\n" if $test;
 	}
 	elsif ($level eq "0")
 	{
@@ -355,6 +379,12 @@ sub entry
 	}
 	print $THIS_FILE." ".__LINE__."; loop::count: [".$anvil->data->{loop}{count}."] " if $test;
 	
+	if ($log_to_alert)
+	{
+		$log_to_alert = $string.$log_to_alert;
+		print $THIS_FILE." ".__LINE__."; log_to_alert: [".$log_to_alert."]\n" if $test;
+	}
+	
 	# If I have a raw string, do no more processing.
 	print $THIS_FILE." ".__LINE__."; raw: [".$raw."], key: [".$key."]\n" if $test;
 	if ($raw)
@@ -363,6 +393,12 @@ sub entry
 		$print_string .= $raw;
 		print $THIS_FILE." ".__LINE__."; string: ..... [".$string."]\n" if $test;
 		print $THIS_FILE." ".__LINE__."; print_string: [".$print_string."]\n" if $test;
+		
+		if ($log_to_alert)
+		{
+			$log_to_alert .= $raw;
+			print $THIS_FILE." ".__LINE__."; log_to_alert: [".$log_to_alert."]\n" if $test;
+		}
 	}
 	elsif ($key)
 	{
@@ -381,17 +417,30 @@ sub entry
 		$print_string .= $message;
 		print $THIS_FILE." ".__LINE__."; string: ..... [".$string."]\n" if $test;
 		print $THIS_FILE." ".__LINE__."; print_string: [".$print_string."]\n" if $test;
+		
+		if ($log_to_alert)
+		{
+			$log_to_alert .= $message;
+			print $THIS_FILE." ".__LINE__."; log_to_alert: [".$log_to_alert."]\n" if $test;
+		}
 	}
 	
+	### TODO: Left off here - check priority and switch to 'anvil.errors' if set to 'warn' or 'err'. All 
+	###       logs go to main still (so they can be seen in context).
 	# If the user set a log file, log to that. Otherwise, log via Log::Journald.
-	print $THIS_FILE." ".__LINE__."; path::log::file: [".$anvil->data->{path}{'log'}{file}."]\n" if $test;
-	if ($anvil->data->{path}{'log'}{file})
+	print $THIS_FILE." ".__LINE__."; path::log::main: [".$anvil->data->{path}{'log'}{main}."]\n" if $test;
+	if ($anvil->data->{path}{'log'}{main})
 	{
 		# TODO: Switch back to journald later, using a file for testing for now
 		if ($string !~ /\n$/)
 		{
 			$string .= "\n";
 			print $THIS_FILE." ".__LINE__."; string: [".$string."]\n" if $test;
+		}
+		if ($log_to_alert !~ /\n$/)
+		{
+			$log_to_alert .= "\n";
+			print $THIS_FILE." ".__LINE__."; log_to_alert: [".$log_to_alert."]\n" if $test;
 		}
 		
 		### TODO: Periodically check the log file size. If it's over a gigabyte, archive it
@@ -402,7 +451,7 @@ sub entry
 		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
 			# If the file doesn't start with a '/', we'll put it under /var/log.
-			my $log_file           = $anvil->data->{path}{'log'}{file} =~ /^\// ? $anvil->data->{path}{'log'}{file} : "/var/log/".$anvil->data->{path}{'log'}{file};
+			my $log_file           = $anvil->data->{path}{'log'}{main} =~ /^\// ? $anvil->data->{path}{'log'}{main} : "/var/log/".$anvil->data->{path}{'log'}{main};
 			my ($directory, $file) = ($log_file =~ /^(\/.*)\/(.*)$/);
 			print $THIS_FILE." ".__LINE__."; log_file: [".$log_file."]. directory: [".$directory."], file: [".$file."]\n" if $test;
 			
@@ -427,11 +476,51 @@ sub entry
 		if (not $anvil->data->{HANDLE}{'log'}{main})
 		{
 			# NOTE: This can't be a normal error because we can't write to the logs.
-			die $THIS_FILE." ".__LINE__."; log file handle doesn't exist, but it should by now.\n";
+			die $THIS_FILE." ".__LINE__."; log main file handle doesn't exist, but it should by now.\n";
 		}
 		
 		# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
 		print { $anvil->data->{HANDLE}{'log'}{main} } $string;
+		
+		# Does this need to be logged to 'notice' as well?
+		if (($log_to_alert) && ($anvil->data->{path}{'log'}{alert}))
+		{
+			$anvil->data->{HANDLE}{'log'}{alert} = "" if not defined $anvil->data->{HANDLE}{'log'}{alert};
+			print $THIS_FILE." ".__LINE__."; HANDLE::log::alert: [".$anvil->data->{HANDLE}{'log'}{alert}."]\n" if $test;
+			if (not $anvil->data->{HANDLE}{'log'}{alert})
+			{
+				# If the file doesn't start with a '/', we'll put it under /var/log.
+				my $log_file           = $anvil->data->{path}{'log'}{alert} =~ /^\// ? $anvil->data->{path}{'log'}{alert} : "/var/log/".$anvil->data->{path}{'log'}{alert};
+				my ($directory, $file) = ($log_file =~ /^(\/.*)\/(.*)$/);
+				print $THIS_FILE." ".__LINE__."; log_file: [".$log_file."]. directory: [".$directory."], file: [".$file."]\n" if $test;
+				
+				### WARNING: We MUST set the debug level really high, or else we'll go into a deep 
+				###          recursion!
+				# Make sure the log directory exists.
+				$anvil->Storage->make_directory({test => $test, debug => 99, directory => $directory, mode => 755});
+				
+				# Now open the log
+				my $shell_call = $log_file;
+				print $THIS_FILE." ".__LINE__."; shell_call: [".$shell_call."]\n" if $test;
+				# NOTE: Don't call '$anvil->Log->entry()' here, it will cause a loop!
+				open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
+				$file_handle->autoflush(1);
+				$anvil->data->{HANDLE}{'log'}{alert} = $file_handle;
+				print $THIS_FILE." ".__LINE__."; HANDLE::log::alert: [".$anvil->data->{HANDLE}{'log'}{alert}."]\n" if $test;
+				
+				# Make sure it can be written to by apache.
+				$anvil->Storage->change_mode({test => $test, debug => $debug, path => $log_file, mode => "0666"});
+			}
+			
+			if (not $anvil->data->{HANDLE}{'log'}{alert})
+			{
+				# NOTE: This can't be a normal error because we can't write to the logs.
+				die $THIS_FILE." ".__LINE__."; log alert file handle doesn't exist, but it should by now.\n";
+			}
+			
+			# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
+			print { $anvil->data->{HANDLE}{'log'}{alert} } $log_to_alert;
+		}
 		$anvil->data->{loop}{count} = 0;
 	}
 	else

@@ -1160,7 +1160,8 @@ sub _set_paths
 				database			=>	"/tmp/anvil-tools.database.lock",
 			},
 			'log'			=>	{
-				file				=>	"/var/log/anvil.log",
+				main				=>	"/var/log/anvil.log",
+				alert				=>	"/var/log/anvil.alert.log",
 			},
 			proc			=>	{
 				uptime				=>	"/proc/uptime",

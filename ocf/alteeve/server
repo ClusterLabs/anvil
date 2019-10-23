@@ -642,7 +642,7 @@ sub server_status
 	{
 		# Set a sane default of 20 seconds.
 		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "warn", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
 	
 	$anvil->nice_exit({exit_code => 0});

@@ -985,6 +985,10 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="suffix_0010">Days</key>	<!-- Long suffix for 'days'. -->
 		<key name="suffix_0011">Weeks</key>	<!-- Long suffix for 'days'. -->
 		
+		<key name="prefix_0001">[ Error ]   - </key>
+		<key name="prefix_0002">[ Warning ] - </key>
+		<key name="prefix_0003">[ Note ]    - </key>
+		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
 		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
