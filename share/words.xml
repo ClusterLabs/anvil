@@ -1061,6 +1061,9 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0065">Refresh the 'OUI' database used to cross reference MAC addresses to the companies that own them.</key>
 		<key name="job_0066">Network Scan.</key>
 		<key name="job_0067">This job does a simple ping scan of the networks connected to this host. Any detected hosts have their MAC / IP addresses recorded. This is designed to help determine IP addresses assigned to servers hosted on the Anvil! system.</key>
+		<key name="job_0068">Adding the database connection information for the dashboard: [#!variable!host_name!#] to the target's anvil.conf file.</key>
+		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
+		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::file!#] for details.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

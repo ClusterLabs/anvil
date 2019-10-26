@@ -152,6 +152,7 @@ sub add_databases
 	# We'll sort in reverse order, so if there is a BCN address, we'll use it.
 	my $host_uuid   = $anvil->data->{sys}{host_uuid};
 	my $db_host     = "";
+	my $db_ping     = 1,
 	my $db_port     = "";
 	my $db_password = "";
 	foreach my $interface (sort {$a cmp $b} keys %{$match->{'local'}})
@@ -186,6 +187,7 @@ sub add_databases
 			port         => $anvil->data->{data}{ssh_port}, 
 			db_host_uuid => $anvil->data->{sys}{host_uuid}, 
 			db_host      => $db_host,
+			db_ping      => $db_ping, 
 			db_port      => $db_port,
 			db_password  => $db_password, 
 		});
@@ -214,7 +216,18 @@ sub add_databases
 	# Now add any peers we know about.
 	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:uuid'           => $uuid,
+			's2:sys::host_uuid' => $anvil->data->{sys}{host_uuid},
+		}});
 		next if $uuid eq $anvil->data->{sys}{host_uuid};
+		
+		my $target_host = $anvil->Database->get_host_from_uuid({host_uuid => $uuid, short => 1});
+		   $target_host = $target if not $target_host;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host => $target_host }});
+		
+		$anvil->data->{job}{progress} += 2;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0068,!!host_name!".$target_host."!!");
 		
 		# This is a peer.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -224,9 +237,88 @@ sub add_databases
 			"database::${uuid}::ping"     => $anvil->data->{database}{$uuid}{ping},
 		}});
 		
-		# The host may not be able to reach the 'host' that we can. So get the IPs we know about for
-		# this host and see if we can find a match.
+		# The host being initialized may not be able to reach the 'host' as set in our config. So get the IPs
+		# we know about for this host and see if we can find a match.
+		my $peer_host     = "";
+		my $peer_port     = $anvil->data->{database}{$uuid}{port};
+		my $peer_ping     = $anvil->data->{database}{$uuid}{ping};
+		my $peer_password = $anvil->data->{database}{$uuid}{password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			peer_host     => $peer_host,
+			peer_port     => $peer_port,
+			peer_password => $anvil->Log->is_secure($peer_password),
+			peer_ping     => $peer_ping,
+		}});
 		
+		# Get the IP(s) for the Striker peer.
+		$anvil->Network->load_ips({host_uuid => $uuid});
+		
+		# Find a match between the target and the peer.
+		my ($match) = $anvil->Network->find_matches({
+			first  => $target,
+			second => $uuid,
+		});
+		
+		# Did we find a match?
+		if ($match)
+		{
+			# Yup!
+			my $match_found = 0;
+			foreach my $interface (sort {$a cmp $b} keys %{$match->{$uuid}})
+			{
+				# Get the IP
+				$peer_host = $match->{$uuid}{$interface}{ip};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					interface => $interface, 
+					peer_host => $peer_host,
+				}});
+				if ($peer_host)
+				{
+					my $failed = $anvil->Database->manage_anvil_conf({
+						debug        => 2, 
+						target       => $target,
+						remote_user  => "root",
+						password     => $anvil->data->{data}{password}, 
+						port         => $anvil->data->{data}{ssh_port}, 
+						db_host_uuid => $uuid, 
+						db_host      => $peer_host,
+						db_ping      => $peer_ping,
+						db_port      => $peer_port,
+						db_password  => $peer_password, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+					$anvil->data->{job}{progress} += 3;
+					if ($failed)
+					{
+						# Something went wrong
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0076"});
+						update_progress($anvil, $anvil->data->{job}{progress}, "job_0070");
+					}
+					else
+					{
+						# Success! We're done@
+						$match_found = 1;
+						update_progress($anvil, $anvil->data->{job}{progress}, "job_0034");
+					}
+					
+					
+					last;
+				}
+			}
+			if (not $match_found)
+			{
+				# No (workable) match, not sure how this could happen though... Bug in 
+				# 'Network->find_matches()'?
+				$anvil->data->{job}{progress} += 3;
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0069");
+			}
+		}
+		else
+		{
+			# No match
+			$anvil->data->{job}{progress} += 3;
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0069");
+		}
 	}
 	
 	return(0);

@@ -21,6 +21,7 @@ my $THIS_FILE = "Database.pm";
 # connect
 # disconnect
 # get_alert_recipients
+# get_host_from_uuid
 # get_hosts
 # get_job_details
 # get_jobs
@@ -138,22 +139,29 @@ sub archive_database
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->archive_database()" }});
 	
 	my $tables = defined $parameter->{tables} ? $parameter->{tables} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		tables => $tables, 
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
+	
+	# If not given tables, use the system tables.
+	if (not $tables)
+	{
+		$tables = $anvil->data->{sys}{database}{check_tables};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
+	}
+	
+	# If this isn't a dashboard, exit. 
+	my $host_type = $anvil->System->get_host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "dashboard")
+	{
+		# ...
+		return(1);
+	}
 	
 	# If the 'tables' parameter is an array reference, add it to 'sys::database::check_tables' (creating
 	# it, if needed).
 	if (ref($tables) ne "ARRAY")
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0432"});
-		return(1);
-	}
-	
-	# Is archiving disabled?
-	if (not $anvil->data->{sys}{database}{archive}{trigger})
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0189"});
 		return(1);
 	}
 	
@@ -165,15 +173,99 @@ sub archive_database
 		return(1);
 	}
 	
+	# Make sure I have sane values.
+	$anvil->data->{sys}{database}{archive}{compress}  = 1     if not defined $anvil->data->{sys}{database}{archive}{compress};
+	$anvil->data->{sys}{database}{archive}{count}     = 10000 if not defined $anvil->data->{sys}{database}{archive}{count};
+	$anvil->data->{sys}{database}{archive}{division}  = 25000 if not defined $anvil->data->{sys}{database}{archive}{division};
+	$anvil->data->{sys}{database}{archive}{trigger}   = 20000 if not defined $anvil->data->{sys}{database}{archive}{trigger};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::database::archive::compress" => $anvil->data->{sys}{database}{archive}{compress},
+		"sys::database::archive::count"    => $anvil->data->{sys}{database}{archive}{count},
+		"sys::database::archive::division" => $anvil->data->{sys}{database}{archive}{division},
+		"sys::database::archive::trigger"  => $anvil->data->{sys}{database}{archive}{trigger},
+	}});
+	
+	# Make sure the archive directory is sane.
+	if ((not defined $anvil->data->{sys}{database}{archive}{directory}) or ($anvil->data->{sys}{database}{archive}{directory} !~ /^\//))
+	{
+		$anvil->data->{sys}{database}{archive}{directory} = "/usr/local/anvil/archives/";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::archive::directory" => $anvil->data->{sys}{database}{archive}{directory},
+		}});
+	}
+	if (not -d $anvil->data->{sys}{database}{archive}{directory})
+	{
+		my $failed = $anvil->Storage->make_directory({
+			debug     => $debug,
+			directory => $anvil->data->{sys}{database}{archive}{directory},
+			mode      => "0700",
+			user      => "root",
+			group     => "root",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		if ($failed)
+		{
+			# ...
+			return("!!error!!");
+		}
+	}
+	
+	# Make sure the numerical values are sane
+	if ($anvil->data->{sys}{database}{archive}{count} !~ /^\d+$/)
+	{
+		# Use the set value if it just has commas.
+		$anvil->data->{sys}{database}{archive}{count} =~ s/,//g;
+		$anvil->data->{sys}{database}{archive}{count} =~ s/\.\d+$//g;
+		if ($anvil->data->{sys}{database}{archive}{count} !~ /^\d+$/)
+		{
+			$anvil->data->{sys}{database}{archive}{count} = 10000;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::archive::count" => $anvil->data->{sys}{database}{archive}{count},
+		}});
+	}
+	if ($anvil->data->{sys}{database}{archive}{division} !~ /^\d+$/)
+	{
+		# Use the set value if it just has commas.
+		$anvil->data->{sys}{database}{archive}{division} =~ s/,//g;
+		$anvil->data->{sys}{database}{archive}{division} =~ s/\.\d+$//g;
+		if ($anvil->data->{sys}{database}{archive}{division} !~ /^\d+$/)
+		{
+			$anvil->data->{sys}{database}{archive}{division} = 25000;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::archive::division" => $anvil->data->{sys}{database}{archive}{division},
+		}});
+	}
+	if ($anvil->data->{sys}{database}{archive}{trigger} !~ /^\d+$/)
+	{
+		# Use the set value if it just has commas.
+		$anvil->data->{sys}{database}{archive}{trigger} =~ s/,//g;
+		$anvil->data->{sys}{database}{archive}{trigger} =~ s/\.\d+$//g;
+		if ($anvil->data->{sys}{database}{archive}{trigger} !~ /^\d+$/)
+		{
+			$anvil->data->{sys}{database}{archive}{trigger} = 20000;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::archive::trigger" => $anvil->data->{sys}{database}{archive}{trigger},
+		}});
+	}
+	
+	# Is archiving disabled?
+	if (not $anvil->data->{sys}{database}{archive}{trigger})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0189"});
+		return(1);
+	}
+	
 	# We'll use the list of tables created for _find_behind_databases()'s 'sys::database::check_tables' 
 	# array, but in reverse so that tables with primary keys (first in the array) are archived last.
 	foreach my $table (reverse(@{$tables}))
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
-		$anvil->Database->_archive_table({table => $table});
+		$anvil->Database->_archive_table({debug => $debug, table => $table});
 	}
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->archive_database()" }});
 	return(0);
 }
 
@@ -1211,9 +1303,6 @@ sub connect
 	# Mark that we're not active.
 	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
-	# Archive old data.
-	$anvil->Database->archive_database({debug => $debug});
-	
 	# Sync the database, if needed.
 	$anvil->Database->resync_databases({debug => $debug});
 	
@@ -1307,6 +1396,68 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
 	return();
+}
+
+=head2 get_host_from_uuid
+
+This takes a host UUID and returns the host's name. If there is a problem, or if the host UUID isn't found, an empty string is returned.
+
+Parameters;
+
+=head3 host_uuid (required)
+
+This is the host UUID we're querying the name of.
+
+=head3 short (optional, default '0')
+
+If set to C<< 1 >>, the short host name is returned. When set to C<< 0 >>, the full host name is returned.
+
+=cut
+sub get_host_from_uuid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_from_uuid()" }});
+	
+	my $host_name = "";
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
+	my $short     = defined $parameter->{short}     ? $parameter->{short}     : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+		short     => $short,
+	}});
+	
+	if (not $host_uuid)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->get_host_from_uuid()", parameter => "host_uuid" }});
+		return($host_name);
+	}
+	
+	my $query = "SELECT host_name FROM hosts WHERE host_uuid = ".$anvil->Database->quote($host_uuid).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		$host_name = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+		
+		if ($short)
+		{
+			$host_name =~ s/\..*$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+		}
+	}
+	
+	return($host_name);
 }
 
 =head2 get_hosts
@@ -1412,7 +1563,7 @@ sub get_job_details
 	if (not $job_uuid)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->get_job_details()", parameter => "get_jobs" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->get_job_details()", parameter => "job_uuid" }});
 		return($return);
 	}
 	
@@ -4357,8 +4508,9 @@ sub insert_or_update_network_interfaces
 	# If we don't have a network interface UUID, try to look one up using the MAC address
 	if (not $network_interface_uuid)
 	{
-		# See if I know this NIC by referencing it's MAC.
-		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address).";";
+		# See if I know this NIC by referencing it's MAC and name. The name is needed because virtual
+		# devices can share the MAC with the real interface.
+		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." AND network_interface_name = ".$anvil->Database->quote($network_interface_name).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		$network_interface_uuid = $anvil->Database->query({query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];
@@ -6949,7 +7101,7 @@ Example;
 
 B<< NOTE >>:
 
-Unlike most Anvil methods, this one does NOT use hashes for the parameters! It is meant to replicate C<< DBI->quite("foo") >>, so the only passed-in value is the string to quote. If an undefined or empty string is passed in, a quoted empty string will be returned.
+Unlike most Anvil methods, this one does NOT use hashes for the parameters! It is meant to replicate C<< DBI->quote("foo") >>, so the only passed-in value is the string to quote. If an undefined or empty string is passed in, a quoted empty string will be returned.
 
 =cut
 sub quote
@@ -7149,7 +7301,7 @@ sub resync_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->resync_databases()" }});
 	
 	# If a resync isn't needed, just return.
@@ -7160,6 +7312,10 @@ sub resync_databases
 		delete $anvil->data->{sys}{database}{table};
 		return(0);
 	}
+	
+	# Archive old data before resync'ing
+	$anvil->Database->archive_database({debug => $debug});
+	die;
 	
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.
@@ -7807,17 +7963,9 @@ sub _archive_table
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_archive_table()" }});
 	
-	my $table    = $parameter->{table}    ? $parameter->{table}    : "";
-	my $offset   = $parameter->{offset}   ? $parameter->{offset}   : 0;
-	my $loop     = $parameter->{loop}     ? $parameter->{loop}     : 0;
-	my $division = $parameter->{division} ? $parameter->{division} : $anvil->data->{sys}{database}{archive}{division};
-	my $compress = $parameter->{compress} ? $parameter->{compress} : $anvil->data->{sys}{database}{archive}{compress};
+	my $table = $parameter->{table} ? $parameter->{table} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		table    => $table, 
-		offset   => $offset, 
-		loop     => $loop, 
-		division => $division, 
-		compress => $compress, 
+		table => $table, 
 	}});
 	
 	if (not $table)
@@ -7826,48 +7974,177 @@ sub _archive_table
 		return("!!error!!");
 	}
 	
-	# First, if this table doesn't have a history schema, exit.
-	my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	
-	my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-	if (not $count)
-	{
-		# History table doesn't exist, we're done.
-		return(0);
-	}
-	
-	# Before we do any real analysis, do we have enough entries in the history schema to trigger an archive?
-	$query = "SELECT COUNT(*) FROM history.".$table.";";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	
-	$count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	# These values are sanity checked before this method is called.
+	my $compress   = $anvil->data->{sys}{database}{archive}{compress};
+	my $directory  = $anvil->data->{sys}{database}{archive}{directory};
+	my $drop_to    = $anvil->data->{sys}{database}{archive}{count};
+	my $division   = $anvil->data->{sys}{database}{archive}{division};
+	my $trigger    = $anvil->data->{sys}{database}{archive}{trigger};
+	my $time_stamp = $anvil->Get->date_and_time({file_name => 1});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"s1:count"                           => $count,
-		"s2:sys::database::archive::trigger" => $anvil->data->{sys}{database}{archive}{trigger},
-	}});
-	if ($count <= $anvil->data->{sys}{database}{archive}{trigger})
-	{
-		# History table doesn't exist, we're done.
-		return(0);
-	}
-	
-	# There is enough data to trigger an archive, so lets get started with a list of columns in this 
-	# table.
-	$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->Database->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
-	
-	my $columns      = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $column_count = @{$columns};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		columns      => $columns, 
-		column_count => $column_count 
+		compress   => $compress, 
+		directory  => $directory, 
+		drop_to    => $drop_to, 
+		division   => $division, 
+		trigger    => $trigger, 
+		time_stamp => $time_stamp, 
 	}});
 	
-	#print Dumper $columns;
-	
-	# See m2's DB->archive_if_needed() for old version of this.
+	# Loop through each database so that we archive from everywhere before resync'ing.
+	foreach my $uuid (keys %{$anvil->data->{database}})
+	{
+		# First, if this table doesn't have a history schema, exit.
+		my $vacuum = 0;
+		my $query  = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+		if (not $count)
+		{
+			# History table doesn't exist, we're done.
+			next;
+		}
+		
+		# Before we do any real analysis, do we have enough entries in the history schema to trigger an archive?
+		$query = "SELECT COUNT(*) FROM history.".$table.";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		$count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:uuid"  => $uuid,
+			"s2:count" => $count,
+		}});
+		if ($count <= $trigger)
+		{
+			# Not enough records to bother archiving.
+			next;
+		}
+		
+		# If there are more than 
+		my $to_remove        = $count - $drop_to;
+		my $loops            = (int($to_remove / $division) + 1);
+		my $records_per_loop = $anvil->Convert->round({number => ($to_remove / $loops)});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:to_remove"        => $to_remove,
+			"s2:loops"            => $loops,
+			"s3:records_per_loop" => $records_per_loop,
+		}});
+		
+		# There is enough data to trigger an archive, so lets get started with a list of columns in 
+		# this table.
+		$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->Database->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+		
+		my $columns      = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		my $column_count = @{$columns};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			columns      => $columns, 
+			column_count => $column_count 
+		}});
+		
+		my $offset = $count - $records_per_loop;
+		my $loop   = 0;
+		for (1..$loops)
+		{
+			# We need to date stamp from the closest record to the offset.
+			   $loop++;
+			my $sql_file = "COPY ".$table." (";
+			my $query    = "SELECT modified_date FROM history.".$table." OFFSET ".$offset." LIMIT 1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:loop"     => $loop,
+				"s2:query"    => $query,
+				"s3:sql_file" => $sql_file,
+			}});
+			
+			my $modified_date = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { modified_date => $modified_date }});
+			
+			# Build the query.
+			$query = "SELECT ";
+			foreach my $column (sort {$a cmp $b} @{$columns})
+			{
+				$sql_file .= $column->[0].", ";
+				$query      .= $column->[0].", ";
+			}
+			$sql_file .= "modified_date) FROM stdin;\n";
+			$query    .= "modified_date FROM history.".$table." WHERE modified_date >= '".$modified_date."' ORDER BY modified_date ASC OFFSET ".$offset.";";
+			my $results = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			
+			foreach my $row (@{$results})
+			{
+				# Build the string.
+				my $line = "";
+				my $i    = 0;
+				foreach my $column (@{$columns})
+				{
+					my $value = defined $row->[$i] ? $row->[$i] : '\N';
+					$i++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:i"      => $i, 
+						"s2:column" => $column, 
+						"s3:value"  => $value, 
+					}});
+					
+					# We need to convert tabs and newlines into \t and \n
+					$value =~ s/\t/\\t/g;
+					$value =~ s/\n/\\n/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+					
+					$line .= $value."\t";
+				}
+				$sql_file .= $line."\n";
+				
+				# The 'history_id' is NOT consistent between databases! So we don't record it here.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			}
+			$sql_file .= "\\.\n\n";;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sql_file => $sql_file }});
+			
+			my $archive_file = $directory."/".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$table.".".$time_stamp.".".$loop.".out";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { archive_file => $archive_file }});
+			
+			# It may not be secure, but we play it safe.
+			my ($failed) = $anvil->Storage->write_file({
+				debug  => $debug, 
+				body   => $sql_file,
+				file   => $archive_file, 
+				user   => "root", 
+				group  => "root", 
+				mode   => "0600",
+				secure => 1.
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+			if ($failed)
+			{
+				# ???
+				last;
+			}
+			else
+			{
+				$vacuum = 1;
+				$query  = "DELETE FROM history.".$table." WHERE modified_date >= '".$modified_date."';";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			}
+			
+			$offset -= $records_per_loop;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { offset => $offset }});
+			
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vacuum => $vacuum }});
+		if ($vacuum)
+		{
+			my $query = "VACUUM FULL;";
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+		die;
+	}
 	
 	return(0);
 }
@@ -7941,7 +8218,7 @@ sub _find_behind_databases
 	
 	# Look at all the databases and find the most recent time stamp (and the ID of the DB).
 	my $source_updated_time = 0;
-	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+	foreach my $uuid (keys %{$anvil->data->{database}})
 	{
 		my $database_name = defined $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : "#!string!log_0185!#";
 		my $database_user = defined $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : "#!string!log_0185!#";

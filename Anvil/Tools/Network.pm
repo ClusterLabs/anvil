@@ -609,7 +609,16 @@ sub download
 
 =head2 find_matches
 
-This takes two hash keys from prior C<< Network->get_ips() >> runs and finds which are on the same network.
+This takes two hash keys from prior C<< Network->get_ips() >> or C<< ->load_ips() >> runs and finds which are on the same network. 
+
+A hash reference is returned using the format:
+
+* <first>::<interface>::ip      = <ip_address>
+* <first>::<interface>::subnet  = <subnet_mask>
+* <second>::<interface>::ip     = <ip_address>
+* <second>::<interface>::subnet = <subnet_mask>
+
+Where C<< first >> and C<< second >> are the parameters passed in below and C<< interface >> is the name of the interface on the fist/second machine that can talk to one another.
 
 Paramters;
 
@@ -697,11 +706,15 @@ sub find_matches
 					if ($first_network eq $second_network)
 					{
 						# Match!
-						$match->{$first}{$first_interface}   = $second_network;
-						$match->{$second}{$second_interface} = $second_network;
+						$match->{$first}{$first_interface}{ip}       = $first_ip;
+						$match->{$first}{$first_interface}{subnet}   = $second_network;
+						$match->{$second}{$second_interface}{ip}     = $second_ip;
+						$match->{$second}{$second_interface}{subnet} = $first_network;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"${first}::${first_interface}"   => $match->{$first}{$first_interface},
-							"${second}::${second_interface}" => $match->{$second}{$second_interface},
+							"${first}::${first_interface}::ip"       => $match->{$first}{$first_interface}{ip},
+							"${first}::${first_interface}::subnet"   => $match->{$first}{$first_interface}{subnet},
+							"${second}::${second_interface}::ip"     => $match->{$second}{$second_interface}{ip},
+							"${second}::${second_interface}::subnet" => $match->{$second}{$second_interface}{subnet},
 						}});
 					}
 				}
