@@ -153,7 +153,8 @@ sub archive_database
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	if ($host_type ne "dashboard")
 	{
-		# ...
+		# Not a dashboard, don't archive
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0452"});
 		return(1);
 	}
 	
@@ -161,7 +162,7 @@ sub archive_database
 	# it, if needed).
 	if (ref($tables) ne "ARRAY")
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0432"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0432"});
 		return(1);
 	}
 	
@@ -205,7 +206,10 @@ sub archive_database
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 		if ($failed)
 		{
-			# ...
+			# No directory to archive into...
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, priority => "err", key => "error_0098", variables => { 
+				directory => $anvil->data->{sys}{database}{archive}{directory},
+			}});
 			return("!!error!!");
 		}
 	}
@@ -7314,6 +7318,7 @@ sub resync_databases
 	}
 	
 	# Archive old data before resync'ing
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0451"});
 	$anvil->Database->archive_database({debug => $debug});
 	die;
 	
@@ -8021,7 +8026,7 @@ sub _archive_table
 			next;
 		}
 		
-		# If there are more than 
+		# Do some math...
 		my $to_remove        = $count - $drop_to;
 		my $loops            = (int($to_remove / $division) + 1);
 		my $records_per_loop = $anvil->Convert->round({number => ($to_remove / $loops)});
@@ -8029,6 +8034,12 @@ sub _archive_table
 			"s1:to_remove"        => $to_remove,
 			"s2:loops"            => $loops,
 			"s3:records_per_loop" => $records_per_loop,
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0453", variables => { 
+			records => $anvil->Convert->add_commas({number => $to_remove }),
+			loops   => $anvil->Convert->add_commas({number => $loops }),
+			table   => $table,
+			host    => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}),
 		}});
 		
 		# There is enough data to trigger an archive, so lets get started with a list of columns in 
@@ -8110,6 +8121,10 @@ sub _archive_table
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { archive_file => $archive_file }});
 			
 			# It may not be secure, but we play it safe.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0454", variables => { 
+				records => $anvil->Convert->add_commas({number => $count}),
+				file    => $archive_file,
+			}});
 			my ($failed) = $anvil->Storage->write_file({
 				debug  => $debug, 
 				body   => $sql_file,
@@ -8122,14 +8137,22 @@ sub _archive_table
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
 			if ($failed)
 			{
-				# ???
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0099", variables => { 
+					file  => $archive_file,
+					table => $table, 
+				}});
 				last;
 			}
 			else
 			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0283"});
 				$vacuum = 1;
 				$query  = "DELETE FROM history.".$table." WHERE modified_date >= '".$modified_date."';";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				if ($compress)
+				{
+					
+				}
 			}
 			
 			$offset -= $records_per_loop;
@@ -8412,6 +8435,7 @@ sub _mark_database_as_behind
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_mark_database_as_behind()" }});
+	
 	
 	my $uuid = $parameter->{uuid} ? $parameter->{uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});

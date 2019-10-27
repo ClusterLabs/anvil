@@ -782,6 +782,10 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>
 		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now.</key>
 		<key name="log_0450">Skipping the network scan. The next scheduled scan will be done in: [#!variable!next_scan!#]. Override with '--force'.</key>
+		<key name="log_0451">Checking to see if any data needs to be archived before starting the resync.</key>
+		<key name="log_0452">Skipping archiving, not a Striker dashboard.</key>
+		<key name="log_0453">Archiving: [#!variable!records!#] over: [#!variable!loops!#] segments from the table: [#!variable!table!#] from the database on: [#!variable!host!#].</key>
+		<key name="log_0454">Writing: [#!variable!records!#] to the file: [#!variable!file!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1037,7 +1041,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0041">Removing conflicting packages.</key>
 		<key name="job_0042">Will now install: [#!variable!package!#].</key>
 		<key name="job_0043">Verifying installation.</key>
-		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::log::file!#.</key>
+		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::log::main!#.</key>
 		<key name="job_0045">Success!</key>
 		<key name="job_0046">Adding our database connection information to the target's anvil.conf file.</key>
 		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
@@ -1063,7 +1067,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0067">This job does a simple ping scan of the networks connected to this host. Any detected hosts have their MAC / IP addresses recorded. This is designed to help determine IP addresses assigned to servers hosted on the Anvil! system.</key>
 		<key name="job_0068">Adding the database connection information for the dashboard: [#!variable!host_name!#] to the target's anvil.conf file.</key>
 		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
-		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::file!#] for details.</key>
+		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
 		
 		<!-- Warnings --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1108,9 +1112,9 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="error_0025"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.]]></key>
 		<key name="error_0026"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.]]></key>
 		<key name="error_0027">Login failed, please try again.</key>
-		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!path::log::file!#</span>] for details.]]></key>
+		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!path::log::main!#</span>] for details.]]></key>
 		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
-		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!path::log::file!#</span>].]]></key>
+		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!path::log::main!#</span>].]]></key>
 		<key name="error_0031">The 'host-uuid': [#!variable!host_uuid!#] is not valid.</key>
 		<key name="error_0032">The '#!variable!switch!#' switch is missing.</key>
 		<key name="error_0033">The job UUID was passed via '--job-uuid' but the passed in value: [#!variable!uuid!#] is not a valid UUID.</key>
@@ -1193,6 +1197,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0095">There was a problem downloading: [#!variable!url!#] to: [#!variable!file!#]. Aborting parsing of the OUI data.</key>
 		<key name="error_0096">The 'oui_mac_prefix': [#!variable!oui_mac_prefix!#] string doesn't appear to be a valid 6-byte hex string.</key>
 		<key name="error_0097"><![CDATA[The network range: [#!variable!range!#] does not appear to be valid. It must be '<ip>/<subnet>' (subnet can be dotted-decimal or CIDR notation) or be 'bcn', 'sn', 'ifn' or a specific variant like 'bcn1', 'sn2', or 'ifn2'. Alternatively, so not use '--network X' at all and all networks with host is connected to will be scanned.]]></key>
+		<key name="error_0098">Failed to create the archive directory: [#!variable!directory!#]. Skipping the archive process.</key>
+		<key name="error_0099">There was a problem writing out the records to file: [#!variable!file!#]. There may be more information in #!data!path::log::main!#. Skipping further attempts to archive: [#!variable!table!#].</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
