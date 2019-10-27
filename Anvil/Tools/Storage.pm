@@ -221,6 +221,7 @@ fi";
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
+			port        => $port, 
 			user        => $remote_user, 
 			password    => $password,
 			remote_user => $remote_user, 
@@ -298,6 +299,7 @@ fi";
 			target_file => $target_file, 
 			password    => $password, 
 			target      => $target,
+			port        => $port, 
 			remote_user => $remote_user, 
 			source_file => $source_file,
 		});
@@ -673,7 +675,9 @@ sub check_md5sums
 
 =head2 compress
 
-This compresses a target file, using bzip2. It returns C<< 0 >> on success, and C<< 1 >> on failure.
+This compresses a local or remote file, using bzip2. It returns C<< 0 >> on success, and C<< 1 >> on failure.
+
+B<< NOTE >>: When compressing a remote file, a ten minute (600 second) timeout is used. If you think a compression could take longer, either use the C<< timeout >> parameter below, or call this method on the remote machine, if possible.
 
 Parameters;
 
@@ -697,6 +701,10 @@ If C<< target >> is set, this is the password used to log into the remote system
 
 If set, the file will be copied on the target machine. This must be either an IP address or a resolvable host name. 
 
+=head3 timeout (optional, default '600')
+
+This is the number of seconds that this method will wait for the compression to complete. If the timeout expires, C<< 1 >> will be returned, though it is possible that the compression may still complete successfully after the connection times out.
+
 =head3 remote_user (optional, default root)
 
 If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
@@ -709,32 +717,286 @@ sub compress
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	### TODO: Looks like I forgot to read/pass 'port' in some methods here...
 	my $file        = defined $parameter->{file}        ? $parameter->{file}        : 0;
+	my $keep        = defined $parameter->{keep}        ? $parameter->{keep}        : 0;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	my $failed      = 1;
+	my $timeout     = defined $parameter->{timeout}     ? $parameter->{timeout}     : 600;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		overwrite   => $overwrite,
+		file        => $file, 
+		keep        => $keep,
 		password    => $anvil->Log->is_secure($password), 
 		port        => $port, 
 		remote_user => $remote_user, 
-		source_file => $source_file, 
-		target_file => $target_file,
 		target      => $target,
+		timeout     => $timeout, 
 	}});
 	
-	if (not $source_file)
+	if (not $file)
 	{
-		# No source passed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "source_file" }});
+		# No file passed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->compress()", parameter => "file" }});
 		return(1);
 	}
 	
+	# Add 'keep', if needed.
+	my $bzip2_call = $anvil->data->{path}{exe}{bzip2}." --compress ";
+	if ($keep)
+	{
+		$bzip2_call .= "--keep ";
+	}
+	   $bzip2_call .= $file;
+	my $out_file   =  $file.".bz2";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		bzip2_call => $bzip2_call,
+		out_file   => $out_file, 
+	}});
 	
-	return($failed);
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Compressing locally
+		if (not -e $file)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0103", variables => { file => $file }});
+			return(1);
+		}
+		
+		# Lets see how much it shrinks. What's the starting size?
+		my ($start_size) = (stat($file))[7];
+		my $start_time   = time;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0455", variables => { 
+			file => $file,
+			size => $anvil->Convert->add_commas({number => $start_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $start_size}).")",
+		}});
+		
+		# Now compress the file
+		my ($output, $return_code) = $anvil->System->call({
+			debug      => $debug, 
+			shell_call => $bzip2_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+		
+		if ($return_code)
+		{
+			# Something went wrong.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0100", variables => { 
+				return_code => $return_code,
+				output      => $output,
+			}});
+			return(1);
+		}
+		elsif (not -e $out_file)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0101", variables => { 
+				out_file => $out_file,
+			}});
+			return(1);
+		}
+		else
+		{
+			# Success! How big is the output?
+			my ($out_size) = (stat($out_file))[7];
+			my $took       = time - $start_time;
+			my $difference = $start_size - $out_size;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0456", variables => { 
+				file       => $out_file,
+				size       => $anvil->Convert->add_commas({number => $out_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $out_size}).")",
+				difference => $anvil->Convert->add_commas({number => $difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")",
+				took       => $anvil->Convert->time({'time' => $took, long => 1, translate => 1})
+			}});
+			return(0);
+		}
+	}
+	else
+	{
+		# Copying on a remote system.
+		my $shell_call = "
+if [ -e '".$file."' ]; 
+then
+    ".$anvil->data->{path}{exe}{'stat'}." --format='\%n \%s' ".$file."
+else
+    ".$anvil->data->{path}{exe}{echo}." 'file not found'
+fi
+";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			target      => $target,
+			port        => $port, 
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+			shell_call  => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($error)
+		{
+			# Something went wrong.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0102", variables => { 
+				file        => $file, 
+				error       => $error,
+				output      => $output,
+				target      => $target, 
+				remote_user => $remote_user, 
+			}});
+			return(1);
+		}
+		else
+		{
+			# Make sure we read the file's size (which also confirms it's existence).
+			my $start_size = 0;
+			my $file_found = 0;
+			foreach my $line (split/\n/, $output)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				if ($line =~ /^$file (\d+)$/)
+				{
+					$start_size = $1;
+					$file_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						start_size => $anvil->Convert->add_commas({number => $start_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $start_size}).")",
+						file_found => $file_found, 
+					}});
+				}
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_found => $file_found }});
+			if ($file_found)
+			{
+				# Compress!
+				my $start_time = time;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0455", variables => { 
+					file => $file,
+					size => $anvil->Convert->add_commas({number => $start_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $start_size}).")",
+				}});
+				my ($output, $error, $return_code) = $anvil->Remote->call({
+					debug       => $debug, 
+					target      => $target,
+					port        => $port, 
+					user        => $remote_user, 
+					password    => $password,
+					remote_user => $remote_user, 
+					shell_call  => $bzip2_call,
+					timeout     => $timeout,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					error       => $error,
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				if ($return_code)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0100", variables => { 
+						return_code => $return_code,
+						output      => $output,
+					}});
+					return(1);
+				}
+				else
+				{
+					# Get the size (and confirm the success) of the compressed file.
+					my $out_size   = 0;
+					my $file_found = 0;
+					my $tries      = 3;
+					until ($file_found)
+					{
+						my $shell_call = "
+if [ -e '".$out_file."' ]; 
+then
+    ".$anvil->data->{path}{exe}{'stat'}." --format='\%n \%s' ".$out_file."
+else
+    ".$anvil->data->{path}{exe}{echo}." 'file not found'
+fi
+";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0166", variables => { shell_call => $shell_call, target => $target, remote_user => $remote_user }});
+						my ($output, $error, $return_code) = $anvil->Remote->call({
+							debug       => $debug, 
+							target      => $target,
+							port        => $port, 
+							user        => $remote_user, 
+							password    => $password,
+							remote_user => $remote_user, 
+							shell_call  => $shell_call,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							error       => $error,
+							output      => $output,
+							return_code => $return_code, 
+						}});
+						
+						foreach my $line (split/\n/, $output)
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+							if ($line =~ /^$out_file (\d+)$/)
+							{
+								$out_size   = $1;
+								$file_found = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									out_size => $anvil->Convert->add_commas({number => $out_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $out_size}).")",
+									file_found => $file_found, 
+								}});
+							}
+						}
+						if ($file_found)
+						{
+							# Found it.
+							last;
+						}
+						else
+						{
+							$tries--;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tries => $tries }});
+							if (not $tries)
+							{
+								# Stop waiting.
+								last;
+							}
+							else
+							{
+								# Sleep for a second, then check again.
+								sleep 1;
+							}
+						}
+					}
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_found => $file_found }});
+					if ($file_found)
+					{
+						my $took       = time - $start_time;
+						my $difference = $start_size - $out_size;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0456", variables => { 
+							file       => $out_file,
+							size       => $anvil->Convert->add_commas({number => $out_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $out_size}).")",
+							difference => $anvil->Convert->add_commas({number => $difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")",
+							took       => $anvil->Convert->time({'time' => $took, long => 1, translate => 1})
+						}});
+						return(0);
+					}
+					else
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0101", variables => { out_file => $out_file }});
+						return(1);
+					}
+				}
+			}
+			else
+			{
+				# Not found.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0103", variables => { file => $file }});
+				return(1);
+			}
+		}
+	}
+	
+	# We should never get here, so return 1 as something obviously went wrong.
+	return(1);
 }
 
 =head2 copy_file
@@ -798,6 +1060,7 @@ sub copy_file
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		overwrite   => $overwrite,
 		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
 		remote_user => $remote_user, 
 		source_file => $source_file, 
 		target_file => $target_file,
@@ -894,6 +1157,7 @@ fi";
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
+			port        => $port, 
 			user        => $remote_user, 
 			password    => $password,
 			remote_user => $remote_user, 
@@ -948,6 +1212,7 @@ fi";
 					password    => $password, 
 					remote_user => $remote_user, 
 					target      => $target,
+					port        => $port, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0170", variables => {
@@ -962,6 +1227,7 @@ fi";
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
+				port        => $port, 
 				user        => $remote_user, 
 				password    => $password,
 				remote_user => $remote_user, 
@@ -1222,6 +1488,7 @@ fi;";
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
+				port        => $port, 
 				user        => $remote_user, 
 				password    => $password,
 				remote_user => $remote_user, 
@@ -1309,6 +1576,7 @@ sub move_file
 	
 	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $source_file = defined $parameter->{source_file} ? $parameter->{source_file} : "";
 	my $target_file = defined $parameter->{target_file} ? $parameter->{target_file} : "";
@@ -1316,6 +1584,7 @@ sub move_file
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		overwrite   => $overwrite,
 		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
 		remote_user => $remote_user, 
 		source_file => $source_file, 
 		target_file => $target_file,
@@ -1419,6 +1688,7 @@ fi";
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			debug       => $debug, 
 			target      => $target,
+			port        => $port, 
 			user        => $remote_user, 
 			password    => $password,
 			remote_user => $remote_user, 
@@ -1473,6 +1743,7 @@ fi";
 					password    => $password, 
 					remote_user => $remote_user, 
 					target      => $target,
+					port        => $port, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0170", variables => {
@@ -1487,6 +1758,7 @@ fi";
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				debug       => $debug, 
 				target      => $target,
+				port        => $port, 
 				user        => $remote_user, 
 				password    => $password,
 				remote_user => $remote_user, 
@@ -3060,6 +3332,7 @@ fi";
 				(my $output, $error, my $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					target      => $target,
+					port        => $port, 
 					user        => $remote_user, 
 					password    => $password,
 					remote_user => $remote_user, 
@@ -3077,6 +3350,7 @@ fi";
 					(my $output, $error, my $return_code) = $anvil->Remote->call({
 						debug       => $debug, 
 						target      => $target,
+						port        => $port, 
 						user        => $remote_user, 
 						password    => $password,
 						remote_user => $remote_user, 

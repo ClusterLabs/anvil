@@ -786,6 +786,8 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0452">Skipping archiving, not a Striker dashboard.</key>
 		<key name="log_0453">Archiving: [#!variable!records!#] over: [#!variable!loops!#] segments from the table: [#!variable!table!#] from the database on: [#!variable!host!#].</key>
 		<key name="log_0454">Writing: [#!variable!records!#] to the file: [#!variable!file!#].</key>
+		<key name="log_0455">The file to be compressed: [#!variable!file!#] has a current size of: [#!variable!size!#].</key>
+		<key name="log_0456">The compressed file is: [#!variable!file!#] is: [#!variable!size!#], a reduction of: [#!variable!difference!#]. The compression took: [#!variable!took!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1199,6 +1201,10 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0097"><![CDATA[The network range: [#!variable!range!#] does not appear to be valid. It must be '<ip>/<subnet>' (subnet can be dotted-decimal or CIDR notation) or be 'bcn', 'sn', 'ifn' or a specific variant like 'bcn1', 'sn2', or 'ifn2'. Alternatively, so not use '--network X' at all and all networks with host is connected to will be scanned.]]></key>
 		<key name="error_0098">Failed to create the archive directory: [#!variable!directory!#]. Skipping the archive process.</key>
 		<key name="error_0099">There was a problem writing out the records to file: [#!variable!file!#]. There may be more information in #!data!path::log::main!#. Skipping further attempts to archive: [#!variable!table!#].</key>
+		<key name="error_0100">Compression appears to have failed. The return code '0' was expected from the bzip2 call, but: [#!variable!return_code!#] was returned. The output, if any, was: [#!variable!output!#].</key>
+		<key name="error_0101">Compression appears to have failed. The output file: [#!variable!out_file!#] was not found.</key>
+		<key name="error_0102">Failed to check the existence and size of the file: [#!variable!file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
+		<key name="error_0103">The file: [#!variable!file!#] wasn't found.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
