@@ -671,6 +671,72 @@ sub check_md5sums
 	return($exit);
 }
 
+=head2 compress
+
+This compresses a target file, using bzip2. It returns C<< 0 >> on success, and C<< 1 >> on failure.
+
+Parameters;
+
+=head3 file (required)
+
+This is the full path to the file to compress.
+
+=head3 keep (optional, default 0)
+
+When set to C<< 1 >>, the file being compressed will be kept, and the new compressed version will be saved along side it. When set to C<< 0 >>, the original file is removed, leaving the compressed file.
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 target (optional)
+
+If set, the file will be copied on the target machine. This must be either an IP address or a resolvable host name. 
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=cut
+sub compress
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	### TODO: Looks like I forgot to read/pass 'port' in some methods here...
+	my $file        = defined $parameter->{file}        ? $parameter->{file}        : 0;
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $failed      = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		overwrite   => $overwrite,
+		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
+		remote_user => $remote_user, 
+		source_file => $source_file, 
+		target_file => $target_file,
+		target      => $target,
+	}});
+	
+	if (not $source_file)
+	{
+		# No source passed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->copy_file()", parameter => "source_file" }});
+		return(1);
+	}
+	
+	
+	return($failed);
+}
+
 =head2 copy_file
 
 This copies a file, with a few additional checks like creating the target directory if it doesn't exist, aborting if the file has already been backed up before, etc. It can copy files on the local or a remote machine.
@@ -724,6 +790,7 @@ sub copy_file
 	
 	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $source_file = defined $parameter->{source_file} ? $parameter->{source_file} : "";
 	my $target_file = defined $parameter->{target_file} ? $parameter->{target_file} : "";

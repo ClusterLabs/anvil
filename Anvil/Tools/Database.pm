@@ -8106,7 +8106,8 @@ sub _archive_table
 			$sql_file .= "\\.\n\n";;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sql_file => $sql_file }});
 			
-			my $archive_file = $directory."/".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$table.".".$time_stamp.".".$loop.".out";
+			my $archive_file =  $directory."/".$table.".".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$time_stamp.".".$loop.".out";
+			   $archive_file =~ s/\/\//\//g;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { archive_file => $archive_file }});
 			
 			# It may not be secure, but we play it safe.
@@ -8130,6 +8131,8 @@ sub _archive_table
 				$vacuum = 1;
 				$query  = "DELETE FROM history.".$table." WHERE modified_date >= '".$modified_date."';";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				### TODO: Compress the file, if requested.
 			}
 			
 			$offset -= $records_per_loop;
