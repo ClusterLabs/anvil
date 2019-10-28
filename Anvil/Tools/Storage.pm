@@ -766,7 +766,7 @@ sub compress
 		# Lets see how much it shrinks. What's the starting size?
 		my ($start_size) = (stat($file))[7];
 		my $start_time   = time;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0455", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0455", variables => { 
 			file => $file,
 			size => $anvil->Convert->add_commas({number => $start_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $start_size}).")",
 		}});
@@ -800,7 +800,7 @@ sub compress
 			my ($out_size) = (stat($out_file))[7];
 			my $took       = time - $start_time;
 			my $difference = $start_size - $out_size;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0456", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0456", variables => { 
 				file       => $out_file,
 				size       => $anvil->Convert->add_commas({number => $out_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $out_size}).")",
 				difference => $anvil->Convert->add_commas({number => $difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")",
@@ -871,7 +871,7 @@ fi
 			{
 				# Compress!
 				my $start_time = time;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0455", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0455", variables => { 
 					file => $file,
 					size => $anvil->Convert->add_commas({number => $start_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $start_size}).")",
 				}});
@@ -971,7 +971,7 @@ fi
 					{
 						my $took       = time - $start_time;
 						my $difference = $start_size - $out_size;
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0456", variables => { 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0456", variables => { 
 							file       => $out_file,
 							size       => $anvil->Convert->add_commas({number => $out_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $out_size}).")",
 							difference => $anvil->Convert->add_commas({number => $difference})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")",

@@ -784,10 +784,13 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0450">Skipping the network scan. The next scheduled scan will be done in: [#!variable!next_scan!#]. Override with '--force'.</key>
 		<key name="log_0451">Checking to see if any data needs to be archived before starting the resync.</key>
 		<key name="log_0452">Skipping archiving, not a Striker dashboard.</key>
-		<key name="log_0453">Archiving: [#!variable!records!#] over: [#!variable!loops!#] segments from the table: [#!variable!table!#] from the database on: [#!variable!host!#].</key>
+		<key name="log_0453">Archiving: [#!variable!records!#] over: [#!variable!loops!#] segments from the table: [#!variable!table!#] from the database on: [#!variable!host!#]. This might take a bit, please be patient.</key>
 		<key name="log_0454">Writing: [#!variable!records!#] to the file: [#!variable!file!#].</key>
-		<key name="log_0455">The file to be compressed: [#!variable!file!#] has a current size of: [#!variable!size!#].</key>
+		<key name="log_0455">The file to be compressed: [#!variable!file!#] has a current size of: [#!variable!size!#]. Please be patient, this can take a bit of time.</key>
 		<key name="log_0456">The compressed file is: [#!variable!file!#] is: [#!variable!size!#], a reduction of: [#!variable!difference!#]. The compression took: [#!variable!took!#].</key>
+		<key name="log_0457">Removing archived records.</key>
+		<key name="log_0458">Vacuuming the database to purge the removed records.</key>
+		<key name="log_0459">Skipping the table: [#!variable!table!#], it is excluded from archiving.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>

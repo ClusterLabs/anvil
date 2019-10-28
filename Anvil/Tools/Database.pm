@@ -7320,7 +7320,6 @@ sub resync_databases
 	# Archive old data before resync'ing
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0451"});
 	$anvil->Database->archive_database({debug => $debug});
-	die;
 	
 	### NOTE: Don't sort this array, we need to resync in the order that the user passed the tables to us
 	###       to avoid trouble with primary/foreign keys.
@@ -7975,8 +7974,15 @@ sub _archive_table
 	
 	if (not $table)
 	{
-		# ...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->_archive_table()", parameter => "table" }});
 		return("!!error!!");
+	}
+	
+	# We don't archive the OUI table, it generally has more entries than needed to trigger the archive, but it's needed.
+	if ($table eq "oui")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0459", variables => { table => $table }});
+		return(0);
 	}
 	
 	# These values are sanity checked before this method is called.
@@ -8013,10 +8019,10 @@ sub _archive_table
 		
 		# Before we do any real analysis, do we have enough entries in the history schema to trigger an archive?
 		$query = "SELECT COUNT(*) FROM history.".$table.";";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		$count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:uuid"  => $uuid,
 			"s2:count" => $count,
 		}});
@@ -8030,7 +8036,7 @@ sub _archive_table
 		my $to_remove        = $count - $drop_to;
 		my $loops            = (int($to_remove / $division) + 1);
 		my $records_per_loop = $anvil->Convert->round({number => ($to_remove / $loops)});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:to_remove"        => $to_remove,
 			"s2:loops"            => $loops,
 			"s3:records_per_loop" => $records_per_loop,
@@ -8045,11 +8051,11 @@ sub _archive_table
 		# There is enough data to trigger an archive, so lets get started with a list of columns in 
 		# this table.
 		$query = "SELECT column_name FROM information_schema.columns WHERE table_schema = 'history' AND table_name = ".$anvil->Database->quote($table)." AND column_name != 'history_id' AND column_name != 'modified_date';";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 		
 		my $columns      = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 		my $column_count = @{$columns};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			columns      => $columns, 
 			column_count => $column_count 
 		}});
@@ -8060,26 +8066,42 @@ sub _archive_table
 		{
 			# We need to date stamp from the closest record to the offset.
 			   $loop++;
-			my $sql_file = "COPY ".$table." (";
-			my $query    = "SELECT modified_date FROM history.".$table." OFFSET ".$offset." LIMIT 1";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			my $sql_file = "
+-- Dump created at: [".$anvil->Get->date_and_time()."]
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET client_min_messages = warning;
+SET row_security = off;
+
+COPY history.".$table." (";
+			my $query = "SELECT modified_date FROM history.".$table." ORDER BY modified_date ASC OFFSET ".$offset." LIMIT 1;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:loop"     => $loop,
 				"s2:query"    => $query,
 				"s3:sql_file" => $sql_file,
 			}});
 			
 			my $modified_date = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { modified_date => $modified_date }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { modified_date => $modified_date }});
 			
 			# Build the query.
 			$query = "SELECT ";
 			foreach my $column (sort {$a cmp $b} @{$columns})
 			{
 				$sql_file .= $column->[0].", ";
-				$query      .= $column->[0].", ";
+				$query    .= $column->[0].", ";
 			}
 			$sql_file .= "modified_date) FROM stdin;\n";
-			$query    .= "modified_date FROM history.".$table." WHERE modified_date >= '".$modified_date."' ORDER BY modified_date ASC OFFSET ".$offset.";";
+			$query    .= "modified_date FROM history.".$table." WHERE modified_date >= '".$modified_date."' ORDER BY modified_date ASC;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				sql_file => $sql_file,
+				query    => $query,
+			}});
 			my $results = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -8109,17 +8131,18 @@ sub _archive_table
 					
 					$line .= $value."\t";
 				}
-				$sql_file .= $line."\n";
-				
-				# The 'history_id' is NOT consistent between databases! So we don't record it here.
+				# Add the modified_date column.
+				$line .= $row->[$i]."\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				
+				$sql_file .= $line;
 			}
 			$sql_file .= "\\.\n\n";;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sql_file => $sql_file }});
 			
-			my $archive_file =  $directory."/".$table.".".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$time_stamp.".".$loop.".out";
+			my $archive_file =  $directory."/".$anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}).".".$table.".".$time_stamp.".".$loop.".out";
 			   $archive_file =~ s/\/\//\//g;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { archive_file => $archive_file }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { archive_file => $archive_file }});
 			
 			# It may not be secure, but we play it safe.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0454", variables => { 
@@ -8135,7 +8158,8 @@ sub _archive_table
 				mode   => "0600",
 				secure => 1.
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+			
 			if ($failed)
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0099", variables => { 
@@ -8146,28 +8170,38 @@ sub _archive_table
 			}
 			else
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0283"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0283"});
 				$vacuum = 1;
-				$query  = "DELETE FROM history.".$table." WHERE modified_date >= '".$modified_date."';";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				if ($compress)
 				{
-					
+					# Whether the compression works or not doesn't break archiving, so we
+					# don't care if this fails.
+					my ($failed) = $anvil->Storage->compress({
+						debug => $debug,
+						file  => $archive_file,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 				}
+				
+				# Now actually remove the data.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0457"});
+				my $query = "DELETE FROM history.".$table." WHERE modified_date >= '".$modified_date."';";
+				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			}
 			
 			$offset -= $records_per_loop;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { offset => $offset }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { offset => $offset }});
 			
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vacuum => $vacuum }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { vacuum => $vacuum }});
 		if ($vacuum)
 		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0458"});
 			my $query = "VACUUM FULL;";
-			$anvil->Database->write({debug => 2, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 		}
-		die;
 	}
 	
 	return(0);
