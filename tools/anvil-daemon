@@ -743,7 +743,7 @@ WHERE
 		}
 		
 		# Find any IP addresses for this host.
-		my $query = "SELECT ip_address_address FROM ip_addresses WHERE ip_address_host_uuid = ".$anvil->Database->quote($host_uuid).";";
+		my $query = "SELECT ip_address_address FROM ip_addresses WHERE ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)." AND ip_address_note != 'DELETED';";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});

@@ -2115,7 +2115,7 @@ sub reload_daemon
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $return = undef;
+	my $return = 9999;
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
@@ -2241,7 +2241,7 @@ sub restart_daemon
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $return = undef;
+	my $return = 9999;
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
@@ -2273,7 +2273,7 @@ sub start_daemon
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->start_daemon()" }});
 	
-	my $return = undef;
+	my $return = 9999;
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
@@ -2305,7 +2305,7 @@ sub stop_daemon
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->stop_daemon()" }});
 	
-	my $return = undef;
+	my $return = 9999;
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	

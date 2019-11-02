@@ -1107,6 +1107,7 @@ CREATE TABLE ip_addresses (
     ip_address_gateway            text                        not null,                     -- If set, this is the gateway IP for this subnet
     ip_address_default_gateway    integer                     not null    default 0,        -- If true, the gateway will be the default for the host.
     ip_address_dns                text                        not null,                     -- If set, this is a comma-separated list of DNS IPs to use (in the order given)
+    ip_address_note               text                        not null,                     -- Set to 'DELETED' when no longer in use.
     modified_date                 timestamp with time zone    not null,
     
     FOREIGN KEY(ip_address_host_uuid) REFERENCES hosts(host_uuid)
@@ -1124,6 +1125,7 @@ CREATE TABLE history.ip_addresses (
     ip_address_gateway            text,
     ip_address_default_gateway    integer,
     ip_address_dns                text,
+    ip_address_note               text,
     modified_date                 timestamp with time zone    not null
 );
 ALTER TABLE history.ip_addresses OWNER TO admin;
@@ -1144,6 +1146,7 @@ BEGIN
          ip_address_gateway, 
          ip_address_default_gateway, 
          ip_address_dns, 
+         ip_address_note, 
          modified_date)
     VALUES
         (history_ip_addresses.ip_address_uuid, 
@@ -1154,6 +1157,7 @@ BEGIN
          history_ip_addresses.ip_address_subnet_mask, 
          history_ip_addresses.ip_address_gateway, 
          history_ip_addresses.ip_address_default_gateway, 
+         history_ip_addresses.ip_address_note, 
          history_ip_addresses.ip_address_dns, 
          history_ip_addresses.modified_date);
     RETURN NULL;

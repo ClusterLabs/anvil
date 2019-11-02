@@ -729,6 +729,8 @@ sub find_matches
 
 This method loads and stores the same data as the C<< get_ips >> method, but does so by loading data from the database, instead of collecting it directly from the host. As such, it can also be used by C<< find_matches >>.
 
+C<< Note >>: IP addresses that have been deleted will be marked so by C<< ip >> being set to C<< DELETED >>.
+
 The loaded data will be stored as:
 
 * C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
@@ -744,9 +746,9 @@ Parameters;
 
 This is the optional C<< target >> string to use in the hash where the data is stored.
 
-=head3 host_uuid (required)
+=head3 host_uuid (optional, default 'sys::host_uuid')
 
-This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load.
+This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load. The default is to load the local machine's data.
 
 =cut
 sub load_ips
@@ -757,7 +759,7 @@ sub load_ips
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
 	
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
 	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host      => $host, 
@@ -776,6 +778,12 @@ sub load_ips
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	}
 	
+	if (exists $anvil->data->{network}{$host})
+	{
+		delete $anvil->data->{network}{$host};
+	}
+	
+	# Read in all IPs, so that we know which to remove.
 	my $query = "
 SELECT 
     ip_address_address, 
@@ -788,8 +796,6 @@ SELECT
 FROM 
     ip_addresses 
 WHERE 
-    ip_address_on_type != 'DELETED' 
-AND 
     ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)."
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -852,6 +858,7 @@ WHERE
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
@@ -859,6 +866,7 @@ WHERE
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
 				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
 				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
 			}});
 		}
 		elsif ($ip_address_on_type eq "bond")
@@ -893,6 +901,7 @@ WHERE
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
@@ -900,6 +909,7 @@ WHERE
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
 				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
 				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
 			}});
 		}
 		elsif ($ip_address_on_type eq "bridge")
@@ -934,6 +944,7 @@ WHERE
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
@@ -941,6 +952,7 @@ WHERE
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
 				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
 				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
+				"network::${host}::interface::${interface_name}::type"            => $anvil->data->{network}{$host}{interface}{$interface_name}{type}, 
 			}});
 		}
 	}
@@ -1008,6 +1020,11 @@ sub get_ips
 	# This is used in the hash reference when storing the data.
 	my $host = $target ? $target : "local";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	
+	if (exists $anvil->data->{network}{$host})
+	{
+		delete $anvil->data->{network}{$host};
+	}
 	
 	# Reading locally or remote?
 	my $in_iface   = "";

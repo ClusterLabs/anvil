@@ -82,7 +82,7 @@ foreach my $pid (sort {$a cmp $b} @{$anvil->data->{sys}{pids}})
 	my $body = $anvil->Storage->read_file({file => $smaps_path});
 	foreach my $line (split/\n/, $body)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /^Private_Dirty:\s+(\d+) (.*B)$/)
 		{
 			my $size = $1;
