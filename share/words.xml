@@ -776,7 +776,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 #!variable!section!#
 ====
 		</key>
-		<key name="log_0445">[ Note ] - We're about to do a ping scan of: [#!variable!range!#]. This could take a long time, please be patient! If you think this process is hung, please run 'pgrep nmap' on the host. If a process is returned, this is still running. We go slow to avoid upsetting network security devices or admin.</key>
+		<key name="log_0445"><![CDATA[[ Note ] - We're about to do a ping scan of: [#!variable!range!#]. This could take a long time, please be patient!<br />If you think this process is hung, please run 'pgrep nmap' on the host. If a process is returned, this is still running. We go slow to avoid upsetting network security devices or admin.]]></key>
 		<key name="log_0446">Found the network device: [#!variable!mac!#] usingt the IP address: [#!variable!ip!#].</key>
 		<key name="log_0447">About to download: [#!variable!url!#] and save it to: [#!variable!file!#].</key>
 		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>

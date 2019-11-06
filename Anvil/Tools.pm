@@ -1022,6 +1022,9 @@ sub _set_paths
 				'postgresql.conf'		=>	"/var/lib/pgsql/data/postgresql.conf",
 				pxe_default			=>	"/var/lib/tftpboot/pxelinux.cfg/default",
 				ssh_config			=>	"/etc/ssh/ssh_config",
+				'type.dashboard'		=>	"/etc/anvil/type.dashboard",
+				'type.dr'			=>	"/etc/anvil/type.dr",
+				'type.node'			=>	"/etc/anvil/type.node",
 			},
 			data			=>	{
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",

@@ -1251,7 +1251,7 @@ sub load_packages
 			"dnf-data.noarch",
 			"dnf-plugin-subscription-manager.x86_64",
 			"dnf-plugins-core.noarch",
-			"dnf-utils.noarch",
+			#"dnf-utils.noarch",
 			"dnf.noarch",
 			"dnsmasq.x86_64",
 			"dracut-config-rescue.x86_64",
@@ -2264,6 +2264,7 @@ sub load_packages
 		'y'	=>	[
 			"yajl.x86_64",
 			"yum.noarch",
+			"yum-utils.noarch",
 			"zenity.x86_64",
 		],
 		z	=>	[

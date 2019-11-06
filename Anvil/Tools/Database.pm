@@ -23,6 +23,7 @@ my $THIS_FILE = "Database.pm";
 # get_alert_recipients
 # get_host_from_uuid
 # get_hosts
+# get_hosts_info
 # get_job_details
 # get_jobs
 # get_local_uuid
@@ -1533,6 +1534,94 @@ FROM
 	return($return);
 }
 
+=head2 get_hosts_info
+
+This gathers up all the known information about all known hosts.
+
+=cut
+sub get_hosts_info
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts()" }});
+	
+	my $query = "
+SELECT 
+    host_uuid, 
+    host_name, 
+    host_type, 
+    host_key 
+FROM 
+    hosts
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $host_uuid = $row->[0];
+		my $host_name = $row->[1];
+		my $host_type = $row->[2];
+		my $host_key  = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_uuid => $host_uuid, 
+			host_name => $host_name, 
+			host_type => $host_type, 
+			host_key  => $host_key, 
+		}});
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name} = $host_name;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type} = $host_type;
+		$anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}  = $host_key;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"machine::host_uuid::${host_uuid}::hosts::host_name" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_type" => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type}, 
+			"machine::host_uuid::${host_uuid}::hosts::host_key"  => $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key}, 
+		}});
+		
+		# Read in the variables.
+		my $query = "
+SELECT 
+    variable_name, 
+    variable_value 
+FROM 
+    variables 
+WHERE 
+    variable_source_uuid  = ".$anvil->Database->quote($host_uuid)." 
+AND 
+    variable_source_table = 'hosts'
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $variable_name  = $row->[0];
+			my $variable_value = $row->[1];
+			$anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{$variable_name} = $variable_value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"machine::host_uuid::${host_uuid}::hosts::variables::${variable_name}"  => $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{$variable_name}, 
+			}});
+		}
+		
+		# Read in the IP addresses and network information.
+		
+	}
+	
+	return(0);
+}
+
 =head2 get_job_details
 
 This gets the details for a given job. If the job is found, a hash reference is returned containing the tables that were read in.
@@ -2004,21 +2093,25 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
-=head2 bridge_interface_uuid (optional)
+=head3 bridge_interface_uuid (optional)
 
 If not passed, a check will be made to see if an existing entry is found for C<< bridge_interface_bridge_uuid >> and C<< bridge_interface_network_interface_uuid >>. If found, that entry will be updated. If not found, a new record will be inserted.
 
-=head2 bridge_interface_host_uuid (optional)
+=head3 bridge_interface_host_uuid (optional)
 
 This is the host that the IP address is on. If not passed, the local C<< sys::host_uuid >> will be used (indicating it is a local IP address).
 
-=head2 bridge_interface_bridge_uuid (required) 
+=head3 bridge_interface_bridge_uuid (required) 
 
 This is the C<< bridges -> bridge_uuid >> of the bridge that this interface is connected to.
 
-=head2 bridge_interface_network_interface_uuid (required)
+=head3 bridge_interface_network_interface_uuid (required)
 
 This is the C<< network_interfaces -> network_interface_uuid >> if the interface connected to the specified bridge.
+
+=head3 bridge_interface_note (optional)
+
+When this is set to C<< DELETED >>, the interface will be flagged as removed by the system
 
 =cut
 sub insert_or_update_bridge_interfaces
@@ -2036,6 +2129,7 @@ sub insert_or_update_bridge_interfaces
 	my $bridge_interface_host_uuid              = defined $parameter->{bridge_interface_host_uuid}              ? $parameter->{bridge_interface_host_uuid}              : $anvil->data->{sys}{host_uuid};
 	my $bridge_interface_bridge_uuid            = defined $parameter->{bridge_interface_bridge_uuid}            ? $parameter->{bridge_interface_bridge_uuid}            : "";
 	my $bridge_interface_network_interface_uuid = defined $parameter->{bridge_interface_network_interface_uuid} ? $parameter->{bridge_interface_network_interface_uuid} : "";
+	my $bridge_interface_note                   = defined $parameter->{bridge_interface_note}                   ? $parameter->{bridge_interface_note}                   : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                                    => $uuid, 
 		file                                    => $file, 
@@ -2044,6 +2138,7 @@ sub insert_or_update_bridge_interfaces
 		bridge_interface_host_uuid              => $bridge_interface_host_uuid, 
 		bridge_interface_bridge_uuid            => $bridge_interface_bridge_uuid, 
 		bridge_interface_network_interface_uuid => $bridge_interface_network_interface_uuid, 
+		bridge_interface_note                   => $bridge_interface_note, 
 	}});
     
 	if (not $bridge_interface_bridge_uuid)
@@ -2125,12 +2220,14 @@ INSERT INTO
     bridge_interface_host_uuid, 
     bridge_interface_bridge_uuid, 
     bridge_interface_network_interface_uuid, 
+    bridge_interface_note, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($bridge_interface_uuid).", 
     ".$anvil->Database->quote($bridge_interface_host_uuid).", 
     ".$anvil->Database->quote($bridge_interface_bridge_uuid).", 
     ".$anvil->Database->quote($bridge_interface_network_interface_uuid).", 
+    ".$anvil->Database->quote($bridge_interface_note).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -2144,7 +2241,8 @@ INSERT INTO
 SELECT 
     bridge_interface_host_uuid, 
     bridge_interface_bridge_uuid, 
-    bridge_interface_network_interface_uuid 
+    bridge_interface_network_interface_uuid, 
+    bridge_interface_note 
 FROM 
     bridge_interfaces 
 WHERE 
@@ -2169,16 +2267,19 @@ WHERE
 			my $old_bridge_interface_host_uuid              = $row->[0];
 			my $old_bridge_interface_bridge_uuid            = $row->[1];
 			my $old_bridge_interface_network_interface_uuid = $row->[2];
+			my $old_bridge_interface_note                   = $row->[3];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bridge_interface_host_uuid              => $old_bridge_interface_host_uuid, 
 				old_bridge_interface_bridge_uuid            => $old_bridge_interface_bridge_uuid, 
 				old_bridge_interface_network_interface_uuid => $old_bridge_interface_network_interface_uuid,  
+				old_bridge_interface_note                   => $old_bridge_interface_note, 
 			}});
 			
 			# Anything change?
-			if (($old_bridge_interface_host_uuid              ne $bridge_interface_host_uuid)   or 
-			    ($old_bridge_interface_bridge_uuid            ne $bridge_interface_bridge_uuid) or 
-			    ($old_bridge_interface_network_interface_uuid ne $bridge_interface_network_interface_uuid))
+			if (($old_bridge_interface_host_uuid              ne $bridge_interface_host_uuid)              or 
+			    ($old_bridge_interface_bridge_uuid            ne $bridge_interface_bridge_uuid)            or 
+			    ($old_bridge_interface_network_interface_uuid ne $bridge_interface_network_interface_uuid) or 
+			    ($old_bridge_interface_note                   ne $bridge_interface_note))
 			{
 				# Something changed, save.
 				my $query = "
@@ -2188,6 +2289,7 @@ SET
     bridge_interface_host_uuid              = ".$anvil->Database->quote($bridge_interface_host_uuid).",  
     bridge_interface_bridge_uuid            = ".$anvil->Database->quote($bridge_interface_bridge_uuid).", 
     bridge_interface_network_interface_uuid = ".$anvil->Database->quote($bridge_interface_network_interface_uuid).", 
+    bridge_interface_note                   = ".$anvil->Database->quote($bridge_interface_note).", 
     modified_date                           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     bridge_interface_uuid                   = ".$anvil->Database->quote($bridge_interface_uuid)." 

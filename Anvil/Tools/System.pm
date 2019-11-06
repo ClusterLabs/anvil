@@ -931,7 +931,9 @@ This method tries to determine the host type and returns a value suitable for us
 
 First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
 
-If that isn't set, it then looks at the short host name. The following rules are used, in order;
+If that isn't set, it then looks to see if the file C<< /etc/anvil/type.X >> exists, where C<< X >> is C<< node >>, C<< dashboard >> or C<< dr >>. If found, the appropriate type is returned.
+
+If that file doesn't exist, then it looks at the short host name. The following rules are used, in order;
 
 1. If the host name ends in C<< n<digits> >> or C<< node<digits> >>, C<< node >> is returned.
 2. If the host name ends in C<< striker<digits> >> or C<< dashboard<digits> >>, C<< dashboard >> is returned.
@@ -959,20 +961,39 @@ sub get_host_type
 		$host_type = $anvil->data->{sys}{host_type};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	}
-	elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/) or ($host_name =~ /new-node+$/))
+	else
 	{
-		$host_type = "node";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-	}
-	elsif (($host_name =~ /striker\d+$/) or ($host_name =~ /dashboard\d+$/))
-	{
-		$host_type = "dashboard";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-	}
-	elsif (($host_name =~ /dr\d+$/) or ($host_name =~ /new-dr$/))
-	{
-		$host_type = "dr";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		# Can I determine it by seeing a file?
+		if (-e $anvil->data->{path}{configs}{'type.node'})
+		{
+			$host_type = "node";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (-e $anvil->data->{path}{configs}{'type.dashboard'})
+		{
+			$host_type = "dashboard";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (-e $anvil->data->{path}{configs}{'type.dr'})
+		{
+			$host_type = "dr";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/) or ($host_name =~ /new-node+$/))
+		{
+			$host_type = "node";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (($host_name =~ /striker\d+$/) or ($host_name =~ /dashboard\d+$/))
+		{
+			$host_type = "dashboard";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (($host_name =~ /dr\d+$/) or ($host_name =~ /new-dr$/))
+		{
+			$host_type = "dr";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
 	}
 	
 	return($host_type);

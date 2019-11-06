@@ -225,6 +225,18 @@ echo "Preparing the database"
 striker-prep-database
 anvil-update-states
 
+# Touch the system type file.
+echo "Touching the system type file"
+if [ -e '/etc/anvil/type.node' ]
+then
+    rm -f /etc/anvil/type.node
+elif [ -e '/etc/anvil/type.dr' ]
+then 
+    rm -f /etc/anvil/type.dr
+fi
+touch /etc/anvil/type.dashboard
+
+
 ### TODO: I don't think we need this anymore
 # Open access for Striker. The database will be opened after initial setup.
 echo "Opening the web and postgresql ports."
@@ -236,6 +248,35 @@ firewall-cmd --add-service=postgresql
 firewall-cmd --add-service=postgresql --permanent
 
 %pre node
+
+
+%post node
+# Touch the system type file.
+echo "Touching the system type file"
+if [ -e '/etc/anvil/type.dashboard' ]
+then
+    rm -f /etc/anvil/type.dashboard
+elif [ -e '/etc/anvil/type.dr' ]
+then 
+    rm -f /etc/anvil/type.dr
+fi
+touch /etc/anvil/type.node
+
+
+%pre dr
+
+
+%post dr
+# Touch the system type file.
+echo "Touching the system type file"
+if [ -e '/etc/anvil/type.dashboard' ]
+then
+    rm -f /etc/anvil/type.dashboard
+elif [ -e '/etc/anvil/type.node' ]
+then 
+    rm -f /etc/anvil/type.node
+fi
+touch /etc/anvil/type.dr
 
 ### Remove stuff - Disabled for now, messes things up during upgrades
 %postun core
@@ -263,6 +304,26 @@ firewall-cmd --add-service=postgresql --permanent
 # systemctl disable postgresql.service
 # systemctl stop postgresql.service
 
+# Remove the system type file.
+if [ -e '/etc/anvil/type.dashboard' ]
+then
+    rm -f /etc/anvil/type.dashboard
+fi
+
+%postun node
+# Remove the system type file.
+if [ -e '/etc/anvil/type.node' ]
+then
+    rm -f /etc/anvil/type.node
+fi
+
+%postun dr
+# Remove the system type file.
+if [ -e '/etc/anvil/type.dr' ]
+then
+    rm -f /etc/anvil/type.dr
+fi
+
 
 %files core
 %doc README.md notes
@@ -287,8 +348,10 @@ firewall-cmd --add-service=postgresql --permanent
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-29
-- 
+* Wed Nov 6 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-29
+- Added '/etc/anvil/type.X' file creation to more directly mark a system as a 
+  specific type, rather than divining by name.
+- Updated source.
 
 * Mon Oct 28 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-28
 - Updated source

@@ -19,6 +19,7 @@ my $THIS_FILE = "Network.pm";
 # get_ips
 # get_network
 # is_local
+# load_interfces
 # load_ips
 # ping
 
@@ -725,6 +726,70 @@ sub find_matches
 	return($match);
 }
 
+=head2 load_interfces
+
+This loads all network information for the given host UUID.
+
+The main difference from C<< ->load_ips() >> is that this method loads information about all interfaces, regardless of if they have an IP, as well as their link state and link information.
+
+The loaded data will be stored as:
+
+* C<< machine::<target>::interface::<iface_name>::
+
+Parameters;
+
+=head3 clear (optional, default '1')
+
+When set, any previously known information is cleared. Specifically, the C<< network::<target>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
+
+=head3 host (optional, default is 'host_uuid' value)
+
+This is the optional C<< target >> string to use in the hash where the data is stored.
+
+=head3 host_uuid (optional, default 'sys::host_uuid')
+
+This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load. The default is to load the local machine's data.
+
+=cut
+sub load_interfces
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
+	
+	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
+	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		clear     => $clear, 
+		host      => $host, 
+		host_uuid => $host_uuid,
+	}});
+	
+	if (not $host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->get_network()", parameter => "ip" }});
+		return("");
+	}
+	
+	if (not $host)
+	{
+		$host = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	}
+	
+	if (($clear) && (exists $anvil->data->{network}{$host}))
+	{
+		delete $anvil->data->{network}{$host};
+	}
+	
+	my $query = "";
+	
+	return(0);
+}
+
 =head2 load_ips
 
 This method loads and stores the same data as the C<< get_ips >> method, but does so by loading data from the database, instead of collecting it directly from the host. As such, it can also be used by C<< find_matches >>.
@@ -741,6 +806,10 @@ The loaded data will be stored as:
 * C<< network::<target>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
 
 Parameters;
+
+=head3 clear (optional, default '1')
+
+When set, any previously known information is cleared. Specifically, the C<< network::<target>> >> hash is deleted prior to the load. To prevent this, set this to C<< 0 >>.
 
 =head3 host (optional, default is 'host_uuid' value)
 
@@ -759,9 +828,11 @@ sub load_ips
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
 	
+	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
 	my $host      = defined $parameter->{host}      ? $parameter->{host}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		clear     => $clear, 
 		host      => $host, 
 		host_uuid => $host_uuid,
 	}});
@@ -778,7 +849,7 @@ sub load_ips
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	}
 	
-	if (exists $anvil->data->{network}{$host})
+	if (($clear) && (exists $anvil->data->{network}{$host}))
 	{
 		delete $anvil->data->{network}{$host};
 	}

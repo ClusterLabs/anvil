@@ -1133,16 +1133,40 @@ sub keep_running
 		}
 	}
 	
-	# Update hardware state files if the system isn't configured. Running it always is too intensive.
+	# If we're confiugured, write out the status JSON file. If we're not configured, Update hardware state files.
 	my $configured = $anvil->System->check_if_configured;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
-	if (not $configured)
+	if ($configured)
 	{
+		# Write out state information for all known Anvil! systems and the information from 
+		# unconfigured nods and DR hosts, using just database data (hence, fast enough to run 
+		# constantly).
+		update_striker_json($anvil);
+	}
+	else
+	{
+		# Run this to monitor the network in real time.
 		update_state_file($anvil);
 	}
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
 	run_jobs($anvil);
+	
+	return(0);
+}
+
+# This writes out the main JSON file used by Striker to display information about unconfigured nodes/dr 
+# hosts, and known Anvil! / node / server states.
+sub update_striker_json
+{
+	my ($anvil) = @_;
+	
+	# Start by recording information about currently unconfigured nodes and DR hosts.
+	my $striker_json_body = "{\"unconfigured\":[\n";
+	
+	# Collect data on unconfigured hosts.
+	my ($hosts) = $anvil->Database->get_hosts({debug => 3});
+	
 	
 	return(0);
 }
