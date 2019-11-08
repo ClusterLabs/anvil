@@ -982,7 +982,7 @@ CREATE TABLE bridges (
     bridge_host_uuid      uuid                        not null,
     bridge_name           text                        not null,
     bridge_id             text                        not null,
-    bridge_mac            text                        not null,
+    bridge_mac_address    text                        not null,
     bridge_mtu            text                        not null,
     bridge_stp_enabled    text                        not null,                  -- 0 = disabled, 1 = kernel STP, 2 = user STP
     modified_date         timestamp with time zone    not null,
@@ -997,7 +997,7 @@ CREATE TABLE history.bridges (
     bridge_host_uuid      uuid,
     bridge_name           text,
     bridge_id             text,
-    bridge_mac            text,
+    bridge_mac_address    text,
     bridge_mtu            text,
     bridge_stp_enabled    text,
     modified_date         timestamp with time zone    not null
@@ -1015,7 +1015,7 @@ BEGIN
          bridge_host_uuid, 
          bridge_name, 
          bridge_id, 
-         bridge_mac, 
+         bridge_mac_address, 
          bridge_mtu, 
          bridge_stp_enabled, 
          modified_date)
@@ -1024,7 +1024,7 @@ BEGIN
          history_bridges.bridge_host_uuid, 
          history_bridges.bridge_name, 
          history_bridges.bridge_id, 
-         history_bridges.bridge_mac, 
+         history_bridges.bridge_mac_address, 
          history_bridges.bridge_mtu, 
          history_bridges.bridge_stp_enabled, 
          history_bridges.modified_date);
@@ -1037,63 +1037,6 @@ ALTER FUNCTION history_bridges() OWNER TO admin;
 CREATE TRIGGER trigger_bridges
     AFTER INSERT OR UPDATE ON bridges
     FOR EACH ROW EXECUTE PROCEDURE history_bridges();
-
-
--- This records which interfaces are connect to which bridges
-CREATE TABLE bridge_interfaces (
-    bridge_interface_uuid                      uuid                        not null    primary key,
-    bridge_interface_host_uuid                 uuid                        not null,
-    bridge_interface_bridge_uuid               uuid                        not null,
-    bridge_interface_network_interface_uuid    uuid                        not null,
-    bridge_interface_note                      text                        not null,                 -- Will have 'DELETED' when removed, or the server name the device connects to otherwise.
-    modified_date                              timestamp with time zone    not null,
-    
-    FOREIGN KEY(bridge_interface_host_uuid)              REFERENCES hosts(host_uuid), 
-    FOREIGN KEY(bridge_interface_bridge_uuid)            REFERENCES bridges(bridge_uuid), 
-    FOREIGN KEY(bridge_interface_network_interface_uuid) REFERENCES network_interfaces(network_interface_uuid) 
-);
-ALTER TABLE bridge_interfaces OWNER TO admin;
-
-CREATE TABLE history.bridge_interfaces (
-    history_id                                 bigserial,
-    bridge_interface_uuid                      uuid,
-    bridge_interface_host_uuid                 uuid,
-    bridge_interface_bridge_uuid               uuid,
-    bridge_interface_network_interface_uuid    uuid,
-    bridge_interface_note                      text,
-    modified_date                              timestamp with time zone    not null
-);
-ALTER TABLE history.bridge_interfaces OWNER TO admin;
-
-CREATE FUNCTION history_bridge_interfaces() RETURNS trigger
-AS $$
-DECLARE
-    history_bridge_interfaces RECORD;
-BEGIN
-    SELECT INTO history_bridge_interfaces * FROM bridge_interfaces WHERE bridge_interface_uuid = new.bridge_interface_uuid;
-    INSERT INTO history.bridge_interfaces
-        (bridge_interface_uuid, 
-         bridge_interface_host_uuid, 
-         bridge_interface_bridge_uuid, 
-         bridge_interface_network_interface_uuid, 
-         bridge_interface_note, 
-         modified_date)
-    VALUES
-        (history_bridge_interfaces.bridge_interface_uuid, 
-         history_bridge_interfaces.bridge_interface_host_uuid, 
-         history_bridge_interfaces.bridge_interface_bridge_uuid, 
-         history_bridge_interfaces.bridge_interface_network_interface_uuid, 
-         history_bridge_interfaces.bridge_interface_note, 
-         history_bridge_interfaces.modified_date);
-    RETURN NULL;
-END;
-$$
-LANGUAGE plpgsql;
-ALTER FUNCTION history_bridge_interfaces() OWNER TO admin;
-
-CREATE TRIGGER trigger_bridge_interfaces
-    AFTER INSERT OR UPDATE ON bridge_interfaces
-    FOR EACH ROW EXECUTE PROCEDURE history_bridge_interfaces();
 
 
 -- This stores information about network ip addresss. 

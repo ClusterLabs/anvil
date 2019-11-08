@@ -865,7 +865,6 @@ sub _set_defaults
 									"network_interfaces",
 									"bonds",
 									"bridges",
-									"bridge_interfaces",
 									"ip_addresses", 
 									"files", 
 									"file_locations", 
