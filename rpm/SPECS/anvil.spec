@@ -204,6 +204,7 @@ sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 setenforce 0
 sed -i "1s/^.*$/%{version}-%{release}/" /%{_sysconfdir}/anvil/anvil.version
 # Enable and start the anvil-daemon
+### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
 systemctl enable anvil-daemon.service
 systemctl start anvil-daemon.service
 
@@ -348,7 +349,7 @@ fi
 
 
 %changelog
-* Wed Nov 6 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-29
+* Thu Nov 7 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-29
 - Added '/etc/anvil/type.X' file creation to more directly mark a system as a 
   specific type, rather than divining by name.
 - Updated source.

@@ -317,9 +317,14 @@ sub call
 				# Report that it started with PID.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, key => "log_0205", variables => { call => $shell_call, pid => $process->pid }});
 				
-				# We'll return the handle instead of output.
-				$output = $process;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { output => $output }});
+				# We'll return the handle instead of output. There's no return code from the
+				# program, so set it to 0 to show we initiated the program in the background.
+				$return_code = 0;
+				$output      = $process;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 
+					return_code => $return_code, 
+					output      => $output,
+				}});
 			}
 			else
 			{
