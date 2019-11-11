@@ -2596,12 +2596,12 @@ sub sanity_check_step2
 			else
 			{
 				# Valid MAC. Has it been assigned elsewhere?
-				my $mac = $anvil->data->{cgi}{$this_iface1_key}{value};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac => $mac }});
-				if ((not exists $anvil->data->{network}{$mac}{set_as}) or (not $anvil->data->{network}{$mac}{set_as}))
+				my $mac_address = $anvil->data->{cgi}{$this_iface1_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac_address => $mac_address }});
+				if ((not exists $anvil->data->{network}{$mac_address}{set_as}) or (not $anvil->data->{network}{$mac_address}{set_as}))
 				{
-					$anvil->data->{network}{$mac}{set_as} = $this_iface1_key;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::${mac}::set_as" => $anvil->data->{network}{$mac}{set_as} }});
+					$anvil->data->{network}{$mac_address}{set_as} = $this_iface1_key;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::${mac_address}::set_as" => $anvil->data->{network}{$mac_address}{set_as} }});
 					
 					# Record the answer.
 					$anvil->Database->insert_or_update_variables({
@@ -2618,7 +2618,7 @@ sub sanity_check_step2
 				else
 				{
 					# Conflict! Set the alert for this interface and the conflicting one.
-					my $conflict_key                                = $anvil->data->{network}{$mac}{set_as};
+					my $conflict_key                                = $anvil->data->{network}{$mac_address}{set_as};
 					   $anvil->data->{cgi}{$conflict_key}{alert}    = 1;
 					   $anvil->data->{cgi}{$this_iface1_key}{alert} = 1;
 					   $anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0018"}) }});
@@ -2644,12 +2644,12 @@ sub sanity_check_step2
 				else
 				{
 					# Valid MAC. Has it been assigned elsewhere?
-					my $mac = $anvil->data->{cgi}{$this_iface2_key}{value};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac => $mac }});
-					if ((not exists $anvil->data->{network}{$mac}{set_as}) or (not $anvil->data->{network}{$mac}{set_as}))
+					my $mac_address = $anvil->data->{cgi}{$this_iface2_key}{value};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mac_address => $mac_address }});
+					if ((not exists $anvil->data->{network}{$mac_address}{set_as}) or (not $anvil->data->{network}{$mac_address}{set_as}))
 					{
-						$anvil->data->{network}{$mac}{set_as} = $this_iface2_key;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::${mac}::set_as" => $anvil->data->{network}{$mac}{set_as} }});
+						$anvil->data->{network}{$mac_address}{set_as} = $this_iface2_key;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::${mac_address}::set_as" => $anvil->data->{network}{$mac_address}{set_as} }});
 						
 						# Record the answer.
 						$anvil->Database->insert_or_update_variables({
@@ -2666,7 +2666,7 @@ sub sanity_check_step2
 					else
 					{
 						# Conflict! Set the alert for this interface and the conflicting one.
-						my $conflict_key                             = $anvil->data->{network}{$mac}{set_as};
+						my $conflict_key                                = $anvil->data->{network}{$mac_address}{set_as};
 						   $anvil->data->{cgi}{$conflict_key}{alert}    = 1;
 						   $anvil->data->{cgi}{$this_iface2_key}{alert} = 1;
 						   $anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0018"}) }});

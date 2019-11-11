@@ -324,7 +324,7 @@ sub update_network
 				"network::local::interface::${interface}::duplex"               => $anvil->data->{network}{'local'}{interface}{$interface}{duplex},
 				"network::local::interface::${interface}::ip"                   => $anvil->data->{network}{'local'}{interface}{$interface}{ip},
 				"network::local::interface::${interface}::link_state"           => $anvil->data->{network}{'local'}{interface}{$interface}{link_state}, 
-				"network::local::interface::${interface}::mac"                  => $anvil->data->{network}{'local'}{interface}{$interface}{mac}, 
+				"network::local::interface::${interface}::mac_address"          => $anvil->data->{network}{'local'}{interface}{$interface}{mac_address}, 
 				"network::local::interface::${interface}::media"                => $anvil->data->{network}{'local'}{interface}{$interface}{media}, 
 				"network::local::interface::${interface}::mii_polling_interval" => $anvil->data->{network}{'local'}{interface}{$interface}{mii_polling_interval},
 				"network::local::interface::${interface}::mtu"                  => $anvil->data->{network}{'local'}{interface}{$interface}{mtu}, 
@@ -366,7 +366,7 @@ sub update_network
 			my $duplex               = $anvil->data->{network}{'local'}{interface}{$interface}{duplex};
 			my $ip_address           = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
 			my $link_state           = $anvil->data->{network}{'local'}{interface}{$interface}{link_state};
-			my $mac_address          = $anvil->data->{network}{'local'}{interface}{$interface}{mac};
+			my $mac_address          = $anvil->data->{network}{'local'}{interface}{$interface}{mac_address};
 			my $media                = $anvil->data->{network}{'local'}{interface}{$interface}{media};
 			my $mii_polling_interval = $anvil->data->{network}{'local'}{interface}{$interface}{mii_polling_interval};
 			my $mtu                  = $anvil->data->{network}{'local'}{interface}{$interface}{mtu};

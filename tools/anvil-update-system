@@ -159,7 +159,7 @@ sub run_os_update
 	my $next_step         = 0;
 	my $verifying         = 0;
 	my $output            = "";
-	my $shell_call        = $anvil->data->{path}{exe}{dnf}." clean expire-cache && ".$anvil->data->{path}{exe}{dnf}." -y update; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
+	my $shell_call        = $anvil->data->{path}{exe}{dnf}." clean expire-cache && ".$anvil->data->{path}{exe}{dnf}." -y update --best --allowerasing; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)

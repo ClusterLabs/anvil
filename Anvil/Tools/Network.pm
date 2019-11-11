@@ -926,15 +926,15 @@ AND
 		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
 		$anvil->data->{network}{$host}{interface}{$bridge_name}{uuid}        = $bridge_uuid; 
 		$anvil->data->{network}{$host}{interface}{$bridge_name}{id}          = $bridge_id; 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{mac}         = $bridge_mac_address; 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{mac_address} = $bridge_mac_address; 
 		$anvil->data->{network}{$host}{interface}{$bridge_name}{mtu}         = $bridge_mtu; 
-		$anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled} = $bridge_mtu; 
+		$anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled} = $bridge_stp_enabled; 
 		$anvil->data->{network}{$host}{interface}{$bridge_name}{type}        = "bridge";
 		$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}  = [];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"network::${host}::interface::${bridge_name}::uuid"        => $anvil->data->{network}{$host}{interface}{$bridge_name}{uuid}, 
 			"network::${host}::interface::${bridge_name}::id"          => $anvil->data->{network}{$host}{interface}{$bridge_name}{id}, 
-			"network::${host}::interface::${bridge_name}::mac"         => $anvil->data->{network}{$host}{interface}{$bridge_name}{mac}, 
+			"network::${host}::interface::${bridge_name}::mac_address" => $anvil->data->{network}{$host}{interface}{$bridge_name}{mac_address}, 
 			"network::${host}::interface::${bridge_name}::mtu"         => $anvil->data->{network}{$host}{interface}{$bridge_name}{mtu}, 
 			"network::${host}::interface::${bridge_name}::stp_enabled" => $anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled}, 
 			"network::${host}::interface::${bridge_name}::type"        => $anvil->data->{network}{$host}{interface}{$bridge_name}{type}, 
@@ -1189,7 +1189,7 @@ WHERE
 				interface_mac  => $interface_mac, 
 			}});
 			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac}             = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
@@ -1197,7 +1197,7 @@ WHERE
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
+				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
 				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
@@ -1232,7 +1232,7 @@ WHERE
 				interface_mac  => $interface_mac, 
 			}});
 			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac}             = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
@@ -1240,7 +1240,7 @@ WHERE
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
+				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
 				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
@@ -1275,7 +1275,7 @@ WHERE
 				interface_mac  => $interface_mac, 
 			}});
 			
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mac}             = $interface_mac;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
@@ -1283,7 +1283,7 @@ WHERE
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{type}            = $ip_address_on_type;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${interface_name}::mac"             => $anvil->data->{network}{$host}{interface}{$interface_name}{mac}, 
+				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
 				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
@@ -1404,7 +1404,7 @@ sub get_ips
 			
 			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{ip};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet}          = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{subnet};
-			$anvil->data->{network}{$host}{interface}{$in_iface}{mac}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{mac};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{mac_address}     = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
@@ -1439,10 +1439,10 @@ sub get_ips
 		}
 		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
 		{
-			my $mac                                                        = $1;
-			   $anvil->data->{network}{$host}{interface}{$in_iface}{mac} = $mac;
+			my $mac_address                                                      = $1;
+			   $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $mac_address;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${in_iface}::mac" => $anvil->data->{network}{$host}{interface}{$in_iface}{mac},
+				"network::${host}::interface::${in_iface}::mac_address" => $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address},
 			}});
 			
 			# We only record the mac in 'network::mac' if this isn't a bond.
@@ -1450,9 +1450,9 @@ sub get_ips
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_file => $test_file }});
 			if (not -e $test_file)
 			{
-				$anvil->data->{network}{mac}{$mac}{iface} = $in_iface;
+				$anvil->data->{network}{mac_address}{$mac_address}{iface} = $in_iface;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"network::mac::${mac}::iface" => $anvil->data->{network}{mac}{$mac}{iface}, 
+					"network::mac_address::${mac_address}::iface" => $anvil->data->{network}{mac_address}{$mac_address}{iface}, 
 				}});
 			}
 		}
