@@ -125,7 +125,7 @@ sub add_commas
 		return ($number);
 	}
 	
-	local($_) = $whole ? $whole : "";
+	local($_) = defined $whole ? $whole : "";
 	
 	1 while s/^(-?\d+)(\d{3})/$1,$2/;
 	$whole = $_;
@@ -249,53 +249,53 @@ sub bytes_to_human_readable
 			{
 				# Yebibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 80)));
-				$suffix              = "YiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0030"});
 			}
 			elsif ($unit =~ /Z/i)
 			{
 				# Zebibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 70)));
-				$suffix              = "ZiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0029"});
 			}
 			elsif ($unit =~ /E/i)
 			{
 				# Exbibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 60)));
-				$suffix              = "EiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0028"});
 			}
 			elsif ($unit =~ /P/i)
 			{
 				# Pebibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 50)));
-				$suffix              = "PiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0027"});
 			}
 			elsif ($unit =~ /T/i)
 			{
 				# Tebibyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 40)));
-				$suffix              = "TiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0026"});
 			}
 			elsif ($unit =~ /G/i)
 			{
 				# Gibibyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 30)));
-				$suffix              = "GiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0025"});
 			}
 			elsif ($unit =~ /M/i)
 			{
 				# Mebibyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 20)));
-				$suffix              = "MiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0024"});
 			}
 			elsif ($unit =~ /K/i)
 			{
 				# Kibibyte
 				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (2 ** 10)));
-				$suffix              = "KiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0023"});
 			}
 			else
 			{
-				$suffix = "B";
+				$suffix = $anvil->Words->string({key => "suffix_0014"});
 			}
 		}
 		else
@@ -305,53 +305,53 @@ sub bytes_to_human_readable
 			{
 				# Yebibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 80)));
-				$suffix              = "YiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0030"});
 			}
 			elsif ($human_readable_size >= (2 ** 70))
 			{
 				# Zebibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 70)));
-				$suffix              = "ZiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0029"});
 			}
 			elsif ($human_readable_size >= (2 ** 60))
 			{
 				# Exbibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 60)));
-				$suffix              = "EiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0028"});
 			}
 			elsif ($human_readable_size >= (2 ** 50))
 			{
 				# Pebibyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (2 ** 50)));
-				$suffix              = "PiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0027"});
 			}
 			elsif ($human_readable_size >= (2 ** 40))
 			{
 				# Tebibyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 40)));
-				$suffix              = "TiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0026"});
 			}
 			elsif ($human_readable_size >= (2 ** 30))
 			{
 				# Gibibyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 30)));
-				$suffix              = "GiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0025"});
 			}
 			elsif ($human_readable_size >= (2 ** 20))
 			{
 				# Mebibyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (2 ** 20)));
-				$suffix              = "MiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0024"});
 			}
 			elsif ($human_readable_size >= (2 ** 10))
 			{
 				# Kibibyte
 				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (2 ** 10)));
-				$suffix              = "KiB";
+				$suffix              = $anvil->Words->string({key => "suffix_0023"});
 			}
 			else
 			{
-				$suffix  = "B";
+				$suffix  = $anvil->Words->string({key => "suffix_0014"});
 			}
 		}
 	}
@@ -365,53 +365,53 @@ sub bytes_to_human_readable
 			{
 				# Yottabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 24)));
-				$suffix              = "YB";
+				$suffix              = $anvil->Words->string({key => "suffix_0022"});
 			}
 			elsif ($unit =~ /Z/i)
 			{
 				# Zettabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 21)));
-				$suffix              = "ZB";
+				$suffix              = $anvil->Words->string({key => "suffix_0021"});
 			}
 			elsif ($unit =~ /E/i)
 			{
 				# Exabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 18)));
-				$suffix              = "EB";
+				$suffix              = $anvil->Words->string({key => "suffix_0020"});
 			}
 			elsif ($unit =~ /P/i)
 			{
 				# Petabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 15)));
-				$suffix              = "PB";
+				$suffix              = $anvil->Words->string({key => "suffix_0019"});
 			}
 			elsif ($unit =~ /T/i)
 			{
 				# Terabyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 12)));
-				$suffix              = "TB";
+				$suffix              = $anvil->Words->string({key => "suffix_0018"});
 			}
 			elsif ($unit =~ /G/i)
 			{
 				# Gigabyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 9)));
-				$suffix              = "GB";
+				$suffix              = $anvil->Words->string({key => "suffix_0017"});
 			}
 			elsif ($unit =~ /M/i)
 			{
 				# Megabyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 6)));
-				$suffix              = "MB";
+				$suffix              = $anvil->Words->string({key => "suffix_0016"});
 			}
 			elsif ($unit =~ /K/i)
 			{
 				# Kilobyte
 				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (10 ** 3)));
-				$suffix              = "KB";
+				$suffix              = $anvil->Words->string({key => "suffix_0015"});
 			}
 			else
 			{
-				$suffix = "b";
+				$suffix = $anvil->Words->string({key => "suffix_0014"});
 			}
 		}
 		else
@@ -421,53 +421,54 @@ sub bytes_to_human_readable
 			{
 				# Yottabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 24)));
-				$suffix              = "YB";
+				$suffix              = $anvil->Words->string({key => "suffix_0022"});
 			}
 			elsif ($human_readable_size >= (10 ** 21))
 			{
 				# Zettabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 21)));
-				$suffix              = "ZB";
+				$suffix              = $anvil->Words->string({key => "suffix_0021"});
 			}
 			elsif ($human_readable_size >= (10 ** 18))
 			{
 				# Exabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 18)));
-				$suffix              = "EB";
+				$suffix              = $anvil->Words->string({key => "suffix_0020"});
 			}
 			elsif ($human_readable_size >= (10 ** 15))
 			{
 				# Petabyte
 				$human_readable_size = sprintf("%.3f", ($human_readable_size /= (10 ** 15)));
-				$suffix              = "PB";
+				$suffix              = $anvil->Words->string({key => "suffix_0019"});
 			}
 			elsif ($human_readable_size >= (10 ** 12))
 			{
 				# Terabyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 12)));
-				$suffix              = "TB";
+				$suffix              = $anvil->Words->string({key => "suffix_0018"});
 			}
 			elsif ($human_readable_size >= (10 ** 9))
 			{
 				# Gigabyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 9)));
-				$suffix              = "GB";
+				$suffix              = $anvil->Words->string({key => "suffix_0017"});
 			}
 			elsif ($human_readable_size >= (10 ** 6))
 			{
 				# Megabyte
 				$human_readable_size = sprintf("%.2f", ($human_readable_size /= (10 ** 6)));
-				$suffix              = "MB";
+				$suffix              = $anvil->Words->string({key => "suffix_0016"});
 			}
 			elsif ($human_readable_size >= (10 ** 3))
 			{
 				# Kilobyte
 				$human_readable_size = sprintf("%.1f", ($human_readable_size /= (10 ** 3)));
-				$suffix              = "KB";
+				$suffix              = $anvil->Words->string({key => "suffix_0015"});
 			}
 			else
 			{
-				$suffix = "b";
+				# Bytes
+				$suffix = $anvil->Words->string({key => "suffix_0014"});
 			}
 		}
 	}

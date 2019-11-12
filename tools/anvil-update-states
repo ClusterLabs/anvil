@@ -87,6 +87,12 @@ sub update_network
 			my $media       = "unknown";
 			my $type        = "interface";
 			
+			# If the NIC is a bond member, the MAC address could be virtual. 
+			if (-e $full_path."/bonding_slave/perm_hwaddr")
+			{
+				$mac_address = $anvil->Storage->read_file({file => $full_path."/bonding_slave/perm_hwaddr"});
+			}
+			
 			# Clean up some newlines.
 			$mac_address =~ s/\n$//;
 			$link_state  =~ s/\n$//;

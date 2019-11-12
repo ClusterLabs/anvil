@@ -4437,7 +4437,16 @@ sub insert_or_update_network_interfaces
 	{
 		# See if I know this NIC by referencing it's MAC and name. The name is needed because virtual
 		# devices can share the MAC with the real interface.
-		my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." AND network_interface_name = ".$anvil->Database->quote($network_interface_name).";";
+		my $query = "
+SELECT 
+    network_interface_uuid 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." 
+AND 
+    network_interface_name        = ".$anvil->Database->quote($network_interface_name)."
+;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		$network_interface_uuid = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];

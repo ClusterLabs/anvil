@@ -805,10 +805,10 @@ FROM
 AND 
     bond_host_uuid = ".$anvil->Database->quote($host_uuid)." 
 ;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -893,10 +893,10 @@ WHERE
 AND 
     bridge_host_uuid = ".$anvil->Database->quote($host_uuid)." 
 ;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -966,10 +966,10 @@ AND
 ORDER BY 
     modified_date DESC 
 ;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count,
 	}});
@@ -991,11 +991,19 @@ ORDER BY
 		if (($network_interface_bond_uuid) && (defined $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name}))
 		{
 			$bond_name = $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				network_interface_name => $network_interface_name, 
+				bond_name              => $bond_name,
+			}});
 			push @{$anvil->data->{network}{$host}{interface}{$bond_name}{interfaces}}, $network_interface_name;
 		}
 		if (($network_interface_bridge_uuid) && (defined $anvil->data->{network}{$host}{bridge_uuid}{$network_interface_bridge_uuid}{name}))
 		{
 			$bridge_name = $anvil->data->{network}{$host}{bridge_uuid}{$network_interface_bridge_uuid}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				network_interface_name => $network_interface_name, 
+				bridge_name            => $bridge_name,
+			}});
 			push @{$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}}, $network_interface_name;
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

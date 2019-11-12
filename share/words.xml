@@ -1029,6 +1029,15 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="suffix_0045">Exbibytes</key>		<!-- Long suffix for 'exbibyte' (1,152,921,504,606,846,976 bytes). -->
 		<key name="suffix_0046">Zebibytes</key>		<!-- Long suffix for 'zebibyte' (1,180,591,620,717,411,303,424 bytes). -->
 		<key name="suffix_0047">Yobibytes</key>		<!-- Long suffix for 'yobibyte' (1,208,925,819,614,629,174,706,176 bytes). -->
+		<key name="suffix_0048">bps</key>		<!-- Short suffix for 'bits per second'. -->
+		<key name="suffix_0049">Kbps</key>		<!-- Short suffix for 'kilobits per second' (1,000 bits per second). -->
+		<key name="suffix_0050">Mbps</key>		<!-- Short suffix for 'megabits per second' (1,000,000 bits per second). -->
+		<key name="suffix_0051">Gbps</key>		<!-- Short suffix for 'gigabits per second' (1,000,000,000 bits per second). -->
+		<key name="suffix_0052">Tbps</key>		<!-- Short suffix for 'terabits per second' (1,000,000,000,000 bits per second). -->
+		<key name="suffix_0053">Pbps</key>		<!-- Short suffix for 'petabits per second' (1,000,000,000,000,000 bits per second). -->
+		<key name="suffix_0054">Ebps</key>		<!-- Short suffix for 'exabits per second' (1,000,000,000,000,000,000 bits per second). -->
+		<key name="suffix_0055">Zbps</key>		<!-- Short suffix for 'zettabits per second' (1,000,000,000,000,000,000,000 bits per second). -->
+		<key name="suffix_0056">Ybps</key>		<!-- Short suffix for 'yotabits per second' (1,000,000,000,000,000,000,000,000 bits per second). -->
 
 		<key name="prefix_0001">[ Error ]   - </key>
 		<key name="prefix_0002">[ Warning ] - </key>
@@ -1250,6 +1259,14 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="unit_0002">No</key>
 		<key name="unit_0003">None</key>
 		<key name="unit_0004">Unknown</key>
+		<key name="unit_0005"><![CDATA[<none>]]></key>
+		<key name="unit_0006">Balance Round-Robin</key>			<!-- Bonding mode 0 (balance-rr) - See: /usr/share/doc/iputils/README.bonding -->
+		<key name="unit_0007">Active/Backup</key>			<!-- Bonding mode 1 (active-backup) -->
+		<key name="unit_0008">Balanced Exclusive OR</key>		<!-- Bonding mode 2 (balanced-xor) -->
+		<key name="unit_0009">Broadcast</key>				<!-- Bonding mode 3 (broadcast) -->
+		<key name="unit_0010">Dynamic Link Aggregation (802.3ad)</key>	<!-- Bonding mode 4 (802.3ad) -->
+		<key name="unit_0011">Balanced Transmit Load balancing</key>	<!-- Bonding mode 5 (balanced-tlb) -->
+		<key name="unit_0012">Balanced Adaptive Load balancing</key>	<!-- Bonding mode 6 (balanced-alb) -->
 		
 		<!-- TODO: Merge these into 'unit' -->
 		<!-- These are works and strings used by javascript/jqery -->
