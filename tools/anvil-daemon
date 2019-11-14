@@ -13,6 +13,8 @@
 # - Add a "running: pending,yes,done,dead" and show an appropriate icon beside jobs
 # - Decide if holding before the main loop until 'systemctl is-system-running' returns 'running' is a good
 #   idea or not.
+# - Write the status of this and the scancore daemon to /etc/anvil/anvil.motd and symlink it to /etc/motd.d/
+# - Write a script that runs in crontab at UTC 17:00 that sends an email if Scancore or anvil-daemon are disabled.
 # 
 # NOTE:
 # - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the 
@@ -1162,10 +1164,7 @@ sub update_striker_json
 	my ($anvil) = @_;
 	
 	# Start by recording information about currently unconfigured nodes and DR hosts.
-	my $striker_json_body = "{\"unconfigured\":[\n";
-	
-	# Collect data on unconfigured hosts.
-	my ($hosts) = $anvil->Database->get_hosts({debug => 3});
+	my $striker_json_body = "";
 	
 	
 	return(0);

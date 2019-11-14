@@ -1491,6 +1491,7 @@ sub load_packages
 			"kbd-misc.noarch",
 			"kbd.x86_64",
 			"kernel-core.x86_64",
+			"kernel-doc.noarch",
 			"kernel-headers.x86_64", 
 			"kernel-modules.x86_64",
 			"kernel-tools-libs.x86_64",

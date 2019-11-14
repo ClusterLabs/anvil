@@ -1267,6 +1267,16 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="unit_0010">Dynamic Link Aggregation (802.3ad)</key>	<!-- Bonding mode 4 (802.3ad) -->
 		<key name="unit_0011">Balanced Transmit Load balancing</key>	<!-- Bonding mode 5 (balanced-tlb) -->
 		<key name="unit_0012">Balanced Adaptive Load balancing</key>	<!-- Bonding mode 6 (balanced-alb) -->
+		<key name="unit_0013">Up</key>					<!-- Network Link State up -->
+		<key name="unit_0014">Down</key>				<!-- Network Link State down -->
+		<key name="unit_0015">Full</key>				<!-- Full Duplex -->
+		<key name="unit_0016">Half</key>				<!-- Half Duplex -->
+		<key name="unit_0017">Always Use Primary</key>			<!-- Bonding always reselect primary interface - See: bonding.txt as provided by 'kernel-doc' -->
+		<key name="unit_0018">Select Better</key>			<!-- Bonding reselect primary interface if better -->
+		<key name="unit_0019">On Failure</key>				<!-- Bonding reselect primary interface if peer fails -->
+		<key name="unit_0020">STP Disabled</key>			<!-- Bridge STP state disabled - See: https://github.com/mstpd/mstpd/issues/17#issuecomment-245395763 -->
+		<key name="unit_0021">STP Enabled in Kernel</key>		<!-- Bridge STP state kernel -->
+		<key name="unit_0022">STP Enabled in User land</key>		<!-- Bridge STP state user -->
 		
 		<!-- TODO: Merge these into 'unit' -->
 		<!-- These are works and strings used by javascript/jqery -->
