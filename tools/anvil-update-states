@@ -883,7 +883,7 @@ SET
 WHERE 
     network_interface_uuid        = ".$anvil->Database->quote($interface_uuid)."
 ;" ;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 				$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 			}
 		}

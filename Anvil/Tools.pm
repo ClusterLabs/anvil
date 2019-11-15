@@ -1055,6 +1055,7 @@ sub _set_paths
 					temp				=>	"/mnt/shared/temp",
 				},
 				skins				=>	"/var/www/html/skins",
+				status				=>	"/var/www/html/status",
 				syslinux			=>	"/usr/share/syslinux",
 				tftpboot			=>	"/var/lib/tftpboot",
 				tools				=>	"/usr/sbin",
@@ -1161,6 +1162,7 @@ sub _set_paths
 				wget				=>	"/usr/bin/wget",
 			},
 			json			=>	{
+				all_status			=>	"all_status.json",
 				files				=>	"files.json",
 			},
 			'lock'			=>	{

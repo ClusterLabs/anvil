@@ -10,6 +10,7 @@ use Scalar::Util qw(weaken isweak);
 use Time::HiRes qw(gettimeofday tv_interval);
 use Proc::Simple;
 use NetAddr::IP;
+use JSON;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
@@ -791,6 +792,306 @@ sub check_storage
 			"lvm::local::lv::${path}::on_devices" => $anvil->data->{lvm}{'local'}{lv}{$path}{on_devices},
 		}});
 	}
+	
+	return(0);
+}
+
+=head2 generate_state_json
+
+This method generates the C<< all_status.json >> file.
+
+This method takes no parameters.
+
+=cut
+sub generate_state_json
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_bridges()" }});
+	
+	$anvil->data->{json}{all_systems}{hosts} = [];
+	$anvil->Database->get_hosts_info({debug => 3});
+	foreach my $host_uuid (keys %{$anvil->data->{machine}{host_uuid}})
+	{
+		my $host_name       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
+		my $short_host_name = ($host_name =~ /^(.*?)\./)[0];
+		my $host_type       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
+		my $host_key        = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
+		my $configured      = defined $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} ? $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} : 0;
+		my $ifaces_array    = [];
+		my $host            = $short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:host_name"       => $host_name,
+			"s2:short_host_name" => $short_host_name, 
+			"s3:host_type"       => $host_type,
+			"s4:configured"      => $configured, 
+			"s5:host_uuid"       => $host_uuid, 
+			"s6:host_key"        => $host_key, 
+		}});
+		
+		$anvil->Network->load_interfces({
+			host_uuid => $host_uuid, 
+			host      => $short_host_name,
+		});
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
+		{
+			my $type        = $anvil->data->{network}{$host}{interface}{$interface}{type};
+			my $uuid        = $anvil->data->{network}{$host}{interface}{$interface}{uuid};
+			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu}." ".$anvil->Words->string({key => "suffix_0014"});;
+			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
+			my $iface_hash  = {};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:interface"   => $interface,
+				"s2:mac_address" => $mac_address, 
+				"s3:type"        => $type,
+				"s4:configured"  => $configured, 
+				"s5:host_uuid"   => $host_uuid, 
+				"s6:host_key"    => $host_key, 
+			}});
+			$iface_hash->{name} = $interface;
+			$iface_hash->{type} = $type;
+			$iface_hash->{mtu}  = $mtu;
+			$iface_hash->{uuid} = $uuid;
+			if ($type eq "bond")
+			{
+				my $mode                 = $anvil->data->{network}{$host}{interface}{$interface}{mode};
+				my $primary_slave        = $anvil->data->{network}{$host}{interface}{$interface}{primary_slave}; 
+				my $primary_reselect     = $anvil->data->{network}{$host}{interface}{$interface}{primary_reselect}; 
+				my $active_slave         = $anvil->data->{network}{$host}{interface}{$interface}{active_slave}; 
+				my $mii_polling_interval = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{mii_polling_interval}})." ".$anvil->Words->string({key => "suffix_0012"});
+				my $say_up_delay         = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{up_delay}})." ".$anvil->Words->string({key => "suffix_0012"});
+				my $up_delay             = $anvil->data->{network}{$host}{interface}{$interface}{up_delay};
+				my $say_down_delay       = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{down_delay}})." ".$anvil->Words->string({key => "suffix_0012"}); 
+				my $down_delay           = $anvil->data->{network}{$host}{interface}{$interface}{down_delay}; 
+				my $operational          = $anvil->data->{network}{$host}{interface}{$interface}{operational}; 
+				my $interfaces           = $anvil->data->{network}{$host}{interface}{$interface}{interfaces};
+				my $say_mode             = $mode;
+				my $say_operational      = $operational;
+				my $say_primary_reselect = $primary_reselect;
+				if (($mode eq "0") or ($mode eq "balance-rr"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0006"});
+				}
+				elsif (($mode eq "1") or ($mode eq "active-backup"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0007"});
+				}
+				elsif (($mode eq "2") or ($mode eq "balanced-xor"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0008"});
+				}
+				elsif (($mode eq "3") or ($mode eq "broadcast"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0009"});
+				}
+				elsif (($mode eq "4") or ($mode eq "802.3ad"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0010"});
+				}
+				elsif (($mode eq "5") or ($mode eq "balanced-tlb"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0011"});
+				}
+				elsif (($mode eq "6") or ($mode eq "balanced-alb"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0012"});
+				}
+				if ($operational eq "up")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0013"});
+				}
+				elsif ($operational eq "down")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0014"});
+				}
+				elsif ($operational eq "unknown")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0004"});
+				}
+				if (($primary_reselect eq "always") or ($primary_reselect eq "0"))
+				{
+					$say_primary_reselect = $anvil->Words->string({key => "unit_0017"});
+				}
+				elsif (($primary_reselect eq "better") or ($primary_reselect eq "1"))
+				{
+					$say_primary_reselect = $anvil->Words->string({key => "unit_0018"});
+				}
+				elsif (($primary_reselect eq "failure") or ($primary_reselect eq "2"))
+				{
+					$say_primary_reselect = $anvil->Words->string({key => "unit_0019"});
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					say_mode             => $say_mode,
+					mode                 => $mode,
+					active_interface     => $active_slave,
+					primary_interface    => $primary_slave,
+					say_reselect_policy  => $say_primary_reselect,
+					reselect_policy      => $primary_reselect,
+					say_up_delay         => $up_delay,
+					up_delay             => $anvil->data->{network}{$host}{interface}{$interface}{up_delay},
+					say_down_delay       => $down_delay,
+					down_delay           => $anvil->data->{network}{$host}{interface}{$interface}{down_delay},
+					say_operational      => $say_operational,
+					operational          => $operational,
+					mii_polling_interval => $mii_polling_interval,
+				}});
+				my $connected = [];
+				foreach my $iface (sort {$a cmp $b} @{$interfaces})
+				{
+					push @{$connected}, $iface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { iface => $iface }});
+				}
+				$iface_hash->{say_mode}             = $say_mode;
+				$iface_hash->{mode}                 = $mode;
+				$iface_hash->{active_interface}     = $active_slave;
+				$iface_hash->{primary_interface}    = $primary_slave;
+				$iface_hash->{reselect_policy}      = $primary_reselect;
+				$iface_hash->{say_up_delay}         = $say_up_delay;
+				$iface_hash->{up_delay}             = $up_delay;
+				$iface_hash->{say_down_delay}       = $say_down_delay;
+				$iface_hash->{down_delay}           = $down_delay;
+				$iface_hash->{say_operational}      = $say_operational;
+				$iface_hash->{operational}          = $operational;
+				$iface_hash->{mii_polling_interval} = $mii_polling_interval;
+				$iface_hash->{interfaces}           = $connected;
+			}
+			elsif ($type eq "bridge")
+			{
+				my $id              = $anvil->data->{network}{$host}{interface}{$interface}{id}; 
+				my $stp_enabled     = $anvil->data->{network}{$host}{interface}{$interface}{stp_enabled}; 
+				my $interfaces      = $anvil->data->{network}{$host}{interface}{$interface}{interfaces};
+				my $say_stp_enabled = $stp_enabled;
+				if (($stp_enabled eq "0") or ($stp_enabled eq "disabled"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0020"});
+				}
+				elsif (($stp_enabled eq "1") or ($stp_enabled eq "enabled_kernel"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0021"});
+				}
+				elsif (($stp_enabled eq "2") or ($stp_enabled eq "enabled_userland"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0022"});
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					bridge_id       => $id,
+					stp_enabled     => $stp_enabled,
+					say_stp_enabled => $say_stp_enabled,
+				}});
+
+				my $connected = [];
+				foreach my $iface (sort {$a cmp $b} @{$interfaces})
+				{
+					push @{$connected}, $iface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { iface => $iface }});
+				}
+
+				$iface_hash->{bridge_id}       = $id;
+				$iface_hash->{stp_enabled}     = $stp_enabled;
+				$iface_hash->{say_stp_enabled} = $say_stp_enabled;
+				$iface_hash->{interfaces}      = $connected;
+			}
+			else
+			{
+				my $speed           = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{speed}})." ".$anvil->Words->string({key => "suffix_0050"});
+				my $link_state      = $anvil->data->{network}{$host}{interface}{$interface}{link_state};
+				my $operational     = $anvil->data->{network}{$host}{interface}{$interface}{operational};
+				my $duplex          = $anvil->data->{network}{$host}{interface}{$interface}{duplex};
+				my $medium          = $anvil->data->{network}{$host}{interface}{$interface}{medium};
+				my $bond_name       = $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   ? $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   : $anvil->Words->string({key => "unit_0005"});
+				my $bridge_name     = $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} ? $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} : $anvil->Words->string({key => "unit_0005"});
+				my $say_link_state  = $link_state;
+				my $say_operational = $operational;
+				my $say_medium      = $medium;
+				my $say_duplex      = $duplex;
+				if ($anvil->data->{network}{$host}{interface}{$interface}{speed} >= 1000)
+				{
+					# Report in Gbps 
+					$speed = $anvil->Convert->add_commas({number => ($anvil->data->{network}{$host}{interface}{$interface}{speed} / 1000)})." ".$anvil->Words->string({key => "suffix_0051"});
+				}
+				if ($duplex eq "full")
+				{
+					$say_duplex = $anvil->Words->string({key => "unit_0015"});
+				}
+				elsif ($duplex eq "half")
+				{
+					$say_duplex = $anvil->Words->string({key => "unit_0016"});
+				}
+				elsif ($duplex eq "unknown")
+				{
+					$say_duplex = $anvil->Words->string({key => "unit_0004"});
+				}
+				if ($operational eq "up")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0013"});
+				}
+				elsif ($operational eq "down")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0014"});
+				}
+				elsif ($operational eq "unknown")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0004"});
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					speed           => $speed,
+					say_link_state  => $say_link_state,
+					link_state      => $link_state,
+					say_operational => $say_operational,
+					operational     => $operational,
+					say_duplex      => $say_duplex,
+					duplex          => $duplex,
+					say_medium      => $say_medium,
+					medium          => $medium,
+					bond_name       => $bond_name,
+					bridge_name     => $bridge_name,
+				}});
+
+				$iface_hash->{speed}           = $speed;
+				$iface_hash->{say_link_state}  = $say_link_state;
+				$iface_hash->{link_state}      = $link_state;
+				$iface_hash->{say_operational} = $say_operational;
+				$iface_hash->{operational}     = $operational;
+				$iface_hash->{say_duplex}      = $say_duplex;
+				$iface_hash->{duplex}          = $duplex;
+				$iface_hash->{say_medium}      = $say_medium;
+				$iface_hash->{medium}          = $medium;
+				$iface_hash->{bond_name}       = $bond_name;
+				$iface_hash->{bridge_name}     = $bridge_name;
+			};
+			push @{$ifaces_array}, $iface_hash;
+		}
+
+		push @{$anvil->data->{json}{all_systems}{hosts}}, {
+			name               => $host_name,
+			short_name         => $short_host_name, 
+			type               => $host_type,
+			host_uuid          => $host_uuid,
+			configured         => $configured,
+			ssh_fingerprint    => $host_key,
+			network_interfaces => $ifaces_array,
+		};
+
+	}
+	my $json = encode_json $anvil->data->{json}{all_systems};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { json => $json }});
+	
+	# Write it out.
+	my $json_file = $anvil->data->{path}{directories}{status}."/".$anvil->data->{path}{json}{all_status};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { json_file => $json_file }});
+	my $error = $anvil->Storage->write_file({
+		debug     => 2, 
+		overwrite => 1, 
+		backup    => 0, 
+		file      => $json_file, 
+		body      => $json, 
+		group     => "apache",
+		user      => "apache",
+		mode      => "0644",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
 	
 	return(0);
 }

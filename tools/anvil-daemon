@@ -1164,7 +1164,7 @@ sub update_striker_json
 	my ($anvil) = @_;
 	
 	# Start by recording information about currently unconfigured nodes and DR hosts.
-	my $striker_json_body = "";
+	$anvil->System->generate_state_json({debug => 3});
 	
 	
 	return(0);
