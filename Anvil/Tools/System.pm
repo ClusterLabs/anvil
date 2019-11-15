@@ -1002,6 +1002,7 @@ sub generate_state_json
 				my $medium          = $anvil->data->{network}{$host}{interface}{$interface}{medium};
 				my $bond_name       = $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   ? $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   : $anvil->Words->string({key => "unit_0005"});
 				my $bridge_name     = $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} ? $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} : $anvil->Words->string({key => "unit_0005"});
+				my $changed_order   = $anvil->data->{network}{$host}{interface}{$interface}{changed_order};
 				my $say_link_state  = $link_state;
 				my $say_operational = $operational;
 				my $say_medium      = $medium;
@@ -1047,6 +1048,7 @@ sub generate_state_json
 					medium          => $medium,
 					bond_name       => $bond_name,
 					bridge_name     => $bridge_name,
+					changed_order   => $changed_order,
 				}});
 
 				$iface_hash->{speed}           = $speed;
@@ -1060,6 +1062,7 @@ sub generate_state_json
 				$iface_hash->{medium}          = $medium;
 				$iface_hash->{bond_name}       = $bond_name;
 				$iface_hash->{bridge_name}     = $bridge_name;
+				$iface_hash->{changed_order}   = $changed_order;
 			};
 			push @{$ifaces_array}, $iface_hash;
 		}

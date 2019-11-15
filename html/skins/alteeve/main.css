@@ -136,7 +136,7 @@ body {
 .job_output {
 	font:        0.8em 'Dejavu Sans Mono', Courier;
 	color:       #d2e2d2;
-	white-space: nowrap;
+	/*white-space: nowrap;*/
 }
 
 .job_status {

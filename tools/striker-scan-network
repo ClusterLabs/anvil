@@ -346,17 +346,19 @@ sub call_nmap
 	$anvil->data->{progress} += 10;
 	update_progress($anvil, $anvil->data->{progress}, "log_0445,!!range!".$address."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "log_0445", variables  => { range => $address }});
-	my ($nmap_data, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmap}." -sn -n ".$address });
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		nmap_data   => $nmap_data, 
-		return_code => $return_code,
-	}});
 	
-	my $this_ip  = "";
-	my $this_mac = "";
-	my $section  = "";
-	foreach my $line (split/\n/, $nmap_data)
+	# Make the call directly, instead of using 'System->call', so that we can show output as it's found.
+	my $this_ip    = "";
+	my $this_mac   = "";
+	my $section    = "";
+	my $shell_call = $anvil->data->{path}{exe}{nmap}." -sP -T4 --min-parallelism 100 --max-parallelism 256 ".$address;
+	open (my $file_handle, $shell_call." 2>&1  |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+	while(<$file_handle>)
 	{
+		chomp;
+		my $line =  $_;
+		   $line =~ s/\n$//;
+		   $line =~ s/\r$//;
 		$line = $anvil->Words->clean_spaces({'string' => $line});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		
@@ -393,10 +395,14 @@ sub call_nmap
 			{
 				$anvil->data->{progress} += 1;
 				$anvil->data->{progress} = 95 if $anvil->data->{progress} > 95;
-				update_progress($anvil, $anvil->data->{progress}, "log_0446,!!ip!".$this_ip."!!,!!mac!".$this_mac."!!");
+				my $company = $anvil->Network->get_company_from_mac({debug => 2, mac => $this_mac });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { company => $company }});
+				
+				update_progress($anvil, $anvil->data->{progress}, "log_0446,!!ip!".$this_ip."!!,!!mac!".$this_mac."!!,!!company!".$company."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "log_0446", variables => { 
-					ip  => $this_ip,
-					mac => $this_mac,
+					ip      => $this_ip,
+					mac     => $this_mac,
+					company => $company,
 				}});
 				my ($mac_to_ip_uuid) = $anvil->Database->insert_or_update_mac_to_ip({
 					debug                 => 3,
@@ -423,6 +429,7 @@ sub call_nmap
 			$section = "";
 		}
 	}
+	close $file_handle;
 	
 	return(0);
 }

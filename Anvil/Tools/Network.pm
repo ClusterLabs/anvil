@@ -16,6 +16,7 @@ my $THIS_FILE = "Network.pm";
 # check_internet
 # download
 # find_matches
+# get_company_from_mac
 # get_ips
 # get_network
 # is_local
@@ -973,6 +974,7 @@ ORDER BY
 		results => $results, 
 		count   => $count,
 	}});
+	my $changed_order = 1;
 	foreach my $row (@{$results})
 	{
 		my $network_interface_uuid        = defined $row->[0]  ? $row->[0]  : "";
@@ -1019,38 +1021,42 @@ ORDER BY
 			network_interface_bond_uuid   => $network_interface_bond_uuid, 
 			network_interface_bridge_uuid => $network_interface_bridge_uuid, 
 			bond_name                     => $bond_name, 
+			changed_order                 => $changed_order,
 		}});
 		
 		
 		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}        = $network_interface_uuid; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address} = $network_interface_mac_address; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}       = $network_interface_speed; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}         = $network_interface_mtu; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}  = $network_interface_link_state; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{operational} = $network_interface_operational; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}      = $network_interface_duplex; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}      = $network_interface_medium; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}   = $network_interface_bond_uuid; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}   = $bond_name; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid} = $network_interface_bridge_uuid; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name} = $bridge_name; 
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{type}        = "interface";
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}          = $network_interface_uuid; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}   = $network_interface_mac_address; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}         = $network_interface_speed; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}           = $network_interface_mtu; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}    = $network_interface_link_state; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{operational}   = $network_interface_operational; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}        = $network_interface_duplex; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}        = $network_interface_medium; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}     = $network_interface_bond_uuid; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}     = $bond_name; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}   = $network_interface_bridge_uuid; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}   = $bridge_name; 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{type}          = "interface";
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order} = $changed_order;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::interface::${network_interface_name}::uuid"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}, 
-			"network::${host}::interface::${network_interface_name}::mac_address" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}, 
-			"network::${host}::interface::${network_interface_name}::speed"       => $anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}, 
-			"network::${host}::interface::${network_interface_name}::mtu"         => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}, 
-			"network::${host}::interface::${network_interface_name}::link_state"  => $anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}, 
-			"network::${host}::interface::${network_interface_name}::operational" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{operational}, 
-			"network::${host}::interface::${network_interface_name}::duplex"      => $anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}, 
-			"network::${host}::interface::${network_interface_name}::medium"      => $anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}, 
-			"network::${host}::interface::${network_interface_name}::bond_uuid"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}, 
-			"network::${host}::interface::${network_interface_name}::bond_name"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}, 
-			"network::${host}::interface::${network_interface_name}::bridge_uuid" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}, 
-			"network::${host}::interface::${network_interface_name}::bridge_name" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}, 
-			"network::${host}::interface::${network_interface_name}::type"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{type}, 
+			"network::${host}::interface::${network_interface_name}::uuid"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}, 
+			"network::${host}::interface::${network_interface_name}::mac_address"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}, 
+			"network::${host}::interface::${network_interface_name}::speed"         => $anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}, 
+			"network::${host}::interface::${network_interface_name}::mtu"           => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mtu}, 
+			"network::${host}::interface::${network_interface_name}::link_state"    => $anvil->data->{network}{$host}{interface}{$network_interface_name}{link_state}, 
+			"network::${host}::interface::${network_interface_name}::operational"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{operational}, 
+			"network::${host}::interface::${network_interface_name}::duplex"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{duplex}, 
+			"network::${host}::interface::${network_interface_name}::medium"        => $anvil->data->{network}{$host}{interface}{$network_interface_name}{medium}, 
+			"network::${host}::interface::${network_interface_name}::bond_uuid"     => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_uuid}, 
+			"network::${host}::interface::${network_interface_name}::bond_name"     => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bond_name}, 
+			"network::${host}::interface::${network_interface_name}::bridge_uuid"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}, 
+			"network::${host}::interface::${network_interface_name}::bridge_name"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}, 
+			"network::${host}::interface::${network_interface_name}::type"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{type}, 
+			"network::${host}::interface::${network_interface_name}::changed_order" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order}, 
 		}});
+		$changed_order++;
 	}
 	
 	# Load the IPs
@@ -1303,6 +1309,77 @@ WHERE
 	}
 	
 	return(0);
+}
+
+=head2 get_company_from_mac
+
+This takes a MAC address (or the first six bytes) and returns the company that owns the OUI. If the company name is not found, an expty string is returned.
+
+Parameters;
+
+=head3 mac (required)
+
+This is the first six bytes of the mac address,  C<< xx:xx:xx >> format, being searched for.
+
+=cut
+sub get_company_from_mac
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_company_from_mac()" }});
+	
+	my $mac     = defined $parameter->{mac} ? lc($parameter->{mac}) : "";
+	my $company = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		mac => $mac,
+	}});
+	
+	if (not $mac)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->get_company_from_mac()", parameter => "mac_prefix" }});
+		return("");
+	}
+	
+	# Have I already looked this one up?
+	if ($anvil->data->{cache}{mac_to_oui}{$mac})
+	{
+		# Yup, no need to process.
+		return($anvil->data->{cache}{mac_to_oui}{$mac});
+	}
+	
+	my $valid_mac = $anvil->Validate->is_mac({mac => $mac});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac => $mac }});
+	if ($valid_mac)
+	{
+		# Strip the first six bytes.
+		$mac = ($mac =~ /^([0-9a-f]{2}[:-][0-9a-f]{2}[:-][0-9a-f]{2})/i)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac => $mac }});
+	}
+	elsif ($mac !~ /[0-9a-f]{2}[:-][0-9a-f]{2}[:-][0-9a-f]{2}/i)
+	{
+		# Bad format
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0104", variables => { mac => $mac }});
+		return("");
+	}
+	
+	my $query = "SELECT oui_company_name FROM oui WHERE oui_mac_prefix = ".$anvil->Database->quote(lc($mac)).";";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	if ($count)
+	{
+		$company = $results->[0]->[0];
+		$anvil->data->{cache}{mac_to_oui}{$mac} = $company;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { company => $company }});
+	}
+	
+	return($company);
 }
 
 =head2 get_ips

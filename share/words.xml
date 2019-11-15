@@ -776,8 +776,8 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 #!variable!section!#
 ====
 		</key>
-		<key name="log_0445"><![CDATA[[ Note ] - We're about to do a ping scan of: [#!variable!range!#]. This could take a long time, please be patient!<br />If you think this process is hung, please run 'pgrep nmap' on the host. If a process is returned, this is still running. We go slow to avoid upsetting network security devices or admin.]]></key>
-		<key name="log_0446">Found the network device: [#!variable!mac!#] usingt the IP address: [#!variable!ip!#].</key>
+		<key name="log_0445"><![CDATA[[ Note ] - We're about to do a ping scan of: [#!variable!range!#]. This could take a long time, please be patient! If you think this process is hung, please run 'pgrep nmap' on the host. If a process is returned, this is still running.  We go slow to avoid upsetting network security devices or admin.]]></key>
+		<key name="log_0446">Found the network device: [#!variable!mac!#] (owned by #!variable!company!#) using the IP address: [#!variable!ip!#].</key>
 		<key name="log_0447">About to download: [#!variable!url!#] and save it to: [#!variable!file!#].</key>
 		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>
 		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now.</key>
@@ -1253,6 +1253,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0101">Compression appears to have failed. The output file: [#!variable!out_file!#] was not found.</key>
 		<key name="error_0102">Failed to check the existence and size of the file: [#!variable!file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
 		<key name="error_0103">The file: [#!variable!file!#] wasn't found.</key>
+		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
