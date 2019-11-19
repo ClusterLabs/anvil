@@ -1930,7 +1930,7 @@ sub get_local_uuid
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
 			my $ip_address  = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-			my $subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet};
+			my $subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ip_address  => $ip_address,
 				subnet_mask => $subnet_mask,

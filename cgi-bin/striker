@@ -694,9 +694,9 @@ sub process_anvil_menu
 	{
 		process_prep_host_page($anvil);
 	}
-	elsif ($anvil->data->{cgi}{task}{value} eq "configure-network")
+	elsif ($anvil->data->{cgi}{task}{value} eq "prep-network")
 	{
-		process_configure_network($anvil);
+		process_prep_network($anvil);
 	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "manifest")
 	{
@@ -714,7 +714,7 @@ sub process_anvil_menu
 }
 
 # This handles configuring a remote target's network interfaces (renaming them, bonding and bridging them).
-sub process_configure_network
+sub process_prep_network
 {
 	my ($anvil) = @_;
 	
@@ -728,6 +728,64 @@ sub process_configure_network
 		host_password     => $anvil->Log->is_secure($host_password), 
 		confirm           => $confirm, 
 	}});
+	
+	# We need to a pick a machine to initialize.
+	
+	# Do I know which machine we're initializing yet?
+	if ($anvil->data->{cgi}{host_uuid}{value})
+	{
+		# Yup, build the config page.
+	}
+	else
+	{
+		# Nope, show the list of unconfigured servers.
+		$anvil->System->parse_status_json($anvil);
+	}
+	
+# 	if ((not $anvil->data->{form}{body}) or ($anvil->data->{form}{error_massage}))
+# 	{
+# 		my $node_checked = "checked";
+# 		my $dr_checked   = "";
+# 		if ($type eq "dr")
+# 		{
+# 			$node_checked = "";
+# 			$dr_checked   = "checked";
+# 		}
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 			node_checked => $node_checked,
+# 			dr_checked   => $dr_checked, 
+# 		}});
+# 		
+# 		my $host_name         =  $anvil->_host_name;
+# 		   $host_name         =~ s/striker\d\d/xxx/;
+# 		my $default_host_name = $host_name;
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 			default_host_name => $default_host_name, 
+# 			host_name         => $host_name,
+# 		}});
+# 		if ((exists $anvil->data->{cgi}{host_name}) && ($anvil->data->{cgi}{host_name}{value}))
+# 		{
+# 			$host_name = $anvil->data->{cgi}{host_name}{value};
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+# 		}
+# 		
+# 		my $form_body = $anvil->Template->get({file => "anvil.html", name => "host-setup-menu1", variables => {
+# 			host_name         => $host_name,
+# 			default_host_name => $default_host_name, 
+# 			host_ip_address   => $host_ip_address,
+# 			node_checked      => $node_checked, 
+# 			dr_checked        => $dr_checked, 
+# 		}});
+# 		
+# 		$anvil->data->{form}{refresh_link} = "?anvil=true&task=prep-network";
+# 		$anvil->data->{form}{back_link}    = "?anvil=true";
+# 		$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+# 		$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+# 		$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "prep-host-main", variables => {
+# 			form => $form_body, 
+# 		}});
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+# 	}
 	
 	return(0);
 }
@@ -1281,7 +1339,7 @@ sub process_sync_page
 	{
 		next if (($interface !~ /^bcn/) && ($interface !~ /^ifn/));
 		next if not $anvil->Validate->is_ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip}});
-		next if not $anvil->Validate->is_subnet({subnet => $anvil->data->{network}{'local'}{interface}{$interface}{subnet}});
+		next if not $anvil->Validate->is_subnet_mask({subnet_mask => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}});
 		my ($network_type, $network_number) = ($interface =~ /^(.*?)(\d+)_/);
 		
 		my $database_user = $anvil->data->{database}{$host_uuid}{user} ? $anvil->data->{database}{$host_uuid}{user} : $anvil->data->{sys}{database}{user};
@@ -1935,11 +1993,11 @@ ORDER BY
 	foreach my $this_net (sort {$a cmp $b} keys %{$nets})
 	{
 		my $ip_key      = $this_net."_ip";
-		my $subnet_key  = $this_net."_subnet";
+		my $subnet_mask_key  = $this_net."_subnet_mask";
 		my $iface1_key  = $this_net."_link1_mac_to_set";
 		my $iface2_key  = $this_net."_link2_mac_to_set";
 		my $ip          = $anvil->data->{cgi}{$ip_key}{value};
-		my $subnet      = $anvil->data->{cgi}{$subnet_key}{value};
+		my $subnet_mask      = $anvil->data->{cgi}{$subnet_mask_key}{value};
 		my $iface1_mac  = $anvil->data->{cgi}{$iface1_key}{value};
 		my $iface2_mac  = ((defined $anvil->data->{cgi}{$iface2_key}{value}) && ($anvil->data->{cgi}{$iface2_key}{value})) ? $anvil->data->{cgi}{$iface2_key}{value} : "";
 		my $template    = $iface2_mac ? "step3_bonded_interface" : "step3_single_interface";
@@ -1949,7 +2007,7 @@ ORDER BY
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:nets->this_net" => $nets->{$this_net},
 			"s2:ip"             => $ip,
-			"s3:subnet"         => $subnet,
+			"s3:subnet_mask"         => $subnet_mask,
 			"s4:iface1_mac"     => $iface1_mac,
 			"s5:iface2_mac"     => $iface2_mac,
 			"s6:template"       => $template,
@@ -1958,7 +2016,7 @@ ORDER BY
 		}});
 		
 		# Add to the networks template.
-		my $say_ip = $ip."/".$subnet;
+		my $say_ip = $ip."/".$subnet_mask;
 		if (($gateway) && ($anvil->data->{cgi}{gateway}{value}))
 		{
 			$template                       .= "_with_gateway";
@@ -1969,7 +2027,7 @@ ORDER BY
 			column     => $anvil->Words->string({key => $column, variables => { number => $link_number }}),
 			ip_address => $say_ip,
 			ip         => $ip,
-			subnet     => $subnet,
+			subnet_mask     => $subnet_mask,
 			primary    => $iface1_mac,
 			backup     => $iface2_mac,
 			gateway    => $anvil->data->{cgi}{gateway}{value}, 
@@ -2095,13 +2153,13 @@ ORDER BY
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn => $bcn }});
 			push @{$links}, "bcn_link".$bcn;
 			my $this_ip_key       =  "bcn".$bcn."_ip";
-			my $this_subnet_key   =  "bcn".$bcn."_subnet";
+			my $this_subnet_mask_key   =  "bcn".$bcn."_subnet_mask";
 			my $this_iface1_key   =  "bcn".$bcn."_link1_mac_to_set";
 			my $this_iface2_key   =  "bcn".$bcn."_link2_mac_to_set";
-			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
+			   $cgi               .= $this_ip_key.",".$this_subnet_mask_key.",".$this_iface1_key.",".$this_iface2_key.",";
 			my $this_ip           =  generate_ip($anvil, "bcn", $bcn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
-			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_mask_class =  $anvil->data->{cgi}{$this_subnet_mask_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface2_class =  $anvil->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear";
 			
@@ -2123,18 +2181,18 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "config.html", name => "bonded_interface_form", variables => {
-				field                => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
-				description          => "#!string!striker_0019!#",
-				ip_key               => $this_ip_key,
-				ip_value             => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
-				ip_value_default     => $this_ip,
-				ip_class             => $this_ip_class,
-				subnet_key           => $this_subnet_key, 
-				subnet_value         => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : "",
-				subnet_value_default => $anvil->data->{defaults}{network}{bcn}{netmask}, 
-				subnet_class         => $this_subnet_class,
-				iface1_select        => $this_iface1_form,
-				iface2_select        => $this_iface2_form,
+				field                     => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
+				description               => "#!string!striker_0019!#",
+				ip_key                    => $this_ip_key,
+				ip_value                  => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default          => $this_ip,
+				ip_class                  => $this_ip_class,
+				subnet_mask_key           => $this_subnet_mask_key, 
+				subnet_mask_value         => defined $anvil->data->{cgi}{$this_subnet_mask_key}{value} ? $anvil->data->{cgi}{$this_subnet_mask_key}{value} : "",
+				subnet_mask_value_default => $anvil->data->{defaults}{network}{bcn}{subnet_mask}, 
+				subnet_mask_class         => $this_subnet_mask_class,
+				iface1_select             => $this_iface1_form,
+				iface2_select             => $this_iface2_form,
 			}});
 		}
 		
@@ -2146,13 +2204,13 @@ ORDER BY
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifn => $ifn }});
 			push @{$links}, "ifn_link".$ifn;
 			my $this_ip_key       =  "ifn".$ifn."_ip";
-			my $this_subnet_key   =  "ifn".$ifn."_subnet";
+			my $this_subnet_mask_key   =  "ifn".$ifn."_subnet_mask";
 			my $this_iface1_key   =  "ifn".$ifn."_link1_mac_to_set";
 			my $this_iface2_key   =  "ifn".$ifn."_link2_mac_to_set";
-			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",".$this_iface2_key.",";
+			   $cgi               .= $this_ip_key.",".$this_subnet_mask_key.",".$this_iface1_key.",".$this_iface2_key.",";
 			my $this_ip           =  generate_ip($anvil, "ifn", $ifn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
-			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_mask_class =  $anvil->data->{cgi}{$this_subnet_mask_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface2_class =  $anvil->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear";
 			
@@ -2174,18 +2232,18 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "config.html", name => "bonded_interface_form", variables => {
-				field                => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
-				description          => "#!string!striker_0023!#",
-				ip_key               => $this_ip_key,
-				ip_value             => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
-				ip_value_default     => $this_ip,
-				ip_class             => $this_ip_class,
-				subnet_key           => $this_subnet_key, 
-				subnet_value         => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : "",
-				subnet_value_default => $anvil->data->{defaults}{network}{ifn}{netmask}, 
-				subnet_class         => $this_subnet_class,
-				iface1_select        => $this_iface1_form,
-				iface2_select        => $this_iface2_form,
+				field                     => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
+				description               => "#!string!striker_0023!#",
+				ip_key                    => $this_ip_key,
+				ip_value                  => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default          => $this_ip,
+				ip_class                  => $this_ip_class,
+				subnet_mask_key           => $this_subnet_mask_key, 
+				subnet_mask_value         => defined $anvil->data->{cgi}{$this_subnet_mask_key}{value} ? $anvil->data->{cgi}{$this_subnet_mask_key}{value} : "",
+				subnet_mask_value_default => $anvil->data->{defaults}{network}{ifn}{subnet_mask}, 
+				subnet_mask_class         => $this_subnet_mask_class,
+				iface1_select             => $this_iface1_form,
+				iface2_select             => $this_iface2_form,
 			}});
 		}
 	}
@@ -2198,12 +2256,12 @@ ORDER BY
 		{
 			push @{$links}, "bcn_link".$bcn;
 			my $this_ip_key       =  "bcn".$bcn."_ip";
-			my $this_subnet_key   =  "bcn".$bcn."_subnet";
+			my $this_subnet_mask_key   =  "bcn".$bcn."_subnet_mask";
 			my $this_iface1_key   =  "bcn".$bcn."_link1_mac_to_set";
-			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",";
+			   $cgi               .= $this_ip_key.",".$this_subnet_mask_key.",".$this_iface1_key.",";
 			my $this_ip           =  generate_ip($anvil, "bcn", $bcn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
-			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_mask_class =  $anvil->data->{cgi}{$this_subnet_mask_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
 			
 			# Build the interface select boxes...
@@ -2217,17 +2275,17 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "config.html", name => "single_interface_form", variables => {
-				field                => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
-				description          => "#!string!striker_0019!#",
-				ip_key               => $this_ip_key,
-				ip_value             => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
-				ip_value_default     => $this_ip,
-				ip_class             => $this_ip_class,
-				subnet_key           => $this_subnet_key, 
-				subnet_value         => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{defaults}{network}{bcn}{netmask},
-				subnet_value_default => $anvil->data->{defaults}{network}{bcn}{netmask}, 
-				subnet_class         => $this_subnet_class,
-				iface1_select        => $this_iface1_form,
+				field                     => $anvil->Words->string({key => "striker_0018", variables => { number => $bcn }}),
+				description               => "#!string!striker_0019!#",
+				ip_key                    => $this_ip_key,
+				ip_value                  => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default          => $this_ip,
+				ip_class                  => $this_ip_class,
+				subnet_mask_key           => $this_subnet_mask_key, 
+				subnet_mask_value         => defined $anvil->data->{cgi}{$this_subnet_mask_key}{value} ? $anvil->data->{cgi}{$this_subnet_mask_key}{value} : $anvil->data->{defaults}{network}{bcn}{subnet_mask},
+				subnet_mask_value_default => $anvil->data->{defaults}{network}{bcn}{subnet_mask}, 
+				subnet_mask_class         => $this_subnet_mask_class,
+				iface1_select             => $this_iface1_form,
 			}});
 		}
 		
@@ -2237,12 +2295,12 @@ ORDER BY
 		{
 			push @{$links}, "ifn_link".$ifn;
 			my $this_ip_key       =  "ifn".$ifn."_ip";
-			my $this_subnet_key   =  "ifn".$ifn."_subnet";
+			my $this_subnet_mask_key   =  "ifn".$ifn."_subnet_mask";
 			my $this_iface1_key   =  "ifn".$ifn."_link1_mac_to_set";
-			   $cgi               .= $this_ip_key.",".$this_subnet_key.",".$this_iface1_key.",";
+			   $cgi               .= $this_ip_key.",".$this_subnet_mask_key.",".$this_iface1_key.",";
 			my $this_ip           =  generate_ip($anvil, "ifn", $ifn, $anvil->data->{cgi}{sequence}{value});
 			my $this_ip_class     =  $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
-			my $this_subnet_class =  $anvil->data->{cgi}{$this_subnet_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_mask_class =  $anvil->data->{cgi}{$this_subnet_mask_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class =  $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
 			
 			# Build the interface select boxes...
@@ -2256,17 +2314,17 @@ ORDER BY
 			
 			# Assemble the form
 			$interface_form .= $anvil->Template->get({file => "config.html", name => "single_interface_form", variables => {
-				field                => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
-				description          => "#!string!striker_0023!#",
-				ip_key               => $this_ip_key,
-				ip_value             => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
-				ip_value_default     => $this_ip,
-				ip_class             => $this_ip_class,
-				subnet_key           => $this_subnet_key, 
-				subnet_value         => defined $anvil->data->{cgi}{$this_subnet_key}{value} ? $anvil->data->{cgi}{$this_subnet_key}{value} : $anvil->data->{defaults}{network}{ifn}{netmask},
-				subnet_value_default => $anvil->data->{defaults}{network}{ifn}{netmask}, 
-				subnet_class         => $this_subnet_class,
-				iface1_select        => $this_iface1_form,
+				field                     => $anvil->Words->string({key => "striker_0022", variables => { number => $ifn }}),
+				description               => "#!string!striker_0023!#",
+				ip_key                    => $this_ip_key,
+				ip_value                  => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default          => $this_ip,
+				ip_class                  => $this_ip_class,
+				subnet_mask_key           => $this_subnet_mask_key, 
+				subnet_mask_value         => defined $anvil->data->{cgi}{$this_subnet_mask_key}{value} ? $anvil->data->{cgi}{$this_subnet_mask_key}{value} : $anvil->data->{defaults}{network}{ifn}{subnet_mask},
+				subnet_mask_value_default => $anvil->data->{defaults}{network}{ifn}{subnet_mask}, 
+				subnet_mask_class         => $this_subnet_mask_class,
+				iface1_select             => $this_iface1_form,
 			}});
 		}
 	}
@@ -2510,17 +2568,17 @@ sub sanity_check_step2
 		{
 			my $this_network    = $network.$count;
 			my $this_ip_key     = $this_network."_ip";
-			my $this_subnet_key = $this_network."_subnet";
+			my $this_subnet_mask_key = $this_network."_subnet_mask";
 			my $this_iface1_key = $this_network."_link1_mac_to_set";
 			my $this_iface2_key = $this_network."_link2_mac_to_set";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				count                            => $count,
 				this_ip_key                      => $this_ip_key, 
-				this_subnet_key                  => $this_subnet_key, 
+				this_subnet_mask_key                  => $this_subnet_mask_key, 
 				this_iface1_key                  => $this_iface1_key,
 				this_iface2_key                  => $this_iface2_key,
 				"cgi::${this_ip_key}::value"     => $anvil->data->{cgi}{$this_ip_key}{value}, 
-				"cgi::${this_subnet_key}::value" => $anvil->data->{cgi}{$this_subnet_key}{value}, 
+				"cgi::${this_subnet_mask_key}::value" => $anvil->data->{cgi}{$this_subnet_mask_key}{value}, 
 				"cgi::${this_iface1_key}::value" => $anvil->data->{cgi}{$this_iface1_key}{value},
 				"cgi::${this_iface2_key}::value" => $anvil->data->{cgi}{$this_iface2_key}{value},
 			}});
@@ -2555,27 +2613,27 @@ sub sanity_check_step2
 				});
 			}
 			
-			# What about the subnet?
-			if (not $anvil->Validate->form_field({name => $this_subnet_key, type => "subnet"}))
+			# What about the subnet mask?
+			if (not $anvil->Validate->form_field({name => $this_subnet_mask_key, type => "subnet_mask"}))
 			{
 				$anvil->data->{form}{error_massage}          = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0016", variables => { network => $say_network }}) }});
-				$anvil->data->{cgi}{$this_subnet_key}{alert} = 1;
+				$anvil->data->{cgi}{$this_subnet_mask_key}{alert} = 1;
 				$sane                                        = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { sane => $sane }});
 			}
 			elsif ($ip_ok)
 			{
-				# We'll use the dotted-decimal subnet. If it already is, great. If not, convert it.
-				my $say_subnet = $anvil->data->{cgi}{$this_subnet_key}{value} =~ /^\d{1,2}$/ ? $anvil->Convert->cide({cidr => $anvil->data->{cgi}{$this_subnet_key}{value}}) : $anvil->data->{cgi}{$this_subnet_key}{value};
-				my $full_ip    = $anvil->data->{cgi}{$this_ip_key}{value}."/".$anvil->data->{cgi}{$this_subnet_key}{value};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_subnet => $say_subnet, full_ip => $full_ip }});
+				# We'll use the dotted-decimal subnet_mask. If it already is, great. If not, convert it.
+				my $say_subnet_mask = $anvil->data->{cgi}{$this_subnet_mask_key}{value} =~ /^\d{1,2}$/ ? $anvil->Convert->cide({cidr => $anvil->data->{cgi}{$this_subnet_mask_key}{value}}) : $anvil->data->{cgi}{$this_subnet_mask_key}{value};
+				my $full_ip    = $anvil->data->{cgi}{$this_ip_key}{value}."/".$anvil->data->{cgi}{$this_subnet_mask_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_subnet_mask => $say_subnet_mask, full_ip => $full_ip }});
 				
 				$networks->{$this_network} = $full_ip;
 				
-				# Save the subnet
+				# Save the subnet mask
 				$anvil->Database->insert_or_update_variables({
-					variable_name         => "form::config_step2::${this_subnet_key}::value", 
-					variable_value        => $anvil->data->{cgi}{$this_subnet_key}{value}, 
+					variable_name         => "form::config_step2::${this_subnet_mask_key}::value", 
+					variable_value        => $anvil->data->{cgi}{$this_subnet_mask_key}{value}, 
 					variable_default      => "", 
 					variable_description  => "striker_0025", 
 					variable_section      => "config_step2", 
@@ -2704,16 +2762,16 @@ sub sanity_check_step2
 			# Match this gateway to one of the interfaces.
 			foreach my $this_network (sort {$a cmp $b} keys %{$networks})
 			{
-				my ($this_ip, $this_subnet) = ($networks->{$this_network} =~ /^(.*?)\/(.*)$/);
+				my ($this_ip, $this_subnet_mask) = ($networks->{$this_network} =~ /^(.*?)\/(.*)$/);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"s1:this_network"            => $this_network,
 					"s2:networks->$this_network" => $networks->{$this_network}, 
 					"s3:this_ip"                 => $this_ip, 
-					"s4:this_subnet"             => $this_subnet,
+					"s4:this_subnet_mask"        => $this_subnet_mask,
 				}});
 				
-				my $first  = NetAddr::IP->new("$this_ip/$this_subnet");
-				my $second = NetAddr::IP->new("$gateway/$this_subnet");
+				my $first  = NetAddr::IP->new("$this_ip/$this_subnet_mask");
+				my $second = NetAddr::IP->new("$gateway/$this_subnet_mask");
 
 				if ($second->within($first))
 				{
@@ -3174,14 +3232,14 @@ sub get_network_details
 			# Only one entry. Fix the hash.
 			my $address         = $data->{ip}{address};
 			my $on              = $data->{ip}{on};
-			my $subnet          = $data->{ip}{subnet};
+			my $subnet_mask     = $data->{ip}{subnet_mask};
 			my $gateway         = $data->{ip}{gateway};
 			my $default_gateway = $data->{ip}{default_gateway};
 			my $dns             = $data->{ip}{dns};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				address         => $address,
 				on              => $on, 
-				subnet          => $subnet, 
+				subnet_mask     => $subnet_mask, 
 				gateway         => $gateway, 
 				default_gateway => $default_gateway, 
 				dns             => $dns, 
@@ -3189,14 +3247,14 @@ sub get_network_details
 			
 			$anvil->data->{ip}{$address} = {
 				on              => $on, 
-				subnet          => $subnet, 
+				subnet_mask     => $subnet_mask, 
 				gateway         => $gateway, 
 				default_gateway => $default_gateway, 
 				dns             => $dns, 
 			};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"ip::${address}::on"              => $anvil->data->{ip}{$address}{on}, 
-				"ip::${address}::subnet"          => $anvil->data->{ip}{$address}{subnet}, 
+				"ip::${address}::subnet_mask"     => $anvil->data->{ip}{$address}{subnet_mask}, 
 				"ip::${address}::gateway"         => $anvil->data->{ip}{$address}{gateway}, 
 				"ip::${address}::default_gateway" => $anvil->data->{ip}{$address}{default_gateway}, 
 				"ip::${address}::dns"             => $anvil->data->{ip}{$address}{dns}, 
@@ -3209,14 +3267,14 @@ sub get_network_details
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { address => $address }});
 				$anvil->data->{ip}{$address} = {
 					on              => $data->{ip}{$address}{on}, 
-					subnet          => $data->{ip}{$address}{subnet}, 
+					subnet_mask     => $data->{ip}{$address}{subnet_mask}, 
 					gateway         => $data->{ip}{$address}{gateway}, 
 					default_gateway => $data->{ip}{$address}{default_gateway}, 
 					dns             => $data->{ip}{$address}{dns}, 
 				};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"ip::${address}::on"              => $anvil->data->{ip}{$address}{on}, 
-					"ip::${address}::subnet"          => $anvil->data->{ip}{$address}{subnet}, 
+					"ip::${address}::subnet_mask"     => $anvil->data->{ip}{$address}{subnet_mask}, 
 					"ip::${address}::gateway"         => $anvil->data->{ip}{$address}{gateway}, 
 					"ip::${address}::default_gateway" => $anvil->data->{ip}{$address}{default_gateway}, 
 					"ip::${address}::dns"             => $anvil->data->{ip}{$address}{dns}, 
@@ -3325,15 +3383,15 @@ sub generate_ip
 	# An empty string is returned if we can't make a sane guess at what should be set.
 	my $ip = "";
 	
-	# The subnet's second octet will be '+X' where 'X' is the sequence.
-	my $default_ip      = $anvil->data->{defaults}{network}{$network}{subnet};
-	my $default_netmark = $anvil->data->{defaults}{network}{$network}{netmask};
+	# The subnet mask's second octet will be '+X' where 'X' is the sequence.
+	my $default_ip          = $anvil->data->{defaults}{network}{$network}{network};
+	my $default_subnet_mask = $anvil->data->{defaults}{network}{$network}{subnet_mask};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		default_ip      => $default_ip,
-		default_netmark => $default_netmark, 
+		default_ip          => $default_ip,
+		default_subnet_mask => $default_subnet_mask, 
 	}});
 	
-	if (($anvil->Validate->is_ipv4({ip => $default_ip})) && ($anvil->Validate->is_ipv4({ip => $default_netmark})))
+	if (($anvil->Validate->is_ipv4({ip => $default_ip})) && ($anvil->Validate->is_ipv4({ip => $default_subnet_mask})))
 	{
 		# Valid values.
 		my ($ip_octet1, $ip_octet2, $ip_octet3, $ip_octet4) = (split/\./, $default_ip);
@@ -3344,7 +3402,7 @@ sub generate_ip
 			ip_octet4 => $ip_octet4,
 		}});
 		
-		if ($default_netmark eq "255.255.0.0")
+		if ($default_subnet_mask eq "255.255.0.0")
 		{
 			# We can work with this.
 			if ($network ne "ifn")

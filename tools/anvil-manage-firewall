@@ -121,11 +121,11 @@ sub check_initial_setup
 			}
 			push @{$needed_zones}, $zone;
 			
-			$anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{ip}     = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-			$anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{subnet} = $anvil->data->{network}{'local'}{interface}{$interface}{subnet};
+			$anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{ip}          = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+			$anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{subnet_mask} = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"firewall::zone::${zone}::interface::${interface}::ip"     => $anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{ip},
-				"firewall::zone::${zone}::interface::${interface}::subnet" => $anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{subnet},
+				"firewall::zone::${zone}::interface::${interface}::ip"          => $anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{ip},
+				"firewall::zone::${zone}::interface::${interface}::subnet_mask" => $anvil->data->{firewall}{zone}{$zone}{interface}{$interface}{subnet_mask},
 			}});
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 

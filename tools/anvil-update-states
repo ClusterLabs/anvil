@@ -49,8 +49,8 @@ sub update_network
 	$anvil->Network->get_ips({debug => 3});
 	
 	# We'll read through '/sys/class/net' looking for network interfaces.
-	# * 'network::local::interface::<iface_name>::ip'     - If an IP address is set
-	# * 'network::local::interface::<iface_name>::subnet' - If an IP is set
+	# * 'network::local::interface::<iface_name>::ip'          - If an IP address is set
+	# * 'network::local::interface::<iface_name>::subnet_mask' - If an IP is set
 	my $directory = "/sys/class/net";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
 	
@@ -125,9 +125,9 @@ sub update_network
 			# Explicitly check for the existing of the hash so that we don't auto-vivivate the interface.
 			if (exists $anvil->data->{network}{'local'}{interface}{$interface})
 			{
-				$ip_address  = defined $anvil->data->{network}{'local'}{interface}{$interface}{ip}     ? $anvil->data->{network}{'local'}{interface}{$interface}{ip}     : "";
-				$subnet_mask = defined $anvil->data->{network}{'local'}{interface}{$interface}{subnet} ? $anvil->data->{network}{'local'}{interface}{$interface}{subnet} : "";
-				$type        = defined $anvil->data->{network}{'local'}{interface}{$interface}{type}   ? $anvil->data->{network}{'local'}{interface}{$interface}{type}   : "interface";
+				$ip_address  = defined $anvil->data->{network}{'local'}{interface}{$interface}{ip}          ? $anvil->data->{network}{'local'}{interface}{$interface}{ip}          : "";
+				$subnet_mask = defined $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask} ? $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask} : "";
+				$type        = defined $anvil->data->{network}{'local'}{interface}{$interface}{type}        ? $anvil->data->{network}{'local'}{interface}{$interface}{type}        : "interface";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					ip_address  => $ip_address, 
 					subnet_mask => $subnet_mask,
@@ -317,7 +317,7 @@ sub update_network
 			$anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect}     = $primary_reselect; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{primary_slave}        = $primary_slave; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{speed}                = $speed;
-			$anvil->data->{network}{'local'}{interface}{$interface}{subnet}               = $subnet_mask; 
+			$anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}           = $subnet_mask; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{type}                 = $type; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{up_delay}              = $up_delay; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -338,7 +338,7 @@ sub update_network
 				"network::local::interface::${interface}::primary_reselect"     => $anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect},
 				"network::local::interface::${interface}::primary_slave"        => $anvil->data->{network}{'local'}{interface}{$interface}{primary_slave},
 				"network::local::interface::${interface}::speed"                => $anvil->data->{network}{'local'}{interface}{$interface}{speed},
-				"network::local::interface::${interface}::subnet"               => $anvil->data->{network}{'local'}{interface}{$interface}{subnet},
+				"network::local::interface::${interface}::subnet_mask"          => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask},
 				"network::local::interface::${interface}::type"                 => $anvil->data->{network}{'local'}{interface}{$interface}{type},
 				"network::local::interface::${interface}::up_delay"             => $anvil->data->{network}{'local'}{interface}{$interface}{up_delay},
 			}});
@@ -380,7 +380,7 @@ sub update_network
 			my $primary_reselect     = $anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect};
 			my $primary_slave        = $anvil->data->{network}{'local'}{interface}{$interface}{primary_slave};
 			my $speed                = $anvil->data->{network}{'local'}{interface}{$interface}{speed};
-			my $subnet_mask          = $anvil->data->{network}{'local'}{interface}{$interface}{subnet};
+			my $subnet_mask          = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
 			my $up_delay             = $anvil->data->{network}{'local'}{interface}{$interface}{up_delay};
 			my $default_gateway      = $anvil->data->{network}{'local'}{interface}{$interface}{default_gateway};
 			my $gateway              = $anvil->data->{network}{'local'}{interface}{$interface}{gateway};
@@ -838,8 +838,8 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_on => $say_on }});
 		}
 		
-		$network_json .= "	{ \"address\":\"$ip_address_address\", \"on\":\"$say_on\", \"subnet\":\"$ip_address_subnet_mask\", \"gateway\":\"$ip_address_gateway\", \"default_gateway\":\"$ip_address_default_gateway\", \"dns\":\"$ip_address_dns\" },\n";
-		$network_xml  .= "	<ip address=\"$ip_address_address\" on=\"$say_on\" subnet=\"$ip_address_subnet_mask\" gateway=\"$ip_address_gateway\" default_gateway=\"$ip_address_default_gateway\" dns=\"$ip_address_dns\" />\n";
+		$network_json .= "	{ \"address\":\"$ip_address_address\", \"on\":\"$say_on\", \"subnet_mask\":\"$ip_address_subnet_mask\", \"gateway\":\"$ip_address_gateway\", \"default_gateway\":\"$ip_address_default_gateway\", \"dns\":\"$ip_address_dns\" },\n";
+		$network_xml  .= "	<ip address=\"$ip_address_address\" on=\"$say_on\" subnet_mask=\"$ip_address_subnet_mask\" gateway=\"$ip_address_gateway\" default_gateway=\"$ip_address_default_gateway\" dns=\"$ip_address_dns\" />\n";
 	}
 	
 	# Now verify that the interface is connected to this bridge

@@ -40,7 +40,7 @@ Provides all methods related to converting data.
  # Access to methods using '$anvil->Convert->X'. 
  # 
  # Example using 'cidr()';
- my $subnet = $anvil->Convert->codr({cidr => "24"});
+ my $subnet_mask = $anvil->Convert->codr({cidr => "24"});
 
 =head1 METHODS
 
@@ -488,15 +488,15 @@ sub bytes_to_human_readable
 
 =head2 cidr
 
-This takes an IPv4 CIDR notation and returns the dotted-decimal subnet, or the reverse.
+This takes an IPv4 CIDR notation and returns the dotted-decimal subnet mask, or the reverse.
 
- # Convert a CIDR notation to a subnet.
- my $subnet = $anvil->Convert->cidr({cidr => "24"});
+ # Convert a CIDR notation to a subnet mask.
+ my $subnet_mask = $anvil->Convert->cidr({cidr => "24"});
 
 In the other direction;
  
- # Convert a subnet to a CIDR notation.
- my $cidr = $anvil->Convert->cidr({subnet => "255.255.255.0"});
+ # Convert a subnet mask to a CIDR notation.
+ my $cidr = $anvil->Convert->cidr({subnet_mask => "255.255.255.0"});
 
 If the input data is invalid, an empty string will be returned.
 
@@ -508,9 +508,9 @@ There are two parameters, each of which is optional, but one of them is required
 
 This is a CIDR notation (between 0 and 24) to convert to a dotted-decimal address.
 
-=head3 subnet (optional)
+=head3 subnet_mask (optional)
 
-This is a dotted-decimal subnet to convert to a CIDR notation.
+This is a dotted-decimal subnet mask to convert to a CIDR notation.
  
 =cut
 sub cidr
@@ -520,17 +520,17 @@ sub cidr
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $cidr   = defined $parameter->{cidr}   ? $parameter->{cidr}   : "";
-	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : "";
+	my $cidr        = defined $parameter->{cidr}        ? $parameter->{cidr}        : "";
+	my $subnet_mask = defined $parameter->{subnet_mask} ? $parameter->{subnet_mask} : "";
 	my $output = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		cidr   => $cidr, 
-		subnet => $subnet, 
+		cidr        => $cidr, 
+		subnet_mask => $subnet_mask, 
 	}});
 	
 	if ($cidr =~ /^\d{1,2}$/)
 	{
-		# Convert a cidr to a subnet
+		# Convert a cidr to a subnet mask
 		if    ($cidr eq "0")  { $output = "0.0.0.0"; }
 		elsif ($cidr eq "1")  { $output = "128.0.0.0"; }
 		elsif ($cidr eq "2")  { $output = "192.0.0.0"; }
@@ -565,41 +565,41 @@ sub cidr
 		elsif ($cidr eq "31") { $output = "255.255.255.254"; }
 		elsif ($cidr eq "32") { $output = "255.255.255.255"; }
 	}
-	elsif ($anvil->Validate->is_ipv4({ip => $subnet}))
+	elsif ($anvil->Validate->is_ipv4({ip => $subnet_mask}))
 	{
-		if    ($subnet eq "0.0.0.0" )         { $output = "0"; }
-		elsif ($subnet eq "128.0.0.0" )       { $output = "1"; }
-		elsif ($subnet eq "192.0.0.0" )       { $output = "2"; }
-		elsif ($subnet eq "224.0.0.0" )       { $output = "3"; }
-		elsif ($subnet eq "240.0.0.0" )       { $output = "4"; }
-		elsif ($subnet eq "248.0.0.0" )       { $output = "5"; }
-		elsif ($subnet eq "252.0.0.0" )       { $output = "6"; }
-		elsif ($subnet eq "254.0.0.0" )       { $output = "7"; }
-		elsif ($subnet eq "255.0.0.0" )       { $output = "8"; }
-		elsif ($subnet eq "255.128.0.0" )     { $output = "9"; }
-		elsif ($subnet eq "255.192.0.0" )     { $output = "10"; }
-		elsif ($subnet eq "255.224.0.0" )     { $output = "11"; }
-		elsif ($subnet eq "255.240.0.0" )     { $output = "12"; }
-		elsif ($subnet eq "255.248.0.0" )     { $output = "13"; }
-		elsif ($subnet eq "255.252.0.0" )     { $output = "14"; }
-		elsif ($subnet eq "255.254.0.0" )     { $output = "15"; }
-		elsif ($subnet eq "255.255.0.0" )     { $output = "16"; }
-		elsif ($subnet eq "255.255.128.0" )   { $output = "17"; }
-		elsif ($subnet eq "255.255.192.0" )   { $output = "18"; }
-		elsif ($subnet eq "255.255.224.0" )   { $output = "19"; }
-		elsif ($subnet eq "255.255.240.0" )   { $output = "20"; }
-		elsif ($subnet eq "255.255.248.0" )   { $output = "21"; }
-		elsif ($subnet eq "255.255.252.0" )   { $output = "22"; }
-		elsif ($subnet eq "255.255.254.0" )   { $output = "23"; }
-		elsif ($subnet eq "255.255.255.0" )   { $output = "24"; }
-		elsif ($subnet eq "255.255.255.128" ) { $output = "25"; }
-		elsif ($subnet eq "255.255.255.192" ) { $output = "26"; }
-		elsif ($subnet eq "255.255.255.224" ) { $output = "27"; }
-		elsif ($subnet eq "255.255.255.240" ) { $output = "28"; }
-		elsif ($subnet eq "255.255.255.248" ) { $output = "29"; }
-		elsif ($subnet eq "255.255.255.252" ) { $output = "30"; }
-		elsif ($subnet eq "255.255.255.254" ) { $output = "31"; }
-		elsif ($subnet eq "255.255.255.255" ) { $output = "32"; }
+		if    ($subnet_mask eq "0.0.0.0" )         { $output = "0"; }
+		elsif ($subnet_mask eq "128.0.0.0" )       { $output = "1"; }
+		elsif ($subnet_mask eq "192.0.0.0" )       { $output = "2"; }
+		elsif ($subnet_mask eq "224.0.0.0" )       { $output = "3"; }
+		elsif ($subnet_mask eq "240.0.0.0" )       { $output = "4"; }
+		elsif ($subnet_mask eq "248.0.0.0" )       { $output = "5"; }
+		elsif ($subnet_mask eq "252.0.0.0" )       { $output = "6"; }
+		elsif ($subnet_mask eq "254.0.0.0" )       { $output = "7"; }
+		elsif ($subnet_mask eq "255.0.0.0" )       { $output = "8"; }
+		elsif ($subnet_mask eq "255.128.0.0" )     { $output = "9"; }
+		elsif ($subnet_mask eq "255.192.0.0" )     { $output = "10"; }
+		elsif ($subnet_mask eq "255.224.0.0" )     { $output = "11"; }
+		elsif ($subnet_mask eq "255.240.0.0" )     { $output = "12"; }
+		elsif ($subnet_mask eq "255.248.0.0" )     { $output = "13"; }
+		elsif ($subnet_mask eq "255.252.0.0" )     { $output = "14"; }
+		elsif ($subnet_mask eq "255.254.0.0" )     { $output = "15"; }
+		elsif ($subnet_mask eq "255.255.0.0" )     { $output = "16"; }
+		elsif ($subnet_mask eq "255.255.128.0" )   { $output = "17"; }
+		elsif ($subnet_mask eq "255.255.192.0" )   { $output = "18"; }
+		elsif ($subnet_mask eq "255.255.224.0" )   { $output = "19"; }
+		elsif ($subnet_mask eq "255.255.240.0" )   { $output = "20"; }
+		elsif ($subnet_mask eq "255.255.248.0" )   { $output = "21"; }
+		elsif ($subnet_mask eq "255.255.252.0" )   { $output = "22"; }
+		elsif ($subnet_mask eq "255.255.254.0" )   { $output = "23"; }
+		elsif ($subnet_mask eq "255.255.255.0" )   { $output = "24"; }
+		elsif ($subnet_mask eq "255.255.255.128" ) { $output = "25"; }
+		elsif ($subnet_mask eq "255.255.255.192" ) { $output = "26"; }
+		elsif ($subnet_mask eq "255.255.255.224" ) { $output = "27"; }
+		elsif ($subnet_mask eq "255.255.255.240" ) { $output = "28"; }
+		elsif ($subnet_mask eq "255.255.255.248" ) { $output = "29"; }
+		elsif ($subnet_mask eq "255.255.255.252" ) { $output = "30"; }
+		elsif ($subnet_mask eq "255.255.255.254" ) { $output = "31"; }
+		elsif ($subnet_mask eq "255.255.255.255" ) { $output = "32"; }
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});

@@ -189,28 +189,28 @@ sub scan
 		# 'bcnX', 'snX', 'snX', find the network on the appropriate interfaces and use it's network.
 		if ($anvil->data->{switches}{network} =~ /^(\d+.*?)\/(\d+.*)$/)
 		{
-			my $ip     = $1;
-			my $subnet = $2;
+			my $ip          = $1;
+			my $subnet_mask = $2;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::network" => $anvil->data->{switches}{network} }});
 			
-			my $ip_valid     = $anvil->Validate->is_ipv4({ip => $ip});
-			my $subnet_valid = $anvil->Validate->is_ipv4({ip => $subnet});
+			my $ip_valid          = $anvil->Validate->is_ipv4({ip => $ip});
+			my $subnet_mask_valid = $anvil->Validate->is_ipv4({ip => $subnet_mask});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				ip_valid     => $ip_valid,
-				subnet_valid => $subnet_valid, 
+				ip_valid          => $ip_valid,
+				subnet_mask_valid => $subnet_mask_valid, 
 			}});
-			if (not $subnet_valid)
+			if (not $subnet_mask_valid)
 			{
 				# Migt be cidr
-				if (($subnet =~ /^\d+$/) && ($subnet >= 0) && ($subnet <= 32))
+				if (($subnet_mask =~ /^\d+$/) && ($subnet_mask >= 0) && ($subnet_mask <= 32))
 				{
 					# Valid CIDR address
-					$subnet_valid = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subnet_valid => $subnet_valid }});
+					$subnet_mask_valid = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subnet_mask_valid => $subnet_mask_valid }});
 				}
 			}
 			
-			if ((not $ip_valid) or (not $subnet_valid))
+			if ((not $ip_valid) or (not $subnet_mask_valid))
 			{
 				# Bail out.
 				update_progress($anvil, 100, "error_0097,!!range!".$anvil->data->{switches}{network}."!!");
@@ -231,26 +231,26 @@ sub scan
 			my $to_scan = [];
 			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$target}{interface}})
 			{
-				my $ip     = $anvil->data->{network}{$target}{interface}{$interface}{ip};
-				my $subnet = $anvil->data->{network}{$target}{interface}{$interface}{subnet};
+				my $ip          = $anvil->data->{network}{$target}{interface}{$interface}{ip};
+				my $subnet_mask = $anvil->data->{network}{$target}{interface}{$interface}{subnet_mask};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					ip     => $ip,
-					subnet => $subnet,
+					ip          => $ip,
+					subnet_mask => $subnet_mask,
 				}});
-				if (($ip) && ($subnet))
+				if (($ip) && ($subnet_mask))
 				{
 					# Is this one we're interested in?
 					my $network_name = $anvil->data->{switches}{network};
 					if ($interface =~ /^$network_name/)
 					{
 						# Yup!
-						my $network = $anvil->Network->get_network({ip => $ip, subnet => $subnet});
+						my $network = $anvil->Network->get_network({ip => $ip, subnet_mask => $subnet_mask});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
 						
 						if ($network)
 						{
 							# Scan it.
-							my $address = $network."/".$subnet;
+							my $address = $network."/".$subnet_mask;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
 							push @{$to_scan}, $address;
 						}
@@ -273,21 +273,21 @@ sub scan
 		my $to_scan = [];
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$target}{interface}})
 		{
-			my $ip     = $anvil->data->{network}{$target}{interface}{$interface}{ip};
-			my $subnet = $anvil->data->{network}{$target}{interface}{$interface}{subnet};
+			my $ip          = $anvil->data->{network}{$target}{interface}{$interface}{ip};
+			my $subnet_mask = $anvil->data->{network}{$target}{interface}{$interface}{subnet_mask};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				ip     => $ip,
-				subnet => $subnet,
+				ip          => $ip,
+				subnet_mask => $subnet_mask,
 			}});
-			if (($ip) && ($subnet))
+			if (($ip) && ($subnet_mask))
 			{
-				my $network = $anvil->Network->get_network({ip => $ip, subnet => $subnet});
+				my $network = $anvil->Network->get_network({ip => $ip, subnet_mask => $subnet_mask});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
 				
 				if ($network)
 				{
 					# Scan it.
-					my $address = $network."/".$subnet;
+					my $address = $network."/".$subnet_mask;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { address => $address }});
 					push @{$to_scan}, $address;
 				}
@@ -325,15 +325,15 @@ sub call_nmap
 	my ($anvil, $address) = @_;
 	
 	# The subnet can't be dotted decimal, so convert it to CIDR notation, if needed.
-	my ($ip, $subnet) = ($address =~ /^(\d+.*?)\/(\d.*)$/);
+	my ($ip, $subnet_mask) = ($address =~ /^(\d+.*?)\/(\d.*)$/);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		ip     => $ip, 
-		subnet => $subnet,
+		ip          => $ip, 
+		subnet_mask => $subnet_mask,
 	}});
-	if ($anvil->Validate->is_ipv4({ip => $subnet}))
+	if ($anvil->Validate->is_ipv4({ip => $subnet_mask}))
 	{
 		# Convert to CIDR
-		my $cidr = $anvil->Convert->cidr({subnet => $subnet});
+		my $cidr = $anvil->Convert->cidr({subnet_mask => $subnet_mask});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cidr => $cidr }});
 		
 		if (($cidr >= 0) && ($cidr <= 32))
@@ -418,6 +418,7 @@ sub call_nmap
 			{
 				# Parse error
 				$anvil->data->{progress} += 2;
+				$section                 =~ s/\n//g;
 				update_progress($anvil, $anvil->data->{progress}, "log_0444,!!ip!".$this_ip."!!,!!mac!".$this_mac."!!,!!section!".$section."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0444", variables => { 
 					ip      => $this_ip,

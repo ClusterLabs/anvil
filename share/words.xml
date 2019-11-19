@@ -1254,6 +1254,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0102">Failed to check the existence and size of the file: [#!variable!file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
 		<key name="error_0103">The file: [#!variable!file!#] wasn't found.</key>
 		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
+		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

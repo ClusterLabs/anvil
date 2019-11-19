@@ -18,7 +18,7 @@ my $THIS_FILE = "Validate.pm";
 # is_ipv4
 # is_mac
 # is_positive_integer
-# is_subnet
+# is_subnet_mask
 # is_uuid
 
 =pod
@@ -114,7 +114,7 @@ This is the type to be checked. Valid options are;
 
 If this type is used, you can use the C<< zero >> parameter which can be set to C<< 1 >>  to have a value of C<< 0 >> be considered valid.
 
-=head4 subnet
+=head4 subnet_mask
 
 =head4 uuid
 
@@ -191,7 +191,7 @@ sub form_field
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "subnet") && (not $anvil->Validate->is_subnet({subnet => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "subnet_mask") && (not $anvil->Validate->is_subnet_mask({subnet_mask => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                         = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
@@ -503,35 +503,37 @@ sub is_positive_integer
 	return($valid);
 }
 
-=head2 is_subnet
+=head2 is_subnet_mask
 
-This method takes a subnet string and checks to see if it is a valid IPv4 address or CIDR notation. It returns 'C<< 1 >>' if it is a valid address. Otherwise it returns 'C<< 0 >>'.
+This method takes a subnet mask string and checks to see if it is a valid IPv4 address or CIDR notation. It returns 'C<< 1 >>' if it is a valid address. Otherwise it returns 'C<< 0 >>'.
 
 Parameters;
 
-=head3 subnet (required)
+=head3 subnet_mask (required)
 
 This is the address to verify.
 
 =cut
-sub is_subnet
+sub is_subnet_mask
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $valid  = 0;
-	my $subnet = defined $parameter->{subnet} ? $parameter->{subnet} : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet => $subnet }});
+	my $valid       = 0;
+	my $subnet_mask = defined $parameter->{subnet_mask} ? $parameter->{subnet_mask} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		subnet_mask => $subnet_mask,
+	}});
 	
-	if ($subnet)
+	if ($subnet_mask)
 	{
 		# We have something. Is it an IPv4 address?
-		if ($anvil->Validate->is_ipv4({ip => $subnet}))
+		if ($anvil->Validate->is_ipv4({ip => $subnet_mask}))
 		{
 			# It is. Try converting it to a CIDR notation. If we get an empty string back, it isn't valid.
-			my $cidr = $anvil->Convert->cidr({subnet => $subnet});
+			my $cidr = $anvil->Convert->cidr({subnet_mask => $subnet_mask});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cidr => $cidr }});
 			if ($cidr)
 			{
@@ -542,7 +544,7 @@ sub is_subnet
 			else
 			{
 				# OK, maybe it's a CIDR notation?
-				my $ip = $anvil->Convert->cidr({cidr => $subnet});
+				my $ip = $anvil->Convert->cidr({cidr => $subnet_mask});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 				if ($ip)
 				{

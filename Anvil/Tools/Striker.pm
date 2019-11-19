@@ -7,6 +7,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
+use JSON;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Striker.pm";
@@ -14,6 +15,7 @@ my $THIS_FILE = "Striker.pm";
 ### Methods;
 # get_local_repo
 # get_peer_data
+# parse_all_status_json
 
 =pod
 
@@ -312,6 +314,316 @@ sub get_peer_data
 	return($connected, $data);
 }
 
+=head2 parse_all_status_json
+
+This parses the c<< all_status.json >> file is a way that Striker can more readily use. If the read or parse failes, C<< 1 >> is returned. Otherwise C<< 0 >> is returned.
+
+This method doesn't take any parameters.
+
+=cut
+sub parse_all_status_json
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_peer_data()" }});
+	
+	# Read it in
+	my $json_file = $anvil->data->{path}{directories}{status}."/".$anvil->data->{path}{json}{all_status};
+	if (not -e $json_file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0105", variables => { file => $json_file }});
+		return(1);
+	}
+	my $body = $anvil->Storage->read_file({debug => $debug, file => $json_file});
+	if ($body eq "!!error!!")
+	{
+		return(1);
+	}
+	
+	my $json = JSON->new->allow_nonref;
+	my $data = $json->decode($body);
+	
+	if (exists $anvil->data->{json}{all_status})
+	{
+		delete $anvil->data->{json}{all_status};
+	}
+	
+# 	print Dumper $data;
+# 	die;
+	
+	# We'll be adding data to this JSON file over time. So this will be an ever evolving method.
+	foreach my $host_hash (@{$data->{hosts}})
+	{
+		my $host_name  = $host_hash->{name}; 
+		my $short_name = $host_hash->{short_name}; 
+		
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}          = $host_hash->{host_uuid};
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{type}               = $host_hash->{type};
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}    = $host_hash->{short_name};
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{configured}         = $host_hash->{configured};
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}    = $host_hash->{ssh_fingerprint};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"json::all_status::hosts::${host_name}::host_uuid"       => $anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}, 
+			"json::all_status::hosts::${host_name}::type"            => $anvil->data->{json}{all_status}{hosts}{$host_name}{type}, 
+			"json::all_status::hosts::${host_name}::short_host_name" => $anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}, 
+			"json::all_status::hosts::${host_name}::configured"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{configured}, 
+			"json::all_status::hosts::${host_name}::ssh_fingerprint" => $anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}, 
+		}});
+		print "Host: [".$host_name." (".$anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}.")], Type: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{type}."], Configured: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{configured}."], \n";
+		print " - Host UUID: ..... [".$anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}."]\n";
+		print " - SSH Fingerprint: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}."]\n";
+		print Dumper @{$host_hash->{network_interfaces}};
+		foreach my $interface_hash (@{$host_hash->{network_interfaces}})
+		{
+			my $interface_name  = $interface_hash->{name};
+			my $interface_type  = $interface_hash->{type};
+			my $ip              = $interface_hash->{ip};
+			my $subnet_mask     = $interface_hash->{subnet_mask};
+			my $default_gateway = $interface_hash->{default_gateway};
+			my $gateway         = $interface_hash->{gateway};
+			my $dns             = $interface_hash->{dns};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface_name  => $interface_name, 
+				interface_type  => $interface_type,
+				ip              => $ip,
+				subnet_mask     => $subnet_mask,
+				default_gateway => $default_gateway,
+				gateway         => $gateway,
+				dns             => $dns,
+			}});
+			
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{uuid}            = $interface_hash->{uuid};
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mtu}             = $interface_hash->{mtu}." ".$anvil->Words->string({key => "suffix_0014"});
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{ip}              = $interface_hash->{ip};
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{subnet_mask}     = $interface_hash->{subnet_mask};
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{default_gateway} = $interface_hash->{default_gateway};
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{gateway}         = $interface_hash->{gateway};
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{dns}             = $interface_hash->{dns};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::uuid"            => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{uuid}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::mtu"             => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mtu}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::ip"              => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{ip}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::subnet_mask"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{subnet_mask}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::default_gateway" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{default_gateway}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::gateway"         => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{gateway}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::dns"             => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{dns}, 
+			}});
+			
+			if ((exists $interface_hash->{connected}) && (ref($interface_hash->{connected}) eq "ARRAY"))
+			{
+				foreach my $interface_name (sort {$a cmp $b} @{$interface_hash->{connected}})
+				{
+					# We'll sort out the types after
+					$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{connected}{$interface_name}{type} = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::mode" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mode}, 
+					}});
+				}
+			}
+			
+			if ($interface_type eq "bond")
+			{
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mode}                 = $interface_hash->{mode};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{active_interface}     = $interface_hash->{active_slave};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{primary_interface}    = $interface_hash->{primary_slave};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{primary_reselect}     = $interface_hash->{primary_reselect};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{up_delay}             = $interface_hash->{up_delay};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{down_delay}           = $interface_hash->{down_delay};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{operational}          = $interface_hash->{operational};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mii_polling_interval} = $interface_hash->{mii_polling_interval}." ".$anvil->Words->string({key => "suffix_0012"});
+				
+				# Translate some values
+				my $say_mode = $interface_hash->{mode};
+				if (($say_mode eq "0") or ($say_mode eq "balance-rr"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0006"});
+				}
+				elsif (($say_mode eq "1") or ($say_mode eq "active-backup"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0007"});
+				}
+				elsif (($say_mode eq "2") or ($say_mode eq "balanced-xor"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0008"});
+				}
+				elsif (($say_mode eq "3") or ($say_mode eq "broadcast"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0009"});
+				}
+				elsif (($say_mode eq "4") or ($say_mode eq "802.3ad"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0010"});
+				}
+				elsif (($say_mode eq "5") or ($say_mode eq "balanced-tlb"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0011"});
+				}
+				elsif (($say_mode eq "6") or ($say_mode eq "balanced-alb"))
+				{
+					$say_mode = $anvil->Words->string({key => "unit_0012"});
+				}
+				
+				my $say_operational = $interface_hash->{operational};
+				if ($say_operational eq "up")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0013"});
+				}
+				elsif ($say_operational eq "down")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0014"});
+				}
+				elsif ($say_operational eq "unknown")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0004"});
+				}
+				
+				my $say_primary_reselect = $interface_hash->{primary_reselect};
+				if (($say_primary_reselect eq "always") or ($say_primary_reselect eq "0"))
+				{
+					$say_primary_reselect = $anvil->Words->string({key => "unit_0017"});
+				}
+				elsif (($say_primary_reselect eq "better") or ($say_primary_reselect eq "1"))
+				{
+					$say_primary_reselect = $anvil->Words->string({key => "unit_0018"});
+				}
+				elsif (($say_primary_reselect eq "failure") or ($say_primary_reselect eq "2"))
+				{
+					$say_primary_reselect = $anvil->Words->string({key => "unit_0019"});
+				}
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_up_delay}         = $interface_hash->{up_delay}." ".$anvil->Words->string({key => "suffix_0012"});
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_down_delay}       = $interface_hash->{say_down_delay}." ".$anvil->Words->string({key => "suffix_0012"});
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_mode}             = $say_mode;
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_operational}      = $say_operational;
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_primary_reselect} = $say_primary_reselect;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::mode"                 => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mode}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::active_interface"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{active_interface}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::primary_interface"    => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{primary_interface}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::primary_reselect"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{primary_reselect}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::up_delay"             => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{up_delay}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::down_delay"           => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{down_delay}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::operational"          => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{operational}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::mii_polling_interval" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mii_polling_interval}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_up_delay"         => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_up_delay}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_down_delay"       => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_down_delay}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_mode"             => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_mode}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_operational"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_operational}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_primary_reselect" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_primary_reselect}, 
+				}});
+			}
+			elsif ($interface_type eq "bridge")
+			{
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{bridge_id}   = $interface_hash->{bridge_id};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{stp_enabled} = $interface_hash->{stp_enabled};
+				
+				my $say_stp_enabled = $interface_hash->{stp_enabled};
+				if (($say_stp_enabled eq "0") or ($say_stp_enabled eq "disabled"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0020"});
+				}
+				elsif (($say_stp_enabled eq "1") or ($say_stp_enabled eq "enabled_kernel"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0021"});
+				}
+				elsif (($say_stp_enabled eq "2") or ($say_stp_enabled eq "enabled_userland"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0022"});
+				}
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_stp_enabled} = $interface_hash->{say_stp_enabled};
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::bridge_id"       => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{bridge_id}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::stp_enabled"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{stp_enabled}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_stp_enabled" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_stp_enabled}, 
+				}});
+			}
+			else
+			{
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{speed}         = $interface_hash->{speed};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{link_state}    = $interface_hash->{link_state};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{operational}   = $interface_hash->{operational};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{duplex}        = $interface_hash->{duplex};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{medium}        = $interface_hash->{medium};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{bond_name}     = $interface_hash->{bond_name};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{bridge_name}   = $interface_hash->{bridge_name};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{changed_order} = $interface_hash->{changed_order};
+				
+				my $say_speed = $anvil->Convert->add_commas({number => $interface_hash->{speed}})." ".$anvil->Words->string({key => "suffix_0050"});
+				if ($interface_hash->{speed} >= 1000)
+				{
+					# Report in Gbps 
+					$say_speed = $anvil->Convert->add_commas({number => ($interface_hash->{speed} / 1000)})." ".$anvil->Words->string({key => "suffix_0051"});
+				}
+				
+				my $say_duplex = $interface_hash->{duplex};
+				if ($say_duplex eq "full")
+				{
+					$say_duplex = $anvil->Words->string({key => "unit_0015"});
+				}
+				elsif ($say_duplex eq "half")
+				{
+					$say_duplex = $anvil->Words->string({key => "unit_0016"});
+				}
+				elsif ($say_duplex eq "unknown")
+				{
+					$say_duplex = $anvil->Words->string({key => "unit_0004"});
+				}
+				
+				my $say_link_state = $interface_hash->{link_state};
+				if ($say_link_state eq "1")
+				{
+					$say_link_state = $anvil->Words->string({key => "unit_0013"});
+				}
+				elsif ($say_link_state eq "0")
+				{
+					$say_link_state = $anvil->Words->string({key => "unit_0014"});
+				}
+				
+				my $say_operational = $interface_hash->{operational};
+				if ($say_operational eq "up")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0013"});
+				}
+				elsif ($say_operational eq "down")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0014"});
+				}
+				elsif ($say_operational eq "unknown")
+				{
+					$say_operational = $anvil->Words->string({key => "unit_0004"});
+				}
+				
+				# This will be flushed out later. For now, we just send out what we've got.
+				my $say_medium = $interface_hash->{medium};
+				
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_speed}      = $say_speed;
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_duplex}     = $say_duplex;
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_link_state} = $say_link_state;
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_operationa} = $say_operational;
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_medium}     = $say_medium;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::speed"          => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{speed}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::link_state"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{link_state}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::operational"    => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{operational}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::duplex"         => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{duplex}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::medium"         => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{medium}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::bond_name"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{bond_name}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::bridge_name"    => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{bridge_name}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::changed_order"  => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{changed_order}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_speed"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_speed}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_duplex"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_duplex}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_link_state" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_link_state}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_operationa" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_operationa}, 
+					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_medium"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_medium}, 
+				}});
+			}
+		}
+	}
+	
+	return(0);
+}
 
 
 1;

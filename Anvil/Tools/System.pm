@@ -798,7 +798,9 @@ sub check_storage
 
 =head2 generate_state_json
 
-This method generates the C<< all_status.json >> file.
+This method generates the C<< all_status.json >> file. 
+
+B<< Note >>: Contained in are translations of some values, for the sake of JSON readers. Developers should note to translate values in-situ as the language used here may not be the user's desired language.
 
 This method takes no parameters.
 
@@ -835,11 +837,15 @@ sub generate_state_json
 			host_uuid => $host_uuid, 
 			host      => $short_host_name,
 		});
+		$anvil->Network->load_interfces({
+			host_uuid => $host_uuid, 
+			host      => $short_host_name,
+		});
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
 		{
 			my $type        = $anvil->data->{network}{$host}{interface}{$interface}{type};
 			my $uuid        = $anvil->data->{network}{$host}{interface}{$interface}{uuid};
-			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu}." ".$anvil->Words->string({key => "suffix_0014"});;
+			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu};
 			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
 			my $iface_hash  = {};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -860,10 +866,10 @@ sub generate_state_json
 				my $primary_slave        = $anvil->data->{network}{$host}{interface}{$interface}{primary_slave}; 
 				my $primary_reselect     = $anvil->data->{network}{$host}{interface}{$interface}{primary_reselect}; 
 				my $active_slave         = $anvil->data->{network}{$host}{interface}{$interface}{active_slave}; 
-				my $mii_polling_interval = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{mii_polling_interval}})." ".$anvil->Words->string({key => "suffix_0012"});
-				my $say_up_delay         = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{up_delay}})." ".$anvil->Words->string({key => "suffix_0012"});
+				my $mii_polling_interval = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{mii_polling_interval}});
+				my $say_up_delay         = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{up_delay}});
 				my $up_delay             = $anvil->data->{network}{$host}{interface}{$interface}{up_delay};
-				my $say_down_delay       = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{down_delay}})." ".$anvil->Words->string({key => "suffix_0012"}); 
+				my $say_down_delay       = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{down_delay}}); 
 				my $down_delay           = $anvil->data->{network}{$host}{interface}{$interface}{down_delay}; 
 				my $operational          = $anvil->data->{network}{$host}{interface}{$interface}{operational}; 
 				my $interfaces           = $anvil->data->{network}{$host}{interface}{$interface}{interfaces};
@@ -927,8 +933,8 @@ sub generate_state_json
 					mode                 => $mode,
 					active_interface     => $active_slave,
 					primary_interface    => $primary_slave,
-					say_reselect_policy  => $say_primary_reselect,
-					reselect_policy      => $primary_reselect,
+					say_primary_reselect => $say_primary_reselect,
+					primary_reselect     => $primary_reselect,
 					say_up_delay         => $up_delay,
 					up_delay             => $anvil->data->{network}{$host}{interface}{$interface}{up_delay},
 					say_down_delay       => $down_delay,
@@ -947,7 +953,7 @@ sub generate_state_json
 				$iface_hash->{mode}                 = $mode;
 				$iface_hash->{active_interface}     = $active_slave;
 				$iface_hash->{primary_interface}    = $primary_slave;
-				$iface_hash->{reselect_policy}      = $primary_reselect;
+				$iface_hash->{primary_reselect}     = $primary_reselect;
 				$iface_hash->{say_up_delay}         = $say_up_delay;
 				$iface_hash->{up_delay}             = $up_delay;
 				$iface_hash->{say_down_delay}       = $say_down_delay;
@@ -995,7 +1001,8 @@ sub generate_state_json
 			}
 			else
 			{
-				my $speed           = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{speed}})." ".$anvil->Words->string({key => "suffix_0050"});
+				my $speed           = $anvil->data->{network}{$host}{interface}{$interface}{speed};
+				my $say_speed       = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{speed}})." ".$anvil->Words->string({key => "suffix_0050"});
 				my $link_state      = $anvil->data->{network}{$host}{interface}{$interface}{link_state};
 				my $operational     = $anvil->data->{network}{$host}{interface}{$interface}{operational};
 				my $duplex          = $anvil->data->{network}{$host}{interface}{$interface}{duplex};
@@ -1005,12 +1012,12 @@ sub generate_state_json
 				my $changed_order   = $anvil->data->{network}{$host}{interface}{$interface}{changed_order};
 				my $say_link_state  = $link_state;
 				my $say_operational = $operational;
-				my $say_medium      = $medium;
+				my $say_medium      = $medium; # This will be flushed out later. For now, we just send out what we've got.
 				my $say_duplex      = $duplex;
 				if ($anvil->data->{network}{$host}{interface}{$interface}{speed} >= 1000)
 				{
 					# Report in Gbps 
-					$speed = $anvil->Convert->add_commas({number => ($anvil->data->{network}{$host}{interface}{$interface}{speed} / 1000)})." ".$anvil->Words->string({key => "suffix_0051"});
+					$say_speed = $anvil->Convert->add_commas({number => ($anvil->data->{network}{$host}{interface}{$interface}{speed} / 1000)})." ".$anvil->Words->string({key => "suffix_0051"});
 				}
 				if ($duplex eq "full")
 				{
@@ -1036,7 +1043,16 @@ sub generate_state_json
 				{
 					$say_operational = $anvil->Words->string({key => "unit_0004"});
 				}
+				if ($link_state eq "1")
+				{
+					$say_link_state = $anvil->Words->string({key => "unit_0013"});
+				}
+				elsif ($link_state eq "0")
+				{
+					$say_link_state = $anvil->Words->string({key => "unit_0014"});
+				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					say_speed       => $say_speed,
 					speed           => $speed,
 					say_link_state  => $say_link_state,
 					link_state      => $link_state,
@@ -1051,6 +1067,7 @@ sub generate_state_json
 					changed_order   => $changed_order,
 				}});
 
+				$iface_hash->{say_speed}       = $say_speed;
 				$iface_hash->{speed}           = $speed;
 				$iface_hash->{say_link_state}  = $say_link_state;
 				$iface_hash->{link_state}      = $link_state;
@@ -1064,9 +1081,38 @@ sub generate_state_json
 				$iface_hash->{bridge_name}     = $bridge_name;
 				$iface_hash->{changed_order}   = $changed_order;
 			};
+			
+			# Is there an IP on this interface?
+			my $ip              = "";
+			my $subnet_mask     = "";
+			my $default_gateway = 0;
+			my $gateway         = "";
+			my $dns             = "";
+			if ((exists $anvil->data->{network}{$host}{interface}{$interface}{ip}) && ($anvil->data->{network}{$host}{interface}{$interface}{ip}))
+			{
+				$ip              = $anvil->data->{network}{$host}{interface}{$interface}{ip};
+				$subnet_mask     = $anvil->data->{network}{$host}{interface}{$interface}{subnet_mask};
+				$default_gateway = $anvil->data->{network}{$host}{interface}{$interface}{default_gateway};
+				$gateway         = $anvil->data->{network}{$host}{interface}{$interface}{gateway};
+				$dns             = $anvil->data->{network}{$host}{interface}{$interface}{dns};
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				ip              => $ip,
+				subnet_mask     => $subnet_mask,
+				default_gateway => $default_gateway,
+				gateway         => $gateway,
+				dns             => $dns,
+			}});
+			
+			$iface_hash->{ip}              = $ip;
+			$iface_hash->{subnet_mask}     = $subnet_mask;
+			$iface_hash->{default_gateway} = $default_gateway;
+			$iface_hash->{gateway}         = $gateway;
+			$iface_hash->{dns}             = $dns;
+			
 			push @{$ifaces_array}, $iface_hash;
 		}
-
+		
 		push @{$anvil->data->{json}{all_systems}{hosts}}, {
 			name               => $host_name,
 			short_name         => $short_host_name, 
@@ -1078,7 +1124,7 @@ sub generate_state_json
 		};
 
 	}
-	my $json = encode_json $anvil->data->{json}{all_systems};
+	my $json = JSON->new->utf8->encode($anvil->data->{json}{all_systems});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { json => $json }});
 	
 	# Write it out.
@@ -1131,60 +1177,60 @@ sub get_bridges
 	{
 		# If the ifname and master are the same, it's a bridge.
 		my $type           = "interface";
-		my $interface_name = $hash_ref->{ifname};
+		my $interface = $hash_ref->{ifname};
 		my $master_bridge  = $hash_ref->{master};
-		if ($interface_name eq $master_bridge)
+		if ($interface eq $master_bridge)
 		{
 			$type = "bridge";
-			$anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found} = 1;
+			$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"local::network::bridges::bridge::${interface_name}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found}, 
+				"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
 			}});
 		}
 		else
 		{
 			# Store this interface under the bridge.
-			$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface_name} = 1;
+			$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface_name}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface_name}, 
+				"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
 			}});
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			interface_name => $interface_name,
-			master_bridge  => $master_bridge, 
-			type           => $type, 
+			interface     => $interface,
+			master_bridge => $master_bridge, 
+			type          => $type, 
 		}});
 		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
 		{
 			if (ref($hash_ref->{$key}) eq "ARRAY")
 			{
-				$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key} = [];
+				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = [];
 				foreach my $value (sort {$a cmp $b} @{$hash_ref->{$key}})
 				{
-					push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}}, $value;
+					push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}, $value;
 				}
-				for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}}; $i++)
+				for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}; $i++)
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"local::network::bridges::${type}::${interface_name}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}->[$i], 
+						"local::network::bridges::${type}::${interface}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}->[$i], 
 					}});
 				}
 			}
 			else
 			{
-				$anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key} = $hash_ref->{$key};
+				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = $hash_ref->{$key};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"local::network::bridges::${type}::${interface_name}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface_name}{$key}, 
+					"local::network::bridges::${type}::${interface}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}, 
 				}});
 			}
 		}
 	}
 	
 	# Summary of found bridges.
-	foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"local::network::bridges::bridge::${interface_name}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found}, 
+			"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
 		}});
 	}
 	
@@ -1400,14 +1446,14 @@ sub find_matching_ip
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
 		next if not $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-		my $this_ip     = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-		my $this_subnet = $anvil->data->{network}{'local'}{interface}{$interface}{subnet};
+		my $this_ip          = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+		my $this_subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"s1:this_ip"     => $this_ip,
-			"s2:this_subnet" => $this_subnet, 
+			"s1:this_ip"          => $this_ip,
+			"s2:this_subnet_mask" => $this_subnet_mask, 
 		}});
 		
-		my $network_range = $this_ip."/".$this_subnet;
+		my $network_range = $this_ip."/".$this_subnet_mask;
 		my $network       = NetAddr::IP->new($network_range);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:network_range" => $network_range,

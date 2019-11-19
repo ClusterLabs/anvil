@@ -457,25 +457,25 @@ sub setup_boot_environment
 		$anvil->nice_exit({code => 2});
 	}
 	
-	my $bcn_ip      = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{ip};
-	my $bcn_subnet  = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{subnet};
-	my $bcn_network = $anvil->Network->get_network({ip => $bcn_ip, subnet => $bcn_subnet});
-	my $dns         = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} ? $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
-	my $domain      = "localdomain";
-	my $base_url    = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
+	my $bcn_ip          = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{ip};
+	my $bcn_subnet_mask = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{subnet_mask};
+	my $bcn_network     = $anvil->Network->get_network({ip => $bcn_ip, subnet_mask => $bcn_subnet_mask});
+	my $dns             = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} ? $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
+	my $domain          = "localdomain";
+	my $base_url        = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
 	if ($anvil->_host_name =~ /\./)
 	{
 		$domain =  $anvil->_host_name;
 		$domain =~ s/^.*?\.//;
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		bcn_interface => $bcn_interface,
-		bcn_ip        => $bcn_ip,
-		bcn_subnet    => $bcn_subnet, 
-		bcn_network   => $bcn_network, 
-		dns           => $dns,
-		domain        => $domain,
-		base_url      => $base_url, 
+		bcn_interface   => $bcn_interface,
+		bcn_ip          => $bcn_ip,
+		bcn_subnet_mask => $bcn_subnet_mask, 
+		bcn_network     => $bcn_network, 
+		dns             => $dns,
+		domain          => $domain,
+		base_url        => $base_url, 
 	}});
 	
 	### NOTE: The DNS range is a bit tricky, so for now, we'll assume that the BCN is always a /16 

@@ -615,10 +615,10 @@ This takes two hash keys from prior C<< Network->get_ips() >> or C<< ->load_ips(
 
 A hash reference is returned using the format:
 
-* <first>::<interface>::ip      = <ip_address>
-* <first>::<interface>::subnet  = <subnet_mask>
-* <second>::<interface>::ip     = <ip_address>
-* <second>::<interface>::subnet = <subnet_mask>
+* <first>::<interface>::ip           = <ip_address>
+* <first>::<interface>::subnet_mask  = <subnet_mask>
+* <second>::<interface>::ip          = <ip_address>
+* <second>::<interface>::subnet_mask = <subnet_mask>
 
 Where C<< first >> and C<< second >> are the parameters passed in below and C<< interface >> is the name of the interface on the fist/second machine that can talk to one another.
 
@@ -659,46 +659,46 @@ sub find_matches
 		return("");
 	}
 	
-	# Loop through the first, and on each interface with an IP/subnet, look for a match in the second.
+	# Loop through the first, and on each interface with an IP/subnet mask, look for a match in the second.
 	my $match = {};
 	foreach my $first_interface (sort {$b cmp $a} keys %{$anvil->data->{network}{$first}{interface}})
 	{
-		my $first_ip     = $anvil->data->{network}{$first}{interface}{$first_interface}{ip};
-		my $first_subnet = $anvil->data->{network}{$first}{interface}{$first_interface}{subnet};
+		my $first_ip          = $anvil->data->{network}{$first}{interface}{$first_interface}{ip};
+		my $first_subnet_mask = $anvil->data->{network}{$first}{interface}{$first_interface}{subnet_mask};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			first           => $first,
-			first_interface => $first_interface,
-			first_ip        => $first_ip,
-			first_subnet    => $first_subnet,  
+			first             => $first,
+			first_interface   => $first_interface,
+			first_ip          => $first_ip,
+			first_subnet_mask => $first_subnet_mask,  
 		}});
 		
-		if (($first_ip) && ($first_subnet))
+		if (($first_ip) && ($first_subnet_mask))
 		{
 			# Look for a match.
 			my $first_network = $anvil->Network->get_network({
-				debug  => $debug, 
-				ip     => $first_ip, 
-				subnet => $first_subnet,
+				debug       => $debug, 
+				ip          => $first_ip, 
+				subnet_mask => $first_subnet_mask,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { a_network => $first_network }});
 			
 			foreach my $second_interface (sort {$b cmp $a} keys %{$anvil->data->{network}{$second}{interface}})
 			{
-				my $second_ip     = $anvil->data->{network}{$second}{interface}{$second_interface}{ip};
-				my $second_subnet = $anvil->data->{network}{$second}{interface}{$second_interface}{subnet};
+				my $second_ip          = $anvil->data->{network}{$second}{interface}{$second_interface}{ip};
+				my $second_subnet_mask = $anvil->data->{network}{$second}{interface}{$second_interface}{subnet_mask};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					second           => $second,
-					second_interface => $second_interface,
-					second_ip        => $second_ip,
-					second_subnet    => $second_subnet,  
+					second             => $second,
+					second_interface   => $second_interface,
+					second_ip          => $second_ip,
+					second_subnet_mask => $second_subnet_mask,  
 				}});
-				if (($second_ip) && ($second_subnet))
+				if (($second_ip) && ($second_subnet_mask))
 				{
 					# Do we have a match?
 					my $second_network = $anvil->Network->get_network({
-						debug  => $debug, 
-						ip     => $second_ip, 
-						subnet => $second_subnet,
+						debug       => $debug, 
+						ip          => $second_ip, 
+						subnet_mask => $second_subnet_mask,
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						a_network => $first_network,
@@ -708,15 +708,15 @@ sub find_matches
 					if ($first_network eq $second_network)
 					{
 						# Match!
-						$match->{$first}{$first_interface}{ip}       = $first_ip;
-						$match->{$first}{$first_interface}{subnet}   = $second_network;
-						$match->{$second}{$second_interface}{ip}     = $second_ip;
-						$match->{$second}{$second_interface}{subnet} = $first_network;
+						$match->{$first}{$first_interface}{ip}            = $first_ip;
+						$match->{$first}{$first_interface}{subnet_mask}   = $second_network;
+						$match->{$second}{$second_interface}{ip}          = $second_ip;
+						$match->{$second}{$second_interface}{subnet_mask} = $first_network;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"${first}::${first_interface}::ip"       => $match->{$first}{$first_interface}{ip},
-							"${first}::${first_interface}::subnet"   => $match->{$first}{$first_interface}{subnet},
-							"${second}::${second_interface}::ip"     => $match->{$second}{$second_interface}{ip},
-							"${second}::${second_interface}::subnet" => $match->{$second}{$second_interface}{subnet},
+							"${first}::${first_interface}::ip"            => $match->{$first}{$first_interface}{ip},
+							"${first}::${first_interface}::subnet_mask"   => $match->{$first}{$first_interface}{subnet_mask},
+							"${second}::${second_interface}::ip"          => $match->{$second}{$second_interface}{ip},
+							"${second}::${second_interface}::subnet_mask" => $match->{$second}{$second_interface}{subnet_mask},
 						}});
 					}
 				}
@@ -1079,7 +1079,7 @@ C<< Note >>: IP addresses that have been deleted will be marked so by C<< ip >> 
 The loaded data will be stored as:
 
 * C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
-* C<< network::<target>::interface::<iface_name>::subnet >>          - If an IP is set
+* C<< network::<target>::interface::<iface_name>::subnet_mask >>     - If an IP is set
 * C<< network::<target>::interface::<iface_name>::mac >>             - Always set.
 * C<< network::<target>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
 * C<< network::<target>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
@@ -1205,7 +1205,7 @@ WHERE
 			
 			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
@@ -1213,7 +1213,7 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
-				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
+				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
 				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
 				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
@@ -1248,7 +1248,7 @@ WHERE
 			
 			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
@@ -1256,7 +1256,7 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
-				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
+				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
 				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
 				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
@@ -1291,7 +1291,7 @@ WHERE
 			
 			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}     = $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}              = $ip_address_address;
-			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet}          = $ip_address_subnet_mask;
+			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}     = $ip_address_subnet_mask;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway} = $ip_address_default_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}         = $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}             = $ip_address_dns;
@@ -1299,7 +1299,7 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::mac_address"     => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
 				"network::${host}::interface::${interface_name}::ip"              => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
-				"network::${host}::interface::${interface_name}::subnet"          => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet}, 
+				"network::${host}::interface::${interface_name}::subnet_mask"     => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
 				"network::${host}::interface::${interface_name}::default_gateway" => $anvil->data->{network}{$host}{interface}{$interface_name}{default_gateway}, 
 				"network::${host}::interface::${interface_name}::gateway"         => $anvil->data->{network}{$host}{interface}{$interface_name}{gateway}, 
 				"network::${host}::interface::${interface_name}::dns"             => $anvil->data->{network}{$host}{interface}{$interface_name}{dns}, 
@@ -1387,7 +1387,7 @@ sub get_company_from_mac
 This method checks the local system for interfaces and stores them in:
 
 * C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
-* C<< network::<target>::interface::<iface_name>::subnet >>          - If an IP is set
+* C<< network::<target>::interface::<iface_name>::subnet_mask >>     - If an IP is set
 * C<< network::<target>::interface::<iface_name>::mac >>             - Always set.
 * C<< network::<target>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
 * C<< network::<target>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
@@ -1488,7 +1488,7 @@ sub get_ips
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_iface => $in_iface }});
 			
 			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{ip};
-			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet}          = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{subnet};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}     = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{mac_address}     = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{gateway};
@@ -1507,19 +1507,19 @@ sub get_ips
 			my $cidr = $2;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip, cidr => $cidr }});
 			
-			my $subnet = $cidr;
+			my $subnet_mask = $cidr;
 			if (($cidr =~ /^\d{1,2}$/) && ($cidr >= 0) && ($cidr <= 32))
 			{
-				# Convert to subnet
-				$subnet = $anvil->Convert->cidr({cidr => $cidr});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet => $subnet }});
+				# Convert to subnet mask
+				$subnet_mask = $anvil->Convert->cidr({cidr => $cidr});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet_mask => $subnet_mask }});
 			}
 			
-			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}     = $ip;
-			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet} = $subnet;
+			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}          = $ip;
+			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask} = $subnet_mask;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:network::${host}::interface::${in_iface}::ip"     => $anvil->data->{network}{$host}{interface}{$in_iface}{ip},
-				"s2:network::${host}::interface::${in_iface}::subnet" => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet},
+				"s1:network::${host}::interface::${in_iface}::ip"          => $anvil->data->{network}{$host}{interface}{$in_iface}{ip},
+				"s2:network::${host}::interface::${in_iface}::subnet_mask" => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask},
 			}});
 		}
 		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
@@ -1791,7 +1791,7 @@ sub get_ips
 
 This takes an IP address and subnet and returns the network it belongs too. For example;
 
- my $network = $anvil->Network->get_network({ip => "10.2.4.1", subnet => "255.255.0.0"});
+ my $network = $anvil->Network->get_network({ip => "10.2.4.1", subnet_mask => "255.255.0.0"});
 
 This would set C<< $network >> to C<< 10.2.0.0 >>.
 
@@ -1803,9 +1803,9 @@ Parameters;
 
 This is the IPv4 IP address being calculated.
 
-=head3 subnet (required)
+=head3 subnet_mask (required)
 
-This is the subnet of the IP address being calculated.
+This is the subnet mask of the IP address being calculated.
 
 =cut
 sub get_network
@@ -1815,12 +1815,12 @@ sub get_network
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $network = "";
-	my $ip      = defined $parameter->{ip}     ? $parameter->{ip}     : "";
-	my $subnet  = defined $parameter->{subnet} ? $parameter->{subnet} : "";
+	my $network     = "";
+	my $ip          = defined $parameter->{ip}          ? $parameter->{ip}          : "";
+	my $subnet_mask = defined $parameter->{subnet_mask} ? $parameter->{subnet_mask} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		ip     => $ip,
-		subnet => $subnet,
+		ip          => $ip,
+		subnet_mask => $subnet_mask,
 	}});
 	
 	if (not $ip)
@@ -1828,13 +1828,13 @@ sub get_network
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->get_network()", parameter => "ip" }});
 		return("");
 	}
-	if (not $subnet)
+	if (not $subnet_mask)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->get_network()", parameter => "subnet" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->get_network()", parameter => "subnet_mask" }});
 		return("");
 	}
 	
-	my $block = Net::Netmask->new($ip."/".$subnet);
+	my $block = Net::Netmask->new($ip."/".$subnet_mask);
 	my $base  = $block->base();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base => $base }});
 	

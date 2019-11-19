@@ -47,7 +47,7 @@ $( window ).on( "load", function()
 	// Walk through the network.json file and use it to pre-fill the form.
 	$.getJSON('/status/network.json', { get_param: 'value' }, function(data) {
 		$.each(data.ips, function(index, element) {
-			//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
+			//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet_mask: ['+element.subnet_mask+'].');
 			//console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
 			
 			// If this is the default gateway, see about setting the Gateway IP and DNS.
@@ -66,18 +66,18 @@ $( window ).on( "load", function()
 			
 			// Does this IP match any of the fields?
 			if(element.on.match(new RegExp('_'))) {
-				var network_prefix     = element.on.match(/^(.*)_/).pop();
-				var network_ip_key     = network_prefix+'_ip'
-				var network_subnet_key = network_prefix+'_subnet'
-				//console.log('Matching: ['+network_ip_key+'] and: ['+network_subnet_key+'].');
+				var network_prefix          = element.on.match(/^(.*)_/).pop();
+				var network_ip_key          = network_prefix+'_ip'
+				var network_subnet_mask_key = network_prefix+'_subnet_mask'
+				//console.log('Matching: ['+network_ip_key+'] and: ['+network_subnet_mask_key+'].');
 				
 				if ($("#"+network_ip_key).val() == '')
 				{
 					$("#"+network_ip_key).val(element.address);
 				}
-				if ($("#"+network_subnet_key).val() == '')
+				if ($("#"+network_subnet_mask_key).val() == '')
 				{
-					$("#"+network_subnet_key).val(element.subnet);
+					$("#"+network_subnet_mask_key).val(element.subnet_mask);
 				}
 			}
 		});
@@ -92,7 +92,7 @@ $( window ).on( "load", function()
 			$("#dns").val($("#dns_default").val());
 		}
 		
-		// Now set any other default IP/subnets
+		// Now set any other default IP/subnet masks
 		jQuery.each("bcn sn ifn".split(" "), function(index, network) {
 			//console.log('Network: ['+network+'].');
 			if($("#"+network+"_count").val()) {
@@ -100,18 +100,18 @@ $( window ).on( "load", function()
 				//console.log(network+' count: ['+count+'].');
 				for (var i = 1; i <= count; i++) {
 					var network_name = network+i;
-					//console.log('Network: ['+network_name+'], IP set: ['+$("#"+network_name+"_ip").val()+'/'+$("#"+network_name+"_subnet").val()+'].');
-					//console.log('- default: ['+$("#"+network_name+"_ip_default").val()+'/'+$("#"+network_name+"_subnet_default").val()+'].');
+					//console.log('Network: ['+network_name+'], IP set: ['+$("#"+network_name+"_ip").val()+'/'+$("#"+network_name+"_subnet_mask").val()+'].');
+					//console.log('- default: ['+$("#"+network_name+"_ip_default").val()+'/'+$("#"+network_name+"_subnet_mask_default").val()+'].');
 					
 					if ($("#"+network_name+"_ip").val() == '')
 					{
 						var ip = $("#"+network_name+"_ip_default").val();
 						$("#"+network_name+"_ip").val(ip);
 					}
-					if ($("#"+network_name+"_subnet").val() == '')
+					if ($("#"+network_name+"_subnet_mask").val() == '')
 					{
-						var subnet = $("#"+network_name+"_subnet_default").val();
-						$("#"+network_name+"_subnet").val(subnet);
+						var subnet_mask = $("#"+network_name+"_subnet_mask_default").val();
+						$("#"+network_name+"_subnet_mask").val(subnet_mask);
 					}
 				};
 			};
@@ -136,7 +136,7 @@ $( window ).on( "load", function()
 	
 	$.getJSON('/status/jobs.json', { get_param: 'value' }, function(data) {
 		$.each(data.ips, function(index, element) {
-			//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet: ['+element.subnet+'].');
+			//console.log('- entry: ['+index+'], on: ['+element.on+'], address: ['+element.address+'], subnet_mask: ['+element.subnet_mask+'].');
 			//console.log('- gateway: ['+element.gateway+'], dns: ['+element.dns+'], default gateway: ['+element.default_gateway+'].');
 		});
 	});

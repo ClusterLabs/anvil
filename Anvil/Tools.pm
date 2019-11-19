@@ -964,8 +964,8 @@ sub _set_defaults
 		network		=>	{
 			# BCN starts at 10.200(+n)/16
 			bcn		=>	{
-				subnet              => "10.200.0.0",
-				netmask             => "255.255.0.0",
+				network             => "10.200.0.0",
+				subnet_mask         => "255.255.0.0",
 				switch_octet3       => "1",
 				pdu_octet3          => "2",
 				ups_octet3          => "3",
@@ -976,14 +976,14 @@ sub _set_defaults
 			# The IFN will not be under our control. So for suggestion to the user purpose only, 
 			# IFN starts at 10.255/16
 			ifn		=>	{
-				subnet		=>	"10.255.0.0",
-				netmask		=>	"255.255.0.0",
-				striker_octet3	=> "4",
+				network	       => "10.255.0.0",
+				subnet_mask    => "255.255.0.0",
+				striker_octet3 => "4",
 			},
 			# SN starts at 10.100(+n)/16
 			sn		=>	{
-				subnet		=>	"10.100.0.0",
-				netmask		=>	"255.255.0.0",
+				network     => "10.100.0.0",
+				subnet_mask => "255.255.0.0",
 			},
 			test		=>	{
 				domains		=>	["alteeve.com", "redhat.com", "google.com"],

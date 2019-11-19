@@ -73,9 +73,26 @@ selinux --permissive
 %packages
 @^minimal-environment
 alteeve-el8-repo
+createrepo
+dhcp-server
+firefox
+gcc
+gdm
+gnome-terminal
+httpd
+nmap
+perl-CGI
+perl-CGI-Carp
+perl-Data-Dumper
 perl-interpreter
+perl-NetAddr-IP
+postgresql-server
 rsync
+syslinux
+syslinux-nonlinux
+tftp-server
 vim
+virt-manager
 
 %end
 

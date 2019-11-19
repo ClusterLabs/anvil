@@ -273,7 +273,7 @@ sub reconfigure_network
 			my $this_network    =         $network_type.$network_count;
 			my $link1_key       =         $this_network."_link1_mac_to_set";
 			my $link2_key       =         $this_network."_link2_mac_to_set";
-			my $subnet_key      =         $this_network."_subnet";
+			my $subnet_mask_key =         $this_network."_subnet_mask";
 			my $ip_key          =         $this_network."_ip";
 			my $is_gateway      =         $this_network eq $gateway_interface ? 1 : 0;
 			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
@@ -289,7 +289,7 @@ sub reconfigure_network
 				link2_mac       => $link2_mac, 
 				old_link1_iface => $old_link1_iface, 
 				old_link2_iface => $old_link2_iface, 
-				subnet_key      => $subnet_key, 
+				subnet_mask_key => $subnet_mask_key, 
 				this_network    => $this_network, 
 			}});
 			
@@ -313,11 +313,11 @@ sub reconfigure_network
 				next;
 			}
 			
-			my $ip     = $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
-			my $subnet = $anvil->data->{variables}{form}{config_step2}{$subnet_key}{value};
+			my $ip          = $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
+			my $subnet_mask = $anvil->data->{variables}{form}{config_step2}{$subnet_mask_key}{value};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				ip     => $ip, 
-				subnet => $subnet, 
+				ip          => $ip, 
+				subnet_mask => $subnet_mask, 
 			}});
 			
 			# Are we building bonded interfaces?
@@ -347,7 +347,7 @@ sub reconfigure_network
 					$interface_prefix = "IFN";
 				}
 				my $say_defroute    = $is_gateway ? "yes" : "no";
-				my $cidr            = $anvil->Convert->cidr({subnet => $subnet});
+				my $cidr            = $anvil->Convert->cidr({subnet_mask => $subnet_mask});
 				my $bond_file       = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Bond_1";
 				my $new_link1_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
 				my $new_link2_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_2";
@@ -400,7 +400,7 @@ sub reconfigure_network
 				   $bond_config .= "IPV6INIT=\"no\"\n";
 				   $bond_config .= "ONBOOT=\"yes\"\n";
 				   $bond_config .= "IPADDR=\"".$ip."\"\n";
-				   $bond_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet."\"\n";
+				   $bond_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
 				if ($is_gateway)
 				{
 					$bond_config .= "GATEWAY=\"".$gateway."\"\n";
@@ -572,7 +572,7 @@ sub reconfigure_network
 					$interface_prefix = "IFN";
 				}
 				my $say_defroute    = $is_gateway ? "yes" : "no";
-				my $cidr            = $anvil->Convert->cidr({subnet => $subnet});
+				my $cidr            = $anvil->Convert->cidr({subnet_mask => $subnet_mask});
 				my $new_link1_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
 				my $old_link1_file  = $new_link1_file;
 				my $new_link1_iface = $say_interface."_link1";
@@ -602,7 +602,7 @@ sub reconfigure_network
 				   $link1_config .= "IPV6INIT=\"no\"\n";
 				   $link1_config .= "ONBOOT=\"yes\"\n";
 				   $link1_config .= "IPADDR=\"".$ip."\"\n";
-				   $link1_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet."\"\n";
+				   $link1_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
 				if ($is_gateway)
 				{
 					$link1_config .= "GATEWAY=\"".$gateway."\"\n";
