@@ -793,7 +793,7 @@ SELECT
     bond_name, 
     bond_mode, 
     bond_mtu, 
-    bond_primary_slave, 
+    bond_primary_interface, 
     bond_primary_reselect, 
     bond_active_slave, 
     bond_mii_polling_interval, 
@@ -819,7 +819,7 @@ AND
 		my $bond_name                 = defined $row->[1]  ? $row->[1]  : ""; 
 		my $bond_mode                 = defined $row->[2]  ? $row->[2]  : ""; 
 		my $bond_mtu                  = defined $row->[3]  ? $row->[3]  : ""; 
-		my $bond_primary_slave        = defined $row->[4]  ? $row->[4]  : ""; 
+		my $bond_primary_interface    = defined $row->[4]  ? $row->[4]  : ""; 
 		my $bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : ""; 
 		my $bond_active_slave         = defined $row->[6]  ? $row->[6]  : ""; 
 		my $bond_mii_polling_interval = defined $row->[7]  ? $row->[7]  : ""; 
@@ -832,7 +832,7 @@ AND
 			bond_name                 => $bond_name,
 			bond_mode                 => $bond_mode,
 			bond_mtu                  => $bond_mtu,
-			bond_primary_slave        => $bond_primary_slave,
+			bond_primary_interface    => $bond_primary_interface,
 			bond_primary_reselect     => $bond_primary_reselect,
 			bond_active_slave         => $bond_active_slave,
 			bond_mii_polling_interval => $bond_mii_polling_interval,
@@ -852,7 +852,7 @@ AND
 		$anvil->data->{network}{$host}{interface}{$bond_name}{uuid}                 = $bond_uuid; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{mode}                 = $bond_mode; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{mtu}                  = $bond_mtu; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_slave}        = $bond_primary_slave; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}    = $bond_primary_interface; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}     = $bond_primary_reselect; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{active_slave}         = $bond_active_slave; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval} = $bond_mii_polling_interval; 
@@ -866,7 +866,7 @@ AND
 			"network::${host}::interface::${bond_name}::uuid"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{uuid}, 
 			"network::${host}::interface::${bond_name}::mode"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{mode}, 
 			"network::${host}::interface::${bond_name}::mtu"                  => $anvil->data->{network}{$host}{interface}{$bond_name}{mtu}, 
-			"network::${host}::interface::${bond_name}::primary_slave"        => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_slave}, 
+			"network::${host}::interface::${bond_name}::primary_interface"    => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}, 
 			"network::${host}::interface::${bond_name}::primary_reselect"     => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}, 
 			"network::${host}::interface::${bond_name}::active_slave"         => $anvil->data->{network}{$host}{interface}{$bond_name}{active_slave}, 
 			"network::${host}::interface::${bond_name}::mii_polling_interval" => $anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval}, 

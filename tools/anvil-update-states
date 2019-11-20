@@ -110,7 +110,7 @@ sub update_network
 			my $ip_address           = "";
 			my $subnet_mask          = "";
 			my $bond_mode            = "";
-			my $primary_slave        = "";
+			my $primary_interface    = "";
 			my $primary_reselect     = "";
 			my $active_slave         = ""; 
 			my $mii_polling_interval = "";
@@ -175,7 +175,7 @@ sub update_network
 				
 				# Read the bond mode.
 				$bond_mode            =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/mode"});
-				$primary_slave        =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary"});
+				$primary_interface    =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary"});
 				$primary_reselect     =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary_reselect"});
 				$active_slave         =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/active_slave"});
 				$mii_polling_interval =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/miimon"});
@@ -183,7 +183,7 @@ sub update_network
 				$down_delay           =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/downdelay"});
 				$bond_mode            =~ s/\s.*//;
 				$bond_mode            =~ s/\n$//;
-				$primary_slave        =~ s/\n$//;
+				$primary_interface    =~ s/\n$//;
 				$primary_reselect     =~ s/\s.*//;
 				$primary_reselect     =~ s/\n$//;
 				$active_slave         =~ s/\n$//;
@@ -195,7 +195,7 @@ sub update_network
 					bond_mode            => $bond_mode, 
 					mii_polling_interval => $mii_polling_interval, 
 					primary_reselect     => $primary_reselect, 
-					primary_slave        => $primary_slave, 
+					primary_interface    => $primary_interface, 
 					type                 => $type,
 				}});
 			}
@@ -251,7 +251,7 @@ sub update_network
 				mtu                  => $mtu, 
 				operational          => $operational, 
 				primary_reselect     => $primary_reselect, 
-				primary_slave        => $primary_slave, 
+				primary_interface    => $primary_interface, 
 				speed                => $speed, 
 				subnet_mask          => $subnet_mask, 
 				type                 => $type, 
@@ -315,7 +315,7 @@ sub update_network
 			$anvil->data->{network}{'local'}{interface}{$interface}{mtu}                  = $mtu; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{operational}          = $operational;
 			$anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect}     = $primary_reselect; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{primary_slave}        = $primary_slave; 
+			$anvil->data->{network}{'local'}{interface}{$interface}{primary_interface}    = $primary_interface; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{speed}                = $speed;
 			$anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}           = $subnet_mask; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{type}                 = $type; 
@@ -336,7 +336,7 @@ sub update_network
 				"network::local::interface::${interface}::mtu"                  => $anvil->data->{network}{'local'}{interface}{$interface}{mtu}, 
 				"network::local::interface::${interface}::operational"          => $anvil->data->{network}{'local'}{interface}{$interface}{operational},
 				"network::local::interface::${interface}::primary_reselect"     => $anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect},
-				"network::local::interface::${interface}::primary_slave"        => $anvil->data->{network}{'local'}{interface}{$interface}{primary_slave},
+				"network::local::interface::${interface}::primary_interface"    => $anvil->data->{network}{'local'}{interface}{$interface}{primary_interface},
 				"network::local::interface::${interface}::speed"                => $anvil->data->{network}{'local'}{interface}{$interface}{speed},
 				"network::local::interface::${interface}::subnet_mask"          => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask},
 				"network::local::interface::${interface}::type"                 => $anvil->data->{network}{'local'}{interface}{$interface}{type},
@@ -378,7 +378,7 @@ sub update_network
 			my $mtu                  = $anvil->data->{network}{'local'}{interface}{$interface}{mtu};
 			my $operational          = $anvil->data->{network}{'local'}{interface}{$interface}{operational};
 			my $primary_reselect     = $anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect};
-			my $primary_slave        = $anvil->data->{network}{'local'}{interface}{$interface}{primary_slave};
+			my $primary_interface    = $anvil->data->{network}{'local'}{interface}{$interface}{primary_interface};
 			my $speed                = $anvil->data->{network}{'local'}{interface}{$interface}{speed};
 			my $subnet_mask          = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
 			my $up_delay             = $anvil->data->{network}{'local'}{interface}{$interface}{up_delay};
@@ -403,7 +403,7 @@ sub update_network
 				mtu                  => $mtu, 
 				operational          => $operational,
 				primary_reselect     => $primary_reselect,
-				primary_slave        => $primary_slave, 
+				primary_interface    => $primary_interface, 
 				speed                => $speed,
 				subnet_mask          => $subnet_mask, 
 				up_delay             => $up_delay, 
@@ -421,7 +421,7 @@ sub update_network
 					bond_link_state           => $link_state, 
 					bond_operational          => $operational, 
 					bond_mac_address          => $mac_address, 
-					bond_primary_slave        => $primary_slave, 
+					bond_primary_interface    => $primary_interface, 
 					bond_primary_reselect     => $primary_reselect, 
 					bond_active_slave         => $active_slave, 
 					bond_mii_polling_interval => $mii_polling_interval, 
@@ -540,7 +540,7 @@ SELECT
     bond_name, 
     bond_mode, 
     bond_mtu, 
-    bond_primary_slave, 
+    bond_primary_interface, 
     bond_primary_reselect, 
     bond_active_slave, 
     bond_mii_polling_interval, 
@@ -570,7 +570,7 @@ AND
 			bond_name                 => $bond_name,
 			bond_mode                 => $row->[2],
 			bond_mtu                  => $row->[3],
-			bond_primary_slave        => $row->[4],
+			bond_primary_interface    => $row->[4],
 			bond_primary_reselect     => $row->[5],
 			bond_active_slave         => $row->[6],
 			bond_mii_polling_interval => $row->[7],
@@ -583,7 +583,7 @@ AND
 			"bonds::${bond_uuid}::bond_name"                 => $anvil->data->{bonds}{$bond_uuid}{bond_name},
 			"bonds::${bond_uuid}::bond_mode"                 => $anvil->data->{bonds}{$bond_uuid}{bond_mode},
 			"bonds::${bond_uuid}::bond_mtu"                  => $anvil->data->{bonds}{$bond_uuid}{bond_mtu},
-			"bonds::${bond_uuid}::bond_primary_slave"        => $anvil->data->{bonds}{$bond_uuid}{bond_primary_slave},
+			"bonds::${bond_uuid}::bond_primary_interface"    => $anvil->data->{bonds}{$bond_uuid}{bond_primary_interface},
 			"bonds::${bond_uuid}::bond_primary_reselect"     => $anvil->data->{bonds}{$bond_uuid}{bond_primary_reselect},
 			"bonds::${bond_uuid}::bond_active_slave"         => $anvil->data->{bonds}{$bond_uuid}{bond_active_slave},
 			"bonds::${bond_uuid}::bond_mii_polling_interval" => $anvil->data->{bonds}{$bond_uuid}{bond_mii_polling_interval},

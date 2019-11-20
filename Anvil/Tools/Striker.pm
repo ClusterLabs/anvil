@@ -371,10 +371,10 @@ sub parse_all_status_json
 			"json::all_status::hosts::${host_name}::configured"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{configured}, 
 			"json::all_status::hosts::${host_name}::ssh_fingerprint" => $anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}, 
 		}});
-		print "Host: [".$host_name." (".$anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}.")], Type: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{type}."], Configured: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{configured}."], \n";
-		print " - Host UUID: ..... [".$anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}."]\n";
-		print " - SSH Fingerprint: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}."]\n";
-		print Dumper @{$host_hash->{network_interfaces}};
+# 		print "Host: [".$host_name." (".$anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}.")], Type: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{type}."], Configured: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{configured}."], \n";
+# 		print " - Host UUID: ..... [".$anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}."]\n";
+# 		print " - SSH Fingerprint: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}."]\n";
+# 		print Dumper @{$host_hash->{network_interfaces}};
 		foreach my $interface_hash (@{$host_hash->{network_interfaces}})
 		{
 			my $interface_name  = $interface_hash->{name};
@@ -394,8 +394,12 @@ sub parse_all_status_json
 				dns             => $dns,
 			}});
 			
+			# This lets us easily map interface names to types.
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface_name_to_type}{$interface_name} = $interface_type;
+			
+			# Record the rest of the data.
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{uuid}            = $interface_hash->{uuid};
-			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mtu}             = $interface_hash->{mtu}." ".$anvil->Words->string({key => "suffix_0014"});
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mtu}             = $interface_hash->{mtu};
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{ip}              = $interface_hash->{ip};
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{subnet_mask}     = $interface_hash->{subnet_mask};
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{default_gateway} = $interface_hash->{default_gateway};
@@ -411,9 +415,9 @@ sub parse_all_status_json
 				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::dns"             => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{dns}, 
 			}});
 			
-			if ((exists $interface_hash->{connected}) && (ref($interface_hash->{connected}) eq "ARRAY"))
+			if ((exists $interface_hash->{interfaces}) && (ref($interface_hash->{interfaces}) eq "ARRAY"))
 			{
-				foreach my $interface_name (sort {$a cmp $b} @{$interface_hash->{connected}})
+				foreach my $interface_name (sort {$a cmp $b} @{$interface_hash->{interfaces}})
 				{
 					# We'll sort out the types after
 					$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{connected}{$interface_name}{type} = "";
@@ -427,7 +431,7 @@ sub parse_all_status_json
 			{
 				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mode}                 = $interface_hash->{mode};
 				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{active_interface}     = $interface_hash->{active_slave};
-				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{primary_interface}    = $interface_hash->{primary_slave};
+				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{primary_interface}    = $interface_hash->{primary_interface};
 				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{primary_reselect}     = $interface_hash->{primary_reselect};
 				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{up_delay}             = $interface_hash->{up_delay};
 				$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{down_delay}           = $interface_hash->{down_delay};

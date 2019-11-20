@@ -834,10 +834,7 @@ sub generate_state_json
 		}});
 		
 		$anvil->Network->load_interfces({
-			host_uuid => $host_uuid, 
-			host      => $short_host_name,
-		});
-		$anvil->Network->load_interfces({
+			debug     => 2,
 			host_uuid => $host_uuid, 
 			host      => $short_host_name,
 		});
@@ -852,9 +849,10 @@ sub generate_state_json
 				"s1:interface"   => $interface,
 				"s2:mac_address" => $mac_address, 
 				"s3:type"        => $type,
-				"s4:configured"  => $configured, 
-				"s5:host_uuid"   => $host_uuid, 
-				"s6:host_key"    => $host_key, 
+				"s4:mtu"         => $mtu,
+				"s5:configured"  => $configured, 
+				"s6:host_uuid"   => $host_uuid, 
+				"s7:host_key"    => $host_key, 
 			}});
 			$iface_hash->{name} = $interface;
 			$iface_hash->{type} = $type;
@@ -863,7 +861,7 @@ sub generate_state_json
 			if ($type eq "bond")
 			{
 				my $mode                 = $anvil->data->{network}{$host}{interface}{$interface}{mode};
-				my $primary_slave        = $anvil->data->{network}{$host}{interface}{$interface}{primary_slave}; 
+				my $primary_interface    = $anvil->data->{network}{$host}{interface}{$interface}{primary_interface}; 
 				my $primary_reselect     = $anvil->data->{network}{$host}{interface}{$interface}{primary_reselect}; 
 				my $active_slave         = $anvil->data->{network}{$host}{interface}{$interface}{active_slave}; 
 				my $mii_polling_interval = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{mii_polling_interval}});
@@ -932,7 +930,7 @@ sub generate_state_json
 					say_mode             => $say_mode,
 					mode                 => $mode,
 					active_interface     => $active_slave,
-					primary_interface    => $primary_slave,
+					primary_interface    => $primary_interface,
 					say_primary_reselect => $say_primary_reselect,
 					primary_reselect     => $primary_reselect,
 					say_up_delay         => $up_delay,
@@ -952,7 +950,7 @@ sub generate_state_json
 				$iface_hash->{say_mode}             = $say_mode;
 				$iface_hash->{mode}                 = $mode;
 				$iface_hash->{active_interface}     = $active_slave;
-				$iface_hash->{primary_interface}    = $primary_slave;
+				$iface_hash->{primary_interface}    = $primary_interface;
 				$iface_hash->{primary_reselect}     = $primary_reselect;
 				$iface_hash->{say_up_delay}         = $say_up_delay;
 				$iface_hash->{up_delay}             = $up_delay;
@@ -1124,6 +1122,8 @@ sub generate_state_json
 		};
 
 	}
+	
+	# Write out the JSON file.
 	my $json = JSON->new->utf8->encode($anvil->data->{json}{all_systems});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { json => $json }});
 	

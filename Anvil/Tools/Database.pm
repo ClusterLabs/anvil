@@ -2366,7 +2366,7 @@ This is the MTU for the bonded interface.
 
 This is set to C<< up >>, C<< down >> or C<< unknown >>. It indicates whether the bond has a working slaved interface or not.
 
-=head2 bond_primary_slave (optional)
+=head2 bond_primary_interface (optional)
 
 This is the primary interface name in the bond.
 
@@ -2409,7 +2409,7 @@ sub insert_or_update_bonds
 	my $bond_name                 = defined $parameter->{bond_name}                 ? $parameter->{bond_name}                 : "";
 	my $bond_mode                 = defined $parameter->{bond_mode}                 ? $parameter->{bond_mode}                 : "";
 	my $bond_mtu                  = defined $parameter->{bond_mtu}                  ? $parameter->{bond_mtu}                  : "";
-	my $bond_primary_slave        = defined $parameter->{bond_primary_slave}        ? $parameter->{bond_primary_slave}        : "";
+	my $bond_primary_interface    = defined $parameter->{bond_primary_interface}    ? $parameter->{bond_primary_interface}    : "";
 	my $bond_primary_reselect     = defined $parameter->{bond_primary_reselect}     ? $parameter->{bond_primary_reselect}     : "";
 	my $bond_active_slave         = defined $parameter->{bond_active_slave}         ? $parameter->{bond_active_slave}         : "";
 	my $bond_mii_polling_interval = defined $parameter->{bond_mii_polling_interval} ? $parameter->{bond_mii_polling_interval} : "";
@@ -2426,7 +2426,7 @@ sub insert_or_update_bonds
 		bond_name                 => $bond_name, 
 		bond_mode                 => $bond_mode, 
 		bond_mtu                  => $bond_mtu, 
-		bond_primary_slave        => $bond_primary_slave, 
+		bond_primary_interface    => $bond_primary_interface, 
 		bond_primary_reselect     => $bond_primary_reselect, 
 		bond_active_slave         => $bond_active_slave, 
 		bond_mii_polling_interval => $bond_mii_polling_interval, 
@@ -2516,7 +2516,7 @@ INSERT INTO
     bond_name, 
     bond_mode, 
     bond_mtu, 
-    bond_primary_slave, 
+    bond_primary_interface, 
     bond_primary_reselect, 
     bond_active_slave, 
     bond_mii_polling_interval, 
@@ -2531,7 +2531,7 @@ INSERT INTO
     ".$anvil->Database->quote($bond_name).", 
     ".$anvil->Database->quote($bond_mode).", 
     ".$anvil->Database->quote($bond_mtu).", 
-    ".$anvil->Database->quote($bond_primary_slave).", 
+    ".$anvil->Database->quote($bond_primary_interface).", 
     ".$anvil->Database->quote($bond_primary_reselect).", 
     ".$anvil->Database->quote($bond_active_slave).", 
     ".$anvil->Database->quote($bond_mii_polling_interval).", 
@@ -2554,7 +2554,7 @@ SELECT
     bond_name, 
     bond_mode, 
     bond_mtu, 
-    bond_primary_slave, 
+    bond_primary_interface, 
     bond_primary_reselect, 
     bond_active_slave, 
     bond_mii_polling_interval, 
@@ -2587,7 +2587,7 @@ WHERE
 			my $old_bond_name                 = $row->[1];
 			my $old_bond_mode                 = $row->[2];
 			my $old_bond_mtu                  = $row->[3];
-			my $old_bond_primary_slave        = $row->[4];
+			my $old_bond_primary_interface    = $row->[4];
 			my $old_bond_primary_reselect     = $row->[5];
 			my $old_bond_active_slave         = $row->[6];
 			my $old_bond_mii_polling_interval = $row->[7];
@@ -2600,7 +2600,7 @@ WHERE
 				old_bond_name                 => $old_bond_name, 
 				old_bond_mode                 => $old_bond_mode, 
 				old_bond_mtu                  => $old_bond_mtu, 
-				old_bond_primary_slave        => $old_bond_primary_slave, 
+				old_bond_primary_interface    => $old_bond_primary_interface, 
 				old_bond_primary_reselect     => $old_bond_primary_reselect, 
 				old_bond_active_slave         => $old_bond_active_slave, 
 				old_bond_mii_polling_interval => $old_bond_mii_polling_interval, 
@@ -2615,7 +2615,7 @@ WHERE
 			    ($old_bond_name                 ne $bond_name)                 or 
 			    ($old_bond_mode                 ne $bond_mode)                 or 
 			    ($old_bond_mtu                  ne $bond_mtu)                  or 
-			    ($old_bond_primary_slave        ne $bond_primary_slave)        or 
+			    ($old_bond_primary_interface    ne $bond_primary_interface)    or 
 			    ($old_bond_primary_reselect     ne $bond_primary_reselect)     or 
 			    ($old_bond_active_slave         ne $bond_active_slave)         or 
 			    ($old_bond_mii_polling_interval ne $bond_mii_polling_interval) or 
@@ -2633,7 +2633,7 @@ SET
     bond_name                 = ".$anvil->Database->quote($bond_name).", 
     bond_mode                 = ".$anvil->Database->quote($bond_mode).", 
     bond_mtu                  = ".$anvil->Database->quote($bond_mtu).", 
-    bond_primary_slave        = ".$anvil->Database->quote($bond_primary_slave).", 
+    bond_primary_interface    = ".$anvil->Database->quote($bond_primary_interface).", 
     bond_primary_reselect     = ".$anvil->Database->quote($bond_primary_reselect).", 
     bond_active_slave         = ".$anvil->Database->quote($bond_active_slave).", 
     bond_mii_polling_interval = ".$anvil->Database->quote($bond_mii_polling_interval).", 
