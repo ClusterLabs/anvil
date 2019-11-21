@@ -371,10 +371,7 @@ sub parse_all_status_json
 			"json::all_status::hosts::${host_name}::configured"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{configured}, 
 			"json::all_status::hosts::${host_name}::ssh_fingerprint" => $anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}, 
 		}});
-# 		print "Host: [".$host_name." (".$anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}.")], Type: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{type}."], Configured: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{configured}."], \n";
-# 		print " - Host UUID: ..... [".$anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}."]\n";
-# 		print " - SSH Fingerprint: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}."]\n";
-# 		print Dumper @{$host_hash->{network_interfaces}};
+		
 		foreach my $interface_hash (@{$host_hash->{network_interfaces}})
 		{
 			my $interface_name  = $interface_hash->{name};
@@ -417,12 +414,12 @@ sub parse_all_status_json
 			
 			if ((exists $interface_hash->{interfaces}) && (ref($interface_hash->{interfaces}) eq "ARRAY"))
 			{
-				foreach my $interface_name (sort {$a cmp $b} @{$interface_hash->{interfaces}})
+				foreach my $connected_interface_name (sort {$a cmp $b} @{$interface_hash->{interfaces}})
 				{
 					# We'll sort out the types after
-					$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{connected}{$interface_name}{type} = "";
+					$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{connected}{$connected_interface_name}{type} = "";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::mode" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mode}, 
+						"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${connected_interface_name}::mode" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$connected_interface_name}{mode}, 
 					}});
 				}
 			}
@@ -622,6 +619,30 @@ sub parse_all_status_json
 					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_operationa" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_operationa}, 
 					"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::say_medium"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{say_medium}, 
 				}});
+			}
+		}
+	}
+	
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+		foreach my $interface_type (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_type => $interface_type }});
+			foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+				foreach my $connected_interface_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{connected}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected_interface_name => $connected_interface_name }});
+					if (defined $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface_name_to_type}{$connected_interface_name})
+					{
+						$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{connected}{$connected_interface_name}{type} = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface_name_to_type}{$connected_interface_name};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::connected::${connected_interface_name}::type" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{connected}{$connected_interface_name}{type},
+						}});
+					}
+				}
 			}
 		}
 	}
