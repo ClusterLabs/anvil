@@ -795,7 +795,7 @@ SELECT
     bond_mtu, 
     bond_primary_interface, 
     bond_primary_reselect, 
-    bond_active_slave, 
+    bond_active_interface, 
     bond_mii_polling_interval, 
     bond_up_delay, 
     bond_down_delay, 
@@ -821,7 +821,7 @@ AND
 		my $bond_mtu                  = defined $row->[3]  ? $row->[3]  : ""; 
 		my $bond_primary_interface    = defined $row->[4]  ? $row->[4]  : ""; 
 		my $bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : ""; 
-		my $bond_active_slave         = defined $row->[6]  ? $row->[6]  : ""; 
+		my $bond_active_interface     = defined $row->[6]  ? $row->[6]  : ""; 
 		my $bond_mii_polling_interval = defined $row->[7]  ? $row->[7]  : ""; 
 		my $bond_up_delay             = defined $row->[8]  ? $row->[8]  : ""; 
 		my $bond_down_delay           = defined $row->[9]  ? $row->[9]  : ""; 
@@ -834,7 +834,7 @@ AND
 			bond_mtu                  => $bond_mtu,
 			bond_primary_interface    => $bond_primary_interface,
 			bond_primary_reselect     => $bond_primary_reselect,
-			bond_active_slave         => $bond_active_slave,
+			bond_active_interface     => $bond_active_interface,
 			bond_mii_polling_interval => $bond_mii_polling_interval,
 			bond_up_delay             => $bond_up_delay,
 			bond_down_delay           => $bond_down_delay,
@@ -854,7 +854,7 @@ AND
 		$anvil->data->{network}{$host}{interface}{$bond_name}{mtu}                  = $bond_mtu; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}    = $bond_primary_interface; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}     = $bond_primary_reselect; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{active_slave}         = $bond_active_slave; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}     = $bond_active_interface; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval} = $bond_mii_polling_interval; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}             = $bond_up_delay; 
 		$anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}           = $bond_down_delay; 
@@ -868,7 +868,7 @@ AND
 			"network::${host}::interface::${bond_name}::mtu"                  => $anvil->data->{network}{$host}{interface}{$bond_name}{mtu}, 
 			"network::${host}::interface::${bond_name}::primary_interface"    => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}, 
 			"network::${host}::interface::${bond_name}::primary_reselect"     => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}, 
-			"network::${host}::interface::${bond_name}::active_slave"         => $anvil->data->{network}{$host}{interface}{$bond_name}{active_slave}, 
+			"network::${host}::interface::${bond_name}::active_interface"     => $anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}, 
 			"network::${host}::interface::${bond_name}::mii_polling_interval" => $anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval}, 
 			"network::${host}::interface::${bond_name}::up_delay"             => $anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}, 
 			"network::${host}::interface::${bond_name}::down_delay"           => $anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}, 

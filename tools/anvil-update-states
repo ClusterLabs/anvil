@@ -112,7 +112,7 @@ sub update_network
 			my $bond_mode            = "";
 			my $primary_interface    = "";
 			my $primary_reselect     = "";
-			my $active_slave         = ""; 
+			my $active_interface     = ""; 
 			my $mii_polling_interval = "";
 			my $up_delay             = "";
 			my $down_delay           = "";
@@ -177,7 +177,7 @@ sub update_network
 				$bond_mode            =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/mode"});
 				$primary_interface    =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary"});
 				$primary_reselect     =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/primary_reselect"});
-				$active_slave         =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/active_slave"});
+				$active_interface     =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/active_slave"});
 				$mii_polling_interval =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/miimon"});
 				$up_delay             =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/updelay"});
 				$down_delay           =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/downdelay"});
@@ -186,12 +186,12 @@ sub update_network
 				$primary_interface    =~ s/\n$//;
 				$primary_reselect     =~ s/\s.*//;
 				$primary_reselect     =~ s/\n$//;
-				$active_slave         =~ s/\n$//;
+				$active_interface     =~ s/\n$//;
 				$mii_polling_interval =~ s/\n$//;
 				$up_delay             =~ s/\n$//;
 				$down_delay           =~ s/\n$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					active_slave         => $active_slave, 
+					active_interface     => $active_interface, 
 					bond_mode            => $bond_mode, 
 					mii_polling_interval => $mii_polling_interval, 
 					primary_reselect     => $primary_reselect, 
@@ -238,7 +238,7 @@ sub update_network
 			}
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				active_slave         => $active_slave, 
+				active_interface     => $active_interface, 
 				bond_master          => $bond_master, 
 				bond_mode            => $bond_mode, 
 				bridge_id            => $bridge_id, 
@@ -300,7 +300,7 @@ sub update_network
 			}
 			
 			# Store new information we found.
-			$anvil->data->{network}{'local'}{interface}{$interface}{active_slave}         = $active_slave; 
+			$anvil->data->{network}{'local'}{interface}{$interface}{active_interface}     = $active_interface; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{bond_mode}            = $bond_mode; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{bond_master}          = $bond_master; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{bridge_id}            = $bridge_id; 
@@ -317,11 +317,11 @@ sub update_network
 			$anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect}     = $primary_reselect; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{primary_interface}    = $primary_interface; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{speed}                = $speed;
-			$anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}           = $subnet_mask; 
+			$anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}          = $subnet_mask; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{type}                 = $type; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{up_delay}              = $up_delay; 
+			$anvil->data->{network}{'local'}{interface}{$interface}{up_delay}              $up_delay; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"network::local::interface::${interface}::active_slave"         => $anvil->data->{network}{'local'}{interface}{$interface}{active_slave},
+				"network::local::interface::${interface}::active_interface"     => $anvil->data->{network}{'local'}{interface}{$interface}{active_interface},
 				"network::local::interface::${interface}::bond_mode"            => $anvil->data->{network}{'local'}{interface}{$interface}{bond_mode},
 				"network::local::interface::${interface}::bond_master"          => $anvil->data->{network}{'local'}{interface}{$interface}{bond_master},
 				"network::local::interface::${interface}::bridge_id"            => $anvil->data->{network}{'local'}{interface}{$interface}{bridge_id}, 
@@ -363,7 +363,7 @@ sub update_network
 			}});
 			next if $processing ne $anvil->data->{network}{'local'}{interface}{$interface}{type};
 			
-			my $active_slave         = $anvil->data->{network}{'local'}{interface}{$interface}{active_slave};
+			my $active_interface     = $anvil->data->{network}{'local'}{interface}{$interface}{active_interface};
 			my $bond_mode            = $anvil->data->{network}{'local'}{interface}{$interface}{bond_mode};
 			my $bond_master          = $anvil->data->{network}{'local'}{interface}{$interface}{bond_master};
 			my $bridge_id            = $anvil->data->{network}{'local'}{interface}{$interface}{bridge_id};
@@ -386,7 +386,7 @@ sub update_network
 			my $gateway              = $anvil->data->{network}{'local'}{interface}{$interface}{gateway};
 			my $dns                  = $anvil->data->{network}{'local'}{interface}{$interface}{dns};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				active_slave         => $active_slave, 
+				active_interface     => $active_interface, 
 				bond_mode            => $bond_mode, 
 				bond_master          => $bond_master, 
 				default_gateway      => $default_gateway, 
@@ -423,7 +423,7 @@ sub update_network
 					bond_mac_address          => $mac_address, 
 					bond_primary_interface    => $primary_interface, 
 					bond_primary_reselect     => $primary_reselect, 
-					bond_active_slave         => $active_slave, 
+					bond_active_interface     => $active_interface, 
 					bond_mii_polling_interval => $mii_polling_interval, 
 					bond_up_delay             => $up_delay, 
 					bond_down_delay           => $down_delay, 
@@ -542,7 +542,7 @@ SELECT
     bond_mtu, 
     bond_primary_interface, 
     bond_primary_reselect, 
-    bond_active_slave, 
+    bond_active_interface, 
     bond_mii_polling_interval, 
     bond_up_delay, 
     bond_down_delay, 
@@ -572,7 +572,7 @@ AND
 			bond_mtu                  => $row->[3],
 			bond_primary_interface    => $row->[4],
 			bond_primary_reselect     => $row->[5],
-			bond_active_slave         => $row->[6],
+			bond_active_interface     => $row->[6],
 			bond_mii_polling_interval => $row->[7],
 			bond_up_delay             => $row->[8],
 			bond_down_delay           => $row->[9],
@@ -585,7 +585,7 @@ AND
 			"bonds::${bond_uuid}::bond_mtu"                  => $anvil->data->{bonds}{$bond_uuid}{bond_mtu},
 			"bonds::${bond_uuid}::bond_primary_interface"    => $anvil->data->{bonds}{$bond_uuid}{bond_primary_interface},
 			"bonds::${bond_uuid}::bond_primary_reselect"     => $anvil->data->{bonds}{$bond_uuid}{bond_primary_reselect},
-			"bonds::${bond_uuid}::bond_active_slave"         => $anvil->data->{bonds}{$bond_uuid}{bond_active_slave},
+			"bonds::${bond_uuid}::bond_active_interface"     => $anvil->data->{bonds}{$bond_uuid}{bond_active_interface},
 			"bonds::${bond_uuid}::bond_mii_polling_interval" => $anvil->data->{bonds}{$bond_uuid}{bond_mii_polling_interval},
 			"bonds::${bond_uuid}::bond_up_delay"             => $anvil->data->{bonds}{$bond_uuid}{bond_up_delay},
 			"bonds::${bond_uuid}::bond_down_delay"           => $anvil->data->{bonds}{$bond_uuid}{bond_down_delay},

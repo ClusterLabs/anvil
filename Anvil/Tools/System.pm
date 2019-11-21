@@ -863,7 +863,7 @@ sub generate_state_json
 				my $mode                 = $anvil->data->{network}{$host}{interface}{$interface}{mode};
 				my $primary_interface    = $anvil->data->{network}{$host}{interface}{$interface}{primary_interface}; 
 				my $primary_reselect     = $anvil->data->{network}{$host}{interface}{$interface}{primary_reselect}; 
-				my $active_slave         = $anvil->data->{network}{$host}{interface}{$interface}{active_slave}; 
+				my $active_interface     = $anvil->data->{network}{$host}{interface}{$interface}{active_interface}; 
 				my $mii_polling_interval = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{mii_polling_interval}});
 				my $say_up_delay         = $anvil->Convert->add_commas({number => $anvil->data->{network}{$host}{interface}{$interface}{up_delay}});
 				my $up_delay             = $anvil->data->{network}{$host}{interface}{$interface}{up_delay};
@@ -929,7 +929,7 @@ sub generate_state_json
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					say_mode             => $say_mode,
 					mode                 => $mode,
-					active_interface     => $active_slave,
+					active_interface     => $active_interface,
 					primary_interface    => $primary_interface,
 					say_primary_reselect => $say_primary_reselect,
 					primary_reselect     => $primary_reselect,
@@ -949,7 +949,7 @@ sub generate_state_json
 				}
 				$iface_hash->{say_mode}             = $say_mode;
 				$iface_hash->{mode}                 = $mode;
-				$iface_hash->{active_interface}     = $active_slave;
+				$iface_hash->{active_interface}     = $active_interface;
 				$iface_hash->{primary_interface}    = $primary_interface;
 				$iface_hash->{primary_reselect}     = $primary_reselect;
 				$iface_hash->{say_up_delay}         = $say_up_delay;
