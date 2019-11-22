@@ -811,7 +811,7 @@ sub generate_state_json
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_bridges()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->generate_state_json()" }});
 	
 	$anvil->data->{json}{all_systems}{hosts} = [];
 	$anvil->Database->get_hosts_info({debug => 3});
@@ -834,7 +834,7 @@ sub generate_state_json
 		}});
 		
 		$anvil->Network->load_interfces({
-			debug     => 2,
+			debug     => $debug,
 			host_uuid => $host_uuid, 
 			host      => $short_host_name,
 		});
@@ -941,11 +941,15 @@ sub generate_state_json
 					operational          => $operational,
 					mii_polling_interval => $mii_polling_interval,
 				}});
-				my $connected = [];
-				foreach my $iface (sort {$a cmp $b} @{$interfaces})
+				my $connected_interfaces = [];
+				foreach my $connected_interface_name (sort {$a cmp $b} @{$interfaces})
 				{
-					push @{$connected}, $iface;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { iface => $iface }});
+					push @{$connected_interfaces}, $connected_interface_name;
+					my $connected_interface_count = @{$connected_interfaces};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						connected_interface_count => $connected_interface_count, 
+						connected_interface_name  => $connected_interface_name,
+					}});
 				}
 				$iface_hash->{say_mode}             = $say_mode;
 				$iface_hash->{mode}                 = $mode;
@@ -959,7 +963,7 @@ sub generate_state_json
 				$iface_hash->{say_operational}      = $say_operational;
 				$iface_hash->{operational}          = $operational;
 				$iface_hash->{mii_polling_interval} = $mii_polling_interval;
-				$iface_hash->{interfaces}           = $connected;
+				$iface_hash->{connected_interfaces} = $connected_interfaces;
 			}
 			elsif ($type eq "bridge")
 			{
@@ -984,18 +988,22 @@ sub generate_state_json
 					stp_enabled     => $stp_enabled,
 					say_stp_enabled => $say_stp_enabled,
 				}});
-
-				my $connected = [];
-				foreach my $iface (sort {$a cmp $b} @{$interfaces})
+				
+				my $connected_interfaces = [];
+				foreach my $connected_interface_name (sort {$a cmp $b} @{$interfaces})
 				{
-					push @{$connected}, $iface;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { iface => $iface }});
+					push @{$connected_interfaces}, $connected_interface_name;
+					my $connected_interface_count = @{$connected_interfaces};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						connected_interface_count => $connected_interface_count, 
+						connected_interface_name  => $connected_interface_name,
+					}});
 				}
-
-				$iface_hash->{bridge_id}       = $id;
-				$iface_hash->{stp_enabled}     = $stp_enabled;
-				$iface_hash->{say_stp_enabled} = $say_stp_enabled;
-				$iface_hash->{interfaces}      = $connected;
+				
+				$iface_hash->{bridge_id}            = $id;
+				$iface_hash->{stp_enabled}          = $stp_enabled;
+				$iface_hash->{say_stp_enabled}      = $say_stp_enabled;
+				$iface_hash->{connected_interfaces} = $connected_interfaces;
 			}
 			else
 			{
@@ -1131,7 +1139,7 @@ sub generate_state_json
 	my $json_file = $anvil->data->{path}{directories}{status}."/".$anvil->data->{path}{json}{all_status};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { json_file => $json_file }});
 	my $error = $anvil->Storage->write_file({
-		debug     => 2, 
+		debug     => $debug, 
 		overwrite => 1, 
 		backup    => 0, 
 		file      => $json_file, 
@@ -1141,6 +1149,9 @@ sub generate_state_json
 		mode      => "0644",
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+	
+	# Clear out the records.
+	delete $anvil->data->{json}{all_systems};
 	
 	return(0);
 }
