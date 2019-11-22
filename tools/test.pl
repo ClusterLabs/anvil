@@ -78,8 +78,6 @@ foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{
 	print " - Host UUID: ..... [".$anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}."]\n";
 	print " - SSH Fingerprint: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}."]\n";
 	
-	my $highest_mtu = 0;
-	my $shown       = {};
 	foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bridge}})
 	{
 		my $uuid            = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bridge}{$interface_name}{uuid};
@@ -109,18 +107,33 @@ foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{
 		}
 		foreach my $connected_interface (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bridge}{$interface_name}{connected_interfaces}})
 		{
-			print "     - Connected: [".$connected_interface."], type: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bridge}{$interface_name}{connected_interfaces}{$connected_interface}{type}."]\n";
+			my $type = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bridge}{$interface_name}{connected_interfaces}{$connected_interface}{type};
+			print "     - Connected: [".$connected_interface."], type: [".$type."]\n";
 			if ($type eq "bond")
 			{
-				show_bond($anvil, $connected_interface);
+				show_bond($anvil, $host_name, $connected_interface, "       ");
 			}
 			else
 			{
-				show_interface($anvil, $connected_interface);
+				show_interface($anvil, $host_name, $connected_interface, "       ");
 			}
 		}
 		
-		$shown->{$interface_name} = 1;
+		print "\n";
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{shown}{$interface_name} = 1;
+	}
+	
+	# Print the rest of the interfaces now.
+	foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}})
+	{
+		next if $anvil->data->{json}{all_status}{hosts}{$host_name}{shown}{$interface_name};
+		show_bond($anvil, $host_name, $interface_name, "");
+	}
+	
+	foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}})
+	{
+		next if $anvil->data->{json}{all_status}{hosts}{$host_name}{shown}{$interface_name};
+		show_interface($anvil, $host_name, $interface_name, "");
 	}
 }
 
@@ -128,18 +141,105 @@ $anvil->nice_exit({exit_code => 0});
 
 sub show_bond
 { 
-	my ($anvil, $connected_interface) = @_;
+	my ($anvil, $host_name, $interface_name, $spaces) = @_;
 	
+	my $uuid                 = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{uuid};
+	my $mtu                  = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{mtu}." ".$anvil->Words->string({key => "suffix_0014"});
+	my $ip                   = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{ip};
+	my $subnet_mask          = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{subnet_mask};
+	my $default_gateway      = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{default_gateway};
+	my $gateway              = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{gateway};
+	my $dns                  = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{dns};
+	my $mode                 = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{mode};
+	my $active_interface     = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{active_interface};
+	my $primary_interface    = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{primary_interface};
+	my $primary_reselect     = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{primary_reselect};
+	my $up_delay             = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{up_delay};
+	my $down_delay           = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{down_delay};
+	my $operational          = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{operational};
+	my $mii_polling_interval = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{mii_polling_interval};
+	my $say_up_delay         = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{say_up_delay};
+	my $say_down_delay       = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{say_down_delay};
+	my $say_mode             = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{say_mode};
+	my $say_operational      = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{say_operational};
+	my $say_primary_reselect = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bond}{$interface_name}{say_primary_reselect};
 	
+	print $spaces."- Bond: [".$interface_name."], Mode: [".$say_mode." (".$mode.")], MTU: [".$mtu."], Operational: [".$say_operational." (".$operational.")]\n";
+	print $spaces."  Active interface: [".$active_interface."], Primary interface: [".$primary_interface."], Primary reselect policy: [".$say_primary_reselect." (".$primary_reselect.")]\n";
+	print $spaces."  Up delay: [".$say_up_delay." (".$up_delay.")], Down delay: [".$say_down_delay." (".$down_delay.")], MII polling interval: [".$mii_polling_interval."]\n";
+	if ($ip)
+	{
+		if ($gateway)
+		{
+			print "   - IP: [".$ip."/".$subnet_mask."], Gateway (default?): [".$gateway." (".$default_gateway.")], DNS: [".$dns."]\n";
+		}
+		else
+		{
+			print "   - IP: [".$ip."/".$subnet_mask."]\n";
+		}
+	}
+	else
+	{
+		print "   - No IP on this device\n";
+	}
+	foreach my $connected_interface (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bridge}{$interface_name}{connected_interfaces}})
+	{
+		print "     - Connected: [".$connected_interface."], type: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{bridge}{$interface_name}{connected_interfaces}{$connected_interface}{type}."]\n";
+		show_interface($anvil, $host_name, $connected_interface, $spaces."       ");
+	}
+	
+	print "\n";
+	$anvil->data->{json}{all_status}{hosts}{$host_name}{shown}{$interface_name} = 1;
 	
 	return(0);
 }
 
 sub show_interface
 { 
-	my ($anvil, $connected_interface) = @_;
+	my ($anvil, $host_name, $interface_name, $spaces) = @_;
 	
+	my $uuid            = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{uuid};
+	my $mtu             = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{mtu}." ".$anvil->Words->string({key => "suffix_0014"});
+	my $ip              = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{ip};
+	my $subnet_mask     = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{subnet_mask};
+	my $default_gateway = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{default_gateway};
+	my $gateway         = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{gateway};
+	my $dns             = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{dns};
+	my $speed           = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{speed};
+	my $link_state      = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{link_state};
+	my $operational     = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{operational};
+	my $duplex          = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{duplex};
+	my $medium          = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{medium};
+	my $bridge_name     = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{bridge_name};
+	my $bond_name       = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{bond_name};
+	my $changed_order   = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{changed_order};
+	my $say_speed       = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{say_speed};
+	my $say_duplex      = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{say_duplex};
+	my $say_link_state  = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{say_link_state};
+	my $say_operational = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{say_operationa};
+	my $say_medium      = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface_name}{say_medium};
 	
+	print $spaces."- Interface: [".$interface_name."], MTU: [".$mtu."], Operational: [".$say_operational." (".$operational.")], Link state: [".$say_link_state." (".$link_state.")]\n";
+	print $spaces."  Change Order: [".$changed_order."], Speed: [".$say_speed." (".$speed.")], Duplex: [".$say_duplex." (".$duplex.")], Medium: [".$say_medium." (".$medium.")]\n";
+	print $spaces."  Connected to bond: [".$bond_name."], bridge: [".$bridge_name."]\n";
+	if ($ip)
+	{
+		if ($gateway)
+		{
+			print "   - IP: [".$ip."/".$subnet_mask."], Gateway (default?): [".$gateway." (".$default_gateway.")], DNS: [".$dns."]\n";
+		}
+		else
+		{
+			print "   - IP: [".$ip."/".$subnet_mask."]\n";
+		}
+	}
+	else
+	{
+		print "   - No IP on this device\n";
+	}
+	
+	print "\n";
+	$anvil->data->{json}{all_status}{hosts}{$host_name}{shown}{$interface_name} = 1;
 	
 	return(0);
 }
