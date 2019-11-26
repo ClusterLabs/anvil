@@ -223,7 +223,9 @@ CREATE TABLE host_variable (
     host_variable_host_uuid    uuid                        not null,
     host_variable_name         text                        not null,
     host_variable_value        text                        not null,
-    modified_date              timestamp with time zone    not null
+    modified_date              timestamp with time zone    not null, 
+    
+    FOREIGN KEY(host_variable_host_uuid) REFERENCES hosts(host_uuid)
 );
 ALTER TABLE host_variable OWNER TO admin;
 
@@ -823,6 +825,10 @@ CREATE TABLE network_interfaces (
     network_interface_bond_uuid      uuid,                                                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
     network_interface_bridge_uuid    uuid,                                                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
     modified_date                    timestamp with time zone    not null
+    
+    FOREIGN KEY(network_interface_bridge_uuid) REFERENCES bridges(bridge_uuid),
+    FOREIGN KEY(network_interface_bond_uuid) REFERENCES bonds(bond_uuid),
+    FOREIGN KEY(network_interface_host_uuid) REFERENCES hosts(host_uuid)
 );
 ALTER TABLE network_interfaces OWNER TO admin;
 
@@ -904,8 +910,10 @@ CREATE TABLE bonds (
     bond_down_delay              bigint                      not null,
     bond_mac_address             text                        not null,
     bond_operational             text                        not null,                   -- This is 'up', 'down' or 'unknown' 
+    bond_bridge_uuid             uuid,
     modified_date                timestamp with time zone    not null,
     
+    FOREIGN KEY(bond_bridge_uuid) REFERENCES bridges(bridge_uuid),
     FOREIGN KEY(bond_host_uuid) REFERENCES hosts(host_uuid)
 );
 ALTER TABLE bonds OWNER TO admin;
@@ -925,6 +933,7 @@ CREATE TABLE history.bonds (
     bond_down_delay              bigint,
     bond_mac_address             text, 
     bond_operational             text,
+    bond_bridge_uuid             uuid,
     modified_date                timestamp with time zone    not null
 );
 ALTER TABLE history.bonds OWNER TO admin;
@@ -949,6 +958,7 @@ BEGIN
          bond_down_delay, 
          bond_mac_address, 
          bond_operational, 
+         bond_bridge_uuid, 
          modified_date)
     VALUES
         (history_bonds.bond_uuid,
@@ -964,6 +974,7 @@ BEGIN
          history_bonds.bond_down_delay, 
          history_bonds.bond_mac_address, 
          history_bonds.bond_operational, 
+         history_bonds.bond_bridge_uuid, 
          history_bonds.modified_date);
     RETURN NULL;
 END;

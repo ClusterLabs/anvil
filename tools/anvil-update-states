@@ -319,7 +319,7 @@ sub update_network
 			$anvil->data->{network}{'local'}{interface}{$interface}{speed}                = $speed;
 			$anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}          = $subnet_mask; 
 			$anvil->data->{network}{'local'}{interface}{$interface}{type}                 = $type; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{up_delay}              $up_delay; 
+			$anvil->data->{network}{'local'}{interface}{$interface}{up_delay}             = $up_delay; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"network::local::interface::${interface}::active_interface"     => $anvil->data->{network}{'local'}{interface}{$interface}{active_interface},
 				"network::local::interface::${interface}::bond_mode"            => $anvil->data->{network}{'local'}{interface}{$interface}{bond_mode},
@@ -847,34 +847,39 @@ WHERE
 	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{'local'}})
 	{
 		my $bridge_uuid = $anvil->data->{bridge_by_name}{$bridge_name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			bridge_name => $bridge_name,
 			bridge_uuid => $bridge_uuid, 
 		}});
 		
 		foreach my $interface_name (sort {$a cmp $b} @{$anvil->data->{bridge}{'local'}{$bridge_name}{interfaces}})
 		{
-			my $interface_uuid = exists $anvil->data->{bond_by_name}{$interface_name} ? $anvil->data->{bond_by_name}{$interface_name} : $anvil->data->{interface_by_name}{$interface_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				interface_name => $interface_name,
-				interface_uuid => $interface_uuid, 
+			my $interface_uuid = exists $anvil->data->{interface_by_name}{$interface_name} ? $anvil->data->{interface_by_name}{$interface_name} : "";
+			my $bond_uuid      = exists $anvil->data->{bond_by_name}{$interface_name}      ? $anvil->data->{bond_by_name}{$interface_name}      : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:interface_name' => $interface_name,
+				's2:interface_uuid' => $interface_uuid, 
+				's3:bond_uuid'      => $bond_uuid, 
 			}});
 			
-			# Read the interface_bridge_uuid and, if it doesn't match, update it.
-			my $query = "SELECT network_interface_bridge_uuid FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($interface_uuid).";";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
-			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				results => $results, 
-				count   => $count,
-			}});
-			my $interface_bridge_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface_bridge_uuid => $interface_bridge_uuid }});
-			if (($bridge_uuid) && ($interface_bridge_uuid ne $bridge_uuid))
+			# Is this interface a bond or an interface?
+			if ($interface_uuid)
 			{
-				# Update it.
-				my $query = "
+				# Read the interface_bridge_uuid and, if it doesn't match, update it.
+				my $query = "SELECT network_interface_bridge_uuid FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($interface_uuid).";";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					results => $results, 
+					count   => $count,
+				}});
+				my $interface_bridge_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface_bridge_uuid => $interface_bridge_uuid }});
+				if (($bridge_uuid) && ($interface_bridge_uuid ne $bridge_uuid))
+				{
+					# Update it.
+					my $query = "
 UPDATE 
     network_interfaces 
 SET 
@@ -883,8 +888,38 @@ SET
 WHERE 
     network_interface_uuid        = ".$anvil->Database->quote($interface_uuid)."
 ;" ;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-				$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+			}
+			elsif ($bond_uuid)
+			{
+				# Read the interface_bridge_uuid and, if it doesn't match, update it.
+				my $query = "SELECT bond_bridge_uuid FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					results => $results, 
+					count   => $count,
+				}});
+				my $bond_bridge_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_bridge_uuid => $bond_bridge_uuid }});
+				if (($bridge_uuid) && ($bond_bridge_uuid ne $bridge_uuid))
+				{
+					# Update it.
+					my $query = "
+UPDATE 
+    bonds 
+SET 
+    bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).", 
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    bond_uuid        = ".$anvil->Database->quote($bond_uuid)."
+;" ;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
+				}
 			}
 		}
 	}

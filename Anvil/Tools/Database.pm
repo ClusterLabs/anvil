@@ -2342,55 +2342,61 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
-=head2 bond_uuid (optional)
+=head3 bond_uuid (optional)
 
 If not passed, a check will be made to see if an existing entry is found for C<< bond_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
 
-=head2 bond_host_uuid (optional)
+=head3 bond_host_uuid (optional)
 
 This is the host that the IP address is on. If not passed, the local C<< sys::host_uuid >> will be used (indicating it is a local IP address).
 
-=head2 bond_name (required)
+=head3 bond_name (required)
 
 This is the bond's device name.
 
-=head2 bond_mode (required)
+=head3 bond_mode (required)
 
 This is the bonding mode used for this bond. 
 
-=head2 bond_mtu (optional)
+=head3 bond_mtu (optional)
 
 This is the MTU for the bonded interface.
 
-=head2 bond_operational (optional)
+=head3 bond_operational (optional)
 
 This is set to C<< up >>, C<< down >> or C<< unknown >>. It indicates whether the bond has a working slaved interface or not.
 
-=head2 bond_primary_interface (optional)
+=head3 bond_primary_interface (optional)
 
 This is the primary interface name in the bond.
 
-=head2 bond_primary_reselect (optional)
+=head3 bond_primary_reselect (optional)
 
 This is the primary interface reselect policy.
 
-=head2 bond_active_interface (optional)
+=head3 bond_active_interface (optional)
 
 This is the interface currently being used by the bond.
 
-=head2 bond_mac_address (optional)
+=head3 bond_mac_address (optional)
 
 This is the current / active MAC address in use by the bond interface.
 
-=head2 bond_mii_polling_interval (optional)
+=head3 bond_mii_polling_interval (optional)
 
 This is how often, in milliseconds, that the link (mii) status is manually checked.
 
-=head2 bond_up_delay (optional)
+=head3 bond_up_delay (optional)
 
 This is how long the bond waits, in millisecinds, after an interfaces comes up before considering it for use.
 
-=head2 bond_down_delay (optional)
+=head3 bond_down_delay (optional)
+
+This is how long the bond waits, in millisecinds, after an interfaces goes down before considering it failed.
+
+head3 bond_bridge_uuid (optional)
+
+This is the C<< briges >> -> C<< bridge_uuid >> of the bridge this bond is connected to, if any.
 
 =cut
 sub insert_or_update_bonds
@@ -2417,6 +2423,7 @@ sub insert_or_update_bonds
 	my $bond_down_delay           = defined $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "";
 	my $bond_mac_address          = defined $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "";
 	my $bond_operational          = defined $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "";
+	my $bond_bridge_uuid          = defined $parameter->{bond_bridge_uuid}          ? $parameter->{bond_bridge_uuid}          : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                      => $uuid, 
 		file                      => $file, 
@@ -2434,6 +2441,7 @@ sub insert_or_update_bonds
 		bond_down_delay           => $bond_down_delay, 
 		bond_mac_address          => $bond_mac_address, 
 		bond_operational          => $bond_operational, 
+		bond_bridge_uuid          => $bond_bridge_uuid, 
 	}});
 	
 	if (not $bond_name)
@@ -2524,6 +2532,7 @@ INSERT INTO
     bond_down_delay, 
     bond_mac_address, 
     bond_operational, 
+    bond_bridge_uuid, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($bond_uuid).", 
@@ -2539,6 +2548,7 @@ INSERT INTO
     ".$anvil->Database->quote($bond_down_delay).", 
     ".$anvil->Database->quote($bond_mac_address).", 
     ".$anvil->Database->quote($bond_operational).", 
+    ".$anvil->Database->quote($bond_bridge_uuid).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -2561,7 +2571,8 @@ SELECT
     bond_up_delay, 
     bond_down_delay, 
     bond_mac_address, 
-    bond_operational 
+    bond_operational, 
+    bond_bridge_uuid 
 FROM 
     bonds 
 WHERE 
@@ -2595,6 +2606,7 @@ WHERE
 			my $old_bond_down_delay           = $row->[9];
 			my $old_bond_mac_address          = $row->[10];
 			my $old_bond_operational          = $row->[11];
+			my $old_bond_bridge_uuid          = $row->[12];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bond_host_uuid            => $old_bond_host_uuid, 
 				old_bond_name                 => $old_bond_name, 
@@ -2608,6 +2620,7 @@ WHERE
 				old_bond_down_delay           => $old_bond_down_delay, 
 				old_bond_mac_address          => $old_bond_mac_address, 
 				old_bond_operational          => $old_bond_operational, 
+				old_bond_bridge_uuid          => $old_bond_bridge_uuid, 
 			}});
 			
 			# Anything change?
@@ -2622,6 +2635,7 @@ WHERE
 			    ($old_bond_up_delay             ne $bond_up_delay)             or 
 			    ($old_bond_down_delay           ne $bond_down_delay)           or 
 			    ($old_bond_mac_address          ne $bond_mac_address)          or 
+			    ($old_bond_bridge_uuid          ne $bond_bridge_uuid)          or 
 			    ($old_bond_operational          ne $bond_operational))
 			{
 				# Something changed, save.
@@ -2641,6 +2655,7 @@ SET
     bond_down_delay           = ".$anvil->Database->quote($bond_down_delay).", 
     bond_mac_address          = ".$anvil->Database->quote($bond_mac_address).", 
     bond_operational          = ".$anvil->Database->quote($bond_operational).", 
+    bond_bridge_uuid          = ".$anvil->Database->quote($bond_bridge_uuid).", 
     modified_date             = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     bond_uuid                 = ".$anvil->Database->quote($bond_uuid)." 

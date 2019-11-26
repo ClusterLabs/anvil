@@ -786,100 +786,8 @@ sub load_interfces
 		delete $anvil->data->{network}{$host};
 	}
 	
-	# Now load bond info
-	my $query = "
-SELECT 
-    bond_uuid, 
-    bond_name, 
-    bond_mode, 
-    bond_mtu, 
-    bond_primary_interface, 
-    bond_primary_reselect, 
-    bond_active_interface, 
-    bond_mii_polling_interval, 
-    bond_up_delay, 
-    bond_down_delay, 
-    bond_mac_address, 
-    bond_operational 
-FROM 
-    bonds WHERE bond_mode != 'DELETED' 
-AND 
-    bond_host_uuid = ".$anvil->Database->quote($host_uuid)." 
-;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	foreach my $row (@{$results})
-	{
-		my $bond_uuid                 = defined $row->[0]  ? $row->[0]  : "";
-		my $bond_name                 = defined $row->[1]  ? $row->[1]  : ""; 
-		my $bond_mode                 = defined $row->[2]  ? $row->[2]  : ""; 
-		my $bond_mtu                  = defined $row->[3]  ? $row->[3]  : ""; 
-		my $bond_primary_interface    = defined $row->[4]  ? $row->[4]  : ""; 
-		my $bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : ""; 
-		my $bond_active_interface     = defined $row->[6]  ? $row->[6]  : ""; 
-		my $bond_mii_polling_interval = defined $row->[7]  ? $row->[7]  : ""; 
-		my $bond_up_delay             = defined $row->[8]  ? $row->[8]  : ""; 
-		my $bond_down_delay           = defined $row->[9]  ? $row->[9]  : ""; 
-		my $bond_mac_address          = defined $row->[10] ? $row->[10] : ""; 
-		my $bond_operational          = defined $row->[11] ? $row->[11] : ""; 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			bond_uuid                 => $bond_uuid,
-			bond_name                 => $bond_name,
-			bond_mode                 => $bond_mode,
-			bond_mtu                  => $bond_mtu,
-			bond_primary_interface    => $bond_primary_interface,
-			bond_primary_reselect     => $bond_primary_reselect,
-			bond_active_interface     => $bond_active_interface,
-			bond_mii_polling_interval => $bond_mii_polling_interval,
-			bond_up_delay             => $bond_up_delay,
-			bond_down_delay           => $bond_down_delay,
-			bond_mac_address          => $bond_mac_address,
-			bond_operational          => $bond_operational,
-		}});
-		
-		# Record the bond_uuid -> name
-		$anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name} = $bond_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::bond_uuid::${bond_uuid}::name" => $anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name}, 
-		}});
-		
-		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{uuid}                 = $bond_uuid; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mode}                 = $bond_mode; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mtu}                  = $bond_mtu; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}    = $bond_primary_interface; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}     = $bond_primary_reselect; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}     = $bond_active_interface; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval} = $bond_mii_polling_interval; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}             = $bond_up_delay; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}           = $bond_down_delay; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}          = $bond_mac_address; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{operational}          = $bond_operational; 
-		$anvil->data->{network}{$host}{interface}{$bond_name}{type}                 = "bond";
-		$anvil->data->{network}{$host}{interface}{$bond_name}{interfaces}           = [];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::${host}::interface::${bond_name}::uuid"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{uuid}, 
-			"network::${host}::interface::${bond_name}::mode"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{mode}, 
-			"network::${host}::interface::${bond_name}::mtu"                  => $anvil->data->{network}{$host}{interface}{$bond_name}{mtu}, 
-			"network::${host}::interface::${bond_name}::primary_interface"    => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}, 
-			"network::${host}::interface::${bond_name}::primary_reselect"     => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}, 
-			"network::${host}::interface::${bond_name}::active_interface"     => $anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}, 
-			"network::${host}::interface::${bond_name}::mii_polling_interval" => $anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval}, 
-			"network::${host}::interface::${bond_name}::up_delay"             => $anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}, 
-			"network::${host}::interface::${bond_name}::down_delay"           => $anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}, 
-			"network::${host}::interface::${bond_name}::mac_address"          => $anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}, 
-			"network::${host}::interface::${bond_name}::operational"          => $anvil->data->{network}{$host}{interface}{$bond_name}{operational}, 
-			"network::${host}::interface::${bond_name}::type"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{type}, 
-		}});
-	}
-	
 	# Now load bridge info
-	$query = "
+	my $query = "
 SELECT 
     bridge_uuid, 
     bridge_name, 
@@ -895,8 +803,8 @@ AND
     bridge_host_uuid = ".$anvil->Database->quote($host_uuid)." 
 ;";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count,
@@ -939,6 +847,115 @@ AND
 			"network::${host}::interface::${bridge_name}::mtu"         => $anvil->data->{network}{$host}{interface}{$bridge_name}{mtu}, 
 			"network::${host}::interface::${bridge_name}::stp_enabled" => $anvil->data->{network}{$host}{interface}{$bridge_name}{stp_enabled}, 
 			"network::${host}::interface::${bridge_name}::type"        => $anvil->data->{network}{$host}{interface}{$bridge_name}{type}, 
+		}});
+	}
+	
+	# Now load bond info
+	$query = "
+SELECT 
+    bond_uuid, 
+    bond_name, 
+    bond_mode, 
+    bond_mtu, 
+    bond_primary_interface, 
+    bond_primary_reselect, 
+    bond_active_interface, 
+    bond_mii_polling_interval, 
+    bond_up_delay, 
+    bond_down_delay, 
+    bond_mac_address, 
+    bond_operational, 
+    bond_bridge_uuid 
+FROM 
+    bonds WHERE bond_mode != 'DELETED' 
+AND 
+    bond_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $bond_uuid                 = defined $row->[0]  ? $row->[0]  : "";
+		my $bond_name                 = defined $row->[1]  ? $row->[1]  : ""; 
+		my $bond_mode                 = defined $row->[2]  ? $row->[2]  : ""; 
+		my $bond_mtu                  = defined $row->[3]  ? $row->[3]  : ""; 
+		my $bond_primary_interface    = defined $row->[4]  ? $row->[4]  : ""; 
+		my $bond_primary_reselect     = defined $row->[5]  ? $row->[5]  : ""; 
+		my $bond_active_interface     = defined $row->[6]  ? $row->[6]  : ""; 
+		my $bond_mii_polling_interval = defined $row->[7]  ? $row->[7]  : ""; 
+		my $bond_up_delay             = defined $row->[8]  ? $row->[8]  : ""; 
+		my $bond_down_delay           = defined $row->[9]  ? $row->[9]  : ""; 
+		my $bond_mac_address          = defined $row->[10] ? $row->[10] : ""; 
+		my $bond_operational          = defined $row->[11] ? $row->[11] : ""; 
+		my $bond_bridge_uuid          = defined $row->[12] ? $row->[12] : ""; 
+		my $bridge_name               = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			bond_uuid                 => $bond_uuid,
+			bond_name                 => $bond_name,
+			bond_mode                 => $bond_mode,
+			bond_mtu                  => $bond_mtu,
+			bond_primary_interface    => $bond_primary_interface,
+			bond_primary_reselect     => $bond_primary_reselect,
+			bond_active_interface     => $bond_active_interface,
+			bond_mii_polling_interval => $bond_mii_polling_interval,
+			bond_up_delay             => $bond_up_delay,
+			bond_down_delay           => $bond_down_delay,
+			bond_mac_address          => $bond_mac_address,
+			bond_operational          => $bond_operational,
+			bond_bridge_uuid          => $bond_bridge_uuid, 
+		}});
+		
+		# If this bond is connected to a bridge, get the bridge name.
+		if (($bond_bridge_uuid) && (defined $anvil->data->{network}{$host}{bridge_uuid}{$bond_bridge_uuid}{name}))
+		{
+			$bridge_name = $anvil->data->{network}{$host}{bridge_uuid}{$bond_bridge_uuid}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				bond_bridge_uuid => $bond_bridge_uuid, 
+				bridge_name     => $bridge_name,
+			}});
+			push @{$anvil->data->{network}{$host}{interface}{$bridge_name}{interfaces}}, $bond_name;
+		}
+		
+		# Record the bond_uuid -> name
+		$anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name} = $bond_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::${host}::bond_uuid::${bond_uuid}::name" => $anvil->data->{network}{$host}{bond_uuid}{$bond_uuid}{name}, 
+		}});
+		
+		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{uuid}                 = $bond_uuid; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mode}                 = $bond_mode; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mtu}                  = $bond_mtu; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}    = $bond_primary_interface; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}     = $bond_primary_reselect; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}     = $bond_active_interface; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval} = $bond_mii_polling_interval; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}             = $bond_up_delay; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}           = $bond_down_delay; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}          = $bond_mac_address; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{operational}          = $bond_operational; 
+		$anvil->data->{network}{$host}{interface}{$bond_name}{bridge_uuid}          = $bond_bridge_uuid;
+		$anvil->data->{network}{$host}{interface}{$bond_name}{type}                 = "bond";
+		$anvil->data->{network}{$host}{interface}{$bond_name}{interfaces}           = [];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::${host}::interface::${bond_name}::uuid"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{uuid}, 
+			"network::${host}::interface::${bond_name}::mode"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{mode}, 
+			"network::${host}::interface::${bond_name}::mtu"                  => $anvil->data->{network}{$host}{interface}{$bond_name}{mtu}, 
+			"network::${host}::interface::${bond_name}::primary_interface"    => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_interface}, 
+			"network::${host}::interface::${bond_name}::primary_reselect"     => $anvil->data->{network}{$host}{interface}{$bond_name}{primary_reselect}, 
+			"network::${host}::interface::${bond_name}::active_interface"     => $anvil->data->{network}{$host}{interface}{$bond_name}{active_interface}, 
+			"network::${host}::interface::${bond_name}::mii_polling_interval" => $anvil->data->{network}{$host}{interface}{$bond_name}{mii_polling_interval}, 
+			"network::${host}::interface::${bond_name}::up_delay"             => $anvil->data->{network}{$host}{interface}{$bond_name}{up_delay}, 
+			"network::${host}::interface::${bond_name}::down_delay"           => $anvil->data->{network}{$host}{interface}{$bond_name}{down_delay}, 
+			"network::${host}::interface::${bond_name}::mac_address"          => $anvil->data->{network}{$host}{interface}{$bond_name}{mac_address}, 
+			"network::${host}::interface::${bond_name}::operational"          => $anvil->data->{network}{$host}{interface}{$bond_name}{operational}, 
+			"network::${host}::interface::${bond_name}::bridge_uuid"          => $anvil->data->{network}{$host}{interface}{$bond_name}{bridge}, 
+			"network::${host}::interface::${bond_name}::type"                 => $anvil->data->{network}{$host}{interface}{$bond_name}{type}, 
 		}});
 	}
 	

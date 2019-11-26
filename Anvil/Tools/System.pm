@@ -858,7 +858,47 @@ sub generate_state_json
 			$iface_hash->{type} = $type;
 			$iface_hash->{mtu}  = $mtu;
 			$iface_hash->{uuid} = $uuid;
-			if ($type eq "bond")
+			if ($type eq "bridge")
+			{
+				my $id              = $anvil->data->{network}{$host}{interface}{$interface}{id}; 
+				my $stp_enabled     = $anvil->data->{network}{$host}{interface}{$interface}{stp_enabled}; 
+				my $interfaces      = $anvil->data->{network}{$host}{interface}{$interface}{interfaces};
+				my $say_stp_enabled = $stp_enabled;
+				if (($stp_enabled eq "0") or ($stp_enabled eq "disabled"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0020"});
+				}
+				elsif (($stp_enabled eq "1") or ($stp_enabled eq "enabled_kernel"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0021"});
+				}
+				elsif (($stp_enabled eq "2") or ($stp_enabled eq "enabled_userland"))
+				{
+					$say_stp_enabled = $anvil->Words->string({key => "unit_0022"});
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					bridge_id       => $id,
+					stp_enabled     => $stp_enabled,
+					say_stp_enabled => $say_stp_enabled,
+				}});
+				
+				my $connected_interfaces = [];
+				foreach my $connected_interface_name (sort {$a cmp $b} @{$interfaces})
+				{
+					push @{$connected_interfaces}, $connected_interface_name;
+					my $connected_interface_count = @{$connected_interfaces};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						connected_interface_count => $connected_interface_count, 
+						connected_interface_name  => $connected_interface_name,
+					}});
+				}
+				
+				$iface_hash->{bridge_id}            = $id;
+				$iface_hash->{stp_enabled}          = $stp_enabled;
+				$iface_hash->{say_stp_enabled}      = $say_stp_enabled;
+				$iface_hash->{connected_interfaces} = $connected_interfaces;
+			}
+			elsif ($type eq "bond")
 			{
 				my $mode                 = $anvil->data->{network}{$host}{interface}{$interface}{mode};
 				my $primary_interface    = $anvil->data->{network}{$host}{interface}{$interface}{primary_interface}; 
@@ -871,6 +911,8 @@ sub generate_state_json
 				my $down_delay           = $anvil->data->{network}{$host}{interface}{$interface}{down_delay}; 
 				my $operational          = $anvil->data->{network}{$host}{interface}{$interface}{operational}; 
 				my $interfaces           = $anvil->data->{network}{$host}{interface}{$interface}{interfaces};
+				my $bridge_uuid          = $anvil->data->{network}{$host}{interface}{$interface}{bridge_uuid};
+				my $bridge_name          = $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} ? $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} : $anvil->Words->string({key => "unit_0005"});
 				my $say_mode             = $mode;
 				my $say_operational      = $operational;
 				my $say_primary_reselect = $primary_reselect;
@@ -940,6 +982,8 @@ sub generate_state_json
 					say_operational      => $say_operational,
 					operational          => $operational,
 					mii_polling_interval => $mii_polling_interval,
+					bridge_uuid          => $bridge_uuid, 
+					bridge_name          => $bridge_name, 
 				}});
 				my $connected_interfaces = [];
 				foreach my $connected_interface_name (sort {$a cmp $b} @{$interfaces})
@@ -964,46 +1008,8 @@ sub generate_state_json
 				$iface_hash->{operational}          = $operational;
 				$iface_hash->{mii_polling_interval} = $mii_polling_interval;
 				$iface_hash->{connected_interfaces} = $connected_interfaces;
-			}
-			elsif ($type eq "bridge")
-			{
-				my $id              = $anvil->data->{network}{$host}{interface}{$interface}{id}; 
-				my $stp_enabled     = $anvil->data->{network}{$host}{interface}{$interface}{stp_enabled}; 
-				my $interfaces      = $anvil->data->{network}{$host}{interface}{$interface}{interfaces};
-				my $say_stp_enabled = $stp_enabled;
-				if (($stp_enabled eq "0") or ($stp_enabled eq "disabled"))
-				{
-					$say_stp_enabled = $anvil->Words->string({key => "unit_0020"});
-				}
-				elsif (($stp_enabled eq "1") or ($stp_enabled eq "enabled_kernel"))
-				{
-					$say_stp_enabled = $anvil->Words->string({key => "unit_0021"});
-				}
-				elsif (($stp_enabled eq "2") or ($stp_enabled eq "enabled_userland"))
-				{
-					$say_stp_enabled = $anvil->Words->string({key => "unit_0022"});
-				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					bridge_id       => $id,
-					stp_enabled     => $stp_enabled,
-					say_stp_enabled => $say_stp_enabled,
-				}});
-				
-				my $connected_interfaces = [];
-				foreach my $connected_interface_name (sort {$a cmp $b} @{$interfaces})
-				{
-					push @{$connected_interfaces}, $connected_interface_name;
-					my $connected_interface_count = @{$connected_interfaces};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						connected_interface_count => $connected_interface_count, 
-						connected_interface_name  => $connected_interface_name,
-					}});
-				}
-				
-				$iface_hash->{bridge_id}            = $id;
-				$iface_hash->{stp_enabled}          = $stp_enabled;
-				$iface_hash->{say_stp_enabled}      = $say_stp_enabled;
-				$iface_hash->{connected_interfaces} = $connected_interfaces;
+				$iface_hash->{bridge_uuid}          = $bridge_uuid;
+				$iface_hash->{bridge_name}          = $bridge_name;
 			}
 			else
 			{
@@ -1013,7 +1019,9 @@ sub generate_state_json
 				my $operational     = $anvil->data->{network}{$host}{interface}{$interface}{operational};
 				my $duplex          = $anvil->data->{network}{$host}{interface}{$interface}{duplex};
 				my $medium          = $anvil->data->{network}{$host}{interface}{$interface}{medium};
+				my $bond_uuid       = $anvil->data->{network}{$host}{interface}{$interface}{bond_uuid};
 				my $bond_name       = $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   ? $anvil->data->{network}{$host}{interface}{$interface}{bond_name}   : $anvil->Words->string({key => "unit_0005"});
+				my $bridge_uuid     = $anvil->data->{network}{$host}{interface}{$interface}{bridge_uuid};
 				my $bridge_name     = $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} ? $anvil->data->{network}{$host}{interface}{$interface}{bridge_name} : $anvil->Words->string({key => "unit_0005"});
 				my $changed_order   = $anvil->data->{network}{$host}{interface}{$interface}{changed_order};
 				my $say_link_state  = $link_state;
@@ -1068,7 +1076,9 @@ sub generate_state_json
 					duplex          => $duplex,
 					say_medium      => $say_medium,
 					medium          => $medium,
+					bond_uuid       => $bond_uuid, 
 					bond_name       => $bond_name,
+					bridge_uuid     => $bridge_uuid, 
 					bridge_name     => $bridge_name,
 					changed_order   => $changed_order,
 				}});
@@ -1083,7 +1093,9 @@ sub generate_state_json
 				$iface_hash->{duplex}          = $duplex;
 				$iface_hash->{say_medium}      = $say_medium;
 				$iface_hash->{medium}          = $medium;
+				$iface_hash->{bond_uuid}       = $bond_uuid;
 				$iface_hash->{bond_name}       = $bond_name;
+				$iface_hash->{bridge_uuid}     = $bridge_uuid;
 				$iface_hash->{bridge_name}     = $bridge_name;
 				$iface_hash->{changed_order}   = $changed_order;
 			};
@@ -1128,7 +1140,6 @@ sub generate_state_json
 			ssh_fingerprint    => $host_key,
 			network_interfaces => $ifaces_array,
 		};
-
 	}
 	
 	# Write out the JSON file.
