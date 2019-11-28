@@ -813,6 +813,13 @@ sub generate_state_json
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->generate_state_json()" }});
 	
+	# We're going to look for matches as we go, so look 
+	$anvil->Network->load_ips({
+		debug     => $debug,
+		host      => 'local',
+		host_uuid => $anvil->data->{sys}{host_uuid},
+	});
+	
 	$anvil->data->{json}{all_systems}{hosts} = [];
 	$anvil->Database->get_hosts_info({debug => 3});
 	foreach my $host_uuid (keys %{$anvil->data->{machine}{host_uuid}})
@@ -824,7 +831,7 @@ sub generate_state_json
 		my $configured      = defined $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} ? $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} : 0;
 		my $ifaces_array    = [];
 		my $host            = $short_host_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:host_name"       => $host_name,
 			"s2:short_host_name" => $short_host_name, 
 			"s3:host_type"       => $host_type,
@@ -838,6 +845,36 @@ sub generate_state_json
 			host_uuid => $host_uuid, 
 			host      => $short_host_name,
 		});
+		
+		# Find what interface on this host we can use to talk to it (if we're not looking at ourselves).
+		my $matched_interface  = "";
+		my $matched_ip_address = "";
+		if ($host_name ne $anvil->_host_name)
+		{
+			# Don't need to call 'local_ips', it was called by load_interfaces above.
+			my ($match) = $anvil->Network->find_matches({
+				debug  => $debug,
+				first  => 'local',
+				second => $short_host_name, 
+			});
+			
+			if ($match)
+			{
+				# Yup!
+				my $match_found = 0;
+				foreach my $interface (sort {$a cmp $b} keys %{$match->{$short_host_name}})
+				{
+					$matched_interface  = $interface;
+					$matched_ip_address = $match->{$short_host_name}{$interface}{ip};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						matched_interface  => $matched_interface, 
+						matched_ip_address => $matched_ip_address, 
+					}});
+					last;
+				}
+			}
+		}
+		
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
 		{
 			my $type        = $anvil->data->{network}{$host}{interface}{$interface}{type};
@@ -1138,6 +1175,8 @@ sub generate_state_json
 			host_uuid          => $host_uuid,
 			configured         => $configured,
 			ssh_fingerprint    => $host_key,
+			matched_interface  => $matched_interface,
+			matched_ip_address => $matched_ip_address,
 			network_interfaces => $ifaces_array,
 		};
 	}

@@ -832,6 +832,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="header_0013">User</key>
 		<key name="header_0014">File</key>
 		<key name="header_0015">On Host</key>
+		<key name="header_0016">Unconfigured Hosts</key>
+		<key name="header_0017">Accessible?</key>
+		<key name="header_0018">Configured Hosts</key>
+		<key name="header_0019">Type</key>
+		<key name="header_0020">At IP</key>
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
@@ -1255,6 +1260,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0103">The file: [#!variable!file!#] wasn't found.</key>
 		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
 		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
+		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target?]]></key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

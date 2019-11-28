@@ -232,11 +232,21 @@ input[type=text].input_clear, input[type=number].input_clear, select.input_clear
 	height:         100%;
 }
 
+.main_option_list {
+/* 	border:         1px dotted red; */
+	color:          #dbe0e5;
+	font-size:      1.3em;
+	padding-top:    5px;
+	padding-left:   20px;
+	padding-bottom: 5px;
+	height:         100%;
+}
+
 .main_option_icon {
 /* 	border:         1px dotted blue; */
 	padding-top:    10px;
 	padding-bottom: 10px;
-	vertical-align: center;
+	vertical-align: top;
 	height:         100%;
 }
 
@@ -375,4 +385,20 @@ tr.data_row {
 	color:      #dc9012;
 	font-size:  1.1em;
 	font-weight: bold;
+}
+
+.available {
+	color:      #00934d;
+	text-align: center;
+}
+
+.unavailable {
+	color:      #dc9012;
+	text-align: center;
+}
+
+/* This is used for the 'configured' table as well */
+table.unconfigured_table {
+	border:        1px solid blue;
+	border-radius: 4px;
 }

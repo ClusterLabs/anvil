@@ -25,11 +25,26 @@
 				</td>
 			</tr>
 			<tr>
-				<td class="main_option_icon">
-					<a href="?anvil=true&task=prep-network"><img src="#!data!skin::url!#/images/configure-network.png" class="top_icon" ></a>
+				<td rowspan="2" class="main_option_icon" style="cursor: pointer;">
+					<span id="toggle_unconfigured_icon"><img src="#!data!skin::url!#/images/configure-network.png" class="top_icon" ></span>
 				</td>
 				<td class="main_option">
-					<a href="?anvil=true&task=prep-network">#!string!striker_0130!#</a>
+					<span id="toggle_unconfigured_text" style="cursor: pointer;">#!string!striker_0130!#</spam>
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_list">
+					<!-- See anvil.js for the in-JS generated HTML table that gets inserted here -->
+					<div id="unconfigured_hosts" style="display: none;" 
+					     data-none="#!string!unit_0003!#" 
+					     data-yes="#!string!unit_0001!#" 
+					     data-no="#!string!unit_0002!#" 
+					     data-configured="#!string!header_0018!#" 
+					     data-unconfigured="#!string!header_0016!#" 
+					     data-accessible="#!string!header_0017!#" 
+					     data-at-ip="#!string!header_0020!#" 
+					     data-type="#!string!header_0019!#" 
+					/>
 				</td>
 			</tr>
 			<tr>

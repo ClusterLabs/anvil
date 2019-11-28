@@ -648,14 +648,24 @@ sub find_matches
 		second => $second,
 	}});
 	
-	if (ref($anvil->data->{network}{$first}) ne "HASH")
+	if (not $first)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_matches()", parameter => "first" }});
 		return("");
 	}
-	if (ref($anvil->data->{network}{$second}) ne "HASH")
+	elsif (ref($anvil->data->{network}{$first}) ne "HASH")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { key => "first -> network::".$first }});
+		return("");
+	}
+	if (not $second)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_matches()", parameter => "second" }});
+		return("");
+	}
+	elsif (ref($anvil->data->{network}{$second}) ne "HASH")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { key => "second -> network::".$second }});
 		return("");
 	}
 	
@@ -1165,7 +1175,7 @@ FROM
     ip_addresses 
 WHERE 
     ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)."
-";
+;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};

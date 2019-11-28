@@ -357,6 +357,12 @@ sub parse_banged_string
 			while ($variable_string)
 			{
 				my $pair = ($variable_string =~ /^(!!.*?!.*?!!).*$/)[0];
+				if (not defined $pair)
+				{
+					print $THIS_FILE." ".__LINE__."; Failed to parse the pair from: [".$variable_string."]\n";
+					print $THIS_FILE." ".__LINE__."; Was parsing message: [".$message."] from key string: [".$key_string."]\n";
+					die;
+				}
 				my ($variable, $value) = ($pair =~ /^!!(.*?)!(.*?)!!$/);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"s1:pair"     => $pair,

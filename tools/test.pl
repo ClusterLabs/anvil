@@ -31,47 +31,7 @@ $anvil->System->generate_state_json({debug => 3});
 $anvil->Striker->parse_all_status_json({debug => 3});
 
 # print Dumper $anvil->data->{json}{all_status}{hosts};
-# die;
-
-# foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
-# {
-# 	print $THIS_FILE." ".__LINE__."; Host: [".$host_name."]\n";
-# 	foreach my $network_type (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}})
-# 	{
-# 		print $THIS_FILE." ".__LINE__.";  - Network type: [".$network_type."]\n";
-# 		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}})
-# 		{
-# 			print $THIS_FILE." ".__LINE__.";   - Interface: [".$interface_name."]\n";
-# 			foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}{$interface_name}})
-# 			{
-# 				if (ref ($anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}{$interface_name}{$variable}) eq "HASH")
-# 				{
-# 					print $THIS_FILE." ".__LINE__.";    - ".$variable.";\n";
-# 					foreach my $value (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}{$interface_name}{$variable}})
-# 					{
-# 						print $THIS_FILE." ".__LINE__.";     - ".$value." -> [".$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}{$interface_name}{$variable}{$value}{type}."]\n";
-# 					}
-# 				}
-# 				elsif (ref ($anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}{$interface_name}{$variable}) eq "ARRAY")
-# 				{
-# 					print $THIS_FILE." ".__LINE__.";    - ".$variable.";\n";
-# 					foreach my $value (sort {$a cmp $b} @{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}{$interface_name}{$variable}})
-# 					{
-# 						print $THIS_FILE." ".__LINE__.";     - ".$value."\n";
-# 					}
-# 				}
-# 				else
-# 				{
-# 					print $THIS_FILE." ".__LINE__.";    - ".$variable.": [".$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$network_type}{$interface_name}{$variable}."]\n";
-# 				}
-# 			}
-# 		}
-# 	}
-# }
-
-# print Dumper $anvil->data->{json}{all_status}{hosts};
-# print Dumper $anvil->data->{json}{all_status}{hosts}{'el8-a01n02.digimer.ca'}{network_interface};
-# die;
+die;
 
 #foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
 foreach my $host_name ("el8-a01n02.digimer.ca")

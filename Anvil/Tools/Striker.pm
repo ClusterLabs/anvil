@@ -350,6 +350,13 @@ sub parse_all_status_json
 		delete $anvil->data->{json}{all_status};
 	}
 	
+	# We're going to look for matches as we go, so look 
+	$anvil->Network->load_ips({
+		debug     => $debug,
+		host      => 'local',
+		host_uuid => $anvil->data->{sys}{host_uuid},
+	});
+	
 	# We'll be adding data to this JSON file over time. So this will be an ever evolving method.
 	foreach my $host_hash (@{$data->{hosts}})
 	{
@@ -361,12 +368,54 @@ sub parse_all_status_json
 		$anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}    = $host_hash->{short_name};
 		$anvil->data->{json}{all_status}{hosts}{$host_name}{configured}         = $host_hash->{configured};
 		$anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}    = $host_hash->{ssh_fingerprint};
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{matched_interface}  = $host_hash->{matched_interface};
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{matched_ip_address} = $host_hash->{matched_ip_address};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"json::all_status::hosts::${host_name}::host_uuid"       => $anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}, 
-			"json::all_status::hosts::${host_name}::type"            => $anvil->data->{json}{all_status}{hosts}{$host_name}{type}, 
-			"json::all_status::hosts::${host_name}::short_host_name" => $anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}, 
-			"json::all_status::hosts::${host_name}::configured"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{configured}, 
-			"json::all_status::hosts::${host_name}::ssh_fingerprint" => $anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}, 
+			"json::all_status::hosts::${host_name}::host_uuid"          => $anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid}, 
+			"json::all_status::hosts::${host_name}::type"               => $anvil->data->{json}{all_status}{hosts}{$host_name}{type}, 
+			"json::all_status::hosts::${host_name}::short_host_name"    => $anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}, 
+			"json::all_status::hosts::${host_name}::configured"         => $anvil->data->{json}{all_status}{hosts}{$host_name}{configured}, 
+			"json::all_status::hosts::${host_name}::ssh_fingerprint"    => $anvil->data->{json}{all_status}{hosts}{$host_name}{ssh_fingerprint}, 
+			"json::all_status::hosts::${host_name}::matched_interface"  => $anvil->data->{json}{all_status}{hosts}{$host_name}{matched_interface}, 
+			"json::all_status::hosts::${host_name}::matched_ip_address" => $anvil->data->{json}{all_status}{hosts}{$host_name}{matched_ip_address}, 
+		}});
+		
+		# Find what interface on this host we can use to talk to it (if we're not looking at ourselves).
+		my $matched_interface  = "";
+		my $matched_ip_address = "";
+		if ($host_name ne $anvil->_host_name)
+		{
+			$anvil->Network->load_ips({
+				debug     => $debug, 
+				host      => $short_name, 
+				host_uuid => $anvil->data->{json}{all_status}{hosts}{$host_name}{host_uuid},
+			});
+			my ($match) = $anvil->Network->find_matches({
+				debug  => 3,
+				first  => 'local',
+				second => $short_name, 
+			});
+			if ($match)
+			{
+				# Yup!
+				my $match_found = 0;
+				foreach my $interface (sort {$a cmp $b} keys %{$match->{$short_name}})
+				{
+					$matched_interface  = $interface;
+					$matched_ip_address = $match->{$short_name}{$interface}{ip};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						matched_interface  => $matched_interface, 
+						matched_ip_address => $matched_ip_address, 
+					}});
+					last;
+				}
+			}
+		}
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{matched_interface}  = $matched_interface;
+		$anvil->data->{json}{all_status}{hosts}{$host_name}{matched_ip_address} = $matched_ip_address;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"json::all_status::hosts::${host_name}::matched_interface"  => $anvil->data->{json}{all_status}{hosts}{$host_name}{matched_interface}, 
+			"json::all_status::hosts::${host_name}::matched_ip_address" => $anvil->data->{json}{all_status}{hosts}{$host_name}{matched_ip_address}, 
 		}});
 		
 		foreach my $interface_hash (@{$host_hash->{network_interfaces}})
