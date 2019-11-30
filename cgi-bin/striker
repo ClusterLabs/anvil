@@ -718,74 +718,243 @@ sub process_prep_network
 {
 	my ($anvil) = @_;
 	
-	my $host_name       = defined $anvil->data->{cgi}{host_name}{value}         ? $anvil->data->{cgi}{host_name}{value}         : "";
-	my $host_ip_address = defined $anvil->data->{cgi}{host_ip_address}{value}   ? $anvil->data->{cgi}{host_ip_address}{value}   : "";
-	my $host_password   = defined $anvil->data->{cgi}{host_password}{value}     ? $anvil->data->{cgi}{host_password}{value}     : "";
-	my $confirm         = defined $anvil->data->{cgi}{confirm}{value}           ? $anvil->data->{cgi}{confirm}{value}           : "";
+	# Do I know which machine we're configuring?
+	if (not $anvil->data->{cgi}{host_uuid}{value})
+	{
+		# Nope, send the user back.
+		$anvil->data->{cgi}{task}{value} = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::task::value" => $anvil->data->{cgi}{task}{value} }});
+		process_anvil_menu($anvil);
+	}
+	
+	# Pull the host's data out of the JSON file.
+	$anvil->Striker->parse_all_status_json();
+	
+	my $host_name = "";
+	foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::host_uuid::value"                       => $anvil->data->{cgi}{host_uuid}{value},
+			"json::all_status::hosts::${host}::host_uuid" => $anvil->data->{json}{all_status}{hosts}{$host}{host_uuid},
+		}});
+		if ($anvil->data->{cgi}{host_uuid}{value} eq $anvil->data->{json}{all_status}{hosts}{$host}{host_uuid})
+		{
+			# Found it.
+			$host_name = $host;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+			last;
+		}
+	}
+	
+	if (not $host_name)
+	{
+		# Didn't find it.
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0014", variables => { host_uuid => $anvil->data->{cgi}{host_uuid}{value} } }) }});
+		$anvil->data->{cgi}{task}{value}    = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::task::value"    => $anvil->data->{cgi}{task}{value},
+			"form::error_massage" => $anvil->data->{form}{error_massage}, 
+		}});
+		process_anvil_menu($anvil);
+	}
+	
+	# How many actual interfaces do we have? We need at least six. For each two above that, we'll add an 
+	# additional bond option per network.
+	my $interfaces        = {};
+	my $interface_options = [];
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}})
+	{
+		# if any interfaces are called 'virbrX-nic', ignore it as it will be removed. Likewise, ignore any 'vnetX' devices.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+		if (($interface =~ /^virbr\d+-nic/) or ($interface =~ /^vnet\d+/))
+		{
+			# Ignore it.
+			next;
+		}
+		
+		# Store the mac used in the select box
+		my $mac_address = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface}{mac_address};
+		push @{$interface_options}, $mac_address."#!#".$mac_address." (".$interface.")";
+		
+		# Store the mac address .
+		$interfaces->{$interface} = $mac_address;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "interfaces->{".$interface."}" => $interfaces->{$interface} }});
+	}
+	
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{interfaces}})
+	{
+	}
+	
+	# Get the interface count
+	my $interface_count = keys %{$interfaces};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface_count => $interface_count }});
+	
+	if ($interface_count < 6)
+	{
+		# Not enough interfaces.
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0015", variables => { interface_count => $interface_count } }) }});
+		$anvil->data->{cgi}{task}{value}    = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::task::value"    => $anvil->data->{cgi}{task}{value},
+			"form::error_massage" => $anvil->data->{form}{error_massage}, 
+		}});
+		process_anvil_menu($anvil);
+	}
+	
+	# TODO: For now, we're only allowing one BCN and SN. So at this time, we'll show one BCN pair, one SN
+	#       pair and N-IFN pairs.
+	my $bcn_pair_count = 1;
+	my $sn_pair_count  = 1;
+	my $ifn_pair_count = int(($interface_count - 4) / 2);
+	   $ifn_pair_count = 1 if $ifn_pair_count < 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		host_name         => $host_name, 
-		host_ip_address   => $host_ip_address,
-		host_password     => $anvil->Log->is_secure($host_password), 
-		confirm           => $confirm, 
+		bcn_pair_count => $bcn_pair_count,
+		sn_pair_count  => $sn_pair_count,
+		ifn_pair_count => $ifn_pair_count,
 	}});
 	
-	# We need to a pick a machine to initialize.
-	
-	# Do I know which machine we're initializing yet?
-	if ($anvil->data->{cgi}{host_uuid}{value})
+	my $interface_form = "";
+	# NOTE: We don't assign IPs at this point, unless the user manually sets one. We'll set all to 'dhcp'
+	#       until set during the Anvil! build later.
+	foreach my $network ("bcn", "sn", "ifn")
 	{
-		# Yup, build the config page.
-	}
-	else
-	{
-		# Nope, show the list of unconfigured servers.
-		$anvil->System->parse_status_json($anvil);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+		my $name_key        = "";
+		my $description_key = "";
+		my $count           = 1;
+		if ($network eq "bcn")
+		{
+			$name_key        = "striker_0018";
+			$description_key = "striker_0019";
+			$count           = $bcn_pair_count;
+		}
+		elsif ($network eq "sn")
+		{
+			$name_key        = "striker_0020";
+			$description_key = "striker_0021";
+			$count           = $sn_pair_count;
+		}
+		elsif ($network eq "ifn")
+		{
+			$name_key        = "striker_0022";
+			$description_key = "striker_0023";
+			$count           = $ifn_pair_count;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			name_key        => $name_key,
+			description_key => $description_key,
+			count           => $count,
+		}});
+		foreach my $i (1..$count)
+		{
+			my $this_ip_key            = $network.$i."_ip";
+			my $this_subnet_mask_key   = $network.$i."_subnet_mask";
+			my $this_iface1_key        = $network.$i."_link1_mac_to_set";
+			my $this_iface2_key        = $network.$i."_link2_mac_to_set";
+			my $this_ip                = exists $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "dhcp";
+			my $this_ip_class          = $anvil->data->{cgi}{$this_ip_key}{alert} ? "input_alert" : "input_clear";
+			my $this_subnet_mask_class = $anvil->data->{cgi}{$this_subnet_mask_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface1_class      = $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
+			my $this_iface2_class      = $anvil->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				this_ip_key            => $this_ip_key,
+				this_subnet_mask_key   => $this_subnet_mask_key,
+				this_iface1_key        => $this_iface1_key, 
+				this_iface2_key        => $this_iface2_key, 
+				this_ip                => $this_ip,
+				this_ip_class          => $this_ip_class,
+				this_subnet_mask_class => $this_subnet_mask_class,
+				this_iface1_class      => $this_iface1_class,
+				this_iface2_class      => $this_iface2_class,
+			}});
+			
+			# Build the interface select boxes...
+			my $this_iface1_form = $anvil->Template->select_form({
+				name     => $this_iface1_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $anvil->data->{cgi}{$this_iface1_key}{value} ? $anvil->data->{cgi}{$this_iface1_key}{value} : "",
+				class    => $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear",
+			});
+			my $this_iface2_form = $anvil->Template->select_form({
+				name     => $this_iface2_key,
+				options  => $interface_options,
+				blank    => 1,
+				selected => defined $anvil->data->{cgi}{$this_iface2_key}{value} ? $anvil->data->{cgi}{$this_iface2_key}{value} : "",
+				class    => $anvil->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear",
+			});
+			
+			# Assemble the form
+			$interface_form .= $anvil->Template->get({file => "anvil.html", name => "network_interface_form", variables => {
+				field                     => $anvil->Words->string({key => $name_key, variables => { number => $i }}),
+				description               => "#!string!".$description_key."!#",
+				ip_key                    => $this_ip_key,
+				ip_value                  => defined $anvil->data->{cgi}{$this_ip_key}{value} ? $anvil->data->{cgi}{$this_ip_key}{value} : "",
+				ip_value_default          => $this_ip,
+				ip_class                  => $this_ip_class,
+				subnet_mask_key           => $this_subnet_mask_key, 
+				subnet_mask_value         => defined $anvil->data->{cgi}{$this_subnet_mask_key}{value} ? $anvil->data->{cgi}{$this_subnet_mask_key}{value} : "",
+				subnet_mask_value_default => $anvil->data->{defaults}{network}{bcn}{subnet_mask}, 
+				subnet_mask_class         => $this_subnet_mask_class,
+				iface1_select             => $this_iface1_form,
+				iface2_select             => $this_iface2_form,
+			}});
+		}
 	}
 	
-# 	if ((not $anvil->data->{form}{body}) or ($anvil->data->{form}{error_massage}))
-# 	{
-# 		my $node_checked = "checked";
-# 		my $dr_checked   = "";
-# 		if ($type eq "dr")
-# 		{
-# 			$node_checked = "";
-# 			$dr_checked   = "checked";
-# 		}
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-# 			node_checked => $node_checked,
-# 			dr_checked   => $dr_checked, 
-# 		}});
-# 		
-# 		my $host_name         =  $anvil->_host_name;
-# 		   $host_name         =~ s/striker\d\d/xxx/;
-# 		my $default_host_name = $host_name;
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-# 			default_host_name => $default_host_name, 
-# 			host_name         => $host_name,
-# 		}});
-# 		if ((exists $anvil->data->{cgi}{host_name}) && ($anvil->data->{cgi}{host_name}{value}))
-# 		{
-# 			$host_name = $anvil->data->{cgi}{host_name}{value};
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
-# 		}
-# 		
-# 		my $form_body = $anvil->Template->get({file => "anvil.html", name => "host-setup-menu1", variables => {
-# 			host_name         => $host_name,
-# 			default_host_name => $default_host_name, 
-# 			host_ip_address   => $host_ip_address,
-# 			node_checked      => $node_checked, 
-# 			dr_checked        => $dr_checked, 
-# 		}});
-# 		
-# 		$anvil->data->{form}{refresh_link} = "?anvil=true&task=prep-network";
-# 		$anvil->data->{form}{back_link}    = "?anvil=true";
-# 		$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
-# 		$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
-# 		$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "prep-host-main", variables => {
-# 			form => $form_body, 
-# 		}});
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
-# 	}
+	# Host name
+	my $say_host_name   = defined $anvil->data->{cgi}{host_name}{value} ? $anvil->data->{cgi}{host_name}{value} : $host_name;
+	my $host_name_class = $anvil->data->{cgi}{host_name}{alert} ? "input_alert" : "input_clear";
+	my $say_host_name   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "host_name",
+		id            => "host_name",
+		field         => "#!string!striker_0016!#",
+		description   => "#!string!striker_0143!#",
+		value         => defined $anvil->data->{cgi}{host_name}{value} ? $anvil->data->{cgi}{host_name}{value} : $say_host_name,
+		default_value => "",
+		class         => $host_name_class,
+		extra         => "",
+	}});
+	
+	### NOTE: We'll figure out the IFN this belongs to by matching the DG to one of the IFN IPs.
+	# Gateway
+	my $gateway_class = $anvil->data->{cgi}{gateway}{alert} ? "input_alert" : "input_clear";
+	my $say_gateway   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "gateway",
+		id            => "gateway",
+		field         => "#!string!striker_0035!#",
+		description   => "#!string!striker_0144!#",
+		value         => defined $anvil->data->{cgi}{gateway}{value} ? $anvil->data->{cgi}{gateway}{value} : "",
+		default_value => "", 
+		class         => $gateway_class,
+		extra         => "",
+	}});
+	
+	# DNS
+	my $dns_class = $anvil->data->{cgi}{dns}{alert} ? "input_alert" : "input_clear";
+	my $say_dns   = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "dns",
+		id            => "dns",
+		field         => "#!string!striker_0037!#",
+		description   => "#!string!striker_0038!#",
+		value         => defined $anvil->data->{cgi}{dns}{value} ? $anvil->data->{cgi}{dns}{value} : "",
+		default_value => $anvil->data->{defaults}{network}{dns},
+		class         => $dns_class,
+		extra         => "",
+	}});
+	
+	# Store the previous CGI variables and display the new fields.
+	$anvil->data->{form}{back_link}    = "?anvil=true";
+	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "config-network-main", variables => {
+		interface_form => $interface_form,
+		gateway_form   => $say_gateway,
+		dns_form       => $say_dns,
+		host_name_form => $say_host_name,
+		host_name      => $host_name,     # This is the current host name, used to find the data in the all_status.json
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
 	return(0);
 }
@@ -1984,7 +2153,7 @@ ORDER BY
 	my $server_ip  = $ENV{SERVER_ADDR};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_ip => $server_ip }});
 	
-	# We'll need ot show how networks will be configured. This depends on;
+	# We'll need to show how networks will be configured. This depends on;
 	# 1. Is it a bonded or single interface?
 	# 2. Is it the interface with the gateway?
 	# 3. If no gateway or DNS was specified, alert that there will be no outside access.
@@ -2007,7 +2176,7 @@ ORDER BY
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:nets->this_net" => $nets->{$this_net},
 			"s2:ip"             => $ip,
-			"s3:subnet_mask"         => $subnet_mask,
+			"s3:subnet_mask"    => $subnet_mask,
 			"s4:iface1_mac"     => $iface1_mac,
 			"s5:iface2_mac"     => $iface2_mac,
 			"s6:template"       => $template,

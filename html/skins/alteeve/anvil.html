@@ -58,6 +58,152 @@
 		</table>
 <!-- end main-menu -->
 
+<!-- start network_interface_form -->
+						<table>
+							<tr>
+								<td colspan="5" class="form_group_header1">
+									#!variable!field!#:
+								</td>
+							</tr>
+							<tr>
+								<td colspan="5" class="form_group_header2">
+									#!variable!description!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0024!#
+								</td>
+								<td>
+									<input type="text" name="#!variable!ip_key!#" id="#!variable!ip_key!#" value="#!variable!ip_value!#" placeholder="#!string!striker_0024!#" class="#!variable!ip_class!#">
+									<input type="hidden" name="#!variable!ip_key!#_default" id="#!variable!ip_key!#_default" value="#!variable!ip_value_default!#">
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									#!string!striker_0029!#
+								</td>
+								<td>
+									#!variable!iface1_select!#
+								</td>
+							</tr>
+							<tr>
+								<td>
+									#!string!striker_0025!#
+								</td>
+								<td>
+									<input type="text" name="#!variable!subnet_mask_key!#" id="#!variable!subnet_mask_key!#" value="#!variable!subnet_mask_value!#" placeholder="#!string!striker_0025!#" class="#!variable!subnet_mask_class!#">
+									<input type="hidden" name="#!variable!subnet_mask_key!#_default" id="#!variable!subnet_mask_key!#_default" value="#!variable!subnet_mask_value_default!#">
+								</td>
+								<td>
+									&nbsp;
+								</td>
+								<td>
+									#!string!striker_0030!#
+								</td>
+								<td>
+									#!variable!iface2_select!#
+								</td>
+							</tr>
+						</table>
+<!-- end network_interface_form -->
+
+<!-- start config-network-main -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2" class="title">
+					#!string!striker_0141!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					#!string!striker_0142!#
+				</td>
+			</tr>
+			<form name="host_setup" action="" method="post">
+			<tr>
+				<td colspan="2">
+					<hr>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table width="100%">
+						<div id="network_config">
+						<form name="network_config_form" action="" method="post">
+						<tr>
+							<td width="75%" style="vertical-align: top;">
+								<table>
+									<tr>
+										<td>
+#!variable!host_name_form!#
+									</td>
+									</tr>
+									<tr>
+										<td>
+											&nbsp;
+										</td>
+									</tr>
+									<tr>
+										<td>
+#!variable!interface_form!#
+										</td>
+									</tr>
+									<tr>
+										<td>
+#!variable!gateway_form!#
+										</td>
+									</tr>
+									<tr>
+										<td>
+#!variable!dns_form!#
+										</td>
+									</tr>
+								</table>
+							</td>
+							<td width="25%" style="padding-left: 1em; vertical-align: top;">
+								<div id="network_interface_table" data-host-name="#!variable!host_name!#"/>
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								<br />
+								<hr>
+								<input type="submit" name="next" id="next" class="button" value="#!string!striker_0013!#">
+							</td>
+						</tr>
+						<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
+						<input type="hidden" name="sn_count"  id="sn_count"  value="#!variable!sn_count!#">
+						<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
+						<input type="hidden" name="step"      id="step"      value="step2">
+						</form>
+						</div>
+					</table>
+				</td>
+			</tr>
+			<input type="hidden" name="anvil" id="anvil" value="1">
+			<input type="hidden" name="task"  id="task"  value="prep-host">
+			</form>
+		</table>
+<!-- end config-network-main -->
+
 <!-- start prep-host-main -->
 		<table align="center" class="anvil_main_menu">
 			<tr>
@@ -87,7 +233,9 @@
 			</tr>
 			<form name="host_setup" action="" method="post">
 			<tr>
-				#!variable!form!#
+				<td colspan="2">
+#!variable!form!#
+				</td>
 			</tr>
 			<input type="hidden" name="anvil" id="anvil" value="1">
 			<input type="hidden" name="task"  id="task"  value="prep-host">

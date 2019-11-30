@@ -30,11 +30,10 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 $anvil->System->generate_state_json({debug => 3});
 $anvil->Striker->parse_all_status_json({debug => 3});
 
-# print Dumper $anvil->data->{json}{all_status}{hosts};
-die;
+#print Dumper $anvil->data->{json}{all_status}{hosts}{'el8-a01n01.digimer.ca'};
+#die;
 
-#foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
-foreach my $host_name ("el8-a01n02.digimer.ca")
+foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
 {
 	print "\n";
 	print "Host: [".$host_name." (".$anvil->data->{json}{all_status}{hosts}{$host_name}{short_host_name}.")], Type: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{type}."], Configured: [".$anvil->data->{json}{all_status}{hosts}{$host_name}{configured}."], \n";

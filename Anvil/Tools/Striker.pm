@@ -402,7 +402,7 @@ sub parse_all_status_json
 				foreach my $interface (sort {$a cmp $b} keys %{$match->{$short_name}})
 				{
 					$matched_interface  = $interface;
-					$matched_ip_address = $match->{$short_name}{$interface}{ip};
+					$matched_ip_address = $match->{$short_name}{$interface}{ip_address};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						matched_interface  => $matched_interface, 
 						matched_ip_address => $matched_ip_address, 
@@ -422,7 +422,8 @@ sub parse_all_status_json
 		{
 			my $interface_name  = $interface_hash->{name};
 			my $interface_type  = $interface_hash->{type};
-			my $ip              = $interface_hash->{ip};
+			my $mac_address     = $interface_hash->{mac_address};
+			my $ip_address      = $interface_hash->{ip_address};
 			my $subnet_mask     = $interface_hash->{subnet_mask};
 			my $default_gateway = $interface_hash->{default_gateway};
 			my $gateway         = $interface_hash->{gateway};
@@ -430,7 +431,8 @@ sub parse_all_status_json
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				interface_name  => $interface_name, 
 				interface_type  => $interface_type,
-				ip              => $ip,
+				mac_address     => $mac_address, 
+				ip_address      => $ip_address,
 				subnet_mask     => $subnet_mask,
 				default_gateway => $default_gateway,
 				gateway         => $gateway,
@@ -446,7 +448,8 @@ sub parse_all_status_json
 			# Record the rest of the data.
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{uuid}            = $interface_hash->{uuid};
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mtu}             = $interface_hash->{mtu};
-			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{ip}              = $interface_hash->{ip};
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mac_address}     = $interface_hash->{mac_address};
+			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{ip_address}      = $interface_hash->{ip_address};
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{subnet_mask}     = $interface_hash->{subnet_mask};
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{default_gateway} = $interface_hash->{default_gateway};
 			$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{gateway}         = $interface_hash->{gateway};
@@ -454,7 +457,8 @@ sub parse_all_status_json
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::uuid"            => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{uuid}, 
 				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::mtu"             => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mtu}, 
-				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::ip"              => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{ip}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::mac_address"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{mac_address}, 
+				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::ip_address"      => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{ip_address}, 
 				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::subnet_mask"     => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{subnet_mask}, 
 				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::default_gateway" => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{default_gateway}, 
 				"json::all_status::hosts::${host_name}::network_interface::${interface_type}::${interface_name}::gateway"         => $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{$interface_type}{$interface_name}{gateway}, 

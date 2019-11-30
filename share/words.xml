@@ -985,6 +985,10 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0138">New host name</key>
 		<key name="striker_0139"><![CDATA[<unchanged>]]></key>
 		<key name="striker_0140">Indicates when the last time the networks connected to this host were scanned. The scan is done to help find the IP addresses assigned to hosted servers and virtual machine equipment. The scan is a simple, sequential nmap ping scan in an attempt to be as non-invasive as possible. The frequency of these scans can be controlled by setting 'network-scan::scan-period' to a number of seconds (the current value is: [#!data!network-scan::scan-period!# seconds]).</key>
+		<key name="striker_0141">Configure the network interfaces for this host.</key>
+		<key name="striker_0142">This step renames the real network interfaces, pairs them into redundant bonds and creates brodges for connecting to hosted servers. IPs and host names are optional, and can be set when assembling this host into an Anvil! system.</key>
+		<key name="striker_0143">If you would like to change the host name now, you can do so here. When adding this machine to an Anvil!, the host name will be set there as well making this optional.</key>
+		<key name="striker_0144">This is the network gateway used to access the outside world. We'll match it to the appropriate network interface.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1138,6 +1142,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="striker_warning_0011">The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
 		<key name="striker_warning_0012">Failed to log into the host. Is the IP or root user's password right?</key>
 		<key name="striker_warning_0013"><![CDATA[The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
+		<key name="striker_warning_0014">The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
+		<key name="striker_warning_0015">To configure a host as either an Anvil! node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

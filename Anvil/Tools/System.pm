@@ -831,7 +831,7 @@ sub generate_state_json
 		my $configured      = defined $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} ? $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} : 0;
 		my $ifaces_array    = [];
 		my $host            = $short_host_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:host_name"       => $host_name,
 			"s2:short_host_name" => $short_host_name, 
 			"s3:host_type"       => $host_type,
@@ -882,7 +882,7 @@ sub generate_state_json
 			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu};
 			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
 			my $iface_hash  = {};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"s1:interface"   => $interface,
 				"s2:mac_address" => $mac_address, 
 				"s3:type"        => $type,
@@ -891,10 +891,11 @@ sub generate_state_json
 				"s6:host_uuid"   => $host_uuid, 
 				"s7:host_key"    => $host_key, 
 			}});
-			$iface_hash->{name} = $interface;
-			$iface_hash->{type} = $type;
-			$iface_hash->{mtu}  = $mtu;
-			$iface_hash->{uuid} = $uuid;
+			$iface_hash->{name}        = $interface;
+			$iface_hash->{type}        = $type;
+			$iface_hash->{mtu}         = $mtu;
+			$iface_hash->{uuid}        = $uuid;
+			$iface_hash->{mac_address} = $mac_address;
 			if ($type eq "bridge")
 			{
 				my $id              = $anvil->data->{network}{$host}{interface}{$interface}{id}; 
@@ -1119,7 +1120,7 @@ sub generate_state_json
 					bridge_name     => $bridge_name,
 					changed_order   => $changed_order,
 				}});
-
+				
 				$iface_hash->{say_speed}       = $say_speed;
 				$iface_hash->{speed}           = $speed;
 				$iface_hash->{say_link_state}  = $say_link_state;
@@ -1138,28 +1139,28 @@ sub generate_state_json
 			};
 			
 			# Is there an IP on this interface?
-			my $ip              = "";
+			my $ip_address      = "";
 			my $subnet_mask     = "";
 			my $default_gateway = 0;
 			my $gateway         = "";
 			my $dns             = "";
 			if ((exists $anvil->data->{network}{$host}{interface}{$interface}{ip}) && ($anvil->data->{network}{$host}{interface}{$interface}{ip}))
 			{
-				$ip              = $anvil->data->{network}{$host}{interface}{$interface}{ip};
+				$ip_address      = $anvil->data->{network}{$host}{interface}{$interface}{ip};
 				$subnet_mask     = $anvil->data->{network}{$host}{interface}{$interface}{subnet_mask};
 				$default_gateway = $anvil->data->{network}{$host}{interface}{$interface}{default_gateway};
 				$gateway         = $anvil->data->{network}{$host}{interface}{$interface}{gateway};
 				$dns             = $anvil->data->{network}{$host}{interface}{$interface}{dns};
 			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				ip              => $ip,
+				ip_address      => $ip_address,
 				subnet_mask     => $subnet_mask,
 				default_gateway => $default_gateway,
 				gateway         => $gateway,
 				dns             => $dns,
 			}});
 			
-			$iface_hash->{ip}              = $ip;
+			$iface_hash->{ip_address}      = $ip_address;
 			$iface_hash->{subnet_mask}     = $subnet_mask;
 			$iface_hash->{default_gateway} = $default_gateway;
 			$iface_hash->{gateway}         = $gateway;

@@ -53,8 +53,8 @@ if (not $anvil->data->{sys}{database}{connections})
 $anvil->data->{job}{progress} = 0;
 get_job_details($anvil);
 wait_for_access($anvil);
-#set_host_name($anvil);
-#add_repos($anvil);
+set_host_name($anvil);
+add_repos($anvil);
 add_databases($anvil);
 update_progress($anvil, 100, "job_0047");
 
