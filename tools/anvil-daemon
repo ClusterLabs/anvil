@@ -69,7 +69,7 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
@@ -108,10 +108,10 @@ if (not $anvil->data->{sys}{database}{connections})
 			
 			$anvil->refresh();
 			$anvil->Database->connect({debug => 3, check_if_configured => 1});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 			if (not $anvil->data->{sys}{database}{connections})
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 2, secure => 0, key => "log_0439"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 3, secure => 0, key => "log_0439"});
 			}
 		}
 	}
@@ -297,7 +297,7 @@ sub handle_periodic_tasks
 		###       don't use '--force' and let striker-manage-install-target skip the repo update if it happened
 		###       recently enough.
 		my $type = $anvil->System->get_host_type();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
 		
 		if ($type eq "dashboard")
 		{
@@ -385,7 +385,7 @@ sub check_ssh_keys
 			# Create it.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0272", variables => { user => $user, directory => $ssh_directory }});
 			$anvil->Storage->make_directory({
-				debug     => 2,
+				debug     => 3,
 				directory => $ssh_directory, 
 				user      => $user,
 				group     => $user, 
@@ -425,7 +425,7 @@ sub check_ssh_keys
 	
 		# Now read in the key.
 		my $users_public_key =  $anvil->Storage->read_file({
-			debug => 2,
+			debug => 3,
 			file  => $ssh_public_key_file,
 		});
 		   $users_public_key =~ s/\n$//;
@@ -449,7 +449,7 @@ sub check_ssh_keys
 		if (-e $known_hosts_file)
 		{
 			$known_hosts_file_body = $anvil->Storage->read_file({
-				debug => 2,
+				debug => 3,
 				file  => $known_hosts_file,
 			});
 			$known_hosts_old_body  = $known_hosts_file_body;
@@ -465,7 +465,7 @@ sub check_ssh_keys
 		if (-e $authorized_keys_file)
 		{
 			$authorized_keys_file_body = $anvil->Storage->read_file({
-				debug => 2,
+				debug => 3,
 				file  => $authorized_keys_file,
 			});
 			$authorized_keys_old_body  = $authorized_keys_file_body;
@@ -893,6 +893,14 @@ sub check_setuid_wrappers
 {
 	my ($anvil) = @_;
 	
+	my $host_type = $anvil->System->get_host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
+	if ($host_type ne "dashboard")
+	{
+		# Not a dashboard, setuid scripts aren't needed.
+		return(0);
+	}
+	
 	# Does the call_striker-get-peer-data wrapper exist yet?
 	if (-e $anvil->data->{path}{exe}{'call_striker-get-peer-data'})
 	{
@@ -904,7 +912,7 @@ sub check_setuid_wrappers
 		# What is the admin user and group ID?
 		my $admin_uid = getpwnam('admin');
 		my $admin_gid = getgrnam('admin');
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			admin_uid => $admin_uid,
 			admin_gid => $admin_gid, 
 		}});
@@ -921,13 +929,13 @@ sub check_setuid_wrappers
 		   $call_striker_get_peer_data_body .= "        execv(REAL_PATH, av);\n";
 		   $call_striker_get_peer_data_body .= "}\n";
 		my $error = $anvil->Storage->write_file({
-			debug     => 2,
+			debug     => 3,
 			file      => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c",
 			body      => $call_striker_get_peer_data_body, 
 			mode      => '644', 
 			overwrite => 1,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error => $error }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { error => $error }});
 		
 		# If it wrote out, compile it.
 		if (not -e $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c")
@@ -939,7 +947,7 @@ sub check_setuid_wrappers
 		{
 			# Compile it
 			my ($output, $return_code) = $anvil->System->call({
-				debug      => 2,
+				debug      => 3,
 				shell_call => $anvil->data->{path}{exe}{gcc}." -o ".$anvil->data->{path}{exe}{'call_striker-get-peer-data'}." ".$anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c", 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -956,13 +964,13 @@ sub check_setuid_wrappers
 			else
 			{
 				$anvil->Storage->change_owner({
-					debug => 2, 
+					debug => 3, 
 					path  => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}, 
 					user  => 'root', 
 					group => 'root',
 				});
 				$anvil->Storage->change_mode({
-					debug => 2, 
+					debug => 3, 
 					path => $anvil->data->{path}{exe}{'call_striker-get-peer-data'},
 					mode => '4755',
 				});
@@ -1094,7 +1102,7 @@ sub prep_database
 		});
 		if ($database_output)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_output => $database_output }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { database_output => $database_output }});
 		}
 	}
 	

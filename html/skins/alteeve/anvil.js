@@ -182,7 +182,7 @@ $( window ).on( "load", function()
 						// Only real interfaces have a 'changed_order' value.
 						if (nic.changed_order) {
 							var say_link_state = say_down;
-							if (nic.link_state) {
+							if (nic.link_state == 1) {
 								say_link_state = say_up;
 							}
 							body += '<tr class="data_row">';

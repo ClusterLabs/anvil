@@ -248,7 +248,7 @@ sub call
 			if (not -e $program)
 			{
 				$found = 0;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0141", variable => {
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0141", variables => {
 					program    => $program,
 					shell_call => $shell_call,
 				}});
@@ -256,7 +256,7 @@ sub call
 			elsif (not -x $program)
 			{
 				$found = 0;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0142", variable => {
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0142", variables => {
 					program    => $program,
 					shell_call => $shell_call,
 				}});

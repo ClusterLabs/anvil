@@ -474,7 +474,7 @@ sub update_network
 				}
 				
 				my $bond_uuid = $anvil->Database->insert_or_update_bonds({
-					debug                     => 2,
+					debug                     => 3,
 					file                      => $THIS_FILE,
 					line                      => __LINE__,
 					bond_name                 => $interface,
@@ -536,7 +536,7 @@ sub update_network
 					}});
 				}
 				my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
-					debug                         => 2,
+					debug                         => 3,
 					file                          => $THIS_FILE,
 					line                          => __LINE__,
 					network_interface_bond_uuid   => $say_bond_uuid, 
