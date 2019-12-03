@@ -39,15 +39,15 @@ $( window ).on( "load", function()
 				
 				// Open the table
 				var body =  '<table id="unconfigured_hosts_table" class="data_table_nowrap">';
-				body += '<tr class="data_row">';
-				body += '<td class="column_header">'+say_unconfigured+'</td>';
-				body += '<td class="column_header"> &nbsp; </td>';
-				body += '<td class="column_header">'+say_type+'</td>';
-				body += '<td class="column_header"> &nbsp; </td>';
-				body += '<td class="column_header">'+say_accessible+'</td>';
-				body += '<td class="column_header"> &nbsp; </td>';
-				body += '<td class="column_header">'+say_at_ip+'</td>';
-				body += '</tr>';
+				    body += '<tr class="data_row">';
+				    body += '<td class="column_header">'+say_unconfigured+'</td>';
+				    body += '<td class="column_header"> &nbsp; </td>';
+				    body += '<td class="column_header">'+say_type+'</td>';
+				    body += '<td class="column_header"> &nbsp; </td>';
+				    body += '<td class="column_header">'+say_accessible+'</td>';
+				    body += '<td class="column_header"> &nbsp; </td>';
+				    body += '<td class="column_header">'+say_at_ip+'</td>';
+				    body += '</tr>';
 				$.each(data.hosts, function(index, element) {
 					if (element.type === 'dashboard') { 
 						// Skip
@@ -138,19 +138,68 @@ $( window ).on( "load", function()
 				body += '</table>';
 				
 				// clear + append can't be the best way to do this... 
-				$( "#unconfigured_hosts" ).empty();
-				$( "#unconfigured_hosts" ).append(body);
+				$("#unconfigured_hosts").empty();
+				$("#unconfigured_hosts").append(body);
 			});
 		}, 1000);
 	};
 	
 	// Run in we're showing a specific hosts' network.
 	if ($('#network_interface_table').length) {
-		var host_name = $('#network_interface_table').data('host-name');
+		var host_name       = $('#network_interface_table').data('host-name');
+		var say_title       = $('#network_interface_table').data('title');
+		var say_mac_address = $('#network_interface_table').data('mac-address');
+		var say_name        = $('#network_interface_table').data('name');
+		var say_state       = $('#network_interface_table').data('state');
+		var say_speed       = $('#network_interface_table').data('speed');
+		var say_up_order    = $('#network_interface_table').data('up-order');
+		var say_up          = $('#network_interface_table').data('up');
+		var say_down        = $('#network_interface_table').data('down');
 		//console.log('showing network info for: ['+host_name+']');
 		setInterval(function() {
 			$.getJSON('/status/all_status.json', function(data) {
-				//console.log('Reload: ['+host_name+']');
+				//console.log('read all_status.json: ['+data+']');
+				// Build the HTML
+				var body =  '<table id="network_interface_table" class="data_table_nowrap">';
+				    body += '<tr>';
+				    body += '<td colspan="5" class="column_header">'+say_title+'</td>';
+				    body += '</tr>';
+				    body += '<tr class="data_row">';
+				    body += '<td class="column_row_name">'+say_mac_address+'</td>';
+				    body += '<td class="column_row_name">'+say_name+'</td>';
+				    body += '<td class="column_row_name">'+say_state+'</td>';
+				    body += '<td class="column_row_name">'+say_speed+'</td>';
+				    body += '<td class="column_row_name">'+say_up_order+'</td>';
+				    body += '</tr>';
+				$.each(data.hosts, function(i, host) {
+					//console.log('This is: ['+host.name+']');
+					if (host.name != host_name) { 
+						// Skip
+						return true;
+					};
+					//console.log('Found it!');
+					$.each(host.network_interfaces, function(j, nic) {
+						// Only real interfaces have a 'changed_order' value.
+						if (nic.changed_order) {
+							var say_link_state = say_down;
+							if (nic.link_state) {
+								say_link_state = say_up;
+							}
+							body += '<tr class="data_row">';
+							body += '<td class="column_row_value_fixed">'+nic.mac_address+'</td>';
+							body += '<td class="column_row_value_fixed_centered">'+nic.name+'</td>';
+							body += '<td class="column_row_value_fixed_centered">'+say_link_state+'</td>';
+							body += '<td class="column_row_value_fixed_centered">'+nic.say_speed+'</td>';
+							body += '<td class="column_row_value_fixed_centered">'+nic.changed_order+'</td>';
+							body += '</tr>';
+						}
+					});
+				});
+				body += '</table>';
+				
+				// clear + append can't be the best way to do this... 
+				$("#network_interface_table").empty();
+				$("#network_interface_table").append(body);
 			});
 		}, 1000);
 	};

@@ -882,7 +882,7 @@ sub generate_state_json
 			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu};
 			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
 			my $iface_hash  = {};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:interface"   => $interface,
 				"s2:mac_address" => $mac_address, 
 				"s3:type"        => $type,

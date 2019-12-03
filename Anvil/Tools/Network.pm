@@ -994,7 +994,7 @@ AND
 ORDER BY 
     modified_date DESC 
 ;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	$count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1017,6 +1017,15 @@ ORDER BY
 		my $network_interface_bridge_uuid = defined $row->[10] ? $row->[10] : ""; 
 		my $bond_name                     = "";
 		my $bridge_name                   = "";
+		my $this_change_orger             = 0;
+		if (($network_interface_name =~ /^virbr/) or ($network_interface_name =~ /^vnet/))
+		{
+			# This isn't a physical NIC, so it doesn't get a changed order
+		}
+		else
+		{
+			$this_change_orger = $changed_order++;
+		}
 		if (($network_interface_bond_uuid) && (defined $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name}))
 		{
 			$bond_name = $anvil->data->{network}{$host}{bond_uuid}{$network_interface_bond_uuid}{name};
@@ -1048,9 +1057,8 @@ ORDER BY
 			network_interface_bond_uuid   => $network_interface_bond_uuid, 
 			network_interface_bridge_uuid => $network_interface_bridge_uuid, 
 			bond_name                     => $bond_name, 
-			changed_order                 => $changed_order,
+			changed_order                 => $this_change_orger,
 		}});
-		
 		
 		# We'll initially load empty strings for what would be the IP information. Any interface with IPs will be populated when we call 
 		$anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}          = $network_interface_uuid; 
@@ -1066,8 +1074,8 @@ ORDER BY
 		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_uuid}   = $network_interface_bridge_uuid; 
 		$anvil->data->{network}{$host}{interface}{$network_interface_name}{bridge_name}   = $bridge_name; 
 		$anvil->data->{network}{$host}{interface}{$network_interface_name}{type}          = "interface";
-		$anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order} = $changed_order;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order} = $this_change_orger;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"network::${host}::interface::${network_interface_name}::uuid"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{uuid}, 
 			"network::${host}::interface::${network_interface_name}::mac_address"   => $anvil->data->{network}{$host}{interface}{$network_interface_name}{mac_address}, 
 			"network::${host}::interface::${network_interface_name}::speed"         => $anvil->data->{network}{$host}{interface}{$network_interface_name}{speed}, 
@@ -1083,7 +1091,6 @@ ORDER BY
 			"network::${host}::interface::${network_interface_name}::type"          => $anvil->data->{network}{$host}{interface}{$network_interface_name}{type}, 
 			"network::${host}::interface::${network_interface_name}::changed_order" => $anvil->data->{network}{$host}{interface}{$network_interface_name}{changed_order}, 
 		}});
-		$changed_order++;
 	}
 	
 	# Load the IPs

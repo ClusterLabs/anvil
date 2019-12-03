@@ -1143,7 +1143,7 @@ sub keep_running
 		# Write out state information for all known Anvil! systems and the information from 
 		# unconfigured nods and DR hosts, using just database data (hence, fast enough to run 
 		# constantly).
-		update_striker_json($anvil);
+		$anvil->System->generate_state_json({debug => 3});
 	}
 	else
 	{
@@ -1153,19 +1153,6 @@ sub keep_running
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
 	run_jobs($anvil);
-	
-	return(0);
-}
-
-# This writes out the main JSON file used by Striker to display information about unconfigured nodes/dr 
-# hosts, and known Anvil! / node / server states.
-sub update_striker_json
-{
-	my ($anvil) = @_;
-	
-	# Start by recording information about currently unconfigured nodes and DR hosts.
-	$anvil->System->generate_state_json({debug => 3});
-	
 	
 	return(0);
 }
