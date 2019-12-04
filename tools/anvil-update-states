@@ -26,10 +26,13 @@ $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
-	# No databases, exit.
-	print $anvil->Words->string({key => "error_0003"})."\n";
-	$anvil->nice_exit({exit_code => 2});
+	# No database, but we need to keep going. If the user unplugged the only cable connecting us to the
+	# network, we'll lose all DBs, but we still need to record the order the NICs went up and down.
+	print $anvil->Words->string({key => "warning_0016"})."\n";
 }
+
+# Check the network cache for records we need to insert.
+process_network_cache($anvil);
 
 update_network($anvil);
 
@@ -39,6 +42,23 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This reads in the network cache file and looks for records that haven't been stored in the database yet.
+sub process_network_cache
+{
+	my ($anvil) = @_;
+	
+	# Does the file exist? If so, read it in.
+	if (-e $anvil->data->{path}{data}{network_cache})
+	{
+		my $body = $anvil->Storage->read_file({cache => 0, force_read => 1, file => $anvil->data->{path}{data}{network_cache}});
+		foreach my $line (split/\n/, $body)
+		{
+		}
+	}
+	
+	return(0);
+}
 
 # This reports the current network interface states, tracked by the MAC address.
 sub update_network

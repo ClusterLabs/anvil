@@ -791,6 +791,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0457">Removing archived records.</key>
 		<key name="log_0458">Vacuuming the database to purge the removed records.</key>
 		<key name="log_0459">Skipping the table: [#!variable!table!#], it is excluded from archiving.</key>
+		<key name="log_0460">Queing up to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1128,7 +1129,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
 		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
 		
-		<!-- Warnings --> 
+		<!-- Warnings: TODO: Take 'striker_' off --> 
 		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
 		<key name="striker_warning_0002">The access information appears to not be valid.</key>
 		<key name="striker_warning_0003">Test access to the peer (using SSH) failed. There may be details in the log file.</key>
@@ -1144,6 +1145,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="striker_warning_0013"><![CDATA[The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
 		<key name="striker_warning_0014">The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
 		<key name="striker_warning_0015">To configure a host as either an Anvil! node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
+		<key name="warning_0016">No databases are available. Changes to the network interfaces will be cached.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

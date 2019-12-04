@@ -1032,6 +1032,7 @@ sub _set_paths
 				httpd_conf			=>	"/etc/httpd/conf/httpd.conf",
 				host_ssh_key			=>	"/etc/ssh/ssh_host_ecdsa_key.pub",
 				host_uuid			=>	"/etc/anvil/host.uuid",
+				network_cache			=>	"/tmp/network_cache.anvil",
 				passwd				=>	"/etc/passwd",
 				'redhat-release'		=>	"/etc/redhat-release",
 			},

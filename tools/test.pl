@@ -27,24 +27,16 @@ $anvil->Log->level({set => 2});
 $anvil->Database->connect({debug => 3, check_if_configured => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 
-my $interface_uuid = "ffd6d29b-100c-452f-be4f-51cbc94eb069";
-my $query          = "SELECT network_interface_bridge_uuid FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($interface_uuid).";";
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-my $count   = @{$results};
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	results => $results, 
-	count   => $count,
-}});
-my $network_interface_bridge_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_bridge_uuid => $network_interface_bridge_uuid }});
-
+my $utc_tz =  $anvil->Get->date_and_time({use_utc => 1});
+   $utc_tz =~ s/\//-/g;
+print "DB Timestamp; [".$anvil->data->{sys}{database}{timestamp}."]\n";
+print "GM Timestamp; [".$utc_tz."]\n";
+die;
 
 #$anvil->System->generate_state_json({debug => 3});
 #$anvil->Striker->parse_all_status_json({debug => 3});
 
 #print Dumper $anvil->data->{json}{all_status}{hosts}{'el8-a01n01.digimer.ca'};
-die;
 
 foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
 {

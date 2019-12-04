@@ -464,8 +464,8 @@ EOF
 		{
 			# We're going to need these repos when it's all said and done. The first two are 
 			# enabled by default.
-			$anvil->data->{repos}{'rhel-8-for-x86_64-baseos-rpms'}    = 0;
-			$anvil->data->{repos}{'rhel-8-for-x86_64-appstream-rpms'} = 0;
+			$anvil->data->{repos}{'rhel-8-for-x86_64-baseos-rpms'}            = 0;
+			$anvil->data->{repos}{'rhel-8-for-x86_64-appstream-rpms'}         = 0;
 			$anvil->data->{repos}{'codeready-builder-for-rhel-8-x86_64-rpms'} = 0;
 			
 			# Both target types need 'codeready-builder-for-rhel-8-x86_64-rpms', but only nodes 

@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        29%{?dist}
+Release:        30%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -24,6 +24,7 @@ WARNING: This is an alpha-stage project. Many features are missing and this
 %package core
 Summary:        Alteeve's Anvil! Core package
 Requires:       bash-completion 
+Requires:       chrony
 Requires:       bind-utils 
 Requires:       dmidecode
 Requires:       dnf-utils
@@ -205,6 +206,8 @@ setenforce 0
 sed -i "1s/^.*$/%{version}-%{release}/" /%{_sysconfdir}/anvil/anvil.version
 # Enable and start the anvil-daemon
 ### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
+systemctl enable chronyd.service 
+systemctl start chronyd.service 
 systemctl enable anvil-daemon.service
 systemctl start anvil-daemon.service
 
@@ -349,6 +352,9 @@ fi
 
 
 %changelog
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-30
+- Enabled/started chronyd in core's post.
+
 * Thu Nov 7 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-29
 - Added '/etc/anvil/type.X' file creation to more directly mark a system as a 
   specific type, rather than divining by name.

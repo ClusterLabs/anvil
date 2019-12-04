@@ -432,6 +432,10 @@ This can be set to a unix timestamp. If it is not set, the current time is used.
 
 If set, only the time will be returned (in C<< hh:mm:ss >> format).
 
+=head3 use_utc (optional)
+
+If set, C<< gmtime >> is used instead of C<< localtime >>. The effect of this is that GMTime (greenwhich mean time, UTC-0) is used instead of the local system's time zone.
+
 =cut
 sub date_and_time
 {
@@ -442,6 +446,7 @@ sub date_and_time
 	
 	my $offset    = defined $parameter->{offset}    ? $parameter->{offset}    : 0;
 	my $use_time  = defined $parameter->{use_time}  ? $parameter->{use_time}  : time;
+	my $use_utc   = defined $parameter->{use_utc}   ? $parameter->{use_utc}   : 0;
 	my $file_name = defined $parameter->{file_name} ? $parameter->{file_name} : 0;
 	my $time_only = defined $parameter->{time_only} ? $parameter->{time_only} : 0;
 	my $date_only = defined $parameter->{date_only} ? $parameter->{date_only} : 0;
@@ -464,8 +469,16 @@ sub date_and_time
 	#print $THIS_FILE." ".__LINE__."; [ Debug ] - adjusted_time: [$adjusted_time]\n";
 	
 	# Get the date and time pieces
-	($time->{sec}, $time->{min}, $time->{hour}, $time->{mday}, $time->{mon}, $time->{year}, $time->{wday}, $time->{yday}, $time->{isdst}) = localtime($adjusted_time);
-	#print $THIS_FILE." ".__LINE__."; [ Debug ] - time->{sec}: [".$time->{sec}."], time->{min}: [".$time->{min}."], time->{hour}: [".$time->{hour}."], time->{mday}: [".$time->{mday}."], time->{mon}: [".$time->{mon}."], time->{year}: [".$time->{year}."], time->{wday}: [".$time->{wday}."], time->{yday}: [".$time->{yday}."], time->{isdst}: [".$time->{isdst}."]\n";
+	if ($use_utc)
+	{
+		($time->{sec}, $time->{min}, $time->{hour}, $time->{mday}, $time->{mon}, $time->{year}, $time->{wday}, $time->{yday}, $time->{isdst}) = gmtime($adjusted_time);
+		#print $THIS_FILE." ".__LINE__."; [ Debug ] - time->{sec}: [".$time->{sec}."], time->{min}: [".$time->{min}."], time->{hour}: [".$time->{hour}."], time->{mday}: [".$time->{mday}."], time->{mon}: [".$time->{mon}."], time->{year}: [".$time->{year}."], time->{wday}: [".$time->{wday}."], time->{yday}: [".$time->{yday}."], time->{isdst}: [".$time->{isdst}."]\n";
+	}
+	else
+	{
+		($time->{sec}, $time->{min}, $time->{hour}, $time->{mday}, $time->{mon}, $time->{year}, $time->{wday}, $time->{yday}, $time->{isdst}) = localtime($adjusted_time);
+		#print $THIS_FILE." ".__LINE__."; [ Debug ] - time->{sec}: [".$time->{sec}."], time->{min}: [".$time->{min}."], time->{hour}: [".$time->{hour}."], time->{mday}: [".$time->{mday}."], time->{mon}: [".$time->{mon}."], time->{year}: [".$time->{year}."], time->{wday}: [".$time->{wday}."], time->{yday}: [".$time->{yday}."], time->{isdst}: [".$time->{isdst}."]\n";
+	}
 	
 	# Process the raw data
 	$time->{pad_hour} = sprintf("%02d", $time->{hour});

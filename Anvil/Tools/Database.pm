@@ -1121,8 +1121,8 @@ sub connect
 			# local, use it.
 			if (($host eq $anvil->_host_name)       or 
 			    ($host eq $anvil->_short_host_name) or 
-			    ($host eq "localhost")             or 
-			    ($host eq "127.0.0.1")             or 
+			    ($host eq "localhost")              or 
+			    ($host eq "127.0.0.1")              or 
 			    (not $anvil->data->{sys}{database}{read_uuid}))
 			{
 				$anvil->data->{sys}{database}{read_uuid}  = $uuid;
@@ -1308,7 +1308,7 @@ sub connect
 	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Sync the database, if needed.
-	$anvil->Database->resync_databases({debug => $debug});
+	$anvil->Database->resync_databases({debug => 3});
 	
 	# Add ourselves to the database, if needed.
 	$anvil->Database->insert_or_update_hosts({debug => $debug});
@@ -3642,9 +3642,11 @@ sub insert_or_update_ip_addresses
 		}
 	}
 	
-	# If we don't have a UUID, see if we can find one for the given ip_address server name.
+	# If we don't have a UUID, see if we can find one for the given ip_address name.
 	if (not $ip_address_uuid)
 	{
+		### NOTE: An IP can be on multiple machines at the same time (ie: 192.168.122.1), so we need
+		###       to restrict to this host.
 		my $query = "
 SELECT 
     ip_address_uuid 
@@ -3652,6 +3654,8 @@ FROM
     ip_addresses 
 WHERE 
     ip_address_address   = ".$anvil->Database->quote($ip_address_address)." 
+AND 
+    ip_address_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -4740,7 +4744,7 @@ SELECT
 FROM 
     mac_to_ip 
 WHERE 
-    mac_to_ip_uuid = ".$anvil->Database->quote($mac_to_ip_uuid)."
+    mac_to_ip_uuid = ".$anvil->Database->quote($mac_to_ip_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -7018,7 +7022,7 @@ sub query
 	if ($anvil->data->{sys}{database}{log_transactions})
 	{
 		$anvil->Log->entry({source => $source, line => $line, secure => $secure, level => 0, key => "log_0074", variables => { 
-			uuid  => $uuid, 
+			uuid  => $anvil->data->{database}{$uuid}{host}, 
 			query => $query, 
 		}});
 	}
@@ -7251,7 +7255,7 @@ sub resync_databases
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->resync_databases()" }});
 	
 	# If a resync isn't needed, just return.
@@ -7380,7 +7384,7 @@ sub resync_databases
 				$query .= " WHERE ".$host_column." = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid});
 			}
 			$query .= " ORDER BY utc_modified_date DESC;";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
@@ -7515,7 +7519,7 @@ sub resync_databases
 									$query .= "$column_name = ".$column_value.", ";
 								}
 								$query .= "modified_date = ".$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->Database->quote($row_uuid).";";
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 								
 								# Now record the query in the array
 								push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
@@ -7551,7 +7555,7 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO public.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							# Now record the query in the array
 							push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
@@ -7599,7 +7603,7 @@ sub resync_databases
 								# Add the host column.
 								$query = "INSERT INTO history.$table ($host_column, $uuid_column, ".$columns."modified_date) VALUES (".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", ".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { uuid => $uuid, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							# Now record the query in the array
 							push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;

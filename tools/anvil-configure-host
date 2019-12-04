@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This is called when striker, an node or a DR host needs to configure the local network and user accounts.
+# This is called when striker, a node or a DR host needs to configure the local network and user accounts.
 # 
 # Exit codes;
 # 0 = Normal exit.
