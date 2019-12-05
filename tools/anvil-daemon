@@ -188,15 +188,19 @@ while(1)
 	{
 		# Run the normal tasks
 		keep_running($anvil);
+		
+		# Handle periodic tasks
+		handle_periodic_tasks($anvil);
 	}
 	else
 	{
-		# No databases available, we can't do anything this run.
+		# No databases available, we'll update the state file in case this host is having it's 
+		# network mapped and the interface used to talk to the databases went down. That's all we 
+		# can do though.
+		update_state_file($anvil);
+		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "log_0202"});
 	}
-	
-	# Handle periodic tasks
-	handle_periodic_tasks($anvil);
 	
 	# Exit if 'run-once' selected.
 	if ($anvil->data->{switches}{'run-once'})

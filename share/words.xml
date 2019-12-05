@@ -512,7 +512,7 @@ The database connection error was:
 		<key name="log_0218">The variable: [#!variable!name!#] was expected to be an array reference, but it wasn't. It contained (if anything): [#!variable!value!#].</key>
 		<key name="log_0219">The table: [#!variable!table!#] (and possibly others) in the database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) is missing: [#!variable!missing!#] row(s). A database resync will be requested.</key>
 		<key name="log_0220"><![CDATA[Database->insert_or_update_jobs() was called with 'update_progress_only' but without a 'job_uuid' being set.]]></key>
-		<key name="log_0221">Writing: [#!variable!to_write!#] record(s) to resync the database on: [#!variable!host_name!#].</key>
+		<key name="log_0221">Writing: [#!variable!to_write!#] record(s) to resync the table: [#!variable!table!#] in database on: [#!variable!host_name!#].</key>
 		<key name="log_0222">The connection to the database on: [#!variable!host!#] isn't established, trying again...</key>
 		<key name="log_0223">The connection to the database on: [#!variable!host!#] has been successfully established.</key>
 		<key name="log_0224">The system has only been running for: [#!variable!uptime!#] seconds. To minimize the impact of a bug causing a rapid reboot cycle, the request to: [#!variable!task!#] will be paused until the system has been running for at least ten minutes. We will proceed in: [#!variable!difference!#] seconds (at #!variable!say_time!#).</key>

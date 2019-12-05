@@ -4328,6 +4328,12 @@ If set, only the corresponding database will be written to.
 
 If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
+=head3 link_only (optional, default '0')
+
+If this is set to C<< 1 >>, only the C<< network_interface_name >>, C<< network_interface_link_state >>, C<< network_interface_mac_address >>, C<< network_interface_operational >> and C<< network_interface_speed >> are required and analyzed. Generally, C<< timestamp >> will also be passed as this parameter is generally used to flush out cached state changes.
+
+B<< NOTE >>: This only works for existing records. If this is passed for an interface that is not previously known, it will be ignored and no C<< network_interface_uuid >> will be returned.
+
 =head3 line (optional)
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
@@ -4380,6 +4386,10 @@ This is the current speed of the network interface in Mbps (megabits per second)
 
 This is the UUID of an existing record to be updated. If this is not passed, the UUID will be searched using the interface's MAC address. If no match is found, the record will be INSERTed and a new random UUID generated.
 
+=head3 timestamp (optional, default 'sys::database::timestamp')
+
+When C<< link_only >> is used, this can be set to use a different time stamp (used when writing cached records from disk).
+
 =cut
 sub insert_or_update_network_interfaces
 {
@@ -4392,6 +4402,7 @@ sub insert_or_update_network_interfaces
 	my $uuid                          = defined $parameter->{uuid}                          ? $parameter->{uuid}                          : "";
 	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
 	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
+	my $link_only                     = defined $parameter->{link_only}                     ? $parameter->{link_only}                     : 0;
 	my $network_interface_bond_uuid   =         $parameter->{network_interface_bond_uuid}   ? $parameter->{network_interface_bond_uuid}   : 'NULL';
 	my $network_interface_bridge_uuid =         $parameter->{network_interface_bridge_uuid} ? $parameter->{network_interface_bridge_uuid} : 'NULL';
 	my $network_interface_duplex      = defined $parameter->{network_interface_duplex}      ? $parameter->{network_interface_duplex}      : "unknown";
@@ -4404,10 +4415,12 @@ sub insert_or_update_network_interfaces
 	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "";
 	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : 0;
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
+	my $timestamp                     = defined $parameter->{timestamp}                     ? $parameter->{timestamp}                     : $anvil->data->{sys}{database}{timestamp};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                          => $uuid, 
 		file                          => $file, 
 		line                          => $line, 
+		link_only                     => $link_only, 
 		network_interface_bond_uuid   => $network_interface_bond_uuid, 
 		network_interface_bridge_uuid => $network_interface_bridge_uuid, 
 		network_interface_duplex      => $network_interface_duplex, 
@@ -4471,6 +4484,12 @@ AND
 		$network_interface_uuid = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];
 		$network_interface_uuid = "" if not defined $network_interface_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
+		
+		if (($link_only) && (not $network_interface_uuid))
+		{
+			# Can't INSERT.
+			return("");
+		}
 	}
 	
 	# Now, if we're inserting or updating, we'll need to require different bits.
@@ -4536,7 +4555,36 @@ WHERE
 				old_network_interface_bridge_uuid => $old_network_interface_bridge_uuid,
 			}});
 			
-			# If the caller didn't pass some values, we'll treat the 
+			# If 'link_only' is set, we're only checking/updating a subset of values.
+			if ($link_only)
+			{
+				if (($network_interface_name        ne $old_network_interface_name)        or 
+				    ($network_interface_link_state  ne $old_network_interface_link_state)  or 
+				    ($network_interface_operational ne $old_network_interface_operational) or 
+				    ($network_interface_mac_address ne $old_network_interface_mac_address) or 
+				    ($network_interface_speed       ne $old_network_interface_speed))
+				{
+					# Update.
+					my $query = "
+UPDATE 
+    network_interfaces
+SET 
+    network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid).", 
+    network_interface_name        = ".$anvil->Database->quote($network_interface_name).", 
+    network_interface_link_state  = ".$anvil->Database->quote($network_interface_link_state).", 
+    network_interface_operational = ".$anvil->Database->quote($network_interface_operational).", 
+    network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address).", 
+    network_interface_speed       = ".$anvil->Database->quote($network_interface_speed).", 
+    modified_date                 = ".$anvil->Database->quote($timestamp)." 
+WHERE
+    network_interface_uuid        = ".$anvil->Database->quote($network_interface_uuid)."
+;";
+					$query =~ s/'NULL'/NULL/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($network_interface_uuid);
+			}
 			
 			# Anything to update? This is a little extra complicated because if a variable was
 			# not passed in, we want to not compare it.
@@ -7633,6 +7681,7 @@ sub resync_databases
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0221", variables => { 
 					to_write  => $anvil->Convert->add_commas({number => $to_write_count}),
+					table     => $table, 
 					host_name => $anvil->Get->host_name({host_uuid => $uuid}), 
 				}});
 				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $merged, source => $THIS_FILE, line => __LINE__});
