@@ -7,6 +7,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
+use Net::Netmask;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Network.pm";
@@ -22,6 +23,7 @@ my $THIS_FILE = "Network.pm";
 # is_local
 # load_interfces
 # load_ips
+# match_gateway
 # ping
 
 =pod
@@ -1945,11 +1947,85 @@ sub is_local
 	return($anvil->data->{cache}{is_local}{$host});
 }
 
-# =head3
-# 
-# Private Functions;
-# 
-# =cut
+=head2 match_gateway
+
+This takes a gateway and the IP address / subnet mask and sees if the gateway matches that network. If it does, it returns C<< 1 >>. If the gateway doesn't match the network, C<< 0 >> is returned.
+
+B<< Note >>: This can be used to test if any given IP is within subnet, of course. The name comes from the primary use of this method.
+
+Parameters
+
+=head3 gateway (required)
+
+This is the gateway IP address being analyzed.
+
+=head3 ip_address (required)
+
+This is the IP address that will be paired with the subnet mask to see if the gateway matches.
+
+=head3 subnet_mask (required)
+
+This is the subnet mask paired against the IP address used to check the gateway against.
+
+=cut
+sub match_gateway
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $gateway     = defined $parameter->{gateway}     ? $parameter->{gateway}     : "";
+	my $ip_address  = defined $parameter->{ip_address}  ? $parameter->{ip_address}  : "";
+	my $subnet_mask = defined $parameter->{subnet_mask} ? $parameter->{subnet_mask} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		gateway     => $gateway, 
+		ip_address  => $ip_address,
+		subnet_mask => $subnet_mask,
+	}});
+	
+	if (not $ip_address)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->match_gateway()", parameter => "ip_address" }});
+		return(0);
+	}
+	elsif (not $anvil->Validate->is_ipv4({ip => $ip_address}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0019", variables => { parameter => "ip_address", ip_address => $ip_address }});
+		return(0);
+	}
+	if (not $gateway)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->match_gateway()", parameter => "gateway" }});
+		return(0);
+	}
+	elsif (not $anvil->Validate->is_ipv4({ip => $gateway}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0019", variables => { parameter => "gateway", ip_address => $gateway }});
+		return(0);
+	}
+	if (not $subnet_mask)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->match_gateway()", parameter => "subnet_mask" }});
+		return(0);
+	}
+	elsif (not $anvil->Validate->is_subnet_mask({subnet_mask => $subnet_mask}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0020", variables => { parameter => "subnet_mask", subnet_mask => $subnet_mask }});
+		return(0);
+	}
+	
+	my $match = 0;
+	my $block = Net::Netmask->new($ip_address."/".$subnet_mask);
+	if ($block->match($gateway))
+	{
+		# This is a match!
+		$match = 1;
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { match => $match }});
+	return($match);
+}
 
 =head2 ping
 

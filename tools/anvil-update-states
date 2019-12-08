@@ -71,7 +71,7 @@ sub process_interface_cache
 		{
 			next if $line =~ /^#/;
 			my ($interface, $timestamp, $mac_address, $speed, $link_state, $operational) = (split/,/, $line);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				interface   => $interface, 
 				timestamp   => $timestamp, 
 				speed       => $speed, 
@@ -99,14 +99,14 @@ sub process_interface_cache
 					# seen. If so, the coming scan will add it and this cache should flush out 
 					# next time.
 					$anvil->data->{cache}{new_file} .= $line."\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::new_file" => $anvil->data->{cache}{new_file} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::new_file" => $anvil->data->{cache}{new_file} }});
 				}
 			}
 			else
 			{
 				# No database, re-cache
 				$anvil->data->{cache}{new_file} .= $line."\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::new_file" => $anvil->data->{cache}{new_file} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::new_file" => $anvil->data->{cache}{new_file} }});
 			}
 		}
 	}

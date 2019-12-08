@@ -987,9 +987,17 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0139"><![CDATA[<unchanged>]]></key>
 		<key name="striker_0140">Indicates when the last time the networks connected to this host were scanned. The scan is done to help find the IP addresses assigned to hosted servers and virtual machine equipment. The scan is a simple, sequential nmap ping scan in an attempt to be as non-invasive as possible. The frequency of these scans can be controlled by setting 'network-scan::scan-period' to a number of seconds (the current value is: [#!data!network-scan::scan-period!# seconds]).</key>
 		<key name="striker_0141">Configure the network interfaces for this host.</key>
-		<key name="striker_0142">This step renames the real network interfaces, pairs them into redundant bonds and creates brodges for connecting to hosted servers. IPs and host names are optional, and can be set when assembling this host into an Anvil! system.</key>
+		<key name="striker_0142"><![CDATA[This step renames the real network interfaces, pairs them into redundant bonds and creates bridges for connecting to hosted servers.<br /><br />IPs and host names are optional, and can be set when assembling this host into an Anvil! system later.]]></key>
 		<key name="striker_0143">If you would like to change the host name now, you can do so here. When adding this machine to an Anvil!, the host name will be set there as well making this optional.</key>
 		<key name="striker_0144">This is the network gateway used to access the outside world. We'll match it to the appropriate network interface.</key>
+		<key name="striker_0145">If left blank, the interface will be configured for DHCP.</key>
+		<key name="striker_0146">Confirm network configuration.</key>
+		<key name="striker_0147">If you confirm, the host will enter maintenance mode, reconfigure its network and reboot.</key>
+		<key name="striker_0148">Network Plan</key>
+		<key name="striker_0149">Network</key>
+		<key name="striker_0150">Address</key>
+		<key name="striker_0151">Bridged?</key>
+		<key name="striker_0152"><![CDATA[<dhcp>]]></key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1052,6 +1060,9 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="prefix_0001">[ Error ]   - </key>
 		<key name="prefix_0002">[ Warning ] - </key>
 		<key name="prefix_0003">[ Note ]    - </key>
+		<key name="prefix_0004">Error</key>
+		<key name="prefix_0005">Warning</key>
+		<key name="prefix_0006">Note</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -1129,23 +1140,27 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
 		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
 		
-		<!-- Warnings: TODO: Take 'striker_' off --> 
-		<key name="striker_warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
-		<key name="striker_warning_0002">The access information appears to not be valid.</key>
-		<key name="striker_warning_0003">Test access to the peer (using SSH) failed. There may be details in the log file.</key>
-		<key name="striker_warning_0004">Accessing the peer over SSH worked, but a test connection to the database failed.</key>
-		<key name="striker_warning_0005">There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
-		<key name="striker_warning_0006">An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
-		<key name="striker_warning_0007">The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
-		<key name="striker_warning_0008">Unable to find a local IP on the same subnet as the IP/host: [#!variable!host!#] given for the target. Bi-directional setup not currently possible.</key>
-		<key name="striker_warning_0009">The subtask request for manipulating the 'Install Target' feature is not valid. It should be 'enabled' or 'disabled'</key>	<!-- NOTE: 'enabled' and 'disabled' are variable values, don't translate them. -->
-		<key name="striker_warning_0010">The IP address is not a valid IPv4 address</key>
-		<key name="striker_warning_0011">The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
-		<key name="striker_warning_0012">Failed to log into the host. Is the IP or root user's password right?</key>
-		<key name="striker_warning_0013"><![CDATA[The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
-		<key name="striker_warning_0014">The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
-		<key name="striker_warning_0015">To configure a host as either an Anvil! node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
+		<!-- Warnings --> 
+		<key name="warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
+		<key name="warning_0002">The access information appears to not be valid.</key>
+		<key name="warning_0003">Test access to the peer (using SSH) failed. There may be details in the log file.</key>
+		<key name="warning_0004">Accessing the peer over SSH worked, but a test connection to the database failed.</key>
+		<key name="warning_0005">There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
+		<key name="warning_0006">An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
+		<key name="warning_0007">The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
+		<key name="warning_0008">Unable to find a local IP on the same subnet as the IP/host: [#!variable!host!#] given for the target. Bi-directional setup not currently possible.</key>
+		<key name="warning_0009">The subtask request for manipulating the 'Install Target' feature is not valid. It should be 'enabled' or 'disabled'</key>	<!-- NOTE: 'enabled' and 'disabled' are variable values, don't translate them. -->
+		<key name="warning_0010">The IP address: [#!variable!ip_address!#] is not a valid IPv4 address</key>
+		<key name="warning_0011">The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
+		<key name="warning_0012">Failed to log into the host. Is the IP or root user's password right?</key>
+		<key name="warning_0013"><![CDATA[The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
+		<key name="warning_0014">The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
+		<key name="warning_0015">To configure a host as either an Anvil! node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
 		<key name="warning_0016">No databases are available. Changes to the network interfaces will be cached.</key>
+		<key name="warning_0017">The subnet mask is not valid</key>
+		<key name="warning_0018">The IP address was specified, but the subnet mask was not</key>
+		<key name="warning_0019">The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
+		<key name="warning_0020">The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

@@ -63,11 +63,13 @@
 							<tr>
 								<td colspan="5" class="form_group_header1">
 									#!variable!field!#:
+									<input type="hidden" name="#!variable!network_name!#_create_bridge" id="#!variable!network_name!#_create_bridge" value="#!variable!create_bridge!#">
 								</td>
 							</tr>
 							<tr>
 								<td colspan="5" class="form_group_header2">
-									#!variable!description!#
+									#!variable!description!#<br />
+									<span class="notice">#!string!prefix_0006!#</span>: #!string!striker_0145!#
 								</td>
 							</tr>
 							<tr>
@@ -76,7 +78,6 @@
 								</td>
 								<td>
 									<input type="text" name="#!variable!ip_key!#" id="#!variable!ip_key!#" value="#!variable!ip_value!#" placeholder="#!string!striker_0024!#" class="#!variable!ip_class!#">
-									<input type="hidden" name="#!variable!ip_key!#_default" id="#!variable!ip_key!#_default" value="#!variable!ip_value_default!#">
 								</td>
 								<td>
 									&nbsp;
@@ -94,7 +95,6 @@
 								</td>
 								<td>
 									<input type="text" name="#!variable!subnet_mask_key!#" id="#!variable!subnet_mask_key!#" value="#!variable!subnet_mask_value!#" placeholder="#!string!striker_0025!#" class="#!variable!subnet_mask_class!#">
-									<input type="hidden" name="#!variable!subnet_mask_key!#_default" id="#!variable!subnet_mask_key!#_default" value="#!variable!subnet_mask_value_default!#">
 								</td>
 								<td>
 									&nbsp;
@@ -199,20 +199,154 @@
 								<input type="submit" name="next" id="next" class="button" value="#!string!striker_0013!#">
 							</td>
 						</tr>
+						<input type="hidden" name="host_uuid" id="host_uuid" value="#!variable!host_uuid!#">
 						<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
 						<input type="hidden" name="sn_count"  id="sn_count"  value="#!variable!sn_count!#">
 						<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
-						<input type="hidden" name="step"      id="step"      value="step2">
+						<input type="hidden" name="save"      id="save"      value="true">
+						<input type="hidden" name="anvil"     id="anvil"     value="true">
+						<input type="hidden" name="task"      id="task"      value="prep-network">
 						</form>
 						</div>
 					</table>
 				</td>
 			</tr>
-			<input type="hidden" name="anvil" id="anvil" value="1">
-			<input type="hidden" name="task"  id="task"  value="prep-host">
 			</form>
 		</table>
 <!-- end config-network-main -->
+
+<!-- start config-network-confirm -->
+		<table align="center" class="anvil_main_menu">
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2" class="title">
+					#!string!striker_0146!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					#!string!striker_0147!#
+				</td>
+			</tr>
+			<form name="host_setup" action="" method="post">
+			<tr>
+				<td colspan="2">
+					<hr>
+				</td>
+			</tr>
+			<form name="network_config_confirm" action="" method="post">
+			<tr>
+				<td>
+					#!string!striker_0016!#
+				</td>
+				<td>
+					#!variable!host_name!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table width="100%">
+						<div id="network_plan">
+						<tr>
+							<td width="75%" style="vertical-align: top;">
+								<table>
+									<tr>
+										<td colspan="5">
+											<!-- Network Plan -->
+											#!string!striker_0148!#
+										</td>
+									</tr>
+									<tr>
+										<td>
+											<!-- Network Name -->
+											#!string!striker_0149!#
+										</td>
+										<td>
+											<!-- Primary Interface -->
+											#!string!striker_0029!#
+										</td>
+										<td>
+											<!-- Secondary Interface -->
+											#!string!striker_0030!#
+										</td>
+										<td>
+											<!-- Primary IP Address/Subnet (or DHCP) -->
+											#!string!striker_0150!#
+										</td>
+										<td>
+											<!-- Bridge? -->
+											#!string!striker_0151!#
+										</td>
+									</tr>
+									#!variable!interfaces!#
+								</table>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<br />
+								<hr>
+								<input type="button" name="back" id="back" class="button" value="#!string!striker_0098!#">
+							</td>
+							<td>
+								<br />
+								<hr>
+								<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
+							</td>
+						</tr>
+						<input type="hidden" name="host_uuid" id="host_uuid" value="#!variable!host_uuid!#">
+						<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
+						<input type="hidden" name="sn_count"  id="sn_count"  value="#!variable!sn_count!#">
+						<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
+						<input type="hidden" name="save"      id="save"      value="true">
+						<input type="hidden" name="anvil"     id="anvil"     value="true">
+						<input type="hidden" name="task"      id="task"      value="prep-network">
+						</form>
+						</div>
+					</table>
+				</td>
+			</tr>
+			</form>
+		</table>
+<!-- end config-network-confirm -->
+
+<!-- start interface-entry -->
+									<tr>
+										<td>
+											<!-- Network Name -->
+											#!variable!network!#
+											<input type="hidden" id="#!variable!network!#_network" value="#!variable!network!#" />
+										</td>
+										<td>
+											<!-- Primary Interface -->
+											#!variable!primary!#
+											<input type="hidden" id="#!variable!link1_key!#" value="#!variable!link1_value!#" />
+										</td>
+										<td>
+											<!-- Secondary Interface -->
+											#!variable!secondary!#
+											<input type="hidden" id="#!variable!link2_key!#" value="#!variable!link2_value!#" />
+										</td>
+										<td>
+											<!-- Primary IP Address/Subnet (or DHCP) -->
+											#!variable!ip_address!#
+											<input type="hidden" id="#!variable!link2_key!#" value="#!variable!link2_value!#" />
+										</td>
+										<td>
+											<!-- Bridge? -->
+											#!variable!bridge!#
+										</td>
+									</tr>
+<!-- end interface-entry -->
 
 <!-- start prep-host-main -->
 		<table align="center" class="anvil_main_menu">

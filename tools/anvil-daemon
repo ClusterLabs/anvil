@@ -1293,7 +1293,7 @@ sub run_jobs
 					if ($anvil->data->{lost_job_count}{$job_uuid} > 5)
 					{
 						# The previous job is gone, but the job isn't finished. Start it again.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "striker_warning_0007", variables => { 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0007", variables => { 
 							command => $job_command,
 							pid     => $job_picked_up_by,
 							percent => $job_progress, 

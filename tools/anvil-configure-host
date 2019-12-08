@@ -47,7 +47,7 @@ if (($< != 0) && ($> != 0))
 }
 
 # Connect
-$anvil->Database->connect;
+$anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0031"});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
@@ -72,7 +72,7 @@ $anvil->Database->insert_or_update_variables({
 	variable_default      => "", 
 	variable_description  => "striker_0048", 
 	variable_section      => "system", 
-	variable_source_uuid  => $anvil->Get->host_uuid, 
+	variable_source_uuid  => $anvil->data->{sys}{host_uuid}, 
 	variable_source_table => "hosts", 
 });
 
@@ -813,7 +813,7 @@ LIKE
 AND 
     variable_source_table = 'hosts' 
 AND 
-    variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+    variable_source_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	

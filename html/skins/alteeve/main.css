@@ -381,6 +381,12 @@ tr.data_row {
 	font-size:  0.9em;
 }
 
+.notice {
+	font-size:   1.0em;
+	font-weight: bold;
+	font-style:  italic;
+}
+
 .warning {
 	color:      #dc9012;
 	font-size:  1.1em;

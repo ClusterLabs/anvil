@@ -725,6 +725,7 @@ sub process_prep_network
 		$anvil->data->{cgi}{task}{value} = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::task::value" => $anvil->data->{cgi}{task}{value} }});
 		process_anvil_menu($anvil);
+		return(0);
 	}
 	
 	# Pull the host's data out of the JSON file.
@@ -733,7 +734,7 @@ sub process_prep_network
 	my $host_name = "";
 	foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"cgi::host_uuid::value"                       => $anvil->data->{cgi}{host_uuid}{value},
 			"json::all_status::hosts::${host}::host_uuid" => $anvil->data->{json}{all_status}{hosts}{$host}{host_uuid},
 		}});
@@ -741,21 +742,242 @@ sub process_prep_network
 		{
 			# Found it.
 			$host_name = $host;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_name => $host_name }});
 			last;
 		}
 	}
-	
 	if (not $host_name)
 	{
 		# Didn't find it.
-		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0014", variables => { host_uuid => $anvil->data->{cgi}{host_uuid}{value} } }) }});
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0014", variables => { host_uuid => $anvil->data->{cgi}{host_uuid}{value} } }) }});
 		$anvil->data->{cgi}{task}{value}    = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"cgi::task::value"    => $anvil->data->{cgi}{task}{value},
 			"form::error_massage" => $anvil->data->{form}{error_massage}, 
 		}});
 		process_anvil_menu($anvil);
+		return(0);
+	}
+	
+	# Are we saving?
+	if ($anvil->data->{cgi}{save}{value} eq "true")
+	{
+		# Is the form sane?
+		my $sane = 1;
+		
+		# Not yet, ask the user to confirm.
+		my $interfaces        = "";
+		my $error             = 0;
+		my $gateway_interface = "";
+		if ($anvil->data->{cgi}{gateway}{value})
+		{
+			# Is if valid?
+			if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{gateway}{value}}))
+			{
+				# Bad IP
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0010", variables => { ip_address => $anvil->data->{cgi}{gateway}{value} }}) }});
+				$anvil->data->{cgi}{gateway}{alert} = 1;
+			}
+		}
+		if ($anvil->data->{cgi}{dns}{value})
+		{
+			foreach my $dns (split/,/, $anvil->data->{cgi}{dns}{value})
+			{
+				$dns =~ s/^\s+//;
+				$dns =~ s/\s+$//;
+				if (not $anvil->Validate->is_ipv4({ip => $dns}))
+				{
+					# Bad IP
+					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0010", variables => { ip_address => $anvil->data->{cgi}{dns}{value} }}) }});
+					$anvil->data->{cgi}{dns}{alert} = 1;
+				}
+				last if $anvil->data->{cgi}{dns}{alert};
+			}
+		}
+		foreach my $network ("bcn", "sn", "ifn")
+		{
+			my $count_key = $network."_count";
+			my $loops     = $anvil->data->{cgi}{$count_key}{value};
+			foreach my $i (1..$loops)
+			{
+				my $bridge_key  = $network.$i."_create_bridge";
+				my $ip_key      = $network.$i."_ip";
+				my $subnet_key  = $network.$i."_subnet_mask";
+				my $link1_key   = $network.$i."_link1_mac_to_set";
+				my $link2_key   = $network.$i."_link2_mac_to_set";
+				my $say_network = $anvil->Words->string({key => "striker_0018", variables => { number => $i }});
+				if ($network eq "sn")
+				{
+					$say_network = $anvil->Words->string({key => "striker_0020", variables => { number => $i }});
+				}
+				elsif ($network eq "ifn")
+				{
+					$say_network = $anvil->Words->string({key => "striker_0022", variables => { number => $i }});
+				}
+				my $link1_interface = "";
+				my $link2_interface = "";
+				foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}})
+				{
+					my $mac_address = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface}{mac_address};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						interface   => $interface,
+						mac_address => $mac_address, 
+					}});
+					if ($mac_address eq $anvil->data->{cgi}{$link1_key}{value})
+					{
+						$link1_interface = $interface;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_interface => $link1_interface }});
+					}
+					elsif ($mac_address eq $anvil->data->{cgi}{$link2_key}{value})
+					{
+						$link2_interface = $interface;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link2_interface => $link2_interface }});
+					}
+					last if (($link1_interface) && ($link2_interface));
+				}
+				my $say_bridge = "#!string!unit_0002!#";
+				if ($anvil->data->{cgi}{$bridge_key}{value})
+				{
+					# We're making a bridge.
+					$say_bridge = "#!string!unit_0001!#";
+				}
+				my $say_ip_address = "#!string!striker_0152!#";
+				if (($anvil->data->{cgi}{$ip_key}{value}) && (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$ip_key}{value}})))
+				{
+					# Bad IP
+					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0010", variables => { ip_address => $anvil->data->{cgi}{$ip_key}{value} }}) }});
+					$anvil->data->{cgi}{$ip_key}{alert} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"form::error_massage"   => $anvil->data->{form}{error_massage},
+						"cgi::${ip_key}::alert" => $anvil->data->{cgi}{$ip_key}{alert}, 
+					}});
+				}
+				elsif (($anvil->data->{cgi}{$subnet_key}{value}) && (not $anvil->Validate->is_subnet_mask({subnet_mask => $anvil->data->{cgi}{$subnet_key}{value}})))
+				{
+					# Bad subnet
+					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0017"}) }});
+					$anvil->data->{cgi}{$subnet_key}{alert} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"form::error_massage"       => $anvil->data->{form}{error_massage},
+						"cgi::${subnet_key}::alert" => $anvil->data->{cgi}{$subnet_key}{alert}, 
+					}});
+				}
+				elsif (($anvil->data->{cgi}{$ip_key}{value}) && (not $anvil->data->{cgi}{$subnet_key}{value}))
+				{
+					# IP without a subnet
+					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0018"}) }});
+					$anvil->data->{cgi}{$subnet_key}{alert} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"form::error_massage"       => $anvil->data->{form}{error_massage},
+						"cgi::${subnet_key}::alert" => $anvil->data->{cgi}{$subnet_key}{alert}, 
+					}});
+				}
+				else
+				{
+					$say_ip_address = $anvil->data->{cgi}{$ip_key}{value}."/".$anvil->data->{cgi}{$subnet_key}{value};
+					
+					# Is this the network with the subnet mask?
+					if ((not $gateway_interface)                  && 
+						($anvil->data->{cgi}{gateway}{value})     && 
+						(not $anvil->data->{cgi}{gateway}{alert}) && 
+						($anvil->data->{cgi}{$ip_key}{value}))
+					{
+						my $match = $anvil->Network->match_gateway({
+							ip_address  => $anvil->data->{cgi}{$ip_key}{value},
+							subnet_mask => $anvil->data->{cgi}{$subnet_key}{value}, 
+							gateway     => $anvil->data->{cgi}{gateway}{value},
+						});
+						
+						# Found the match!
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
+						if ($match)
+						{
+							$say_ip_address .= ", #!string!striker_0026!#: ".$anvil->data->{cgi}{$bridge_key}{value};
+							
+							# DNS?
+							if (($anvil->data->{cgi}{dns}{value}) && (not $anvil->data->{cgi}{dns}{alert}))
+							{
+								$say_ip_address .= ", #!string!striker_0037!#: ".$anvil->data->{cgi}{dns}{value};
+							}
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${bridge_key}::value" => $anvil->data->{cgi}{$bridge_key}{value} }});
+							if ($anvil->data->{cgi}{$bridge_key}{value})
+							{
+								$gateway_interface = $network.$i."_bridge1";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_interface => $gateway_interface }});
+							}
+							else
+							{
+								$gateway_interface = $network.$i."_bond1";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_interface => $gateway_interface }});
+							}
+						}
+					}
+				}
+				
+				$interfaces .= $anvil->Template->get({file => "anvil.html", name => "interface-entry", variables => {
+					network     => $say_network, 
+					primary     => $link1_interface." (".$anvil->data->{cgi}{$link1_key}{value}.")",
+					link1_key   => $link1_key,
+					link1_value => $anvil->data->{cgi}{$link1_key}{value},
+					secondary   => $link2_interface." (".$anvil->data->{cgi}{$link2_key}{value}.")",
+					link2_key   => $link2_key,
+					link2_value => $anvil->data->{cgi}{$link2_key}{value},
+					bridge      => $say_bridge, 
+				}});
+
+			}
+		}
+		
+		# Did we see an error?
+		if ($anvil->data->{form}{error_massage})
+		{
+			$sane = 0;
+		}
+		
+		# Confirmed?
+		$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
+		if (($anvil->data->{cgi}{confirm}{value}) && ($sane))
+		{
+			# Yes, save the job.
+			
+=cut
+2019/12/05 20:43:15:Get.pm:394; cgi::next::value ............... : [Next]
+2019/12/05 20:43:15:Get.pm:394; cgi::step::value ............... : [step2]
+
+                  variable_name                   |     variable_value      
+--------------------------------------------------+-------------------------
+ form::config_step2::hostname::value              | m3-striker01.digimer.ca
+ form::config_step2::dns::value                   | 8.8.8.8, 8.8.4.4
+ form::config_step2::ifn1_link1_mac_to_set::value | 52:54:00:9d:91:8a
+ form::config_step2::gateway_interface::value     | ifn1
+ form::config_step2::striker_user::value          | admin
+ form::config_step2::ifn1_subnet::value           | 255.255.0.0
+ form::config_step2::bcn1_link1_mac_to_set::value | 52:54:00:8b:a0:a3
+ form::config_step2::gateway::value               | 10.255.255.254
+ form::config_step2::ifn1_ip::value               | 10.255.14.1
+ form::config_step2::bcn1_ip::value               | 10.20.14.1
+ form::config_step2::bcn1_subnet::value           | 255.255.0.0
+ form::config_step2::striker_password::value      | super secret password
+ form::config_step1::organization::value          | Madison Kelly
+ form::config_step1::sequence::value              | 1
+ form::config_step1::domain::value                | digimer.ca
+ form::config_step1::prefix::value                | m3
+ form::config_step1::ifn_count::value             | 1
+=cut
+		}
+		else
+		{
+			# Show the confirmation box.
+			$anvil->data->{form}{back_link} =  $anvil->data->{sys}{cgi_string};
+			$anvil->data->{form}{back_link} =~ s/step=step2//;
+			$anvil->data->{form}{body}      =  $anvil->Template->get({file => "anvil.html", name => "config-network-confirm", variables => {
+				host_name  => $host_name,
+				host_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
+				interfaces => $interfaces, 
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+			return(0);
+		}
 	}
 	
 	# How many actual interfaces do we have? We need at least six. For each two above that, we'll add an 
@@ -765,7 +987,7 @@ sub process_prep_network
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}})
 	{
 		# if any interfaces are called 'virbrX-nic', ignore it as it will be removed. Likewise, ignore any 'vnetX' devices.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface => $interface }});
 		if (($interface =~ /^virbr\d+-nic/) or ($interface =~ /^vnet\d+/))
 		{
 			# Ignore it.
@@ -774,27 +996,23 @@ sub process_prep_network
 		
 		# Store the mac used in the select box
 		my $mac_address = $anvil->data->{json}{all_status}{hosts}{$host_name}{network_interface}{interface}{$interface}{mac_address};
-		push @{$interface_options}, $mac_address."#!#".$mac_address." (".$interface.")";
+		push @{$interface_options}, $mac_address."#!#".$interface." (".$mac_address.")";
 		
 		# Store the mac address .
 		$interfaces->{$interface} = $mac_address;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "interfaces->{".$interface."}" => $interfaces->{$interface} }});
-	}
-	
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{interfaces}})
-	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "interfaces->{".$interface."}" => $interfaces->{$interface} }});
 	}
 	
 	# Get the interface count
 	my $interface_count = keys %{$interfaces};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface_count => $interface_count }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface_count => $interface_count }});
 	
 	if ($interface_count < 6)
 	{
 		# Not enough interfaces.
-		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0015", variables => { interface_count => $interface_count } }) }});
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0015", variables => { interface_count => $interface_count } }) }});
 		$anvil->data->{cgi}{task}{value}    = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"cgi::task::value"    => $anvil->data->{cgi}{task}{value},
 			"form::error_massage" => $anvil->data->{form}{error_massage}, 
 		}});
@@ -807,7 +1025,7 @@ sub process_prep_network
 	my $sn_pair_count  = 1;
 	my $ifn_pair_count = int(($interface_count - 4) / 2);
 	   $ifn_pair_count = 1 if $ifn_pair_count < 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		bcn_pair_count => $bcn_pair_count,
 		sn_pair_count  => $sn_pair_count,
 		ifn_pair_count => $ifn_pair_count,
@@ -818,7 +1036,7 @@ sub process_prep_network
 	#       until set during the Anvil! build later.
 	foreach my $network ("bcn", "sn", "ifn")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network => $network }});
 		my $name_key        = "";
 		my $description_key = "";
 		my $count           = 1;
@@ -840,7 +1058,7 @@ sub process_prep_network
 			$description_key = "striker_0023";
 			$count           = $ifn_pair_count;
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			name_key        => $name_key,
 			description_key => $description_key,
 			count           => $count,
@@ -856,7 +1074,7 @@ sub process_prep_network
 			my $this_subnet_mask_class = $anvil->data->{cgi}{$this_subnet_mask_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface1_class      = $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear";
 			my $this_iface2_class      = $anvil->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				this_ip_key            => $this_ip_key,
 				this_subnet_mask_key   => $this_subnet_mask_key,
 				this_iface1_key        => $this_iface1_key, 
@@ -873,6 +1091,7 @@ sub process_prep_network
 				name     => $this_iface1_key,
 				options  => $interface_options,
 				blank    => 1,
+				'sort'   => 0,
 				selected => defined $anvil->data->{cgi}{$this_iface1_key}{value} ? $anvil->data->{cgi}{$this_iface1_key}{value} : "",
 				class    => $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear",
 			});
@@ -880,6 +1099,7 @@ sub process_prep_network
 				name     => $this_iface2_key,
 				options  => $interface_options,
 				blank    => 1,
+				'sort'   => 0,
 				selected => defined $anvil->data->{cgi}{$this_iface2_key}{value} ? $anvil->data->{cgi}{$this_iface2_key}{value} : "",
 				class    => $anvil->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear",
 			});
@@ -898,6 +1118,8 @@ sub process_prep_network
 				subnet_mask_class         => $this_subnet_mask_class,
 				iface1_select             => $this_iface1_form,
 				iface2_select             => $this_iface2_form,
+				network_name              => $network.$i, 
+				create_bridge             => $network eq "sn" ? 0 : 1,
 			}});
 		}
 	}
@@ -952,7 +1174,11 @@ sub process_prep_network
 		gateway_form   => $say_gateway,
 		dns_form       => $say_dns,
 		host_name_form => $say_host_name,
-		host_name      => $host_name,     # This is the current host name, used to find the data in the all_status.json
+		bcn_count      => $bcn_pair_count,
+		sn_count       => $sn_pair_count,
+		ifn_count      => $ifn_pair_count,
+		host_uuid      => $anvil->data->{cgi}{host_uuid}{value},
+		host_name      => $host_name,       # This is the current host name, used to find the data in the all_status.json
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
@@ -1054,12 +1280,12 @@ sub process_prep_host_page
 		if (not $anvil->Validate->is_ipv4({ip => $host_ip_address}))
 		{
 			# Bad IP
-			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0010"}) }});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0010", variables => { ip_address => $host_ip_address }}) }});
 		}
 		elsif (($ssh_port < 1) or ($ssh_port > 65535))
 		{
 			# Bad port
-			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0011"}) }});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0011"}) }});
 		}
 		else
 		{
@@ -1171,7 +1397,7 @@ sub process_prep_host_page
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_line => $bad_line }});
 						}
 					}
-					my $error_message = $anvil->Words->string({key => "striker_warning_0013", variables => { 
+					my $error_message = $anvil->Words->string({key => "warning_0013", variables => { 
 						file => $bad_file, 
 						line => $bad_line, 
 					}});
@@ -1181,12 +1407,12 @@ sub process_prep_host_page
 				else
 				{
 					# Nope, some other issue
-					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0012"}) }});
+					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0012"}) }});
 				}
 			}
 			elsif (not $target_host_uuid)
 			{
-				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $target_host_uuid }}) }});
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0005", variables => { uuid => $target_host_uuid }}) }});
 			}
 			else
 			{
@@ -1300,7 +1526,7 @@ sub process_install_target
 	else
 	{
 		# Just ignore it, someone's mucking with the subask value.
-		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0009"}) }});
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0009"}) }});
 	}
 	
 	return(0);
@@ -1757,7 +1983,7 @@ sub add_sync_peer
 	if (((not $is_domain) && (not $is_ipv4)) or ($pgsql_port < 1) or ($pgsql_port > 65536))
 	{
 		# Bad host.
-		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0002"}) }});
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0002"}) }});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"form::error_massage" => $anvil->data->{form}{error_massage},
 		}});
@@ -1788,7 +2014,7 @@ sub add_sync_peer
 		
 		if ((not $connected) or (not $peer_host_uuid))
 		{
-			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0005", variables => { uuid => $peer_host_uuid }}) }});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0005", variables => { uuid => $peer_host_uuid }}) }});
 		}
 		
 		# Lastly, if bi-directional is set, make sure we have a way to talk to it.
@@ -1802,7 +2028,7 @@ sub add_sync_peer
 			if ((not $use_ip) or ($use_ip eq "!!error!!"))
 			{
 				# Can't do bi-directional
-				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0008", variables => { host => $host }}) }});
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0008", variables => { host => $host }}) }});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"form::error_massage" => $anvil->data->{form}{error_massage},
 				}});
@@ -1834,7 +2060,7 @@ sub add_sync_peer
 		if ($db_access ne "1")
 		{
 			# Failed to connect.
-			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0004"}) }});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0004"}) }});
 		}
 		
 		# Delete the pgpass file.
@@ -2216,7 +2442,7 @@ ORDER BY
 	# If the IP is going to change, warn the user.
 	if (not $matched_ip)
 	{
-		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "striker_warning_0001"}) }});
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0001"}) }});
 	}
 	
 	# We don't need to store anything as hidden variables, we'll read it back from the database later.
@@ -2225,7 +2451,7 @@ ORDER BY
 		step1_welcome_message_id => "",
 		organization             => $anvil->data->{cgi}{organization}{value},
 		prefix                   => $anvil->data->{cgi}{prefix}{value},
-		host_name                 => $anvil->data->{cgi}{host_name}{value},
+		host_name                => $anvil->data->{cgi}{host_name}{value},
 		striker_user             => $anvil->data->{cgi}{striker_user}{value},
 		striker_password         => $anvil->data->{cgi}{striker_password}{value},
 		networks                 => $networks,
@@ -2304,7 +2530,7 @@ ORDER BY
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{interfaces}})
 	{
 		my $this_mac = $anvil->data->{interfaces}{$interface}{mac};
-		push @{$interface_options}, $this_mac."#!#".$this_mac." (".$interface.")";
+		push @{$interface_options}, $this_mac."#!#".$interface." (".$this_mac.")";
 	}
 	
 	my $problem        = 0;
@@ -2337,6 +2563,7 @@ ORDER BY
 				name     => $this_iface1_key,
 				options  => $interface_options,
 				blank    => 1,
+				'sort'   => 0,
 				selected => defined $anvil->data->{cgi}{$this_iface1_key}{value} ? $anvil->data->{cgi}{$this_iface1_key}{value} : "",
 				class    => $anvil->data->{cgi}{$this_iface1_key}{alert} ? "input_alert" : "input_clear",
 			});
@@ -2344,6 +2571,7 @@ ORDER BY
 				name     => $this_iface2_key,
 				options  => $interface_options,
 				blank    => 1,
+				'sort'   => 0,
 				selected => defined $anvil->data->{cgi}{$this_iface2_key}{value} ? $anvil->data->{cgi}{$this_iface2_key}{value} : "",
 				class    => $anvil->data->{cgi}{$this_iface2_key}{alert} ? "input_alert" : "input_clear",
 			});
