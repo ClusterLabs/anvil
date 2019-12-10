@@ -193,9 +193,7 @@
 							</td>
 						</tr>
 						<tr>
-							<td colspan="2">
-								<br />
-								<hr>
+							<td colspan="2" class="column_row_value_right">
 								<input type="submit" name="next" id="next" class="button" value="#!string!striker_0013!#">
 							</td>
 						</tr>
@@ -216,7 +214,7 @@
 <!-- end config-network-main -->
 
 <!-- start config-network-confirm -->
-		<table align="center" class="anvil_main_menu">
+		<table align="center" width="75%">
 			<tr>
 				<td colspan="2">
 					&nbsp;
@@ -243,107 +241,106 @@
 					<hr>
 				</td>
 			</tr>
-			<form name="network_config_confirm" action="" method="post">
-			<tr>
-				<td>
-					#!string!striker_0016!#
-				</td>
-				<td>
-					#!variable!host_name!#
-				</td>
-			</tr>
 			<tr>
 				<td colspan="2">
-					<table width="100%">
+					<table class="centered">
+						<form name="network_config_confirm" action="" method="post">
 						<div id="network_plan">
 						<tr>
-							<td width="75%" style="vertical-align: top;">
-								<table>
+							<td colspan="2">
+								<!-- Network Plan -->
+								#!string!striker_0148!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" style="vertical-align: top;">
+								<table class="data_table_nowrap">
 									<tr>
-										<td colspan="5">
-											<!-- Network Plan -->
-											#!string!striker_0148!#
-										</td>
-									</tr>
-									<tr>
-										<td>
+										<td class="column_header">
 											<!-- Network Name -->
-											#!string!striker_0149!#
+											#!string!striker_0149!# &nbsp; 
 										</td>
-										<td>
+										<td class="column_header">
 											<!-- Primary Interface -->
-											#!string!striker_0029!#
+											 &nbsp; #!string!striker_0029!# &nbsp; 
 										</td>
-										<td>
+										<td class="column_header">
 											<!-- Secondary Interface -->
-											#!string!striker_0030!#
+											 &nbsp; #!string!striker_0030!# &nbsp; 
 										</td>
-										<td>
+										<td class="column_header">
 											<!-- Primary IP Address/Subnet (or DHCP) -->
-											#!string!striker_0150!#
+											 &nbsp; #!string!striker_0150!# &nbsp; 
 										</td>
-										<td>
+										<td class="column_header">
 											<!-- Bridge? -->
-											#!string!striker_0151!#
+											 &nbsp; #!string!striker_0151!#
 										</td>
 									</tr>
-									#!variable!interfaces!#
+#!variable!interfaces!#
+									<tr>
+										<td class="column_header">
+											#!string!striker_0016!#:
+										</td>
+										<td colspan="4" class="column_row_value_fixed">
+											 &nbsp; #!variable!host_name!#
+										</td>
+									</tr>
 								</table>
 							</td>
 						</tr>
 						<tr>
-							<td>
+							<td class="column_row_value">
 								<br />
-								<hr>
-								<input type="button" name="back" id="back" class="button" value="#!string!striker_0098!#">
+								<input type="submit" name="back" id="back" class="button" value="#!string!striker_0098!#">
 							</td>
-							<td>
+							<td class="column_row_value_right">
 								<br />
-								<hr>
 								<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
 							</td>
 						</tr>
-						<input type="hidden" name="host_uuid" id="host_uuid" value="#!variable!host_uuid!#">
-						<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#">
-						<input type="hidden" name="sn_count"  id="sn_count"  value="#!variable!sn_count!#">
-						<input type="hidden" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#">
-						<input type="hidden" name="save"      id="save"      value="true">
-						<input type="hidden" name="anvil"     id="anvil"     value="true">
-						<input type="hidden" name="task"      id="task"      value="prep-network">
+						<input type="hidden" name="host_uuid"         id="host_uuid"         value="#!variable!host_uuid!#">
+						<input type="hidden" name="bcn_count"         id="bcn_count"         value="#!variable!bcn_count!#">
+						<input type="hidden" name="sn_count"          id="sn_count"          value="#!variable!sn_count!#">
+						<input type="hidden" name="ifn_count"         id="ifn_count"         value="#!variable!ifn_count!#">
+						<input type="hidden" name="gateway_interface" id="gateway_interface" value="#!variable!gateway_interface!#">
+						<input type="hidden" name="save"              id="save"              value="true">
+						<input type="hidden" name="anvil"             id="anvil"             value="true">
+						<input type="hidden" name="task"              id="task"              value="prep-network">
 						</form>
 						</div>
 					</table>
 				</td>
 			</tr>
-			</form>
 		</table>
 <!-- end config-network-confirm -->
 
 <!-- start interface-entry -->
 									<tr>
-										<td>
+										<td class="column_row_value">
 											<!-- Network Name -->
-											#!variable!network!#
-											<input type="hidden" id="#!variable!network!#_network" value="#!variable!network!#" />
+											#!variable!network!# &nbsp; 
 										</td>
-										<td>
+										<td class="column_row_value_fixed">
 											<!-- Primary Interface -->
-											#!variable!primary!#
-											<input type="hidden" id="#!variable!link1_key!#" value="#!variable!link1_value!#" />
+											 &nbsp; #!variable!primary!# &nbsp; 
+											<input type="hidden" name="#!variable!link1_key!#" id="#!variable!link1_key!#" value="#!variable!link1_value!#" />
 										</td>
-										<td>
+										<td class="column_row_value_fixed">
 											<!-- Secondary Interface -->
-											#!variable!secondary!#
-											<input type="hidden" id="#!variable!link2_key!#" value="#!variable!link2_value!#" />
+											 &nbsp; #!variable!secondary!# &nbsp; 
+											<input type="hidden" name="#!variable!link2_key!#" id="#!variable!link2_key!#" value="#!variable!link2_value!#" />
 										</td>
-										<td>
+										<td class="column_row_value_fixed">
 											<!-- Primary IP Address/Subnet (or DHCP) -->
-											#!variable!ip_address!#
-											<input type="hidden" id="#!variable!link2_key!#" value="#!variable!link2_value!#" />
+											 &nbsp; #!variable!say_ip!# &nbsp; 
+											<input type="hidden" name="#!variable!ip_key!#"     id="#!variable!ip_key!#"     value="#!variable!ip_address!#" />
+											<input type="hidden" name="#!variable!subnet_key!#" id="#!variable!subnet_key!#" value="#!variable!subnet_mask!#" />
 										</td>
-										<td>
+										<td class="column_row_value">
 											<!-- Bridge? -->
-											#!variable!bridge!#
+											 &nbsp; #!variable!bridge!#
+											<input type="hidden" name="#!variable!bridge_key!#" id="#!variable!bridge_key!#" value="#!variable!bridge_value!#" />
 										</td>
 									</tr>
 <!-- end interface-entry -->

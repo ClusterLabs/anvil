@@ -60,9 +60,9 @@ y = Device Type.
     1. Switches
     2. PDUs
     3. UPSes
-    4. Switches
-    5. Strikers
-    6. Striker IPMI (BCN only)
+    4. Strikers
+    5. Striker IPMI (BCN only)
+    
     Anvil! systems;
     1st - 10 = Node IP
           11 = Node IPMI
@@ -74,7 +74,7 @@ y = Device Type.
 
 z = Device Sequence
     - Foundation pack devices are simple sequence
-    - Anvils; .1 = node 1, .2 = node 2
+    - Anvils; .1 = node 1, .2 = node 2, .3 = dr
 
 ====
 

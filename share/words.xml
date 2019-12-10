@@ -997,7 +997,15 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0149">Network</key>
 		<key name="striker_0150">Address</key>
 		<key name="striker_0151">Bridged?</key>
-		<key name="striker_0152"><![CDATA[<dhcp>]]></key>
+		<key name="striker_0152"><![CDATA[<span class="notice">dhcp</span>]]></key>
+		<key name="striker_0153">IP address for: [#!variable!say_network!#]</key>
+		<key name="striker_0154">Subnet mask for: [#!variable!say_network!#]</key>
+		<key name="striker_0155">The network interface that connects to the default gateway.</key>
+		<key name="striker_0156">This is the primary network interface. All things being equal, this is the interface that network traffic will travel over.</key>
+		<key name="striker_0157">This is the secondary network interface. Network traffic will switch over to this interface if there is a problem detected with the primary interface.</key>
+		<key name="striker_0158">If set, a bridge will be created on this network, allowing hosted servers to use this network.</key>
+		<key name="striker_0159">This is the host name for the target system.</key>
+		<key name="striker_0160">The network will use DHCP to attempt to get an IP address.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1161,6 +1169,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0018">The IP address was specified, but the subnet mask was not</key>
 		<key name="warning_0019">The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
 		<key name="warning_0020">The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
+		<key name="warning_0021">All three networks require the first network pair to be defined.</key>
+		<key name="warning_0022">Only one network interface selected for a network pair.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

@@ -293,6 +293,11 @@ table.data_table_nowrap {
 	white-space:   nowrap;
 }
 
+table.centered {
+	margin-left:   auto; 
+	margin-right:  auto;
+}
+
 td {
 	padding:         0;
 	border-collapse: collapse;
@@ -317,17 +322,25 @@ td.column_row_name {
 }
 
 td.column_row_value {
-	text-align: left;
+	text-align:     left;
+	color:          #f7f7f7;
+	padding:        0.2em;
+	vertical-align: top;
+}
+
+td.column_row_value_right {
+	text-align: right;
 	color:      #f7f7f7;
 	padding:    0.2em;
 }
 
 td.column_row_value_fixed {
-	text-align:  left;
-	color:       #f7f7f7;
-	font-family: 'Dejavu Sans Mono', Courier;
-	padding:     0.2em;
-	font-size:   0.9em;
+	text-align:     left;
+	color:          #f7f7f7;
+	font-family:    'Dejavu Sans Mono', Courier;
+	padding:        0.2em;
+	font-size:      0.9em;
+	vertical-align: top;
 }
 
 td.column_row_value_fixed_centered {
