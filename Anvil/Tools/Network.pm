@@ -1431,7 +1431,7 @@ This method checks the local system for interfaces and stores them in:
 
 When called without a C<< target >>, C<< local >> is used.
 
-To aid in look-up by MAC address, C<< network::mac::<mac_address>::iface >> is also set. Note that this is not target-dependent.
+To aid in look-up by MAC address, C<< network::mac_address::<mac_address>::iface >> is also set. Note that this is not target-dependent.
 
 Parameters;
 

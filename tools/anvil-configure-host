@@ -259,7 +259,7 @@ sub reconfigure_network
 	}
 	
 	# Get the current list of IPs and MAC addresses.
-	$anvil->Network->get_ips({debug => 2});
+	$anvil->Network->get_ips({debug => 3});
 	
 	# Now configure the network.
 	my $dns = defined $anvil->data->{variables}{form}{config_step2}{dns}{value} ? [split/,/, $anvil->data->{variables}{form}{config_step2}{dns}{value}] : [];
@@ -298,8 +298,8 @@ sub reconfigure_network
 			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
 			my $is_gateway      =         $this_network eq $gateway_interface                               ? 1                                                                 : 0;
 			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}  ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}  : "";
-			my $old_link1_iface =         $anvil->data->{sys}{mac}{$link1_mac}{iface}                       ? $anvil->data->{sys}{mac}{$link1_mac}{iface}                       : "";
-			my $old_link2_iface = defined $anvil->data->{sys}{mac}{$link2_mac}{iface}                       ? $anvil->data->{sys}{mac}{$link2_mac}{iface}                       : "";
+			my $old_link1_iface =         $anvil->data->{network}{mac_address}{$link1_mac}{iface}           ? $anvil->data->{network}{mac_address}{$link1_mac}{iface}           : "";
+			my $old_link2_iface = defined $anvil->data->{network}{mac_address}{$link2_mac}{iface}           ? $anvil->data->{network}{mac_address}{$link2_mac}{iface}           : "";
 			my $bridge          = defined $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value} ? $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value} : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_key          => $ip_key, 
@@ -390,13 +390,13 @@ sub reconfigure_network
 				my $bond_uuid        = get_uuid_from_interface_file($anvil, $bond_file);
 				my $link1_uuid       = get_uuid_from_interface_file($anvil, $old_link1_file);
 				my $link2_uuid       = get_uuid_from_interface_file($anvil, $old_link2_file);
-				if ((exists $anvil->data->{sys}{mac}{$link1_mac}{iface}) && ($anvil->data->{sys}{mac}{$link1_mac}{iface}))
+				if ((exists $anvil->data->{network}{mac_address}{$link1_mac}{iface}) && ($anvil->data->{network}{mac_address}{$link1_mac}{iface}))
 				{
-					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link1_mac}{iface};
+					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{mac_address}{$link1_mac}{iface};
 				}
-				if ((exists $anvil->data->{sys}{mac}{$link2_mac}{iface}) && ($anvil->data->{sys}{mac}{$link2_mac}{iface}))
+				if ((exists $anvil->data->{network}{mac_address}{$link2_mac}{iface}) && ($anvil->data->{network}{mac_address}{$link2_mac}{iface}))
 				{
-					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link2_mac}{iface};
+					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{mac_address}{$link2_mac}{iface};
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					bond_file        => $bond_file, 
@@ -450,7 +450,7 @@ sub reconfigure_network
 						}
 					}
 					$bridge_config .= "DEFROUTE=\"".$say_defroute."\"\n";
-					$bridge_config .= "ZONE=\"".uc($say_interface)."\"";
+					$bridge_config .= "ZONE=\"".uc($say_interface)."\"\n";
 				}
 				
 				# Build the Bond config.
@@ -489,7 +489,7 @@ sub reconfigure_network
 					}
 					$bond_config .= "DEFROUTE=\"".$say_defroute."\"\n";
 				}
-				$bond_config .= "ZONE=\"".uc($say_interface)."\"";
+				$bond_config .= "ZONE=\"".uc($say_interface)."\"\n";
 				   
 				my $link1_config =  "# $say_network - Link 1\n";
 				   $link1_config .= "HWADDR=\"".uc($link1_mac)."\"\n";
@@ -505,7 +505,7 @@ sub reconfigure_network
 				   $link1_config .= "NM_CONTROLLED=\"yes\"\n";
 				   $link1_config .= "SLAVE=\"yes\"\n";
 				   $link1_config .= "MASTER=\"".$say_interface."_bond1\"\n";
-				   $link1_config .= "ZONE=\"".uc($say_interface)."\"";
+				   $link1_config .= "ZONE=\"".uc($say_interface)."\"\n";
 				   
 				my $link2_config =  "# $say_network - Link 2\n";
 				   $link2_config .= "HWADDR=\"".uc($link2_mac)."\"\n";
@@ -521,7 +521,7 @@ sub reconfigure_network
 				   $link2_config .= "NM_CONTROLLED=\"yes\"\n";
 				   $link2_config .= "SLAVE=\"yes\"\n";
 				   $link2_config .= "MASTER=\"".$say_interface."_bond1\"\n";
-				   $link2_config .= "ZONE=\"".uc($say_interface)."\"";
+				   $link2_config .= "ZONE=\"".uc($say_interface)."\"\n";
 				   
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					bridge_config => $bridge_config, 
@@ -557,11 +557,16 @@ sub reconfigure_network
 				}
 
 				### Write out the new configs
+				# Are we writing a bridge config?
+				if ($bridge)
+				{
+					$anvil->Storage->write_file({file => $bridge_file,    body => $bridge_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+				}
 				# Bond, Link 1 and Link 2
-				$anvil->Storage->write_file({file => $bridge_file,    body => $bridge_config, user => "root", group => "root", mode => "0644", overwrite => 1});
 				$anvil->Storage->write_file({file => $bond_file,      body => $bond_config,   user => "root", group => "root", mode => "0644", overwrite => 1});
 				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
 				$anvil->Storage->write_file({file => $new_link2_file, body => $link2_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
+			
 				
 				### NOTE: Everything except the unlink is disabled until we sort out the 
 				###       reload without reboot.
@@ -605,6 +610,13 @@ sub reconfigure_network
 					# Rename it
 					#print "Renaming ..... [$old_link2_iface] -> [$new_link2_iface]\n";
 					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link2_iface." name ".$new_link2_iface});
+					
+					# Unllnk the old one, if it exists.
+					if (-e $old_link2_file)
+					{
+						#print "Deleting: .... [$old_link2_file]\n";
+						unlink $old_link2_file;
+					}
 				}
 				# Drop the new link, too, in case it still has the old config
 				#print "Downing: ..... [$new_link2_iface]\n";
@@ -665,9 +677,9 @@ sub reconfigure_network
 				my $new_link1_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
 				my $old_link1_file  = $new_link1_file;
 				my $new_link1_iface = $say_interface."_link1";
-				if ((exists $anvil->data->{sys}{mac}{$link1_mac}{iface}) && ($anvil->data->{sys}{mac}{$link1_mac}{iface}))
+				if ((exists $anvil->data->{network}{mac_address}{$link1_mac}{iface}) && ($anvil->data->{network}{mac_address}{$link1_mac}{iface}))
 				{
-					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link1_mac}{iface};
+					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{mac_address}{$link1_mac}{iface};
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					cidr            => $cidr, 
