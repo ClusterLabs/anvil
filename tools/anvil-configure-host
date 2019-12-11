@@ -453,6 +453,9 @@ sub reconfigure_network
 					$bridge_config .= "ZONE=\"".uc($say_interface)."\"\n";
 				}
 				
+				# If this is DHCP, but there is a bridge, the bond's boot proto in 'none'.
+				$boot_proto = "none" if $bridge;
+				   
 				# Build the Bond config.
 				my $bond_config =  "# $say_network - Bond 1\n";
 				   $bond_config .= "UUID=\"".$bond_uuid."\"\n";
