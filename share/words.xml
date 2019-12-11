@@ -817,6 +817,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="brand_0004">ScanCore</key>
 		<key name="brand_0005"><![CDATA[&copy; 1997 - 2019 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
+		<key name="brand_0007">Node</key>
+		<key name="brand_0008">DR Host</key>
 		
 		<key name="header_0001">Current Network Interfaces and States</key>
 		<key name="header_0002">MAC Address</key>
@@ -1006,6 +1008,9 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0158">If set, a bridge will be created on this network, allowing hosted servers to use this network.</key>
 		<key name="striker_0159">This is the host name for the target system.</key>
 		<key name="striker_0160">The network will use DHCP to attempt to get an IP address.</key>
+		<key name="striker_0161">The network will soon be reconfigured and then the target will reboot. In a couple minutes, it should be ready.</key>
+		<key name="striker_0162">Return</key>
+		<key name="striker_0163">How many network connections will exist for each network type.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1147,6 +1152,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0068">Adding the database connection information for the dashboard: [#!variable!host_name!#] to the target's anvil.conf file.</key>
 		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
 		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
+		<key name="job_0071">The network configuration will be updated based on the variables stored in the database. When complete, the system will reboot.</key>
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

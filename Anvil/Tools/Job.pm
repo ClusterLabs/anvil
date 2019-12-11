@@ -166,11 +166,12 @@ sub get_job_details
 		job_uuid => $job_uuid,
 	}});
 	
-	# 
-	if ((not $job_uuid) && ($anvil->data->{switches}{'job-uuid'}))
+	# Were we passed a job uuid?
+	if ((not $job_uuid) && (not $anvil->data->{switches}{'job-uuid'}))
 	{
 		$job_uuid = $anvil->data->{switches}{'job-uuid'};
-		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0032", variables => { switch => '--job-uuid' } });
+		return(1);
 	}
 	
 	if (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))

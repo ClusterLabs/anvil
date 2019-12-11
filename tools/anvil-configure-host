@@ -27,15 +27,13 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 # Read switches
 $anvil->data->{switches}{'no-reboot'} = 0;
 $anvil->Get->switches;
-
-# Paths
-$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
@@ -57,10 +55,10 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 2});
 }
 
+pickup_job_details($anvil);
+
 # Set maintenance mode
 $anvil->System->maintenance_mode({set => 1});
-
-pickup_job_details($anvil);
 
 my ($reboot_needed) = reconfigure_network($anvil);
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { reboot_needed => $reboot_needed }});
@@ -114,16 +112,14 @@ sub update_passwords
 {
 	my ($anvil) = @_;
 	
-	# Is this a striker dashboard, node or DR host?
-	my $type = $anvil->System->get_host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type => $type }});
-	
-	if ($type eq "dashboard")
+	# Have we been asked to set a password?
+	$anvil->data->{variables}{form}{config_step2}{striker_password}{value} = "" if not defined $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
+	if ($anvil->data->{variables}{form}{config_step2}{striker_password}{value})
 	{
 		# Set the passwords
 		my $password  = $anvil->data->{variables}{form}{config_step2}{striker_password}{value};
 		my $temp_file = "/tmp/anvil-".$anvil->Get->uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { password => $password }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
 		
 		# Write the password into a temporary file.
 		my $error = $anvil->Storage->write_file({
@@ -162,17 +158,6 @@ sub update_passwords
 			}
 		}
 	}
-	else
-	{
-		if ($type eq "node")
-		{
-			# We'll need to update pcsd's password as well.
-		}
-		
-		# Set passwords that are common to nodes and DR hosts. 
-		
-		
-	}
 	
 	$anvil->Job->update_progress({
 		progress => 95, 
@@ -188,59 +173,93 @@ sub reconfigure_network
 	my ($anvil) = @_;
 	
 	my $reboot_needed    = 0;
-	my $prefix           = $anvil->data->{variables}{form}{config_step1}{prefix}{value};
-	my $sequence         = $anvil->data->{variables}{form}{config_step1}{sequence}{value};
-	my $domain           = $anvil->data->{variables}{form}{config_step1}{domain}{value};
-	my $organization     = $anvil->data->{variables}{form}{config_step1}{organization}{value};
-	my $bcn_count        = 1;	# TODO: This should be coming from the form, even though it's only '1' for now.
-	my $sn_count         = 0;	# TODO: This should be coming from the form, even though it's always '0' for Strikers.
-	my $ifn_count        = $anvil->data->{variables}{form}{config_step1}{ifn_count}{value};
-	my $new_host_name    = defined $anvil->data->{variables}{form}{config_step2}{host_name}{value} ? $anvil->data->{variables}{form}{config_step2}{host_name}{value} : $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
-	my $pretty_host_name = $organization." - Striker ".sprintf("%02d", $sequence);
+	my $prefix           = exists $anvil->data->{variables}{form}{config_step1}{prefix}{value}       ? $anvil->data->{variables}{form}{config_step1}{prefix}{value}       : "";
+	my $sequence         = exists $anvil->data->{variables}{form}{config_step1}{sequence}{value}     ? $anvil->data->{variables}{form}{config_step1}{sequence}{value}     : "";
+	my $domain           = exists $anvil->data->{variables}{form}{config_step1}{domain}{value}       ? $anvil->data->{variables}{form}{config_step1}{domain}{value}       : "";
+	my $organization     = exists $anvil->data->{variables}{form}{config_step1}{organization}{value} ? $anvil->data->{variables}{form}{config_step1}{organization}{value} : "";
+	my $bcn_count        = exists $anvil->data->{variables}{form}{config_step1}{bcn_count}{value}    ? $anvil->data->{variables}{form}{config_step1}{bcn_count}{value}    : 1;
+	my $sn_count         = exists $anvil->data->{variables}{form}{config_step1}{sn_count}{value}     ? $anvil->data->{variables}{form}{config_step1}{sn_count}{value}     : 0;
+	my $ifn_count        = exists $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    ? $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    : 1;
+	my $new_host_name    = exists $anvil->data->{variables}{form}{config_step2}{host_name}{value}    ? $anvil->data->{variables}{form}{config_step2}{host_name}{value}    : "";
+	my $type             = $anvil->System->get_host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { 
-		prefix           => $prefix, 
-		sequence         => $sequence,
-		domain           => $domain, 
-		organization     => $organization, 
-		bcn_count        => $bcn_count, 
-		ifn_count        => $ifn_count, 
-		new_host_name    => $new_host_name, 
-		pretty_host_name => $pretty_host_name, 
+		prefix        => $prefix, 
+		sequence      => $sequence,
+		domain        => $domain, 
+		organization  => $organization, 
+		bcn_count     => $bcn_count, 
+		sn_count      => $sn_count, 
+		ifn_count     => $ifn_count, 
+		new_host_name => $new_host_name, 
+		type          => $type, 
 	}});
 	
-	# Set the host_name
-	my ($host_name, $descriptive_host_name) = $anvil->System->host_name({set => $new_host_name, pretty => $pretty_host_name, debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		host_name             => $host_name,
-		descriptive_host_name => $descriptive_host_name, 
-	}});
-	if ($host_name eq $new_host_name)
+	# If we're configuring a dashboard and no host name was given, generate it.
+	if (($type eq "dashboard") && (not $new_host_name))
 	{
-		# Success
-		$anvil->Job->update_progress({
-			progress => 10, 
-			message  => "message_0016,!!host_name!$new_host_name!!", 
-			job_uuid => $anvil->data->{job}{uuid},
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0016", variables => { host_name => $new_host_name }});
+		$new_host_name = $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { new_host_name => $new_host_name }});
 	}
-	else
+	
+	if ($new_host_name)
 	{
-		# Failed
-		$anvil->Job->update_progress({
-			progress => 0, 
-			message  => "message_0017,!!host_name!$new_host_name!!,!!bad_host_name!$host_name!!", 
-			job_uuid => $anvil->data->{job}{uuid},
-		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0017", variables => { 
-			host_name     => $new_host_name,
-			bad_host_name => $host_name,
+		my $type_name = "";
+		if ($type eq "dashboard")
+		{
+			$type_name = $anvil->Words->string({key => "brand_0003"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type_name => $type_name }});
+		}
+		elsif ($type eq "node")
+		{
+			$type_name = $anvil->Words->string({key => "brand_0007"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type_name => $type_name }});
+		}
+		elsif ($type eq "dr")
+		{
+			$type_name = $anvil->Words->string({key => "brand_0008"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type_name => $type_name }});
+		}
+		my $pretty_host_name = $new_host_name;
+		if (($organization) && ($sequence))
+		{
+			$pretty_host_name = $organization." - ".$type_name." ".sprintf("%02d", $sequence);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { pretty_host_name => $pretty_host_name }});
+		}
+		
+		# Set the host_name
+		my ($host_name, $descriptive_host_name) = $anvil->System->host_name({set => $new_host_name, pretty => $pretty_host_name, debug => 3});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			host_name             => $host_name,
+			descriptive_host_name => $descriptive_host_name, 
 		}});
-		$anvil->nice_exit({code => 4});
+		if ($host_name eq $new_host_name)
+		{
+			# Success
+			$anvil->Job->update_progress({
+				progress => 10, 
+				message  => "message_0016,!!host_name!$new_host_name!!", 
+				job_uuid => $anvil->data->{job}{uuid},
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0016", variables => { host_name => $new_host_name }});
+		}
+		else
+		{
+			# Failed
+			$anvil->Job->update_progress({
+				progress => 0, 
+				message  => "message_0017,!!host_name!$new_host_name!!,!!bad_host_name!$host_name!!", 
+				job_uuid => $anvil->data->{job}{uuid},
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0017", variables => { 
+				host_name     => $new_host_name,
+				bad_host_name => $host_name,
+			}});
+			$anvil->nice_exit({code => 4});
+		}
 	}
 	
 	# Get the current list of IPs and MAC addresses.
-	$anvil->Network->get_ips();
+	$anvil->Network->get_ips({debug => 2});
 	
 	# Now configure the network.
 	my $dns = defined $anvil->data->{variables}{form}{config_step2}{dns}{value} ? [split/,/, $anvil->data->{variables}{form}{config_step2}{dns}{value}] : [];
@@ -248,7 +267,7 @@ sub reconfigure_network
 	for (my $i = 0; $i < @{$dns}; $i++)
 	{
 		$dns->[$i] = $anvil->Words->clean_spaces({ string => $dns->[$i] });
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "dns->[$i]" => $dns->[$i] }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "dns->[$i]" => $dns->[$i] }});
 	}
 	
 	my $gateway           = defined $anvil->data->{variables}{form}{config_step2}{gateway}{value}           ? $anvil->data->{variables}{form}{config_step2}{gateway}{value}           : "";
@@ -275,22 +294,26 @@ sub reconfigure_network
 			my $link2_key       =         $this_network."_link2_mac_to_set";
 			my $subnet_mask_key =         $this_network."_subnet_mask";
 			my $ip_key          =         $this_network."_ip";
-			my $is_gateway      =         $this_network eq $gateway_interface ? 1 : 0;
+			my $bridge_key      =         $this_network."_create_bridge";
 			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
-			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value} : "";
-			my $old_link1_iface =         $anvil->data->{sys}{mac}{$link1_mac}{iface} ? $anvil->data->{sys}{mac}{$link1_mac}{iface} : "";
-			my $old_link2_iface = defined $anvil->data->{sys}{mac}{$link2_mac}{iface} ? $anvil->data->{sys}{mac}{$link2_mac}{iface} : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			my $is_gateway      =         $this_network eq $gateway_interface                               ? 1                                                                 : 0;
+			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}  ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}  : "";
+			my $old_link1_iface =         $anvil->data->{sys}{mac}{$link1_mac}{iface}                       ? $anvil->data->{sys}{mac}{$link1_mac}{iface}                       : "";
+			my $old_link2_iface = defined $anvil->data->{sys}{mac}{$link2_mac}{iface}                       ? $anvil->data->{sys}{mac}{$link2_mac}{iface}                       : "";
+			my $bridge          = defined $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value} ? $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value} : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_key          => $ip_key, 
 				is_gateway      => $is_gateway, 
 				link1_key       => $link1_key, 
 				link1_mac       => $link1_mac, 
 				link2_key       => $link2_key, 
 				link2_mac       => $link2_mac, 
+				bridge_key      => $bridge_key, 
 				old_link1_iface => $old_link1_iface, 
 				old_link2_iface => $old_link2_iface, 
 				subnet_mask_key => $subnet_mask_key, 
 				this_network    => $this_network, 
+				bridge          => $bridge, 
 			}});
 			
 			# Skip if this doesn't exist or isn't a valid IPv4 address.
@@ -301,9 +324,11 @@ sub reconfigure_network
 			}
 			else
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "variables::form::config_step2::${ip_key}::value" => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "variables::form::config_step2::${ip_key}::value" => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value} }});
 			}
-			if (($anvil->data->{variables}{form}{config_step2}{$ip_key}{value}) and (not $anvil->Validate->is_ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
+			if (($anvil->data->{variables}{form}{config_step2}{$ip_key}{value})           && 
+			    ($anvil->data->{variables}{form}{config_step2}{$ip_key}{value} ne "dhcp") && 
+			    (not $anvil->Validate->is_ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
 			{
 				# Something was set, but it isn't valid.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0148", variables => { 
@@ -313,21 +338,22 @@ sub reconfigure_network
 				next;
 			}
 			
-			my $ip          = $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
-			my $subnet_mask = $anvil->data->{variables}{form}{config_step2}{$subnet_mask_key}{value};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				ip          => $ip, 
+			# The IP could be 'dhcp', we'll handle that in a bit.
+			my $ip_address  =         $anvil->data->{variables}{form}{config_step2}{$ip_key}{value};
+			my $subnet_mask = defined $anvil->data->{variables}{form}{config_step2}{$subnet_mask_key}{value} ? $anvil->data->{variables}{form}{config_step2}{$subnet_mask_key}{value} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				ip_address  => $ip_address, 
 				subnet_mask => $subnet_mask, 
 			}});
 			
 			# Are we building bonded interfaces?
 			if ($anvil->Validate->is_mac({mac => $link2_mac}))
 			{
-				### TODO: Handle when bridges exist. Detect when the host is a node and/or have a "use as bridge" option?
-				# Yup! Build the configs.
+				# Yup!
 				my $say_network      = "";
 				my $say_interface    = "";
 				my $interface_prefix = "";
+				my $say_defroute     = $is_gateway ? "yes" : "no";
 				if ($network_type eq "bcn")
 				{
 					$say_network      = "Back-Channel Network ".$network_count;
@@ -346,16 +372,24 @@ sub reconfigure_network
 					$say_interface    = "ifn".$network_count;
 					$interface_prefix = "IFN";
 				}
-				my $say_defroute    = $is_gateway ? "yes" : "no";
-				my $cidr            = $anvil->Convert->cidr({subnet_mask => $subnet_mask});
-				my $bond_file       = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Bond_1";
-				my $new_link1_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
-				my $new_link2_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_2";
-				my $old_link1_file  = $new_link1_file;
-				my $old_link2_file  = $new_link2_file;
-				my $new_bond_iface  = $say_interface."_bond1";
-				my $new_link1_iface = $say_interface."_link1";
-				my $new_link2_iface = $say_interface."_link2";
+				
+				# Gather variables
+				my $cidr             = $ip_address eq "dhcp" ? "" : $anvil->Convert->cidr({subnet_mask => $subnet_mask});
+				my $bridge_file      = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Bridge_1";
+				my $bond_file        = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Bond_1";
+				my $new_link1_file   = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
+				my $new_link2_file   = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_2";
+				my $old_link1_file   = $new_link1_file;
+				my $old_link2_file   = $new_link2_file;
+				my $new_bridge_iface = $say_interface."_bridge1";
+				my $new_bond_iface   = $say_interface."_bond1";
+				my $new_link1_iface  = $say_interface."_link1";
+				my $new_link2_iface  = $say_interface."_link2";
+				my $boot_proto       = $ip_address eq "dhcp" ? "dhcp" : "none";
+				my $bridge_uuid      = get_uuid_from_interface_file($anvil, $bridge_file);
+				my $bond_uuid        = get_uuid_from_interface_file($anvil, $bond_file);
+				my $link1_uuid       = get_uuid_from_interface_file($anvil, $old_link1_file);
+				my $link2_uuid       = get_uuid_from_interface_file($anvil, $old_link2_file);
 				if ((exists $anvil->data->{sys}{mac}{$link1_mac}{iface}) && ($anvil->data->{sys}{mac}{$link1_mac}{iface}))
 				{
 					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link1_mac}{iface};
@@ -364,30 +398,61 @@ sub reconfigure_network
 				{
 					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link2_mac}{iface};
 				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					say_defroute    => $say_defroute, 
-					cidr            => $cidr, 
-					bond_file       => $bond_file, 
-					new_link1_file  => $new_link1_file,
-					new_link2_file  => $new_link2_file, 
-					old_link1_file  => $old_link1_file, 
-					old_link2_file  => $old_link2_file, 
-					new_bond_iface  => $new_bond_iface, 
-					new_link1_iface => $new_link1_iface, 
-					new_link2_iface => $new_link2_iface, 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					bond_file        => $bond_file, 
+					bond_uuid        => $bond_uuid, 
+					boot_proto       => $boot_proto, 
+					bridge_file      => $bridge_file, 
+					bridge_uuid      => $bridge_uuid, 
+					cidr             => $cidr, 
+					link1_uuid       => $link1_uuid, 
+					link2_uuid       => $link2_uuid, 
+					new_bond_iface   => $new_bond_iface, 
+					new_bridge_iface => $new_bridge_iface, 
+					new_link1_file   => $new_link1_file,
+					new_link1_iface  => $new_link1_iface, 
+					new_link2_file   => $new_link2_file, 
+					new_link2_iface  => $new_link2_iface, 
+					old_link1_file   => $old_link1_file, 
+					old_link2_file   => $old_link2_file, 
+					say_defroute     => $say_defroute, 
 				}});
 				
-				# Gather (or create) UUIDs
-				my $bond_uuid  = get_uuid_from_interface_file($anvil, $bond_file);
-				my $link1_uuid = get_uuid_from_interface_file($anvil, $old_link1_file);
-				my $link2_uuid = get_uuid_from_interface_file($anvil, $old_link2_file);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					bond_uuid  => $bond_uuid, 
-					link1_uuid => $link1_uuid, 
-					link2_uuid => $link2_uuid, 
-				}});
+				# Are we building a bridge interface?
+				my $bridge_config = "";
+				if ($bridge)
+				{
+					# Yup!
+					$bridge_config =  "# $say_network - Bridge 1\n";
+					$bridge_config .= "UUID=\"".$bond_uuid."\"\n";
+					$bridge_config .= "TYPE=\"Bridge\"\n";
+					$bridge_config .= "DEVICE=\"".$new_bridge_iface."\"\n";
+					$bridge_config .= "NAME=\"".$interface_prefix." ".$network_count." - Bridge 1\"\n";
+					$bridge_config .= "ONBOOT=\"yes\"\n";
+					$bridge_config .= "STP=\"yes\"\n";
+					$bridge_config .= "BRIDGING_OPTS=\"priority=32768\"\n";
+					$bridge_config .= "BROWSER_ONLY=\"no\"\n";
+					$bridge_config .= "BOOTPROTO=\"".$boot_proto."\"\n";
+					# If the IP is NOT 'dhcp', set it. 
+					if ($ip_address ne "dhcp")
+					{
+						$bridge_config .= "IPADDR=\"".$ip_address."\"\n";
+						$bridge_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
+					}
+					
+					# If this is the default gateway, add that info.
+					if ($is_gateway)
+					{
+						$bridge_config .= "GATEWAY=\"".$gateway."\"\n";
+						for (my $i = 0; $i < @{$dns}; $i++)
+						{
+							$bridge_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+						}
+					}
+					$bridge_config .= "DEFROUTE=\"".$say_defroute."\"\n";
+					$bridge_config .= "ZONE=\"".uc($say_interface)."\"";
+				}
 				
-				### TODO: Set the firewall Zone appropriately.
 				# Build the Bond config.
 				my $bond_config =  "# $say_network - Bond 1\n";
 				   $bond_config .= "UUID=\"".$bond_uuid."\"\n";
@@ -396,20 +461,34 @@ sub reconfigure_network
 				   $bond_config .= "BONDING_OPTS=\"mode=active-backup primary=".$say_interface."_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better\"\n";
 				   $bond_config .= "TYPE=\"Bond\"\n";
 				   $bond_config .= "BONDING_MASTER=\"yes\"\n";
-				   $bond_config .= "BOOTPROTO=\"none\"\n";
 				   $bond_config .= "IPV6INIT=\"no\"\n";
 				   $bond_config .= "ONBOOT=\"yes\"\n";
-				   $bond_config .= "IPADDR=\"".$ip."\"\n";
-				   $bond_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
-				if ($is_gateway)
+				   $bond_config .= "BOOTPROTO=\"".$boot_proto."\"\n";
+				# If this is a connected to a bridge, we specify as much.
+				if ($bridge)
 				{
-					$bond_config .= "GATEWAY=\"".$gateway."\"\n";
-					for (my $i = 0; $i < @{$dns}; $i++)
-					{
-						$bond_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
-					}
+					$bond_config .= "BRIDGE=\"".$new_bridge_iface."\"\n";
 				}
-				$bond_config .= "DEFROUTE=\"".$say_defroute."\"\n";
+				else
+				{
+					# If the ip is NOT 'dhcp', set the ip and subnet
+					if ($ip_address ne "dhcp")
+					{
+						# This bond has an IP, set it
+						$bond_config .= "IPADDR=\"".$ip_address."\"\n";
+						$bond_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
+					}
+					# Is this the default gateway?
+					if ($is_gateway)
+					{
+						$bond_config .= "GATEWAY=\"".$gateway."\"\n";
+						for (my $i = 0; $i < @{$dns}; $i++)
+						{
+							$bond_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+						}
+					}
+					$bond_config .= "DEFROUTE=\"".$say_defroute."\"\n";
+				}
 				$bond_config .= "ZONE=\"".uc($say_interface)."\"";
 				   
 				my $link1_config =  "# $say_network - Link 1\n";
@@ -445,12 +524,17 @@ sub reconfigure_network
 				   $link2_config .= "ZONE=\"".uc($say_interface)."\"";
 				   
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					bond_config  => $bond_config, 
-					link1_config => $link1_config, 
-					link2_config => $link2_config, 
+					bridge_config => $bridge_config, 
+					bond_config   => $bond_config, 
+					link1_config  => $link1_config, 
+					link2_config  => $link2_config, 
 				}});
 				
 				# Make backups of existing files
+				if (-e $bridge_file)
+				{
+					$anvil->Storage->backup({debug => 2, file => $bridge_file});
+				}
 				if (-e $bond_file)
 				{
 					$anvil->Storage->backup({debug => 2, file => $bond_file});
@@ -474,11 +558,13 @@ sub reconfigure_network
 
 				### Write out the new configs
 				# Bond, Link 1 and Link 2
-				$anvil->Storage->write_file({file => $bond_file,      body => $bond_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
-				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config, user => "root", group => "root", mode => "0644", overwrite => 1});
-				$anvil->Storage->write_file({file => $new_link2_file, body => $link2_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Storage->write_file({file => $bridge_file,    body => $bridge_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Storage->write_file({file => $bond_file,      body => $bond_config,   user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Storage->write_file({file => $new_link2_file, body => $link2_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
 				
-				### NOTE: Everything except the unlink is disabled until we sort out the reload
+				### NOTE: Everything except the unlink is disabled until we sort out the 
+				###       reload without reboot.
 				# Shut down (and rename) Link 1
 				if ($old_link1_iface)
  				{
@@ -546,9 +632,12 @@ sub reconfigure_network
 			}
 			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
 			{
+				### NOTE: This only applies when configuring Striker dashboards. They can't 
+				###       be 'dhcp', either, so no checks are made for those cases. Likewise,
+				###       bridges are not used.
 				# Single interface, set it up
 				my $link1_mac = $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { link1_mac => $link1_mac }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_mac => $link1_mac }});
 				
 				my $say_network      = "";
 				my $say_interface    = "";
@@ -580,17 +669,17 @@ sub reconfigure_network
 				{
 					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{sys}{mac}{$link1_mac}{iface};
 				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					say_defroute    => $say_defroute, 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					cidr            => $cidr, 
 					new_link1_file  => $new_link1_file,
-					old_link1_file  => $old_link1_file, 
 					new_link1_iface => $new_link1_iface, 
+					old_link1_file  => $old_link1_file, 
+					say_defroute    => $say_defroute, 
 				}});
 				
 				# Gather (or create) UUIDs
 				my $link1_uuid = get_uuid_from_interface_file($anvil, $old_link1_file);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { link1_uuid => $link1_uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_uuid => $link1_uuid }});
 				
 				my $link1_config =  "# $say_network - Link 1\n";
 				   $link1_config .= "HWADDR=\"".uc($link1_mac)."\"\n";
@@ -601,7 +690,7 @@ sub reconfigure_network
 				   $link1_config .= "BOOTPROTO=\"none\"\n";
 				   $link1_config .= "IPV6INIT=\"no\"\n";
 				   $link1_config .= "ONBOOT=\"yes\"\n";
-				   $link1_config .= "IPADDR=\"".$ip."\"\n";
+				   $link1_config .= "IPADDR=\"".$ip_address."\"\n";
 				   $link1_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
 				if ($is_gateway)
 				{
@@ -670,38 +759,38 @@ sub reconfigure_network
 	# If any virtio bridges exist, remove it/them.
 	my $start                   = 0;
 	my ($bridges, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridges => $bridges, return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges, return_code => $return_code }});
 	foreach my $line (split/\n/, $bridges)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		if ($line =~ /^----------/)
 		{
 			$start = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { start => $start }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start => $start }});
 			next;
 		}
 		next if not $start;
 		my $bridge = ($line =~ /(.*?)\s/)[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridge => $bridge }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge => $bridge }});
 		
 		$anvil->data->{virsh}{bridge}{$bridge} = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "virsh::bridge::$bridge" => $anvil->data->{virsh}{bridge}{$bridge} }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "virsh::bridge::$bridge" => $anvil->data->{virsh}{bridge}{$bridge} }});
 	}
 	
 	foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{virsh}{bridge}})
 	{
 		# Destroy (stop) it.
 		my ($destroy, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { destroy => $destroy, return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { destroy => $destroy, return_code => $return_code }});
 		
 		# Disable it from auto-start.
 		(my $disable, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { disable => $disable, return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disable => $disable, return_code => $return_code }});
 		
 		# Undefine (delete)
 		(my $undefine, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { undefine => $undefine, return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { undefine => $undefine, return_code => $return_code }});
 	}
 	
 	### TODO: This isn't working... The route table won't set the IFN as the default route properly and 
@@ -764,17 +853,19 @@ sub pickup_job_details
 	my ($anvil) = @_;
 	
 	# If this returns '1', the job-uuid was bad. If it returns '2', another process is running.
-	my $return = $anvil->Job->get_job_details({check => 1, job_uuid => $anvil->data->{switches}{'job-uuid'}});
+	my $return = $anvil->Job->get_job_details({
+		check    => 1, 
+		job_uuid => $anvil->data->{switches}{'job-uuid'},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 	if ($return == 1)
 	{
 		# It's not a valid UUID.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
 		$anvil->nice_exit({code => 6});
 	}
 	if ($return == 2)
 	{
 		# This job is being handled by another process that is still alive.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
 		$anvil->nice_exit({code => 3});
 	}
 	
@@ -790,7 +881,7 @@ sub pickup_job_details
 	if ($job_picked_up_by)
 	{
 		# The previous job is gone if we're still alive, we'll take this over.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0147", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0147", variables => { 
 			pid     => $job_picked_up_by,
 			percent => $job_progress, 
 		}});
@@ -828,13 +919,20 @@ AND
 		my $this_variable = $row->[0];
 		my $this_value    = $row->[1];
 		my $secure        = $this_variable =~ /passw/ ? 1 : 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			this_variable => $this_variable, 
-			this_value    => not $secure ? $this_value : $anvil->Log->is_secure($this_value), 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:this_variable' => $this_variable, 
+			's2:this_value'    => $anvil->Log->is_secure($this_value), 
 		}});
 		
 		$anvil->_make_hash_reference($anvil->data->{variables}, $this_variable, $this_value);
 	}
+	
+	# Clear previous data
+	$anvil->Job->update_progress({
+		progress => 0, 
+		message  => "clear", 
+		job_uuid => $anvil->data->{job}{uuid},
+	});
 	
 	# Record that we've picked up this job.
 	$anvil->Job->update_progress({
