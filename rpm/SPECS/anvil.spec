@@ -352,8 +352,9 @@ fi
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-30
+* Fri Dec 13 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-30
 - Enabled/started chronyd in core's post.
+- Updated source.
 
 * Thu Nov 7 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-29
 - Added '/etc/anvil/type.X' file creation to more directly mark a system as a 
