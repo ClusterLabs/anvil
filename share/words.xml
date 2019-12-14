@@ -792,6 +792,13 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0458">Vacuuming the database to purge the removed records.</key>
 		<key name="log_0459">Skipping the table: [#!variable!table!#], it is excluded from archiving.</key>
 		<key name="log_0460">Queing up to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
+		<key name="log_0461">About to delete the network interface: [#!variable!interface!#]</key>
+		<key name="log_0462">About to take the network interface: [#!variable!interface!#] down</key>
+		<key name="log_0463">Requesting network manager reload config files.</key>
+		<key name="log_0464">About to bring up the network interface: [#!variable!interface!#]</key>
+		<key name="log_0465">About to rename the network interface: [#!variable!old_interface!#] to: [#!variable!new_interface!#]</key>
+		<key name="log_0466">Disconnected from all databases and closing all open SSH sessions. Will reconnect after the network configuration changes have taken effect.</key>
+		<key name="log_0467">Network reconfiguration is complete!</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1300,6 +1307,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
 		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
 		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target?]]></key>
+		<key name="error_0107">Failed to reconnect after reconfiguring the network, exiting.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

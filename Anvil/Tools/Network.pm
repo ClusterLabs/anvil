@@ -25,6 +25,7 @@ my $THIS_FILE = "Network.pm";
 # load_ips
 # match_gateway
 # ping
+# read_nmcli
 
 =pod
 
@@ -2248,6 +2249,212 @@ sub ping
 		average_ping_time => $average_ping_time,
 	}});
 	return($pinged, $average_ping_time);
+}
+
+=head2 read_nmcli
+
+This method reads and parses the C<< nmcli >> data. The data is stored as;
+
+ nmcli::<host>::uuid::<uuid>::name
+ nmcli::<host>::uuid::<uuid>::type
+ nmcli::<host>::uuid::<uuid>::timestamp_unix
+ nmcli::<host>::uuid::<uuid>::timestamp
+ nmcli::<host>::uuid::<uuid>::autoconnect
+ nmcli::<host>::uuid::<uuid>::autoconnect_priority
+ nmcli::<host>::uuid::<uuid>::read_only
+ nmcli::<host>::uuid::<uuid>::dbus_path
+ nmcli::<host>::uuid::<uuid>::active
+ nmcli::<host>::uuid::<uuid>::device
+ nmcli::<host>::uuid::<uuid>::state
+ nmcli::<host>::uuid::<uuid>::active_path
+ nmcli::<host>::uuid::<uuid>::slave
+ nmcli::<host>::uuid::<uuid>::filename
+
+Where C<< uuid >> is the UUID of the connection. For C<< host >>, please see the parameter below. For information on what each value means, please see C<< man nmcli >>. 
+
+For each of reference, the following to values are also stored;
+
+ nmcli::<host>::name_to_uuid::<name>
+ nmcli::<host>::device_to_uuid::<device>
+ 
+Where C<< name >> is the value in the interface set by the C<< NAME= >> variable and C<< device >> is the interface name (as used in C<< ip >>) and as set in the C<< DEVICE= >> variable in the C<< ifcfg-X >> files.
+
+Parameters;
+
+=head3 host (optional, default 'target' or 'local')
+
+This is the hash key under which the parsed C<< nmcli >> data is stored. By default, this is C<< local >> when called locally, or it will be C<< target >> if C<< target >> is passed.
+
+=head3 password (optional)
+
+This is the password used to access a remote machine. This is used when reading C<< nmcli >> data on a remote system.
+
+=head3 port (optional, default '22')
+
+This is the port used to access a remote machine. This is used when reading C<< nmcli >> data on a remote system.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the remote user we use to log into the remote system.
+
+=head3 target (optional)
+
+This is the host name or IP address of a remote machine that you want to read C<< nmcli >> data from.
+
+=cut
+sub read_nmcli
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->read_nmcli()" }});
+	
+	# If we were passed a target, try pinging from it instead of locally
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $host        = defined $parameter->{host}        ? $parameter->{host}        : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host        => $host, 
+		password    => $anvil->Log->is_secure($password),
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target, 
+	}});
+	
+	if (not $host)
+	{
+		$host = $target ? $target : "local";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	}
+	
+	if (exists $anvil->data->{nmcli}{$host})
+	{
+		delete $anvil->data->{nmcli}{$host};
+	}
+	
+	# Reading locally or remote?
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --colors no --fields all --terse connection show";
+	my $output     = "";
+	my $is_local   = $anvil->Network->is_local({host => $target});
+	if ($is_local)
+	{
+		# Local call.
+		($output, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:return_code' => $return_code, 
+		}});
+	}
+	else
+	{
+		# Remote call
+		($output, my $error, my $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			shell_call  => $shell_call,
+			target      => $target,
+			user        => $remote_user, 
+			password    => $password,
+			remote_user => $remote_user, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:output'      => $output,
+			's2:error'       => $error,
+			's3:return_code' => $return_code, 
+		}});
+	}
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'line >>' => $line }});
+		
+		$line =~ s/\\:/!col!/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'line <<' => $line }});
+		
+		# NAME  UUID                                  TYPE      TIMESTAMP   TIMESTAMP-REAL                   AUTOCONNECT  AUTOCONNECT-PRIORITY  READONLY  DBUS-PATH                                   ACTIVE  DEVICE  STATE      ACTIVE-PATH                                         SLAVE  FILENAME                                  
+		my ($name, $uuid, $type, $timestamp_unix, $timestamp, $autoconnect, $autoconnect_priority, $read_only, $dbus_path, $active, $device, $state, $active_path, $slave, $filename) = (split/:/, $line);
+		$timestamp =~ s/!col!/:/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:name'                 => $name,
+			's2:uuid'                 => $uuid,
+			's3:type'                 => $type, 
+			's4:timestamp_unix'       => $timestamp_unix, 
+			's5:timestamp'            => $timestamp, 
+			's6:autoconnect'          => $autoconnect, 
+			's7:autoconnect_priority' => $autoconnect_priority, 
+			's8:read_only'            => $read_only,
+			's9:dbus_path'            => $dbus_path, 
+			's10:active'              => $active, 
+			's11:device'              => $device, 
+			's12:state'               => $state, 
+			's13:active_path'         => $active_path, 
+			's14:slave'               => $slave, 
+			's15:filename'            => $filename, 
+		}});
+		if ($uuid)
+		{
+			# Inactive interfaces have a name but not a device;
+			if (not $device)
+			{
+				$device =  $name;
+				$device =~ s/ /_/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+			}
+			
+			# Make it easy to look up a device's UUID by device or name.
+			$anvil->data->{nmcli}{$host}{name_to_uuid}{$name}     = $uuid;
+			$anvil->data->{nmcli}{$host}{device_to_uuid}{$device} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"nmcli::${host}::name_to_uuid::${name}"     => $anvil->data->{nmcli}{$host}{name_to_uuid}{$name},
+				"nmcli::${host}::device_to_uuid::${device}" => $anvil->data->{nmcli}{$host}{device_to_uuid}{$device}, 
+			}});
+			
+			# Translate some values;
+			my $say_state     = not $state         ? 0 : 1;
+			my $say_active    = $active    eq "no" ? 0 : 1;
+			my $say_read_only = $read_only eq "no" ? 0 : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				say_state     => $say_state,
+				say_active    => $say_active, 
+				say_read_only => $say_read_only, 
+			}});
+			
+			# Now store the data
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{name}                 = $name;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{type}                 = $type;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp_unix}       = $timestamp_unix;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp}            = $timestamp;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect}          = $autoconnect;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect_priority} = $autoconnect_priority;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{read_only}            = $say_read_only;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{dbus_path}            = $dbus_path;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{active}               = $say_active;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{device}               = $device;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'}              = $say_state;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{active_path}          = $active_path;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{slave}                = $slave;
+			$anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename}             = $filename;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"nmcli::${host}::uuid::${uuid}::name"                 => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{name},
+				"nmcli::${host}::uuid::${uuid}::type"                 => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{type}, 
+				"nmcli::${host}::uuid::${uuid}::timestamp_unix"       => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp_unix}, 
+				"nmcli::${host}::uuid::${uuid}::timestamp"            => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{timestamp}, 
+				"nmcli::${host}::uuid::${uuid}::autoconnect"          => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect}, 
+				"nmcli::${host}::uuid::${uuid}::autoconnect_priority" => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{autoconnect_priority}, 
+				"nmcli::${host}::uuid::${uuid}::read_only"            => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{read_only},
+				"nmcli::${host}::uuid::${uuid}::dbus_path"            => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{dbus_path}, 
+				"nmcli::${host}::uuid::${uuid}::active"               => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{active}, 
+				"nmcli::${host}::uuid::${uuid}::device"               => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{device}, 
+				"nmcli::${host}::uuid::${uuid}::state"                => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{'state'}, 
+				"nmcli::${host}::uuid::${uuid}::active_path"          => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{active_path}, 
+				"nmcli::${host}::uuid::${uuid}::slave"                => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{slave}, 
+				"nmcli::${host}::uuid::${uuid}::filename"             => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename}, 
+			}});
+		}
+	}
+	
+	return(0);
 }
 
 #############################################################################################################

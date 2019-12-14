@@ -28,20 +28,6 @@ $anvil->Log->level({set => 2});
 $anvil->Database->connect({debug => 3, check_if_configured => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 
-my $ip     = "10.255.4.1";
-my $subnet = "255.255.0.0";
-my $test1  = "10.255.255.254";
-my $test2  = "10.200.255.254";
+$anvil->Network->read_nmcli({debug => 2});
+print Dumper $anvil->data->{nmcli}{'local'};
 
-my $block = Net::Netmask->new($ip."/".$subnet);
-foreach my $this_gw ($test1, $test2)
-{
-	if ($block->match($this_gw))
-	{
-		print "The gateway: [".$this_gw."] DOES apply to: [".$ip."/".$subnet."]\n";
-	}
-	else
-	{
-		print "The gateway: [".$this_gw."] DOES NOT apply to: [".$ip."/".$subnet."]\n";
-	}
-}

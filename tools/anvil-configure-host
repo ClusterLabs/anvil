@@ -32,7 +32,6 @@ $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
 # Read switches
-$anvil->data->{switches}{'no-reboot'} = 0;
 $anvil->Get->switches;
 
 # Make sure we're running as 'root'
@@ -40,18 +39,18 @@ $anvil->Get->switches;
 if (($< != 0) && ($> != 0))
 {
 	# Not root
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0005"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0005"});
 	$anvil->nice_exit({code => 1});
 }
 
 # Connect
 $anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0031"});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "message_0031"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0003"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 2});
 }
 
@@ -60,8 +59,7 @@ pickup_job_details($anvil);
 # Set maintenance mode
 $anvil->System->maintenance_mode({set => 1});
 
-my ($reboot_needed) = reconfigure_network($anvil);
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { reboot_needed => $reboot_needed }});
+reconfigure_network($anvil);
 
 # Record that we've configured this machine.
 $anvil->Database->insert_or_update_variables({
@@ -78,28 +76,15 @@ update_passwords($anvil);
 $anvil->Job->update_progress({
 	debug    => 3, 
 	progress => 100, 
-	message  => $anvil->data->{switches}{'no-reboot'} ? "message_0065" : "",
+	message  => "",
 	job_uuid => $anvil->data->{job}{uuid},
 });
 
 # Clear maintenance mode.
 $anvil->System->maintenance_mode({set => 0});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0132"});
 
-### TODO: This is only until we can get the damn networking stable on reconfigure.
-# Set reboot needed so that things clean up properly on reboot.
-if ($reboot_needed)
-{
-	$anvil->System->reboot_needed({set => 1});
-	if (not $anvil->data->{switches}{'no-reboot'})
-	{
-		# Reboot, after waiting a few seconds to let the user's browser pick up the last messages in 
-		# jobs.json. We'll also log the user out, in case we were re-configuring.
-		sleep 5;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0215"});
-		$anvil->Account->logout({debug => 2});
-		$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y"});
-	}
-}
+# Done
 $anvil->nice_exit({code => 0});
 
 
@@ -136,7 +121,7 @@ sub update_passwords
 		if ($error)
 		{
 			# Couldn't write the temp file.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0030", variables => { file => $temp_file }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "message_0030", variables => { file => $temp_file }});
 			$anvil->nice_exit({code => 5});
 		}
 		else
@@ -154,7 +139,7 @@ sub update_passwords
 			if ($return_code)
 			{
 				# Something went wrong
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0011", variables => { return_code => $return_code }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0011", variables => { return_code => $return_code }});
 			}
 		}
 	}
@@ -240,7 +225,7 @@ sub reconfigure_network
 				message  => "message_0016,!!host_name!$new_host_name!!", 
 				job_uuid => $anvil->data->{job}{uuid},
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0016", variables => { host_name => $new_host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "message_0016", variables => { host_name => $new_host_name }});
 		}
 		else
 		{
@@ -250,13 +235,16 @@ sub reconfigure_network
 				message  => "message_0017,!!host_name!$new_host_name!!,!!bad_host_name!$host_name!!", 
 				job_uuid => $anvil->data->{job}{uuid},
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0017", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "message_0017", variables => { 
 				host_name     => $new_host_name,
 				bad_host_name => $host_name,
 			}});
 			$anvil->nice_exit({code => 4});
 		}
 	}
+	
+	# Read the local network manager data.
+	$anvil->Network->read_nmcli({debug => 3});
 	
 	# Get the current list of IPs and MAC addresses.
 	$anvil->Network->get_ips({debug => 3});
@@ -276,6 +264,57 @@ sub reconfigure_network
 		gateway           => $gateway, 
 		gateway_interface => $gateway_interface, 
 	}});
+	
+	# If there is no default gateway device, and one of the interfaces are set to DHCP, use it.
+	if (not $gateway_interface)
+	{
+		# IFN first, BCN second, SN last
+		foreach my $network_type ("ifn", "bcn", "sn")
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+			
+			my $count = 0;
+			if    ($network_type eq "bcn") { $count = $bcn_count; }
+			elsif ($network_type eq "sn")  { $count = $sn_count;  }
+			elsif ($network_type eq "ifn") { $count = $ifn_count; }
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			
+			next if not $count;
+			foreach my $network_count (1..$count)
+			{
+				my $ip_key = $network_type.$network_count."_ip";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_key => $ip_key }});
+				if ((exists $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}) && ($anvil->data->{variables}{form}{config_step2}{$ip_key}{value} eq "dhcp"))
+				{
+					$gateway_interface = $network_type.$network_count;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_interface => $gateway_interface }});
+					last;
+				}
+			}
+		}
+	}
+	
+	# Disconnect from the database, as we're about to tear down our connection.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0466"});
+	$anvil->Database->disconnect();
+	
+	# Close all open SSH connections
+	foreach my $ssh_fh_key (sort {$a cmp $b} keys %{$anvil->data->{cache}{ssh_fh}})
+	{
+		my $ssh_fh = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ssh_fh => $ssh_fh }});
+		
+		next if $ssh_fh !~ /^Net::OpenSSH/;
+		$ssh_fh->disconnect();
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "message_0009", variables => { target => $ssh_fh_key }});
+		
+		# For good measure, blank both variables.
+		$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = "";
+		$ssh_fh                                    = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
+	}
+	
+	my $new_interfaces  = [];
 	foreach my $network_type ("bcn", "sn", "ifn")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_type => $network_type }});
@@ -316,10 +355,33 @@ sub reconfigure_network
 				bridge          => $bridge, 
 			}});
 			
+			# Dig out the name that network manager knows the old interface(s) as. The 
+			# 'old_link1_iface' is the name reported by 'ip', the 'DEVICE=xxx' value in the ifcfg-xxx file.
+			my $old_link1_nm_name = $old_link1_iface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_nm_name => $old_link1_nm_name }});
+			if ((exists $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link1_iface}) && ($anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link1_iface}))
+			{
+				$old_link1_nm_name = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link1_iface};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_nm_name => $old_link1_nm_name }});
+			}
+			
+			# Is there a link 2?
+			my $old_link2_nm_name = "";
+			if ($old_link2_iface)
+			{
+				$old_link2_nm_name = $old_link2_iface;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_nm_name => $old_link2_nm_name }});
+				if ((exists $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link2_iface}) && ($anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link2_iface}))
+				{
+					$old_link2_nm_name = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link2_iface};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_nm_name => $old_link2_nm_name }});
+				}
+			}
+			
 			# Skip if this doesn't exist or isn't a valid IPv4 address.
 			if (not exists $anvil->data->{variables}{form}{config_step2}{$ip_key}{value})
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0176", variables => { ip_key => $ip_key }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0176", variables => { ip_key => $ip_key }});
 				next;
 			}
 			else
@@ -331,7 +393,7 @@ sub reconfigure_network
 			    (not $anvil->Validate->is_ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
 			{
 				# Something was set, but it isn't valid.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0148", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0148", variables => { 
 					network => $this_network,
 					ip      => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value},
 				}});
@@ -386,8 +448,6 @@ sub reconfigure_network
 				my $new_link1_iface  = $say_interface."_link1";
 				my $new_link2_iface  = $say_interface."_link2";
 				my $boot_proto       = $ip_address eq "dhcp" ? "dhcp" : "none";
-				my $bridge_uuid      = get_uuid_from_interface_file($anvil, $bridge_file);
-				my $bond_uuid        = get_uuid_from_interface_file($anvil, $bond_file);
 				my $link1_uuid       = get_uuid_from_interface_file($anvil, $old_link1_file);
 				my $link2_uuid       = get_uuid_from_interface_file($anvil, $old_link2_file);
 				if ((exists $anvil->data->{network}{mac_address}{$link1_mac}{iface}) && ($anvil->data->{network}{mac_address}{$link1_mac}{iface}))
@@ -400,10 +460,8 @@ sub reconfigure_network
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					bond_file        => $bond_file, 
-					bond_uuid        => $bond_uuid, 
 					boot_proto       => $boot_proto, 
 					bridge_file      => $bridge_file, 
-					bridge_uuid      => $bridge_uuid, 
 					cidr             => $cidr, 
 					link1_uuid       => $link1_uuid, 
 					link2_uuid       => $link2_uuid, 
@@ -418,86 +476,114 @@ sub reconfigure_network
 					say_defroute     => $say_defroute, 
 				}});
 				
+				### NOTE: Bridges and bonds take a UUID, but it can be temperamental. It 
+				###       works more reliably without defining it, so we don't.
 				# Are we building a bridge interface?
 				my $bridge_config = "";
 				if ($bridge)
 				{
+					my $new_bridge1_nm_name = $interface_prefix." ".$network_count." - Bridge 1";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_bridge1_nm_name => $new_bridge1_nm_name }});
+					
+					# Record that we need to start this.
+					push @{$new_interfaces}, $new_bridge1_nm_name;
+					
 					# Yup!
 					$bridge_config =  "# $say_network - Bridge 1\n";
-					$bridge_config .= "UUID=\"".$bond_uuid."\"\n";
-					$bridge_config .= "TYPE=\"Bridge\"\n";
 					$bridge_config .= "DEVICE=\"".$new_bridge_iface."\"\n";
-					$bridge_config .= "NAME=\"".$interface_prefix." ".$network_count." - Bridge 1\"\n";
-					$bridge_config .= "ONBOOT=\"yes\"\n";
+					$bridge_config .= "NAME=\"".$new_bridge1_nm_name."\"\n";
+					$bridge_config .= "TYPE=\"Bridge\"\n";
 					$bridge_config .= "STP=\"yes\"\n";
 					$bridge_config .= "BRIDGING_OPTS=\"priority=32768\"\n";
+					$bridge_config .= "PROXY_METHOD=\"none\"\n";
 					$bridge_config .= "BROWSER_ONLY=\"no\"\n";
+					$bridge_config .= "IPV4_FAILURE_FATAL=\"no\"\n";
+					$bridge_config .= "IPV6INIT=\"no\"\n";
 					$bridge_config .= "BOOTPROTO=\"".$boot_proto."\"\n";
+					
 					# If the IP is NOT 'dhcp', set it. 
 					if ($ip_address ne "dhcp")
 					{
 						$bridge_config .= "IPADDR=\"".$ip_address."\"\n";
 						$bridge_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
-					}
-					
-					# If this is the default gateway, add that info.
-					if ($is_gateway)
-					{
-						$bridge_config .= "GATEWAY=\"".$gateway."\"\n";
-						for (my $i = 0; $i < @{$dns}; $i++)
+						
+						# If this is the default gateway, add that info.
+						if ($is_gateway)
 						{
-							$bridge_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+							$bridge_config .= "GATEWAY=\"".$gateway."\"\n";
+							for (my $i = 0; $i < @{$dns}; $i++)
+							{
+								$bridge_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+							}
 						}
 					}
 					$bridge_config .= "DEFROUTE=\"".$say_defroute."\"\n";
+					$bridge_config .= "ONBOOT=\"yes\"\n";
 					$bridge_config .= "ZONE=\"".uc($say_interface)."\"\n";
 				}
 				
 				# If this is DHCP, but there is a bridge, the bond's boot proto in 'none'.
 				$boot_proto = "none" if $bridge;
-				   
+				
+				# Make the rest of the network names.
+				my $new_bond1_nm_name = $interface_prefix." ".$network_count." - Bond 1";
+				my $new_link1_nm_name = $interface_prefix." ".$network_count." - Link 1";
+				my $new_link2_nm_name = $interface_prefix." ".$network_count." - Link 2";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					new_bond1_nm_name => $new_bond1_nm_name, 
+					new_link1_nm_name => $new_link1_nm_name, 
+					new_link2_nm_name => $new_link2_nm_name, 
+				}});
+				
+				# Record that we need to start this.
+				push @{$new_interfaces}, $new_bond1_nm_name;
+				push @{$new_interfaces}, $new_link1_nm_name;
+				push @{$new_interfaces}, $new_link2_nm_name;
+				
 				# Build the Bond config.
 				my $bond_config =  "# $say_network - Bond 1\n";
-				   $bond_config .= "UUID=\"".$bond_uuid."\"\n";
-				   $bond_config .= "NAME=\"".$interface_prefix." ".$network_count." - Bond 1\"\n";
 				   $bond_config .= "DEVICE=\"".$new_bond_iface."\"\n";
-				   $bond_config .= "BONDING_OPTS=\"mode=active-backup primary=".$say_interface."_link1 updelay=120000 downdelay=0 miimon=100 primary_reselect=better\"\n";
+				   $bond_config .= "NAME=\"".$new_bond1_nm_name."\"\n";
 				   $bond_config .= "TYPE=\"Bond\"\n";
+				   $bond_config .= "BONDING_OPTS=\"downdelay=0 miimon=100 mode=active-backup primary=".$say_interface."_link1 updelay=120000\"\n";
 				   $bond_config .= "BONDING_MASTER=\"yes\"\n";
-				   $bond_config .= "IPV6INIT=\"no\"\n";
 				   $bond_config .= "ONBOOT=\"yes\"\n";
-				   $bond_config .= "BOOTPROTO=\"".$boot_proto."\"\n";
-				# If this is a connected to a bridge, we specify as much.
+				
+				# Is this connected to a bridge?
 				if ($bridge)
 				{
 					$bond_config .= "BRIDGE=\"".$new_bridge_iface."\"\n";
 				}
 				else
 				{
-					# If the ip is NOT 'dhcp', set the ip and subnet
+					# Does this bond have an IP?
+					# If the IP is NOT 'dhcp', set it. 
+					$bond_config .= "BOOTPROTO=\"".$boot_proto."\"\n";
 					if ($ip_address ne "dhcp")
 					{
-						# This bond has an IP, set it
 						$bond_config .= "IPADDR=\"".$ip_address."\"\n";
 						$bond_config .= $cidr ? "PREFIX=\"".$cidr."\"\n" : "NETMASK=\"".$subnet_mask."\"\n";
-					}
-					# Is this the default gateway?
-					if ($is_gateway)
-					{
-						$bond_config .= "GATEWAY=\"".$gateway."\"\n";
-						for (my $i = 0; $i < @{$dns}; $i++)
+						
+						# If this is the default gateway, add that info.
+						if ($is_gateway)
 						{
-							$bond_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+							$bond_config .= "GATEWAY=\"".$gateway."\"\n";
+							for (my $i = 0; $i < @{$dns}; $i++)
+							{
+								$bond_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
+							}
 						}
 					}
 					$bond_config .= "DEFROUTE=\"".$say_defroute."\"\n";
 				}
+				# Rest of the config
 				$bond_config .= "ZONE=\"".uc($say_interface)."\"\n";
 				   
+				# Now build the links
 				my $link1_config =  "# $say_network - Link 1\n";
 				   $link1_config .= "HWADDR=\"".uc($link1_mac)."\"\n";
 				   $link1_config .= "UUID=\"".$link1_uuid."\"\n";
-				   $link1_config .= "NAME=\"".$interface_prefix." ".$network_count." - Link 1\"\n";
+				   $link1_config .= "NAME=\"".$new_link1_nm_name."\"\n";
 				   $link1_config .= "DEVICE=\"".$new_link1_iface."\"\n";
 				   $link1_config .= "TYPE=\"Ethernet\"\n";
 				   $link1_config .= "BOOTPROTO=\"none\"\n";
@@ -513,7 +599,7 @@ sub reconfigure_network
 				my $link2_config =  "# $say_network - Link 2\n";
 				   $link2_config .= "HWADDR=\"".uc($link2_mac)."\"\n";
 				   $link2_config .= "UUID=\"".$link2_uuid."\"\n";
-				   $link2_config .= "NAME=\"".$interface_prefix." ".$network_count." - Link 2\"\n";
+				   $link2_config .= "NAME=\"".$new_link2_nm_name."\"\n";
 				   $link2_config .= "DEVICE=\"".$new_link2_iface."\"\n";
 				   $link2_config .= "TYPE=\"Ethernet\"\n";
 				   $link2_config .= "BOOTPROTO=\"none\"\n";
@@ -558,92 +644,86 @@ sub reconfigure_network
 				{
 					$anvil->Storage->backup({debug => 2, file => $new_link2_file});
 				}
+				
+				# Remove the old link if it was different, of down and up it if the same.
+				if ($old_link1_iface ne $new_link1_iface)
+				{
+					# Delete the old interface
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0461", variables => { interface => $old_link1_nm_name }});
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection delete ".$old_link1_nm_name});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					if (-e $old_link1_file)
+					{
+						unlink $old_link1_file;
+					}
+				}
+				else
+				{
+					# Down the interface
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $old_link1_nm_name }});
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down ".$old_link1_nm_name});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
+				
+				# Shut down (and rename) Link 2
+				if ($old_link2_iface ne $new_link2_iface)
+				{
+					# Delete the old interface
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0461", variables => { interface => $old_link2_nm_name }});
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection delete ".$old_link2_nm_name});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					sleep 1;
+					if (-e $old_link2_file)
+					{
+						unlink $old_link2_file;
+					}
+				}
+				else
+				{
+					# Down the interface
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $old_link2_nm_name }});
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down ".$old_link2_nm_name});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
 
 				### Write out the new configs
 				# Are we writing a bridge config?
 				if ($bridge)
 				{
-					$anvil->Storage->write_file({file => $bridge_file,    body => $bridge_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+					$anvil->Storage->write_file({file => $bridge_file, body => $bridge_config, user => "root", group => "root", mode => "0644", overwrite => 1});
 				}
 				# Bond, Link 1 and Link 2
 				$anvil->Storage->write_file({file => $bond_file,      body => $bond_config,   user => "root", group => "root", mode => "0644", overwrite => 1});
 				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
 				$anvil->Storage->write_file({file => $new_link2_file, body => $link2_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
-			
 				
-				### NOTE: Everything except the unlink is disabled until we sort out the 
-				###       reload without reboot.
-				# Shut down (and rename) Link 1
-				if ($old_link1_iface)
- 				{
-					# Take down and rename the old link 1 interface
-					#print "Downing: ..... [$old_link1_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$old_link1_iface});
-					#print "Disconnecting: [$old_link1_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link1_iface." down"});
-				}
-				if ($old_link1_iface ne $new_link1_iface)
+				# If the NICs names have changed, rename them now.
+				if ((exists $anvil->data->{network}{mac_address}{$link1_mac}{iface}) && 
+				    ($anvil->data->{network}{mac_address}{$link1_mac}{iface})        && 
+				    ($anvil->data->{network}{mac_address}{$link1_mac}{iface} ne $new_link1_iface))
 				{
-					# Rename it
-					#print "Renaming: .... [$old_link1_iface] -> [$new_link1_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link1_iface." name ".$new_link1_iface});
-					
-					# Unllnk the old one, if it exists.
-					if (-e $old_link1_file)
-					{
-						#print "Deleting: .... [$old_link1_file]\n";
-						unlink $old_link1_file;
-					}
+					rename_interface($anvil, $anvil->data->{network}{mac_address}{$link1_mac}{iface}, $new_link1_iface);
 				}
-				# Drop the new link, too, in case it still has the old config
-				#print "Downing: ..... [$new_link1_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$new_link1_iface});
-				
-				# Shut down (and rename) Link 2
-				if ($old_link2_iface)
+				if ((exists $anvil->data->{network}{mac_address}{$link2_mac}{iface}) && 
+				    ($anvil->data->{network}{mac_address}{$link2_mac}{iface})        && 
+				    ($anvil->data->{network}{mac_address}{$link2_mac}{iface} ne $new_link2_iface))
 				{
-					# Take down and rename the old link 1 interface
-					#print "Downing: ..... [$old_link2_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$old_link2_iface});
-					#print "Disconnecting: [$old_link2_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link2_iface." down"});
+					rename_interface($anvil, $anvil->data->{network}{mac_address}{$link2_mac}{iface}, $new_link2_iface);
 				}
-				if ($old_link2_iface ne $new_link2_iface)
-				{
-					# Rename it
-					#print "Renaming ..... [$old_link2_iface] -> [$new_link2_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link2_iface." name ".$new_link2_iface});
-					
-					# Unllnk the old one, if it exists.
-					if (-e $old_link2_file)
-					{
-						#print "Deleting: .... [$old_link2_file]\n";
-						unlink $old_link2_file;
-					}
-				}
-				# Drop the new link, too, in case it still has the old config
-				#print "Downing: ..... [$new_link2_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$new_link2_iface});
-				
-				# Start the bond.
-				#print "Uping: ....... [$new_bond_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifup}." ".$new_bond_iface});
-				
-				# Reconnect and up link 1 
-				#print "Uping: ....... [$new_link1_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifup}." ".$new_link1_iface});
-				#print "Reconnecting:  [$new_link1_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$new_link1_iface." up"});
-				
-				# Reconnect and up link 2
-				#print "Uping: ....... [$new_link2_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifup}." ".$new_link2_iface});
-				#print "Reconnecting:  [$new_link2_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$new_link2_iface." up"});
-				
-				# Connect the bond (in case it isn't already)r
-				#print "Connecting: .. [$new_bond_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$new_bond_iface." up"});
 			}
 			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
 			{
@@ -692,6 +772,10 @@ sub reconfigure_network
 					say_defroute    => $say_defroute, 
 				}});
 				
+				my $new_link1_nm_name = $interface_prefix." ".$network_count." - Link 1";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_link1_nm_name => $new_link1_nm_name }});
+				push @{$new_interfaces}, $new_link1_nm_name;
+				
 				# Gather (or create) UUIDs
 				my $link1_uuid = get_uuid_from_interface_file($anvil, $old_link1_file);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_uuid => $link1_uuid }});
@@ -699,7 +783,7 @@ sub reconfigure_network
 				my $link1_config =  "# $say_network - Link 1\n";
 				   $link1_config .= "HWADDR=\"".uc($link1_mac)."\"\n";
 				   $link1_config .= "UUID=\"".$link1_uuid."\"\n";
-				   $link1_config .= "NAME=\"".$interface_prefix." ".$network_count." - Link 1\"\n";
+				   $link1_config .= "NAME=\"".$new_link1_nm_name."\"\n";
 				   $link1_config .= "DEVICE=\"".$new_link1_iface."\"\n";
 				   $link1_config .= "TYPE=\"Ethernet\"\n";
 				   $link1_config .= "BOOTPROTO=\"none\"\n";
@@ -715,11 +799,11 @@ sub reconfigure_network
 						$link1_config .= "DNS".($i+1)."=\"".$dns->[$i]."\"\n";
 					}
 				}
-				   $link1_config .= "DEFROUTE=\"".$say_defroute."\"\n";
-				   $link1_config .= "USERCTL=\"no\"\n";
-				   $link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
-				   $link1_config .= "NM_CONTROLLED=\"yes\"\n";
-				   $link1_config .= "ZONE=\"".uc($say_interface)."\"";
+				$link1_config .= "DEFROUTE=\"".$say_defroute."\"\n";
+				$link1_config .= "USERCTL=\"no\"\n";
+				$link1_config .= "MTU=\"1500\"\n";	# TODO: Make the MTU user-adjustable
+				$link1_config .= "NM_CONTROLLED=\"yes\"\n";
+				$link1_config .= "ZONE=\"".uc($say_interface)."\"";
 				   
 				# Backup the existing link1 file, if it exists.
 				if (-e $old_link1_file)
@@ -730,38 +814,59 @@ sub reconfigure_network
 				# Write out the link1 config file.
 				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config, user => "root", group => "root", mode => "0644", overwrite => 1});
 				
-				if ($old_link1_iface)
- 				{
-					# Take down and rename the old link 1 interface
-					#print "Downing: ..... [$old_link1_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$old_link1_iface});
-					#print "Disconnecting: [$old_link1_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link1_iface." down"});
-				}
-				if ($old_link1_iface ne $new_link1_iface)
+				# If the name differs from old, delete the old interface.
+				if ((exists $anvil->data->{network}{mac_address}{$link1_mac}{iface}) && 
+				    ($anvil->data->{network}{mac_address}{$link1_mac}{iface})        && 
+				    ($anvil->data->{network}{mac_address}{$link1_mac}{iface} ne $new_link1_iface))
 				{
-					# Rename it
-					#print "Renaming: .... [$old_link1_iface] -> [$new_link1_iface]\n";
-					#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link1_iface." name ".$new_link1_iface});
+					# Delete the old interface
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0461", variables => { interface => $old_link1_nm_name }});
+					$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection delete ".$old_link1_nm_name});
 					
-					# Unllnk the old one, if it exists.
-					if (-e $old_link1_file)
-					{
-						#print "Deleting: .... [$old_link1_file]\n";
-						unlink $old_link1_file;
-					}
+					rename_interface($anvil, $anvil->data->{network}{mac_address}{$link1_mac}{iface}, $new_link1_iface);
 				}
-				
-				# Drop the new link, too, in case it still has the old config
-				#print "Downing: ..... [$new_link1_iface]\n";
-				#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{ifdown}." ".$new_link1_iface});
+				else
+				{
+					# Down the interface
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $old_link1_nm_name }});
+					$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down ".$old_link1_nm_name});
+				}
 			}
 			else
 			{
 				# Doesn't exist, skip.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0149", variables => { network => $this_network }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0149", variables => { network => $this_network }});
 				next;
 			}
+		}
+	}
+	
+	# Re-read the config
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
+	my $wait_until = time + 130;
+	until ($anvil->data->{sys}{database}{connections})
+	{
+		$anvil->refresh();
+		$anvil->Database->connect();
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0132"});
+		if (not $anvil->data->{sys}{database}{connections})
+		{
+			if (time > $wait_until)
+			{
+				# Failed to reconnect, exit. 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0107"});
+				$anvil->nice_exit({code => 2});
+			}
+			
+			# No databases, sleep and then try again.
+			sleep 2;
 		}
 	}
 	
@@ -773,7 +878,7 @@ sub reconfigure_network
 	
 	# If any virtio bridges exist, remove it/them.
 	my $start                   = 0;
-	my ($bridges, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
+	(my $bridges, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges, return_code => $return_code }});
 	foreach my $line (split/\n/, $bridges)
 	{
@@ -808,13 +913,6 @@ sub reconfigure_network
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { undefine => $undefine, return_code => $return_code }});
 	}
 	
-	### TODO: This isn't working... The route table won't set the IFN as the default route properly and 
-	###       the IFN links seem to drop out and not return when trying to fix it. For now, we'll do a 
-	###       closing reboot which seems to always comes up OK.
-	# Reload the network
-	#print "reloading nmcli\n";
-	#$anvil->System->call({shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
-	
 	$anvil->Job->update_progress({
 		progress => 75, 
 		job_uuid => $anvil->data->{job}{uuid},
@@ -823,12 +921,46 @@ sub reconfigure_network
 	return(0);
 }
 
+# This renames a network interface
+sub rename_interface
+{
+	my ($anvil, $old_link_name, $new_link_name) = @_;
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0465", variables => { 
+		old_interface => $old_link_name,
+		new_interface => $new_link_name,
+	}});
+	
+	# Take the old name down.
+	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link_name." down"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Rename
+	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$old_link_name." name ".$new_link_name});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Bring up the new interface
+	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$new_link_name." up"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	return(0);
+}
+
 # This will read a network interface file and return the UUID="x" value. If the file doesn't exist or the 
 # UUID was not found, a new UUID is generated and returned.
 sub get_uuid_from_interface_file
 {
 	my ($anvil, $file) = @_;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0131", variables => { function => "get_uuid_from_interface_file" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, 'print' => 1, key => "log_0131", variables => { function => "get_uuid_from_interface_file" }});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	my $uuid = "";
@@ -896,7 +1028,7 @@ sub pickup_job_details
 	if ($job_picked_up_by)
 	{
 		# The previous job is gone if we're still alive, we'll take this over.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0147", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, 'print' => 1, key => "log_0147", variables => { 
 			pid     => $job_picked_up_by,
 			percent => $job_progress, 
 		}});

@@ -731,6 +731,10 @@ B<< Note >>: This is expensive, so should only be called periodically. This will
 
 If set, the connection will be made only to the database server matching the UUID.
 
+=head3 no_ping (optional, default '0')
+
+If set to C<< 1 >>, no attempt to ping a target before connection will happen, even if C<< database::<uuid>::ping = 1 >> is set.
+
 =head3 source (optional)
 
 The C<< source >> parameter is used to check the special C<< updated >> table one all connected databases to see when that source (program name, usually) last updated a given database. If the date stamp is the same on all connected databases, nothing further happens. If one of the databases differ, however, a resync will be requested.
@@ -780,6 +784,7 @@ sub connect
 	
 	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
 	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
+	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
 	my $source              = defined $parameter->{source}              ? $parameter->{source}              : "core";
 	my $sql_file            = defined $parameter->{sql_file}            ? $parameter->{sql_file}            : $anvil->data->{path}{sql}{'anvil.sql'};
 	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
@@ -787,6 +792,7 @@ sub connect
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		check_if_configured => $check_if_configured, 
 		db_uuid             => $db_uuid,
+		no_ping             => $no_ping,
 		source              => $source, 
 		sql_file            => $sql_file, 
 		tables              => $tables, 
@@ -901,7 +907,7 @@ sub connect
 			db_connect_string         => $db_connect_string, 
 			"database::${uuid}::ping" => $anvil->data->{database}{$uuid}{ping},
 		}});
-		if ($anvil->data->{database}{$uuid}{ping})
+		if ((not $no_ping) && ($anvil->data->{database}{$uuid}{ping}))
 		{
 			# Can I ping?
 			my ($pinged) = $anvil->Network->ping({
