@@ -2462,6 +2462,12 @@ sub insert_or_update_bonds
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_mode" }});
 		return("");
 	}
+	if (not $bond_bridge_uuid)
+	{
+		# This has to be 'NULL' if not defined.
+		$bond_bridge_uuid = 'NULL';
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_bridge_uuid => $bond_bridge_uuid }});
+	}
 	
 	# If we don't have a UUID, see if we can find one for the given bond server name.
 	if (not $bond_uuid)
@@ -2558,6 +2564,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
+		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}

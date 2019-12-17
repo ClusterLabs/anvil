@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        30%{?dist}
+Release:        31%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -352,6 +352,9 @@ fi
 
 
 %changelog
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-31
+- 
+
 * Fri Dec 13 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-30
 - Enabled/started chronyd in core's post.
 - Updated source.

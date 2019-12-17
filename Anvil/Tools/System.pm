@@ -23,11 +23,12 @@ my $THIS_FILE = "System.pm";
 # check_if_configured
 # check_memory
 # check_storage
+# disable_daemon
+# enable_daemon
+# find_matching_ip
 # get_bridges
 # get_free_memory
 # get_host_type
-# enable_daemon
-# find_matching_ip
 # get_uptime
 # get_os_type
 # host_name
@@ -796,6 +797,38 @@ sub check_storage
 	return(0);
 }
 
+=head2 disable_daemon
+
+This method disables a daemon. The return code from the disable request will be returned.
+
+If the return code for the disable command wasn't read, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 daemon (required)
+
+This is the name of the daemon to disable. The exact name given is passed to C<< systemctl >>, so please be mindful of appropriate suffixes.
+
+=cut
+sub disable_daemon
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->disable_daemon()" }});
+	
+	my $return = 9999;
+	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." disable ".$daemon});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'return' => $return }});
+	return($return);
+}
+
 =head2 generate_state_json
 
 This method generates the C<< all_status.json >> file. 
@@ -1340,82 +1373,6 @@ sub get_free_memory
 	return($available);
 }
 
-=head2 get_host_type
-
-This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
-
- my $type = $anvil->System->get_host_type();
-
-First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
-
-If that isn't set, it then looks to see if the file C<< /etc/anvil/type.X >> exists, where C<< X >> is C<< node >>, C<< dashboard >> or C<< dr >>. If found, the appropriate type is returned.
-
-If that file doesn't exist, then it looks at the short host name. The following rules are used, in order;
-
-1. If the host name ends in C<< n<digits> >> or C<< node<digits> >>, C<< node >> is returned.
-2. If the host name ends in C<< striker<digits> >> or C<< dashboard<digits> >>, C<< dashboard >> is returned.
-3. If the host name ends in C<< dr<digits> >>, C<< dr >> is returned.
-
-=cut
-sub get_host_type
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_host_type()" }});
-	
-	my $host_type = "";
-	my $host_name = $anvil->_short_host_name;
-	   $host_type = "unknown";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		host_type        => $host_type,
-		host_name        => $host_name,
-		"sys::host_type" => $anvil->data->{sys}{host_type},
-	}});
-	if ($anvil->data->{sys}{host_type})
-	{
-		$host_type = $anvil->data->{sys}{host_type};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-	}
-	else
-	{
-		# Can I determine it by seeing a file?
-		if (-e $anvil->data->{path}{configs}{'type.node'})
-		{
-			$host_type = "node";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (-e $anvil->data->{path}{configs}{'type.dashboard'})
-		{
-			$host_type = "dashboard";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (-e $anvil->data->{path}{configs}{'type.dr'})
-		{
-			$host_type = "dr";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/) or ($host_name =~ /new-node+$/))
-		{
-			$host_type = "node";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (($host_name =~ /striker\d+$/) or ($host_name =~ /dashboard\d+$/))
-		{
-			$host_type = "dashboard";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (($host_name =~ /dr\d+$/) or ($host_name =~ /new-dr$/))
-		{
-			$host_type = "dr";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-	}
-	
-	return($host_type);
-}
-
 =head2 enable_daemon
 
 This method enables a daemon (so that it starts when the OS boots). The return code from the start request will be returned.
@@ -1533,6 +1490,82 @@ sub find_matching_ip
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_ip => $local_ip }});
 	return($local_ip);
+}
+
+=head2 get_host_type
+
+This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
+
+ my $type = $anvil->System->get_host_type();
+
+First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
+
+If that isn't set, it then looks to see if the file C<< /etc/anvil/type.X >> exists, where C<< X >> is C<< node >>, C<< dashboard >> or C<< dr >>. If found, the appropriate type is returned.
+
+If that file doesn't exist, then it looks at the short host name. The following rules are used, in order;
+
+1. If the host name ends in C<< n<digits> >> or C<< node<digits> >>, C<< node >> is returned.
+2. If the host name ends in C<< striker<digits> >> or C<< dashboard<digits> >>, C<< dashboard >> is returned.
+3. If the host name ends in C<< dr<digits> >>, C<< dr >> is returned.
+
+=cut
+sub get_host_type
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_host_type()" }});
+	
+	my $host_type = "";
+	my $host_name = $anvil->_short_host_name;
+	   $host_type = "unknown";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_type        => $host_type,
+		host_name        => $host_name,
+		"sys::host_type" => $anvil->data->{sys}{host_type},
+	}});
+	if ($anvil->data->{sys}{host_type})
+	{
+		$host_type = $anvil->data->{sys}{host_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	}
+	else
+	{
+		# Can I determine it by seeing a file?
+		if (-e $anvil->data->{path}{configs}{'type.node'})
+		{
+			$host_type = "node";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (-e $anvil->data->{path}{configs}{'type.dashboard'})
+		{
+			$host_type = "dashboard";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (-e $anvil->data->{path}{configs}{'type.dr'})
+		{
+			$host_type = "dr";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/) or ($host_name =~ /new-node+$/))
+		{
+			$host_type = "node";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (($host_name =~ /striker\d+$/) or ($host_name =~ /dashboard\d+$/))
+		{
+			$host_type = "dashboard";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (($host_name =~ /dr\d+$/) or ($host_name =~ /new-dr$/))
+		{
+			$host_type = "dr";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+	}
+	
+	return($host_type);
 }
 
 =head2 get_uptime
@@ -2096,6 +2129,9 @@ sub manage_firewall
 		port_number => $port_number,
 		protocol    => $protocol, 
 	}});
+	
+	### NOTE: Disabled during development
+	return(0);
 	
 	# Make sure we have a port or service.
 	if (not $port_number)
