@@ -1184,7 +1184,9 @@ SELECT
 FROM 
     ip_addresses 
 WHERE 
-    ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)."
+    ip_address_host_uuid =  ".$anvil->Database->quote($host_uuid)." 
+AND 
+    ip_address_note      != 'DELETED'
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -1223,7 +1225,9 @@ SELECT
 FROM 
     network_interfaces 
 WHERE 
-    network_interface_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
+    network_interface_uuid        =  ".$anvil->Database->quote($ip_address_on_uuid)."
+AND 
+    network_interface_operational != 'DELETED'
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -1266,7 +1270,9 @@ SELECT
 FROM 
     bonds 
 WHERE 
-    bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
+    bond_uuid        =  ".$anvil->Database->quote($ip_address_on_uuid)."
+AND 
+    bond_operational != 'DELETED'
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -1309,7 +1315,9 @@ SELECT
 FROM 
     bridges 
 WHERE 
-    bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid)."
+    bridge_uuid =  ".$anvil->Database->quote($ip_address_on_uuid)."
+AND 
+    bridge_id   != 'DELETED'
 ;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});

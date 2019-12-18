@@ -806,93 +806,68 @@ CREATE TRIGGER trigger_jobs
     AFTER INSERT OR UPDATE ON jobs
     FOR EACH ROW EXECUTE PROCEDURE history_jobs();
 
--- NOTE: network_interfaces, network_bonds and network_bridges are all used by scan-network (which doesn't 
---       exist yet).
 
--- This stores information about network interfaces on hosts. It is mainly used to match a MAC address to a
--- host. Given that it is possible that network devices can move, the linkage to the host_uuid can change.
-CREATE TABLE network_interfaces (
-    network_interface_uuid           uuid                        not null    primary key,
-    network_interface_host_uuid      uuid                        not null,
-    network_interface_mac_address    text                        not null,
-    network_interface_name           text                        not null,                   -- This is the current name of the interface. 
-    network_interface_speed          bigint                      not null,                   -- This is the speed, in bits-per-second, of the interface.
-    network_interface_mtu            bigint                      not null,                   -- This is the MTU (Maximum Transmitable Size), in bytes, for this interface.
-    network_interface_link_state     text                        not null,                   -- 0 or 1
-    network_interface_operational    text                        not null,                   -- This is 'up', 'down' or 'unknown' 
-    network_interface_duplex         text                        not null,                   -- This is 'full', 'half' or 'unknown' 
-    network_interface_medium         text                        not null,                   -- This is 'tp' (twisted pair), 'fiber' or whatever they invent in the future.
-    network_interface_bond_uuid      uuid,                                                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
-    network_interface_bridge_uuid    uuid,                                                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
-    modified_date                    timestamp with time zone    not null
+-- This stores information about network bridges. 
+CREATE TABLE bridges (
+    bridge_uuid           uuid                        not null    primary key,
+    bridge_host_uuid      uuid                        not null,
+    bridge_name           text                        not null,
+    bridge_id             text                        not null,
+    bridge_mac_address    text                        not null,
+    bridge_mtu            text                        not null,
+    bridge_stp_enabled    text                        not null,                  -- 0 = disabled, 1 = kernel STP, 2 = user STP
+    modified_date         timestamp with time zone    not null,
     
-    FOREIGN KEY(network_interface_bridge_uuid) REFERENCES bridges(bridge_uuid),
-    FOREIGN KEY(network_interface_bond_uuid) REFERENCES bonds(bond_uuid),
-    FOREIGN KEY(network_interface_host_uuid) REFERENCES hosts(host_uuid)
+    FOREIGN KEY(bridge_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE network_interfaces OWNER TO admin;
+ALTER TABLE bridges OWNER TO admin;
 
-CREATE TABLE history.network_interfaces (
-    history_id                       bigserial,
-    network_interface_uuid           uuid                        not null,
-    network_interface_host_uuid      uuid,
-    network_interface_mac_address    text,
-    network_interface_name           text,
-    network_interface_speed          bigint,
-    network_interface_mtu            bigint,
-    network_interface_link_state     text,
-    network_interface_operational    text,
-    network_interface_duplex         text,
-    network_interface_medium         text,
-    network_interface_bond_uuid      uuid,
-    network_interface_bridge_uuid    uuid,
-    modified_date                    timestamp with time zone    not null
+CREATE TABLE history.bridges (
+    history_id            bigserial,
+    bridge_uuid           uuid,
+    bridge_host_uuid      uuid,
+    bridge_name           text,
+    bridge_id             text,
+    bridge_mac_address    text,
+    bridge_mtu            text,
+    bridge_stp_enabled    text,
+    modified_date         timestamp with time zone    not null
 );
-ALTER TABLE history.network_interfaces OWNER TO admin;
+ALTER TABLE history.bridges OWNER TO admin;
 
-CREATE FUNCTION history_network_interfaces() RETURNS trigger
+CREATE FUNCTION history_bridges() RETURNS trigger
 AS $$
 DECLARE
-    history_network_interfaces RECORD;
+    history_bridges RECORD;
 BEGIN
-    SELECT INTO history_network_interfaces * FROM network_interfaces WHERE network_interface_uuid = new.network_interface_uuid;
-    INSERT INTO history.network_interfaces
-        (network_interface_uuid,
-         network_interface_host_uuid, 
-         network_interface_mac_address, 
-         network_interface_name,
-         network_interface_speed, 
-         network_interface_mtu, 
-         network_interface_link_state, 
-         network_interface_operational, 
-         network_interface_duplex, 
-         network_interface_medium, 
-         network_interface_bond_uuid, 
-         network_interface_bridge_uuid, 
+    SELECT INTO history_bridges * FROM bridges WHERE bridge_uuid = new.bridge_uuid;
+    INSERT INTO history.bridges
+        (bridge_uuid, 
+         bridge_host_uuid, 
+         bridge_name, 
+         bridge_id, 
+         bridge_mac_address, 
+         bridge_mtu, 
+         bridge_stp_enabled, 
          modified_date)
     VALUES
-        (history_network_interfaces.network_interface_uuid,
-         history_network_interfaces.network_interface_host_uuid, 
-         history_network_interfaces.network_interface_mac_address, 
-         history_network_interfaces.network_interface_name,
-         history_network_interfaces.network_interface_speed, 
-         history_network_interfaces.network_interface_mtu, 
-         history_network_interfaces.network_interface_link_state, 
-         history_network_interfaces.network_interface_operational, 
-         history_network_interfaces.network_interface_duplex, 
-         history_network_interfaces.network_interface_medium, 
-         history_network_interfaces.network_interface_bond_uuid, 
-         history_network_interfaces.network_interface_bridge_uuid, 
-         history_network_interfaces.modified_date);
+        (history_bridges.bridge_uuid, 
+         history_bridges.bridge_host_uuid, 
+         history_bridges.bridge_name, 
+         history_bridges.bridge_id, 
+         history_bridges.bridge_mac_address, 
+         history_bridges.bridge_mtu, 
+         history_bridges.bridge_stp_enabled, 
+         history_bridges.modified_date);
     RETURN NULL;
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_network_interfaces() OWNER TO admin;
+ALTER FUNCTION history_bridges() OWNER TO admin;
 
-CREATE TRIGGER trigger_network_interfaces
-    AFTER INSERT OR UPDATE ON network_interfaces
-    FOR EACH ROW EXECUTE PROCEDURE history_network_interfaces();
+CREATE TRIGGER trigger_bridges
+    AFTER INSERT OR UPDATE ON bridges
+    FOR EACH ROW EXECUTE PROCEDURE history_bridges();
 
 
 -- This stores information about network bonds (mode=1) on a hosts.
@@ -987,67 +962,90 @@ CREATE TRIGGER trigger_bonds
     FOR EACH ROW EXECUTE PROCEDURE history_bonds();
 
 
--- This stores information about network bridges. 
-CREATE TABLE bridges (
-    bridge_uuid           uuid                        not null    primary key,
-    bridge_host_uuid      uuid                        not null,
-    bridge_name           text                        not null,
-    bridge_id             text                        not null,
-    bridge_mac_address    text                        not null,
-    bridge_mtu            text                        not null,
-    bridge_stp_enabled    text                        not null,                  -- 0 = disabled, 1 = kernel STP, 2 = user STP
-    modified_date         timestamp with time zone    not null,
+-- This stores information about network interfaces on hosts. It is mainly used to match a MAC address to a
+-- host. Given that it is possible that network devices can move, the linkage to the host_uuid can change.
+CREATE TABLE network_interfaces (
+    network_interface_uuid           uuid                        not null    primary key,
+    network_interface_host_uuid      uuid                        not null,
+    network_interface_mac_address    text                        not null,
+    network_interface_name           text                        not null,                   -- This is the current name of the interface. 
+    network_interface_speed          bigint                      not null,                   -- This is the speed, in bits-per-second, of the interface.
+    network_interface_mtu            bigint                      not null,                   -- This is the MTU (Maximum Transmitable Size), in bytes, for this interface.
+    network_interface_link_state     text                        not null,                   -- 0 or 1
+    network_interface_operational    text                        not null,                   -- This is 'up', 'down' or 'unknown' 
+    network_interface_duplex         text                        not null,                   -- This is 'full', 'half' or 'unknown' 
+    network_interface_medium         text                        not null,                   -- This is 'tp' (twisted pair), 'fiber' or whatever they invent in the future.
+    network_interface_bond_uuid      uuid,                                                   -- If this iface is in a bond, this will contain the 'bonds -> bond_uuid' that it is slaved to.
+    network_interface_bridge_uuid    uuid,                                                   -- If this iface is attached to a bridge, this will contain the 'bridgess -> bridge_uuid' that it is connected to.
+    modified_date                    timestamp with time zone    not null, 
     
-    FOREIGN KEY(bridge_host_uuid) REFERENCES hosts(host_uuid)
+    FOREIGN KEY(network_interface_bridge_uuid) REFERENCES bridges(bridge_uuid),
+    FOREIGN KEY(network_interface_bond_uuid) REFERENCES bonds(bond_uuid),
+    FOREIGN KEY(network_interface_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE bridges OWNER TO admin;
+ALTER TABLE network_interfaces OWNER TO admin;
 
-CREATE TABLE history.bridges (
-    history_id            bigserial,
-    bridge_uuid           uuid,
-    bridge_host_uuid      uuid,
-    bridge_name           text,
-    bridge_id             text,
-    bridge_mac_address    text,
-    bridge_mtu            text,
-    bridge_stp_enabled    text,
-    modified_date         timestamp with time zone    not null
+CREATE TABLE history.network_interfaces (
+    history_id                       bigserial,
+    network_interface_uuid           uuid                        not null,
+    network_interface_host_uuid      uuid,
+    network_interface_mac_address    text,
+    network_interface_name           text,
+    network_interface_speed          bigint,
+    network_interface_mtu            bigint,
+    network_interface_link_state     text,
+    network_interface_operational    text,
+    network_interface_duplex         text,
+    network_interface_medium         text,
+    network_interface_bond_uuid      uuid,
+    network_interface_bridge_uuid    uuid,
+    modified_date                    timestamp with time zone    not null
 );
-ALTER TABLE history.bridges OWNER TO admin;
+ALTER TABLE history.network_interfaces OWNER TO admin;
 
-CREATE FUNCTION history_bridges() RETURNS trigger
+CREATE FUNCTION history_network_interfaces() RETURNS trigger
 AS $$
 DECLARE
-    history_bridges RECORD;
+    history_network_interfaces RECORD;
 BEGIN
-    SELECT INTO history_bridges * FROM bridges WHERE bridge_uuid = new.bridge_uuid;
-    INSERT INTO history.bridges
-        (bridge_uuid, 
-         bridge_host_uuid, 
-         bridge_name, 
-         bridge_id, 
-         bridge_mac_address, 
-         bridge_mtu, 
-         bridge_stp_enabled, 
+    SELECT INTO history_network_interfaces * FROM network_interfaces WHERE network_interface_uuid = new.network_interface_uuid;
+    INSERT INTO history.network_interfaces
+        (network_interface_uuid,
+         network_interface_host_uuid, 
+         network_interface_mac_address, 
+         network_interface_name,
+         network_interface_speed, 
+         network_interface_mtu, 
+         network_interface_link_state, 
+         network_interface_operational, 
+         network_interface_duplex, 
+         network_interface_medium, 
+         network_interface_bond_uuid, 
+         network_interface_bridge_uuid, 
          modified_date)
     VALUES
-        (history_bridges.bridge_uuid, 
-         history_bridges.bridge_host_uuid, 
-         history_bridges.bridge_name, 
-         history_bridges.bridge_id, 
-         history_bridges.bridge_mac_address, 
-         history_bridges.bridge_mtu, 
-         history_bridges.bridge_stp_enabled, 
-         history_bridges.modified_date);
+        (history_network_interfaces.network_interface_uuid,
+         history_network_interfaces.network_interface_host_uuid, 
+         history_network_interfaces.network_interface_mac_address, 
+         history_network_interfaces.network_interface_name,
+         history_network_interfaces.network_interface_speed, 
+         history_network_interfaces.network_interface_mtu, 
+         history_network_interfaces.network_interface_link_state, 
+         history_network_interfaces.network_interface_operational, 
+         history_network_interfaces.network_interface_duplex, 
+         history_network_interfaces.network_interface_medium, 
+         history_network_interfaces.network_interface_bond_uuid, 
+         history_network_interfaces.network_interface_bridge_uuid, 
+         history_network_interfaces.modified_date);
     RETURN NULL;
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_bridges() OWNER TO admin;
+ALTER FUNCTION history_network_interfaces() OWNER TO admin;
 
-CREATE TRIGGER trigger_bridges
-    AFTER INSERT OR UPDATE ON bridges
-    FOR EACH ROW EXECUTE PROCEDURE history_bridges();
+CREATE TRIGGER trigger_network_interfaces
+    AFTER INSERT OR UPDATE ON network_interfaces
+    FOR EACH ROW EXECUTE PROCEDURE history_network_interfaces();
 
 
 -- This stores information about network ip addresss. 

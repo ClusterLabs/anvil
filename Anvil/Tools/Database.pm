@@ -2126,6 +2126,10 @@ This is the MTU (maximum transfer unit, size in bytes) of the bridge.
 
 This is set to C<< yes >> or C<< no >> to indicate if spanning tree protocol is enabled on the switch.
 
+=head2 delete (optional, default '0')
+
+If set to C<< 1 >>, C<< bridge_id >> will be set to C<< DELETED >>, indicating that the bridge has been deleted from the system. If set, only C<< bridge_uuid >> or C<< bridge_name >> is needed.
+
 =cut
 sub insert_or_update_bridges
 {
@@ -2138,6 +2142,7 @@ sub insert_or_update_bridges
 	my $uuid               = defined $parameter->{uuid}               ? $parameter->{uuid}               : "";
 	my $file               = defined $parameter->{file}               ? $parameter->{file}               : "";
 	my $line               = defined $parameter->{line}               ? $parameter->{line}               : "";
+	my $delete             = defined $parameter->{'delete'}           ? $parameter->{'delete'}           : "";
 	my $bridge_uuid        = defined $parameter->{bridge_uuid}        ? $parameter->{bridge_uuid}        : "";
 	my $bridge_host_uuid   = defined $parameter->{bridge_host_uuid}   ? $parameter->{bridge_host_uuid}   : $anvil->data->{sys}{host_uuid};
 	my $bridge_name        = defined $parameter->{bridge_name}        ? $parameter->{bridge_name}        : "";
@@ -2149,6 +2154,7 @@ sub insert_or_update_bridges
 		uuid               => $uuid, 
 		file               => $file, 
 		line               => $line, 
+		'delete'           => $delete, 
 		bridge_uuid        => $bridge_uuid, 
 		bridge_host_uuid   => $bridge_host_uuid, 
 		bridge_name        => $bridge_name, 
@@ -2157,12 +2163,15 @@ sub insert_or_update_bridges
 		bridge_mtu         => $bridge_mtu, 
 		bridge_stp_enabled => $bridge_stp_enabled, 
 	}});
-    
-	if (not $bridge_name)
+	
+	if (not $delete)
 	{
-		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bridges()", parameter => "bridge_name" }});
-		return("");
+		if (not $bridge_name)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bridges()", parameter => "bridge_name" }});
+			return("");
+		}
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given bridge server name.
@@ -2190,6 +2199,45 @@ AND
 		{
 			$bridge_uuid = $results->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_uuid => $bridge_uuid }});
+		}
+	}
+	
+	if ($delete)
+	{
+		if (not $bridge_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bridges()", parameter => "bridge_uuid" }});
+			return("");
+		}
+		else
+		{
+			# Delete it
+			my $query = "SELECT bridge_id FROM bridges WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_bridge_id = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_bridge_id => $old_bridge_id }});
+				
+				if ($old_bridge_id ne "DELETED")
+				{
+					my $query = "UPDATE bridges SET bridge_id = 'DELETED' WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($bridge_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
 		}
 	}
 	
@@ -2348,6 +2396,10 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
+=head3 delete (optional, default '0')
+
+If set to C<< 1 >>, C<< bond_operational >> gets set to C<< DELETED >>. In this case, either C<< bond_uuid >> or C<< bond_name >> is required, and nothing else is.
+
 =head3 bond_uuid (optional)
 
 If not passed, a check will be made to see if an existing entry is found for C<< bond_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
@@ -2416,6 +2468,7 @@ sub insert_or_update_bonds
 	my $uuid                      = defined $parameter->{uuid}                      ? $parameter->{uuid}                      : "";
 	my $file                      = defined $parameter->{file}                      ? $parameter->{file}                      : "";
 	my $line                      = defined $parameter->{line}                      ? $parameter->{line}                      : "";
+	my $delete                    = defined $parameter->{'delete'}                  ? $parameter->{'delete'}                  : "";
 	my $bond_uuid                 = defined $parameter->{bond_uuid}                 ? $parameter->{bond_uuid}                 : "";
 	my $bond_host_uuid            = defined $parameter->{bond_host_uuid}            ? $parameter->{bond_host_uuid}            : $anvil->data->{sys}{host_uuid};
 	my $bond_name                 = defined $parameter->{bond_name}                 ? $parameter->{bond_name}                 : "";
@@ -2434,6 +2487,7 @@ sub insert_or_update_bonds
 		uuid                      => $uuid, 
 		file                      => $file, 
 		line                      => $line, 
+		'delete'                  => $delete, 
 		bond_uuid                 => $bond_uuid, 
 		bond_host_uuid            => $bond_host_uuid, 
 		bond_name                 => $bond_name, 
@@ -2450,23 +2504,26 @@ sub insert_or_update_bonds
 		bond_bridge_uuid          => $bond_bridge_uuid, 
 	}});
 	
-	if (not $bond_name)
+	if (not $delete)
 	{
-		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_name" }});
-		return("");
-	}
-	if (not $bond_mode)
-	{
-		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_mode" }});
-		return("");
-	}
-	if (not $bond_bridge_uuid)
-	{
-		# This has to be 'NULL' if not defined.
-		$bond_bridge_uuid = 'NULL';
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_bridge_uuid => $bond_bridge_uuid }});
+		if (not $bond_name)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_name" }});
+			return("");
+		}
+		if (not $bond_mode)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_mode" }});
+			return("");
+		}
+		if (not $bond_bridge_uuid)
+		{
+			# This has to be 'NULL' if not defined.
+			$bond_bridge_uuid = 'NULL';
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_bridge_uuid => $bond_bridge_uuid }});
+		}
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given bond server name.
@@ -2494,6 +2551,45 @@ AND
 		{
 			$bond_uuid = $results->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_uuid => $bond_uuid }});
+		}
+	}
+	
+	if ($delete)
+	{
+		if (not $bond_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bonds()", parameter => "bond_uuid" }});
+			return("");
+		}
+		else
+		{
+			# Delete it
+			my $query = "SELECT bond_operational FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_bond_operational = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_bond_operational => $old_bond_operational }});
+				
+				if ($old_bond_operational ne "DELETED")
+				{
+					my $query = "UPDATE bonds SET bond_operational = 'DELETED' WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($bond_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
 		}
 	}
 	
@@ -3520,12 +3616,6 @@ If there is an error, an empty string is returned.
 
 Parameters;
 
-=head3 delete (optional, default '0')
-
-When set to C<< 1 >>, the C<< ip_address_note >> is set to C<< DELETED >>, and nothing else is changed.
-
-B<< Note >>: When set to C<< 1 >>, only the C<< ip_address_uuid >> is needed.
-
 =head3 uuid (optional)
 
 If set, only the corresponding database will be written to.
@@ -3537,6 +3627,14 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 =head3 line (optional)
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 delete (optional, default '0')
+
+When set to C<< 1 >>, the C<< ip_address_note >> is set to C<< DELETED >>, and nothing else is changed. If set, only C<< ip_address_uuid >> or C<< ip_address_address >> are required.
+
+=head2 ip_address_address (required)
+
+This is the acual IP address. It's tested with IPv4 addresses in dotted-decimal format, though it can also store IPv6 addresses. If this is set to C<< 0 >>, it will be treated as deleted and will be ignored (unless a new IP is assigned to the same interface in the future).
 
 =head2 ip_address_uuid (optional)
 
@@ -3553,10 +3651,6 @@ This indicates what type of interface the IP address is on. This must be either 
 =head2 ip_address_on_uuid (required)
 
 This is the UUID of the bridge, bond or interface that this IP address is on.
-
-=head2 ip_address_address (required)
-
-This is the acual IP address. It's tested with IPv4 addresses in dotted-decimal format, though it can also store IPv6 addresses. If this is set to C<< 0 >>, it will be treated as deleted and will be ignored (unless a new IP is assigned to the same interface in the future).
 
 =head2 ip_address_subnet_mask (required)
 
@@ -3605,6 +3699,7 @@ sub insert_or_update_ip_addresses
 		uuid                       => $uuid, 
 		file                       => $file, 
 		line                       => $line, 
+		'delete'                   => $delete, 
 		ip_address_uuid            => $ip_address_uuid, 
 		ip_address_host_uuid       => $ip_address_host_uuid, 
 		ip_address_on_type         => $ip_address_on_type, 
@@ -3617,16 +3712,7 @@ sub insert_or_update_ip_addresses
 		ip_address_note            => $ip_address_note, 
 	}});
 	
-	if ($delete)
-	{
-		# We need the ip_address_uuid _or_ the ip_address_address
-		if (not $ip_address_uuid)
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_uuid" }});
-			return("");
-		}
-	}
-	else
+	if (not $delete)
 	{
 		# Not deleting, verify we have what we need.
 		if (not $ip_address_on_type)
@@ -3668,7 +3754,7 @@ FROM
 WHERE 
     ip_address_address   = ".$anvil->Database->quote($ip_address_address)." 
 AND 
-    ip_address_host_uuid = ".$anvil->Database->quote($anvil->data->{sys}{host_uuid})." 
+    ip_address_host_uuid = ".$anvil->Database->quote($ip_address_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3687,9 +3773,41 @@ AND
 	
 	if ($delete)
 	{
-		my $query = "UPDATE ip_addresses SET ip_address_note = 'DELETED' WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
-		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-		return($ip_address_uuid);
+		# We need the ip_address_uuid _or_ the ip_address_address
+		if (not $ip_address_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ip_addresses()", parameter => "ip_address_uuid" }});
+			return("");
+		}
+		else
+		{
+			my $query = "SELECT ip_address_note FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_ip_address_note = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_ip_address_note => $old_ip_address_note }});
+				
+				if ($old_ip_address_note ne "DELETED")
+				{
+					my $query = "UPDATE ip_addresses SET ip_address_note = 'DELETED' WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($ip_address_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
+		}
 	}
 	
 	# If I still don't have an ip_address_uuid, we're INSERT'ing .
@@ -4351,6 +4469,10 @@ B<< NOTE >>: This only works for existing records. If this is passed for an inte
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
+=head3 delete (optional, default '0')
+
+When set to C<< 1 >>, the C<< network_interface_operational >> is set to C<< DELETED >>, and nothing else is changed. When set, either C<< network_interface_uuid >> or C<< network_interface_mac_address >> and C<< network_interface_name >> are needed.
+
 =head3 network_interface_bond_uuid (optional)
 
 If this interface is part of a bond, this UUID will be the C<< bonds >> -> C<< bond_uuid >> that this interface is slaved to.
@@ -4412,6 +4534,7 @@ sub insert_or_update_network_interfaces
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_network_interfaces()" }});
 	
+	my $delete                        = defined $parameter->{'delete'}                      ? $parameter->{'delete'}                      : 0;
 	my $uuid                          = defined $parameter->{uuid}                          ? $parameter->{uuid}                          : "";
 	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
 	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
@@ -4430,6 +4553,7 @@ sub insert_or_update_network_interfaces
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{interface_uuid}                : "";
 	my $timestamp                     = defined $parameter->{timestamp}                     ? $parameter->{timestamp}                     : $anvil->data->{sys}{database}{timestamp};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'delete'                      => $delete, 
 		uuid                          => $uuid, 
 		file                          => $file, 
 		line                          => $line, 
@@ -4449,32 +4573,35 @@ sub insert_or_update_network_interfaces
 	}});
 	
 	# INSERT, but make sure we have enough data first.
-	if (not $network_interface_mac_address)
+	if (not $delete)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_mac_address" }});
-		return("");
-	}
-	else
-	{
-		# Always lower-case the MAC address.
-		$network_interface_mac_address = lc($network_interface_mac_address);
-	}
-	if (not $network_interface_name)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name" }});
-		return("");
-	}
-	if (($network_interface_bond_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
-	{
-		# Bad UUID.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bond_uuid", uuid => $network_interface_bond_uuid }});
-		return("");
-	}
-	if (($network_interface_bridge_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
-	{
-		# Bad UUID.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bridge_uuid", uuid => $network_interface_bridge_uuid }});
-		return("");
+		if (not $network_interface_mac_address)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_mac_address" }});
+			return("");
+		}
+		else
+		{
+			# Always lower-case the MAC address.
+			$network_interface_mac_address = lc($network_interface_mac_address);
+		}
+		if (not $network_interface_name)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name" }});
+			return("");
+		}
+		if (($network_interface_bond_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
+		{
+			# Bad UUID.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bond_uuid", uuid => $network_interface_bond_uuid }});
+			return("");
+		}
+		if (($network_interface_bridge_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
+		{
+			# Bad UUID.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bridge_uuid", uuid => $network_interface_bridge_uuid }});
+			return("");
+		}
 	}
 	
 	# If we don't have a network interface UUID, try to look one up using the MAC address
@@ -4491,6 +4618,8 @@ WHERE
     network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." 
 AND 
     network_interface_name        = ".$anvil->Database->quote($network_interface_name)."
+AND 
+    network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -4502,6 +4631,45 @@ AND
 		{
 			# Can't INSERT.
 			return("");
+		}
+	}
+	
+	if ($delete)
+	{
+		if (not $network_interface_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_uuid" }});
+			return("");
+		}
+		else
+		{
+			# Delete it
+			my $query = "SELECT network_interface_operational FROM network_interfaces WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_network_interface_operational = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_network_interface_operational => $old_network_interface_operational }});
+				
+				if ($old_network_interface_operational ne "DELETED")
+				{
+					my $query = "UPDATE network_interfaces SET network_interface_operational = 'DELETED' WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($network_interface_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
 		}
 	}
 	
