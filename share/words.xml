@@ -257,6 +257,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0150">Set the new host name.</key>
 		<key name="message_0151">This is a RHEL host and has not yet been subscribed, but there is no internet access detected. OS Updates likely won't work, nor will subscribing the system. These tasks will be deferred until later in the setup process.</key>
 		<key name="message_0152">There is no internet access detected. OS Updates likely won't work and will be deferred until later in the setup process.</key>
+		<key name="message_0153">Local repository</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

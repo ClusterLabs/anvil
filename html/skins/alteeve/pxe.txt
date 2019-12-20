@@ -226,6 +226,9 @@ cat << EOF > /mnt/sysimage/etc/NetworkManager/dispatcher.d/ifup-local
 EOF
 chmod +x /mnt/sysimage/etc/NetworkManager/dispatcher.d/ifup-local
 
+cat << EOF > /mnt/sysimage/#!variable!repo_file!#
+#!variable!repo_body!#
+EOF
 %end
 
 
@@ -802,41 +805,41 @@ menu label #!string!message_0084!#
 TEXT HELP
 #!string!message_0085!#
 ENDTEXT
-kernel rhel8/vmlinuz
+kernel #!data!host_os::os_type!#/vmlinuz
 # NOTE: add ' rd.debug' below for debugging
-append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
+append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/striker.ks inst.gpt inst.sshd
 
 label node
 menu label #!string!message_0086!#
 TEXT HELP
 #!string!message_0087!#
 ENDTEXT
-kernel rhel8/vmlinuz
-append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.gpt inst.sshd
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/node.ks inst.gpt inst.sshd
 
 label node
 menu label #!string!message_0088!#
 TEXT HELP
 #!string!message_0089!#
 ENDTEXT
-kernel rhel8/vmlinuz
-append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.gpt inst.sshd
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/os/images/install.img inst.stage2=#!variable!base_url!#/os/ ip=dhcp inst.ks=#!variable!base_url!#/kickstart/dr.ks inst.gpt inst.sshd
 
 label rescue
 menu label #!string!message_0090!#
 TEXT HELP
 #!string!message_0091!#
 ENDTEXT
-kernel rhel8/vmlinuz
-append initrd=rhel8/initrd.img ip=dhcp root=live:#!variable!base_url!#/LiveOS/squashfs.img rescue inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.sshd
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img ip=dhcp root=live:#!variable!base_url!#/LiveOS/squashfs.img rescue inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.sshd
 
-label rhel8
+label #!data!host_os::os_type!#
 menu label #!string!message_0092!#
 TEXT HELP
 #!string!message_0093!#
 ENDTEXT
-kernel rhel8/vmlinuz
-append initrd=rhel8/initrd.img root=live:#!variable!base_url!#/images/install.img inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.gpt inst.sshd
+kernel #!data!host_os::os_type!#/vmlinuz
+append initrd=#!data!host_os::os_type!#/initrd.img root=live:#!variable!base_url!#/images/install.img inst.repo=#!variable!base_url!#/os/ ip=dhcp inst.gpt inst.sshd
 
 label next
 menu default

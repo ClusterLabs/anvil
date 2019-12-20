@@ -564,12 +564,39 @@ sub setup_boot_environment
 		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 	}
 	
+	### TODO: Add repos for all known strikers
+	# Build the repository file body.
+	my $repo_file = "/etc/yum.repos.d/".$anvil->_short_host_name.".repo";
+	my $repo_body =  "[".$anvil->_short_host_name."-repo]\n";
+	   $repo_body .= "name=".$anvil->_host_name." #!string!message_0153!#\n";
+	# Add the IPs.
+	$anvil->Network->get_ips({});
+	my $first_line = 1;
+	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	{
+		my $ip = $anvil->data->{network}{'local'}{interface}{$in_iface}{ip};
+		if ($ip)
+		{
+			my $prefix     =  $first_line ? "baseurl=" : "        ";
+			   $first_line =  0;
+			   $repo_body  .= $prefix."http://".$ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/\n";
+		}
+	}
+	$repo_body .= "enabled=1\n";
+	$repo_body .= "gpgcheck=0\n";
+	$repo_body .= "skip_if_unavailable=1\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		repo_file => $repo_file, 
+		repo_body => $repo_body,
+	}});
+	
 	### Generate kickstart files.
 	my $progress = 10;
 	foreach my $type ("striker", "node", "dr")
 	{
 		$progress += 2;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type, progress => $progress }});
+		
 		my $say_type = "#!string!message_0115!#";
 		if ($type eq "node")
 		{
@@ -588,6 +615,8 @@ sub setup_boot_environment
 			keyboard  => $anvil->data->{kickstart}{keyboard} ? $anvil->data->{kickstart}{keyboard} : $anvil->data->{defaults}{kickstart}{keyboard},
 			timezone  => $anvil->data->{kickstart}{timezone} ? $anvil->data->{kickstart}{timezone} : $anvil->data->{defaults}{kickstart}{timezone},
 			password  => $anvil->data->{kickstart}{password} ? $anvil->data->{kickstart}{password} : $anvil->data->{defaults}{kickstart}{password},
+			repo_file => $repo_file,
+			repo_body => $repo_body,
 			debug     => 0,	# This isn't the same as the rest of our code, just '1' or '0'.
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { kickstart_body => $kickstart_body }});
