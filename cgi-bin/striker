@@ -439,17 +439,17 @@ sub process_striker_menu
 		
 		# Are there any bad keys?
 		my $query = "SELECT state_uuid, state_note FROM states WHERE state_name LIKE 'host_key_changed::%';";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			results => $results, 
 			count   => $count,
 		}});
 		my $broken_key_icon    = $count ? "broken_key_icon_on.png"  : "broken_key_icon_off.png";
 		my $broken_key_message = $count ? "#!string!striker_0132!#" : "#!string!striker_0131!#";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			broken_key_icon    => $broken_key_icon, 
 			broken_key_message => $broken_key_message,
 		}});

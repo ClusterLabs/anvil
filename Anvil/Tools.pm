@@ -906,6 +906,16 @@ sub _set_defaults
 			hash_count			=>	500000,
 			salt_length			=>	16,
 		},
+		# On actual RHEL systems, this will be used to ensure that given repos are enabled on given 
+		# machines types. Obviously, this requires that the host has been subscribed.
+		rhel				=>	{
+			repos				=>	{
+				common				=>	["codeready-builder-for-rhel-8-x86_64-rpms"],
+				dashboard			=>	[],
+				dr				=>	[],
+				node				=>	["rhel-8-for-x86_64-highavailability-rpms"],
+			},
+		},
 		terminal			=>	{
 			columns				=>	80,
 			stty				=>	"",
