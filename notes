@@ -48,21 +48,29 @@ dnf download --source awscli booth booth-arbitrator booth-core booth-site booth-
                       pcs pcs-snmp python3-azure-sdk python3-boto3 python3-botocore python3-fasteners python3-gflags python3-google-api-client python3-httplib2 python3-oauth2client python3-s3transfer python3-uritemplate \
                       resource-agents resource-agents-aliyun resource-agents-gcp
                       
-rpm -Uvh python-s3transfer-0.1.13-1.el8.src.rpm python-oauth2client-4.1.2-6.el8.src.rpm booth-1.0-5.f2d38ce.git.el8.src.rpm google-api-python-client-1.6.5-3.el8.src.rpm python-boto3-1.6.1-2.el8.src.rpm python-httplib2-0.10.3-4.el8.src.rpm python-botocore-1.9.1-2.el8.src.rpm corosync-qdevice-3.0.0-2.el8.src.rpm python-uritemplate-3.0.0-3.el8.src.rpm python3-azure-sdk-4.0.0-9.el8.src.rpm awscli-1.14.50-5.el8.src.rpm python-gflags-2.0-15.el8ost.src.rpm resource-agents-4.1.1-33.el8.src.rpm python-fasteners-0.14.1-15.el8ost.src.rpm pcs-0.10.2-4.el8.src.rpm fence-agents-4.2.1-30.el8_1.1.src.rpm
+rpm -Uvh python-s3transfer-0.1.13-1.el8.src.rpm python-oauth2client-4.1.2-6.el8.src.rpm booth-1.0-5.f2d38ce.git.el8.src.rpm google-api-python-client-1.6.5-3.el8.src.rpm python-boto3-1.6.1-2.el8.src.rpm python-httplib2-0.10.3-4.el8.src.rpm python-botocore-1.9.1-2.el8.src.rpm corosync-qdevice-3.0.0-2.el8.src.rpm python-uritemplate-3.0.0-3.el8.src.rpm python3-azure-sdk-4.0.0-9.el8.src.rpm awscli-1.14.50-5.el8.src.rpm python-gflags-2.0-15.el8ost.src.rpm resource-agents-4.1.1-33.el8.src.rpm pcs-0.10.2-4.el8.src.rpm fence-agents-4.2.1-30.el8_1.1.src.rpm
+rpm -Uvh python-fasteners-0.14.1-15.el8ost.src.rpm 
 
-rpmbuild -ba python-s3transfer.spec python-oauth2client.spec booth.spec google-api-python-client.spec python-boto3.spec python-httplib2.spec python-botocore.spec corosync-qdevice.spec python-uritemplate.spec python3-azure-sdk.spec \
-             awscli.spec python-gflags.spec resource-agents.spec python-fasteners.spec pcs.spec fence-agents.spec
+rpm -Uvh awscli-1.14.50-5.el8.src.rpm booth-1.0-5.f2d38ce.git.el8.src.rpm corosync-qdevice-3.0.0-2.el8.src.rpm fence-agents-4.2.1-30.el8.1.src.rpm google-api-python-client-1.6.5-3.el8.src.rpm pacemaker-2.0.2-3.el8.2.src.rpm \
+         pcs-0.10.2-4.el8.src.rpm python-boto3-1.6.1-2.el8.src.rpm python-botocore-1.9.1-2.el8.src.rpm python-gflags-2.0-15.el8.src.rpm python-httplib2-0.10.3-4.el8.src.rpm python-oauth2client-4.1.2-6.el8.src.rpm \
+         python-s3transfer-0.1.13-1.el8.src.rpm python-uritemplate-3.0.0-3.el8.src.rpm python3-azure-sdk-4.0.0-9.el8.src.rpm resource-agents-4.1.1-33.el8.src.rpm
 
 
-The key packages which are needed are:
-  corosync
-  corosynclib-devel
-  pacemaker
-  pacemaker-cli
-  pacemaker-doc
-  pacemaker-libs-devel
-  pcs
-  resource-agents
+
+rpmbuild -ba --sign pcs.spec
+rpmbuild -ba --sign python3-azure-sdk.spec 
+rpmbuild -ba --sign python-s3transfer.spec python-oauth2client.spec booth.spec google-api-python-client.spec python-boto3.spec python-httplib2.spec python-botocore.spec corosync-qdevice.spec python-uritemplate.spec awscli.spec python-gflags.spec resource-agents.spec fence-agents.spec
+
+# rpmbuild -ba python-fasteners.spec 
+
+
+### Need to find/build
+python2-futures                                                                                                                                                                       
+python2-monotonic                                                                                                                                                                     
+
+
+dnf install booth-site corosync corosynclib-devel pacemaker pacemaker-cli pacemaker-libs-devel pcs
+
 
 
 Network planning;

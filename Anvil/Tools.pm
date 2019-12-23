@@ -44,6 +44,7 @@ use Anvil::Tools::Alert;
 use Anvil::Tools::Convert;
 use Anvil::Tools::Database;
 use Anvil::Tools::DRBD;
+use Anvil::Tools::Email;
 use Anvil::Tools::Get;
 use Anvil::Tools::Job;
 use Anvil::Tools::Log;
@@ -125,6 +126,7 @@ sub new
 			CONVERT				=>	Anvil::Tools::Convert->new(),
 			DATABASE			=>	Anvil::Tools::Database->new(),
 			DRBD				=>	Anvil::Tools::DRBD->new(),
+			EMAIL				=>	Anvil::Tools::Email->new(),
 			GET				=>	Anvil::Tools::Get->new(),
 			LOG				=>	Anvil::Tools::Log->new(),
 			JOB				=>	Anvil::Tools::Job->new(),
@@ -166,6 +168,7 @@ sub new
 	$anvil->Convert->parent($anvil);
 	$anvil->Database->parent($anvil);
 	$anvil->DRBD->parent($anvil);
+	$anvil->Email->parent($anvil);
 	$anvil->Get->parent($anvil);
 	$anvil->Log->parent($anvil);
 	$anvil->Job->parent($anvil);
@@ -500,6 +503,18 @@ sub DRBD
 	my $self = shift;
 	
 	return ($self->{HANDLE}{DRBD});
+}
+
+=head2 Email
+
+Access the C<Email.pm> methods via 'C<< $anvil->Email->method >>'.
+
+=cut
+sub Email
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{EMAIL});
 }
 
 =head2 Get

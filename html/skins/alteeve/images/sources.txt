@@ -58,3 +58,12 @@ Folder by Mint Shirt from the Noun Project (https://thenounproject.com/term/fold
 
 Broken Key by I Putu Kharismayadi from the Noun Project (https://thenounproject.com/term/folder/1481931/)
  - broken_key.png
+
+Mail By unlimicon, ID from the Noun Project (https://thenounproject.com/term/mail/867234/)
+ - email.png
+
+Mail server Mail Server by SBTS from the Noun Project (https://thenounproject.com/term/mail-server/1236869/)
+ - email_server.png
+
+Reader by Richa from the Noun Project
+ - email_recipient.png

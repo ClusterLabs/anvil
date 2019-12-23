@@ -37,6 +37,7 @@ Requires:       hdparm
 Requires:       htop
 Requires:       iproute
 Requires:       lsscsi
+Requires:       mailx
 Requires:       mlocate 
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 

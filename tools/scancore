@@ -233,6 +233,8 @@ sub prepare_for_run
 	$anvil->Database->connect();
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0132"});
 	
+	# TODO: Check/configure the mail server.
+	
 	return(0);
 }
 

@@ -30,4 +30,4 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 print "DB Connections: [".$anvil->data->{sys}{database}{connections}."]\n";
 
 #$anvil->Network->load_interfces({debug => 2});
-$anvil->System->generate_state_json({debug => 2});
+#$anvil->System->generate_state_json({debug => 2});

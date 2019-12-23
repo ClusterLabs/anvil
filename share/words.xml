@@ -1019,6 +1019,10 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0161">The network will soon be reconfigured and then the target will reboot. In a couple minutes, it should be ready.</key>
 		<key name="striker_0162">Return</key>
 		<key name="striker_0163">How many network connections will exist for each network type.</key>
+		<key name="striker_0164">Email and alert configuration</key>
+		<key name="striker_0165">Alert email server and recipient configuration.</key>
+		<key name="striker_0166">Configure which server(s) can be used for forwarding email alerts to.</key>
+		<key name="striker_0167">Configure who will receive email alerts.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

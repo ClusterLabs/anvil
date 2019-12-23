@@ -210,6 +210,7 @@ sub print_and_exit
 		files_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "files_button_on"})     : $anvil->Template->get({file => "main.html", name => "files_button_off"}),
 		jobs_button      => $say_jobs_button,
 		striker_button   => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "striker_button_on"})   : $anvil->Template->get({file => "main.html", name => "striker_button_off"}),
+		email_button     => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "email_button_on"})     : $anvil->Template->get({file => "main.html", name => "email_button_off"}),
 		user_button      => $anvil->data->{sys}{users}{user_name} ? $anvil->Template->get({file => "main.html", name => "user_button_on"})      : $anvil->Template->get({file => "main.html", name => "user_button_off"}),
 	}});
 	my $footer = $anvil->Template->get({file => "main.html", name => "footer", variables => {
@@ -329,6 +330,10 @@ sub process_task
 	{
 		process_jobs_menu($anvil);
 	}
+	elsif ($anvil->data->{cgi}{email}{value})
+	{
+		process_email_menu($anvil);
+	}
 	else
 	{
 		# Load the main page.
@@ -345,6 +350,52 @@ sub process_task
 # 	$anvil->data->{sys}{users}{user_is_admin}       = $user_is_admin,
 # 	$anvil->data->{sys}{users}{user_is_experienced} = $user_is_experienced,
 # 	$anvil->data->{sys}{users}{user_is_trusted}     = $user_is_trusted,
+	
+	return(0);
+}
+
+# This handles tasks related to email, mail servers and alert recipients.
+sub process_email_menu
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{form}{back_link}    = "?email=true";
+	$anvil->data->{cgi}{task}{value}   = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{action}{value} = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{cgi}{save}{value}   = "" if not defined $anvil->data->{cgi}{save}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		"form::back_link"    => $anvil->data->{form}{back_link},
+		"cgi::task::value"   => $anvil->data->{cgi}{task}{value},
+		"cgi::action::value" => $anvil->data->{cgi}{action}{value},
+		"cgi::save::value"   => $anvil->data->{cgi}{save}{value},
+	}});
+	
+	if ($anvil->data->{cgi}{task}{value} eq "email_server")
+	{
+		#process_email_server_page($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "email_recipient")
+	{
+		#process_email_recipient_page($anvil);
+	}
+	else
+	{
+		# What we show for the reboot icon and text depends on if a reboot is pending.
+		my $reboot_needed  = $anvil->System->reboot_needed();
+		my $reboot_icon    = $reboot_needed ? "reboot_needed_icon.png" : "reboot_icon.png";
+		my $reboot_message = $reboot_needed ? "#!string!striker_0093!#" : "#!string!striker_0092!#";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			reboot_needed  => $reboot_needed,
+			reboot_icon    => $reboot_icon, 
+			reboot_message => $reboot_message, 
+		}});
+		
+		# The 'back' goes home
+		$anvil->data->{form}{back_link}    = "?";
+		$anvil->data->{form}{refresh_link} = "?email=true";
+		$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "main-menu", variables => {
+		}});
+	}
 	
 	return(0);
 }

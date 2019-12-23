@@ -531,15 +531,19 @@ sub read_cookies
 	# Validate the cookie if there is a User UUID. Pick the random number up from the database.
 	my $query = "
 SELECT 
-    session_salt 
+    a.user_name, 
+    b.session_salt 
 FROM 
-    sessions 
+    users a, 
+    sessions b 
 WHERE 
-    session_user_uuid = ".$anvil->Database->quote($anvil->data->{cookie}{anvil_user_uuid})."
+    a.user_uuid = b.session_user_uuid 
 AND 
-    session_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+    b.session_user_uuid = ".$anvil->Database->quote($anvil->data->{cookie}{anvil_user_uuid})."
+AND 
+    b.session_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -562,9 +566,13 @@ AND
 	}
 	
 	# Read in their "rand" value
-	$anvil->data->{sessions}{session_salt} = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->data->{sys}{users}{user_name}  = $results->[0]->[0];
+	$anvil->data->{sessions}{session_salt} = $results->[0]->[1];
 	$anvil->data->{sessions}{session_salt} = "" if not defined $anvil->data->{sessions}{session_salt};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sessions::session_salt" => $anvil->data->{sessions}{session_salt} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::users::user_name"  => $anvil->data->{sys}{users}{user_name}, 
+		"sessions::session_salt" => $anvil->data->{sessions}{session_salt},
+	}});
 	
 	# Generate a hash using today and yesterday's date.
 	my ($today_hash) = $anvil->Account->_build_cookie_hash({
