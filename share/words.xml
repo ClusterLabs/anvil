@@ -258,6 +258,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0151">This is a RHEL host and has not yet been subscribed, but there is no internet access detected. OS Updates likely won't work, nor will subscribing the system. These tasks will be deferred until later in the setup process.</key>
 		<key name="message_0152">There is no internet access detected. OS Updates likely won't work and will be deferred until later in the setup process.</key>
 		<key name="message_0153">Local repository</key>
+		<key name="message_0154">Mail Server Configuration</key>
+		<key name="message_0155">When alert emails are sent, they are stored locally and then forwarded to a mail server. This is where you can configure the mail server that alerts are forwarded to for delivery to recipients.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1023,6 +1025,23 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0165">Alert email server and recipient configuration.</key>
 		<key name="striker_0166">Configure which server(s) can be used for forwarding email alerts to.</key>
 		<key name="striker_0167">Configure who will receive email alerts.</key>
+		<key name="striker_0168">Outgoing mail server</key>
+		<key name="striker_0169">This is the host name or IP address of the server that email alerts are forwarded to.</key>
+		<key name="striker_0170">Login Name</key>
+		<key name="striker_0171">This is the the user name used when authenticating with the outgoing mail server.</key>
+		<key name="striker_0172">Login Password</key>
+		<key name="striker_0173">This is the the password for the user name used when authenticating with the outgoing mail server.</key>
+		<key name="striker_0174">None</key>			<!-- Email Connection Security - None -->
+		<key name="striker_0175">SSL/TLS</key>			<!-- Email Connection Security - SSL/TLS -->
+		<key name="striker_0176">STARTTLS</key>			<!-- Email Connection Security - STARTTLS -->
+		<key name="striker_0177">Normal Password</key>		<!-- Email Authentication Method - Normal Password -->
+		<key name="striker_0178">Encrypted Password</key>	<!-- Email Authentication Method - Encrypted Password -->
+		<key name="striker_0179">Kerberos / GSSAPI</key>	<!-- Email Authentication Method - Kerneros / GSSAPI -->
+		<key name="striker_0180">NTLM</key>			<!-- Email Authentication Method - NTLM -->
+		<key name="striker_0181">TLS Certificate</key>		<!-- Email Authentication Method - TLS Certificate -->
+		<key name="striker_0182">OAuth2</key>			<!-- Email Authentication Method - OAuth2 -->
+		<key name="striker_0183">Connection Security</key>
+		<key name="striker_0184">Authentication method</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

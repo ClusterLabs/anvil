@@ -372,7 +372,7 @@ sub process_email_menu
 	
 	if ($anvil->data->{cgi}{task}{value} eq "email_server")
 	{
-		#process_email_server_page($anvil);
+		process_email_server_page($anvil);
 	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "email_recipient")
 	{
@@ -396,6 +396,107 @@ sub process_email_menu
 		$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "main-menu", variables => {
 		}});
 	}
+	
+	return(0);
+}
+
+# 
+sub process_email_server_page
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{cgi}{save}{value})
+	{
+		# Verify it's sane. If not, send it back.
+		
+		# Confirmed?
+		if ($anvil->data->{cgi}{save}{value})
+		{
+		}
+	}
+	
+	### Still here, show the menu.
+	# Outgoing mail server
+	my $say_outgoing_mail_server   = defined $anvil->data->{cgi}{outgoing_mail_server}{value} ? $anvil->data->{cgi}{outgoing_mail_server}{value} : "";
+	my $outgoing_mail_server_class = $anvil->data->{cgi}{outgoing_mail_server}{alert} ? "input_alert" : "input_clear";
+	my $outgoing_mail_server_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "outgoing_mail_server",
+		id            => "outgoing_mail_server",
+		field         => "#!string!striker_0168!#",
+		description   => "#!string!striker_0169!#",
+		value         => defined $anvil->data->{cgi}{outgoing_mail_server}{value} ? $anvil->data->{cgi}{outgoing_mail_server}{value} : "",
+		default_value => "",
+		class         => $outgoing_mail_server_class,
+		extra         => "",
+	}});
+	
+	# Login name
+	my $say_login_name   = defined $anvil->data->{cgi}{login_name}{value} ? $anvil->data->{cgi}{login_name}{value} : "";
+	my $login_name_class = $anvil->data->{cgi}{login_name}{alert} ? "input_alert" : "input_clear";
+	my $login_name_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "login_name",
+		id            => "login_name",
+		field         => "#!string!striker_0170!#",
+		description   => "#!string!striker_0171!#",
+		value         => defined $anvil->data->{cgi}{login_name}{value} ? $anvil->data->{cgi}{login_name}{value} : "",
+		default_value => "",
+		class         => $login_name_class,
+		extra         => "",
+	}});
+	
+	# Password 
+	my $say_login_password   = defined $anvil->data->{cgi}{login_password}{value} ? $anvil->data->{cgi}{login_password}{value} : "";
+	my $login_password_class = $anvil->data->{cgi}{login_password}{alert} ? "input_alert" : "input_clear";
+	my $login_password_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "login_password",
+		id            => "login_password",
+		field         => "#!string!striker_0172!#",
+		description   => "#!string!striker_0173!#",
+		value         => defined $anvil->data->{cgi}{login_password}{value} ? $anvil->data->{cgi}{login_password}{value} : "",
+		default_value => "",
+		class         => $login_password_class,
+		extra         => "",
+	}});
+	
+	# connection security
+	my $connection_security_select = $anvil->Template->select_form({
+		name     => "connection_security",
+		options  => [
+				"none#!#".$anvil->Words->string({key => "striker_0174"}), 
+				"ssl_tls#!#".$anvil->Words->string({key => "striker_0175"}), 
+				"starttls!#".$anvil->Words->string({key => "striker_0176"})
+			    ],
+		blank    => 1,
+		selected => defined $anvil->data->{cgi}{connection_security}{value} ? $anvil->data->{cgi}{connection_security}{value} : "ifn_link1",
+		class    => $anvil->data->{cgi}{connection_security}{alert} ? "input_alert" : "input_clear",
+	});
+	
+	# Authentication method
+	my $authentication_method_select = $anvil->Template->select_form({
+		name     => "authentication_method",
+		options  => [
+				"normal_password#!#".$anvil->Words->string({key => "striker_0177"}), 
+				"encrypted_password#!#".$anvil->Words->string({key => "striker_0178"}), 
+				"kerberos_gssapi#!#".$anvil->Words->string({key => "striker_0179"}),
+				"ntlm#!#".$anvil->Words->string({key => "striker_0180"}),
+				"tls_certificate#!#".$anvil->Words->string({key => "striker_0181"}),
+				"oauth2#!#".$anvil->Words->string({key => "striker_0182"})
+			    ],
+		blank    => 1,
+		selected => defined $anvil->data->{cgi}{authentication_method}{value} ? $anvil->data->{cgi}{authentication_method}{value} : "ifn_link1",
+		class    => $anvil->data->{cgi}{authentication_method}{alert} ? "input_alert" : "input_clear",
+	});
+	
+	$anvil->data->{form}{back_link}    = "?";
+	$anvil->data->{form}{refresh_link} = "?email=true";
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "mail-server-menu", variables => {
+		outgoing_mail_server  => $outgoing_mail_server_form, 
+		login_name            => $login_name_form, 
+		login_password        => $login_password_form, 
+		connection_security   => $connection_security_select, 
+		authentication_method => $authentication_method_select,
+	}});
+	
 	
 	return(0);
 }

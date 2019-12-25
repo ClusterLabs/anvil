@@ -35,3 +35,70 @@
 		</table>
 <!-- end main-menu -->
 
+<!-- start mail-server-menu -->
+			<table align="center" class="mail_server">
+				<form name="mail_server" action="" method="post">
+				<div id="hostmail_server">
+				<tr>
+					<td colspan="2" class="title">
+						#!string!message_0154!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!message_0155!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!variable!outgoing_mail_server!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!variable!login_name!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!variable!login_password!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!striker_0183!#<br />
+						#!variable!connection_security!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!striker_0184!#<br />
+						#!variable!authentication_method!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<input type="submit" name="save" id="save" class="button" value="#!string!striker_0067!#">
+					</td>
+				</tr>
+				</div>
+				<input type="hidden" name="email" id="email" value="true" />
+				<input type="hidden" name="task"  id="task"  value="email_server" />
+				</form>
+			</table>
+<!-- end mail-server-menu -->
