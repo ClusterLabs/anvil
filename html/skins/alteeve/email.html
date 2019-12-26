@@ -102,3 +102,98 @@
 				</form>
 			</table>
 <!-- end mail-server-menu -->
+
+<!-- start mail-server-confirm -->
+			<table align="center" class="mail_server">
+				<form name="mail_server" action="" method="post">
+				<div id="hostmail_server">
+				<tr>
+					<td colspan="2" class="title">
+						#!string!message_0154!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!message_0155!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<table align="center" class="data_table_nowrap">
+							<tr>
+								<td class="column_header">
+									#!string!striker_0168!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!outgoing_mail_server!#
+									<input type="hidden" name="outgoing_mail_server" id="outgoing_mail_server" value="#!variable!outgoing_mail_server!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td class="column_header">
+									#!string!striker_0170!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!login_name!#
+									<input type="hidden" name="login_name" id="login_name" value="#!variable!login_name!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td class="column_header">
+									#!string!striker_0172!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!login_password!#
+									<input type="hidden" name="login_password" id="login_password" value="#!variable!login_password!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td class="column_header">
+									#!string!striker_0183!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!connection_security!#
+									<input type="hidden" name="connection_security" id="connection_security" value="#!variable!connection_security!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td class="column_header">
+									#!string!striker_0184!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!authentication_method!#
+									<input type="hidden" name="authentication_method" id="authentication_method" value="#!variable!authentication_method!#"/>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<input type="submit" name="back" id="back" class="button" value="#!string!striker_0098!#">
+					</td>
+					<td class="column_row_value_right">
+						<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
+					</td>
+				</tr>
+				</div>
+				<input type="hidden" name="email" id="email" value="true" />
+				<input type="hidden" name="task"  id="task"  value="email_server" />
+				</form>
+			</table>
+<!-- end mail-server-confirm -->

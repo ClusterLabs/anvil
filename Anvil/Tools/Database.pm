@@ -4443,6 +4443,328 @@ WHERE
 }
 
 
+=head2 insert_or_update_mail_servers
+
+This updates (or inserts) a record in the 'mail_servers' table. The C<< mail_server_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 delete (optional, default '0')
+
+If set to C<< 1 >>, the associated mail server will be deleted. Specifically, the C<< mail_server_helo_domain >> is set to C<< DELETED >>.
+
+When this is set, either C<< mail_server_uuid >> or C<< mail_server_address >> is required.
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 mail_server_address (required) 
+
+This is the domain name or IP address of the mail server that alert emails will be forwarded to.
+
+=head3 mail_server_authentication (optional, default 'normal_password')
+
+This is the authentication method used to pass our password (or otherwise prove our identity) to the target mail server.
+
+This can be set to anything you wish, but the expected values are;
+
+* C<< normal_password >>
+* C<< encrypted_password >>
+* C<< kerberos_gssapi >> 
+* C<< ntlm >>
+* C<< tls_certificate >>
+* C<< oauth2 >>
+
+=head3 mail_server_helo_domain (optional, default is the local machine's domain name)
+
+This is the string passed to the target mail server for the C<< HELO >> or C<< EHLO >> string. See C<< https://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol#SMTP_transport_example >> for more information.
+
+=head3 mail_server_password (optional)
+
+If needed to authenticate, this is the password portion passed along with the C<< mail_server_username >>.
+
+=head3 mail_server_port (optional, default depends on 'mail_server_security')
+
+If set, this is the TCP port used when connecting to th mail server. If not set, the port is detemined based on the C<< mail_server_security >>. If it is C<< none >> or C<< starttls >>, the port is C<< 143 >>. if is it C<< ssl_tls >>, the port is C<< 993 >>. 
+
+=head3 mail_server_security (optional)
+
+This is the connection security used when establishing a connection to the mail server. 
+
+This can be set to anything you wish, but the expected values are;
+
+* C<< none >> (default port 143)
+* C<< starttls >> (default port 143)
+* C<< ssl_tls >> (default port 993)
+
+B<< NOTE >> - If any other string is passed and C<< mail_server_port >> is not set, port C<< 143 >> will be used.
+
+=head3 mail_server_username (optional)
+
+If needed to authenticate, this is the user name portion passed along with the C<< mail_server_password >>.
+
+=head3 mail_server_uuid (optional)
+
+If set, this is the UUID that will be used to update a record in the database. If not set, it will be searched for by looking for a matching C<< mail_server_address >>.
+
+=cut
+sub insert_or_update_mail_servers
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_mail_servers()" }});
+	
+	my $delete                     = defined $parameter->{'delete'}                   ? $parameter->{'delete'}                   : 0;
+	my $uuid                       = defined $parameter->{uuid}                       ? $parameter->{uuid}                       : "";
+	my $file                       = defined $parameter->{file}                       ? $parameter->{file}                       : "";
+	my $line                       = defined $parameter->{line}                       ? $parameter->{line}                       : "";
+	my $mail_server_address        = defined $parameter->{mail_server_address}        ? $parameter->{mail_server_address}        : "";
+	my $mail_server_authentication = defined $parameter->{mail_server_authentication} ? $parameter->{mail_server_authentication} : "normal_password";
+	my $mail_server_helo_domain    = defined $parameter->{mail_server_helo_domain}    ? $parameter->{mail_server_helo_domain}    : "";
+	my $mail_server_password       = defined $parameter->{mail_server_password}       ? $parameter->{mail_server_password}       : "";
+	my $mail_server_port           = defined $parameter->{mail_server_port}           ? $parameter->{mail_server_port}           : "";
+	my $mail_server_security       = defined $parameter->{mail_server_security}       ? $parameter->{mail_server_security}       : "none";
+	my $mail_server_username       = defined $parameter->{mail_server_username}       ? $parameter->{mail_server_username}       : "";
+	my $mail_server_uuid           = defined $parameter->{mail_server_uuid}           ? $parameter->{mail_server_uuid}           : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'delete'                   => $delete, 
+		uuid                       => $uuid, 
+		file                       => $file, 
+		line                       => $line, 
+		mail_server_address        => $mail_server_address, 
+		mail_server_authentication => $mail_server_authentication, 
+		mail_server_helo_domain    => $mail_server_helo_domain, 
+		mail_server_password       => $mail_server_password, 
+		mail_server_port           => $mail_server_port, 
+		mail_server_security       => $mail_server_security, 
+		mail_server_username       => $mail_server_username, 
+		mail_server_uuid           => $mail_server_uuid, 
+	}});
+	
+	# Did we get a mail server name? 
+	if ((not $mail_server_address) && (not $mail_server_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_mail_servers()", parameter => "mail_server_address" }});
+		return("");
+	}
+	
+	if (not $mail_server_uuid)
+	{
+		# Can we find it using the mail server address?
+		my $query = "
+SELECT 
+    mail_server_uuid 
+FROM 
+    mail_servers 
+WHERE 
+    mail_server_address = ".$anvil->Database->quote($mail_server_address)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$mail_server_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mail_server_uuid => $mail_server_uuid }});
+		}
+	}
+	
+	if ($delete)
+	{
+		if (not $mail_server_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_mail_servers()", parameter => "mail_server_uuid" }});
+			return("");
+		}
+		else
+		{
+			# Delete it
+			my $query = "SELECT mail_server_helo_domain FROM mail_servers WHERE mail_server_uuid = ".$anvil->Database->quote($mail_server_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_mail_server_helo_domain = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_mail_server_helo_domain => $old_mail_server_helo_domain }});
+				
+				if ($old_mail_server_helo_domain ne "DELETED")
+				{
+					my $query = "UPDATE mail_servers SET mail_server_helo_domain = 'DELETED' WHERE mail_server_uuid = ".$anvil->Database->quote($mail_server_uuid).";";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($mail_server_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
+		}
+	}
+	
+	# Fill some data
+	if (not $mail_server_helo_domain)
+	{
+		$mail_server_helo_domain = $anvil->_domain_name();
+		if (not $mail_server_helo_domain)
+		{
+			# Fall back on 'localdomain'
+			$mail_server_helo_domain = "localdomain";
+		}
+	}
+	if (not $mail_server_port)
+	{
+		$mail_server_port = 143;
+		if ($mail_server_security eq "ssl_tls")
+		{
+			$mail_server_port = 993;
+		}
+	}
+	
+	# If I still don't have an mail_server_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mail_server_uuid => $mail_server_uuid }});
+	if (not $mail_server_uuid)
+	{
+		# INSERT
+		$mail_server_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mail_server_uuid => $mail_server_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    mail_servers 
+(
+    mail_server_uuid, 
+    mail_server_address, 
+    mail_server_authentication, 
+    mail_server_helo_domain, 
+    mail_server_password, 
+    mail_server_port, 
+    mail_server_security, 
+    mail_server_username, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($mail_server_uuid).", 
+    ".$anvil->Database->quote($mail_server_address).", 
+    ".$anvil->Database->quote($mail_server_authentication).", 
+    ".$anvil->Database->quote($mail_server_helo_domain).", 
+    ".$anvil->Database->quote($mail_server_password).", 
+    ".$anvil->Database->quote($mail_server_port).", 
+    ".$anvil->Database->quote($mail_server_security).", 
+    ".$anvil->Database->quote($mail_server_username).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    mail_server_address, 
+    mail_server_authentication, 
+    mail_server_helo_domain, 
+    mail_server_password, 
+    mail_server_port, 
+    mail_server_security, 
+    mail_server_username 
+FROM 
+    mail_servers 
+WHERE 
+    mail_server_uuid = ".$anvil->Database->quote($mail_server_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a mail_server_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "mail_server_uuid", uuid => $mail_server_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_mail_server_address        = $row->[0]; 
+			my $old_mail_server_authentication = $row->[1];
+			my $old_mail_server_helo_domain    = $row->[2]; 
+			my $old_mail_server_password       = $row->[3]; 
+			my $old_mail_server_port           = $row->[4]; 
+			my $old_mail_server_security       = $row->[5]; 
+			my $old_mail_server_username       = $row->[6];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_mail_server_address        => $old_mail_server_address, 
+				old_mail_server_authentication => $old_mail_server_authentication,
+				old_mail_server_helo_domain    => $old_mail_server_helo_domain, 
+				old_mail_server_password       => $old_mail_server_password, 
+				old_mail_server_port           => $old_mail_server_port, 
+				old_mail_server_security       => $old_mail_server_security, 
+				old_mail_server_username       => $old_mail_server_username, 
+			}});
+			
+			# Anything change?
+			if (($old_mail_server_address        ne $mail_server_address)        or 
+			    ($old_mail_server_authentication ne $mail_server_authentication) or 
+			    ($old_mail_server_helo_domain    ne $mail_server_helo_domain)    or  
+			    ($old_mail_server_password       ne $mail_server_password)       or  
+			    ($old_mail_server_port           ne $mail_server_port)           or  
+			    ($old_mail_server_security       ne $mail_server_security)       or  
+			    ($old_mail_server_username       ne $mail_server_username))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    mail_servers 
+SET 
+    mail_server_address        = ".$anvil->Database->quote($mail_server_address).", 
+    mail_server_authentication = ".$anvil->Database->quote($mail_server_authentication).", 
+    mail_server_helo_domain    = ".$anvil->Database->quote($mail_server_helo_domain).", 
+    mail_server_password       = ".$anvil->Database->quote($mail_server_password).", 
+    mail_server_port           = ".$anvil->Database->quote($mail_server_port).", 
+    mail_server_security       = ".$anvil->Database->quote($mail_server_security).", 
+    mail_server_username       = ".$anvil->Database->quote($mail_server_username).", 
+    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    mail_server_uuid           = ".$anvil->Database->quote($mail_server_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	return($mail_server_uuid);
+}
+
 =head2 insert_or_update_network_interfaces
 
 This updates (or inserts) a record in the 'interfaces' table. This table is used to store physical network interface information.

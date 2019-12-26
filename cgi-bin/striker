@@ -405,54 +405,132 @@ sub process_email_server_page
 {
 	my ($anvil) = @_;
 	
-	if ($anvil->data->{cgi}{save}{value})
+	# Prep the cgi variables.
+	my $say_outgoing_mail_server  = defined $anvil->data->{cgi}{outgoing_mail_server}{value}  ? $anvil->data->{cgi}{outgoing_mail_server}{value}  : "";
+	my $say_login_name            = defined $anvil->data->{cgi}{login_name}{value}            ? $anvil->data->{cgi}{login_name}{value}            : "";
+	my $say_login_password        = defined $anvil->data->{cgi}{login_password}{value}        ? $anvil->data->{cgi}{login_password}{value}        : "";
+	my $say_connection_security   = defined $anvil->data->{cgi}{connection_security}{value}   ? $anvil->data->{cgi}{connection_security}{value}   : "ifn_link1";
+	my $say_authentication_method = defined $anvil->data->{cgi}{authentication_method}{value} ? $anvil->data->{cgi}{authentication_method}{value} : "ifn_link1";
+	my $say_back                  = defined $anvil->data->{cgi}{back}{value}                  ? $anvil->data->{cgi}{back}{value}                  : "";
+	my $say_save                  = defined $anvil->data->{cgi}{save}{value}                  ? $anvil->data->{cgi}{save}{value}                  : "";
+	my $say_confirm               = defined $anvil->data->{cgi}{confirm}{value}               ? $anvil->data->{cgi}{confirm}{value}               : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		say_outgoing_mail_server  => $say_outgoing_mail_server, 
+		say_login_name            => $say_login_name, 
+		say_login_password        => $say_login_password, 
+		say_connection_security   => $say_connection_security, 
+		say_authentication_method => $say_authentication_method, 
+		say_back                  => $say_back,
+		say_save                  => $say_save,
+		say_confirm               => $say_confirm,
+	}});
+	
+	if ($say_back)
 	{
-		# Verify it's sane. If not, send it back.
-		
-		# Confirmed?
-		if ($anvil->data->{cgi}{save}{value})
+		$say_save    = "";
+		$say_confirm = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			say_save    => $say_save,
+			say_confirm => $say_confirm,
+		}});
+	}
+	
+	if ($say_save)
+	{
+		# Did the user give an outgoing mail server?
+		if (not $say_outgoing_mail_server)
 		{
+			# Just silently send them back to the form.
+			$say_save    = "";
+			$say_confirm = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				say_save    => $say_save,
+				say_confirm => $say_confirm,
+			}});
+		}
+		
+		# Verify that the mail server is sane (it's all we can check)
+		if ((not $anvil->Validate->is_ipv4({ip => $say_outgoing_mail_server})) and 
+		    (not $anvil->Validate->is_domain_name({name => $say_outgoing_mail_server})))
+		{
+			# Bad domain
+			my $error_message                                   = $anvil->Words->string({key => "warning_0023"});
+			   $anvil->data->{form}{error_massage}              = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
+			   $anvil->data->{cgi}{outgoing_mail_server}{alert} = 1;
+			   $say_save                 = "";
+			   $say_confirm              = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				error_message                      => $error_message, 
+				"form::error_massage"              => $anvil->data->{form}{error_massage},
+				"cgi::outgoing_mail_server::alert" => $anvil->data->{cgi}{outgoing_mail_server}{alert},
+				say_save                           => $say_save,
+				say_confirm                        => $say_confirm,
+			}});
 		}
 	}
 	
-	### Still here, show the menu.
+	# Still saving?
+	if ($say_save)
+	{
+		# Confirmed?
+		if ($say_confirm)
+		{
+			# Save!
+		}
+		else
+		{
+			# Ask the user to confirm
+			$anvil->data->{form}{back_link}    =  $anvil->data->{sys}{cgi_string};
+			$anvil->data->{form}{back_link}    =~ s/login_password=.*?&//;
+			$anvil->data->{form}{back_link}    =~ s/login_password=.*?$//;
+			$anvil->data->{form}{back_link}    =~ s/save=.*?&//;
+			$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
+			$anvil->data->{form}{refresh_link} =  "";
+			$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "mail-server-confirm", variables => {
+				outgoing_mail_server  => $say_outgoing_mail_server, 
+				login_name            => $say_login_name, 
+				login_password        => $say_login_password, 
+				connection_security   => $say_connection_security, 
+				authentication_method => $say_authentication_method,
+			}});
+			return(0);
+		}
+	}
+
 	# Outgoing mail server
-	my $say_outgoing_mail_server   = defined $anvil->data->{cgi}{outgoing_mail_server}{value} ? $anvil->data->{cgi}{outgoing_mail_server}{value} : "";
 	my $outgoing_mail_server_class = $anvil->data->{cgi}{outgoing_mail_server}{alert} ? "input_alert" : "input_clear";
 	my $outgoing_mail_server_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
 		name          => "outgoing_mail_server",
 		id            => "outgoing_mail_server",
 		field         => "#!string!striker_0168!#",
 		description   => "#!string!striker_0169!#",
-		value         => defined $anvil->data->{cgi}{outgoing_mail_server}{value} ? $anvil->data->{cgi}{outgoing_mail_server}{value} : "",
+		value         => $say_outgoing_mail_server,
 		default_value => "",
 		class         => $outgoing_mail_server_class,
 		extra         => "",
 	}});
 	
 	# Login name
-	my $say_login_name   = defined $anvil->data->{cgi}{login_name}{value} ? $anvil->data->{cgi}{login_name}{value} : "";
 	my $login_name_class = $anvil->data->{cgi}{login_name}{alert} ? "input_alert" : "input_clear";
 	my $login_name_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
 		name          => "login_name",
 		id            => "login_name",
 		field         => "#!string!striker_0170!#",
 		description   => "#!string!striker_0171!#",
-		value         => defined $anvil->data->{cgi}{login_name}{value} ? $anvil->data->{cgi}{login_name}{value} : "",
+		value         => $say_login_name,
 		default_value => "",
 		class         => $login_name_class,
 		extra         => "",
 	}});
 	
 	# Password 
-	my $say_login_password   = defined $anvil->data->{cgi}{login_password}{value} ? $anvil->data->{cgi}{login_password}{value} : "";
 	my $login_password_class = $anvil->data->{cgi}{login_password}{alert} ? "input_alert" : "input_clear";
 	my $login_password_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
 		name          => "login_password",
 		id            => "login_password",
 		field         => "#!string!striker_0172!#",
 		description   => "#!string!striker_0173!#",
-		value         => defined $anvil->data->{cgi}{login_password}{value} ? $anvil->data->{cgi}{login_password}{value} : "",
+		value         => $say_login_password,
 		default_value => "",
 		class         => $login_password_class,
 		extra         => "",
@@ -464,10 +542,10 @@ sub process_email_server_page
 		options  => [
 				"none#!#".$anvil->Words->string({key => "striker_0174"}), 
 				"ssl_tls#!#".$anvil->Words->string({key => "striker_0175"}), 
-				"starttls!#".$anvil->Words->string({key => "striker_0176"})
+				"starttls#!#".$anvil->Words->string({key => "striker_0176"})
 			    ],
 		blank    => 1,
-		selected => defined $anvil->data->{cgi}{connection_security}{value} ? $anvil->data->{cgi}{connection_security}{value} : "ifn_link1",
+		selected => $say_connection_security,
 		class    => $anvil->data->{cgi}{connection_security}{alert} ? "input_alert" : "input_clear",
 	});
 	
@@ -483,10 +561,11 @@ sub process_email_server_page
 				"oauth2#!#".$anvil->Words->string({key => "striker_0182"})
 			    ],
 		blank    => 1,
-		selected => defined $anvil->data->{cgi}{authentication_method}{value} ? $anvil->data->{cgi}{authentication_method}{value} : "ifn_link1",
+		selected => $say_authentication_method,
 		class    => $anvil->data->{cgi}{authentication_method}{alert} ? "input_alert" : "input_clear",
 	});
 	
+	# Still here, show the menu.
 	$anvil->data->{form}{back_link}    = "?";
 	$anvil->data->{form}{refresh_link} = "?email=true";
 	$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "mail-server-menu", variables => {
@@ -496,7 +575,6 @@ sub process_email_server_page
 		connection_security   => $connection_security_select, 
 		authentication_method => $authentication_method_select,
 	}});
-	
 	
 	return(0);
 }
@@ -1381,7 +1459,6 @@ sub process_prep_network
 		}
 		
 		# Confirmed?
-		$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
 		if (($anvil->data->{cgi}{confirm}{value}) && ($sane))
 		{
 			# Yes, save the job.

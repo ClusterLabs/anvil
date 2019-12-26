@@ -554,7 +554,7 @@ CREATE TABLE mail_servers (
     mail_server_address           text                        not null,                   -- example; mail.example.com
     mail_server_port              integer                     not null,                   -- The TCP port used to connect to the server.
     mail_server_username          text                        not null,                   -- This is the user name (usually email address) used when authenticating against the mail server.
-    mail_server_password          text,                                                   -- This is the password used when authenticating against the mail server
+    mail_server_password          text                        not null,                   -- This is the password used when authenticating against the mail server
     mail_server_security          text                        not null,                   -- This is the security type used when authenticating against the mail server (STARTTLS, TLS/SSL or NONE)
     mail_server_authentication    text                        not null,                   -- 'None', 'Plain Text', 'Encrypted'.
     mail_server_helo_domain       text                        not null,                   -- The domain we identify to the mail server as being from. The default is to use the domain name of the host.

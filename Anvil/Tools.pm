@@ -716,6 +716,23 @@ sub _anvil_version
 	return($anvil->{HOST}{ANVIL_VERSION});
 }
 
+=head3 _domain_name
+
+This returns the domain name portion of the systen's host name. That is to say, the host name after the first '.'. If there is no domain portion, nothing is returned.
+
+=cut
+sub _domain_name
+{
+	my $self  = shift;
+	my $anvil =  $self;
+	
+	my $domain_name =  $anvil->_host_name;
+	   $domain_name =~ s/^.*?\.//;
+	   $domain_name =  "" if not defined $domain_name;
+	
+	return($domain_name);
+}
+
 =head2 _host_name
 
 This returns the (full) host name for the machine this is running on.

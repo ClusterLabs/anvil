@@ -1208,6 +1208,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0020">The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
 		<key name="warning_0021">All three networks require the first network pair to be defined.</key>
 		<key name="warning_0022">Only one network interface selected for a network pair.</key>
+		<key name="warning_0023">The outgoing mail server appear to not be a valid domain name or IP address.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
