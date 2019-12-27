@@ -411,6 +411,8 @@ sub process_email_server_page
 	my $say_login_password        = defined $anvil->data->{cgi}{login_password}{value}        ? $anvil->data->{cgi}{login_password}{value}        : "";
 	my $say_connection_security   = defined $anvil->data->{cgi}{connection_security}{value}   ? $anvil->data->{cgi}{connection_security}{value}   : "ifn_link1";
 	my $say_authentication_method = defined $anvil->data->{cgi}{authentication_method}{value} ? $anvil->data->{cgi}{authentication_method}{value} : "ifn_link1";
+	my $say_port                  = defined $anvil->data->{cgi}{port}{value}                  ? $anvil->data->{cgi}{port}{value}                  : "";
+	my $say_helo_domain           = defined $anvil->data->{cgi}{helo_domain}{value}           ? $anvil->data->{cgi}{helo_domain}{value}           : "";
 	my $say_back                  = defined $anvil->data->{cgi}{back}{value}                  ? $anvil->data->{cgi}{back}{value}                  : "";
 	my $say_save                  = defined $anvil->data->{cgi}{save}{value}                  ? $anvil->data->{cgi}{save}{value}                  : "";
 	my $say_confirm               = defined $anvil->data->{cgi}{confirm}{value}               ? $anvil->data->{cgi}{confirm}{value}               : "";
@@ -429,10 +431,41 @@ sub process_email_server_page
 	{
 		$say_save    = "";
 		$say_confirm = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			say_save    => $say_save,
 			say_confirm => $say_confirm,
 		}});
+	}
+	
+	# if the user put a port on the mail server, break it off now.
+	my $test_outgoing_mail_server = $say_outgoing_mail_server;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_outgoing_mail_server => $test_outgoing_mail_server }});
+	if ($test_outgoing_mail_server =~ /^(.*):(\d+)$/)
+	{
+		$test_outgoing_mail_server = $1;
+		$say_port                  = $2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			test_outgoing_mail_server => $test_outgoing_mail_server,
+			say_port                  => $say_port,
+		}});
+	}
+	else
+	{
+		# Port wasn't passed. Use '143' unless $say_connection_security is 'ssl_tls'
+		$say_port = 143;
+		if ($say_connection_security eq "ssl_tls")
+		{
+			$say_port = 993;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_port => $say_port }});
+	}
+	
+	### NOTE: For now, the HELO domain is not configurable by the user.
+	# If we don't have $say_helo_domain, use the host's domain
+	if (not $say_helo_domain)
+	{
+		$say_helo_domain = $anvil->_domain_name();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_helo_domain => $say_helo_domain }});
 	}
 	
 	if ($say_save)
@@ -443,15 +476,15 @@ sub process_email_server_page
 			# Just silently send them back to the form.
 			$say_save    = "";
 			$say_confirm = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				say_save    => $say_save,
 				say_confirm => $say_confirm,
 			}});
 		}
 		
-		# Verify that the mail server is sane (it's all we can check)
-		if ((not $anvil->Validate->is_ipv4({ip => $say_outgoing_mail_server})) and 
-		    (not $anvil->Validate->is_domain_name({name => $say_outgoing_mail_server})))
+		# Verify that the mail server and ports are sane.
+		if ((not $anvil->Validate->is_ipv4({ip => $test_outgoing_mail_server})) and 
+		    (not $anvil->Validate->is_domain_name({name => $test_outgoing_mail_server})))
 		{
 			# Bad domain
 			my $error_message                                   = $anvil->Words->string({key => "warning_0023"});
@@ -459,7 +492,23 @@ sub process_email_server_page
 			   $anvil->data->{cgi}{outgoing_mail_server}{alert} = 1;
 			   $say_save                 = "";
 			   $say_confirm              = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				error_message                      => $error_message, 
+				"form::error_massage"              => $anvil->data->{form}{error_massage},
+				"cgi::outgoing_mail_server::alert" => $anvil->data->{cgi}{outgoing_mail_server}{alert},
+				say_save                           => $say_save,
+				say_confirm                        => $say_confirm,
+			}});
+		}
+		if (not $anvil->Validate->is_port({port => $say_port}))
+		{
+			# Bad port
+			my $error_message                                   = $anvil->Words->string({key => "warning_0024"});
+			   $anvil->data->{form}{error_massage}              = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
+			   $anvil->data->{cgi}{outgoing_mail_server}{alert} = 1;
+			   $say_save                 = "";
+			   $say_confirm              = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				error_message                      => $error_message, 
 				"form::error_massage"              => $anvil->data->{form}{error_massage},
 				"cgi::outgoing_mail_server::alert" => $anvil->data->{cgi}{outgoing_mail_server}{alert},
@@ -476,6 +525,36 @@ sub process_email_server_page
 		if ($say_confirm)
 		{
 			# Save!
+			my ($mail_server_uuid) = $anvil->Database->insert_or_update_mail_servers({
+				debug                      => 2,
+				mail_server_address        => $test_outgoing_mail_server, 
+				mail_server_authentication => $say_authentication_method, 
+				mail_server_helo_domain    => $say_helo_domain, 
+				mail_server_password       => $say_login_password, 
+				mail_server_port           => $say_port, 
+				mail_server_security       => $say_connection_security, 
+				mail_server_username       => $say_login_name, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
+			if ($mail_server_uuid)
+			{
+				# Saved successfully.
+				my $ok_message                      = $anvil->Words->string({key => "ok_0001"});
+				   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
+				   
+				# Clear the form
+				$say_outgoing_mail_server  = "";
+				$say_login_name            = "";
+				$say_login_password        = "";
+				$say_connection_security   = "";
+				$say_authentication_method = "";
+			}
+			else
+			{
+				# Something went wrong...
+				my $error_message                      = $anvil->Words->string({key => "warning_0025"});
+				   $anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
+			}
 		}
 		else
 		{
@@ -487,11 +566,14 @@ sub process_email_server_page
 			$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
 			$anvil->data->{form}{refresh_link} =  "";
 			$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "mail-server-confirm", variables => {
-				outgoing_mail_server  => $say_outgoing_mail_server, 
-				login_name            => $say_login_name, 
-				login_password        => $say_login_password, 
-				connection_security   => $say_connection_security, 
-				authentication_method => $say_authentication_method,
+				say_outgoing_mail_server => $test_outgoing_mail_server.":".$say_port, 
+				outgoing_mail_server     => $say_outgoing_mail_server, 
+				port                     => $say_port, 
+				login_name               => $say_login_name, 
+				login_password           => $say_login_password, 
+				connection_security      => $say_connection_security, 
+				authentication_method    => $say_authentication_method,
+				helo_domain              => $say_helo_domain, 
 			}});
 			return(0);
 		}
@@ -502,7 +584,7 @@ sub process_email_server_page
 	my $outgoing_mail_server_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
 		name          => "outgoing_mail_server",
 		id            => "outgoing_mail_server",
-		field         => "#!string!striker_0168!#",
+		field         => "#!string!striker_0185!#",
 		description   => "#!string!striker_0169!#",
 		value         => $say_outgoing_mail_server,
 		default_value => "",

@@ -135,8 +135,9 @@
 									#!string!striker_0168!#
 								</td>
 								<td class="column_row_value_fixed">
-									 &nbsp; #!variable!outgoing_mail_server!#
+									 &nbsp; #!variable!say_outgoing_mail_server!#
 									<input type="hidden" name="outgoing_mail_server" id="outgoing_mail_server" value="#!variable!outgoing_mail_server!#"/>
+									<input type="hidden" name="port"                 id="port"                 value="#!variable!port!#"/>
 								</td>
 							</tr>
 							<tr>
@@ -173,6 +174,20 @@
 								<td class="column_row_value_fixed">
 									 &nbsp; #!variable!authentication_method!#
 									<input type="hidden" name="authentication_method" id="authentication_method" value="#!variable!authentication_method!#"/>
+									<input type="hidden" name="helo_domain"           id="helo_domain"           value="#!variable!helo_domain!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2" class="close_top">
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td class="no_border">
+									<input type="submit" name="back" id="back" class="button" value="#!string!striker_0098!#">
+								</td>
+								<td class="no_border_right">
+									<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
 								</td>
 							</tr>
 						</table>
@@ -183,16 +198,9 @@
 						&nbsp;
 					</td>
 				</tr>
-				<tr>
-					<td>
-						<input type="submit" name="back" id="back" class="button" value="#!string!striker_0098!#">
-					</td>
-					<td class="column_row_value_right">
-						<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
-					</td>
-				</tr>
 				</div>
 				<input type="hidden" name="email" id="email" value="true" />
+				<input type="hidden" name="save"  id="save"  value="true" />
 				<input type="hidden" name="task"  id="task"  value="email_server" />
 				</form>
 			</table>

@@ -584,15 +584,23 @@ BEGIN
     SELECT INTO history_mail_servers * FROM mail_servers WHERE mail_server_uuid = new.mail_server_uuid;
     INSERT INTO history.mail_servers
         (mail_server_uuid, 
-         mail_server_recipient_uuid, 
-         mail_server_anvil_uuid, 
-         mail_server_alert_level, 
+         mail_server_address, 
+         mail_server_port, 
+         mail_server_username, 
+         mail_server_password, 
+         mail_server_security, 
+         mail_server_authentication, 
+         mail_server_helo_domain, 
          modified_date)
     VALUES
         (history_mail_servers.mail_server_uuid,
-         history_mail_servers.mail_server_recipient_uuid, 
-         history_mail_servers.mail_server_anvil_uuid, 
-         history_mail_servers.mail_server_alert_level, 
+         history_mail_servers.mail_server_address, 
+         history_mail_servers.mail_server_port, 
+         history_mail_servers.mail_server_username, 
+         history_mail_servers.mail_server_password, 
+         history_mail_servers.mail_server_security, 
+         history_mail_servers.mail_server_authentication, 
+         history_mail_servers.mail_server_helo_domain, 
          history_mail_servers.modified_date);
     RETURN NULL;
 END;

@@ -802,6 +802,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0465">About to rename the network interface: [#!variable!old_interface!#] to: [#!variable!new_interface!#]</key>
 		<key name="log_0466">Disconnected from all databases and closing all open SSH sessions. Will reconnect after the network configuration changes have taken effect.</key>
 		<key name="log_0467">Network reconfiguration is complete!</key>
+		<key name="log_0468">Skipping the OUI parse. The next scheduled parse will be done in: [#!variable!next_parse!#]. Override with '--force'.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1042,6 +1043,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0182">OAuth2</key>			<!-- Email Authentication Method - OAuth2 -->
 		<key name="striker_0183">Connection Security</key>
 		<key name="striker_0184">Authentication method</key>
+		<key name="striker_0185">host_or_ip[:port]</key>
+		<key name="striker_0186">Indicates when the last time the OUI file was parsed. This is done to translate MAC addresses (and IPs associated with those MAC addresses) to the company that owns them.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1185,6 +1188,9 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
 		<key name="job_0071">The network configuration will be updated based on the variables stored in the database. When complete, the system will reboot.</key>
 		
+		<!-- Success messages shown to the user --> 
+		<key name="ok_0001">Saved the mail server information successfully!</key>
+		
 		<!-- Warnings --> 
 		<key name="warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
 		<key name="warning_0002">The access information appears to not be valid.</key>
@@ -1209,6 +1215,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0021">All three networks require the first network pair to be defined.</key>
 		<key name="warning_0022">Only one network interface selected for a network pair.</key>
 		<key name="warning_0023">The outgoing mail server appear to not be a valid domain name or IP address.</key>
+		<key name="warning_0024">The outgoing mail server port is not valid. Must be 'mail_server:x' where x is 1 ~ 65535.</key>
+		<key name="warning_0025">There was a problem saving the mail server data. Please check the logs for more information.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

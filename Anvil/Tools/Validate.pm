@@ -445,6 +445,47 @@ sub is_mac
 	return($valid);
 }
 
+=head2 is_port
+
+This tests to see if the value passed is a valid TCP/UDP port (1 ~ 65536). Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+B<< Note >>: This is a strict test. A comma will cause this test to return C<< 0 >>.
+
+Parameters;
+
+=head3 port (required)
+
+This is the port being tested.
+
+=cut
+sub is_port
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $port = defined $parameter->{port} ? $parameter->{port} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port => $port }});
+	
+	my $valid = 1;
+	if ($port =~ /\D/)
+	{
+		# Not a digit
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	elsif (($port < 1) or ($port > 65535))
+	{
+		# Out of range
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
 =head2 is_positive_integer
 
 This method verifies that the passed in value is a positive integer. 

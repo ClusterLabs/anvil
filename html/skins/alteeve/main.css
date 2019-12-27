@@ -308,6 +308,22 @@ td.button_cell {
 	text-align: center;
 }
 
+td.close_top {
+	border-top:    1px solid #8f8f8f;
+	border-left:   1px solid transparent;
+	border-right:  1px solid transparent;
+	border-bottom: 1px solid transparent;
+}
+
+td.no_border {
+	border: 1px solid transparent;
+}
+
+td.no_border_right {
+	border:     1px solid transparent;
+	text-align: right;
+}
+
 td.column_header {
 	text-align: left;
 	color:      #9ba0a5;
