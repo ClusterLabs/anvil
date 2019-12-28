@@ -1,6 +1,6 @@
 <!-- start main-menu -->
 		<table align="center" class="anvil_main_menu">
-			<script type="text/javascript" src="/skins/alteeve/email.js"></script>
+			<script type="text/javascript" src="#!data!skin::url!#/email.js"></script>
 			<tr>
 				<td colspan="2">
 					&nbsp;
@@ -35,10 +35,49 @@
 		</table>
 <!-- end main-menu -->
 
+<!-- start mail-server-entry-open -->
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="text-align: left; padding-bottom: 0.3em;">
+						#!string!striker_0187!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="text-align: left;">
+						<table class="list">
+<!-- end mail-server-entry-open -->
+
+<!-- start mail-server-entry -->
+							<tr>
+								<td class="column_row_value_fixed">
+									<a href="?email=true&task=email_server&mail_server_uuid=#!variable!uuid!#" class="fixed_link">#!variable!name!#</a>
+								</td>
+								<td>
+									 &nbsp; <a href="?email=true&task=email_server&mail_server_uuid=#!variable!uuid!#&delete=true"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a> &nbsp; 
+								</td>
+							</tr>
+<!-- end mail-server-entry -->
+
+<!-- start mail-server-entry-close -->
+						</table>
+					</td>
+				</tr>
+<!-- end mail-server-entry-close -->
+
 <!-- start mail-server-menu -->
-			<table align="center" class="mail_server">
+			<table align="center">
+				<script type="text/javascript" src="#!data!skin::url!#/email.js"></script>
 				<form name="mail_server" action="" method="post">
-				<div id="hostmail_server">
+				<div id="mail_server">
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
 				<tr>
 					<td colspan="2" class="title">
 						#!string!message_0154!#
@@ -54,9 +93,15 @@
 						#!string!message_0155!#
 					</td>
 				</tr>
+				#!variable!mail_servers!#
 				<tr>
 					<td colspan="2">
 						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" class="column_row_value_right">
+						<a href="?email=true&task=email_server">#!string!striker_0188!#</a>
 					</td>
 				</tr>
 				<tr>
@@ -97,16 +142,18 @@
 					</td>
 				</tr>
 				</div>
-				<input type="hidden" name="email" id="email" value="true" />
-				<input type="hidden" name="task"  id="task"  value="email_server" />
+				<input type="hidden" name="email"            id="email"            value="true" />
+				<input type="hidden" name="task"             id="task"             value="email_server" />
+				<input type="hidden" name="port"             id="port"             value="#!variable!port!#" />
+				<input type="hidden" name="mail_server_uuid" id="mail_server_uuid" value="#!variable!mail_server_uuid!#" />
 				</form>
 			</table>
 <!-- end mail-server-menu -->
 
 <!-- start mail-server-confirm -->
-			<table align="center" class="mail_server">
+			<table align="center">
 				<form name="mail_server" action="" method="post">
-				<div id="hostmail_server">
+				<div id="mail_server">
 				<tr>
 					<td colspan="2" class="title">
 						#!string!message_0154!#
@@ -137,6 +184,7 @@
 								<td class="column_row_value_fixed">
 									 &nbsp; #!variable!say_outgoing_mail_server!#
 									<input type="hidden" name="outgoing_mail_server" id="outgoing_mail_server" value="#!variable!outgoing_mail_server!#"/>
+									<input type="hidden" name="mail_server_uuid"     id="mail_server_uuid"     value="#!variable!mail_server_uuid!#" />
 									<input type="hidden" name="port"                 id="port"                 value="#!variable!port!#"/>
 								</td>
 							</tr>
@@ -205,3 +253,58 @@
 				</form>
 			</table>
 <!-- end mail-server-confirm -->
+
+<!-- start mail-server-delete-confirm -->
+			<table align="center">
+				<form name="mail_server" action="" method="post">
+				<div id="mail_server">
+				<tr>
+					<td colspan="2" class="title">
+						#!string!message_0154!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<table align="center">
+							<tr>
+								<td class="column_header">
+									#!string!striker_0189!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!outgoing_mail_server!#
+									<input type="hidden" name="mail_server_uuid" id="mail_server_uuid" value="#!variable!mail_server_uuid!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2">
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td class="no_border">
+									<input type="submit" name="back" id="back" class="button" value="#!string!striker_0098!#">
+								</td>
+								<td class="no_border_right">
+									<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				</div>
+				<input type="hidden" name="email"  id="email"  value="true" />
+				<input type="hidden" name="task"   id="task"   value="email_server" />
+				<input type="hidden" name="delete" id="delete" value="true"/>
+				</form>
+			</table>
+<!-- end mail-server-delete-confirm -->

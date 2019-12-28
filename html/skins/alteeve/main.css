@@ -44,6 +44,9 @@ body {
 	border-radius:    3px;
 }
 
+.inline_button {
+}
+
 #center_body {
 	height: 100%;
 }
@@ -279,7 +282,9 @@ table {
 }
 
 table.centered {
-	margin: auto;
+	/*margin: auto;*/
+	margin-left:   auto; 
+	margin-right:  auto;
 }
 
 table.data_table {
@@ -291,11 +296,6 @@ table.data_table_nowrap {
 	border:        1px solid #8f8f8f;
 	border-radius: 4px;
 	white-space:   nowrap;
-}
-
-table.centered {
-	margin-left:   auto; 
-	margin-right:  auto;
 }
 
 td {
@@ -348,6 +348,21 @@ td.column_row_value_right {
 	text-align: right;
 	color:      #f7f7f7;
 	padding:    0.2em;
+}
+
+td.column_row_value_centered {
+	text-align: center;
+	color:      #f7f7f7;
+	padding:    0.2em;
+}
+
+.fixed_link {
+	text-align:     left;
+	color:          #f7f7f7;
+	font-family:    'Dejavu Sans Mono', Courier;
+	padding:        0.2em;
+	font-size:      0.9em;
+	vertical-align: top;
 }
 
 td.column_row_value_fixed {
@@ -430,6 +445,16 @@ tr.data_row {
 .unavailable {
 	color:      #dc9012;
 	text-align: center;
+}
+
+table.list {
+/*	margin-left:    auto; */
+/* 	margin-right:   auto; */
+	padding-top:    0.2em;
+	padding-bottom: 0.2em;
+	padding-left:   0.4em;
+	padding-right:  0.4em;
+	border:         1px dotted #7f7f7f;
 }
 
 /* This is used for the 'configured' table as well */

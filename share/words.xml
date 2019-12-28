@@ -1045,6 +1045,9 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0184">Authentication method</key>
 		<key name="striker_0185">host_or_ip[:port]</key>
 		<key name="striker_0186">Indicates when the last time the OUI file was parsed. This is done to translate MAC addresses (and IPs associated with those MAC addresses) to the company that owns them.</key>
+		<key name="striker_0187">Existing mail servers:</key>
+		<key name="striker_0188">Clear the form</key>
+		<key name="striker_0189">Are you sure that you want to delete:</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1190,6 +1193,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
+		<key name="ok_0002">The mail server: [#!variable!mail_server!#] has been deleted.</key>
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>

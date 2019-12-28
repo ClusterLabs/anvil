@@ -67,3 +67,7 @@ Mail server Mail Server by SBTS from the Noun Project (https://thenounproject.co
 
 Reader by Richa from the Noun Project
  - email_recipient.png
+
+Delete by Kavya from the Noun Project (https://thenounproject.com/term/delete/860236/)
+ - delete.png
+
