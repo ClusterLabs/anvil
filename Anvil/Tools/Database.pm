@@ -28,15 +28,20 @@ my $THIS_FILE = "Database.pm";
 # get_jobs
 # get_local_uuid
 # initialize
+# insert_or_update_anvils
 # insert_or_update_bridges
 # insert_or_update_bonds
 # insert_or_update_file_locations
 # insert_or_update_files
+# insert_or_update_host_keys
 # insert_or_update_hosts
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
+# insert_or_update_mail_servers
 # insert_or_update_network_interfaces
+# insert_or_update_mac_to_ip
 # insert_or_update_oui
+# insert_or_update_recipients
 # insert_or_update_sessions
 # insert_or_update_states
 # insert_or_update_users
@@ -273,6 +278,7 @@ sub archive_database
 	return(0);
 }
 
+
 =head2 check_lock_age
 
 This checks to see if 'sys::database::local_lock_active' is set. If it is, its age is checked and if the age is >50% of sys::database::locking_reap_age, it will renew the lock.
@@ -331,6 +337,7 @@ sub check_lock_age
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { renewed => $renewed }});
 	return($renewed);
 }
+
 
 =head2 configure_pgsql
 
@@ -688,6 +695,7 @@ sub configure_pgsql
 	
 	return(0);
 }
+
 
 =head2 connect_to_databases
 
@@ -1323,6 +1331,7 @@ sub connect
 	return($anvil->data->{sys}{database}{connections});
 }
 
+
 =head2
 
 This cleanly closes any open file handles to all connected databases and clears some internal database related variables.
@@ -1369,6 +1378,7 @@ sub disconnect
 	return(0);
 }
 
+
 =head2 get_alert_recipients
 
 This returns a list of users listening to alerts for a given host, along with their alert level.
@@ -1407,6 +1417,7 @@ WHERE
 	
 	return();
 }
+
 
 =head2 get_host_from_uuid
 
@@ -1469,6 +1480,7 @@ sub get_host_from_uuid
 	
 	return($host_name);
 }
+
 
 =head2 get_hosts
 
@@ -1538,6 +1550,7 @@ FROM
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_count => $return_count }});
 	return($return);
 }
+
 
 =head2 get_hosts_info
 
@@ -1626,6 +1639,7 @@ AND
 	
 	return(0);
 }
+
 
 =head2 get_job_details
 
@@ -1743,6 +1757,7 @@ WHERE
 	
 	return($return);
 }
+
 
 =head2 get_jobs
 
@@ -1886,6 +1901,7 @@ WHERE
 	return($return);
 }
 
+
 =head2 get_local_uuid
 
 This returns the database UUID (usually the host's UUID) from C<< anvil.conf >> based on matching the C<< database::<uuid>::host >> to the local machine's host name or one of the active IP addresses on the host.
@@ -1959,6 +1975,7 @@ sub get_local_uuid
 	
 	return($local_uuid);
 }
+
 
 =head2 initialize
 
@@ -2078,6 +2095,14 @@ sub initialize
 	return($success);
 };
 
+
+=head2 insert_or_update_anvils
+=cut
+sub insert_or_update_anvils
+{
+}
+
+
 =head2 insert_or_update_bridges
 
 This updates (or inserts) a record in the 'bridges' table. The C<< bridge_uuid >> referencing the database row will be returned.
@@ -2098,35 +2123,35 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
-=head2 bridge_uuid (optional)
+=head3 bridge_uuid (optional)
 
 If not passed, a check will be made to see if an existing entry is found for C<< bridge_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
 
-=head2 bridge_host_uuid (optional)
+=head3 bridge_host_uuid (optional)
 
 This is the host that the IP address is on. If not passed, the local C<< sys::host_uuid >> will be used (indicating it is a local IP address).
 
-=head2 bridge_name (required)
+=head3 bridge_name (required)
 
 This is the bridge's device name.
 
-=head2 bridge_id (optional)
+=head3 bridge_id (optional)
 
 This is the unique identifier for the bridge.
 
-=head2 bridge_mac_address (optional)
+=head3 bridge_mac_address (optional)
 
 This is the MAC address of the bridge.
 
-=head2 bridge_mto (optional)
+=head3 bridge_mto (optional)
 
 This is the MTU (maximum transfer unit, size in bytes) of the bridge.
 
-=head2 bridge_stp_enabled (optional)
+=head3 bridge_stp_enabled (optional)
 
 This is set to C<< yes >> or C<< no >> to indicate if spanning tree protocol is enabled on the switch.
 
-=head2 delete (optional, default '0')
+=head3 delete (optional, default '0')
 
 If set to C<< 1 >>, C<< bridge_id >> will be set to C<< DELETED >>, indicating that the bridge has been deleted from the system. If set, only C<< bridge_uuid >> or C<< bridge_name >> is needed.
 
@@ -2375,6 +2400,7 @@ WHERE
 	
 	return($bridge_uuid);
 }
+
 
 =head2 insert_or_update_bonds
 
@@ -2778,6 +2804,7 @@ WHERE
 	return($bond_uuid);
 }
 
+
 =head2 insert_or_update_file_locations
 
 This updates (or inserts) a record in the 'file_locations' table. The C<< file_location_uuid >> referencing the database row will be returned.
@@ -2978,6 +3005,7 @@ WHERE
 	
 	return($file_location_uuid);
 }
+
 
 =head2 insert_or_update_files
 
@@ -3249,6 +3277,7 @@ WHERE
 	return($file_uuid);
 }
 
+
 =head2 insert_or_update_host_keys
 
 This updates (or inserts) a record in the 'host_keys' table. The C<< host_key_uuid >> UUID will be returned.
@@ -3445,6 +3474,7 @@ WHERE
 	return($host_key_uuid);
 }
 
+
 =head2 insert_or_update_hosts
 
 This updates (or inserts) a record in the 'hosts' table. The C<< host_uuid >> UUID will be returned.
@@ -3608,6 +3638,7 @@ WHERE
 	return($host_uuid);
 }
 
+
 =head2 insert_or_update_ip_addresses
 
 This updates (or inserts) a record in the 'ip_addresses' table. The C<< ip_address_uuid >> referencing the database row will be returned.
@@ -3632,43 +3663,43 @@ If set, this is the file line number logged as the source of any INSERTs or UPDA
 
 When set to C<< 1 >>, the C<< ip_address_note >> is set to C<< DELETED >>, and nothing else is changed. If set, only C<< ip_address_uuid >> or C<< ip_address_address >> are required.
 
-=head2 ip_address_address (required)
+=head3 ip_address_address (required)
 
 This is the acual IP address. It's tested with IPv4 addresses in dotted-decimal format, though it can also store IPv6 addresses. If this is set to C<< 0 >>, it will be treated as deleted and will be ignored (unless a new IP is assigned to the same interface in the future).
 
-=head2 ip_address_uuid (optional)
+=head3 ip_address_uuid (optional)
 
 If not passed, a check will be made to see if an existing entry is found for C<< ip_address_address >>. If found, that entry will be updated. If not found, a new record will be inserted.
 
-=head2 ip_address_host_uuid (optional)
+=head3 ip_address_host_uuid (optional)
 
 This is the host that the IP address is on. If not passed, the local C<< sys::host_uuid >> will be used (indicating it is a local IP address).
 
-=head2 ip_address_on_type (required)
+=head3 ip_address_on_type (required)
 
 This indicates what type of interface the IP address is on. This must be either C<< interface >>, C<< bond >> or C<< bridge >>. 
 
-=head2 ip_address_on_uuid (required)
+=head3 ip_address_on_uuid (required)
 
 This is the UUID of the bridge, bond or interface that this IP address is on.
 
-=head2 ip_address_subnet_mask (required)
+=head3 ip_address_subnet_mask (required)
 
 This is the subnet mask for the IP address. It is tested with IPv4 in dotted decimal format, though it can also store IPv6 format subnet masks.
 
-=head2 ip_address_default_gateway (optional, default '0')
+=head3 ip_address_default_gateway (optional, default '0')
 
 If a gateway address is set, and this is set to C<< 1 >>, the associated interface will be the default gateway for the host.
 
-=head2 ip_address_gateway (optional)
+=head3 ip_address_gateway (optional)
 
 This is an option gateway IP address for this interface.
 
-=head2 ip_address_dns (optional)
+=head3 ip_address_dns (optional)
 
 This is a comma-separated list of DNS servers used to resolve host names. This is recorded, but ignored unless C<< ip_address_gateway >> is set. Example format is C<< 8.8.8.8 >> or C<< 8.8.8.8,4.4.4.4 >>.
 
-=head2 ip_address_note (optional)
+=head3 ip_address_note (optional)
 
 This can be set to C<< DELETED >> when the IP address is no longer in use.
 
@@ -4765,6 +4796,7 @@ WHERE
 	return($mail_server_uuid);
 }
 
+
 =head2 insert_or_update_network_interfaces
 
 This updates (or inserts) a record in the 'interfaces' table. This table is used to store physical network interface information.
@@ -5177,6 +5209,7 @@ INSERT INTO
 	return($network_interface_uuid);
 }
 
+
 =head2 insert_or_update_mac_to_ip
 
 This updates (or inserts) a record in the C<< mac_to_ip >> table used for tracking what MAC addresses have what IP addresses.
@@ -5393,6 +5426,7 @@ INSERT INTO
 	return($mac_to_ip_uuid);
 }
 
+
 =head2 insert_or_update_oui
 
 This updates (or inserts) a record in the C<< oui >> (Organizationally Unique Identifier) table used for converting network MAC addresses to the company that owns it. The C<< oui_uuid >> referencing the database row will be returned.
@@ -5583,6 +5617,300 @@ INSERT INTO
 	return($oui_uuid);
 }
 
+
+=head2 insert_or_update_recipients
+
+This updates (or inserts) a record in the 'recipients' table. The C<< recipient_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 delete (optional, default '0')
+
+If set to C<< 1 >>, the associated mail server will be deleted. Specifically, the C<< recipient_name >> is set to C<< DELETED >>.
+
+When this is set, either C<< recipient_uuid >> or C<< recipient_email >> is required.
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 recipient_email (required)
+
+This is the email address of the recipient. This is where alerts are sent to and as such, must be a valid email address.
+
+=head3 recipient_language (optional, default 'en_CA')
+
+This is the language that alert emails are crafted using for this recipient. This is the ISO language code, as set in the C<< <language name="en_CA" ... > >> element of the C<< words.xml >> file. If the preferred language is not available, the system language will be used in stead.
+
+=head3 recipient_name (required)
+
+This is the name of the recipient, and is used when crafting the email body and reply-to lists. 
+
+=head3 recipient_new_level (optional, default '2')
+
+When adding a new Anvil! to the system, the recipient will automatically start monitoring the new Anvil! using this alert level. This can be set to C<< 0 >> to prevent auto-monitoring of new systems.
+
+Valid values;
+
+=head4 0 (ignore)
+
+None, ignore new systems
+
+=head4 1 (critical)
+
+Critical alerts. These are alerts that almost certainly indicate an issue with the system that has are likely will cause a service interruption. (ie: node was fenced, emergency shut down, etc)
+
+=head4 2 (warning)
+
+Warning alerts. These are alerts that likely require the attention of an administrator, but have not caused a service interruption. (ie: power loss/load shed, over/under voltage, fan failure, network link failure, etc)
+
+=head4 3 (notice)
+
+Notice alerts. These are generally low priority alerts that do not need attention, but might be indicators of developing problems. (ie: UPSes transfering to batteries, server migration/shut down/boot up, etc)
+
+=head3 recipient_units (optional, default 'metric')
+
+This can be set to 'imperial' if the user wants to receive values in imperial units. Currently, this causes temperatures to be returned in C<< °F >> instead of C<< °C >>.
+
+=head3 recipient_uuid (optional)
+
+If set, this is the UUID that will be used to update a record in the database. If not set, it will be searched for by looking for a matching C<< recipient_email >>.
+
+=cut
+sub insert_or_update_recipients
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_recipients()" }});
+	
+	my $delete              = defined $parameter->{'delete'}            ? $parameter->{'delete'}            : 0;
+	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
+	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
+	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
+	my $recipient_email     = defined $parameter->{recipient_email}     ? $parameter->{recipient_email}     : "";
+	my $recipient_language  = defined $parameter->{recipient_language}  ? $parameter->{recipient_language}  : "en_CA";
+	my $recipient_name      = defined $parameter->{recipient_name}      ? $parameter->{recipient_name}      : "";
+	my $recipient_new_level = defined $parameter->{recipient_new_level} ? $parameter->{recipient_new_level} : "2";
+	my $recipient_units     = defined $parameter->{recipient_units}     ? $parameter->{recipient_units}     : "metric";
+	my $recipient_uuid      = defined $parameter->{recipient_uuid}      ? $parameter->{recipient_uuid}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'delete'            => $delete, 
+		uuid                => $uuid, 
+		file                => $file, 
+		line                => $line, 
+		recipient_email     => $recipient_email, 
+		recipient_language  => $recipient_language, 
+		recipient_name      => $recipient_name, 
+		recipient_new_level => $recipient_new_level, 
+		recipient_units     => $recipient_units, 
+		recipient_uuid      => $recipient_uuid, 
+	}});
+	
+	# Did we get a mail server name? 
+	if ((not $recipient_email) && (not $recipient_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_recipients()", parameter => "recipient_email" }});
+		return("");
+	}
+	
+	# Make sure the recipient_new_level is 0, 1, 2 or 3
+	if (($recipient_new_level ne "0") && ($recipient_new_level ne "1") && ($recipient_new_level ne "3") && ($recipient_new_level ne "3"))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0108", variables => { recipient_new_level => $recipient_new_level }});
+		return("");
+	}
+	
+	if (not $recipient_uuid)
+	{
+		# Can we find it using the mail server address?
+		my $query = "
+SELECT 
+    recipient_uuid 
+FROM 
+    recipients 
+WHERE 
+    recipient_email = ".$anvil->Database->quote($recipient_email)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$recipient_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { recipient_uuid => $recipient_uuid }});
+		}
+	}
+	
+	if ($delete)
+	{
+		if (not $recipient_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_recipients()", parameter => "recipient_uuid" }});
+			return("");
+		}
+		else
+		{
+			# Delete it
+			my $query = "SELECT recipient_name FROM recipients WHERE recipient_uuid = ".$anvil->Database->quote($recipient_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_recipient_name = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_recipient_name => $old_recipient_name }});
+				
+				if ($old_recipient_name ne "DELETED")
+				{
+					my $query = "UPDATE recipients SET recipient_name = 'DELETED' WHERE recipient_uuid = ".$anvil->Database->quote($recipient_uuid).";";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($recipient_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
+		}
+	}
+	
+	# If we're here and we still don't have a recipient name, there's a problem.
+	if (not $recipient_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_recipients()", parameter => "recipient_name" }});
+		return("");
+	}
+	
+	# If I still don't have an recipient_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { recipient_uuid => $recipient_uuid }});
+	if (not $recipient_uuid)
+	{
+		# INSERT
+		$recipient_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { recipient_uuid => $recipient_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    recipients 
+(
+    recipient_uuid, 
+    recipient_email, 
+    recipient_language, 
+    recipient_name, 
+    recipient_new_level, 
+    recipient_units, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($recipient_uuid).", 
+    ".$anvil->Database->quote($recipient_email).", 
+    ".$anvil->Database->quote($recipient_language).", 
+    ".$anvil->Database->quote($recipient_name).", 
+    ".$anvil->Database->quote($recipient_new_level).", 
+    ".$anvil->Database->quote($recipient_units).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    recipient_email, 
+    recipient_language, 
+    recipient_name, 
+    recipient_new_level, 
+    recipient_units 
+FROM 
+    recipients 
+WHERE 
+    recipient_uuid = ".$anvil->Database->quote($recipient_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a recipient_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "recipient_uuid", uuid => $recipient_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_recipient_email     = $row->[0]; 
+			my $old_recipient_language  = $row->[1];
+			my $old_recipient_name      = $row->[2]; 
+			my $old_recipient_new_level = $row->[3]; 
+			my $old_recipient_units     = $row->[4]; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_recipient_email     => $old_recipient_email, 
+				old_recipient_language  => $old_recipient_language,
+				old_recipient_name      => $old_recipient_name, 
+				old_recipient_new_level => $old_recipient_new_level, 
+				old_recipient_units     => $old_recipient_units, 
+			}});
+			
+			# Anything change?
+			if (($old_recipient_email     ne $recipient_email)     or 
+			    ($old_recipient_language  ne $recipient_language)  or 
+			    ($old_recipient_name      ne $recipient_name)      or  
+			    ($old_recipient_new_level ne $recipient_new_level) or  
+			    ($old_recipient_units     ne $recipient_units))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    recipients 
+SET 
+    recipient_email     = ".$anvil->Database->quote($recipient_email).", 
+    recipient_language  = ".$anvil->Database->quote($recipient_language).", 
+    recipient_name      = ".$anvil->Database->quote($recipient_name).", 
+    recipient_new_level = ".$anvil->Database->quote($recipient_new_level).", 
+    recipient_units     = ".$anvil->Database->quote($recipient_units).", 
+    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    recipient_uuid      = ".$anvil->Database->quote($recipient_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	return($recipient_uuid);
+}
+
+
 =head2 insert_or_update_sessions
 
 This updates (or inserts) a record in the 'sessions' table. The C<< session_uuid >> referencing the database row will be returned.
@@ -5772,6 +6100,7 @@ INSERT INTO
 	
 	return($session_uuid);
 }
+
 
 =head2 insert_or_update_states
 
@@ -5998,6 +6327,7 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 	return($state_uuid);
 }
+
 
 =head2 insert_or_update_users
 
@@ -6329,6 +6659,7 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
 	return($user_uuid);
 }
+
 
 =head2 insert_or_update_variables
 
@@ -6672,6 +7003,7 @@ WHERE
 	return($variable_uuid);
 }
 
+
 =head2 lock_file
 
 This reads, sets or updates the database lock file timestamp.
@@ -6720,6 +7052,7 @@ sub lock_file
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lock_time => $lock_time }});
 	return($lock_time);
 }
+
 
 =head2 locking
 
@@ -6957,6 +7290,7 @@ sub locking
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	return($set);
 }
+
 
 =head2 manage_anvil_conf
 
@@ -7405,6 +7739,7 @@ sub manage_anvil_conf
 	return(0);
 }
 
+
 =head2 mark_active
 
 This sets or clears that the caller is about to work on the database
@@ -7448,6 +7783,7 @@ sub mark_active
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 	return($state_uuid);
 }
+
 
 =head2 query
 
@@ -7597,6 +7933,7 @@ sub query
 	return($DBreq->fetchall_arrayref());
 }
 
+
 =head2 quote
 
 This quotes a string for safe use in database queries/writes. It operates exactly as C<< DBI >>'s C<< quote >> method. This method is simply a wrapper that uses the C<< DBI >> handle set as the currently active read database.
@@ -7622,6 +7959,7 @@ sub quote
 	
 	return($quoted);
 }
+
 
 =head2 read
 
@@ -7667,6 +8005,7 @@ sub read
 	
 	return($anvil->data->{sys}{database}{use_handle});
 }
+
 
 =head2 read_variable
 
@@ -7772,6 +8111,7 @@ AND
 	return($variable_value, $variable_uuid, $modified_date);
 }
 
+
 =head2 refresh_timestamp
 
 This refreshes C<< sys::database::timestamp >>. It returns C<< sys::database::timestamp >> as well.
@@ -7795,6 +8135,7 @@ sub refresh_timestamp
 	
 	return($anvil->data->{sys}{database}{timestamp});
 }
+
 
 =head2 resync_databases
 
@@ -8202,6 +8543,7 @@ sub resync_databases
 	
 	return(0);
 }
+
 
 =head2 write
 
@@ -8701,6 +9043,7 @@ COPY history.".$table." (";
 	return(0);
 }
 
+
 =head2 _find_behind_databases
 
 This returns the most up to date database ID, the time it was last updated and an array or DB IDs that are behind.
@@ -8946,6 +9289,7 @@ ORDER BY
 	return(0);
 }
 
+
 =head2 _mark_database_as_behind
 
 This method marks that a resync is needed and, if needed, switches the database this machine will read from.
@@ -8997,6 +9341,7 @@ sub _mark_database_as_behind
 	
 	return(0);
 }
+
 
 =head2 _test_access
 

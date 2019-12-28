@@ -260,6 +260,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0153">Local repository</key>
 		<key name="message_0154">Mail Server Configuration</key>
 		<key name="message_0155">When alert emails are sent, they are stored locally and then forwarded to a mail server. This is where you can configure the mail server that alerts are forwarded to for delivery to recipients.</key>
+		<key name="message_0156">Alert recipient Configuration</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1194,6 +1195,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
 		<key name="ok_0002">The mail server: [#!variable!mail_server!#] has been deleted.</key>
+		<key name="ok_0003">The alert recipient: [#!variable!recipient_email!#] has been deleted.</key>
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1345,6 +1347,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
 		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target?]]></key>
 		<key name="error_0107">Failed to reconnect after reconfiguring the network, exiting.</key>
+		<key name="error_0108">The 'recipient_new_level': [#!variable!recipient_new_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

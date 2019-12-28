@@ -308,3 +308,58 @@
 				</form>
 			</table>
 <!-- end mail-server-delete-confirm -->
+
+<!-- start recipient-delete-confirm -->
+			<table align="center">
+				<form name="recipient" action="" method="post">
+				<div id="recipient">
+				<tr>
+					<td colspan="2" class="title">
+						#!string!message_0156!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<table align="center">
+							<tr>
+								<td class="column_header">
+									#!string!striker_0189!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!recipient_name!# (#!variable!recipient_email!#)
+									<input type="hidden" name="recipient_uuid" id="recipient_uuid" value="#!variable!recipient_uuid!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2">
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td class="no_border">
+									<input type="submit" name="back" id="back" class="button" value="#!string!striker_0098!#">
+								</td>
+								<td class="no_border_right">
+									<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				</div>
+				<input type="hidden" name="email"  id="email"  value="true" />
+				<input type="hidden" name="task"   id="task"   value="email_recipient" />
+				<input type="hidden" name="delete" id="delete" value="true"/>
+				</form>
+			</table>
+<!-- end recipient-delete-confirm -->

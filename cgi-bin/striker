@@ -376,7 +376,7 @@ sub process_email_menu
 	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "email_recipient")
 	{
-		#process_email_recipient_page($anvil);
+		process_email_recipient_page($anvil);
 	}
 	else
 	{
@@ -400,50 +400,187 @@ sub process_email_menu
 	return(0);
 }
 
-# 
+# This processes mail recipients.
+sub process_email_recipient_page
+{
+	my ($anvil) = @_;
+	
+	my $recipient_uuid      = defined $anvil->data->{cgi}{recipient_uuid}{value}      ? $anvil->data->{cgi}{recipient_uuid}{value}      : "";
+	my $recipient_name      = defined $anvil->data->{cgi}{recipient_name}{value}      ? $anvil->data->{cgi}{recipient_name}{value}      : "";
+	my $recipient_email     = defined $anvil->data->{cgi}{recipient_email}{value}     ? $anvil->data->{cgi}{recipient_email}{value}     : "";
+	my $recipient_language  = defined $anvil->data->{cgi}{recipient_language}{value}  ? $anvil->data->{cgi}{recipient_language}{value}  : "";
+	my $recipient_units     = defined $anvil->data->{cgi}{recipient_units}{value}     ? $anvil->data->{cgi}{recipient_units}{value}     : "";
+	my $recipient_new_level = defined $anvil->data->{cgi}{recipient_new_level}{value} ? $anvil->data->{cgi}{recipient_new_level}{value} : "";
+	my $delete              = defined $anvil->data->{cgi}{'delete'}{value}            ? $anvil->data->{cgi}{'delete'}{value}            : "";
+	my $back                = defined $anvil->data->{cgi}{back}{value}                ? $anvil->data->{cgi}{back}{value}                : "";
+	my $save                = defined $anvil->data->{cgi}{save}{value}                ? $anvil->data->{cgi}{save}{value}                : "";
+	my $confirm             = defined $anvil->data->{cgi}{confirm}{value}             ? $anvil->data->{cgi}{confirm}{value}             : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		recipient_uuid      => $recipient_uuid, 
+		recipient_name      => $recipient_name, 
+		recipient_email     => $recipient_email, 
+		recipient_language  => $recipient_language, 
+		recipient_units     => $recipient_units, 
+		recipient_new_level => $recipient_new_level, 
+		back                => $back,
+		save                => $save,
+		'delete'            => $delete, 
+		confirm             => $confirm,
+	}});
+	
+	if ($back)
+	{
+		$save    = "";
+		$delete  = "";
+		$confirm = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			save     => $save, 
+			'delete' => $delete, 
+			confirm  => $confirm, 
+		}});
+	}
+	
+	# If we have a recipient_uuid and we're not saving, load the information.
+	if (($recipient_uuid) && (not $save))
+	{
+		# Load. If we're deleting, we'll check 'mail_server_helo_domain' to see if it already was.
+		my $query = "
+SELECT 
+    recipient_name, 
+    recipient_email, 
+    recipient_language, 
+    recipient_units, 
+    recipient_new_level 
+FROM 
+    recipients 
+WHERE 
+    recipient_uuid = ".$anvil->Database->quote($recipient_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			$recipient_name      = $row->[0]; 
+			$recipient_email     = $row->[1];
+			$recipient_language  = $row->[2]; 
+			$recipient_units     = $row->[3]; 
+			$recipient_new_level = $row->[4]; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				recipient_name      => $recipient_name, 
+				recipient_email     => $recipient_email, 
+				recipient_language  => $recipient_language, 
+				recipient_units     => $recipient_units, 
+				recipient_new_level => $recipient_new_level, 
+			}});
+			
+			if ($delete)
+			{
+				# Has the user confirmed?
+				if ($confirm)
+				{
+					# Delete.
+					$anvil->Database->insert_or_update_recipientss({
+						debug          => 2,
+						'delete'       => 1, 
+						recipient_uuid => $recipient_uuid, 
+					});
+					
+					# Saved successfully.
+					my $ok_message                   = $anvil->Words->string({key => "ok_0003", variables => { recipient_email => $recipient_email }});
+					$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
+					
+					# Clear the form
+					$recipient_name      = ""; 
+					$recipient_email     = "";
+					$recipient_language  = ""; 
+					$recipient_units     = ""; 
+					$recipient_new_level = ""; 
+				}
+				else
+				{
+					# Ask them to confirm.
+					$anvil->data->{form}{back_link}    =  $anvil->data->{sys}{cgi_string};
+					$anvil->data->{form}{back_link}    =~ s/save=.*?&//;
+					$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
+					$anvil->data->{form}{refresh_link} =  "";
+					$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "recipient-delete-confirm", variables => {
+						recipient_name   => $recipient_name, 
+						recipient_email  => $recipient_email
+						mail_server_uuid => $mail_server_uuid, 
+					}});
+					return(0);
+				}
+			}
+		}
+	}
+	
+	# Are we saving?
+	if ($save)
+	{
+		# Have we confirmed?
+		if ($confirm)
+		{
+			# Save the changes.
+		}
+		else
+		{
+			# Ask them to confirm
+		}
+	}
+	
+	return(0);
+}
+
+# This configures mail servers
 sub process_email_server_page
 {
 	my ($anvil) = @_;
 	
 	# Prep the cgi variables.
-	my $mail_server_uuid          = defined $anvil->data->{cgi}{mail_server_uuid}{value}      ? $anvil->data->{cgi}{mail_server_uuid}{value}      : "";
-	my $say_outgoing_mail_server  = defined $anvil->data->{cgi}{outgoing_mail_server}{value}  ? $anvil->data->{cgi}{outgoing_mail_server}{value}  : "";
-	my $say_login_name            = defined $anvil->data->{cgi}{login_name}{value}            ? $anvil->data->{cgi}{login_name}{value}            : "";
-	my $say_login_password        = defined $anvil->data->{cgi}{login_password}{value}        ? $anvil->data->{cgi}{login_password}{value}        : "";
-	my $say_connection_security   = defined $anvil->data->{cgi}{connection_security}{value}   ? $anvil->data->{cgi}{connection_security}{value}   : "ifn_link1";
-	my $say_authentication_method = defined $anvil->data->{cgi}{authentication_method}{value} ? $anvil->data->{cgi}{authentication_method}{value} : "normal_password";
-	my $say_port                  = defined $anvil->data->{cgi}{port}{value}                  ? $anvil->data->{cgi}{port}{value}                  : "143";
-	my $say_helo_domain           = defined $anvil->data->{cgi}{helo_domain}{value}           ? $anvil->data->{cgi}{helo_domain}{value}           : "";
-	my $say_back                  = defined $anvil->data->{cgi}{back}{value}                  ? $anvil->data->{cgi}{back}{value}                  : "";
-	my $say_save                  = defined $anvil->data->{cgi}{save}{value}                  ? $anvil->data->{cgi}{save}{value}                  : "";
-	my $say_delete                = defined $anvil->data->{cgi}{'delete'}{value}              ? $anvil->data->{cgi}{'delete'}{value}              : "";
-	my $say_confirm               = defined $anvil->data->{cgi}{confirm}{value}               ? $anvil->data->{cgi}{confirm}{value}               : "";
+	my $mail_server_uuid      = defined $anvil->data->{cgi}{mail_server_uuid}{value}      ? $anvil->data->{cgi}{mail_server_uuid}{value}      : "";
+	my $outgoing_mail_server  = defined $anvil->data->{cgi}{outgoing_mail_server}{value}  ? $anvil->data->{cgi}{outgoing_mail_server}{value}  : "";
+	my $login_name            = defined $anvil->data->{cgi}{login_name}{value}            ? $anvil->data->{cgi}{login_name}{value}            : "";
+	my $login_password        = defined $anvil->data->{cgi}{login_password}{value}        ? $anvil->data->{cgi}{login_password}{value}        : "";
+	my $connection_security   = defined $anvil->data->{cgi}{connection_security}{value}   ? $anvil->data->{cgi}{connection_security}{value}   : "ifn_link1";
+	my $authentication_method = defined $anvil->data->{cgi}{authentication_method}{value} ? $anvil->data->{cgi}{authentication_method}{value} : "normal_password";
+	my $port                  = defined $anvil->data->{cgi}{port}{value}                  ? $anvil->data->{cgi}{port}{value}                  : "143";
+	my $helo_domain           = defined $anvil->data->{cgi}{helo_domain}{value}           ? $anvil->data->{cgi}{helo_domain}{value}           : "";
+	my $back                  = defined $anvil->data->{cgi}{back}{value}                  ? $anvil->data->{cgi}{back}{value}                  : "";
+	my $save                  = defined $anvil->data->{cgi}{save}{value}                  ? $anvil->data->{cgi}{save}{value}                  : "";
+	my $delete                = defined $anvil->data->{cgi}{'delete'}{value}              ? $anvil->data->{cgi}{'delete'}{value}              : "";
+	my $confirm               = defined $anvil->data->{cgi}{confirm}{value}               ? $anvil->data->{cgi}{confirm}{value}               : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		say_outgoing_mail_server  => $say_outgoing_mail_server, 
-		say_login_name            => $say_login_name, 
-		say_login_password        => $say_login_password, 
-		say_connection_security   => $say_connection_security, 
-		say_authentication_method => $say_authentication_method, 
-		say_back                  => $say_back,
-		say_save                  => $say_save,
-		say_delete                => $say_delete, 
-		say_confirm               => $say_confirm,
+		outgoing_mail_server  => $outgoing_mail_server, 
+		login_name            => $login_name, 
+		login_password        => $login_password, 
+		connection_security   => $connection_security, 
+		authentication_method => $authentication_method, 
+		back                  => $back,
+		save                  => $save,
+		'delete'              => $delete, 
+		confirm               => $confirm,
 	}});
 	
-	if ($say_back)
+	if ($back)
 	{
-		$say_save    = "";
-		$say_delete  = "";
-		$say_confirm = "";
+		$save    = "";
+		$delete  = "";
+		$confirm = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			say_save    => $say_save, 
-			say_delete  => $say_delete, 
-			say_confirm => $say_confirm, 
+			save     => $save, 
+			'delete' => $delete, 
+			confirm  => $confirm, 
 		}});
 	}
 	
 	# Are we loading an existing record?
-	if (($mail_server_uuid) && not ($say_save))
+	if (($mail_server_uuid) && not ($save))
 	{
 		# Load. If we're deleting, we'll check 'mail_server_helo_domain' to see if it already was.
 		my $query = "
@@ -470,27 +607,27 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			$say_outgoing_mail_server  = $row->[0]; 
-			$say_authentication_method = $row->[1];
-			$say_helo_domain           = $row->[2]; 
-			$say_login_password        = $row->[3]; 
-			$say_port                  = $row->[4]; 
-			$say_connection_security   = $row->[5]; 
-			$say_login_name            = $row->[6];
+			$outgoing_mail_server  = $row->[0]; 
+			$authentication_method = $row->[1];
+			$helo_domain           = $row->[2]; 
+			$login_password        = $row->[3]; 
+			$port                  = $row->[4]; 
+			$connection_security   = $row->[5]; 
+			$login_name            = $row->[6];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				say_outgoing_mail_server  => $say_outgoing_mail_server, 
-				say_authentication_method => $say_authentication_method,
-				say_helo_domain           => $say_helo_domain, 
-				say_login_password        => $say_login_password, 
-				say_port                  => $say_port, 
-				say_connection_security   => $say_connection_security, 
-				say_login_name            => $say_login_name, 
+				outgoing_mail_server  => $outgoing_mail_server, 
+				authentication_method => $authentication_method,
+				helo_domain           => $helo_domain, 
+				login_password        => $login_password, 
+				port                  => $port, 
+				connection_security   => $connection_security, 
+				login_name            => $login_name, 
 			}});
 			
-			if ($say_delete)
+			if ($delete)
 			{
 				# Has the user confirmed?
-				if ($say_confirm)
+				if ($confirm)
 				{
 					# Delete.
 					$anvil->Database->insert_or_update_mail_servers({
@@ -500,15 +637,15 @@ WHERE
 					});
 					
 					# Saved successfully.
-					my $ok_message                   = $anvil->Words->string({key => "ok_0002", variables => { mail_server => $say_outgoing_mail_server }});
+					my $ok_message                   = $anvil->Words->string({key => "ok_0002", variables => { mail_server => $outgoing_mail_server }});
 					$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
 					
 					# Clear the form
-					$say_outgoing_mail_server  = "";
-					$say_login_name            = "";
-					$say_login_password        = "";
-					$say_connection_security   = "";
-					$say_authentication_method = "";
+					$outgoing_mail_server  = "";
+					$login_name            = "";
+					$login_password        = "";
+					$connection_security   = "";
+					$authentication_method = "";
 				}
 				else
 				{
@@ -518,7 +655,7 @@ WHERE
 					$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
 					$anvil->data->{form}{refresh_link} =  "";
 					$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "mail-server-delete-confirm", variables => {
-						outgoing_mail_server => $say_outgoing_mail_server, 
+						outgoing_mail_server => $outgoing_mail_server, 
 						mail_server_uuid     => $mail_server_uuid, 
 					}});
 					return(0);
@@ -529,47 +666,47 @@ WHERE
 	
 	# if the user put a port on the mail server, break it off now and override any passed in port. 
 	# Normally, the port is set via a hidden variable when the security check box is changed.
-	my $test_outgoing_mail_server = $say_outgoing_mail_server;
+	my $test_outgoing_mail_server = $outgoing_mail_server;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_outgoing_mail_server => $test_outgoing_mail_server }});
 	if ($test_outgoing_mail_server =~ /^(.*):(\d+)$/)
 	{
 		$test_outgoing_mail_server = $1;
-		$say_port                  = $2;
+		$port                      = $2;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			test_outgoing_mail_server => $test_outgoing_mail_server,
-			say_port                  => $say_port,
+			port                      => $port,
 		}});
 	}
-	elsif (not $say_port)
+	elsif (not $port)
 	{
-		# Port wasn't passed. Use '143' unless $say_connection_security is 'ssl_tls'
-		$say_port = 143;
-		if ($say_connection_security eq "ssl_tls")
+		# Port wasn't passed. Use '143' unless $connection_security is 'ssl_tls'
+		$port = 143;
+		if ($connection_security eq "ssl_tls")
 		{
-			$say_port = 993;
+			$port = 993;
 		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_port => $say_port }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
 	}
 	
 	### NOTE: For now, the HELO domain is not configurable by the user.
-	# If we don't have $say_helo_domain, use the host's domain
-	if (not $say_helo_domain)
+	# If we don't have $helo_domain, use the host's domain
+	if (not $helo_domain)
 	{
-		$say_helo_domain = $anvil->_domain_name();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_helo_domain => $say_helo_domain }});
+		$helo_domain = $anvil->_domain_name();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { helo_domain => $helo_domain }});
 	}
 	
-	if ($say_save)
+	if ($save)
 	{
 		# Did the user give an outgoing mail server?
-		if (not $say_outgoing_mail_server)
+		if (not $outgoing_mail_server)
 		{
 			# Just silently send them back to the form.
-			$say_save    = "";
-			$say_confirm = "";
+			$save    = "";
+			$confirm = "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				say_save    => $say_save,
-				say_confirm => $say_confirm,
+				save    => $save,
+				confirm => $confirm,
 			}});
 		}
 		
@@ -581,51 +718,51 @@ WHERE
 			my $error_message                                   = $anvil->Words->string({key => "warning_0023"});
 			   $anvil->data->{form}{error_massage}              = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
 			   $anvil->data->{cgi}{outgoing_mail_server}{alert} = 1;
-			   $say_save                 = "";
-			   $say_confirm              = "";
+			   $save                 = "";
+			   $confirm              = "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				error_message                      => $error_message, 
 				"form::error_massage"              => $anvil->data->{form}{error_massage},
 				"cgi::outgoing_mail_server::alert" => $anvil->data->{cgi}{outgoing_mail_server}{alert},
-				say_save                           => $say_save,
-				say_confirm                        => $say_confirm,
+				save                               => $save,
+				confirm                            => $confirm,
 			}});
 		}
-		if (not $anvil->Validate->is_port({port => $say_port}))
+		if (not $anvil->Validate->is_port({port => $port}))
 		{
 			# Bad port
 			my $error_message                                   = $anvil->Words->string({key => "warning_0024"});
 			   $anvil->data->{form}{error_massage}              = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
 			   $anvil->data->{cgi}{outgoing_mail_server}{alert} = 1;
-			   $say_save                 = "";
-			   $say_confirm              = "";
+			   $save                                            = "";
+			   $confirm                                         = "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				error_message                      => $error_message, 
 				"form::error_massage"              => $anvil->data->{form}{error_massage},
 				"cgi::outgoing_mail_server::alert" => $anvil->data->{cgi}{outgoing_mail_server}{alert},
-				say_save                           => $say_save,
-				say_confirm                        => $say_confirm,
+				save                               => $save,
+				confirm                            => $confirm,
 			}});
 		}
 	}
 	
 	# Still saving?
-	if ($say_save)
+	if ($save)
 	{
 		# Confirmed?
-		if ($say_confirm)
+		if ($confirm)
 		{
 			# Save!
 			($mail_server_uuid) = $anvil->Database->insert_or_update_mail_servers({
 				debug                      => 2,
 				mail_server_uuid           => $mail_server_uuid, 
 				mail_server_address        => $test_outgoing_mail_server, 
-				mail_server_authentication => $say_authentication_method, 
-				mail_server_helo_domain    => $say_helo_domain, 
-				mail_server_password       => $say_login_password, 
-				mail_server_port           => $say_port, 
-				mail_server_security       => $say_connection_security, 
-				mail_server_username       => $say_login_name, 
+				mail_server_authentication => $authentication_method, 
+				mail_server_helo_domain    => $helo_domain, 
+				mail_server_password       => $login_password, 
+				mail_server_port           => $port, 
+				mail_server_security       => $connection_security, 
+				mail_server_username       => $login_name, 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mail_server_uuid => $mail_server_uuid }});
 			if ($mail_server_uuid)
@@ -635,11 +772,11 @@ WHERE
 				   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
 				   
 				# Clear the form
-				$say_outgoing_mail_server  = "";
-				$say_login_name            = "";
-				$say_login_password        = "";
-				$say_connection_security   = "";
-				$say_authentication_method = "";
+				$outgoing_mail_server  = "";
+				$login_name            = "";
+				$login_password        = "";
+				$connection_security   = "";
+				$authentication_method = "";
 			}
 			else
 			{
@@ -656,14 +793,14 @@ WHERE
 			$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
 			$anvil->data->{form}{refresh_link} =  "";
 			$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "mail-server-confirm", variables => {
-				say_outgoing_mail_server => $test_outgoing_mail_server.":".$say_port, 
-				outgoing_mail_server     => $say_outgoing_mail_server, 
-				port                     => $say_port, 
-				login_name               => $say_login_name, 
-				login_password           => $say_login_password, 
-				connection_security      => $say_connection_security, 
-				authentication_method    => $say_authentication_method,
-				helo_domain              => $say_helo_domain, 
+				say_outgoing_mail_server => $test_outgoing_mail_server.":".$port, 
+				outgoing_mail_server     => $outgoing_mail_server, 
+				port                     => $port, 
+				login_name               => $login_name, 
+				login_password           => $login_password, 
+				connection_security      => $connection_security, 
+				authentication_method    => $authentication_method,
+				helo_domain              => $helo_domain, 
 				mail_server_uuid         => $mail_server_uuid,
 			}});
 			return(0);
@@ -709,7 +846,7 @@ WHERE
 		id            => "outgoing_mail_server",
 		field         => "#!string!striker_0185!#",
 		description   => "#!string!striker_0169!#",
-		value         => $say_outgoing_mail_server,
+		value         => $outgoing_mail_server,
 		default_value => "",
 		class         => $outgoing_mail_server_class,
 		extra         => "",
@@ -722,7 +859,7 @@ WHERE
 		id            => "login_name",
 		field         => "#!string!striker_0170!#",
 		description   => "#!string!striker_0171!#",
-		value         => $say_login_name,
+		value         => $login_name,
 		default_value => "",
 		class         => $login_name_class,
 		extra         => "",
@@ -735,7 +872,7 @@ WHERE
 		id            => "login_password",
 		field         => "#!string!striker_0172!#",
 		description   => "#!string!striker_0173!#",
-		value         => $say_login_password,
+		value         => $login_password,
 		default_value => "",
 		class         => $login_password_class,
 		extra         => "",
@@ -750,7 +887,7 @@ WHERE
 				"starttls#!#".$anvil->Words->string({key => "striker_0176"})
 			    ],
 		blank    => 0,
-		selected => $say_connection_security,
+		selected => $connection_security,
 		class    => $anvil->data->{cgi}{connection_security}{alert} ? "input_alert" : "input_clear",
 	});
 	
@@ -766,7 +903,7 @@ WHERE
 				"oauth2#!#".$anvil->Words->string({key => "striker_0182"})
 			    ],
 		blank    => 0,
-		selected => $say_authentication_method,
+		selected => $authentication_method,
 		class    => $anvil->data->{cgi}{authentication_method}{alert} ? "input_alert" : "input_clear",
 	});
 	
@@ -781,7 +918,7 @@ WHERE
 		connection_security   => $connection_security_select, 
 		authentication_method => $authentication_method_select,
 		mail_server_uuid      => $mail_server_uuid,
-		port                  => $say_port,
+		port                  => $port,
 	}});
 	
 	return(0);

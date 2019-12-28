@@ -66,3 +66,21 @@ see 'words.xml' for more information on how this file is structured.
 NOTE: This file MUST be the same as the agent itself, with the file extension '.xml'.
 NOTE: To avoid namespace collisions, it is STRONGLY recommended that all string keys start with your agent 
       name! Ie: 'scan_network_X'.
+
+== Alert Levels ==
+
+NOTE: Alert levels are separate from log levels! 
+
+Alerts trigger emails to recipients who are interested in monitoring a system. Alerts levels indicate severity and are set as one of three numeric valus;
+
+* 1 (critical)
+
+Critical alerts. These are alerts that almost certainly indicate an issue with the system that has are likely will cause a service interruption. (ie: node was fenced, emergency shut down, etc)
+
+* 2 (warning)
+
+Warning alerts. These are alerts that likely require the attention of an administrator, but have not caused a service interruption. (ie: power loss/load shed, over/under voltage, fan failure, network link failure, etc)
+
+* 3 (notice)
+
+Notice alerts. These are generally low priority alerts that do not need attention, but might be indicators of developing problems. (ie: UPSes transfering to batteries, server migration/shut down/boot up, etc)

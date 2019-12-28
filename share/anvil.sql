@@ -329,7 +329,7 @@ CREATE TABLE anvils (
     anvil_uuid           uuid                        not null    primary key, 
     anvil_name           text                        not null,
     anvil_description    text                        not null,                -- This is a short, one-line (usually) description of this particular Anvil!. It is displayed in the Anvil! selection list.
-    anvil_password       text                        not null,                -- This is the 'ricci' or 'hacluster' user password. It is also used to access nodes that don't have a specific password set.
+    anvil_password       text                        not null,                -- This is the 'hacluster' user password. It is also used to access nodes that don't have a specific password set.
     modified_date        timestamp with time zone    not null
 );
 ALTER TABLE anvils OWNER TO admin;
@@ -446,8 +446,9 @@ CREATE TABLE recipients (
     recipient_uuid         uuid                        not null    primary key,
     recipient_name         text                        not null,                    -- This is the recipient's name
     recipient_email        text                        not null,                    -- This is the recipient's email address or the file name, depending.
-    recipient_language     text,                                                    -- If set, this is the language the user wants to receive alerts in. If not set, the default language is used.
-    recipient_new_level    integer                     not null,                    -- This is the alert level to use when automatically adding watch links to new systems. '0' tells us to ignore new systems.
+    recipient_language     text                        not null,                    -- If set, this is the language the user wants to receive alerts in. If not set, the default language is used.
+    recipient_units        text                        not null,                    -- This can be set to 'imperial' if the user prefers temperatures in °F
+    recipient_new_level    integer                     not null,                    -- This is the alert level to use when automatically adding watch links to new systems. '0' tells us to ignore new systems, 1 is critical, 2 is warning, and 3 is notice
     modified_date          timestamp with time zone    not null
 );
 ALTER TABLE recipients OWNER TO admin;
@@ -458,6 +459,7 @@ CREATE TABLE history.recipients (
     recipient_name         text,
     recipient_email        text,
     recipient_language     text,
+    recipient_units        text,
     recipient_new_level    integer,
     modified_date          timestamp with time zone    not null
 );
@@ -474,6 +476,7 @@ BEGIN
          recipient_name,
          recipient_email,
          recipient_language,
+         recipient_units, 
          recipient_new_level,
          modified_date)
     VALUES
@@ -481,6 +484,7 @@ BEGIN
          history_recipients.recipient_name,
          history_recipients.recipient_email,
          history_recipients.recipient_language,
+         history_recipients.recipient_units,
          history_recipients.recipient_new_level,
          history_recipients.modified_date);
     RETURN NULL;
