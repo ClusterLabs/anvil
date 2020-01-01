@@ -31,3 +31,9 @@ print "DB Connections: [".$anvil->data->{sys}{database}{connections}."]\n";
 
 #$anvil->Network->load_interfces({debug => 2});
 #$anvil->System->generate_state_json({debug => 2});
+
+$anvil->Words->language_list();
+foreach my $iso (sort {$a cmp $b} keys %{$anvil->data->{sys}{languages}})
+{
+	print "iso: [".$iso."] -> [".$anvil->data->{sys}{languages}{$iso}."]\n";
+}

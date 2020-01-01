@@ -7,6 +7,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
+use Mail::RFC822::Address qw(valid validlist);
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Validate.pm";
@@ -15,6 +16,8 @@ my $THIS_FILE = "Validate.pm";
 # form_field
 # is_alphanumeric
 # is_domain_name
+# is_email
+# is_hex
 # is_ipv4
 # is_mac
 # is_positive_integer
@@ -106,6 +109,8 @@ This is the type to be checked. Valid options are;
 
 =head4 domain_name
 
+=head4 email
+
 =head4 ipv4
 
 =head4 mac
@@ -117,6 +122,10 @@ If this type is used, you can use the C<< zero >> parameter which can be set to 
 =head4 subnet_mask
 
 =head4 uuid
+
+=head3 zero (optional, default '0')
+
+See 'type -> positive_integer' above for usage.
 
 =cut
 sub form_field
@@ -135,6 +144,7 @@ sub form_field
 		name     => $name,
 		type     => $type,
 		empty_ok => $empty_ok,
+		zero     => $zero,
 	}});
 	
 	if ((not $name) or (not $type))
@@ -163,43 +173,49 @@ sub form_field
 			}
 			elsif (($type eq "alphanumeric") && (not $anvil->Validate->is_alphanumeric({string => $anvil->data->{cgi}{$name}{value}})))
 			{
-				$valid                         = 0;
+				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
 			elsif (($type eq "domain_name") && (not $anvil->Validate->is_domain_name({name => $anvil->data->{cgi}{$name}{value}})))
 			{
-				$valid                         = 0;
+				$valid                            = 0;
+				$anvil->data->{cgi}{$name}{alert} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
+			}
+			elsif (($type eq "email") && (not $anvil->Validate->is_email({email => $anvil->data->{cgi}{$name}{value}})))
+			{
+				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
 			elsif (($type eq "ipv4") && (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$name}{value}})))
 			{
-				$valid                         = 0;
+				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
 			elsif (($type eq "mac") && (not $anvil->Validate->is_mac({mac => $anvil->data->{cgi}{$name}{value}})))
 			{
-				$valid                         = 0;
+				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
 			elsif (($type eq "positive_integer") && (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{$name}{value}, zero => $zero})))
 			{
-				$valid                         = 0;
+				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
 			elsif (($type eq "subnet_mask") && (not $anvil->Validate->is_subnet_mask({subnet_mask => $anvil->data->{cgi}{$name}{value}})))
 			{
-				$valid                         = 0;
+				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
 			elsif (($type eq "uuid") && (not $anvil->Validate->is_uuid({uuid => $anvil->data->{cgi}{$name}{value}})))
 			{
-				$valid                         = 0;
+				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
@@ -343,6 +359,46 @@ sub is_hex
 		# There's something un-hexxy about this.
 		$valid = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
+
+=head2 is_email
+
+Checks if the passed-in string is a valid address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+ $email = "test@example.com";
+ if ($anvil->Validate->is_email({email => $email}))
+ {
+ 	print "The email address: [$email] is valid!\n";
+ }
+
+Parameters;
+
+=head3 email (required)
+
+This is the email address to verify.
+
+=cut
+sub is_email
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $email = defined $parameter->{email} ? $parameter->{email} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { email => $email }});
+	
+	# Validating email ourself is madness... See (TODO: link to email validation email). So we use 
+	# 'Mail::RFC822::Address'.
+	my $valid = 0;
+	if (valid($email))
+	{
+		$valid = 1;
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});

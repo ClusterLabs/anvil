@@ -309,6 +309,100 @@
 			</table>
 <!-- end mail-server-delete-confirm -->
 
+<!-- start recipient-confirm -->
+			<table align="center">
+				<form name="recipient" action="" method="post">
+				<div id="recipient">
+				<tr>
+					<td colspan="2" class="title">
+						#!string!message_0156!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!message_0157!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<table align="center" class="data_table_nowrap">
+							<tr>
+								<td class="column_header">
+									#!string!striker_0190!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!recipient_name!# (#!variable!recipient_email!#)
+									<input type="hidden" name="recipient_name"  id="recipient_name"  value="#!variable!recipient_name!#"/>
+									<input type="hidden" name="recipient_email" id="recipient_email" value="#!variable!recipient_email!#"/>
+									<input type="hidden" name="recipient_uuid"  id="recipient_uuid"  value="#!variable!recipient_uuid!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td class="column_header">
+									#!string!striker_0191!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!say_alert_level!#
+									<input type="hidden" name="recipient_new_level" id="recipient_new_level" value="#!variable!recipient_new_level!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td class="column_header">
+									#!string!striker_0192!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!say_recipient_language!#
+									<input type="hidden" name="recipient_language" id="recipient_language" value="#!variable!recipient_language!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td class="column_header">
+									#!string!striker_0193!#
+								</td>
+								<td class="column_row_value_fixed">
+									 &nbsp; #!variable!say_recipient_units!#
+									<input type="hidden" name="recipient_units" id="recipient_units" value="#!variable!recipient_units!#"/>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2" class="close_top">
+									&nbsp;
+								</td>
+							</tr>
+							<tr>
+								<td class="no_border">
+									<input type="submit" name="back" id="back" class="button" value="#!string!striker_0098!#">
+								</td>
+								<td class="no_border_right">
+									<input type="submit" name="confirm" id="confirm" class="button" value="#!string!striker_0082!#">
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				</div>
+				<input type="hidden" name="email" id="email" value="true" />
+				<input type="hidden" name="save"  id="save"  value="true" />
+				<input type="hidden" name="task"  id="task"  value="email_server" />
+				</form>
+			</table>
+<!-- end recipient-confirm -->
+
 <!-- start recipient-delete-confirm -->
 			<table align="center">
 				<form name="recipient" action="" method="post">
@@ -363,3 +457,120 @@
 				</form>
 			</table>
 <!-- end recipient-delete-confirm -->
+
+<!-- start recipient-entry-open -->
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="text-align: left; padding-bottom: 0.3em;">
+						#!string!striker_0187!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="text-align: left;">
+						<table class="list">
+<!-- end recipient-entry-open -->
+
+<!-- start recipient-entry -->
+							<tr>
+								<td class="column_row_value_fixed">
+									<a href="?email=true&task=email_recipient&recipient_uuid=#!variable!uuid!#" class="fixed_link">#!variable!name!#</a>
+								</td>
+								<td>
+									 &nbsp; <a href="?email=true&task=email_recipient&recipient_uuid=#!variable!uuid!#&delete=true"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a> &nbsp; 
+								</td>
+							</tr>
+<!-- end recipient-entry -->
+
+<!-- start recipient-entry-close -->
+						</table>
+					</td>
+				</tr>
+<!-- end recipient-entry-close -->
+
+<!-- start recipient-menu -->
+			<table align="center">
+				<script type="text/javascript" src="#!data!skin::url!#/email.js"></script>
+				<form name="mail_server" action="" method="post">
+				<div id="mail_server">
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" class="title">
+						#!string!message_0156!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!message_0157!#
+					</td>
+				</tr>
+				#!variable!recipients!#
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" class="column_row_value_right">
+						<a href="?email=true&task=email_recipient">#!string!striker_0188!#</a>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<!-- recipient name -->
+						#!variable!recipient_name!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<!-- recipient email -->
+						#!variable!recipient_email!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!striker_0198!#<br />
+						#!variable!language!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!striker_0199!#<br />
+						#!variable!units!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						#!string!striker_0200!#<br />
+						#!variable!new_level!#
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						&nbsp;
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<input type="submit" name="save" id="save" class="button" value="#!string!striker_0067!#">
+					</td>
+				</tr>
+				</div>
+				<input type="hidden" name="email"          id="email"          value="true" />
+				<input type="hidden" name="task"           id="task"           value="email_recipient" />
+				<input type="hidden" name="recipient_uuid" id="recipient_uuid" value="#!variable!recipient_uuid!#" />
+				</form>
+			</table>
+<!-- end recipient-menu -->

@@ -50,6 +50,7 @@ Requires:       perl-HTML-Strip
 Requires:       perl-IO-Tty
 Requires:       perl-JSON 
 Requires:       perl-Log-Journald 
+Requires:       perl-Mail-RFC822-Address
 Requires:       perl-Net-SSH2 
 Requires:       perl-Net-Netmask
 Requires:       perl-Net-OpenSSH
@@ -354,6 +355,7 @@ fi
 
 %changelog
 * tbd Madison Kelly <mkelly@alteeve.ca> 3.0-31
+- Added perl-Mail-RFC822-Address to core requirements.
 - 
 
 * Fri Dec 13 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-30

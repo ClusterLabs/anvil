@@ -408,9 +408,9 @@ sub process_email_recipient_page
 	my $recipient_uuid      = defined $anvil->data->{cgi}{recipient_uuid}{value}      ? $anvil->data->{cgi}{recipient_uuid}{value}      : "";
 	my $recipient_name      = defined $anvil->data->{cgi}{recipient_name}{value}      ? $anvil->data->{cgi}{recipient_name}{value}      : "";
 	my $recipient_email     = defined $anvil->data->{cgi}{recipient_email}{value}     ? $anvil->data->{cgi}{recipient_email}{value}     : "";
-	my $recipient_language  = defined $anvil->data->{cgi}{recipient_language}{value}  ? $anvil->data->{cgi}{recipient_language}{value}  : "";
-	my $recipient_units     = defined $anvil->data->{cgi}{recipient_units}{value}     ? $anvil->data->{cgi}{recipient_units}{value}     : "";
-	my $recipient_new_level = defined $anvil->data->{cgi}{recipient_new_level}{value} ? $anvil->data->{cgi}{recipient_new_level}{value} : "";
+	my $recipient_language  = defined $anvil->data->{cgi}{recipient_language}{value}  ? $anvil->data->{cgi}{recipient_language}{value}  : "en_CA";
+	my $recipient_units     = defined $anvil->data->{cgi}{recipient_units}{value}     ? $anvil->data->{cgi}{recipient_units}{value}     : "metric";
+	my $recipient_new_level = defined $anvil->data->{cgi}{recipient_new_level}{value} ? $anvil->data->{cgi}{recipient_new_level}{value} : "2";
 	my $delete              = defined $anvil->data->{cgi}{'delete'}{value}            ? $anvil->data->{cgi}{'delete'}{value}            : "";
 	my $back                = defined $anvil->data->{cgi}{back}{value}                ? $anvil->data->{cgi}{back}{value}                : "";
 	my $save                = defined $anvil->data->{cgi}{save}{value}                ? $anvil->data->{cgi}{save}{value}                : "";
@@ -498,9 +498,9 @@ WHERE
 					# Clear the form
 					$recipient_name      = ""; 
 					$recipient_email     = "";
-					$recipient_language  = ""; 
-					$recipient_units     = ""; 
-					$recipient_new_level = ""; 
+					$recipient_language  = "en_CA"; 
+					$recipient_units     = "metric"; 
+					$recipient_new_level = "2"; 
 				}
 				else
 				{
@@ -510,9 +510,9 @@ WHERE
 					$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
 					$anvil->data->{form}{refresh_link} =  "";
 					$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "recipient-delete-confirm", variables => {
-						recipient_name   => $recipient_name, 
-						recipient_email  => $recipient_email
-						mail_server_uuid => $mail_server_uuid, 
+						recipient_name  => $recipient_name, 
+						recipient_email => $recipient_email,
+						recipient_uuid  => $recipient_uuid, 
 					}});
 					return(0);
 				}
@@ -520,19 +520,247 @@ WHERE
 		}
 	}
 	
-	# Are we saving?
+	# If we're saving, make sure we have a valid email address and a name.
+	if ($save)
+	{
+		# Did the user give both an email address and name?
+		if ((not $recipient_name) or (not $recipient_name))
+		{
+			# Which was missing?
+			if (not $recipient_name)
+			{
+				$anvil->data->{cgi}{recipient_name}{alert} = 1;
+			}
+			if (not $recipient_email)
+			{
+				$anvil->data->{cgi}{recipient_email}{alert} = 1;
+			}
+			$save    = "";
+			$confirm = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				save    => $save,
+				confirm => $confirm,
+			}});
+		}
+		
+		# Verify that the mail server and ports are sane.
+		if (not $anvil->Validate->is_email({email => $recipient_email}))
+		{
+			# Bad domain
+			my $error_message                              = $anvil->Words->string({key => "warning_0026"});
+			   $anvil->data->{form}{error_massage}         = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
+			   $anvil->data->{cgi}{recipient_email}{alert} = 1;
+			   $save                                       = "";
+			   $confirm                                    = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				error_message                 => $error_message, 
+				"form::error_massage"         => $anvil->data->{form}{error_massage},
+				"cgi::recipient_email::alert" => $anvil->data->{cgi}{recipient_email}{alert},
+				save                          => $save,
+				confirm                       => $confirm,
+			}});
+		}
+	}
+	
+	# Are we still saving?
 	if ($save)
 	{
 		# Have we confirmed?
 		if ($confirm)
 		{
-			# Save the changes.
+			($recipient_uuid) = $anvil->Database->insert_or_update_recipients({
+				debug               => 2,
+				recipient_uuid      => $recipient_uuid, 
+				recipient_name      => $recipient_name, 
+				recipient_email     => $recipient_email, 
+				recipient_language  => $recipient_language, 
+				recipient_units     => $recipient_units, 
+				recipient_new_level => $recipient_new_level, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recipient_uuid => $recipient_uuid }});
+			if ($recipient_uuid)
+			{
+				# Saved successfully.
+				my $ok_message                      = $anvil->Words->string({key => "ok_0004"});
+				   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
+				   
+				# Clear the form
+				$recipient_uuid      = "";
+				$recipient_name      = ""; 
+				$recipient_email     = "";
+				$recipient_language  = "en_CA"; 
+				$recipient_units     = "metric"; 
+				$recipient_new_level = "2"; 
+			}
+			else
+			{
+				# Something went wrong...
+				my $error_message                      = $anvil->Words->string({key => "warning_0027"});
+				   $anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $error_message }});
+			}
 		}
 		else
 		{
-			# Ask them to confirm
+			my $say_recipient_units = "#!string!unit_0027!#";
+			if ($recipient_language eq "imperial")
+			{
+				$say_recipient_units = "#!string!unit_0028!#";
+			}
+			# Ignore
+			my $say_recipient_new_level = "#!string!unit_0023!#";
+			if ($recipient_new_level eq "1")
+			{
+				# Critical
+				$say_recipient_new_level = "#!string!unit_0024!#";
+			}
+			elsif ($recipient_new_level eq "2")
+			{
+				# Warning
+				$say_recipient_new_level = "#!string!unit_0025!#";
+			}
+			elsif ($recipient_new_level eq "3")
+			{
+				# Notice
+				$say_recipient_new_level = "#!string!unit_0026!#";
+			}
+			my $say_recipient_language = $anvil->Words->language({iso => $recipient_language, long => 1});
+			   $say_recipient_language = "???" if not $say_recipient_language;
+			
+			# Ask the user to confirm
+			$anvil->data->{form}{back_link}    =  $anvil->data->{sys}{cgi_string};
+			$anvil->data->{form}{back_link}    =~ s/save=.*?&//;
+			$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
+			$anvil->data->{form}{refresh_link} =  "";
+			$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "recipient-confirm", variables => {
+				recipient_uuid          => $recipient_uuid, 
+				recipient_name          => $recipient_name, 
+				recipient_email         => $recipient_email, 
+				recipient_language      => $recipient_language, 
+				say_recipient_language  => $say_recipient_language, 
+				recipient_units         => $recipient_units, 
+				say_recipient_units     => $say_recipient_units, 
+				recipient_new_level     => $recipient_new_level, 
+				say_recipient_new_level => $say_recipient_new_level, 
+			}});
+			return(0);
 		}
 	}
+	
+	# Get a list of existing alert recipients.
+	my $query = "SELECT recipient_uuid, recipient_name, recipient_email FROM recipients WHERE recipient_name != 'DELETED' ORDER BY recipient_name ASC;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	my $recipients_form = "";
+	if ($count)
+	{
+		# Build the list of existing mail servers
+		$recipients_form .= $anvil->Template->get({file => "email.html", name => "recipient-entry-open"});;
+		foreach my $row (@{$results})
+		{
+			
+			my $recipient_uuid  = $row->[0];
+			my $recipient_name  = $row->[1];
+			my $recipient_email = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				recipient_uuid  => $recipient_uuid, 
+				recipient_name  => $recipient_name, 
+				recipient_email => $recipient_email, 
+			}});
+			
+			$recipients_form .= $anvil->Template->get({file => "email.html", name => "recipient-entry", variables => { 
+				name => $recipient_name." (".$recipient_email.")",
+				uuid => $recipient_uuid,
+			}});;
+		}
+		$recipients_form .= $anvil->Template->get({file => "email.html", name => "recipient-entry-close"});;
+	}
+	
+	# Name
+	my $recipient_name_class = $anvil->data->{cgi}{recipient_name}{alert} ? "input_alert" : "input_clear";
+	my $recipient_name_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "recipient_name",
+		id            => "recipient_name",
+		field         => "#!string!striker_0194!#",
+		description   => "#!string!striker_0195!#",
+		value         => $recipient_name,
+		default_value => "",
+		class         => $recipient_name_class,
+		extra         => "",
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recipient_name_form => $recipient_name_form }});
+	
+	# Email
+	my $recipient_email_class = $anvil->data->{cgi}{recipient_email}{alert} ? "input_alert" : "input_clear";
+	my $recipient_email_form  = $anvil->Template->get({file => "main.html", name => "input_text_form", variables => {
+		name          => "recipient_email",
+		id            => "recipient_email",
+		field         => "#!string!striker_0196!#",
+		description   => "#!string!striker_0197!#",
+		value         => $recipient_email,
+		default_value => "",
+		class         => $recipient_email_class,
+		extra         => "",
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recipient_email_form => $recipient_email_form }});
+	
+	# Language (select)
+	$anvil->Words->language_list();
+	my $options = [];
+	foreach my $iso (sort {$a cmp $b} keys %{$anvil->data->{sys}{languages}})
+	{
+		push @{$options}, $iso."#!#".$anvil->data->{sys}{languages}{$iso};
+	}
+	my $recipient_language_select = $anvil->Template->select_form({
+		name     => "recipient_language",
+		options  => $options,
+		blank    => 0,
+		selected => $recipient_language,
+		class    => $anvil->data->{cgi}{recipient_language}{alert} ? "input_alert" : "input_clear",
+	});
+	
+	# Units (select)
+	my $recipient_units_select = $anvil->Template->select_form({
+		name     => "recipient_units",
+		options  => [
+			"metric#!#".$anvil->Words->string({key => "unit_0027"}),
+			"imperial#!#".$anvil->Words->string({key => "unit_0028"}),
+		],
+		blank    => 0,
+		selected => $recipient_units,
+		class    => $anvil->data->{cgi}{recipient_units}{alert} ? "input_alert" : "input_clear",
+	});
+	
+	# Log Level (select)
+	my $recipient_new_level_select = $anvil->Template->select_form({
+		name     => "recipient_new_level",
+		options  => [
+			"0#!#".$anvil->Words->string({key => "unit_0023"}),
+			"1#!#".$anvil->Words->string({key => "unit_0024"}),
+			"2#!#".$anvil->Words->string({key => "unit_0025"}),
+			"3#!#".$anvil->Words->string({key => "unit_0026"}),
+		],
+		blank    => 0,
+		selected => $recipient_new_level,
+		class    => $anvil->data->{cgi}{recipient_new_level}{alert} ? "input_alert" : "input_clear",
+	});
+	
+	# Show the menu.
+	$anvil->data->{form}{back_link}    = "?";
+	$anvil->data->{form}{refresh_link} = "?email=true&task=email_recipient";
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "recipient-menu", variables => {
+		recipients      => $recipients_form,
+		recipient_name  => $recipient_name_form,
+		recipient_email => $recipient_email_form, 
+		language        => $recipient_language_select, 
+		units           => $recipient_units_select, 
+		new_level       => $recipient_new_level_select, 
+		recipient_uuid  => $recipient_uuid, 
+	}});
 	
 	return(0);
 }
@@ -641,6 +869,7 @@ WHERE
 					$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
 					
 					# Clear the form
+					$mail_server_uuid      = "";
 					$outgoing_mail_server  = "";
 					$login_name            = "";
 					$login_password        = "";
@@ -696,6 +925,7 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { helo_domain => $helo_domain }});
 	}
 	
+	# Sanity check our save
 	if ($save)
 	{
 		# Did the user give an outgoing mail server?
@@ -772,6 +1002,7 @@ WHERE
 				   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
 				   
 				# Clear the form
+				$mail_server_uuid      = "";
 				$outgoing_mail_server  = "";
 				$login_name            = "";
 				$login_password        = "";
@@ -907,7 +1138,7 @@ WHERE
 		class    => $anvil->data->{cgi}{authentication_method}{alert} ? "input_alert" : "input_clear",
 	});
 	
-	# Still here, show the menu.
+	# Show the menu.
 	$anvil->data->{form}{back_link}    = "?";
 	$anvil->data->{form}{refresh_link} = "?email=true&task=email_server";
 	$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "mail-server-menu", variables => {

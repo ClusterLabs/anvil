@@ -21,6 +21,7 @@ my $THIS_FILE = "Words.pm";
 # clean_spaces
 # key
 # language
+# language_list
 # parse_banged_string
 # read
 # string
@@ -231,6 +232,20 @@ Set the output langauge to Japanese;
 
  $anvil->Words->language({set => "jp"});
 
+Parameters;
+
+=head3 iso (optional, default is active language)
+
+If C<< long >> is set, this can be used to query the long language name of the ISO code set here. If C<< long >> isn't set, this is ignored.
+
+=head3 long (optional, default '0')
+
+If set to an ISO code, the active default language is changed to the given language. If the long language name is not found, an empty string is returned.
+
+=head3 set (optional)
+
+If set to C<< 1 >>, the long version of the active language is returned. 
+ 
 =cut
 sub language
 {
@@ -239,7 +254,9 @@ sub language
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $set = defined $parameter->{set} ? $parameter->{set} : "";
+	my $iso  = defined $parameter->{iso}  ? $parameter->{iso}  : "";
+	my $long = defined $parameter->{long} ? $parameter->{long} : "";
+	my $set  = defined $parameter->{set}  ? $parameter->{set}  : "";
 	
 	if ($set)
 	{
@@ -251,7 +268,49 @@ sub language
 		$self->{WORDS}{LANGUAGE} = $anvil->data->{defaults}{language}{output};
 	}
 	
-	return($self->{WORDS}{LANGUAGE});
+	my $return = $self->{WORDS}{LANGUAGE};
+	if ($long)
+	{
+		my $name = "";
+		   $iso  = $self->{WORDS}{LANGUAGE} if not $iso;
+		foreach my $this_file (sort {$a cmp $b} keys %{$anvil->data->{words}})
+		{
+			if ((exists $anvil->data->{words}{$this_file}{language}{$iso}{long_name}) && ($anvil->data->{words}{$this_file}{language}{$iso}{long_name}))
+			{
+				$name = $anvil->data->{words}{$this_file}{language}{$iso}{long_name};
+				last;
+			}
+		}
+		return($name);
+	}
+	
+	return($return);
+}
+
+=head2 language_list
+
+This creates a hashed list if languages available on the system. The list is stored as C<< sys::languages::<ISO> = <long_name> >>.
+
+=cut
+sub language_list
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	foreach my $this_file (sort {$a cmp $b} keys %{$anvil->data->{words}})
+	{
+		foreach my $iso (sort {$a cmp $b} keys %{$anvil->data->{words}{$this_file}{language}})
+		{
+			if ((exists $anvil->data->{words}{$this_file}{language}{$iso}{long_name}) && ($anvil->data->{words}{$this_file}{language}{$iso}{long_name}))
+			{
+				$anvil->data->{sys}{languages}{$iso} = $anvil->data->{words}{$this_file}{language}{$iso}{long_name};
+			}
+		}
+	}
+	
+	return(9);
 }
 
 =head2 parse_banged_string

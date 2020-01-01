@@ -261,6 +261,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0154">Mail Server Configuration</key>
 		<key name="message_0155">When alert emails are sent, they are stored locally and then forwarded to a mail server. This is where you can configure the mail server that alerts are forwarded to for delivery to recipients.</key>
 		<key name="message_0156">Alert recipient Configuration</key>
+		<key name="message_0157">When a system alert is recorded, any alert recipient interested in that alert will be notified by email. This is determined by the alert's level, and the recipients alert level interest. If the alert's level is equal to or higher than a given alert, an email will be crafted for them, in their chosen language and units.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1049,6 +1050,17 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0187">Existing mail servers:</key>
 		<key name="striker_0188">Clear the form</key>
 		<key name="striker_0189">Are you sure that you want to delete:</key>
+		<key name="striker_0190">Alert Recipient</key>
+		<key name="striker_0191">Alert level for future Anvil! systems</key>
+		<key name="striker_0192">Language</key>
+		<key name="striker_0193">Units</key>
+		<key name="striker_0194">Recipient's Name</key>
+		<key name="striker_0195">This is the name that will be displayed when sending an email to this user.</key>
+		<key name="striker_0196">Recipient's Email</key>
+		<key name="striker_0197">The email that alerts are sent to.</key>
+		<key name="striker_0198">The language the user will receive alerts in.</key>
+		<key name="striker_0199">Does the user want imperial or metric units?</key>
+		<key name="striker_0200">The alert level used for new (and existing) Anvil! systems.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1196,6 +1208,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="ok_0001">Saved the mail server information successfully!</key>
 		<key name="ok_0002">The mail server: [#!variable!mail_server!#] has been deleted.</key>
 		<key name="ok_0003">The alert recipient: [#!variable!recipient_email!#] has been deleted.</key>
+		<key name="ok_0004">Saved the alert recipient information successfully!</key>
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1223,6 +1236,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0023">The outgoing mail server appear to not be a valid domain name or IP address.</key>
 		<key name="warning_0024">The outgoing mail server port is not valid. Must be 'mail_server:x' where x is 1 ~ 65535.</key>
 		<key name="warning_0025">There was a problem saving the mail server data. Please check the logs for more information.</key>
+		<key name="warning_0026">The recipient's email address appears to not be valid.</key>
+		<key name="warning_0027">There was a problem saving the alert recipient data. Please check the logs for more information.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -1372,6 +1387,12 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="unit_0020">STP Disabled</key>			<!-- Bridge STP state disabled - See: https://github.com/mstpd/mstpd/issues/17#issuecomment-245395763 -->
 		<key name="unit_0021">STP Enabled in Kernel</key>		<!-- Bridge STP state kernel -->
 		<key name="unit_0022">STP Enabled in User land</key>		<!-- Bridge STP state user -->
+		<key name="unit_0023">Ignore</key>				<!-- Alert level for Anvil! systems added in the future -->
+		<key name="unit_0024">Critical</key>				<!-- Alert level 1 -->
+		<key name="unit_0025">Warning</key>				<!-- Alert level 2 -->
+		<key name="unit_0026">Notice</key>				<!-- Alert level 3 -->
+		<key name="unit_0027">Metric</key>
+		<key name="unit_0028">Imperial</key>
 		
 		<!-- TODO: Merge these into 'unit' -->
 		<!-- These are works and strings used by javascript/jqery -->
