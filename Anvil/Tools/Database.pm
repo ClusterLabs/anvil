@@ -2253,7 +2253,15 @@ AND
 				
 				if ($old_bridge_id ne "DELETED")
 				{
-					my $query = "UPDATE bridges SET bridge_id = 'DELETED' WHERE bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+					my $query = "
+UPDATE 
+    bridges 
+SET 
+    bridge_id      = 'DELETED', 
+    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    bridge_uuid    = ".$anvil->Database->quote($bridge_uuid)."
+;";
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($bridge_uuid);
@@ -2606,7 +2614,15 @@ AND
 				
 				if ($old_bond_operational ne "DELETED")
 				{
-					my $query = "UPDATE bonds SET bond_operational = 'DELETED' WHERE bond_uuid = ".$anvil->Database->quote($bond_uuid).";";
+					my $query = "
+UPDATE 
+    bonds 
+SET 
+    bond_operational = 'DELETED', 
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    bond_uuid = ".$anvil->Database->quote($bond_uuid)."
+;";
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($bond_uuid);
@@ -3828,7 +3844,15 @@ AND
 				
 				if ($old_ip_address_note ne "DELETED")
 				{
-					my $query = "UPDATE ip_addresses SET ip_address_note = 'DELETED' WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+					my $query = "
+UPDATE 
+    ip_addresses 
+SET 
+    ip_address_note = 'DELETED',
+    modified_date   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid)."
+;";
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($ip_address_uuid);
@@ -4644,7 +4668,15 @@ WHERE
 				
 				if ($old_mail_server_helo_domain ne "DELETED")
 				{
-					my $query = "UPDATE mail_servers SET mail_server_helo_domain = 'DELETED' WHERE mail_server_uuid = ".$anvil->Database->quote($mail_server_uuid).";";
+					my $query = "
+UPDATE 
+    mail_servers 
+SET 
+    mail_server_helo_domain = 'DELETED',
+    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    mail_server_uuid        = ".$anvil->Database->quote($mail_server_uuid)."
+;";
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($mail_server_uuid);
@@ -5014,7 +5046,15 @@ AND
 				
 				if ($old_network_interface_operational ne "DELETED")
 				{
-					my $query = "UPDATE network_interfaces SET network_interface_operational = 'DELETED' WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";
+					my $query = "
+UPDATE 
+    network_interfaces 
+SET 
+    network_interface_operational = 'DELETED', 
+    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    network_interface_uuid        = ".$anvil->Database->quote($network_interface_uuid)."
+;";
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($network_interface_uuid);
@@ -5726,7 +5766,7 @@ sub insert_or_update_recipients
 	}
 	
 	# Make sure the recipient_new_level is 0, 1, 2 or 3
-	if (($recipient_new_level ne "0") && ($recipient_new_level ne "1") && ($recipient_new_level ne "3") && ($recipient_new_level ne "3"))
+	if (($recipient_new_level ne "0") && ($recipient_new_level ne "1") && ($recipient_new_level ne "2") && ($recipient_new_level ne "3"))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0108", variables => { recipient_new_level => $recipient_new_level }});
 		return("");
@@ -5784,7 +5824,15 @@ WHERE
 				
 				if ($old_recipient_name ne "DELETED")
 				{
-					my $query = "UPDATE recipients SET recipient_name = 'DELETED' WHERE recipient_uuid = ".$anvil->Database->quote($recipient_uuid).";";
+					my $query = "
+UPDATE 
+    recipients 
+SET 
+    recipient_name = 'DELETED', 
+    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    recipient_uuid = ".$anvil->Database->quote($recipient_uuid)."
+;";
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($recipient_uuid);

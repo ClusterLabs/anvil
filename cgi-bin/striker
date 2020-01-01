@@ -692,7 +692,6 @@ WHERE
 		class         => $recipient_name_class,
 		extra         => "",
 	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recipient_name_form => $recipient_name_form }});
 	
 	# Email
 	my $recipient_email_class = $anvil->data->{cgi}{recipient_email}{alert} ? "input_alert" : "input_clear";
@@ -706,7 +705,6 @@ WHERE
 		class         => $recipient_email_class,
 		extra         => "",
 	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recipient_email_form => $recipient_email_form }});
 	
 	# Language (select)
 	$anvil->Words->language_list();
