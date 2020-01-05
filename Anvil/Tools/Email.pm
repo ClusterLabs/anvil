@@ -13,6 +13,8 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Email.pm";
 
 ### Methods;
+# check_alert_recipients
+# check_postfix
 
 =pod
 
@@ -72,6 +74,69 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+
+=head2 check_alert_recipients
+
+This loops through all known hosts and all known C<< recipients >> and any C<< hosts >> that don't have a corresponding entry in C<< notifications >>. When found, an entry is created using the recipient's new level.
+
+=cut
+sub check_alert_recipients
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Get a list of all recipients.
+	$anvil->Database->get_recipients({debug => 2});
+	
+	# Get a list of hosts.
+	$anvil->Database->get_hosts({debug => 2});
+	
+	# Get the notification list
+	$anvil->Database->get_notifications({debug => 2});
+	
+	# Now loop!
+	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+	{
+		my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+		
+		# Loop through recipients.
+		foreach my $recipient_uuid (keys %{$anvil->data->{recipients}{recipient_uuid}})
+		{
+			my $recipient_new_level = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_new_level};
+			
+			# Now see if there's already an entry in notifications.
+			my $exists = 0;
+			foreach my $notification_uuid (keys %{$anvil->data->{notifications}{notification_uuid}})
+			{
+				my $notification_recipient_uuid = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid};
+				my $notification_host_uuid      = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid};
+				if (($host_uuid eq $notification_host_uuid) && ($recipient_uuid eq $notification_recipient_uuid))
+				{
+					$exists = 1;
+					last;
+				}
+			}
+			
+			# Did we find an entry?
+			if (not $exists)
+			{
+				# Nope, save it.
+				my ($notification_uuid) = $anvil->Database->insert_or_update_notifications({
+					debug                       => 2, 
+					notification_recipient_uuid => $recipient_uuid, 
+					notification_host_uuid      => $host_uuid, 
+					notification_alert_level    => $recipient_new_level, 
+				});
+			}
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 check_postfix
 

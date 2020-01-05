@@ -1061,6 +1061,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0198">The language the user will receive alerts in.</key>
 		<key name="striker_0199">Does the user want imperial or metric units?</key>
 		<key name="striker_0200">The alert level used for new (and existing) Anvil! systems.</key>
+		<key name="striker_0201">Existing alert recipients:</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1363,6 +1364,8 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target?]]></key>
 		<key name="error_0107">Failed to reconnect after reconfiguring the network, exiting.</key>
 		<key name="error_0108">The 'recipient_new_level': [#!variable!recipient_new_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
+		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
+		<key name="error_0110">The 'notification_uuid': [#!variable!notification_uuid!#] was not found in the database.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

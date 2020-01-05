@@ -503,11 +503,11 @@ CREATE TRIGGER trigger_recipients
 CREATE TABLE notifications (
     notification_uuid              uuid                        not null    primary key,
     notification_recipient_uuid    uuid                        not null,                    -- The recipient we're linking.
-    notification_anvil_uuid        uuid                        not null,                    -- The Anvil! system we're linking.
+    notification_host_uuid         uuid                        not null,                    -- This host_uuid of the referenced machine
     notification_alert_level       integer                     not null,                    -- This is the alert level (at or above) that this user wants alerts from.
     modified_date                  timestamp with time zone    not null,
     
-    FOREIGN KEY(notification_anvil_uuid)     REFERENCES anvils(anvil_uuid),
+    FOREIGN KEY(notification_host_uuid)     REFERENCES anvils(anvil_uuid),
     FOREIGN KEY(notification_recipient_uuid) REFERENCES recipients(recipient_uuid)
 );
 ALTER TABLE notifications OWNER TO admin;
@@ -516,7 +516,7 @@ CREATE TABLE history.notifications (
     history_id                     bigserial,
     notification_uuid              uuid,
     notification_recipient_uuid    uuid,
-    notification_anvil_uuid        uuid,
+    notification_host_uuid        uuid,
     notification_alert_level       integer,
     modified_date                  timestamp with time zone    not null
 );
@@ -531,13 +531,13 @@ BEGIN
     INSERT INTO history.notifications
         (notification_uuid, 
          notification_recipient_uuid, 
-         notification_anvil_uuid, 
+         notification_host_uuid, 
          notification_alert_level, 
          modified_date)
     VALUES
         (history_notifications.notification_uuid,
          history_notifications.notification_recipient_uuid, 
-         history_notifications.notification_anvil_uuid, 
+         history_notifications.notification_host_uuid, 
          history_notifications.notification_alert_level, 
          history_notifications.modified_date);
     RETURN NULL;

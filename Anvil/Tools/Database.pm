@@ -20,13 +20,15 @@ my $THIS_FILE = "Database.pm";
 # configure_pgsql
 # connect
 # disconnect
-# get_alert_recipients
+# get_recipients
 # get_host_from_uuid
 # get_hosts
 # get_hosts_info
 # get_job_details
 # get_jobs
 # get_local_uuid
+# get_mail_servers
+# get_notifications
 # initialize
 # insert_or_update_anvils
 # insert_or_update_bridges
@@ -39,6 +41,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_jobs
 # insert_or_update_mail_servers
 # insert_or_update_network_interfaces
+# insert_or_update_notifications
 # insert_or_update_mac_to_ip
 # insert_or_update_oui
 # insert_or_update_recipients
@@ -1379,41 +1382,81 @@ sub disconnect
 }
 
 
-=head2 get_alert_recipients
+=head2 get_recipients
 
 This returns a list of users listening to alerts for a given host, along with their alert level.
 
-Parameters;
-
-=head3 host_uuid (optional, default Get->host_uuid)
-
-This is the host we're querying.
-
 =cut
-sub get_alert_recipients
+sub get_recipients
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_alert_recipients()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_recipients()" }});
 	
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_uuid => $host_uuid, 
 	}});
 	
-	my $lowest_level = 0;
+	### TODO: Read in 'notifications' 
 	my $query        = "
 SELECT 
-    notification_recipient_uuid, 
-    notification_alert_level
+    recipient_uuid,
+    recipient_name,
+    recipient_email,
+    recipient_language,
+    recipient_units, 
+    recipient_new_level 
 FROM 
-    notifications
-WHERE 
-    notification_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+    recipients
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $recipient_uuid      = $row->[0];
+		my $recipient_name      = $row->[1];
+		my $recipient_email     = $row->[2];
+		my $recipient_language  = $row->[3];
+		my $recipient_units     = $row->[4];
+		my $recipient_new_level = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			recipient_uuid      => $recipient_uuid, 
+			recipient_name      => $recipient_name, 
+			recipient_email     => $recipient_email, 
+			recipient_language  => $recipient_language, 
+			recipient_units     => $recipient_units, 
+			recipient_new_level => $recipient_new_level, 
+		}});
+		
+		# Store the data
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}      = $recipient_name;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}     = $recipient_email;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language}  = $recipient_language;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_units}     = $recipient_units;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_new_level} = $recipient_new_level;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_name"      => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_email"     => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_language"  => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_units"     => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_units}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_new_level" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_new_level}, 
+		}});
+		
+		# Make it easy to look up the mail server's UUID from the server address.
+		$anvil->data->{recipients}{email_to_uuid}{$recipient_email} = $recipient_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"recipients::email_to_uuid::${recipient_email}" => $anvil->data->{recipients}{email_to_uuid}{$recipient_email}, 
+		}});
+	}
 	
 	return();
 }
@@ -1541,9 +1584,21 @@ FROM
 			modified_date => $modified_date, 
 		};
 		
+		# Record the data in the hash, too.
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name} = $host_name;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type} = $host_type;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"hosts::host_uuid::${host_uuid}::host_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+			"hosts::host_uuid::${host_uuid}::host_type" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+		}});
+		
 		# Record the host_uuid in a hash so that the name can be easily retrieved.
 		$anvil->data->{sys}{hosts}{by_uuid}{$host_uuid} = $host_name;
 		$anvil->data->{sys}{hosts}{by_name}{$host_name} = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::hosts::by_uuid::${host_uuid}" => $anvil->data->{sys}{hosts}{by_uuid}{$host_uuid}, 
+			"sys::hosts::by_name::${host_name}" => $anvil->data->{sys}{hosts}{by_name}{$host_name}, 
+		}});
 	}
 	
 	my $return_count = @{$return};
@@ -1974,6 +2029,181 @@ sub get_local_uuid
 	}
 	
 	return($local_uuid);
+}
+
+
+=head2 get_mail_servers
+
+This gets the list of configured mail servers.
+
+=cut
+sub get_mail_servers
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	
+	my $query = "
+SELECT 
+    mail_server_uuid, 
+    mail_server_address, 
+    mail_server_port, 
+    mail_server_username, 
+    mail_server_password, 
+    mail_server_security, 
+    mail_server_authentication, 
+    mail_server_helo_domain 
+FROM 
+    mail_servers
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $mail_server_uuid           = $row->[0]; 
+		my $mail_server_address        = $row->[1]; 
+		my $mail_server_port           = $row->[2]; 
+		my $mail_server_username       = $row->[3]; 
+		my $mail_server_password       = $row->[4]; 
+		my $mail_server_security       = $row->[5]; 
+		my $mail_server_authentication = $row->[6]; 
+		my $mail_server_helo_domain    = $row->[7]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			mail_server_uuid           => $mail_server_uuid, 
+			mail_server_address        => $mail_server_address, 
+			mail_server_port           => $mail_server_port, 
+			mail_server_username       => $mail_server_username, 
+			mail_server_password       => $mail_server_password, 
+			mail_server_security       => $mail_server_security,  
+			mail_server_authentication => $mail_server_authentication, 
+			mail_server_helo_domain    => $mail_server_helo_domain,
+		}});
+		
+		# Store the data
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_address}        = $mail_server_address;
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port}           = $mail_server_port;
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username}       = $mail_server_username;
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password}       = $mail_server_password;
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security}       = $mail_server_security;
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication} = $mail_server_authentication;
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain}    = $mail_server_helo_domain;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_address"        => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_address}, 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_port"           => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port}, 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_username"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username}, 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_password"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password}, 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_security"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security}, 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_authentication" => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication}, 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_helo_domain"    => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain}, 
+		}});
+		
+		# Make it easy to look up the mail server's UUID from the server address.
+		$anvil->data->{mail_servers}{address_to_uuid}{$mail_server_address} = $mail_server_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"mail_servers::address_to_uuid::${mail_server_address}" => $anvil->data->{mail_servers}{address_to_uuid}{$mail_server_address}, 
+		}});
+		
+		### TODO;
+		# Look up variables for this server.
+=cut
+		my $query = "
+SELECT 
+    variable_name, 
+    variable_value 
+FROM 
+    variables 
+WHERE 
+    variable_source_uuid  = ".$anvil->Database->quote($host_uuid)." 
+AND 
+    variable_source_table = 'hosts'
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		foreach my $row (@{$results})
+		{
+			my $variable_name  = $row->[0];
+			my $variable_value = $row->[1];
+			$anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{$variable_name} = $variable_value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"machine::host_uuid::${host_uuid}::hosts::variables::${variable_name}"  => $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{$variable_name}, 
+			}});
+		}
+=cut
+	}
+	
+	return(0);
+}
+
+
+=head2 get_notifications
+
+This gets the list of configured mail servers.
+
+=cut
+sub get_notifications
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	
+	my $query = "
+SELECT 
+    notification_uuid, 
+    notification_recipient_uuid, 
+    notification_host_uuid, 
+    notification_alert_level
+FROM 
+    notifications
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $notification_uuid           = $row->[0];
+		my $notification_recipient_uuid = $row->[1];
+		my $notification_host_uuid      = $row->[2];
+		my $notification_alert_level    = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			notification_uuid           => $notification_uuid, 
+			notification_recipient_uuid => $notification_recipient_uuid, 
+			notification_host_uuid      => $notification_host_uuid, 
+			notification_alert_level    => $notification_alert_level,
+		}});
+		
+		# Store the data
+		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid} = $notification_recipient_uuid;
+		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid}      = $notification_host_uuid;
+		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level}    = $notification_alert_level;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"notifications::notification_uuid::${notification_uuid}}::notification_recipient_uuid" => $anvil->data->{notifications}{mail_server}{$mail_server_uuid}{notification_recipient_uuid}, 
+			"notifications::notification_uuid::${notification_uuid}}::notification_host_uuid"      => $anvil->data->{notifications}{mail_server}{$mail_server_uuid}{notification_host_uuid}, 
+			"notifications::notification_uuid::${notification_uuid}}::notification_alert_level"    => $anvil->data->{notifications}{mail_server}{$mail_server_uuid}{notification_alert_level}, 
+		}});
+	}
+	
+	return(0);
 }
 
 
@@ -5247,6 +5477,202 @@ INSERT INTO
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_network_interfaces()" }});
 	return($network_interface_uuid);
+}
+
+
+=head2 insert_or_update_notifications
+
+This updates (or inserts) a record in the C<< notifications >> table used for configuring what recipients get what alerts for a given host.
+
+If there is an error, an empty string is returned.
+
+B<< NOTE >>: The information is this table IS NOT AUTHORITATIVE! It's generally updated daily, so the information here could be stale.
+
+Parameters;
+
+=head3 notification_uuid (optional)
+
+If set, this is the specific entry that will be updated. 
+
+=head3 notification_recipient_uuid (required)
+
+This is the C<< recipients >> -> C<< recipient_uuid >> of the alert recipient.
+
+=head3 notification_host_uuid (required)
+
+This is the C<< hosts >> -> C<< host_uuid >> of the machine generating alerts.
+
+=head3 notification_alert_level (required)
+
+This is the alert level that the recipient is interested in. Any alert of equal or higher level will be sent to the associated recipient.
+
+Valid values;
+
+=head4 0 (ignore)
+
+No alerts from the associated system will be sent to this recipient.
+
+=head4 1 (critical)
+
+Critical alerts. These are alerts that almost certainly indicate an issue with the system that has are likely will cause a service interruption. (ie: node was fenced, emergency shut down, etc)
+
+=head4 2 (warning)
+
+Warning alerts. These are alerts that likely require the attention of an administrator, but have not caused a service interruption. (ie: power loss/load shed, over/under voltage, fan failure, network link failure, etc)
+
+=head4 3 (notice)
+
+Notice alerts. These are generally low priority alerts that do not need attention, but might be indicators of developing problems. (ie: UPSes transfering to batteries, server migration/shut down/boot up, etc)
+
+=cut
+sub insert_or_update_notifications
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_notifications()" }});
+	
+	my $uuid                        = defined $parameter->{uuid}                        ? $parameter->{uuid}                        : "";
+	my $file                        = defined $parameter->{file}                        ? $parameter->{file}                        : "";
+	my $line                        = defined $parameter->{line}                        ? $parameter->{line}                        : "";
+	my $notification_uuid           = defined $parameter->{notification_uuid}           ? $parameter->{notification_uuid}           : "";
+	my $notification_recipient_uuid = defined $parameter->{notification_recipient_uuid} ? $parameter->{notification_recipient_uuid} : "";
+	my $notification_host_uuid      = defined $parameter->{notification_host_uuid}      ? $parameter->{notification_host_uuid}      : "";
+	my $notification_alert_level    = defined $parameter->{notification_alert_level}    ? $parameter->{notification_alert_level}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		notification_uuid           => $notification_uuid, 
+		notification_recipient_uuid => $notification_recipient_uuid, 
+		notification_host_uuid      => $notification_host_uuid, 
+		notification_alert_level    => $notification_alert_level, 
+	}});
+	
+	if (not $notification_recipient_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_notifications()", parameter => "notification_recipient_uuid" }});
+		return("");
+	}
+	if (not $notification_host_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_notifications()", parameter => "notification_host_uuid" }});
+		return("");
+	}
+	if ($notification_alert_level eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_notifications()", parameter => "notification_alert_level" }});
+		return("");
+	}
+	elsif (($notification_alert_level =~ /\D/) or ($notification_alert_level < 0) or ($notification_alert_level > 3))
+	{
+		# Not an integer
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0109", variables => { notification_alert_level => $notification_alert_level }});
+		return("");
+	}
+	
+	# If we don't have the notification_uuid, see if we can look it up.
+	if (not $notification_uuid)
+	{
+		my $query = "
+SELECT 
+    notification_uuid 
+FROM 
+    notifications 
+WHERE 
+    notification_recipient_uuid = ".$anvil->Database->quote($notification_recipient_uuid)." 
+AND 
+    notification_host_uuid      = ".$anvil->Database->quote($notification_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$notification_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { notification_uuid => $notification_uuid }});
+		}
+	}
+	
+	# Do we have an existing entry?
+	if ($notification_uuid)
+	{
+		# Yes, look up the previous notification_alert_level.
+		my $query = "
+SELECT 
+    notification_alert_level 
+FROM 
+    notifications 
+WHERE 
+    notification_uuid = ".$anvil->Database->quote($notification_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		# If this doesn't return anything, the passed in UUID was invalid.
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# Error out.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0110", variables => { notification_uuid => $notification_uuid }});
+			return("");
+		}
+		my $old_notification_alert_level = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_notification_alert_level => $old_notification_alert_level }});
+		
+		# Did the level change?
+		if ($notification_alert_level ne $old_notification_alert_level)
+		{
+			# UPDATE
+			my $query = "
+UPDATE 
+    notifications 
+SET 
+    notification_alert_level = ".$anvil->Database->quote($notification_alert_level).", 
+    modified_date            = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    notification_uuid        = ".$anvil->Database->quote($notification_uuid)." 
+";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	else
+	{
+		# Nope, INSERT
+		$notification_uuid = $anvil->Get->uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { notification_uuid => $notification_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    notifications 
+(
+    notification_uuid, 
+    notification_recipient_uuid, 
+    notification_host_uuid, 
+    notification_alert_level, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($notification_uuid).",  
+    ".$anvil->Database->quote($notification_recipient_uuid).",  
+    ".$anvil->Database->quote($notification_host_uuid).",  
+    ".$anvil->Database->quote($notification_alert_level).",  
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($notification_uuid)
 }
 
 
