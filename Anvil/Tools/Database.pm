@@ -2197,9 +2197,9 @@ FROM
 		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid}      = $notification_host_uuid;
 		$anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level}    = $notification_alert_level;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"notifications::notification_uuid::${notification_uuid}}::notification_recipient_uuid" => $anvil->data->{notifications}{mail_server}{$mail_server_uuid}{notification_recipient_uuid}, 
-			"notifications::notification_uuid::${notification_uuid}}::notification_host_uuid"      => $anvil->data->{notifications}{mail_server}{$mail_server_uuid}{notification_host_uuid}, 
-			"notifications::notification_uuid::${notification_uuid}}::notification_alert_level"    => $anvil->data->{notifications}{mail_server}{$mail_server_uuid}{notification_alert_level}, 
+			"notifications::notification_uuid::${notification_uuid}::notification_recipient_uuid" => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid}, 
+			"notifications::notification_uuid::${notification_uuid}::notification_host_uuid"      => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid}, 
+			"notifications::notification_uuid::${notification_uuid}::notification_alert_level"    => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level}, 
 		}});
 	}
 	

@@ -20,11 +20,12 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 # Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
 $| = 1;
 
-#print "Starting test.\n";
+print "Starting test.\n";
 my $anvil = Anvil::Tools->new({debug => 3});
 $anvil->Log->secure({set => 1});
 $anvil->Log->level({set => 2});
 
+print "Connecting to the database(s);\b";
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 print "DB Connections: [".$anvil->data->{sys}{database}{connections}."]\n";

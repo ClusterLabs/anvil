@@ -1025,7 +1025,29 @@ sub update_install_source
 				}});
 				if ($this_stdout_line > $last_stdout_line)
 				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 					print $anvil->Words->string({key => "message_0078", variables => { line => $line }})."\n";
+					
+					# In some cases, a bad local RPM can cause download failures. This 
+					# checks for and removes them. It can take a few runs to clear out a
+					# set of bad files, but it will clear out eventually.
+					if ($line =~ / (.*?.rpm): Interrupted by header callback/i)
+					{
+						my $rpm_name = $1;
+						my $rpm_path = $download_path."/".$rpm_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+							rpm_name => $rpm_name,
+							rpm_path => $rpm_path, 
+						}});
+						
+						if (-e $rpm_path)
+						{
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0469", variables => { rpm_path => $rpm_path }});
+							unlink $rpm_path;
+							
+							$error_out .= $anvil->Words->string({key => "log_0469", variables => { rpm_path => $rpm_path }})."\n";
+						}
+					}
 					
 					$last_stdout_line = $this_stdout_line;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_stdout_line => $last_stdout_line }});
@@ -1103,7 +1125,7 @@ sub update_install_source
 	update_progress($anvil, 85, "");
 	
 	$output                 = "";
-	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo}." -g ".$comps_xml." ".$repo_path });
+	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo_c}." -g ".$comps_xml." ".$repo_path });
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	print $anvil->Words->string({key => "message_0130"})."\n";
 	update_progress($anvil, 90, "message_0130");
@@ -1280,7 +1302,6 @@ sub load_packages
 			"dnf-data.noarch",
 			"dnf-plugin-subscription-manager.x86_64",
 			"dnf-plugins-core.noarch",
-			#"dnf-utils.noarch",
 			"dnf.noarch",
 			"dnsmasq.x86_64",
 			"dosfstools.x86_64",
@@ -1538,6 +1559,7 @@ sub load_packages
 			"krb5-libs.x86_64",
 		],
 		l	=>	[
+
 			"langpacks-en.noarch",
 			"lcms2.x86_64",
 			"less.x86_64",

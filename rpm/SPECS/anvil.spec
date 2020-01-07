@@ -354,9 +354,9 @@ fi
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-31
+* Mon Jan 6 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-31
 - Added perl-Mail-RFC822-Address to core requirements.
-- 
+- Updated source.
 
 * Fri Dec 13 2019 Madison Kelly <mkelly@alteeve.ca> 3.0-30
 - Enabled/started chronyd in core's post.
