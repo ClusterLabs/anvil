@@ -7229,7 +7229,6 @@ sub insert_or_update_variables
 		variable_source_uuid  => $variable_source_uuid, 
 		variable_source_table => $variable_source_table, 
 		update_value_only     => $update_value_only, 
-		log_level             => $debug, 
 	}});
 	
 	# We'll need either the name or UUID.
@@ -7292,10 +7291,18 @@ AND
 		}
 	}
 	
-	# If I still don't have an variable_uuid, we're INSERT'ing .
+	# If I still don't have an variable_uuid, we're INSERT'ing (unless we've been told to update the 
+	# value only, in which case we do nothing).
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 	if (not $variable_uuid)
 	{
+		# Were we asked to updat only?
+		if ($update_value_only)
+		{
+			# Nothing to do.
+			return("");
+		}
+		
 		# INSERT
 		   $variable_uuid = $anvil->Get->uuid();
 		my $query         = "
@@ -8495,7 +8502,17 @@ Parameters;
 
 If specified, this specifies the variable UUID to read. When this parameter is specified, the C<< variable_name >> parameter is ignored.
 
-=head3 variable_name
+=head3 variable_name (required)
+
+This is the name of the variable we're reading.
+
+=head3 variable_source_table (optional)
+
+If set along with C<< variable_source_uuid >>, the variable being read will be specified against this and the UUID.
+
+=head3 variable_source_uuid (optional)
+
+If set along with C<< variable_source_table >>, the variable being read will be specified against this and the source table.
 
 =cut
 sub read_variable
@@ -8624,7 +8641,7 @@ sub resync_databases
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->resync_databases()" }});
 	
-	# If a resync isn't needed, just return.
+	# If a resync isn't needed, just return. 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
 	if (not $anvil->data->{sys}{database}{resync_needed})
 	{

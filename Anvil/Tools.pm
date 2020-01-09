@@ -1158,6 +1158,7 @@ sub _set_paths
 				lvscan				=>	"/usr/sbin/lvscan", 
 				md5sum				=>	"/usr/bin/md5sum",
 				'mkdir'				=>	"/usr/bin/mkdir",
+				modifyrepo_c			=>	"/usr/bin/modifyrepo_c",
 				mv				=>	"/usr/bin/mv",
 				nmap				=>	"/usr/bin/nmap",
 				nmcli				=>	"/bin/nmcli",

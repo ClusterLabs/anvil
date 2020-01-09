@@ -273,7 +273,7 @@ sub call
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	# Get the target and port so that we can create the ssh_fh key
-	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $port        =         $parameter->{port}        ? $parameter->{port}        : 22;
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $ssh_fh_key  = $remote_user."\@".$target.":".$port;

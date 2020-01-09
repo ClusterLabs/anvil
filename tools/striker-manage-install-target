@@ -1098,9 +1098,11 @@ sub update_install_source
 	
 	# Create the repodata
 	print $anvil->Words->string({key => "message_0118"})."\n";
-	my $repo_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os";
-	my $comps_xml = $repo_path."/comps.xml";
-	my $target    = $repo_path."/repodata/comps.xml";
+	my $repo_path      = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os";
+	my $repo_data_path = $repo_path."/repodata";
+	my $comps_xml      = $repo_path."/comps.xml";
+	my $modules_yaml   = $repo_path."/modules.yaml";
+	my $target_comps   = $repo_data_path."/comps.xml";
 	if (not -e $comps_xml)
 	{
 		# We can't install properly without the comps.xml file, it provides grouping needed by the 
@@ -1112,14 +1114,14 @@ sub update_install_source
 	$anvil->Storage->copy_file({
 		debug       => 2, 
 		source_file => $comps_xml, 
-		target_file => $target,
+		target_file => $target_comps,
 		overwrite   => 1,
 	});
-	if (not -e $target)
+	if (not -e $target_comps)
 	{
 		# Something appears to have happened and it failed to copy.
-		print $anvil->Words->string({key => "message_0129", variables => { comps_xml => $comps_xml, target => $target }})."\n";
-		update_progress($anvil, 100, "message_0129,!!comps_xml!".$comps_xml."!!,!!target!".$target."!!");
+		print $anvil->Words->string({key => "message_0129", variables => { comps_xml => $comps_xml, target_comps => $target_comps }})."\n";
+		update_progress($anvil, 100, "message_0129,!!comps_xml!".$comps_xml."!!,!!target_comps!".$target_comps."!!");
 		$anvil->nice_exit({code => 6});
 	}
 	update_progress($anvil, 85, "");
@@ -1129,6 +1131,15 @@ sub update_install_source
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	print $anvil->Words->string({key => "message_0130"})."\n";
 	update_progress($anvil, 90, "message_0130");
+	
+	### NOTE: This doesn't work for libssh2 yet (haven't figured out how to add it to 'modules.yaml' 
+	###       sourced from RHEL 8.1 ISO yet). Once that's fixed, remove 'module_hotfixes=1' from 
+	###       Striker->get_local_repo().
+	$output                 = "";
+	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{modifyrepo_c}." --mdtype=modules ".$modules_yaml." ".$repo_data_path });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	print $anvil->Words->string({key => "message_0159"})."\n";
+	update_progress($anvil, 95, "message_0159");
 	
 	# Update the refresh time to now.
 	$anvil->Database->insert_or_update_variables({
@@ -1835,6 +1846,7 @@ sub load_packages
 		],
 		'm'	=>	[
 			"mailcap.noarch",
+			"mailx.x86_64",
 			"man-db.x86_64",
 			"mcpp.x86_64",
 			"mdadm.x86_64",
@@ -2036,6 +2048,7 @@ sub load_packages
 			"perl-Proc-Simple.noarch",
 			"perl-Ref-Util-XS.x86_64",
 			"perl-Ref-Util.noarch",
+			"perl-Mail-RFC822-Address.noarch",
 			"perl-Role-Tiny.noarch",
 			"perl-Scalar-List-Utils.x86_64",
 			"perl-SelfLoader.noarch", 

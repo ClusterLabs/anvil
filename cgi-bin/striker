@@ -1628,6 +1628,18 @@ sub process_prep_network
 	# Are we saving?
 	if ($anvil->data->{cgi}{save}{value} eq "true")
 	{
+		# Clear the network map variable.
+		$anvil->Database->insert_or_update_variables({
+			debug                 => 2,
+			variable_name         => "config::map_network", 
+			variable_value        => 0, 
+			variable_default      => 0, 
+			variable_description  => "striker_0202", 
+			variable_section      => "config", 
+			variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
+			variable_source_table => "hosts", 
+		});
+		
 		# Is the form sane?
 		my $sane              = 1;
 		my $interfaces        = "";
@@ -2079,6 +2091,20 @@ sub process_prep_network
 			return(0);
 		}
 	}
+	else
+	{
+		# We're mapping
+		$anvil->Database->insert_or_update_variables({
+			debug                 => 2,
+			variable_name         => "config::map_network", 
+			variable_value        => 1, 
+			variable_default      => 0, 
+			variable_description  => "striker_0202", 
+			variable_section      => "config", 
+			variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
+			variable_source_table => "hosts", 
+		});
+	}
 	
 	my $interface_form = "";
 	# NOTE: We don't assign IPs at this point, unless the user manually sets one. We'll set all to 'dhcp'
@@ -2241,6 +2267,7 @@ sub process_prep_host_page
 	my ($anvil) = @_;
 	
 	my $host_name         = defined $anvil->data->{cgi}{host_name}{value}         ? $anvil->data->{cgi}{host_name}{value}         : "";
+	my $host_uuid         = defined $anvil->data->{cgi}{host_uuid}{value}         ? $anvil->data->{cgi}{host_uuid}{value}         : "";
 	my $default_host_name = defined $anvil->data->{cgi}{default_host_name}{value} ? $anvil->data->{cgi}{default_host_name}{value} : "";
 	my $host_ip_address   = defined $anvil->data->{cgi}{host_ip_address}{value}   ? $anvil->data->{cgi}{host_ip_address}{value}   : "";
 	my $host_password     = defined $anvil->data->{cgi}{host_password}{value}     ? $anvil->data->{cgi}{host_password}{value}     : "";
@@ -2251,6 +2278,7 @@ sub process_prep_host_page
 	my $confirm           = defined $anvil->data->{cgi}{confirm}{value}           ? $anvil->data->{cgi}{confirm}{value}           : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		host_name         => $host_name, 
+		host_uuid         => $host_uuid, 
 		default_host_name => $default_host_name, 
 		host_ip_address   => $host_ip_address,
 		host_password     => $anvil->Log->is_secure($host_password), 
@@ -2283,6 +2311,21 @@ sub process_prep_host_page
 			password    => $anvil->Log->is_secure($host_password),
 		}});
 		
+		# Update the database to mark this machine as unconfigured (in case we're rebuilding a 
+		# previously known system). This is needed to get the netweork link state info updating.
+		if ($host_uuid)
+		{
+			$anvil->Database->insert_or_update_variables({
+				debug                 => 2,
+				variable_name         => "system::configured", 
+				variable_source_uuid  => $host_uuid, 
+				variable_source_table => "hosts", 
+				variable_value        => 0, 
+				update_value_only     => 1, 
+			});
+		}
+		
+		# Are we setting a host name?
 		my $say_host_name = "host_name=\n";
 		if (($host_name) && ($host_name ne $default_host_name))
 		{

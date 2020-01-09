@@ -233,7 +233,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0126">The attempt to disabled the 'Install Target' function failed! Please check the logs for details.</key>
 		<key name="message_0127">The 'Install Target' function has been enabled.</key>
 		<key name="message_0128">The attempt to enable the 'Install Target' function failed! Please check the logs for details.</key>
-		<key name="message_0129">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was found, but something failed when we tried to copy it to: [#!variable!target!#].</key>
+		<key name="message_0129">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was found, but something failed when we tried to copy it to: [#!variable!target_comps!#].</key>
 		<key name="message_0130">Updated repository data.</key>
 		<key name="message_0131">Back-Channel Network ##!variable!number!# - Used for all inter-machine communication in the Anvil!, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
 		<key name="message_0132">Storage Network ##!variable!number!# - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
@@ -262,6 +262,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0155">When alert emails are sent, they are stored locally and then forwarded to a mail server. This is where you can configure the mail server that alerts are forwarded to for delivery to recipients.</key>
 		<key name="message_0156">Alert recipient Configuration</key>
 		<key name="message_0157">When a system alert is recorded, any alert recipient interested in that alert will be notified by email. This is determined by the alert's level, and the recipients alert level interest. If the alert's level is equal to or higher than a given alert, an email will be crafted for them, in their chosen language and units.</key>
+		<key name="message_0158">[ Error ] - The modules.yaml file: [#!variable!modules_yaml!#] was found, but something failed when we tried to copy it to: [#!variable!target_modules!#].</key>
+		<key name="message_0159">Updated module metadata.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1063,6 +1065,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0199">Does the user want imperial or metric units?</key>
 		<key name="striker_0200">The alert level used for new (and existing) Anvil! systems.</key>
 		<key name="striker_0201">Existing alert recipients:</key>
+		<key name="striker_0202">This puts the host into network mapping mode. In this most, most functions are disabled and the link status of network interfaces are closely monitored.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

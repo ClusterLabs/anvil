@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        31%{?dist}
+Release:        32%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -211,7 +211,7 @@ sed -i "1s/^.*$/%{version}-%{release}/" /%{_sysconfdir}/anvil/anvil.version
 systemctl enable chronyd.service 
 systemctl start chronyd.service 
 systemctl enable anvil-daemon.service
-systemctl start anvil-daemon.service
+systemctl restart anvil-daemon.service
 
 
 %post striker
@@ -354,6 +354,9 @@ fi
 
 
 %changelog
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-32
+- Updated source.
+
 * Mon Jan 6 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-31
 - Added perl-Mail-RFC822-Address to core requirements.
 - Updated source.

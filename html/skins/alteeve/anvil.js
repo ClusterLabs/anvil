@@ -107,7 +107,7 @@ $( window ).on( "load", function()
 						if (element.matched_ip_address) {
 							//console.log('Show: ['+element.short_name+'], connect via: ['+element.matched_ip_address+']');
 							body += '<tr class="data_row">';
-							body += '<td class="column_row_value_fixed"><a class="available" href="?anvil=true&task=prep-network&host='+element.host_uuid+'">'+element.short_name+'</a></td>';
+							body += '<td class="column_row_value_fixed"><a class="available" href="?anvil=true&task=prep-network&host_uuid='+element.host_uuid+'">'+element.short_name+'</a></td>';
 							body += '<td class="column_header"> &nbsp; </td>';
 							body += '<td class="column_row_value_fixed">'+element.type+'</td>';
 							body += '<td class="column_header"> &nbsp; </td>';
