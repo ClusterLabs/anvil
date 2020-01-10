@@ -40,6 +40,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
 # insert_or_update_mail_servers
+# insert_or_update_manifests
 # insert_or_update_network_interfaces
 # insert_or_update_notifications
 # insert_or_update_mac_to_ip
@@ -5056,6 +5057,273 @@ WHERE
 	}
 	
 	return($mail_server_uuid);
+}
+
+
+=head2 insert_or_update_mail_servers
+
+This updates (or inserts) a record in the 'manifests' table. This table is used to the "manifests" used to create and repair Anvil! systems.
+
+If there is an error, an empty string is returned. Otherwise, the record's UUID is returned.
+
+Parameters;
+
+=head3 delete (optional)
+
+If set, the C<< manifest_note >> is set to C<< DELETED >>. When set to C<< 1 >>, only the C<<  >> is required
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 manifest_uuid (optional)
+
+When set, this UUID is used to update an existing record. When not passed, the C<< manifest_name >> is used to search for a match. If found, the associated UUID is used and the record is updated. 
+
+=head3 manifest_name (required)
+
+This is the name of the manifest. Generally, this is the name of the Anvil! itself. It can be set to something more useful to the user, however.
+
+=head3 manifest_last_ran (required)
+
+This is the unix time when the manifest was last used to (re)build an Anvil! system. Set this to C<< 0 >> if the manifest hasn't been used yet.
+
+=head3 manifest_xml (required)
+
+This is the raw XML containing the manifest.
+
+=head3 manifest_note (optional)
+
+This is a free-form field for saving notes about the mnaifest. If this is set to C<< DELETED >>, it will be ignored in the web interface.
+
+=cut
+sub insert_or_update_mail_servers
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_mail_servers()" }});
+	
+	my $delete            = defined $parameter->{'delete'}          ? $parameter->{'delete'}          : 0;
+	my $uuid              = defined $parameter->{uuid}              ? $parameter->{uuid}              : "";
+	my $file              = defined $parameter->{file}              ? $parameter->{file}              : "";
+	my $line              = defined $parameter->{line}              ? $parameter->{line}              : "";
+	my $manifest_uuid     = defined $parameter->{manifest_uuid}     ? $parameter->{manifest_uuid}     : "";
+	my $manifest_name     = defined $parameter->{manifest_name}     ? $parameter->{manifest_name}     : "";
+	my $manifest_last_ran = defined $parameter->{manifest_last_ran} ? $parameter->{manifest_last_ran} : "";
+	my $manifest_xml      = defined $parameter->{manifest_xml}      ? $parameter->{manifest_xml}      : "";
+	my $manifest_note     = defined $parameter->{manifest_note}     ? $parameter->{manifest_note}     : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'delete'          => $delete, 
+		file              => $file, 
+		line              => $line, 
+		manifest_uuid     => $manifest_uuid, 
+		manifest_name     => $manifest_name, 
+		manifest_last_ran => $manifest_last_ran, 
+		manifest_xml      => $manifest_xml, 
+		manifest_note     => $manifest_note, 
+	}});
+	
+	
+	# INSERT, but make sure we have enough data first.
+	if (not $delete)
+	{
+		if (not $manifest_xml)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_manifests()", parameter => "manifest_xml" }});
+			return("");
+		}
+		if (not $manifest_name)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_manifests()", parameter => "manifest_name" }});
+			return("");
+		}
+	}
+	
+	# If we don't have a network interface UUID, try to look one up using the MAC address
+	if (not $manifest_uuid)
+	{
+		# See if I know this NIC by referencing it's MAC and name. The name is needed because virtual
+		# devices can share the MAC with the real interface.
+		my $query = "
+SELECT 
+    manifest_uuid 
+FROM 
+    manifests 
+WHERE 
+    manifest_name = ".$anvil->Database->quote($manifest_name)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		$manifest_uuid = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];
+		$manifest_uuid = "" if not defined $manifest_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+		
+		if (($link_only) && (not $manifest_uuid))
+		{
+			# Can't INSERT.
+			return("");
+		}
+	}
+	
+	if ($delete)
+	{
+		if (not $manifest_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_manifests()", parameter => "manifest_uuid" }});
+			return("");
+		}
+		else
+		{
+			# Delete it
+			my $query = "SELECT manifest_note FROM manifests WHERE manifest_uuid = ".$anvil->Database->quote($manifest_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_manifest_note = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_manifest_note => $old_manifest_note }});
+				
+				if ($old_manifest_note ne "DELETED")
+				{
+					my $query = "
+UPDATE 
+    manifests 
+SET 
+    manifest_note = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    manifest_uuid = ".$anvil->Database->quote($manifest_uuid)."
+;";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($manifest_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
+		}
+	}
+	
+	# Now, if we're inserting or updating, we'll need to require different bits.
+	if ($manifest_uuid)
+	{
+		# Update
+		my $query = "
+SELECT 
+    manifest_name,
+    manifest_last_ran, 
+    manifest_xml, 
+    manifest_note 
+FROM 
+    manifests 
+WHERE 
+    manifest_uuid = ".$anvil->Database->quote($manifest_uuid).";
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		if (not $count)
+		{
+			# I have a manifest_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "manifest_uuid", uuid => $manifest_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+    manifest_name,
+    manifest_last_ran, 
+    manifest_xml, 
+    manifest_note 
+			my $old_manifest_name     = $row->[0];
+			my $old_manifest_last_ran = $row->[1];
+			my $old_manifest_xml      = $row->[2];
+			my $old_manifest_note     = $row->[3];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_manifest_name     => $old_manifest_name,
+				old_manifest_last_ran => $old_manifest_last_ran,
+				old_manifest_xml      => $old_manifest_xml,
+				old_manifest_note     => $old_manifest_note, 
+			}});
+			
+			# Anything to update? This is a little extra complicated because if a variable was
+			# not passed in, we want to not compare it.
+			if (($manifest_name     ne $old_manifest_name)     or 
+			    ($manifest_last_ran ne $old_manifest_last_ran) or 
+			    ($manifest_xml      ne $old_manifest_xml)      or 
+			    ($manifest_note     ne $old_manifest_note))
+			{
+				# UPDATE any rows passed to us.
+				my $query = "
+UPDATE 
+    manifests
+SET 
+    manifest_name     = ".$anvil->Database->quote($manifest_name).", 
+    manifest_last_ran = ".$anvil->Database->quote($manifest_last_ran).", 
+    manifest_xml      = ".$anvil->Database->quote($manifest_xml).", 
+    manifest_note     = ".$anvil->Database->quote($manifest_note).", 
+    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE
+    manifest_uuid     = ".$anvil->Database->quote($manifest_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		# And INSERT
+		$manifest_uuid = $anvil->Get->uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    manifests 
+(
+    manifest_uuid, 
+    manifest_name, 
+    manifest_last_ran, 
+    manifest_xml, 
+    manifest_note,  
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($manifest_uuid).", 
+    ".$anvil->Database->quote($manifest_name).", 
+    ".$anvil->Database->quote($manifest_last_ran).", 
+    ".$anvil->Database->quote($manifest_xml).", 
+    ".$anvil->Database->quote($manifest_note).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_network_interfaces()" }});
+	return($manifest_uuid);
 }
 
 

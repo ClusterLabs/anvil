@@ -1502,9 +1502,16 @@ sub process_anvil_menu
 	{
 		process_prep_network($anvil);
 	}
-	elsif ($anvil->data->{cgi}{task}{value} eq "manifest")
+	elsif ($anvil->data->{cgi}{task}{value} eq "create")
 	{
-		#process_manifest_page($anvil);
+		if ($anvil->data->{cgi}{subtask}{value} eq "manifest")
+		{
+			#process_manifest($anvil);
+		}
+		else
+		{
+			process_create($anvil);
+		}
 	}
 	else
 	{
@@ -1513,6 +1520,40 @@ sub process_anvil_menu
 		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "main-menu", variables => {
 		}});
 	}
+	
+	return(0);
+}
+
+# This handles creating an Anvil! from an existing manifest
+sub process_create
+{
+	my ($anvil) = @_;
+	
+	# Show the option to create a new interface.
+	
+	
+	# Show existing manifests.
+	### TODO:
+	
+	
+	
+	# Store the previous CGI variables and display the new fields.
+	$anvil->data->{form}{back_link}     = "?anvil=true";
+	$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
+	$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "create-menu", variables => {
+		interface_form => $interface_form,
+		gateway_form   => $say_gateway,
+		dns_form       => $say_dns,
+		host_name_form => $host_name_form,
+		bcn_count      => $bcn_pair_count,
+		sn_count       => $sn_pair_count,
+		ifn_count      => $ifn_pair_count,
+		host_uuid      => $anvil->data->{cgi}{host_uuid}{value},
+		host_name      => $host_name,       # This is the current host name, used to find the data in the all_status.json
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
 	return(0);
 }

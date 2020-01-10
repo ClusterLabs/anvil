@@ -808,6 +808,8 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0467">Network reconfiguration is complete!</key>
 		<key name="log_0468">Skipping the OUI parse. The next scheduled parse will be done in: [#!variable!next_parse!#]. Override with '--force'.</key>
 		<key name="log_0469">The rpm: [#!variable!rpm_path!#] appears to be a problem, removing it.</key>
+		<key name="log_0470">The network mapping flag has aged out, clearing it.</key>
+		<key name="log_0471">The network mapping flag is set. If it isn't cleared by the user, it will expire in: [#!variable!timeout!#] second(s).</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1066,6 +1068,9 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0200">The alert level used for new (and existing) Anvil! systems.</key>
 		<key name="striker_0201">Existing alert recipients:</key>
 		<key name="striker_0202">This puts the host into network mapping mode. In this most, most functions are disabled and the link status of network interfaces are closely monitored.</key>
+		<key name="striker_0203">Create or Run an Install Manifest</key>
+		<key name="striker_0204">Create a new Install Manifest; The instructions used to assemble/repair a given Anvil! system.</key>
+		<key name="striker_0205">Existing Manifests:</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

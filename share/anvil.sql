@@ -1456,6 +1456,59 @@ CREATE TRIGGER trigger_mac_to_ip
     FOR EACH ROW EXECUTE PROCEDURE history_mac_to_ip();
 
 
+-- This stores the information needed to build an Anvil! system.
+CREATE TABLE manifests (
+    manifest_uuid        uuid                        not null    primary key,
+    manifest_name        text                        not null,                   -- The name of the manifest, defaults to being the Anvil!'s name
+    manifest_last_ran    integer                     not null,                   -- This records the last time the manifest was run (in unix time). 
+    manifest_xml         text                        not null,                   -- The XML body
+    manifest_note        text                        not null,                   -- This is set to 'DELETED' when the manifest isn't needed anymore. Otherwise, it's a notepad for the user
+    modified_date        timestamp with time zone    not null 
+);
+ALTER TABLE manifests OWNER TO admin;
+
+CREATE TABLE history.manifests (
+    history_id           bigserial, 
+    manifest_uuid        uuid, 
+    manifest_name        text,
+    manifest_last_ran    integer,
+    manifest_xml         text,
+    manifest_note        text,
+    modified_date        timestamp with time zone
+);
+ALTER TABLE history.manifests OWNER TO admin;
+
+CREATE FUNCTION history_manifests() RETURNS trigger
+AS $$
+DECLARE
+    history_manifests RECORD;
+BEGIN
+    SELECT INTO history_manifests * FROM manifests WHERE manifest_uuid = new.manifest_uuid;
+    INSERT INTO history.manifests
+        (manifest_uuid, 
+         manifest_name,
+         manifest_last_ran,
+         manifest_xml,
+         manifest_note,
+         modified_date)
+    VALUES
+        (history_manifests.manifest_uuid, 
+         history_manifests.manifest_name,
+         history_manifests.manifest_last_ran,
+         history_manifests.manifest_xml,
+         history_manifests.manifest_note,
+         history_manifests.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_manifests() OWNER TO admin;
+
+CREATE TRIGGER trigger_manifests
+    AFTER INSERT OR UPDATE ON manifests
+    FOR EACH ROW EXECUTE PROCEDURE history_manifests();
+
+
 -- ------------------------------------------------------------------------------------------------------- --
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --
 -- ------------------------------------------------------------------------------------------------------- --

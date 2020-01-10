@@ -906,6 +906,7 @@ sub _set_defaults
 									"updated",
 									"alert_sent",
 									"states",
+									"manifests", 
 								],
 			failed_connection_log_level	=>	1,
 			local_lock_active		=>	0,

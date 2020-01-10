@@ -1,3 +1,69 @@
+<!-- start create-menu -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2" class="title">
+					#!string!striker_0203!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<a href="?anvil=true&task=create&subtask=manifest"><img src="#!data!skin::url!#/images/manifest.png" class="top_icon" ></a>
+				</td>
+				<td class="main_option">
+					<a href="?anvil=true&task=prep-host">#!string!striker_0204!#</a>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					&nbsp;
+				</td>
+				<td class="main_option">
+					#!string!striker_0205!#
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					&nbsp;
+				</td>
+				<td class="main_option">
+					<table>
+						#!variable!existing_manifests!#
+					</table>
+				</td>
+			</tr>
+		</table>
+<!-- end create-menu -->
+
+<!-- start existing-manifest-entry -->
+						<tr>
+							<td>
+								#!variable!run!#
+							</td>
+							<td>
+								#!variable!name!#
+							</td>
+							<td>
+								#!variable!edit!#
+							</td>
+						</tr>
+<!-- end existing-manifest-entry -->
+
 <!-- start main-menu -->
 		<table align="center" class="anvil_main_menu">
 			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
@@ -52,7 +118,7 @@
 					<a href="?anvil=true&task=create"><img src="#!data!skin::url!#/images/build-anvil_icon.png" class="top_icon" ></a>
 				</td>
 				<td class="main_option">
-					<a href="?anvil=true&task=sync">#!string!striker_0114!#</a>
+					<a href="?anvil=true&task=create">#!string!striker_0114!#</a>
 				</td>
 			</tr>
 		</table>
