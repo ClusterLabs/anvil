@@ -53,13 +53,16 @@
 <!-- start existing-manifest-entry -->
 						<tr>
 							<td>
-								#!variable!run!#
+								<a href="?anvil=true&task=manifest&run=true&manifest_uuid=#!variable!manifest_uuid!#">#!string!striker_0206!#</a>
 							</td>
 							<td>
-								#!variable!name!#
+								#!variable!manifest_name!#
 							</td>
 							<td>
-								#!variable!edit!#
+								<a href="?anvil=true&task=manifest&edit=true&manifest_uuid=#!variable!manifest_uuid!#">#!string!striker_0207!#</a>
+							</td>
+							<td>
+								<a href="?anvil=true&task=manifest&delete=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
 							</td>
 						</tr>
 <!-- end existing-manifest-entry -->

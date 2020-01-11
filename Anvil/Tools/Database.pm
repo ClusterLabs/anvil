@@ -5060,7 +5060,7 @@ WHERE
 }
 
 
-=head2 insert_or_update_mail_servers
+=head2 insert_or_update_manifests
 
 This updates (or inserts) a record in the 'manifests' table. This table is used to the "manifests" used to create and repair Anvil! systems.
 
@@ -5105,13 +5105,13 @@ This is the raw XML containing the manifest.
 This is a free-form field for saving notes about the mnaifest. If this is set to C<< DELETED >>, it will be ignored in the web interface.
 
 =cut
-sub insert_or_update_mail_servers
+sub insert_or_update_manifests
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_mail_servers()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_manifests()" }});
 	
 	my $delete            = defined $parameter->{'delete'}          ? $parameter->{'delete'}          : 0;
 	my $uuid              = defined $parameter->{uuid}              ? $parameter->{uuid}              : "";
@@ -5167,12 +5167,6 @@ WHERE
 		$manifest_uuid = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];
 		$manifest_uuid = "" if not defined $manifest_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
-		
-		if (($link_only) && (not $manifest_uuid))
-		{
-			# Can't INSERT.
-			return("");
-		}
 	}
 	
 	if ($delete)
@@ -5253,10 +5247,6 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-    manifest_name,
-    manifest_last_ran, 
-    manifest_xml, 
-    manifest_note 
 			my $old_manifest_name     = $row->[0];
 			my $old_manifest_last_ran = $row->[1];
 			my $old_manifest_xml      = $row->[2];

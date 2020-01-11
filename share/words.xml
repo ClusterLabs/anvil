@@ -1071,6 +1071,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0203">Create or Run an Install Manifest</key>
 		<key name="striker_0204">Create a new Install Manifest; The instructions used to assemble/repair a given Anvil! system.</key>
 		<key name="striker_0205">Existing Manifests:</key>
+		<key name="striker_0206">Run</key>
+		<key name="striker_0207">Edit</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

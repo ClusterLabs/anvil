@@ -1529,13 +1529,49 @@ sub process_create
 {
 	my ($anvil) = @_;
 	
-	# Show the option to create a new interface.
-	
-	
 	# Show existing manifests.
-	### TODO:
+	my $query = "
+SELECT 
+    manifest_uuid, 
+    manifest_name, 
+    manifest_last_ran, 
+    manifest_xml, 
+    manifest_note 
+FROM 
+    manifests 
+ORDER BY 
+    manifest_name ASC;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 	
-	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	my $manifest_template = "";
+	if ($count)
+	{
+		foreach my $row (@{$results})
+		{
+			my $manifest_uuid     = $row->[0];
+			my $manifest_name     = $row->[1];
+			my $manifest_last_ran = $row->[2];
+			my $manifest_xml      = $row->[3];
+			my $manifest_note     = $row->[4];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				manifest_uuid     => $manifest_uuid, 
+				manifest_name     => $manifest_name, 
+				manifest_last_ran => $manifest_last_ran,
+				manifest_xml      => $manifest_xml, 
+				manifest_note     => $manifest_note, 
+			}});
+			$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "existing-manifest-entry", variables => {
+				manifest_uuid => $manifest_uuid, 
+				manifest_name => $manifest_name, 
+			}});
+		}
+	}
 	
 	# Store the previous CGI variables and display the new fields.
 	$anvil->data->{form}{back_link}     = "?anvil=true";
@@ -1543,15 +1579,7 @@ sub process_create
 	$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
 	$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
 	$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "create-menu", variables => {
-		interface_form => $interface_form,
-		gateway_form   => $say_gateway,
-		dns_form       => $say_dns,
-		host_name_form => $host_name_form,
-		bcn_count      => $bcn_pair_count,
-		sn_count       => $sn_pair_count,
-		ifn_count      => $ifn_pair_count,
-		host_uuid      => $anvil->data->{cgi}{host_uuid}{value},
-		host_name      => $host_name,       # This is the current host name, used to find the data in the all_status.json
+		existing_manifests => $manifest_template, 
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
