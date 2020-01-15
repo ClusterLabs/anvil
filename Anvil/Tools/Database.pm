@@ -33,6 +33,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_anvils
 # insert_or_update_bridges
 # insert_or_update_bonds
+# insert_or_update_fences
 # insert_or_update_file_locations
 # insert_or_update_files
 # insert_or_update_host_keys
@@ -3052,6 +3053,224 @@ WHERE
 }
 
 
+=head2 insert_or_update_fences
+
+This updates (or inserts) a record in the 'fences' table. The C<< fence_uuid >> UUID will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 fence_agent (required)
+
+This is the name of the fence agent to use when communicating with this fence device. The agent must be installed on any machine that may need to fence (or check the fence/power state of) a node.
+
+=head3 fence_arguments (required)
+
+This is the string that tells machines how to communicate / control the the fence device. This is used when configuring pacemaker's stonith (fencing). 
+
+The exact formatting needs to match the STDIN parameters supported by C<< fence_agent >>. Please see C<< STDIN PARAMETERS >> section of the fence agent man page for this device.
+
+For example, this can be set to:
+
+* C<< ip="10.201.11.1" lanplus="1" username="admin" password="super secret password" 
+
+B<< NOTES >>: 
+* If C<< password_script >> is used, it is required that the user has copied the script to the nodes.
+* Do not use C<< action="..." >> or the fence agent name. If either is found in the string, they will be ignored.
+* Do not use C<< delay >>. It will be determined automatically based on which node has the most servers running on it.
+
+=head3 fence_name (required)
+
+This is the name of the fence device. Genreally, this is the short host name of the device.
+
+=head3 fence_type (required)
+
+This is the name of the fence device type. Specifically, the corresponds C<< foo>> to the C<< <devices> <foo> ... </foo> </devices> >> section of the install manifest XML. Typically this is C<< pdu >> or C<< kvm >>.
+
+=head3 fence_uuid (required)
+
+The default value is the fence's UUID. When passed, the specific record is updated.
+
+=cut
+sub insert_or_update_fences
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_fences()" }});
+	
+	my $uuid            = defined $parameter->{uuid}            ? $parameter->{uuid}            : "";
+	my $file            = defined $parameter->{file}            ? $parameter->{file}            : "";
+	my $line            = defined $parameter->{line}            ? $parameter->{line}            : "";
+	my $fence_agent     = defined $parameter->{fence_agent}     ? $parameter->{fence_agent}     : "";
+	my $fence_arguments = defined $parameter->{fence_arguments} ? $parameter->{fence_arguments} : "";
+	my $fence_name      = defined $parameter->{fence_name}      ? $parameter->{fence_name}      : "";
+	my $fence_type      = defined $parameter->{fence_type}      ? $parameter->{fence_type}      : $anvil->System->get_fence_type;
+	my $fence_uuid      = defined $parameter->{fence_uuid}      ? $parameter->{fence_uuid}      : $anvil->Get->fence_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid            => $uuid, 
+		file            => $file, 
+		line            => $line, 
+		fence_agent     => $fence_agent, 
+		fence_arguments => $fence_arguments =~ /passwork=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+		fence_name      => $fence_name, 
+		fence_type      => $fence_type, 
+		fence_uuid      => $fence_uuid, 
+	}});
+	
+	### TODO: Left off here
+	if (not $fence_agent)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_agent" }});
+		return("");
+	}
+	if (not $fence_arguments)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_arguments" }});
+		return("");
+	}
+	if (not $fence_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_name" }});
+		return("");
+	}
+	if (not $fence_type)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_type" }});
+		return("");
+	}
+	
+	# Do we have a UUID?
+	if (not $fence_uuid)
+	{
+		my $query = "
+SELECT 
+    fence_uuid 
+FROM 
+    fences 
+WHERE 
+    fence_name = ".$anvil->Database->quote($fence_name)." 
+AND
+    fence_type = ".$anvil->Database->quote($fence_type)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$fence_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { fence_uuid => $fence_uuid }});
+		}
+	}
+	
+	# Do we have a UUID?
+	if ($fence_uuid)
+	{
+		# Yup. Has something changed?
+		my $query = "
+SELECT 
+    fence_agent, 
+    fence_name, 
+    fence_type, 
+    fence_arguments  
+FROM 
+    fences 
+WHERE 
+    fence_uuid = ".$anvil->Database->quote($fence_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_fence_agent     = $row->[0];
+			my $old_fence_name      = $row->[1];
+			my $old_fence_type      = $row->[2];
+			my $old_fence_arguments = $row->[3];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				old_fence_agent     => $old_fence_agent,
+				old_fence_name      => $old_fence_name =~ /passw/ ? $anvil->Log->is_secure($old_fence_name) : $old_fence_name, 
+				old_fence_type      => $old_fence_type, 
+				old_fence_arguments => $old_fence_arguments, 
+			}});
+			if (($old_fence_agent     ne $fence_agent) or 
+			    ($old_fence_name      ne $fence_name)  or 
+			    ($old_fence_type      ne $fence_type)  or 
+			    ($old_fence_arguments ne $fence_arguments))
+			{
+				# Clear the stop data.
+				my $query = "
+UPDATE 
+    fences
+SET 
+    fence_name      = ".$anvil->Database->quote($fence_name).", 
+    fence_type      = ".$anvil->Database->quote($fence_type).", 
+    fence_arguments = ".$anvil->Database->quote($fence_arguments).", 
+    fence_agent     = ".$anvil->Database->quote($fence_agent).", 
+    modified_date   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    fence_uuid      = ".$anvil->Database->quote($fence_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		# No, INSERT.
+		   $fence_uuid = $anvil->Get->uuid();
+		my $query      = "
+INSERT INTO 
+    fences 
+(
+    fence_uuid, 
+    fence_name, 
+    fence_type, 
+    fence_arguments, 
+    fence_agent, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($fence_uuid).", 
+    ".$anvil->Database->quote($fence_name).",
+    ".$anvil->Database->quote($fence_type).",
+    ".$anvil->Database->quote($fence_arguments).",
+    ".$anvil->Database->quote($fence_agent).",
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($fence_uuid);
+}
+
+
 =head2 insert_or_update_file_locations
 
 This updates (or inserts) a record in the 'file_locations' table. The C<< file_location_uuid >> referencing the database row will be returned.
@@ -3742,6 +3961,27 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
+=head3 host_ipmi (optional)
+
+This is an optional string that tells machines how to check/control the power of this host. This allows C<< fence_agentlan >> to query and manipulate the power of the host from another host. 
+
+There are three times this information is used;
+
+* When one node needs to fence the other. Specifically, the information is parsed and used to configure stonith (fencing) in pacemaker.
+* When a Striker dashboard determines that, after a power or thermal event, it is safe to restart the node
+* When it is time to connect a DR host to update/synchronize storage.
+
+The exact formatting needs to match the STDIN parameters supported by C<< fence_agentlan >>. Please see C<< man fence_agentlan >> -> C<< STDIN PARAMETERS >> for more information.
+
+For example, this can be set to:
+
+* C<< ip="10.201.11.1" lanplus="1" username="admin" password="super secret password" 
+
+B<< NOTES >>: 
+* If C<< password_script >> is used, it is required that the user has copied the script to all machines on that could use this information to fence/boot a target.
+* Do not use C<< fence_agentlan >> or C<< action="..." >>. If either is found in the string, it will be ignored.
+* Do not use C<< delay >>. It will be determined automatically based on which node has the most servers running on it.
+
 =head3 host_key (required)
 
 The is the host's public key used by other machines to validate this machine when connecting to it using ssh. The value comes from C<< /etc/ssh/ssh_host_ecdsa_key.pub >>. An example string would be C<< ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMLEG+mcczSUgmcSuRNZc5OAFPa7IudZQv/cYWzCzmlKPMkIdcNiYDuFM1iFNiV9wVtAvkIXVSkOe2Ah/BGt6fQ= >>.
@@ -3770,6 +4010,7 @@ sub insert_or_update_hosts
 	my $uuid      = defined $parameter->{uuid}      ? $parameter->{uuid}      : "";
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
+	my $host_ipmi = defined $parameter->{host_ipmi} ? $parameter->{host_ipmi} : "";
 	my $host_key  = defined $parameter->{host_key}  ? $parameter->{host_key}  : "";
 	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_host_name;
 	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->get_host_type;
@@ -3778,6 +4019,7 @@ sub insert_or_update_hosts
 		uuid      => $uuid, 
 		file      => $file, 
 		line      => $line, 
+		host_ipmi => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi, 
 		host_key  => $host_key, 
 		host_name => $host_name, 
 		host_type => $host_type, 
@@ -3806,11 +4048,13 @@ sub insert_or_update_hosts
 	}
 	
 	# Read the old values, if they exist.
+	my $old_host_ipmi = "";
 	my $old_host_name = "";
 	my $old_host_type = "";
 	my $old_host_key  = "";
 	my $query         = "
 SELECT 
+    host_ipmi, 
     host_name, 
     host_type, 
     host_key  
@@ -3829,11 +4073,13 @@ WHERE
 	}});
 	foreach my $row (@{$results})
 	{
-		$old_host_name = $row->[0];
-		$old_host_type = defined $row->[1] ? $row->[1] : "";
-		$old_host_key  = defined $row->[2] ? $row->[2] : "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			old_host_name => $old_host_name, 
+		$old_host_ipmi = $row->[0];
+		$old_host_name = $row->[1];
+		$old_host_type = $row->[2];
+		$old_host_key  = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			old_host_ipmi => $old_host_ipmi,
+			old_host_name => $old_host_name =~ /passw/ ? $anvil->Log->is_secure($old_host_name) : $old_host_name, 
 			old_host_type => $old_host_type, 
 			old_host_key  => $old_host_key, 
 		}});
@@ -3849,16 +4095,18 @@ INSERT INTO
     host_name, 
     host_type, 
     host_key, 
+    host_ipmi, 
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($host_uuid).", 
     ".$anvil->Database->quote($host_name).",
     ".$anvil->Database->quote($host_type).",
     ".$anvil->Database->quote($host_key).",
+    ".$anvil->Database->quote($host_ipmi).",
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	elsif (($old_host_name ne $host_name) or 
@@ -3873,11 +4121,12 @@ SET
     host_name     = ".$anvil->Database->quote($host_name).", 
     host_type     = ".$anvil->Database->quote($host_type).", 
     host_key      = ".$anvil->Database->quote($host_key).", 
+    host_ipmi     = ".$anvil->Database->quote($host_ipmi).", 
     modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE
     host_uuid     = ".$anvil->Database->quote($host_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
@@ -4507,7 +4756,7 @@ AND
 		
 		# INSERT
 		   $job_uuid = $anvil->Get->uuid();
-		my $query      = "
+		my $query    = "
 INSERT INTO 
     jobs 
 (

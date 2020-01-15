@@ -1524,10 +1524,25 @@ sub process_anvil_menu
 	return(0);
 }
 
+sub handle_new_manifest
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}
+
 # This handles creating an Anvil! from an existing manifest
 sub process_create
 {
 	my ($anvil) = @_;
+	
+	# Are we creating a new manifest?
+	if ($anvil->data->{cgi}{task}{value})
+	{
+		handle_new_manifest($anvil);
+	}
 	
 	# Show existing manifests.
 	my $query = "

@@ -46,9 +46,10 @@ $$;
 -- to. 
 CREATE TABLE hosts (
     host_uuid        uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
-    host_name        text                        not null,
-    host_type        text,                                                   -- Either 'node' or 'dashboard' or 'dr_host'. It is left empty until the host is configured.
-    host_key         text,                                                   -- This is the host's key used to authenticate it when other machines try to ssh to it.
+    host_name        text                        not null,                   -- This is the 'hostname' of the machine
+    host_type        text                        not null,                   -- Either 'node' or 'dashboard' or 'dr'. It is left empty until the host is configured.
+    host_key         text                        not null,                   -- This is the host's key used to authenticate it when other machines try to ssh to it.
+    host_ipmi        text                        not null    default '',     -- This is an optional string, in 'fence_ipmilan' format, that tells how to access/fence this host.
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE hosts OWNER TO admin;
@@ -59,6 +60,7 @@ CREATE TABLE history.hosts (
     host_name        text,
     host_type        text,
     host_key         text,
+    host_ipmi        text,
     modified_date    timestamp with time zone    not null
 );
 ALTER TABLE history.hosts OWNER TO admin;
@@ -74,12 +76,14 @@ BEGIN
          host_name, 
          host_type, 
          host_key, 
+         host_ipmi, 
          modified_date)
     VALUES
         (history_hosts.host_uuid,
          history_hosts.host_name,
          history_hosts.host_type,
          history_hosts.host_key, 
+         history_hosts.host_ipmi, 
          history_hosts.modified_date);
     RETURN NULL;
 END;
@@ -1507,6 +1511,60 @@ ALTER FUNCTION history_manifests() OWNER TO admin;
 CREATE TRIGGER trigger_manifests
     AFTER INSERT OR UPDATE ON manifests
     FOR EACH ROW EXECUTE PROCEDURE history_manifests();
+
+
+-- This stores the information about fence devices (PDUs, KVM hosts, etc, minus IPMI which is stored in 'hosts')
+CREATE TABLE fences (
+    fence_uuid         uuid                        not null    primary key,
+    fence_name         text                        not null,                   -- This is the name of the fence device. Usually this is the host name of the device (ie: xx-pdu01.example.com)
+    fence_type         text                        not null,                   -- This is the fence device type. This corresponds to the '<devices> <$fence_type> ... </f$ence_type> </devices>' section of the install manifest.
+    fence_agent        text                        not null,                   -- This is the fence agent name used to communicate with the device. ie: 'fence_apc_ups', 'fence_virsh', etc.
+    fence_arguments    text                        not null,                   -- This is the arguemnts list used to access / authenticate with the device. What should be in this field depends on the 'STDIN PARAMETERS' section of the fence agent's man page. 
+    modified_date      timestamp with time zone    not null 
+);
+ALTER TABLE fences OWNER TO admin;
+
+CREATE TABLE history.fences (
+    history_id         bigserial, 
+    fence_uuid         uuid, 
+    fence_name         text,
+    fence_type         text,
+    fence_agent        text, 
+    fence_arguments    text, 
+    modified_date      timestamp with time zone
+);
+ALTER TABLE history.fences OWNER TO admin;
+
+CREATE FUNCTION history_fences() RETURNS trigger
+AS $$
+DECLARE
+    history_fences RECORD;
+BEGIN
+    SELECT INTO history_fences * FROM fences WHERE fence_uuid = new.fence_uuid;
+    INSERT INTO history.fences
+        (fence_uuid, 
+         fence_name,
+         fence_type, 
+         fence_agent, 
+         fence_arguments, 
+         modified_date)
+    VALUES
+        (history_fences.fence_uuid, 
+         history_fences.fence_name,
+         history_fences.fence_type, 
+         history_fences.fence_agent, 
+         history_fences.fence_arguments, 
+         history_fences.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_fences() OWNER TO admin;
+
+CREATE TRIGGER trigger_fences
+    AFTER INSERT OR UPDATE ON fences
+    FOR EACH ROW EXECUTE PROCEDURE history_fences();
+
 
 
 -- ------------------------------------------------------------------------------------------------------- --

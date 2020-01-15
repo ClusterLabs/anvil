@@ -13,6 +13,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Striker.pm";
 
 ### Methods;
+# get_fence_data
 # get_local_repo
 # get_peer_data
 # parse_all_status_json
@@ -76,6 +77,160 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 get_fence_data
+
+This parses the unified metadata file from the avaialable fence_devices on this host. If the unified file (location stored in C<< path::data::fences_unified_metadata >>, default is C<< /tmp/fences_unified_metadata.xml >> is not found or fails to parse, C<< 1 >> is returned. If the file is successfully parsed. C<< 0 >> is returned.
+
+The parsed data is stored under C<< fences::<agent_name>::... >>.
+
+=cut
+sub get_fence_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_fence_data()" }});
+	
+	my $parsed_xml = "";
+	my $xml_body   = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{fences_unified_metadata}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { xml_body => $xml_body }});
+	if ($xml_body =~ /<\?xml version="1.0" \?>/gs)
+	{
+		my $xml = XML::Simple->new();
+		eval { $parsed_xml = $xml->XMLin($xml_body, KeyAttr => { key => 'name' }, ForceArray => []) };
+		if ($@)
+		{
+			chomp $@;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0111", variables => { 
+				xml_body   => $xml_body, 
+				eval_error => $@,
+			}});
+			return(1);
+		}
+	}
+	else
+	{
+		$anvil->nice_exit({exit_code => 1});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0112"});
+		return(1);
+	}
+	
+	#print Dumper $parsed_xml;
+	foreach my $agent_ref (@{$parsed_xml->{agent}})
+	{
+		my $fence_agent                                      = $agent_ref->{name};
+		   $anvil->data->{fences}{$fence_agent}{description} = $agent_ref->{'resource-agent'}->{longdesc};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"fences::${fence_agent}::description" => $anvil->data->{fences}{$fence_agent}{description},
+		}});
+		
+		if (exists $agent_ref->{'resource-agent'}->{'symlink'})
+		{
+			if (ref($agent_ref->{'resource-agent'}->{'symlink'}) eq "ARRAY")
+			{
+				foreach my $hash_ref (@{$agent_ref->{'resource-agent'}->{'symlink'}})
+				{
+					my $name = $hash_ref->{name};
+					$anvil->data->{fences}{$fence_agent}{'symlink'}{$name} = $hash_ref->{shortdesc};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"fences::${fence_agent}::symlink::${name}" => $anvil->data->{fences}{$fence_agent}{'symlink'}{$name},
+					}});
+				}
+			}
+			else
+			{
+				my $name = $agent_ref->{'resource-agent'}->{'symlink'}->{name};
+				$anvil->data->{fences}{$fence_agent}{'symlink'}{$name} = $agent_ref->{'resource-agent'}->{'symlink'}->{shortdesc};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fences::${fence_agent}::symlink::${name}" => $anvil->data->{fences}{$fence_agent}{'symlink'}{$name},
+				}});
+			}
+		}
+		
+		foreach my $hash_ref (@{$agent_ref->{'resource-agent'}->{parameters}{parameter}})
+		{
+			my $name       = $hash_ref->{name};
+			my $unique     = exists $hash_ref->{unique}     ? $hash_ref->{unique}     : 0;
+			my $required   = exists $hash_ref->{required}   ? $hash_ref->{required}   : 0;
+			my $deprecated = exists $hash_ref->{deprecated} ? $hash_ref->{deprecated} : 0;
+			my $obsoletes  = exists $hash_ref->{obsoletes}  ? $hash_ref->{obsoletes}  : 0;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique}       = $unique;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{required}     = $required;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated}   = $deprecated;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{obsoletes}    = $obsoletes;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{description}  = $hash_ref->{shortdesc}->{content};
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches}     = defined $hash_ref->{getopt}->{mixed} ? $hash_ref->{getopt}->{mixed} : "";
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} = $hash_ref->{content}->{type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"fences::${fence_agent}::parameters::${name}::unique"       => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique},
+				"fences::${fence_agent}::parameters::${name}::required"     => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required},
+				"fences::${fence_agent}::parameters::${name}::deprecated"   => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated},
+				"fences::${fence_agent}::parameters::${name}::obsoletes"    => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{obsoletes},
+				"fences::${fence_agent}::parameters::${name}::description"  => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description},
+				"fences::${fence_agent}::parameters::${name}::switches"     => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches},
+				"fences::${fence_agent}::parameters::${name}::content_type" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type},
+			}});
+			if ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "string")
+			{
+				my $string_default                                                    = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
+				   $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = $string_default;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
+				}});
+			}
+			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "select")
+			{
+				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options} = [];
+				foreach my $option_ref (@{$hash_ref->{content}->{option}})
+				{
+					push @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}}, $option_ref->{value};
+				}
+				
+				foreach my $option (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { option => $option }});
+				}
+			}
+			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "boolean")
+			{
+				# Nothing to collect here.
+			}
+			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "second")
+			{
+				# Nothing to collect here.
+				my $second_default = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
+				   $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = $second_default;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
+				}});
+			}
+			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "integer")
+			{
+				# Nothing to collect here.
+				my $integer_default = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
+				   $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = $integer_default;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
+				}});
+			}
+		}
+		
+		$anvil->data->{fences}{$fence_agent}{actions} = [];
+		foreach my $hash_ref (@{$agent_ref->{'resource-agent'}->{actions}{action}})
+		{
+			push @{$anvil->data->{fences}{$fence_agent}{actions}}, $hash_ref->{name};
+		}
+		foreach my $action (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{actions}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { action => $action }});
+		}
+	}
+
+	
+	return(0);
+}
 
 =head2 get_local_repo
 

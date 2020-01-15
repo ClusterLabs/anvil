@@ -1,0 +1,165 @@
+#!/usr/bin/perl
+# 
+# This walks through all installed fence agents, parses their man page, and records their description and STDIN parameters.
+# 
+# TODO: 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 0});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+$anvil->data->{switches}{refresh} = 0;
+$anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	"switches::refresh" => $anvil->data->{switches}{refresh}, 
+}});
+
+refresh_unified_metadata($anvil);
+$anvil->Striker->get_fence_data({debug => 2});
+
+$anvil->nice_exit({exit_code => 0});
+
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# See if the unified fence metadata need to be (re)generated.
+sub refresh_unified_metadata
+{
+	my ($anvil) = @_;
+	
+	my $refresh = 0;
+	if (not -e $anvil->data->{path}{data}{fences_unified_metadata})
+	{
+		$refresh = 1;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0472"});
+	}
+	elsif ($anvil->data->{switches}{refresh})
+	{
+		$refresh = 1;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0473"});
+	}
+	else
+	{
+		# How old is the file?
+		my $modified_time = (stat($anvil->data->{path}{data}{fences_unified_metadata}))[9];
+		my $age           = time - $modified_time;
+		my $maximum_age   = ((60 * 60) * 24);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			modified_time => $modified_time, 
+			age           => $age,
+			maximum_age   => $maximum_age,  
+		}});
+		if ($age > $maximum_age)
+		{
+			$refresh = 1;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0474"});
+		}
+	}
+	
+	if ($refresh)
+	{
+		# This will store the new unified XML, when regenerating the output.
+		$anvil->data->{fences}{unified_xml} =  "<\?xml version=\"1.0\" \?>\n\n";
+		$anvil->data->{fences}{unified_xml} .= "<unified>\n";
+
+		# Get a list of fence agents on this system.
+		get_fences_metadata($anvil);
+
+		$anvil->data->{fences}{unified_xml} .= "</unified>\n";
+
+		$anvil->Storage->write_file({
+			overwrite => 1,
+			backup    => 0,
+			file      => $anvil->data->{path}{data}{fences_unified_metadata}, 
+			body      => $anvil->data->{fences}{unified_xml}, 
+			user      => "apache", 
+			group     => "apache", 
+			mode      => "0666",
+		});
+	}
+
+	if (not -e $anvil->data->{path}{data}{fences_unified_metadata})
+	{
+		# Failed...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0113"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	return(0);
+}
+
+# The walks through the found fence_X files and reads their metadata.
+sub get_fences_metadata
+{
+	my ($anvil) = @_;
+	
+	my ($ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ls}." ".$anvil->data->{path}{directories}{fence_agents}."/fence_*"});
+	foreach my $line (split/\n/, $ethtool)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		
+		# fence_pacemaker is out fence handler for DRBD 9 and it isn't a fence agent, skip it.
+		next if $line eq $anvil->data->{path}{directories}{fence_agents}."/fence_pacemaker";
+		
+		# fence_virtd is the host daemon component of 'fence_virt', ignore it
+		next if $line eq $anvil->data->{path}{directories}{fence_agents}."/fence_virtd";
+		
+		my $fence_agent_path = $line;
+		my $fence_agent_file = ($fence_agent_path =~ /^.*\/(.*)$/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			fence_agent_path => $fence_agent_path,
+			fence_agent_file => $fence_agent_file, 
+		}});
+		
+		# Add it's metadata to the unify XML.
+		unify_metadata($anvil, $fence_agent_path, $fence_agent_file);
+	}
+	
+	return(0);
+}
+
+# This does the actual call to collect the agent's metadata.
+sub unify_metadata
+{
+	my ($anvil, $fence_agent_path, $fence_agent_file) = @_;
+	
+	my ($metadata, $return_code) = $anvil->System->call({debug => 3, shell_call => $fence_agent_path." -o metadata"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		metadata    => $metadata, 
+		return_code => $return_code,
+	}});
+	if ($metadata =~ /<\?xml version="1.0" \?>/gs)
+	{
+		$metadata                           =~ s/<\?xml version="1.0" \?>/<agent name="$fence_agent_file">/gs;
+		$anvil->data->{fences}{unified_xml} .= $metadata."\n";
+		$anvil->data->{fences}{unified_xml} .= "</agent>\n";
+	}
+	else
+	{
+		# Bad, ignore it.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, priority => "alert", key => "warning_0028", variables => { agent => $fence_agent_file }});
+		return(1);
+	}
+	
+	return(0);
+}

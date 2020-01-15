@@ -810,6 +810,9 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0469">The rpm: [#!variable!rpm_path!#] appears to be a problem, removing it.</key>
 		<key name="log_0470">The network mapping flag has aged out, clearing it.</key>
 		<key name="log_0471">The network mapping flag is set. If it isn't cleared by the user, it will expire in: [#!variable!timeout!#] second(s).</key>
+		<key name="log_0472">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] doesn't exist yet. It will be created now.</key>
+		<key name="log_0473">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] will be refreshed on user request (--refresh passed).</key>
+		<key name="log_0474">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] old and will now be refreshed.</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1250,6 +1253,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0025">There was a problem saving the mail server data. Please check the logs for more information.</key>
 		<key name="warning_0026">The recipient's email address appears to not be valid.</key>
 		<key name="warning_0027">There was a problem saving the alert recipient data. Please check the logs for more information.</key>
+		<key name="warning_0028">Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -1377,6 +1381,18 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0108">The 'recipient_new_level': [#!variable!recipient_new_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
 		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
 		<key name="error_0110">The 'notification_uuid': [#!variable!notification_uuid!#] was not found in the database.</key>
+		<key name="error_0111">
+[ Error ] - The was a problem parsing the unified metadata:
+===========================================================
+#!variable!xml_body!#
+===========================================================
+The error was:
+===========================================================
+#!variable!eval_error!#
+===========================================================
+</key>
+		<key name="error_0112"><![CDATA[Failed to read valid unified XML data from: [#!variable!file!#]. It should start with: [<?xml version="1.0" ?>]]]></key>
+		<key name="error_0113">The unified metadata file: [#!data!path::data::fences_unified_metadata!#] was not found. There may have been a problem creating it.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
