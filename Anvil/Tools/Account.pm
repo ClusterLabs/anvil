@@ -569,7 +569,7 @@ AND
 	$anvil->data->{sys}{users}{user_name}  = $results->[0]->[0];
 	$anvil->data->{sessions}{session_salt} = $results->[0]->[1];
 	$anvil->data->{sessions}{session_salt} = "" if not defined $anvil->data->{sessions}{session_salt};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"sys::users::user_name"  => $anvil->data->{sys}{users}{user_name}, 
 		"sessions::session_salt" => $anvil->data->{sessions}{session_salt},
 	}});

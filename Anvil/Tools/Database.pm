@@ -9333,14 +9333,32 @@ sub resync_databases
 							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::exists" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'}, 
 							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen"   => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen}, 
 						}});
+						
 						next;
 					}
 					
-					# TODO: Remove these or make them proper errors
-					die $THIS_FILE." ".__LINE__."; This row's modified_date wasn't the first column returned in query: [$query]\n" if not $modified_date;
-					die $THIS_FILE." ".__LINE__."; This row's UUID column: [$uuid_column] wasn't the second column returned in query: [$query]\n" if not $row_uuid;
+					# If we failed to get a modified_date, something went very wrong.
+					if (not $modified_date)
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0114", variables => { query => $query }});
+						$anvil->nice_exit({code => 1});
+						die;
+					}
+					
+					# If we don't have a row uuid, something has also gone wrong...
+					if (not $row_uuid)
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0115", variables => { 
+							uuid_column => $uuid_column, 
+							query       => $query,
+						}});
+						$anvil->nice_exit({code => 1});
+						die;
+					}
 					
 					# Record this in the unified and local hashes.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { row_uuid => $row_uuid }});
+					
 					$anvil->data->{db_data}{unified}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name} = $column_value;
 					$anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}{$column_name}   = $column_value;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -9372,19 +9390,21 @@ sub resync_databases
 					#   \- If we have seen, see if it exists at the current timestamp.
 					#      \- If not, _INSERT_ it into history schema.
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen} 
+						"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen}, 
 					}});
+					$anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen} = 0 if not defined $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen};
 					if (not $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen})
 					{
 						# Mark this record as now having been seen.
 						$anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen} = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen} 
+							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::seen" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{seen}, 
 						}});
 						
 						# Does it exist?
+						$anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'} = 0 if not defined $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::exists" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'} 
+							"db_data::${uuid}::${table}::${uuid_column}::${row_uuid}::exists" => $anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'}, 
 						}});
 						if ($anvil->data->{db_data}{$uuid}{$table}{$uuid_column}{$row_uuid}{'exists'})
 						{
@@ -9447,8 +9467,37 @@ sub resync_databases
 							}
 							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
-							# Now record the query in the array
-							push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
+							### NOTE: On some occasions, for as-yet unknown 
+							###       reasons, a record can end up in the public 
+							###       schema while nothing exists in the history 
+							###       schema (which is what we read during a 
+							###       resync). To deal with this, we'll do an
+							###       explicit check before confirming the 
+							###       INSERT)
+							my $count_query = "SELECT COUNT(*) FROM public.".$table." WHERE ".$uuid_column." = ".$anvil->Database->quote($row_uuid).";";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count_query => $count_query }});
+							my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $count_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+							if ($count)
+							{
+								# Already in, redirect to the history schema.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0029", variables => { 
+									table     => $table, 
+									host_name => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid}), 
+									host_uuid => $uuid, 
+									column    => $uuid_column, 
+									uuid      => $row_uuid, 
+									query     => $query, 
+								}});
+								$query =~ s/INSERT INTO public./INSERT INTO history./;
+								
+								push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
+							}
+							else
+							{
+								# No problem, record the query in the array
+								push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
+							}
 						} # if not exists
 					} # if not seen
 					else
@@ -9460,6 +9509,7 @@ sub resync_databases
 						# We've seen this row_uuid before, so it is just a 
 						# question of whether the entry for the current 
 						# timestamp exists in the history schema.
+						$anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid} = 0 if not defined $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							"db_data::${uuid}::${table}::modified_date::${modified_date}::${uuid_column}::${row_uuid}" => $anvil->data->{db_data}{$uuid}{$table}{modified_date}{$modified_date}{$uuid_column}{$row_uuid}, 
 						}});
@@ -9499,7 +9549,7 @@ sub resync_databases
 							push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
 						} # if not exists - timestamp
 					} # if seen
-				} # foreach $id
+				} # foreach $uuid
 			} # foreach $row_uuid
 		} # foreach $modified_date ...
 		
@@ -10476,6 +10526,7 @@ sub _test_access
 			# No connections are left, die.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0196"});
 			$anvil->nice_exit({code => 1});
+			
 			# In case we're still alive, die.
 			die $THIS_FILE." ".__LINE__."; exiting on DB connection error.\n";
 		}

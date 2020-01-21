@@ -1078,7 +1078,7 @@ sub _set_paths
 				network_cache			=>	"/tmp/network_cache.anvil",
 				passwd				=>	"/etc/passwd",
 				'redhat-release'		=>	"/etc/redhat-release",
-				fences_unified_metadata		=>	"/tmp/fences_unified_metadata.xml",
+				fences_unified_metadata		=>	"/var/www/html/fences_unified_metadata.xml",
 			},
 			directories		=>	{
 				anvil				=>	"/etc/anvil",
@@ -1190,6 +1190,7 @@ sub _set_paths
 				'striker-initialize-host'	=>	"/usr/sbin/striker-initialize-host",
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",
 				'striker-manage-peers'		=>	"/usr/sbin/striker-manage-peers",
+				'striker-parse-fence-agents'	=>	"/usr/sbin/striker-parse-fence-agents",
 				'striker-parse-oui'		=>	"/usr/sbin/striker-parse-oui",
 				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",
 				'striker-scan-network'		=>	"/usr/sbin/striker-scan-network",

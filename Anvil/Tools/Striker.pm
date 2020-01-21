@@ -95,6 +95,11 @@ sub get_fence_data
 	
 	my $parsed_xml = "";
 	my $xml_body   = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{fences_unified_metadata}});
+	
+	# Globally replace \fI (opening underline) with '[' and \fP (closing underline) with ']'.
+	$xml_body =~ s/\\fI/[/gs;
+	$xml_body =~ s/\\fP/]/gs;
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { xml_body => $xml_body }});
 	if ($xml_body =~ /<\?xml version="1.0" \?>/gs)
 	{
@@ -117,7 +122,6 @@ sub get_fence_data
 		return(1);
 	}
 	
-	#print Dumper $parsed_xml;
 	foreach my $agent_ref (@{$parsed_xml->{agent}})
 	{
 		my $fence_agent                                      = $agent_ref->{name};
@@ -156,13 +160,14 @@ sub get_fence_data
 			my $required   = exists $hash_ref->{required}   ? $hash_ref->{required}   : 0;
 			my $deprecated = exists $hash_ref->{deprecated} ? $hash_ref->{deprecated} : 0;
 			my $obsoletes  = exists $hash_ref->{obsoletes}  ? $hash_ref->{obsoletes}  : 0;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique}       = $unique;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{required}     = $required;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated}   = $deprecated;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{obsoletes}    = $obsoletes;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{description}  = $hash_ref->{shortdesc}->{content};
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches}     = defined $hash_ref->{getopt}->{mixed} ? $hash_ref->{getopt}->{mixed} : "";
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} = $hash_ref->{content}->{type};
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique}       =  $unique;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{required}     =  $required;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated}   =  $deprecated;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{obsoletes}    =  $obsoletes;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{description}  =  $hash_ref->{shortdesc}->{content};
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{description}  =~ s/\n/ /g;
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches}     =  defined $hash_ref->{getopt}->{mixed} ? $hash_ref->{getopt}->{mixed} : "";
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} =  $hash_ref->{content}->{type};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"fences::${fence_agent}::parameters::${name}::unique"       => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique},
 				"fences::${fence_agent}::parameters::${name}::required"     => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required},
@@ -213,6 +218,16 @@ sub get_fence_data
 				   $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = $integer_default;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
+				}});
+			}
+			
+			# If this obsoletes another parameter, mark it as such.
+			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement} = "" if not exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
+			if ($obsoletes)
+			{
+				$anvil->data->{fences}{$fence_agent}{parameters}{$obsoletes}{replacement} = $name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"fences::${fence_agent}::parameters::${obsoletes}::replacement" => $anvil->data->{fences}{$fence_agent}{parameters}{$obsoletes}{replacement},
 				}});
 			}
 		}

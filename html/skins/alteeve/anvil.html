@@ -18,10 +18,18 @@
 			</tr>
 			<tr>
 				<td class="main_option_icon">
+					<a href="?anvil=true&task=fences"><img src="#!data!skin::url!#/images/fence.png" class="top_icon" ></a>
+				</td>
+				<td class="main_option">
+					<a href="?anvil=true&task=fences">#!string!striker_0208!#</a>
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
 					<a href="?anvil=true&task=create&new=step1"><img src="#!data!skin::url!#/images/manifest.png" class="top_icon" ></a>
 				</td>
 				<td class="main_option">
-					<a href="?anvil=true&task=prep-host">#!string!striker_0204!#</a>
+					<a href="?anvil=true&task=create&new=step1">#!string!striker_0204!#</a>
 				</td>
 			</tr>
 			<tr>
@@ -49,6 +57,118 @@
 			</tr>
 		</table>
 <!-- end create-menu -->
+
+<!-- start fence-agent-menu -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/fence.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0209!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td class="description">
+					#!string!striker_0210!#<br /><br />
+					#!string!striker_0211!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					#!string!striker_0213!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					#!variable!existing_fences!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td>
+					<table class="centered">
+						<div id="new_fences">
+						<form name="new_fences" action="" method="post">
+						<tr>
+							<td>
+								#!string!striker_0070!#:
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td>
+								#!variable!fence_select!#
+							</td>
+						</tr>
+						<tr>
+							<td>
+								#!string!striker_0212!#:
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td>
+								#!variable!fence_count!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="3">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td colspan="3" class="no_border_right">
+								<input type="submit" name="add" id="add" class="button" value="#!string!striker_0070!#">
+							</td>
+						</tr>
+						</form>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table class="data_table">
+						<div id="fence_agent_list">
+							#!variable!descriptions!#
+						</div>
+					</table>
+				</td>
+			</tr>
+		</table>
+<!-- end fence-agent-menu -->
+
+<!-- start fence-agent-description -->
+						<tr>
+							<td>
+								<span class="column_row_value_fixed">#!variable!fence_agent!#</a>
+							</td>
+							<td>
+								#!variable!description!#
+							</td>
+						</tr>
+<!-- end fence-agent-description -->
 
 <!-- start existing-manifest-entry -->
 						<tr>
@@ -237,7 +357,7 @@
 									<tr>
 										<td>
 #!variable!host_name_form!#
-									</td>
+										</td>
 									</tr>
 									<tr>
 										<td>

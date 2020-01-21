@@ -338,10 +338,12 @@ sub handle_periodic_tasks
 	my ($anvil) = @_;
 	
 	my $now_time = time;
+	my $type     = $anvil->System->get_host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"s1:now_time"                  => $now_time, 
 		"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
-		"s3:timing::next_daily_check"  => $anvil->data->{timing}{next_daily_check}, 
+		"s3:timing::next_daily_check"  => $anvil->data->{timing}{next_daily_check},
+		"s4:type"                      => $type,
 	}});
 	
 	# Time to run once per minute tasks.
@@ -374,6 +376,14 @@ sub handle_periodic_tasks
 			"s1:timing::minute_checks"     => $anvil->data->{timing}{minute_checks},
 			"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
 		}});
+		
+		# If we're a dashboard, see if the fence information needs to be gathered.
+		if ($type eq "dashboard")
+		{
+			# Even when this runs, it should finish in under ten seconds so we don't need to background it.
+			my ($parse_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'striker-parse-fence-agents'}, source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { parse_output => $parse_output }});
+		}
 		
 		# Scan the local network.
 		update_state_file($anvil);
@@ -419,9 +429,6 @@ sub handle_periodic_tasks
 		### NOTE: We call it once/day, but this will also trigger on restart of anvil-daemon. As such, we
 		###       don't use '--force' and let striker-manage-install-target skip the repo update if it happened
 		###       recently enough.
-		my $type = $anvil->System->get_host_type();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
-		
 		if ($type eq "dashboard")
 		{
 			# Record a job, don't call it directly. It takes too long to run.

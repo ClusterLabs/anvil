@@ -405,6 +405,11 @@ td.top_padded_cell {
 	text-align: center;
 }
 
+.description {
+	font-size:  1.2em;
+	text-align: center;
+}
+
 .top_icon {
 	border-top:   0.3em solid transparent;
 	border-left:  0.3em solid transparent;

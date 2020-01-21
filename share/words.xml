@@ -1076,6 +1076,12 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0205">Existing Manifests:</key>
 		<key name="striker_0206">Run</key>
 		<key name="striker_0207">Edit</key>
+		<key name="striker_0208">Configure fence devices. These will be used when creating install manifests and are a critical safety mechanisms that will protect your data when a node misbehaves.</key>
+		<key name="striker_0209">Configure fence devices.</key>
+		<key name="striker_0210">Fence devices are used to force a node that has entered an unknown state into a known state. Recovery after a node fault can not proceed until this happens, so this step is critically important.</key>
+		<key name="striker_0211">Note: Any IPMI (iRMC, iLO, DRAC, etc) fence config will be handled in the host's config. This section configures shared devices, like PDUs. The ports/outlets a given node will use will be set in the install manifest later.</key>
+		<key name="striker_0212">How Many?</key>
+		<key name="striker_0213">Known fence devices:</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1254,6 +1260,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0026">The recipient's email address appears to not be valid.</key>
 		<key name="warning_0027">There was a problem saving the alert recipient data. Please check the logs for more information.</key>
 		<key name="warning_0028">Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
+		<key name="warning_0029">While resync'ing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and it probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -1393,6 +1400,8 @@ The error was:
 </key>
 		<key name="error_0112"><![CDATA[Failed to read valid unified XML data from: [#!variable!file!#]. It should start with: [<?xml version="1.0" ?>]]]></key>
 		<key name="error_0113">The unified metadata file: [#!data!path::data::fences_unified_metadata!#] was not found. There may have been a problem creating it.</key>
+		<key name="error_0114">This row's modified_date wasn't the first column returned in query: [#!variable!query!#]</key>
+		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
