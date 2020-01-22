@@ -38,7 +38,29 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 #	print "iso: [".$iso."] -> [".$anvil->data->{sys}{languages}{$iso}."]\n";
 #}
 
-# $anvil->Striker->get_fence_data({debug => 3});
+$anvil->Striker->get_fence_data({debug => 3});
+
+my $fence_agent = "fence_apc_snmp";
+print "Fence agent: [".$fence_agent."]\n";
+foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fences}{$fence_agent}{parameters}})
+{
+	next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
+	next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated};
+	my $unique      = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique};
+	my $required    = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required};
+	my $description = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description};
+	my $type        = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type};
+	my $default     = exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} : "";
+	print "- name: [$name], default: [".$default."]\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		name        => $name,
+		unique      => $unique, 
+		required    => $required, 
+		description => $description, 
+		type        => $type, 
+		'default'   => $default, 
+	}});
+}
 
 # foreach my $fence_agent (sort {$a cmp $b} keys %{$anvil->data->{fences}})
 # {

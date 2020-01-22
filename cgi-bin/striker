@@ -1543,7 +1543,7 @@ sub process_fences
 	my ($anvil) = @_;
 	
 	# Read/process the unified fences metadata.
-	$anvil->Striker->get_fence_data({debug => 2});
+	$anvil->Striker->get_fence_data({debug => 3});
 	
 	$anvil->data->{cgi}{fence_agent}{value} = "" if not defined $anvil->data->{cgi}{fence_agent}{value};
 	$anvil->data->{cgi}{fence_count}{value} = 2  if not defined $anvil->data->{cgi}{fence_count}{value};
@@ -1552,137 +1552,241 @@ sub process_fences
 		"cgi::fence_count::value" => $anvil->data->{cgi}{fence_count}{value},
 	}});
 	
-	# For each agent, we'll create a <div> with it's options that will be shown/hidden basen on the agent
-	# select box.
-	my $agents           = [];
-	my $description_form = "";
-	foreach my $fence_agent (sort {$a cmp $b} keys %{$anvil->data->{fences}})
+	# Are we configuring an agent/device?
+	if ($anvil->data->{cgi}{fence_agent}{value})
 	{
-		# We don't care about IPMI-based fence agents here.
-		next if $fence_agent eq "fence_drac5";
-		next if $fence_agent eq "fence_idrac";
-		next if $fence_agent =~ /^fence_ilo/;
-		next if $fence_agent eq "fence_imm";
-		next if $fence_agent eq "fence_ipmilan";
-		next if $fence_agent eq "fence_redfish";
-		next if $fence_agent eq "fence_rsa";
+		my $fence_agent = $anvil->data->{cgi}{fence_agent}{value};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_agent => $fence_agent }});
+	
+		my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fences}{$fence_agent}{description});
 		
-		push @{$agents}, $fence_agent;
-		
-		my $agent_description =  $anvil->data->{fences}{$fence_agent}{description};
-		   $agent_description =~ s/\n/<br \/>/gs;
-		   $agent_description =~ s/<br \/>/<br \/>\n/gs;
-		   $agent_description =~ s/(http:\/\/.*)\n/<a href target="_new" target="$1">$1<\/a>/gs;
-		   $agent_description =~ s/(https:\/\/.*)\n/<a href target="_new" target="$1">$1<\/a>/gs;
-		   $agent_description =~ s/(http:\/\/.*) /<a href target="_new" target="$1">$1<\/a> /gs;
-		   $agent_description =~ s/(https:\/\/.*) /<a href target="_new" target="$1">$1<\/a> /gs;
-		
-		# There's a table in the fence_azure_arm agent, this formats it
-		if ($fence_agent eq "fence_azure_arm")
+		# Walk through the list of options
+		my $option_form = "";
+		foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
 		{
-			my $in_pre          = 0;
-			my $break_number    = 0;
-			my $new_desctiption = "";
-			foreach my $line (split/\n/, $agent_description)
+			my $say_device     = $anvil->Words->string({key => "striker_0216", variables => { number => $i }});
+			my $device_options = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				i          => $i,
+				say_device => $say_device, 
+			}});
+			
+			foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fences}{$fence_agent}{parameters}})
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-				if ($line =~ /\+---/)
+				# We don't show deprecated or replaced options.
+				next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
+				next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated};
+				my $option_key  = $name."_".$i;
+				my $unique      = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique};
+				my $required    = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required};
+				my $description = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description};
+				my $type        = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type};
+				my $default     = exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					option_key  => $option_key,
+					unique      => $unique, 
+					required    => $required, 
+					description => $description, 
+					type        => $type, 
+					'default'   => $default, 
+				}});
+				
+				# Set the cgi variable to the default, if not already set.
+				$anvil->data->{cgi}{$option_key}{value} = $default if not defined $anvil->data->{cgi}{$option_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"cgi::".$option_key."::value" => $anvil->data->{cgi}{$option_key}{value},
+				}});
+				
+				# Set the CGI default if not already set.
+				$anvil->data->{cgi}{$option_key}{value} = $default if not exists $anvil->data->{cgi}{$option_key}{value};
+				if ($type eq "select")
 				{
-					$line =~ s/<br \/>//g;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { break_number => $break_number }});
-					if (not $break_number)
+					# Build the select box
+					my $options = [];
+					foreach my $option (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}})
 					{
-						$in_pre          =  1;
-						$new_desctiption .= "<pre>\n";
-						$new_desctiption .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_desctiption => $new_desctiption }});
+						push @{$options}, $option;
 					}
-					elsif ($break_number == 2)
-					{
-						$in_pre          =  0;
-						$new_desctiption .= $line."\n";
-						$new_desctiption .= "</pre>\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_desctiption => $new_desctiption }});
-					}
-					else
-					{
-						$new_desctiption .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_desctiption => $new_desctiption }});
-					}
-					$break_number++;
+					
+					my $select_options = $anvil->Template->select_form({
+						name     => $option_key,
+						options  => $options,
+						blank    => $required ? 0 : 1,
+						'sort'   => 1,
+						selected => $anvil->data->{cgi}{$option_key}{value},
+						class    => $required ? "input_required" : "input_clear",
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { select_options => $select_options }});
+					
+					# Build the entry
+					my $select_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-option-entry", variables => {
+						name        => $name, 
+						option      => $select_options,
+						description => $description, 
+					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { select_form => $select_form }});
+					 
+					$device_options .= $select_form;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { device_options => $device_options }});
+				}
+				elsif ($type eq "boolean")
+				{
+					# Build the entry
+					my $checkbox_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-checkbox-entry", variables => { 
+						name             => $name,
+						checkbox_name    => $option_key,
+						checkbox_checked => $anvil->data->{cgi}{$option_key}{value} ? "checked" : "",
+						description => $description, 
+					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { checkbox_form => $checkbox_form }});
+					
+					$device_options .= $checkbox_form;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { device_options => $device_options }});
 				}
 				else
 				{
-					if ($in_pre)
-					{
-						$line =~ s/<br \/>//g;
-					}
-					$new_desctiption .= $line."\n";
+					### String, Second or Integer. 
+					# Build the entry
+					my $string_options .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-input-entry", variables => { 
+						name        => $name, 
+						key         => $option_key,
+						value       => $anvil->data->{cgi}{$option_key}{value},
+						'default'   => $default, 
+						class       => $required ? "input_required" : "input_clear",, 
+						description => $description, 
+					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { string_options => $string_options }});
+					
+					$device_options .= $string_options;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { device_options => $device_options }});
 				}
 			}
-			$agent_description = $new_desctiption;
+			
+			$option_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-option-menu", variables => {
+				device_name    => $say_device, 
+				device_options => $device_options,
+			}});
 		}
 		
-		$description_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-description", variables => {
-			fence_agent => $fence_agent, 
-			description => $agent_description,
+		$anvil->data->{form}{back_link} = "?anvil=true&task=fences";
+		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-configuration", variables => {
+			description     => $agent_description, 
+			options         => $option_form, 
 		}});
-=cut
-		foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fences}{$fence_agent}{parameters}})
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+	}
+	else
+	{
+		# For each agent, we'll create a <div> with it's options that will be shown/hidden basen on the agent
+		# select box.
+		my $agents           = [];
+		my $description_form = "";
+		foreach my $fence_agent (sort {$a cmp $b} keys %{$anvil->data->{fences}})
 		{
-			# We don't show deprecated or replaced options.
-			next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
-			next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated};
-			my $unique      = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique};
-			my $required    = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required};
-			my $description = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description};
-			my $switches    = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches};
-			my $type        = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type};
-			my $star        = $required ? "*" : "";
-			my $default     = exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} : "";
-			if ($type eq "select")
-			{
-				# Build the select box
-				my @options = ();
-				foreach my $option (sort @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}})
-				{
-					push @options, $option;
-				}
-			}
+			# We don't care about IPMI-based fence agents here.
+			next if $fence_agent eq "fence_drac5";
+			next if $fence_agent eq "fence_idrac";
+			next if $fence_agent =~ /^fence_ilo/;
+			next if $fence_agent eq "fence_imm";
+			next if $fence_agent eq "fence_ipmilan";
+			next if $fence_agent eq "fence_redfish";
+			next if $fence_agent eq "fence_rsa";
+			
+			push @{$agents}, $fence_agent;
+			
+			my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fences}{$fence_agent}{description});
+			
+			$description_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-description", variables => {
+				name        => $fence_agent, 
+				description => $agent_description,
+			}});
 		}
-=cut
+		
+		my $fence_agent_select = $anvil->Template->select_form({
+			name     => "fence_agent",
+			options  => $agents,
+			blank    => 0,
+			'sort'   => 1,
+			selected => $anvil->data->{cgi}{fence_agent}{value} ? $anvil->data->{cgi}{fence_agent}{value} : "fence_apc_snmp",
+			class    => "input_clear",
+		});
+		my $fence_count_select = $anvil->Template->select_form({
+			name     => "fence_count",
+			options  => [1, 2, 3, 4],
+			blank    => 0,
+			'sort'   => 0,
+			selected => $anvil->data->{cgi}{fence_count}{value},
+			class    => "input_clear",
+		});
+	
+		$anvil->data->{form}{back_link} = "?anvil=true&task=create";
+		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-menu", variables => {
+			fence_select    => $fence_agent_select, 
+			fence_count     => $fence_count_select,
+			descriptions    => $description_form, 
+			existing_fences => "",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	}
 	
-	my $fence_agent_select = $anvil->Template->select_form({
-		name     => "fence_agent",
-		options  => $agents,
-		blank    => 0,
-		'sort'   => 1,
-		selected => $anvil->data->{cgi}{fence_agent}{value},
-		class    => "input_clear",
-	});
-	my $fence_count_select = $anvil->Template->select_form({
-		name     => "fence_count",
-		options  => [1, 2, 3, 4],
-		blank    => 0,
-		'sort'   => 0,
-		selected => $anvil->data->{cgi}{fence_count}{value},
-		class    => "input_clear",
-	});
-	
-	$anvil->data->{form}{back_link}     = "?anvil=true&task=create";
-	$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
-	$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
-	$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
-	$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "fence-agent-menu", variables => {
-		fence_select    => $fence_agent_select, 
-		fence_count     => $fence_count_select,
-		descriptions    => $description_form, 
-		existing_fences => "",
-	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
-	
 	return(0);
+}
+
+sub format_fence_description
+{
+	my ($anvil, $fence_agent, $agent_description) = @_;
+	
+	# Replace newlines with <br /> elements.
+	$agent_description =~ s/\n/<br \/>/gs;
+	$agent_description =~ s/<br \/>/<br \/>\n/gs;
+	
+	# Handle fence_azure_arm.
+	if ($fence_agent eq "fence_azure_arm")
+	{
+		my $in_pre          = 0;
+		my $break_number    = 0;
+		my $new_desctiption = "";
+		foreach my $line (split/\n/, $agent_description)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			if ($line =~ /\+---/)
+			{
+				$line =~ s/<br \/>//g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { break_number => $break_number }});
+				if (not $break_number)
+				{
+					$in_pre          =  1;
+					$new_desctiption .= "<pre>\n";
+					$new_desctiption .= $line."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_desctiption => $new_desctiption }});
+				}
+				elsif ($break_number == 2)
+				{
+					$in_pre          =  0;
+					$new_desctiption .= $line."\n";
+					$new_desctiption .= "</pre>\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_desctiption => $new_desctiption }});
+				}
+				else
+				{
+					$new_desctiption .= $line."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_desctiption => $new_desctiption }});
+				}
+				$break_number++;
+			}
+			else
+			{
+				if ($in_pre)
+				{
+					$line =~ s/<br \/>//g;
+				}
+				$new_desctiption .= $line."\n";
+			}
+		}
+		$agent_description = $new_desctiption;
+	}
+	
+	return($agent_description);
 }
 
 # This handles creating an Anvil! from an existing manifest

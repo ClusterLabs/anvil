@@ -198,6 +198,14 @@ input[type=text].input_alert, input[type=number].input_alert, select.input_alert
 	border: 1px solid #ff3f3f;
 }
 
+input[type=text].input_required, input[type=number].input_required, select.input_required {
+	border: 1px solid #7f7fff;
+}
+
+.say_required {
+	color: #7f7fff;
+}
+
 input[type=text].input_clear, input[type=number].input_clear, select.input_clear {
 	border: 1px solid #9ba0a5;
 }

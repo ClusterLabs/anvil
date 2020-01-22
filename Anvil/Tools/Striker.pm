@@ -129,7 +129,6 @@ sub get_fence_data
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"fences::${fence_agent}::description" => $anvil->data->{fences}{$fence_agent}{description},
 		}});
-		
 		if (exists $agent_ref->{'resource-agent'}->{'symlink'})
 		{
 			if (ref($agent_ref->{'resource-agent'}->{'symlink'}) eq "ARRAY")
@@ -155,7 +154,13 @@ sub get_fence_data
 		
 		foreach my $hash_ref (@{$agent_ref->{'resource-agent'}->{parameters}{parameter}})
 		{
-			my $name       = $hash_ref->{name};
+			# We ignore some parameters that are not useful parameters in our case.
+			my $name = $hash_ref->{name};
+			next if $name eq "help";
+			next if $name eq "version";
+			next if $name eq "delay";
+			next if $name eq "separator";
+			
 			my $unique     = exists $hash_ref->{unique}     ? $hash_ref->{unique}     : 0;
 			my $required   = exists $hash_ref->{required}   ? $hash_ref->{required}   : 0;
 			my $deprecated = exists $hash_ref->{deprecated} ? $hash_ref->{deprecated} : 0;
@@ -177,10 +182,39 @@ sub get_fence_data
 				"fences::${fence_agent}::parameters::${name}::switches"     => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches},
 				"fences::${fence_agent}::parameters::${name}::content_type" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type},
 			}});
-			if ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "string")
+			
+			# 'action' is a string, but it has a set list of allowed values, so we manually switch it to a 'select' for the web interface
+			if ($name eq "action")
 			{
-				my $string_default                                                    = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
-				   $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = $string_default;
+				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'}    = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
+				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} = "select";
+				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}      = [];
+				
+				# Read the action 
+				print "Agent: [".$fence_agent."]; actions (default: [".$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'}."]);\n";
+				foreach my $array_ref (sort {$a cmp $b} @{$agent_ref->{'resource-agent'}->{actions}->{action}})
+				{
+					# There are several options that don't make sense for us.
+					next if $array_ref->{name} eq "list";
+					next if $array_ref->{name} eq "monitor";
+					next if $array_ref->{name} eq "manpage";
+					next if $array_ref->{name} eq "status";
+					next if $array_ref->{name} eq "validate-all";
+					next if $array_ref->{name} eq "list-status";
+					next if $array_ref->{name} eq "metadata";
+					next if $array_ref->{name} eq "on";
+					
+					push @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}}, $array_ref->{name};
+				}
+				
+				foreach my $option (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { option => $option }});
+				}
+			}
+			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "string")
+			{
+				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
 				}});
@@ -205,8 +239,7 @@ sub get_fence_data
 			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "second")
 			{
 				# Nothing to collect here.
-				my $second_default = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
-				   $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = $second_default;
+				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
 				}});
@@ -214,8 +247,7 @@ sub get_fence_data
 			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "integer")
 			{
 				# Nothing to collect here.
-				my $integer_default = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
-				   $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = $integer_default;
+				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
 				}});

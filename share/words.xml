@@ -836,7 +836,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">Striker</key>
 		<key name="brand_0004">ScanCore</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2019 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2020 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		<key name="brand_0007">Node</key>
 		<key name="brand_0008">DR Host</key>
@@ -1081,7 +1081,13 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0210">Fence devices are used to force a node that has entered an unknown state into a known state. Recovery after a node fault can not proceed until this happens, so this step is critically important.</key>
 		<key name="striker_0211">Note: Any IPMI (iRMC, iLO, DRAC, etc) fence config will be handled in the host's config. This section configures shared devices, like PDUs. The ports/outlets a given node will use will be set in the install manifest later.</key>
 		<key name="striker_0212">How Many?</key>
-		<key name="striker_0213">Known fence devices:</key>
+		<key name="striker_0213">Configure fence devices:</key>
+		<key name="striker_0214">List of fence agents installed on this system:</key>
+		<key name="striker_0215">Configuring #!data!cgi::fence_agent::value!#.</key>
+		<key name="striker_0216">Configure device #!variable!number!#:</key>
+		<key name="striker_0217">Options description (from the agent's metadata):</key>
+		<key name="striker_0218">Note: Names and descriptions come from the fence agent itself</key>
+		<key name="striker_0219">Required field</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

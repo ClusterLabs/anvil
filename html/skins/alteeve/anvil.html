@@ -58,6 +58,123 @@
 		</table>
 <!-- end create-menu -->
 
+<!-- start fence-agent-configuration -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/fence.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0215!#
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					&nbsp;
+				</td>
+				<td class="subtle_text">
+					#!string!striker_0218!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td class="description">
+					#!variable!description!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2" class="subtle_text" style="text-align: right;">
+					<span class="say_required">#!string!striker_0219!#</span>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<form name="conce_configuration" action="" method="post">
+					<table class="centered">
+						#!variable!options!#
+						<tr>
+							<td colspan="3">
+								<input type="submit" name="save"  id="save"  class="button" value="#!string!striker_0067!#">
+								<input type="hidden" name="anvil" id="anvil" value="true">
+								<input type="hidden" name="task"  id="task"  value="fences">
+							</td>
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+		</table>
+<!-- end fence-agent-configuration -->
+
+<!-- start fence-agent-option-menu -->
+						<tr>
+							<td colspan="3" class="menu_title">
+								#!variable!device_name!#
+							</td>
+						</tr>
+						#!variable!device_options!#
+<!-- end fence-agent-option-menu -->
+
+<!-- start fence-agent-option-entry -->
+						<tr>
+							<td>
+								#!variable!name!# &nbsp; 
+							</td>
+							<td>
+								#!variable!option!#
+							</td>
+							<td>
+								 &nbsp; #!variable!description!#
+							</td>
+						</tr>
+<!-- end fence-agent-option-entry -->
+
+<!-- start fence-agent-checkbox-entry -->
+						<tr>
+							<td>
+								#!variable!name!# &nbsp; 
+							</td>
+							<td>
+								<input type="checkbox" id="#!variable!checkbox_name!#" name="#!variable!checkbox_name!#" #!variable!checkbox_checked!# />
+							</td>
+							<td>
+								 &nbsp; #!variable!description!#
+							</td>
+						</tr>
+<!-- end fence-agent-checkbox-entry -->
+
+<!-- start fence-agent-input-entry -->
+						<tr>
+							<td>
+								#!variable!name!# &nbsp; 
+							</td>
+							<td>
+								<input type="text" name="#!variable!key!#" id="#!variable!key!#" value="#!variable!value!#" placeholder="#!variable!default!#" class="#!variable!class!#">
+							</td>
+							<td>
+								 &nbsp; #!variable!description!#
+							</td>
+						</tr>
+<!-- end fence-agent-input-entry -->
+
 <!-- start fence-agent-menu -->
 		<table align="center" class="anvil_main_menu">
 			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
@@ -141,28 +258,45 @@
 						<tr>
 							<td colspan="3" class="no_border_right">
 								<input type="submit" name="add" id="add" class="button" value="#!string!striker_0070!#">
+								<input type="hidden" name="anvil" id="anvil" value="true">
+								<input type="hidden" name="task"  id="task"  value="fences">
 							</td>
 						</tr>
 						</form>
 					</table>
 				</td>
 			</tr>
+			<div id="fence_agent_list">
 			<tr>
 				<td colspan="2">
-					<table class="data_table">
-						<div id="fence_agent_list">
-							#!variable!descriptions!#
-						</div>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					#!string!striker_0214!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table>
+						#!variable!descriptions!#
 					</table>
 				</td>
 			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			</div>
 		</table>
 <!-- end fence-agent-menu -->
 
 <!-- start fence-agent-description -->
-						<tr>
+						<tr style="border: 1px dotted #7f7f7f;">
 							<td>
-								<span class="column_row_value_fixed">#!variable!fence_agent!#</a>
+								<span class="column_row_value_fixed">#!variable!name!#</a>
 							</td>
 							<td>
 								#!variable!description!#
