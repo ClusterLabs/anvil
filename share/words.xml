@@ -1083,10 +1083,10 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0212">How Many?</key>
 		<key name="striker_0213">Configure fence devices:</key>
 		<key name="striker_0214">List of fence agents installed on this system:</key>
-		<key name="striker_0215">Configuring #!data!cgi::fence_agent::value!#.</key>
+		<key name="striker_0215">Configuring '#!data!cgi::fence_agent::value!#'</key>
 		<key name="striker_0216">Configure device #!variable!number!#:</key>
 		<key name="striker_0217">Options description (from the agent's metadata):</key>
-		<key name="striker_0218">Note: Names and descriptions come from the fence agent itself</key>
+		<key name="striker_0218">Note: Names and descriptions come from the fence agent itself. If you need more help, please run 'man #!variable!name!#' at the command line.</key>
 		<key name="striker_0219">Required field</key>
 		
 		<!-- These are generally units and appended to numbers -->

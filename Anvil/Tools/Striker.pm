@@ -160,6 +160,7 @@ sub get_fence_data
 			next if $name eq "version";
 			next if $name eq "delay";
 			next if $name eq "separator";
+			next if $name =~ /snmp(.*?)_path/;
 			
 			my $unique     = exists $hash_ref->{unique}     ? $hash_ref->{unique}     : 0;
 			my $required   = exists $hash_ref->{required}   ? $hash_ref->{required}   : 0;

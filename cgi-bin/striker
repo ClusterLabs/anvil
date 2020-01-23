@@ -1672,6 +1672,7 @@ sub process_fences
 		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-configuration", variables => {
 			description     => $agent_description, 
 			options         => $option_form, 
+			note            => $anvil->Words->string({key => "striker_0218", variables => { name => $fence_agent }}),
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	}
