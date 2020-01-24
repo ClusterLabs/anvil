@@ -82,7 +82,12 @@ Common base libraries required for the Anvil! system.
 Summary:        Alteeve's Anvil! Striker dashboard package
 Requires:       anvil-core
 Requires:       anvil-striker-extra
+Requires:       bpg-dejavu-sans-fonts
 Requires:       createrepo
+Requires:       dejavu-fonts-common
+Requires:       dejavu-sans-fonts
+Requires:       dejavu-sans-mono-fonts
+Requires:       dejavu-serif-fonts
 Requires:       dhcp-server
 Requires:       firefox
 Requires:       gcc

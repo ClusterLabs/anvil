@@ -1971,7 +1971,6 @@ sub process_prep_network
 	{
 		# Clear the network map variable.
 		$anvil->Database->insert_or_update_variables({
-			debug                 => 2,
 			variable_name         => "config::map_network", 
 			variable_value        => 0, 
 			variable_default      => 0, 
@@ -1999,7 +1998,6 @@ sub process_prep_network
 			else
 			{
 				$anvil->Database->insert_or_update_variables({
-					debug                 => 3,
 					variable_name         => "form::config_step2::host_name::value", 
 					variable_value        => $anvil->data->{cgi}{host_name}{value}, 
 					variable_default      => "", 
@@ -2007,7 +2005,6 @@ sub process_prep_network
 					variable_section      => "config_step2", 
 					variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 					variable_source_table => "hosts", 
-					update_value_only     => 1, 
 				});
 			}
 		}
@@ -2034,7 +2031,6 @@ sub process_prep_network
 					variable_section      => "config_step2", 
 					variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 					variable_source_table => "hosts", 
-					update_value_only     => 1, 
 				});
 			}
 		}
@@ -2064,7 +2060,6 @@ sub process_prep_network
 					variable_section      => "config_step2", 
 					variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 					variable_source_table => "hosts", 
-					update_value_only     => 1, 
 				});
 			}
 		}
@@ -2083,7 +2078,6 @@ sub process_prep_network
 				variable_section      => "config_step1", 
 				variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 				variable_source_table => "hosts", 
-				update_value_only     => 1, 
 			});
 			
 			foreach my $i (1..$loops)
@@ -2180,7 +2174,6 @@ sub process_prep_network
 							variable_section      => "config_step2", 
 							variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 							variable_source_table => "hosts", 
-							update_value_only     => 1, 
 						});
 						$anvil->Database->insert_or_update_variables({
 							debug                 => 3,
@@ -2191,7 +2184,6 @@ sub process_prep_network
 							variable_section      => "config_step2", 
 							variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 							variable_source_table => "hosts", 
-							update_value_only     => 1, 
 						});
 					}
 					
@@ -2235,7 +2227,6 @@ sub process_prep_network
 								variable_section      => "config_step2", 
 								variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 								variable_source_table => "hosts", 
-								update_value_only     => 1, 
 							});
 						}
 					}
@@ -2253,7 +2244,6 @@ sub process_prep_network
 						variable_section      => "config_step2", 
 						variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 						variable_source_table => "hosts", 
-						update_value_only     => 1, 
 					});
 				}
 				
@@ -2325,7 +2315,6 @@ sub process_prep_network
 						variable_section      => "config_step2", 
 						variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 						variable_source_table => "hosts", 
-						update_value_only     => 1, 
 					});
 				}
 				if ($anvil->data->{cgi}{$link2_key}{value})
@@ -2339,7 +2328,6 @@ sub process_prep_network
 						variable_section      => "config_step2", 
 						variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 						variable_source_table => "hosts", 
-						update_value_only     => 1, 
 					});
 				}
 				
@@ -2353,7 +2341,6 @@ sub process_prep_network
 					variable_section      => "config_step2", 
 					variable_source_uuid  => $anvil->data->{cgi}{host_uuid}{value}, 
 					variable_source_table => "hosts", 
-					update_value_only     => 1, 
 				});
 				
 				$interfaces .= $anvil->Template->get({file => "anvil.html", name => "interface-entry", variables => {
@@ -2436,7 +2423,7 @@ sub process_prep_network
 	{
 		# We're mapping
 		$anvil->Database->insert_or_update_variables({
-			debug                 => 2,
+			debug                 => 3,
 			variable_name         => "config::map_network", 
 			variable_value        => 1, 
 			variable_default      => 0, 
@@ -2657,7 +2644,7 @@ sub process_prep_host_page
 		if ($host_uuid)
 		{
 			$anvil->Database->insert_or_update_variables({
-				debug                 => 2,
+				debug                 => 3,
 				variable_name         => "system::configured", 
 				variable_source_uuid  => $host_uuid, 
 				variable_source_table => "hosts", 
@@ -3919,11 +3906,11 @@ AND
     variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 ORDER BY 
     variable_name ASC;";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0124", variables => { query => $query }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
 		
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			results => $results, 
 			count   => $count,
 		}});
@@ -3940,7 +3927,7 @@ ORDER BY
 			{
 				my $variable                             = $1;
 				   $anvil->data->{cgi}{$variable}{value} = $variable_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${variable}::value" => $anvil->data->{cgi}{$variable}{value} }});
 			}
 		}
 	}
@@ -4299,7 +4286,6 @@ sub sanity_check_step2
 			variable_section      => "config_step2", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4322,7 +4308,6 @@ sub sanity_check_step2
 			variable_section      => "config_step2", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4345,7 +4330,6 @@ sub sanity_check_step2
 			variable_section      => "config_step2", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4379,7 +4363,6 @@ sub sanity_check_step2
 			variable_section      => "config_step2", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4439,7 +4422,6 @@ sub sanity_check_step2
 					variable_section      => "config_step2", 
 					variable_source_uuid  => $anvil->Get->host_uuid, 
 					variable_source_table => "hosts", 
-					update_value_only     => 1, 
 				});
 			}
 			
@@ -4469,7 +4451,6 @@ sub sanity_check_step2
 					variable_section      => "config_step2", 
 					variable_source_uuid  => $anvil->Get->host_uuid, 
 					variable_source_table => "hosts", 
-					update_value_only     => 1, 
 				});
 			}
 			
@@ -4500,7 +4481,6 @@ sub sanity_check_step2
 						variable_section      => "config_step2", 
 						variable_source_uuid  => $anvil->Get->host_uuid, 
 						variable_source_table => "hosts", 
-						update_value_only     => 1, 
 					});
 				}
 				else
@@ -4548,7 +4528,6 @@ sub sanity_check_step2
 							variable_section      => "config_step2", 
 							variable_source_uuid  => $anvil->Get->host_uuid, 
 							variable_source_table => "hosts", 
-							update_value_only     => 1, 
 						});
 					}
 					else
@@ -4631,7 +4610,6 @@ sub sanity_check_step2
 				variable_section      => "config_step2", 
 				variable_source_uuid  => $anvil->Get->host_uuid, 
 				variable_source_table => "hosts", 
-				update_value_only     => 1, 
 			});
 			
 			# Record the gateway interface
@@ -4643,7 +4621,6 @@ sub sanity_check_step2
 				variable_section      => "config_step2", 
 				variable_source_uuid  => $anvil->Get->host_uuid, 
 				variable_source_table => "hosts", 
-				update_value_only     => 1, 
 			});
 		}
 	}
@@ -4656,13 +4633,19 @@ sub sanity_check_step2
 sub sanity_check_step1
 {
 	my ($anvil) = @_;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0131", variables => { function => "sanity_check_step1()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0131", variables => { function => "sanity_check_step1()" }});
 	
 	# This will flip if we run into a problem.
 	my $sane = 1;
 	
+	$anvil->data->{cgi}{organization}{value} = "" if not defined $anvil->data->{cgi}{organization}{value};
+
 	# Organization just needs *something*
-	if ((not defined $anvil->data->{cgi}{organization}{value}) or (not $anvil->data->{cgi}{organization}{value}))
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cgi::organization::alert" => $anvil->data->{cgi}{organization}{alert},
+		
+	}});
+	if (not $anvil->data->{cgi}{organization}{value})
 	{
 		$anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0020", variables => { field => "striker_0003" }}) }});
 		$anvil->data->{cgi}{organization}{alert} = 1;
@@ -4673,6 +4656,7 @@ sub sanity_check_step1
 	{
 		# Record the answer.
 		$anvil->Database->insert_or_update_variables({
+                        debug                 => 3,
 			variable_name         => "form::config_step1::organization::value", 
 			variable_value        => $anvil->data->{cgi}{organization}{value}, 
 			variable_default      => "", 
@@ -4680,7 +4664,6 @@ sub sanity_check_step1
 			variable_section      => "config_step1", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4696,6 +4679,7 @@ sub sanity_check_step1
 	{
 		# Record the answer.
 		$anvil->Database->insert_or_update_variables({
+                        debug                 => 3,
 			variable_name         => "form::config_step1::prefix::value", 
 			variable_value        => $anvil->data->{cgi}{prefix}{value}, 
 			variable_default      => "", 
@@ -4703,7 +4687,6 @@ sub sanity_check_step1
 			variable_section      => "config_step1", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4719,6 +4702,7 @@ sub sanity_check_step1
 	{
 		# Record the answer.
 		$anvil->Database->insert_or_update_variables({
+                        debug                 => 3,
 			variable_name         => "form::config_step1::domain::value", 
 			variable_value        => $anvil->data->{cgi}{domain}{value}, 
 			variable_default      => "", 
@@ -4726,7 +4710,6 @@ sub sanity_check_step1
 			variable_section      => "config_step1", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4742,6 +4725,7 @@ sub sanity_check_step1
 	{
 		# Record the answer.
 		$anvil->Database->insert_or_update_variables({
+                        debug                 => 3,
 			variable_name         => "form::config_step1::sequence::value", 
 			variable_value        => $anvil->data->{cgi}{sequence}{value}, 
 			variable_default      => "", 
@@ -4749,7 +4733,6 @@ sub sanity_check_step1
 			variable_section      => "config_step1", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
@@ -4787,6 +4770,7 @@ sub sanity_check_step1
 	{
 		# Sane, Record the answers.
 		$anvil->Database->insert_or_update_variables({
+                        debug                 => 3,
 			variable_name         => "form::config_step1::ifn_count::value", 
 			variable_value        => $anvil->data->{cgi}{ifn_count}{value}, 
 			variable_default      => "", 
@@ -4794,11 +4778,10 @@ sub sanity_check_step1
 			variable_section      => "config_step1", 
 			variable_source_uuid  => $anvil->Get->host_uuid, 
 			variable_source_table => "hosts", 
-			update_value_only     => 1, 
 		});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
 	return($sane);
 }
 

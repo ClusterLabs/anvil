@@ -1267,6 +1267,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0027">There was a problem saving the alert recipient data. Please check the logs for more information.</key>
 		<key name="warning_0028">Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
 		<key name="warning_0029">While resync'ing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and it probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
+		<key name="warning_0030">Databse->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

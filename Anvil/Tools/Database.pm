@@ -7700,7 +7700,7 @@ This is an optional database table name that the variables relates to. Generally
 
 =head3 update_value_only (optional, default '0')
 
-When set to C<< 1 >>, this method will only update the variable's C<< variable_value >> column. Any other parameters are used to help locate the variable to update only.
+When set to C<< 1 >>, this method will only update the variable's C<< variable_value >> column. Any other parameters are used to help locate the variable to update only. If the C<< variable_uuid >> isn't passed and can't be found, the call will fail and an empty string is returned.
 
 =cut
 sub insert_or_update_variables
@@ -7807,6 +7807,21 @@ AND
 		if ($update_value_only)
 		{
 			# Nothing to do.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0030"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				uuid                  => $uuid, 
+				file                  => $file, 
+				line                  => $line, 
+				variable_uuid         => $variable_uuid, 
+				variable_name         => $variable_name, 
+				variable_value        => $variable_value, 
+				variable_default      => $variable_default, 
+				variable_description  => $variable_description, 
+				variable_section      => $variable_section, 
+				variable_source_uuid  => $variable_source_uuid, 
+				variable_source_table => $variable_source_table, 
+				update_value_only     => $update_value_only, 
+			}});
 			return("");
 		}
 		
