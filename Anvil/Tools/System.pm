@@ -1603,7 +1603,7 @@ sub get_uptime
 
 This returns the operating system type and the system architecture as two separate string variables.
 
- # Run on RHEL 7, on a 64-bit system
+ # Run on RHEL 8, on a 64-bit system
  my ($os_type, $os_arch) = $anvil->System->get_os_type();
  
  # '$os_type' holds 'rhel8'  ('rhel' or 'centos' + release version) 

@@ -25,6 +25,7 @@
 # 9  = The system isn't configured yet.
 # 10 = Failed to start dhcpd.
 # 11 = Failed to stop dhcpd.
+# 12 = Failed to rename the /var/www/html/rhel8 to ./centos8
 # 
 # Switchs 
 # 
@@ -535,6 +536,18 @@ sub setup_boot_environment
 		update_progress($anvil, 10, "message_0096,!!file!".$anvil->data->{path}{configs}{'dhcpd.conf'}."!!");
 	}
 	
+	### NOTE: Some of the strings in the 'tftp_bios' template expect 'sys::pxe::os_name' 
+	my ($os_type, $os_arch) = $anvil->System->get_os_type();
+	$anvil->data->{sys}{pxe}{os_name} = "";
+	$anvil->data->{sys}{pxe}{os_arch} = $os_arch;
+	if ($os_type eq "rhel8")
+	{
+		$anvil->data->{sys}{pxe}{os_name} = "RHEL 8";
+	}
+	elsif ($os_type eq "centos8")
+	{
+		$anvil->data->{sys}{pxe}{os_name} = "CentOS 8";
+	}
 	### PXE BIOS 'default' file.
 	my $bios_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bios_default_body => $bios_default_body }});
@@ -2224,11 +2237,6 @@ sub load_packages
 			"radvd.x86_64",
 			"rdma-core.x86_64",
 			"readline.x86_64",
-			"redhat-backgrounds.noarch",
-			"redhat-indexhtml.noarch",
-			"redhat-logos-httpd.noarch",
-			"redhat-logos.x86_64",
-			"redhat-release.x86_64",
 			"resource-agents.x86_64",
 			"rest.x86_64",
 			"rootfiles.noarch",
@@ -2376,6 +2384,45 @@ sub load_packages
 			"zlib.x86_64",
 		],
 	};
+	
+	my ($os_type, $os_arch) = $anvil->System->get_os_type();
+	if ($os_type eq "rhel8")
+	{
+		push @{$anvil->data->{packages}{r}}, "redhat-backgrounds.noarch";
+		push @{$anvil->data->{packages}{r}}, "redhat-indexhtml.noarch";
+		push @{$anvil->data->{packages}{r}}, "redhat-logos-httpd.noarch";
+		push @{$anvil->data->{packages}{r}}, "redhat-logos.x86_64";
+		push @{$anvil->data->{packages}{r}}, "redhat-release.x86_64";
+	}
+	elsif ($os_type eq "centos8")
+	{
+		push @{$anvil->data->{packages}{c}}, "centos-backgrounds.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-indexhtml.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-logos-httpd.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-logos.x86_64";
+		push @{$anvil->data->{packages}{c}}, "centos-release.x86_64";
+		
+		# While we're here, we will need to rename /var/www/html/rhel8 to /var/www/html/centos8, as
+		# 'rhel8' is used by anvil-striker-extra.
+		if ((-e $anvil->data->{path}{directories}{html}."/rhel8") && (not -e $anvil->data->{path}{directories}{html}."/centos8"))
+		{
+			my $shell_call = $anvil->data->{path}{exe}{mv}." ".$anvil->data->{path}{directories}{html}."/rhel8 ".$anvil->data->{path}{directories}{html}."/centos8";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			
+			my ($handle, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle, return_code => $return_code }});
+			if (-e $anvil->data->{path}{directories}{html}."/centos8")
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0475"});
+			}
+			else
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0116"});
+				$anvil->nice_exit({code => 12});
+			}
+		}
+	}
+	
 	update_progress($anvil, 5, "log_0241");
 	
 	return(0);

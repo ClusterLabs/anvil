@@ -215,7 +215,7 @@ if ($local_uuid)
 	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$local_uuid}{password}))
 	{
 		my $body = "*:*:*:postgres:".$anvil->data->{database}{$local_uuid}{password}."\n";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { body => $body }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { body => $body }});
 		$anvil->Storage->write_file({
 			file      => $anvil->data->{path}{secure}{postgres_pgpass},  
 			body      => $body,
@@ -228,7 +228,7 @@ if ($local_uuid)
 		if (-e $anvil->data->{path}{secure}{postgres_pgpass})
 		{
 			$created_pgpass = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { created_pgpass => $created_pgpass }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { created_pgpass => $created_pgpass }});
 		}
 	}
 	

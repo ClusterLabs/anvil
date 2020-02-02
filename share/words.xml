@@ -131,7 +131,7 @@ NOTE: Please be patient!
 		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
 		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
 		<key name="message_0083">Editing of this option is disabled.</key>
-		<key name="message_0084">^1. Install a Striker dashboard (RHEL 8b 64-bit)</key>
+		<key name="message_0084">^1. Install a Striker dashboard (#!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0085">
@@ -143,7 +143,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0086">^2. Install an Anvil! Node (RHEL 8b 64-bit)</key>
+		<key name="message_0086">^2. Install an Anvil! Node (#!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0087">
@@ -156,7 +156,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (RHEL 8b 64-bit)</key>
+		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (#!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!#)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
@@ -179,11 +179,11 @@ NOTE: Please be patient!
 	No data on the target machine will be changed by this option.
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0092">Install ^Standard RHEL 8b 64-bit Install</key>
+		<key name="message_0092">Install ^Standard #!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!# Install</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0093">
-	This will start a standard install of RHEL 8b.
+	This will start a standard install of #!data!sys::pxe::os_name!#.
 	
 	This option will not change anything on disk until and unless you choose to do so.
 		</key>
@@ -813,6 +813,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0472">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] doesn't exist yet. It will be created now.</key>
 		<key name="log_0473">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] will be refreshed on user request (--refresh passed).</key>
 		<key name="log_0474">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] old and will now be refreshed.</key>
+		<key name="log_0475">This is a CentOS machine, moving the directory: [#!data!path::directories::html!#/rhel8] to: [#!data!path::directories::html!#/centos8].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1409,6 +1410,7 @@ The error was:
 		<key name="error_0113">The unified metadata file: [#!data!path::data::fences_unified_metadata!#] was not found. There may have been a problem creating it.</key>
 		<key name="error_0114">This row's modified_date wasn't the first column returned in query: [#!variable!query!#]</key>
 		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
+		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!data!path::directories::html!#/rhel8] to: [#!data!path::directories::html!#/centos8], but that renane failed.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>
