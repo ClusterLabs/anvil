@@ -1592,6 +1592,7 @@ sub process_fences
 				}});
 				
 				# Set the cgi variable to the default, if not already set.
+				$anvil->data->{cgi}{$option_key}{alert} = ""       if not defined $anvil->data->{cgi}{$option_key}{alert};
 				$anvil->data->{cgi}{$option_key}{value} = $default if not defined $anvil->data->{cgi}{$option_key}{value};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"cgi::".$option_key."::value" => $anvil->data->{cgi}{$option_key}{value},
@@ -1614,12 +1615,13 @@ sub process_fences
 						blank    => $required ? 0 : 1,
 						'sort'   => 1,
 						selected => $anvil->data->{cgi}{$option_key}{value},
-						class    => $required ? "input_required" : "input_clear",
+						class    => $anvil->data->{cgi}{$option_key}{alert} ? "input_alert" : "input_clear",
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { select_options => $select_options }});
 					
 					# Build the entry
 					my $select_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-option-entry", variables => {
+						name_class  => $required ? "say_required" : "", 
 						name        => $name, 
 						option      => $select_options,
 						description => $description, 
@@ -1634,9 +1636,10 @@ sub process_fences
 					# Build the entry
 					my $checkbox_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-checkbox-entry", variables => { 
 						name             => $name,
+						name_class       => $required ? "say_required" : "", 
 						checkbox_name    => $option_key,
 						checkbox_checked => $anvil->data->{cgi}{$option_key}{value} ? "checked" : "",
-						description => $description, 
+						description      => $description, 
 					}});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { checkbox_form => $checkbox_form }});
 					
@@ -1652,7 +1655,8 @@ sub process_fences
 						key         => $option_key,
 						value       => $anvil->data->{cgi}{$option_key}{value},
 						'default'   => $default, 
-						class       => $required ? "input_required" : "input_clear",, 
+						name_class  => $required ? "say_required" : "", 
+						input_class => $anvil->data->{cgi}{$option_key}{alert} ? "input_alert" : "input_clear",
 						description => $description, 
 					}});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { string_options => $string_options }});

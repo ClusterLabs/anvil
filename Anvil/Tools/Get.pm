@@ -771,6 +771,7 @@ sub switches
 			}
 		}
 	}
+	
 	# Clean up the initial space added to 'raw'.
 	if ($anvil->data->{switches}{raw})
 	{

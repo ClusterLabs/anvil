@@ -1351,4 +1351,14 @@ Striker Version: 2.0.7
 </config>
 
 
+# Attach a network interface:
+virsh attach-interface win2019_test bridge ifn_bridge1 --live --model virtio
 
+# Detach a network interface:
+virsh detach-interface win2019_test bridge --mac 52:54:00:ee:b5:1d
+
+# Change the MTU of a device;
+ip link set <dev> mtu 9000
+
+# Change the MTU of an interface in windows (not tested yet - http://networking.nitecruzr.net/2007/11/setting-mtu-in-windows-vista.html)
+netsh interface ipv4 set subinterface "Local Area Connection" mtu=nnnn store=persistent
