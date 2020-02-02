@@ -1239,6 +1239,7 @@ sub load_packages
 			"bubblewrap.x86_64",
 			"bzip2-libs.x86_64",
 			"bzip2.x86_64",
+		],
 		c	=>	[
 			"c-ares.x86_64",
 			"ca-certificates.noarch",
