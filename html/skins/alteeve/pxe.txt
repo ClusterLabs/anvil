@@ -523,6 +523,7 @@ else
 ### NOTE: kickstart sizes are in MiB
 # Prepare some variables
 my $swap_size = 8192;
+my $boot_size = 1024;
 my $root_size = 0;
 my $vg_name   = $type."_".$id;
 
@@ -560,7 +561,7 @@ if ($available_space < 40960)
 }
 
 # The left over space is for '/' (we'll shorten this up to 40GiB for nodes and DR hosts next)
-$root_size = $available_space - $swap_size;
+$root_size = $available_space - $swap_size - $boot_size;
 print __LINE__."; [ Debug ] - root_size: [".$root_size."]\n" if $debug;
 
 print __LINE__."; [ Debug ] - type: [".$type."], root_size: [".$root_size."]\n" if $debug;
@@ -572,7 +573,7 @@ if (($type ne "striker") && ($root_size > 40960))
 
 # Round down to an event integer.
 $root_size =~ s/\.\d+$//;
-print __LINE__."; Assigning: [".hr_size($swap_size * (2**20))." (".$swap_size." MiB)], root_size: [".hr_size($root_size * (2**20))." (".$root_size.") MiB]\n" if $debug;
+print __LINE__."; Assigning: [".hr_size($swap_size * (2**20))." (".$swap_size." MiB)], root_size: [".hr_size($root_size * (2**20))." (".$root_size.") MiB], boot_size: [".hr_size($boot_size * (2**20))." (".$boot_size.") MiB]\n" if $debug;
 
 # Build the partition file.
 my $partition_file = "/tmp/plan_partitions.out";
@@ -587,7 +588,8 @@ if (not $raid_level)
 	$partition_body .= "
 # Partitions
 part biosboot --fstype=biosboot --size=2
-part pv.01    --fstype=lvmpv    --size=100 --ondisk=".$use_drive." --grow
+part /boot    --fstype=ext4     --size=1024 --ondisk=".$use_drive."
+part pv.01    --fstype=lvmpv    --size=100  --ondisk=".$use_drive." --grow
 
 # LVM Volume groups
 volgroup ".$vg_name." --pesize=4096 pv.01
@@ -611,14 +613,20 @@ else
 	$partition_body .= "
 # LVM PV
 ";
-	my $say_raid = "";
+	### TODO: Test the /boot part.
+	my $say_raid_boot = "";
+	my $say_raid      = "";
 	for (my $i = 0; $i < $count; $i++)
 	{
 		my $disk_number    =  $i + 1;
-		   $partition_body .= "part raid.1".$disk_number." --size 100 --grow --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
-		   $say_raid      .= "raid.1".$disk_number." ";
+		   $partition_body .= "part raid.0".$disk_number." --size 1025        --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
+		   $partition_body .= "part raid.1".$disk_number." --size 100  --grow --ondisk=".$drives->{by_hr_size}{$hr_size}->[$i]."\n";
+		   $say_raid_boot  .= "raid.0".$disk_number." ";
+		   $say_raid       .= "raid.1".$disk_number." ";
 	}
-	$partition_body .= "raid pv.01 --fstype=xfs --device=pv.01 --level=RAID".$raid_level." ".$say_raid."
+	$partition_body .= "
+raid /boot --fstype=ext4 --device=boot  --level=RAID1 ".$say_raid_boot."
+raid pv.01 --fstype=xfs  --device=pv.01 --level=RAID".$raid_level." ".$say_raid."
 
 # LVM Volume groups
 volgroup ".$vg_name." pv.01
@@ -846,3 +854,28 @@ menu default
 menu label #!string!message_0094!#
 localboot 0xffff
 <!-- end tftp_bios -->
+
+
+<!-- start tftp_uefi -->
+function load_video {
+	insmod efi_gop
+	insmod efi_uga
+	insmod video_bochs
+	insmod video_cirrus
+	insmod all_video
+}
+
+load_video
+set gfxpayload=keep
+insmod gzio
+
+menuentry 'Install RHEL 8'  --class rhel --class gnu-linux --class gnu --class os {
+	linuxefi #!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/iso/ 
+	initrdefi #!data!host_os::os_type!#/initrd.img
+}
+
+menuentry 'Install Striker'  --class rhel --class gnu-linux --class gnu --class os {
+	linuxefi #!data!host_os::os_type!#/vmlinuz ip=dhcp inst.repo=#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/iso/ root=live:#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/os/images/install.img inst.ks=#!variable!base_url!#/#!data!host_os::os_type!#/#!data!host_os::os_arch!#/kickstart/striker.ks inst.sshd rd.debug
+	initrdefi #!data!host_os::os_type!#/initrd.img
+}
+<!-- end tftp_uefi -->

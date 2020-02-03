@@ -156,12 +156,14 @@ sub get_fence_data
 		{
 			# We ignore some parameters that are not useful parameters in our case.
 			my $name = $hash_ref->{name};
+			next if $name =~ /debug/;
 			next if $name eq "delay";
 			next if $name eq "help";
 			next if $name eq "version";
 			next if $name eq "separator";
 			next if $name eq "plug";
 			next if $name =~ /snmp(.*?)_path/;
+			next if $name eq "verbose";
 			
 			my $unique     = exists $hash_ref->{unique}     ? $hash_ref->{unique}     : 0;
 			my $required   = exists $hash_ref->{required}   ? $hash_ref->{required}   : 0;

@@ -1537,6 +1537,30 @@ sub handle_new_manifest
 	return(0);
 }
 
+# This sanity checks the fence agent forms.
+sub sanity_check_fence_agent_form
+{
+	my ($anvil, $fence_agent) = @_;
+	
+	### TODO: Left off here. Make the confirm form a table;
+	###       Any set options that matches the default gets set to 'subtle'.
+=cut
+Fence Agent: $fence_agent
+Devices:
+| option | default |   1   |   2   | ...
++--------+---------+-------+-------+-----
+| foo    |  bar    |  bar  |  baz  | 
+=cut
+	my $sane         = 1;
+	my $confirn_form = "";
+	foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
+	{
+		
+	}
+	
+	return($sane);
+}
+
 # This allows the user to tell us about fence devices. 
 sub process_fences
 {
@@ -1557,7 +1581,14 @@ sub process_fences
 	{
 		my $fence_agent = $anvil->data->{cgi}{fence_agent}{value};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_agent => $fence_agent }});
-	
+		
+		# Are we saving?
+		if ($anvil->data->{cgi}{save}{value})
+		{
+			# Sanity check
+			my $sane = sanity_check_fence_agent_form($anvil, $fence_agent);
+		}
+		
 		my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fences}{$fence_agent}{description});
 		
 		# Walk through the list of options
@@ -1594,7 +1625,7 @@ sub process_fences
 				# Set the cgi variable to the default, if not already set.
 				$anvil->data->{cgi}{$option_key}{alert} = ""       if not defined $anvil->data->{cgi}{$option_key}{alert};
 				$anvil->data->{cgi}{$option_key}{value} = $default if not defined $anvil->data->{cgi}{$option_key}{value};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"cgi::".$option_key."::value" => $anvil->data->{cgi}{$option_key}{value},
 				}});
 				

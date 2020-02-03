@@ -188,16 +188,8 @@ if (not $configured)
 	$anvil->nice_exit({exit_code => 9});
 }
 
-# Figure out what this machine is
-my ($os_type, $os_arch) = $anvil->System->get_os_type();
-$anvil->data->{host_os}{os_type} = $os_type;
-$anvil->data->{host_os}{os_arch} = $os_arch;
-$anvil->data->{host_os}{version} = ($os_type =~ /(\d+)$/)[0];
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-	"host_os::os_type" => $anvil->data->{host_os}{os_type}, 
-	"host_os::os_arch" => $anvil->data->{host_os}{os_arch}, 
-	"host_os::version" => $anvil->data->{host_os}{version}, 
-}});
+# Figure out what this machine is.
+load_os_info($anvil);
 
 # If this isn't a Striker dashboard, exit.
 if ($anvil->System->get_host_type ne "dashboard")
@@ -270,6 +262,34 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Private functions.                                                                                        #
 #############################################################################################################
+
+# This loads the OS info into hashes strings and templates will use later.
+sub load_os_info
+{
+	my ($anvil) = @_;
+	
+	my ($os_type, $os_arch) = $anvil->System->get_os_type();
+	$anvil->data->{host_os}{os_type} = $os_type;
+	$anvil->data->{host_os}{os_arch} = $os_arch;
+	$anvil->data->{host_os}{version} = ($os_type =~ /(\d+)$/)[0];
+	$anvil->data->{host_os}{os_name} = "";
+	if ($os_type =~ /^rhel/)
+	{
+		$anvil->data->{host_os}{os_name} = "RHEL ".$anvil->data->{host_os}{version};
+	}
+	elsif ($os_type =~ /^centos/)
+	{
+		$anvil->data->{host_os}{os_name} = "CentOS ".$anvil->data->{host_os}{version};
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		"host_os::os_arch" => $anvil->data->{host_os}{os_arch}, 
+		"host_os::os_name" => $anvil->data->{host_os}{os_name}, 
+		"host_os::os_type" => $anvil->data->{host_os}{os_type}, 
+		"host_os::version" => $anvil->data->{host_os}{version}, 
+	}});
+	
+	return(0);
+}
 
 # If this is being called as a job, this will allow the progress to be updated.
 sub update_progress
@@ -536,18 +556,6 @@ sub setup_boot_environment
 		update_progress($anvil, 10, "message_0096,!!file!".$anvil->data->{path}{configs}{'dhcpd.conf'}."!!");
 	}
 	
-	### NOTE: Some of the strings in the 'tftp_bios' template expect 'sys::pxe::os_name' 
-	my ($os_type, $os_arch) = $anvil->System->get_os_type();
-	$anvil->data->{sys}{pxe}{os_name} = "";
-	$anvil->data->{sys}{pxe}{os_arch} = $os_arch;
-	if ($os_type eq "rhel8")
-	{
-		$anvil->data->{sys}{pxe}{os_name} = "RHEL 8";
-	}
-	elsif ($os_type eq "centos8")
-	{
-		$anvil->data->{sys}{pxe}{os_name} = "CentOS 8";
-	}
 	### PXE BIOS 'default' file.
 	my $bios_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_bios", variables => { base_url => $base_url }});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bios_default_body => $bios_default_body }});
@@ -575,6 +583,35 @@ sub setup_boot_environment
 	{
 		# Update not needed.
 		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
+	}
+	
+	### PXE UEFI 'uefi' file.
+	my $uefi_default_body = $anvil->Template->get({file => "pxe.txt", show_name => 0, name => "tftp_uefi", variables => { base_url => $base_url }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uefi_default_body => $uefi_default_body }});
+	
+	# Return code if '1' means the file was changed, '2' indicates it didn't change. '0' means something 
+	# went wrong.
+	my $uefi_default_success = $anvil->Storage->update_file({
+		body  => $uefi_default_body, 
+		file  => $anvil->data->{path}{configs}{pxe_uefi},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uefi_default_success => $uefi_default_success }});
+	if (not $uefi_default_success)
+	{
+		# Failed.
+		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_uefi} }})."\n";
+		update_progress($anvil, 100, "error_0043,!!file!".$anvil->data->{path}{configs}{pxe_uefi}."!!");
+		$anvil->nice_exit({code => 3});
+	}
+	elsif ($dhcpd_conf_success eq "1")
+	{
+		# Updated
+		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{pxe_uefi} }})."\n";
+	}
+	elsif ($dhcpd_conf_success eq "2")
+	{
+		# Update not needed.
+		print $anvil->Words->string({key => "message_0096", variables => { file => $anvil->data->{path}{configs}{pxe_uefi} }})."\n";
 	}
 	
 	### TODO: Add repos for all known strikers
@@ -948,165 +985,184 @@ sub update_install_source
 		update_progress($anvil, 90, "");
 	}
 	
-	### TODO: Make sure this handles no internet access gracefully.
-	# Clear the dnf cache
-	my $success                = 1;
-	my $progress               = 30;
-	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
-	my $packages               = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
-	print $anvil->Words->string({key => "message_0077", variables => { directory => $packages }})."\n";
-	update_progress($anvil, $progress, "message_0077,!!directory!".$packages."!!");
+	# Test if there is internet access.
+	my $domain = "redhat.com";
+	if ($anvil->data->{host_os}{os_type} =~ /^centos/)
+	{
+		$domain = "mirrorlist.centos.org";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { domain => $domain }});
+	
+	$anvil->data->{sys}{internet} = $anvil->Network->check_internet({domains => [$domain]});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::internet" => $anvil->data->{sys}{internet} }});
 	
 	# Loop through each letter directory
-	foreach my $letter (sort {$a cmp $b} keys %{$anvil->data->{packages}})
+	if (not $anvil->data->{sys}{internet})
 	{
-		$progress += 2;
-		$progress =  90 if $progress > 90;
-		my $download_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/".$letter;
-		my $array_size    = @{$anvil->data->{packages}{$letter}};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			letter        => $letter, 
-			download_path => $download_path, 
-			array_size    => $array_size,
-			progress      => $progress, 
-		}});
-		if (not -e $download_path)
-		{
-			$anvil->Storage->make_directory({debug => 2, directory => $download_path, mode => "0775"});
-		}
-		my $say_packages = $anvil->Convert->add_commas({number => $array_size});
-		print $anvil->Words->string({key => "message_0120", variables => { 
-			directory => $download_path, 
-			packages  => $say_packages, 
-		}})."\n";
-		update_progress($anvil, $progress, "message_0120,!!directory!".$download_path."!!,!!packages!".$say_packages."!!");
+		# No internet.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "warning_0031", variables => { domain => $domain }});
+		update_progress($anvil, 50, "warning_0031,!!domain!".$domain."!!");
+	}
+	else
+	{
+		# Clear the dnf cache
+		my $success                = 1;
+		my $progress               = 30;
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{dnf}." clean expire-cache" });
+		my $packages               = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/*";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+		print $anvil->Words->string({key => "message_0077", variables => { directory => $packages }})."\n";
+		update_progress($anvil, $progress, "message_0077,!!directory!".$packages."!!");
 		
-		my $packages   = "";
-		my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
-		foreach my $package (sort {$a cmp $b} @{$anvil->data->{packages}{$letter}})
+		foreach my $letter (sort {$a cmp $b} keys %{$anvil->data->{packages}})
 		{
-			# Append the package to the active shell call.
-			$packages .= $package." ";
-		}
-		$packages   =~ s/ $//;
-		$shell_call .= " ".$packages."; 2>&1 ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
-		
-		# Now call the command in the background, then we'll track the output.
-		my $stdout_file = "/tmp/".$THIS_FILE."_update_install_source.stdout";
-		if (-e $stdout_file)
-		{
-			unlink $stdout_file;
-		}
-		my ($handle, undef) = $anvil->System->call({
-			debug       => 2,
-			shell_call  => $shell_call, 
-			background  => 1, 
-			stdout_file => $stdout_file, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle }});
-		
-		# Now we'll loop, printing output, until the handle dies.
-		my $alive            = 1;
-		my $last_stdout_line = 0;
-		my $error_out        = "";
-		my $return_code      = 255;
-		while($alive)
-		{
-			# Are we still alive?
-			$alive = $handle->poll();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { alive => $alive }});
-			
-			# Sleep (even if we're dead now, we want to give a second for the stdout file to be updated 
-			# before processing it).
-			sleep 1;
-			
-			# print any new STDOUT lines
-			my $stdout = $anvil->Storage->read_file({force_read => 1, file => $stdout_file});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { stdout => $stdout }});
-			
-			my $this_stdout_line = 0;
-			foreach my $line (split/\n/, $stdout)
+			$progress += 2;
+			$progress =  90 if $progress > 90;
+			my $download_path = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/".$letter;
+			my $array_size    = @{$anvil->data->{packages}{$letter}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				letter        => $letter, 
+				download_path => $download_path, 
+				array_size    => $array_size,
+				progress      => $progress, 
+			}});
+			if (not -e $download_path)
 			{
-				$this_stdout_line++;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					's1:this_stdout_line' => $this_stdout_line, 
-					's2:last_stdout_line' => $last_stdout_line, 
-					's3:line'             => $line,
-				}});
-				if ($this_stdout_line > $last_stdout_line)
+				$anvil->Storage->make_directory({debug => 2, directory => $download_path, mode => "0775"});
+			}
+			my $say_packages = $anvil->Convert->add_commas({number => $array_size});
+			print $anvil->Words->string({key => "message_0120", variables => { 
+				directory => $download_path, 
+				packages  => $say_packages, 
+			}})."\n";
+			update_progress($anvil, $progress, "message_0120,!!directory!".$download_path."!!,!!packages!".$say_packages."!!");
+			
+			my $packages   = "";
+			my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			foreach my $package (sort {$a cmp $b} @{$anvil->data->{packages}{$letter}})
+			{
+				# Append the package to the active shell call.
+				$packages .= $package." ";
+			}
+			$packages   =~ s/ $//;
+			$shell_call .= " ".$packages."; 2>&1 ".$anvil->data->{path}{exe}{'echo'}." return_code:\$?";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			
+			# Now call the command in the background, then we'll track the output.
+			my $stdout_file = "/tmp/".$THIS_FILE."_update_install_source.stdout";
+			if (-e $stdout_file)
+			{
+				unlink $stdout_file;
+			}
+			my ($handle, undef) = $anvil->System->call({
+				debug       => 2,
+				shell_call  => $shell_call, 
+				background  => 1, 
+				stdout_file => $stdout_file, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle }});
+			
+			# Now we'll loop, printing output, until the handle dies.
+			my $alive            = 1;
+			my $last_stdout_line = 0;
+			my $error_out        = "";
+			my $return_code      = 255;
+			while($alive)
+			{
+				# Are we still alive?
+				$alive = $handle->poll();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { alive => $alive }});
+				
+				# Sleep (even if we're dead now, we want to give a second for the stdout file to be updated 
+				# before processing it).
+				sleep 1;
+				
+				# print any new STDOUT lines
+				my $stdout = $anvil->Storage->read_file({force_read => 1, file => $stdout_file});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { stdout => $stdout }});
+				
+				my $this_stdout_line = 0;
+				foreach my $line (split/\n/, $stdout)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-					print $anvil->Words->string({key => "message_0078", variables => { line => $line }})."\n";
-					
-					# In some cases, a bad local RPM can cause download failures. This 
-					# checks for and removes them. It can take a few runs to clear out a
-					# set of bad files, but it will clear out eventually.
-					if ($line =~ / (.*?.rpm): Interrupted by header callback/i)
+					$this_stdout_line++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						's1:this_stdout_line' => $this_stdout_line, 
+						's2:last_stdout_line' => $last_stdout_line, 
+						's3:line'             => $line,
+					}});
+					if ($this_stdout_line > $last_stdout_line)
 					{
-						my $rpm_name = $1;
-						my $rpm_path = $download_path."/".$rpm_name;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-							rpm_name => $rpm_name,
-							rpm_path => $rpm_path, 
-						}});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+						print $anvil->Words->string({key => "message_0078", variables => { line => $line }})."\n";
 						
-						if (-e $rpm_path)
+						# In some cases, a bad local RPM can cause download failures. This 
+						# checks for and removes them. It can take a few runs to clear out a
+						# set of bad files, but it will clear out eventually.
+						if ($line =~ / (.*?.rpm): Interrupted by header callback/i)
 						{
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0469", variables => { rpm_path => $rpm_path }});
-							unlink $rpm_path;
+							my $rpm_name = $1;
+							my $rpm_path = $download_path."/".$rpm_name;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+								rpm_name => $rpm_name,
+								rpm_path => $rpm_path, 
+							}});
 							
-							$error_out .= $anvil->Words->string({key => "log_0469", variables => { rpm_path => $rpm_path }})."\n";
+							if (-e $rpm_path)
+							{
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0469", variables => { rpm_path => $rpm_path }});
+								unlink $rpm_path;
+								
+								$error_out .= $anvil->Words->string({key => "log_0469", variables => { rpm_path => $rpm_path }})."\n";
+							}
 						}
-					}
-					
-					$last_stdout_line = $this_stdout_line;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_stdout_line => $last_stdout_line }});
-					
-					# A none-zero return code indicates, likely, that a package failed to download. 
-					if ($line =~ /^return_code:(\d+)$/)
-					{
-						$return_code = $1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 						
-						if ($return_code)
+						$last_stdout_line = $this_stdout_line;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { last_stdout_line => $last_stdout_line }});
+						
+						# A none-zero return code indicates, likely, that a package failed to download. 
+						if ($line =~ /^return_code:(\d+)$/)
 						{
-							# Something went wrong.
-							$error_out .= $anvil->Words->string({key => "error_0063", variables => { packages => $packages, return_code => $return_code }})."\n";
+							$return_code = $1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+							
+							if ($return_code)
+							{
+								# Something went wrong.
+								$error_out .= $anvil->Words->string({key => "error_0063", variables => { packages => $packages, return_code => $return_code }})."\n";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { error_out => $error_out }});
+							}
+						}
+						if ($line =~ /^Error: /)
+						{
+							$error_out .= $line."\n";
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { error_out => $error_out }});
 						}
 					}
-					if ($line =~ /^Error: /)
-					{
-						$error_out .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { error_out => $error_out }});
-					}
 				}
 			}
-		}
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { error_out => $error_out }});
-		if ($error_out)
-		{
-			# Bump the last successful time by 24 hours.
-			$anvil->Database->insert_or_update_variables({
-				variable_name         => "install-target::refreshed", 
-				variable_value        => $anvil->data->{sys}{retry_time}, 
-				variable_default      => "", 
-				variable_description  => "striker_0106", 
-				variable_section      => "system", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
-				variable_source_table => "hosts", 
-			});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { error_out => $error_out }});
+			if ($error_out)
+			{
+				# Bump the last successful time by 24 hours.
+				$anvil->Database->insert_or_update_variables({
+					variable_name         => "install-target::refreshed", 
+					variable_value        => $anvil->data->{sys}{retry_time}, 
+					variable_default      => "", 
+					variable_description  => "striker_0106", 
+					variable_section      => "system", 
+					variable_source_uuid  => $anvil->Get->host_uuid, 
+					variable_source_table => "hosts", 
+				});
 
-			# Something went wrong, exit.
-			print $anvil->Words->string({key => "error_0045", variables => { error => $error_out }})."\n";
-			update_progress($anvil, 100, "error_0045,!!error!".$error_out."!!");
-			$anvil->nice_exit({code => 7});
+				# Something went wrong, exit.
+				print $anvil->Words->string({key => "error_0045", variables => { error => $error_out }})."\n";
+				update_progress($anvil, 100, "error_0045,!!error!".$error_out."!!");
+				$anvil->nice_exit({code => 7});
+			}
+			# Progress is '82' leaving this loop
 		}
-		# Progress is '82' leaving this loop
 	}
 	
 	# Create the repodata
@@ -2397,28 +2453,47 @@ sub load_packages
 	elsif ($os_type eq "centos8")
 	{
 		push @{$anvil->data->{packages}{c}}, "centos-backgrounds.noarch";
+		push @{$anvil->data->{packages}{c}}, "centos-gpg-keys.noarch";
 		push @{$anvil->data->{packages}{c}}, "centos-indexhtml.noarch";
 		push @{$anvil->data->{packages}{c}}, "centos-logos-httpd.noarch";
 		push @{$anvil->data->{packages}{c}}, "centos-logos.x86_64";
 		push @{$anvil->data->{packages}{c}}, "centos-release.x86_64";
+		push @{$anvil->data->{packages}{c}}, "centos-repos.x86_64";
 		
-		# While we're here, we will need to rename /var/www/html/rhel8 to /var/www/html/centos8, as
-		# 'rhel8' is used by anvil-striker-extra.
-		if ((-e $anvil->data->{path}{directories}{html}."/rhel8") && (not -e $anvil->data->{path}{directories}{html}."/centos8"))
+		# While we're here, we will need to rename /var/www/html/rhel8 to /var/www/html/rhel8, as
+		# 'centos8' and '/var/lib/tftpboot/rhel8' as 'centos8', as is used by anvil-striker-extra.
+		foreach my $directory ("html", "tftpboot")
 		{
-			my $shell_call = $anvil->data->{path}{exe}{mv}." ".$anvil->data->{path}{directories}{html}."/rhel8 ".$anvil->data->{path}{directories}{html}."/centos8";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+			my $source = $anvil->data->{path}{directories}{$directory}."/rhel8";
+			my $target = $anvil->data->{path}{directories}{$directory}."/centos8";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				directory => $directory,
+				source    => $source,
+				target    => $target, 
+			}});
 			
-			my ($handle, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { handle => $handle, return_code => $return_code }});
-			if (-e $anvil->data->{path}{directories}{html}."/centos8")
+			if ((-e $anvil->data->{path}{directories}{$directory}."/rhel8") && (not -e $anvil->data->{path}{directories}{$directory}."/centos8"))
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0475"});
-			}
-			else
-			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0116"});
-				$anvil->nice_exit({code => 12});
+				my $shell_call = $anvil->data->{path}{exe}{mv}." ".$source." ".$target;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($handle, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { handle => $handle, return_code => $return_code }});
+				if (-e $anvil->data->{path}{directories}{$directory}."/centos8")
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0475", variables => {
+						source => $source,
+						target => $target,
+					}});
+				}
+				else
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0116", variables => {
+						source => $source,
+						target => $target,
+					}});
+					$anvil->nice_exit({code => 12});
+				}
 			}
 		}
 	}

@@ -131,7 +131,7 @@ NOTE: Please be patient!
 		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
 		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
 		<key name="message_0083">Editing of this option is disabled.</key>
-		<key name="message_0084">^1. Install a Striker dashboard (#!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!#)</key>
+		<key name="message_0084">^1. Install a Striker dashboard (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0085">
@@ -143,7 +143,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0086">^2. Install an Anvil! Node (#!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!#)</key>
+		<key name="message_0086">^2. Install an Anvil! Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0087">
@@ -156,7 +156,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (#!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!#)</key>
+		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
@@ -179,11 +179,11 @@ NOTE: Please be patient!
 	No data on the target machine will be changed by this option.
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0092">Install ^Standard #!data!sys::pxe::os_name!# #!data!sys::pxe::os_arch!# Install</key>
+		<key name="message_0092">Install ^Standard #!data!host_os::os_name!# #!data!host_os::os_arch!# Install</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0093">
-	This will start a standard install of #!data!sys::pxe::os_name!#.
+	This will start a standard install of #!data!host_os::os_name!#.
 	
 	This option will not change anything on disk until and unless you choose to do so.
 		</key>
@@ -813,7 +813,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0472">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] doesn't exist yet. It will be created now.</key>
 		<key name="log_0473">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] will be refreshed on user request (--refresh passed).</key>
 		<key name="log_0474">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] old and will now be refreshed.</key>
-		<key name="log_0475">This is a CentOS machine, moving the directory: [#!data!path::directories::html!#/rhel8] to: [#!data!path::directories::html!#/centos8].</key>
+		<key name="log_0475">This is a CentOS machine, moving the directory: [#!variable!source!#] to: [#!variable!target!#].</key>
 		
 		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
 		<key name="t_0000">Test</key>
@@ -1239,36 +1239,37 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="ok_0004">Saved the alert recipient information successfully!</key>
 		
 		<!-- Warnings --> 
-		<key name="warning_0001">The IP address will change. You will need to reconnect after applying these changes.</key>
-		<key name="warning_0002">The access information appears to not be valid.</key>
-		<key name="warning_0003">Test access to the peer (using SSH) failed. There may be details in the log file.</key>
-		<key name="warning_0004">Accessing the peer over SSH worked, but a test connection to the database failed.</key>
-		<key name="warning_0005">There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
-		<key name="warning_0006">An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
-		<key name="warning_0007">The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
-		<key name="warning_0008">Unable to find a local IP on the same subnet as the IP/host: [#!variable!host!#] given for the target. Bi-directional setup not currently possible.</key>
-		<key name="warning_0009">The subtask request for manipulating the 'Install Target' feature is not valid. It should be 'enabled' or 'disabled'</key>	<!-- NOTE: 'enabled' and 'disabled' are variable values, don't translate them. -->
-		<key name="warning_0010">The IP address: [#!variable!ip_address!#] is not a valid IPv4 address</key>
-		<key name="warning_0011">The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
-		<key name="warning_0012">Failed to log into the host. Is the IP or root user's password right?</key>
-		<key name="warning_0013"><![CDATA[The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
-		<key name="warning_0014">The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
-		<key name="warning_0015">To configure a host as either an Anvil! node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
-		<key name="warning_0016">No databases are available. Changes to the network interfaces will be cached.</key>
-		<key name="warning_0017">The subnet mask is not valid</key>
-		<key name="warning_0018">The IP address was specified, but the subnet mask was not</key>
-		<key name="warning_0019">The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
-		<key name="warning_0020">The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
-		<key name="warning_0021">All three networks require the first network pair to be defined.</key>
-		<key name="warning_0022">Only one network interface selected for a network pair.</key>
-		<key name="warning_0023">The outgoing mail server appear to not be a valid domain name or IP address.</key>
-		<key name="warning_0024">The outgoing mail server port is not valid. Must be 'mail_server:x' where x is 1 ~ 65535.</key>
-		<key name="warning_0025">There was a problem saving the mail server data. Please check the logs for more information.</key>
-		<key name="warning_0026">The recipient's email address appears to not be valid.</key>
-		<key name="warning_0027">There was a problem saving the alert recipient data. Please check the logs for more information.</key>
-		<key name="warning_0028">Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
-		<key name="warning_0029">While resync'ing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and it probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
-		<key name="warning_0030">Databse->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
+		<key name="warning_0001">[ Warning ] - The IP address will change. You will need to reconnect after applying these changes.</key>
+		<key name="warning_0002">[ Warning ] - The access information appears to not be valid.</key>
+		<key name="warning_0003">[ Warning ] - Test access to the peer (using SSH) failed. There may be details in the log file.</key>
+		<key name="warning_0004">[ Warning ] - Accessing the peer over SSH worked, but a test connection to the database failed.</key>
+		<key name="warning_0005">[ Warning ] - There was a problem reading the peer's UUID. Read: [#!variable!uuid!#], which appears to be invalid.</key>
+		<key name="warning_0006">[ Warning ] - An SSH connection was established to: [#!variable!target!#], but we failed to establish a channel. The last error was: [#!variable!error!#].</key>
+		<key name="warning_0007">[ Warning ] - The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
+		<key name="warning_0008">[ Warning ] - Unable to find a local IP on the same subnet as the IP/host: [#!variable!host!#] given for the target. Bi-directional setup not currently possible.</key>
+		<key name="warning_0009">[ Warning ] - The subtask request for manipulating the 'Install Target' feature is not valid. It should be 'enabled' or 'disabled'</key>	<!-- NOTE: 'enabled' and 'disabled' are variable values, don't translate them. -->
+		<key name="warning_0010">[ Warning ] - The IP address: [#!variable!ip_address!#] is not a valid IPv4 address</key>
+		<key name="warning_0011">[ Warning ] - The SSH port is not a valid (usually it is 22, but it has to be between 1 ~ 65536)</key>
+		<key name="warning_0012">[ Warning ] - Failed to log into the host. Is the IP or root user's password right?</key>
+		<key name="warning_0013"><![CDATA[[ Warning ] - The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
+		<key name="warning_0014">[ Warning ] - The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
+		<key name="warning_0015">[ Warning ] - To configure a host as either an Anvil! node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
+		<key name="warning_0016">[ Warning ] - No databases are available. Changes to the network interfaces will be cached.</key>
+		<key name="warning_0017">[ Warning ] - The subnet mask is not valid</key>
+		<key name="warning_0018">[ Warning ] - The IP address was specified, but the subnet mask was not</key>
+		<key name="warning_0019">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
+		<key name="warning_0020">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
+		<key name="warning_0021">[ Warning ] - All three networks require the first network pair to be defined.</key>
+		<key name="warning_0022">[ Warning ] - Only one network interface selected for a network pair.</key>
+		<key name="warning_0023">[ Warning ] - The outgoing mail server appear to not be a valid domain name or IP address.</key>
+		<key name="warning_0024">[ Warning ] - The outgoing mail server port is not valid. Must be 'mail_server:x' where x is 1 ~ 65535.</key>
+		<key name="warning_0025">[ Warning ] - There was a problem saving the mail server data. Please check the logs for more information.</key>
+		<key name="warning_0026">[ Warning ] - The recipient's email address appears to not be valid.</key>
+		<key name="warning_0027">[ Warning ] - There was a problem saving the alert recipient data. Please check the logs for more information.</key>
+		<key name="warning_0028">[ Warning ] - Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
+		<key name="warning_0029">[ Warning ] - While resync'ing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and it probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
+		<key name="warning_0030">[ Warning ] - Databse->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
+		<key name="warning_0031">[ Warning ] - No internet detected (couldn't ping: [#!variable!domain!#]). Skipping attempt to download RPMs.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -1410,7 +1411,7 @@ The error was:
 		<key name="error_0113">The unified metadata file: [#!data!path::data::fences_unified_metadata!#] was not found. There may have been a problem creating it.</key>
 		<key name="error_0114">This row's modified_date wasn't the first column returned in query: [#!variable!query!#]</key>
 		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
-		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!data!path::directories::html!#/rhel8] to: [#!data!path::directories::html!#/centos8], but that renane failed.</key>
+		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!variable!source!#] to: [#!variable!target!#], but that renane failed.</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

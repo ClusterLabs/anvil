@@ -166,7 +166,7 @@ sub check_if_time
 	else
 	{
 		my ($unixtime, $variable_uuid, $modified_date) = $anvil->Database->read_variable({variable_name => "parse-oui::parsed"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			unixtime      => $unixtime, 
 			variable_uuid => $variable_uuid, 
 			modified_date => $modified_date, 
@@ -174,27 +174,27 @@ sub check_if_time
 		if (($unixtime eq "") or ($unixtime =~ /\D/))
 		{
 			$unixtime = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { unixtime => $unixtime }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { unixtime => $unixtime }});
 		}
 		
 		# If the database variable 'parse-oui::parsed' is not set, or is more than 24 hours old, 
 		# proceed with the parse.
 		$anvil->data->{'parse-oui'}{'parse-period'} =  86400 if not defined $anvil->data->{'parse-oui'}{'parse-period'};
 		$anvil->data->{'parse-oui'}{'parse-period'} =~ s/,//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			'parse-oui::parse-period' => $anvil->data->{'parse-oui'}{'scan-period'}, 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			'parse-oui::parse-period' => $anvil->data->{'parse-oui'}{'parse-period'}, 
 		}});
 		if ($anvil->data->{'parse-oui'}{'parse-period'} =~ /\D/)
 		{
 			$anvil->data->{'parse-oui'}{'parse-period'} = 86400;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				'parse-oui::parse-period' => $anvil->data->{'parse-oui'}{'parse-period'}, 
 			}});
 		}
 		my $time_now   = time;
 		my $next_parse  = $unixtime + $anvil->data->{'parse-oui'}{'parse-period'};
 		my $difference = ($next_parse - $time_now);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			's1:time_now'   => $time_now, 
 			's2:next_parse'  => $next_parse, 
 			's3:difference' => $difference, 
@@ -208,7 +208,7 @@ sub check_if_time
 		{
 			# Log when the next scan will happen and then exit.
 			my $say_when = $anvil->Convert->time({'time' => $difference, long => 1});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0468", variables => { next_parse => $anvil->Convert->add_commas({number => $say_when}) }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, 'print' => 1, key => "log_0468", variables => { next_parse => $anvil->Convert->add_commas({number => $say_when}) }});
 			update_progress($anvil, 100, "log_0468,!!next_parse!".$anvil->Convert->add_commas({number => $say_when})."!!");
 			$anvil->nice_exit({exit_code => 3});
 		}

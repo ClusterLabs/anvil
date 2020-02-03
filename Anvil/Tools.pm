@@ -1063,6 +1063,7 @@ sub _set_paths
 				'pg_hba.conf'			=>	"/var/lib/pgsql/data/pg_hba.conf",
 				'postgresql.conf'		=>	"/var/lib/pgsql/data/postgresql.conf",
 				pxe_default			=>	"/var/lib/tftpboot/pxelinux.cfg/default",
+				pxe_uefi			=>	"/var/lib/tftpboot/pxelinux.cfg/uefi",
 				ssh_config			=>	"/etc/ssh/ssh_config",
 				'type.dashboard'		=>	"/etc/anvil/type.dashboard",
 				'type.dr'			=>	"/etc/anvil/type.dr",

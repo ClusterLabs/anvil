@@ -10,7 +10,6 @@ load_video
 set gfxpayload=keep
 insmod gzio
 
-
 menuentry 'Install RHEL 8'  --class rhel --class gnu-linux --class gnu --class os {
 	linuxefi rhel8/vmlinuz ip=dhcp inst.repo=http://10.1.4.1/rhel8/x86_64/iso/ 
 	initrdefi rhel8/initrd.img

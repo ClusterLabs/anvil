@@ -107,9 +107,12 @@
 						#!variable!options!#
 						<tr>
 							<td colspan="3">
-								<input type="submit" name="save"  id="save"  class="button" value="#!string!striker_0067!#">
-								<input type="hidden" name="anvil" id="anvil" value="true">
-								<input type="hidden" name="task"  id="task"  value="fences">
+								<input type="submit" name="save"        id="save"        value="#!string!striker_0067!#" class="button">
+								<input type="hidden" name="fence_agent" id="fence_agent" value="#!data!cgi::fence_agent::value!#">
+								<input type="hidden" name="fence_count" id="fence_count" value="#!data!cgi::fence_count::value!#">
+								<input type="hidden" name="add"         id="add"         value="true">
+								<input type="hidden" name="anvil"       id="anvil"       value="true">
+								<input type="hidden" name="task"        id="task"        value="fences">
 							</td>
 						</tr>
 					</table>
