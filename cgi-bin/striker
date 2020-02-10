@@ -1555,7 +1555,68 @@ Devices:
 	my $confirn_form = "";
 	foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
 	{
-		
+		# Read in the parameters for this agent, and compare to see if the value passed in differs.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i }});
+		foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fences}{$fence_agent}{parameters}})
+		{
+			# We don't show deprecated or replaced options.
+			next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
+			next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated};
+			my $option_key  = $name."_".$i;
+			my $unique      = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique};
+			my $required    = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required};
+			my $description = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description};
+			my $type        = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type};
+			my $default     = exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				option_key  => $option_key,
+				unique      => $unique, 
+				required    => $required, 
+				description => $description, 
+				type        => $type, 
+				'default'   => $default, 
+			}});
+			
+			# If this is 'boolean' and the default is '1', change the default to 'on' so that 
+			# it matches what we get from the form.
+			if (($type eq "boolean") && ($default eq "1"))
+			{
+				$default = "on";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'default' => $default }});
+			}
+			
+			my $passed_parameter_key = $name."_".$i;
+			my $passed_value         = defined $anvil->data->{cgi}{$passed_parameter_key}{value} ? $anvil->data->{cgi}{$passed_parameter_key}{value} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				passed_parameter_key => $passed_parameter_key, 
+				passed_value         => $passed_value, 
+				'default'            => $default, 
+			}});
+			if ($passed_value ne $default)
+			{
+				# Something changed. Is it sane?
+				if (($type eq "integer") or ($type eq "second"))
+				{
+					# Make sure the value is a bare integer
+					if ($passed_value =~ /\D/)
+					{
+						# Problem.
+						$sane                                             = 0;
+						$anvil->data->{cgi}{$passed_parameter_key}{alert} = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+							"cgi::${passed_parameter_key}::alert" => $anvil->data->{cgi}{$passed_parameter_key}{alert}, 
+							sane                                  => $sane, 
+						}});
+					}
+				}
+				
+				# 
+				$anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set} = $passed_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"fence::${fence_agent}::set::${i}::parameter::${name}::set" => $anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set}, 
+				}});
+			}
+		}
 	}
 	
 	return($sane);
