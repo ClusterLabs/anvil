@@ -141,7 +141,7 @@
 
 <!-- start fence-agent-column-hidden-value -->
 							<td class="column_row_value_centered_border">
-								<span class="#!variable!class!#">#!variable!value!#</span>
+								<span class="#!variable!class!#">#!variable!say_value!#</span>
 								<input type="hidden" name="#!variable!name!#" id="#!variable!name!#" value="#!variable!value!#" />
 							</td>
 <!-- end fence-agent-column-hidden-value -->
@@ -169,8 +169,18 @@
 			</tr>
 			<tr>
 				<td colspan="2">
+					#!variable!confirm_string!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
 					<form name="conce_configuration" action="" method="post">
-					<table class="data_table">
+					<table class="centered">
 						#!variable!table!#
 						<tr>
 							<td class="close_top">

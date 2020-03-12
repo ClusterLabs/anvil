@@ -1633,10 +1633,12 @@ sub sanity_check_fence_agent_form
 				}});
 			}
 			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'} = $is_default;
-			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}     = $say_value;
+			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}     = $passed_value ? $passed_value : $default;
+			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value} = $say_value;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"fence::confirm_table::data::${name}::${i}::default" => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'}, 
-				"fence::confirm_table::data::${name}::${i}::value"   => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}, 
+				"fence::confirm_table::data::${name}::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'}, 
+				"fence::confirm_table::data::${name}::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}, 
+				"fence::confirm_table::data::${name}::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value}, 
 			}});
 		}
 	}
@@ -1714,17 +1716,20 @@ sub process_fences
 					foreach my $i (sort {$a cmp $b} keys %{$anvil->data->{fence}{confirm_table}{data}{$name}})
 					{
 						my $is_default = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'};
+						my $say_value  = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value};
 						my $value      = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							's1:name'       => $name,
 							's2:i'          => $i,
 							's3:is_default' => $is_default,
 							's4:value'      => $value,
+							's5:say_value'  => $say_value,
 						}});
 						$entry_row .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-column-hidden-value", variables => {
-							class => $is_default ? "default_value" : "changed_value", 
-							name  => $name."_".$i,
-							value => $value, 
+							class     => $is_default ? "default_value" : "changed_value", 
+							name      => $name."_".$i,
+							value     => $value, 
+							say_value => $say_value, 
 						}});
 					}
 					$confirm_table .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-row", variables => {
@@ -1732,10 +1737,13 @@ sub process_fences
 					}});
 				}
 				
+				# Are we asking the user to confirm one or more?
+				my $confirm_string = $anvil->data->{cgi}{fence_count}{value} == 1 ? "#!string!striker_0222!#" : "#!string!striker_0221!#";
 				$anvil->data->{form}{back_link} = "?anvil=true&task=fences";
 				$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-confirm", variables => {
-					table      => $confirm_table, 
-					span_count => $anvil->data->{cgi}{fence_count}{value},
+					table          => $confirm_table, 
+					span_count     => $anvil->data->{cgi}{fence_count}{value},
+					confirm_string => $confirm_string, 
 				}});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 				return(0);

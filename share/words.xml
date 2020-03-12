@@ -1090,6 +1090,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0218">Note: Names and descriptions come from the fence agent itself. If you need more help, please run 'man #!variable!name!#' at the command line.</key>
 		<key name="striker_0219">Required field</key>
 		<key name="striker_0220">Device #!variable!number!#:</key>
+		<key name="striker_0221">Please confirm the fence devices are configured the way you like.</key>
+		<key name="striker_0222">Please confirm the fence device is configured the way you like.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
