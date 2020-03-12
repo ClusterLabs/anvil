@@ -127,6 +127,78 @@
 		</table>
 <!-- end fence-agent-configuration -->
 
+<!-- start fence-agent-row -->
+						<tr>
+							#!variable!columns!#
+						</tr>
+<!-- end fence-agent-row -->
+
+<!-- start fence-agent-column -->
+							<td class="column_row_value_centered_border">
+								<span class="#!variable!class!#">#!variable!value!#</span>
+							</td>
+<!-- end fence-agent-column -->
+
+<!-- start fence-agent-column-hidden-value -->
+							<td class="column_row_value_centered_border">
+								<span class="#!variable!class!#">#!variable!value!#</span>
+								<input type="hidden" name="#!variable!name!#" id="#!variable!name!#" value="#!variable!value!#" />
+							</td>
+<!-- end fence-agent-column-hidden-value -->
+
+<!-- start fence-agent-confirm -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/fence.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0215!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<form name="conce_configuration" action="" method="post">
+					<table class="data_table">
+						#!variable!table!#
+						<tr>
+							<td class="close_top">
+								&nbsp;<br />
+								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
+							</td>
+							<td class="close_top" style="text-align: right;" colspan="#!variable!span_count!#">
+								&nbsp;<br />
+								<input type="submit" name="save" id="save" value="#!string!striker_0067!#" class="button">
+							</td>
+							<input type="hidden" name="fence_agent" id="fence_agent" value="#!data!cgi::fence_agent::value!#">
+							<input type="hidden" name="fence_count" id="fence_count" value="#!data!cgi::fence_count::value!#">
+							<input type="hidden" name="add"         id="add"         value="true">
+							<input type="hidden" name="anvil"       id="anvil"       value="true">
+							<input type="hidden" name="task"        id="task"        value="fences">
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+		</table>
+<!-- end fence-agent-confirm -->
+
 <!-- start fence-agent-option-menu -->
 						<tr>
 							<td colspan="3" class="menu_title">

@@ -1195,8 +1195,7 @@ sub update_install_source
 	}
 	update_progress($anvil, 85, "");
 	
-	$output                 = "";
-	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo_c}." -g ".$comps_xml." ".$repo_path });
+	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{createrepo_c}." -g ".$comps_xml." ".$repo_path });
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	print $anvil->Words->string({key => "message_0130"})."\n";
 	update_progress($anvil, 90, "message_0130");

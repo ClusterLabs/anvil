@@ -61,6 +61,14 @@ body {
 	padding:    0.15em;
 }
 
+.column_header_veritcal {
+	text-align:     left;
+	vertical-align: bottom;
+	color:          #9ba0a5;
+	padding:        0.15em;
+	transform:      rotate(-90deg);
+}
+
 .config_header1 {
 	color:      #f7f7f7;
 	text-align: center;
@@ -364,6 +372,13 @@ td.column_row_value_centered {
 	padding:    0.2em;
 }
 
+td.column_row_value_centered_border {
+	text-align: center;
+	color:      #f7f7f7;
+	padding:    0.2em;
+	border:     1px solid #8f8f8f;
+}
+
 .fixed_link {
 	text-align:     left;
 	color:          #f7f7f7;
@@ -457,6 +472,16 @@ tr.data_row {
 
 .unavailable {
 	color:      #dc9012;
+	text-align: center;
+}
+
+.changed_value {
+	color:      #00934d;
+	text-align: center;
+}
+
+.default_value {
+	color:      #f2f2f2;
 	text-align: center;
 }
 

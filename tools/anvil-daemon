@@ -294,7 +294,7 @@ sub check_if_mapping
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::mapping_network" => $anvil->data->{sys}{mapping_network} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::mapping_network" => $anvil->data->{sys}{mapping_network} }});
 	return($anvil->data->{sys}{mapping_network});
 }
 
