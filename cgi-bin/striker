@@ -1546,19 +1546,44 @@ sub sanity_check_fence_agent_form
 	my $confirn_form = "";
 	foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { i => $i }});
+		
+		# Make sure there is a fence name.
+		my $fence_name_key = "fence_name_".$i;
+		if (not $anvil->data->{cgi}{$fence_name_key}{value})
+		{
+			$sane                                       = 0;
+			$anvil->data->{cgi}{$fence_name_key}{alert} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"cgi::${fence_name_key}::alert" => $anvil->data->{cgi}{$fence_name_key}{alert}, 
+				sane                            => $sane, 
+			}});
+		}
+		else
+		{
+			# It's good, add it manually to the hash.
+			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{'default'} = 0;
+			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{value}     = $anvil->data->{cgi}{$fence_name_key}{value};
+			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{say_value} = $anvil->data->{cgi}{$fence_name_key}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"fence::confirm_table::data::fence_name::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{'default'}, 
+				"fence::confirm_table::data::fence_name::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{value}, 
+				"fence::confirm_table::data::fence_name::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{say_value}, 
+			}});
+		}
+		
 		# Read in the parameters for this agent, and compare to see if the value passed in differs.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i }});
-		foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fences}{$fence_agent}{parameters}})
+		foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$fence_agent}{parameters}})
 		{
 			# We don't show deprecated or replaced options.
-			next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
-			next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated};
+			next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{replacement};
+			next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated};
 			my $option_key  = $name."_".$i;
-			my $unique      = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique};
-			my $required    = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required};
-			my $description = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description};
-			my $type        = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type};
-			my $default     = exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} : "";
+			my $unique      = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique};
+			my $required    = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required};
+			my $description = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
+			my $type        = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
+			my $default     = exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:name'        => $name,
 				's2:option_key'  => $option_key,
@@ -1574,14 +1599,14 @@ sub sanity_check_fence_agent_form
 			if (($type eq "boolean") && ($default eq "1"))
 			{
 				$default = "on";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'default' => $default }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'default' => $default }});
 			}
 			
 			my $is_default           = 1;
 			my $passed_parameter_key = $name."_".$i;
 			my $passed_value         = defined $anvil->data->{cgi}{$passed_parameter_key}{value} ? $anvil->data->{cgi}{$passed_parameter_key}{value} : "";
 			my $say_value            = $passed_value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				passed_parameter_key => $passed_parameter_key, 
 				passed_value         => $passed_value, 
 				'default'            => $default, 
@@ -1599,15 +1624,16 @@ sub sanity_check_fence_agent_form
 					#                       Yes                      No
 					$say_value = $default ? "#!string!unit_0001!#" : "#!string!unit_0002!#";
 				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_value => $say_value }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_value => $say_value }});
 			}
 			elsif ((($type eq "string") or ($type eq "select")) && ($passed_value eq ""))
 			{
 				$say_value = "--";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_value => $say_value }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_value => $say_value }});
 			}
 			
-			if ($passed_value ne $default)
+			# We always store the action, then anything else that isn't default.
+			if (($passed_value ne $default) or ($name eq "action"))
 			{
 				# Something changed. Is it sane?
 				$is_default = 0;
@@ -1619,23 +1645,23 @@ sub sanity_check_fence_agent_form
 						# Problem.
 						$sane                                             = 0;
 						$anvil->data->{cgi}{$passed_parameter_key}{alert} = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 							"cgi::${passed_parameter_key}::alert" => $anvil->data->{cgi}{$passed_parameter_key}{alert}, 
 							sane                                  => $sane, 
 						}});
 					}
 				}
 				
-				# 
+				# This will be used to assemble the base shell call later
 				$anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set} = $passed_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"fence::${fence_agent}::set::${i}::parameter::${name}::set" => $anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set}, 
 				}});
 			}
 			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'} = $is_default;
 			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}     = $passed_value ? $passed_value : $default;
 			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value} = $say_value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"fence::confirm_table::data::${name}::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'}, 
 				"fence::confirm_table::data::${name}::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}, 
 				"fence::confirm_table::data::${name}::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value}, 
@@ -1643,7 +1669,7 @@ sub sanity_check_fence_agent_form
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
 	return($sane);
 }
 
@@ -1656,7 +1682,7 @@ sub process_fences
 	$anvil->Striker->get_fence_data({debug => 3});
 	
 	$anvil->data->{cgi}{fence_agent}{value} = "" if not defined $anvil->data->{cgi}{fence_agent}{value};
-	$anvil->data->{cgi}{fence_count}{value} = 2  if not defined $anvil->data->{cgi}{fence_count}{value};
+	$anvil->data->{cgi}{fence_count}{value} = 1  if not defined $anvil->data->{cgi}{fence_count}{value};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"cgi::fence_agent::value" => $anvil->data->{cgi}{fence_agent}{value},
 		"cgi::fence_count::value" => $anvil->data->{cgi}{fence_count}{value},
@@ -1684,73 +1710,174 @@ sub process_fences
 		{
 			# Sanity check
 			my $sane = sanity_check_fence_agent_form($anvil, $fence_agent);
-			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
 			if ($sane)
 			{
-				# Build the table and ask the user to confirm.
-				#print $anvil->Template->get({file => "shared.html", name => "http_headers"})."\n";
-				#print "<pre>\n";
-				#print Dumper $anvil->data->{fence}{confirm_table};
-				#print "</pre>\n";
+				my $success = 0;
+				if ($anvil->data->{cgi}{confirm}{value})
+				{
+					# Build the table and ask the user to confirm.
+					   $success = 1;
+					my $message = "";
+					foreach my $i (sort {$a cmp $b} keys %{$anvil->data->{fence}{$fence_agent}{set}})
+					{
+						my $fence_name_key  = "fence_name_".$i;
+						my $fence_uuid_key  = "fence_uuid_".$i;
+						my $fence_name      = defined $anvil->data->{cgi}{$fence_name_key}{value} ? $anvil->data->{cgi}{$fence_name_key}{value} : "";
+						my $fence_uuid      = defined $anvil->data->{cgi}{$fence_uuid_key}{value} ? $anvil->data->{cgi}{$fence_uuid_key}{value} : "";
+						my $fence_arguments = "";
+						foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}})
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name }});
+							$fence_arguments .= $name."=\"".$anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set}."\" ";
+						}
+						$fence_arguments =~ s/\s+$//;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:i'               => $i,
+							's2:fence_agent'     => $fence_agent, 
+							's3:fence_name'      => $fence_name, 
+							's4:fence_uuid'      => $fence_uuid, 
+							's5:fence_arguments' => $fence_arguments,
+						}});
+						
+						# Save it
+						($fence_uuid) = $anvil->Database->insert_or_update_fences({
+							debug           => 2,
+							fence_name      => $fence_name,
+							fence_agent     => $fence_agent, 
+							fence_arguments => $fence_arguments,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_uuid => $fence_uuid }});
+						if ($fence_uuid)
+						{
+							$message .= $anvil->Words->string({key => "ok_0005", variables => { name => $fence_name }})."<br />";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { message => $message }});
+							
+							# Clear CGI values so the form isn't pre-filled below.
+							foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{cgi}})
+							{
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { key => $key }});
+								if ($key =~ /_$i$/)
+								{
+									$anvil->data->{cgi}{$key}{value} = "";
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${key}::value" => $anvil->data->{cgi}{$key}{value} }});
+								}
+							}
+						}
+						else
+						{
+							# Something went wrong.
+							$success = 0;
+							$message .= $anvil->Words->string({key => "ok_0005", variables => { name => $fence_name }})."<br />";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:success' => $success,
+								's2:message' => $message,
+							}});
+						}
+					}
+					
+					# Show it in the top-center.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+					if ($success)
+					{
+						# Woot!
+						$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
+						
+						# Show the main menu and return.
+						show_fence_config_main_menu($anvil);
+						return(0);
+					}
+					else
+					{
+						# Something went wrong.
+						$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+					}
+				}
 				
-				my $header_columns = $anvil->Template->get({file => "anvil.html", name => "fence-agent-column", variables => {
+				# Success is only true if confirm was set and we saved successfully.
+				if ((not $anvil->data->{cgi}{confirm}{value}) or (not $success))
+				{
+					my $header_columns = $anvil->Template->get({file => "anvil.html", name => "fence-agent-column", variables => {
 						class => "column_header", 
 						value => "&nbsp;", 
-				}});
-				foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
-				{
-					$header_columns .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-column", variables => {
-						class => "column_header", 
-						value => $anvil->Words->string({key => "striker_0220", variables => { number => $i }}), 
 					}});
-				}
-				my $confirm_table = $anvil->Template->get({file => "anvil.html", name => "fence-agent-row", variables => {
-					columns => $header_columns, 
-				}});
-				foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fence}{confirm_table}{data}})
-				{
-					my $entry_row = $anvil->Template->get({file => "anvil.html", name => "fence-agent-column", variables => {
-						class => "column_header", 
-						value => $name, 
-					}});
-					foreach my $i (sort {$a cmp $b} keys %{$anvil->data->{fence}{confirm_table}{data}{$name}})
+					foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
 					{
-						my $is_default = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'};
-						my $say_value  = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value};
-						my $value      = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							's1:name'       => $name,
-							's2:i'          => $i,
-							's3:is_default' => $is_default,
-							's4:value'      => $value,
-							's5:say_value'  => $say_value,
-						}});
-						$entry_row .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-column-hidden-value", variables => {
-							class     => $is_default ? "default_value" : "changed_value", 
-							name      => $name."_".$i,
-							value     => $value, 
-							say_value => $say_value, 
+						# We stash the fence_uuid here as well.
+						my $fence_uuid_key = "fence_uuid_".$i;
+						$header_columns .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-column-hidden-value", variables => {
+							class     => "column_header", 
+							say_value => $anvil->Words->string({key => "striker_0220", variables => { number => $i }}), 
+							name      => $fence_uuid_key, 
+							value     => $anvil->data->{cgi}{$fence_uuid_key}{value},
 						}});
 					}
-					$confirm_table .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-row", variables => {
-						columns => $entry_row, 
+					my $confirm_table = $anvil->Template->get({file => "anvil.html", name => "fence-agent-row", variables => {
+						columns => $header_columns, 
 					}});
+					# Make sure 'fence_name' is always at the top.
+					my $fence_name_seen = 0;
+					foreach my $name ("fence_name", sort {$a cmp $b} keys %{$anvil->data->{fence}{confirm_table}{data}})
+					{
+						if ($name eq "fence_name")
+						{
+							next if $fence_name_seen;
+							$fence_name_seen = 1;
+						}
+						
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { name => $name }});
+						my $entry_row = $anvil->Template->get({file => "anvil.html", name => "fence-agent-column", variables => {
+							class => "column_header", 
+							value => $name, 
+						}});
+						foreach my $i (sort {$a cmp $b} keys %{$anvil->data->{fence}{confirm_table}{data}{$name}})
+						{
+							my $is_default = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'};
+							my $say_value  = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value};
+							my $value      = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+								's1:name'       => $name,
+								's2:i'          => $i,
+								's3:is_default' => $is_default,
+								's4:value'      => $value,
+								's5:say_value'  => $say_value,
+							}});
+							$entry_row .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-column-hidden-value", variables => {
+								class     => $is_default ? "default_value" : "changed_value", 
+								name      => $name."_".$i,
+								value     => $value, 
+								say_value => $say_value, 
+							}});
+						}
+						$confirm_table .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-row", variables => {
+							columns => $entry_row, 
+						}});
+					}
+					
+					# Are we asking the user to confirm one or more?
+					my $confirm_string = $anvil->data->{cgi}{fence_count}{value} == 1 ? "#!string!striker_0222!#" : "#!string!striker_0221!#";
+					$anvil->data->{form}{back_link} = "?anvil=true&task=fences";
+					$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-confirm", variables => {
+						table          => $confirm_table, 
+						span_count     => $anvil->data->{cgi}{fence_count}{value},
+						confirm_string => $confirm_string, 
+					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+					return(0);
 				}
-				
-				# Are we asking the user to confirm one or more?
-				my $confirm_string = $anvil->data->{cgi}{fence_count}{value} == 1 ? "#!string!striker_0222!#" : "#!string!striker_0221!#";
-				$anvil->data->{form}{back_link} = "?anvil=true&task=fences";
-				$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-confirm", variables => {
-					table          => $confirm_table, 
-					span_count     => $anvil->data->{cgi}{fence_count}{value},
-					confirm_string => $confirm_string, 
-				}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
-				return(0);
 			}
 		}
 		
-		my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fences}{$fence_agent}{description});
+		my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fence_data}{$fence_agent}{description});
+		
+		# We add in 'name'
+		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{unique}       = "0";
+		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{required}     = "0";
+		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{description}  = "#!string!striker_0223!#";
+		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{content_type} = "string";
+		$anvil->data->{fence_data}{$fence_agent}{parameters}{fence_name}{'default'}    = "";
 		
 		# Walk through the list of options
 		my $option_form = "";
@@ -1758,22 +1885,95 @@ sub process_fences
 		{
 			my $say_device     = $anvil->Words->string({key => "striker_0216", variables => { number => $i }});
 			my $device_options = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				i          => $i,
 				say_device => $say_device, 
 			}});
 			
-			foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fences}{$fence_agent}{parameters}})
+			# If we have a fence_uuid_X, read in the details.
+			my $fence_uuid_key = "fence_uuid_".$i;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_uuid_key => $fence_uuid_key }});
+			if ((exists $anvil->data->{cgi}{$fence_uuid_key}) && ($anvil->data->{cgi}{$fence_uuid_key}{value}))
+			{
+				$anvil->Database->get_fences({debug => 2});
+				my $fence_uuid = $anvil->data->{cgi}{$fence_uuid_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_uuid => $fence_uuid }});
+				if (exists $anvil->data->{fences}{fence_uuid}{$fence_uuid})
+				{
+					my $old_fence_name      = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name};
+					my $old_fence_agent     = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
+					my $old_fence_arguments = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments};
+					my $fence_name_key      = "fence_name_".$i;
+					my $fence_agent_key     = "fence_agent_".$i;
+					my $fence_arguments_key = "fence_arguments_".$i;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						old_fence_name      => $old_fence_name, 
+						old_fence_agent     => $old_fence_agent,
+						old_fence_arguments => $old_fence_arguments, 
+						fence_name_key      => $fence_name_key, 
+						fence_agent_key     => $fence_agent_key, 
+						fence_arguments_key => $fence_arguments_key, 
+					}});
+					
+					# Make sure we don't get any undefined warnings
+					if ((not exists $anvil->data->{cgi}{$fence_name_key}) or (not defined $anvil->data->{cgi}{$fence_name_key}{value}))
+					{
+						$anvil->data->{cgi}{$fence_name_key}{value} = "";
+					}
+					if ((not exists $anvil->data->{cgi}{$fence_agent_key}) or (not defined $anvil->data->{cgi}{$fence_agent_key}{value}))
+					{
+						$anvil->data->{cgi}{$fence_agent_key}{value} = "";
+					}
+					if ((not exists $anvil->data->{cgi}{$fence_arguments_key}) or (not defined $anvil->data->{cgi}{$fence_arguments_key}{value}))
+					{
+						$anvil->data->{cgi}{$fence_arguments_key}{value} = "";
+					}
+					
+					# Now if we don't have a value in CGI but do from the database, set the CGI.
+					if ((not $anvil->data->{cgi}{$fence_name_key}{value}) && ($old_fence_name))
+					{
+						$anvil->data->{cgi}{$fence_name_key}{value} = $old_fence_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${fence_name_key}::value" => $anvil->data->{cgi}{$fence_name_key}{value},
+						}});
+					}
+					if ((not $anvil->data->{cgi}{$fence_agent_key}{value}) && ($old_fence_agent))
+					{
+						$anvil->data->{cgi}{$fence_agent_key}{value} = $old_fence_agent;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${fence_agent_key}::value" => $anvil->data->{cgi}{$fence_agent_key}{value},
+						}});
+					}
+					if ((not $anvil->data->{cgi}{$fence_arguments_key}{value}) && ($old_fence_arguments))
+					{
+						$anvil->data->{cgi}{$fence_arguments_key}{value} = $old_fence_arguments;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${fence_arguments_key}::value" => $anvil->data->{cgi}{$fence_arguments_key}{value},
+						}});
+					}
+				}
+			}
+			
+			my $fence_name_seen = 0;
+			foreach my $name ("fence_name", sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$fence_agent}{parameters}})
 			{
 				# We don't show deprecated or replaced options.
-				next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
-				next if $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated};
+				next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{replacement};
+				next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated};
+				next if (($fence_name_seen) && ($name eq "fence_name"));
+				
+				# If this is the 'fence_name', it's artificial so pump in some data
+				if ($name eq "fence_name")
+				{
+					$fence_name_seen = 1;
+				}
+				
 				my $option_key  = $name."_".$i;
-				my $unique      = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique};
-				my $required    = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required};
-				my $description = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description};
-				my $type        = $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type};
-				my $default     = exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} : "";
+				my $unique      = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique};
+				my $required    = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required};
+				my $description = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
+				my $type        = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
+				my $default     = exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					option_key  => $option_key,
 					unique      => $unique, 
@@ -1796,7 +1996,7 @@ sub process_fences
 				{
 					# Build the select box
 					my $options = [];
-					foreach my $option (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}})
+					foreach my $option (sort {$a cmp $b} @{$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options}})
 					{
 						push @{$options}, $option;
 					}
@@ -1861,6 +2061,8 @@ sub process_fences
 			$option_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-option-menu", variables => {
 				device_name    => $say_device, 
 				device_options => $device_options,
+				fence_uuid_key => $fence_uuid_key, 
+				fence_uuid     => defined $anvil->data->{cgi}{$fence_uuid_key}{value} ? $anvil->data->{cgi}{$fence_uuid_key}{value} : "",
 			}});
 		}
 		
@@ -1874,57 +2076,109 @@ sub process_fences
 	}
 	else
 	{
-		# For each agent, we'll create a <div> with it's options that will be shown/hidden basen on the agent
-		# select box.
-		my $agents           = [];
-		my $description_form = "";
-		foreach my $fence_agent (sort {$a cmp $b} keys %{$anvil->data->{fences}})
+		# Show the main menu
+		show_fence_config_main_menu($anvil);
+	}
+	
+	return(0);
+}
+
+sub show_fence_config_main_menu
+{
+	my ($anvil) = @_;
+	
+	# Read in known fence devices
+	$anvil->Database->get_fences({debug => 2});
+	
+	# Get a list of current fence agents.
+	my $existing_fences = "";
+	if (exists $anvil->data->{fences}{fence_uuid})
+	{
+		# How many do we have?
+		my $fence_count = keys %{$anvil->data->{fences}{fence_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { fence_count => $fence_count }});
+		if ($fence_count)
 		{
-			# We don't care about IPMI-based fence agents here.
-			next if $fence_agent eq "fence_drac5";
-			next if $fence_agent eq "fence_idrac";
-			next if $fence_agent =~ /^fence_ilo/;
-			next if $fence_agent eq "fence_imm";
-			next if $fence_agent eq "fence_ipmilan";
-			next if $fence_agent eq "fence_redfish";
-			next if $fence_agent eq "fence_rsa";
-			
-			push @{$agents}, $fence_agent;
-			
-			my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fences}{$fence_agent}{description});
-			
-			$description_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-description", variables => {
-				name        => $fence_agent, 
-				description => $agent_description,
+			# We've got devices.
+			my $fence_devices = "";
+			foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_name}})
+			{
+				my $fence_uuid       =  $anvil->data->{fences}{fence_name}{$fence_name}{fence_uuid};
+				my $fence_agent      =  $anvil->data->{fences}{fence_name}{$fence_name}{fence_agent};
+				my $fence_arguments  =  $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments};
+				my $say_fence_device =  $fence_agent." ".$fence_arguments;
+				   $say_fence_device =~ s/passwd="(.*?)"/passwd="--"/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					fence_uuid       => $fence_uuid,
+					fence_agent      => $fence_agent, 
+					fence_arguments  => $fence_arguments =~ /passwd=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+					say_fence_device => $say_fence_device, 
+				}});
+				
+				$fence_devices .= $anvil->Template->get({file => "anvil.html", name => "existing-fence-device-entry", variables => {
+					name        => $fence_name, 
+					arguments   => $say_fence_device,
+					fence_agent => $fence_agent, 
+					fence_uuid  => $fence_uuid, 
+				}});
+			}
+			$existing_fences .= $anvil->Template->get({file => "anvil.html", name => "existing-fence-devices", variables => {
+				devices => $fence_devices, 
 			}});
 		}
-		
-		my $fence_agent_select = $anvil->Template->select_form({
-			name     => "fence_agent",
-			options  => $agents,
-			blank    => 0,
-			'sort'   => 1,
-			selected => $anvil->data->{cgi}{fence_agent}{value} ? $anvil->data->{cgi}{fence_agent}{value} : "fence_apc_snmp",
-			class    => "input_clear",
-		});
-		my $fence_count_select = $anvil->Template->select_form({
-			name     => "fence_count",
-			options  => [1, 2, 3, 4],
-			blank    => 0,
-			'sort'   => 0,
-			selected => $anvil->data->{cgi}{fence_count}{value},
-			class    => "input_clear",
-		});
-	
-		$anvil->data->{form}{back_link} = "?anvil=true&task=create";
-		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-menu", variables => {
-			fence_select    => $fence_agent_select, 
-			fence_count     => $fence_count_select,
-			descriptions    => $description_form, 
-			existing_fences => "",
-		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	}
+	
+	# For each agent, we'll create a <div> with it's options that will be shown/hidden basen on the agent
+	# select box.
+	my $agents           = [];
+	my $description_form = "";
+	foreach my $fence_agent (sort {$a cmp $b} keys %{$anvil->data->{fence_data}})
+	{
+		# We don't care about IPMI-based fence agents here.
+		next if $fence_agent eq "fence_drac5";
+		next if $fence_agent eq "fence_idrac";
+		next if $fence_agent =~ /^fence_ilo/;
+		next if $fence_agent eq "fence_imm";
+		next if $fence_agent eq "fence_ipmilan";
+		next if $fence_agent eq "fence_redfish";
+		next if $fence_agent eq "fence_rsa";
+		
+		push @{$agents}, $fence_agent;
+		
+		my $agent_description = format_fence_description($anvil, $fence_agent, $anvil->data->{fence_data}{$fence_agent}{description});
+		
+		$description_form .= $anvil->Template->get({file => "anvil.html", name => "fence-agent-description", variables => {
+			name        => $fence_agent, 
+			description => $agent_description,
+		}});
+	}
+	
+	my $fence_agent_select = $anvil->Template->select_form({
+		name     => "fence_agent",
+		options  => $agents,
+		blank    => 0,
+		'sort'   => 1,
+		selected => $anvil->data->{cgi}{fence_agent}{value} ? $anvil->data->{cgi}{fence_agent}{value} : "fence_apc_snmp",
+		class    => "input_clear",
+	});
+	my $fence_count_select = $anvil->Template->select_form({
+		name     => "fence_count",
+		options  => [1, 2, 3, 4],
+		blank    => 0,
+		'sort'   => 0,
+		selected => $anvil->data->{cgi}{fence_count}{value},
+		class    => "input_clear",
+	});
+
+	$anvil->data->{form}{back_link}    = "?anvil=true&task=create";
+	$anvil->data->{form}{refresh_link} = "?anvil=true&task=fences";
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "fence-agent-menu", variables => {
+		fence_select     => $fence_agent_select, 
+		fence_count      => $fence_count_select,
+		descriptions     => $description_form, 
+		existing_devices => $existing_fences,
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
 	return(0);
 }
@@ -2043,6 +2297,7 @@ ORDER BY
 	
 	# Store the previous CGI variables and display the new fields.
 	$anvil->data->{form}{back_link}     = "?anvil=true";
+	$anvil->data->{form}{refresh_link}  = "?anvil=true&task=create";
 	$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
 	$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};

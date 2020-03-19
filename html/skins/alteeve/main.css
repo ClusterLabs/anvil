@@ -388,6 +388,16 @@ td.column_row_value_centered_border {
 	vertical-align: top;
 }
 
+.fixed_link_highlight {
+	text-align:     left;
+	color:          #7f7fff;
+	font-family:    'Dejavu Sans Mono', Courier;
+	padding:        0.2em;
+	font-size:      0.9em;
+	vertical-align: top;
+	cursor:         pointer;
+}
+
 td.column_row_value_fixed {
 	text-align:     left;
 	color:          #f7f7f7;

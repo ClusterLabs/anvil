@@ -1517,7 +1517,6 @@ CREATE TRIGGER trigger_manifests
 CREATE TABLE fences (
     fence_uuid         uuid                        not null    primary key,
     fence_name         text                        not null,                   -- This is the name of the fence device. Usually this is the host name of the device (ie: xx-pdu01.example.com)
-    fence_type         text                        not null,                   -- This is the fence device type. This corresponds to the '<devices> <$fence_type> ... </f$ence_type> </devices>' section of the install manifest.
     fence_agent        text                        not null,                   -- This is the fence agent name used to communicate with the device. ie: 'fence_apc_ups', 'fence_virsh', etc.
     fence_arguments    text                        not null,                   -- This is the arguemnts list used to access / authenticate with the device. What should be in this field depends on the 'STDIN PARAMETERS' section of the fence agent's man page. 
     modified_date      timestamp with time zone    not null 
@@ -1528,7 +1527,6 @@ CREATE TABLE history.fences (
     history_id         bigserial, 
     fence_uuid         uuid, 
     fence_name         text,
-    fence_type         text,
     fence_agent        text, 
     fence_arguments    text, 
     modified_date      timestamp with time zone
@@ -1544,14 +1542,12 @@ BEGIN
     INSERT INTO history.fences
         (fence_uuid, 
          fence_name,
-         fence_type, 
          fence_agent, 
          fence_arguments, 
          modified_date)
     VALUES
         (history_fences.fence_uuid, 
          history_fences.fence_name,
-         history_fences.fence_type, 
          history_fences.fence_agent, 
          history_fences.fence_arguments, 
          history_fences.modified_date);

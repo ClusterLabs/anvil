@@ -196,6 +196,7 @@
 							<input type="hidden" name="add"         id="add"         value="true">
 							<input type="hidden" name="anvil"       id="anvil"       value="true">
 							<input type="hidden" name="task"        id="task"        value="fences">
+							<input type="hidden" name="confirm"     id="confirm"     value="true">
 						</tr>
 					</table>
 					</form>
@@ -216,6 +217,7 @@
 							</td>
 						</tr>
 						#!variable!device_options!#
+						<input type="hidden" name="#!variable!fence_uuid_key!#" id="#!variable!fence_uuid_key!#" value="#!variable!fence_uuid!#" />
 <!-- end fence-agent-option-menu -->
 
 <!-- start fence-agent-option-entry -->
@@ -260,6 +262,59 @@
 						</tr>
 <!-- end fence-agent-input-entry -->
 
+<!-- start existing-fence-devices -->
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td>
+					#!string!striker_0224!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td>
+					<table>
+						<div id="existing_fence_devices">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								#!string!header_0003!#:
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_header">
+								#!string!header_0021!#
+							</td>
+						</tr>
+						#!variable!devices!#
+						</div>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+<!-- end existing-fence-devices -->
+
+<!-- start existing-fence-device-entry -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td>
+								<a href="?anvil=true&task=fences&fence_agent=#!variable!fence_agent!#&fence_count=1&fence_uuid_1=#!variable!fence_uuid!#" class="fixed_link_highlight">#!variable!name!#</a>:
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="fixed_width">
+								#!variable!arguments!#
+							</td>
+						</tr>
+<!-- end existing-fence-device-entry -->
+
 <!-- start fence-agent-menu -->
 		<table align="center" class="anvil_main_menu">
 			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
@@ -290,18 +345,17 @@
 					&nbsp;
 				</td>
 			</tr>
+			#!variable!existing_devices!#
 			<tr>
-				<td colspan="2">
+				<td>
+					&nbsp;
+				</td>
+				<td>
 					#!string!striker_0213!#
 				</td>
 			</tr>
 			<tr>
 				<td colspan="2">
-					#!variable!existing_fences!#
-				</td>
-			</tr>
-			<tr>
-				<td colspan="2">
 					&nbsp;
 				</td>
 			</tr>
@@ -310,7 +364,7 @@
 					&nbsp;
 				</td>
 				<td>
-					<table class="centered">
+					<table>
 						<div id="new_fences">
 						<form name="new_fences" action="" method="post">
 						<tr>
@@ -348,6 +402,7 @@
 							</td>
 						</tr>
 						</form>
+						</div>
 					</table>
 				</td>
 			</tr>

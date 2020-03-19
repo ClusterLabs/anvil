@@ -862,6 +862,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="header_0018">Configured Hosts</key>
 		<key name="header_0019">Type</key>
 		<key name="header_0020">At IP</key>
+		<key name="header_0021">Agent and Arguments</key>
+		<key name="header_0022">Delete</key>
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
@@ -1092,6 +1094,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0220">Device #!variable!number!#:</key>
 		<key name="striker_0221">Please confirm the fence devices are configured the way you like.</key>
 		<key name="striker_0222">Please confirm the fence device is configured the way you like.</key>
+		<key name="striker_0223">This is the unique name (often the host name) of this specific fence device.</key>
+		<key name="striker_0224">Existing fence devices:</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1240,6 +1244,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="ok_0002">The mail server: [#!variable!mail_server!#] has been deleted.</key>
 		<key name="ok_0003">The alert recipient: [#!variable!recipient_email!#] has been deleted.</key>
 		<key name="ok_0004">Saved the alert recipient information successfully!</key>
+		<key name="ok_0005">The fence device: [#!variable!name!#] has been successfully saved!</key>
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">[ Warning ] - The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1273,6 +1278,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0029">[ Warning ] - While resync'ing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and it probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
 		<key name="warning_0030">[ Warning ] - Databse->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
 		<key name="warning_0031">[ Warning ] - No internet detected (couldn't ping: [#!variable!domain!#]). Skipping attempt to download RPMs.</key>
+		<key name="warning_0032">[ Warning ] - The fence device: [#!variable!name!#] appears to have not been saved.</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>

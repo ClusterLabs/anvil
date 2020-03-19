@@ -82,7 +82,7 @@ sub parent
 
 This parses the unified metadata file from the avaialable fence_devices on this host. If the unified file (location stored in C<< path::data::fences_unified_metadata >>, default is C<< /tmp/fences_unified_metadata.xml >> is not found or fails to parse, C<< 1 >> is returned. If the file is successfully parsed. C<< 0 >> is returned.
 
-The parsed data is stored under C<< fences::<agent_name>::... >>.
+The parsed data is stored under C<< fence_data::<agent_name>::... >>.
 
 =cut
 sub get_fence_data
@@ -125,9 +125,9 @@ sub get_fence_data
 	foreach my $agent_ref (@{$parsed_xml->{agent}})
 	{
 		my $fence_agent                                      = $agent_ref->{name};
-		   $anvil->data->{fences}{$fence_agent}{description} = $agent_ref->{'resource-agent'}->{longdesc};
+		   $anvil->data->{fence_data}{$fence_agent}{description} = $agent_ref->{'resource-agent'}->{longdesc};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"fences::${fence_agent}::description" => $anvil->data->{fences}{$fence_agent}{description},
+			"fence_data::${fence_agent}::description" => $anvil->data->{fence_data}{$fence_agent}{description},
 		}});
 		if (exists $agent_ref->{'resource-agent'}->{'symlink'})
 		{
@@ -136,18 +136,18 @@ sub get_fence_data
 				foreach my $hash_ref (@{$agent_ref->{'resource-agent'}->{'symlink'}})
 				{
 					my $name = $hash_ref->{name};
-					$anvil->data->{fences}{$fence_agent}{'symlink'}{$name} = $hash_ref->{shortdesc};
+					$anvil->data->{fence_data}{$fence_agent}{'symlink'}{$name} = $hash_ref->{shortdesc};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"fences::${fence_agent}::symlink::${name}" => $anvil->data->{fences}{$fence_agent}{'symlink'}{$name},
+						"fence_data::${fence_agent}::symlink::${name}" => $anvil->data->{fence_data}{$fence_agent}{'symlink'}{$name},
 					}});
 				}
 			}
 			else
 			{
 				my $name = $agent_ref->{'resource-agent'}->{'symlink'}->{name};
-				$anvil->data->{fences}{$fence_agent}{'symlink'}{$name} = $agent_ref->{'resource-agent'}->{'symlink'}->{shortdesc};
+				$anvil->data->{fence_data}{$fence_agent}{'symlink'}{$name} = $agent_ref->{'resource-agent'}->{'symlink'}->{shortdesc};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"fences::${fence_agent}::symlink::${name}" => $anvil->data->{fences}{$fence_agent}{'symlink'}{$name},
+					"fence_data::${fence_agent}::symlink::${name}" => $anvil->data->{fence_data}{$fence_agent}{'symlink'}{$name},
 				}});
 			}
 		}
@@ -169,33 +169,33 @@ sub get_fence_data
 			my $required   = exists $hash_ref->{required}   ? $hash_ref->{required}   : 0;
 			my $deprecated = exists $hash_ref->{deprecated} ? $hash_ref->{deprecated} : 0;
 			my $obsoletes  = exists $hash_ref->{obsoletes}  ? $hash_ref->{obsoletes}  : 0;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique}       =  $unique;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{required}     =  $required;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated}   =  $deprecated;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{obsoletes}    =  $obsoletes;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{description}  =  $hash_ref->{shortdesc}->{content};
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{description}  =~ s/\n/ /g;
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches}     =  defined $hash_ref->{getopt}->{mixed} ? $hash_ref->{getopt}->{mixed} : "";
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} =  $hash_ref->{content}->{type};
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique}       =  $unique;
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required}     =  $required;
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated}   =  $deprecated;
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{obsoletes}    =  $obsoletes;
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description}  =  $hash_ref->{shortdesc}->{content};
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description}  =~ s/\n/ /g;
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{switches}     =  defined $hash_ref->{getopt}->{mixed} ? $hash_ref->{getopt}->{mixed} : "";
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type} =  $hash_ref->{content}->{type};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"fences::${fence_agent}::parameters::${name}::unique"       => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{unique},
-				"fences::${fence_agent}::parameters::${name}::required"     => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{required},
-				"fences::${fence_agent}::parameters::${name}::deprecated"   => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{deprecated},
-				"fences::${fence_agent}::parameters::${name}::obsoletes"    => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{obsoletes},
-				"fences::${fence_agent}::parameters::${name}::description"  => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{description},
-				"fences::${fence_agent}::parameters::${name}::switches"     => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{switches},
-				"fences::${fence_agent}::parameters::${name}::content_type" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type},
+				"fence_data::${fence_agent}::parameters::${name}::unique"       => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique},
+				"fence_data::${fence_agent}::parameters::${name}::required"     => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required},
+				"fence_data::${fence_agent}::parameters::${name}::deprecated"   => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated},
+				"fence_data::${fence_agent}::parameters::${name}::obsoletes"    => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{obsoletes},
+				"fence_data::${fence_agent}::parameters::${name}::description"  => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description},
+				"fence_data::${fence_agent}::parameters::${name}::switches"     => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{switches},
+				"fence_data::${fence_agent}::parameters::${name}::content_type" => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type},
 			}});
 			
 			# 'action' is a string, but it has a set list of allowed values, so we manually switch it to a 'select' for the web interface
 			if ($name eq "action")
 			{
-				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'}    = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
-				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} = "select";
-				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}      = [];
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'}    = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type} = "select";
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options}      = [];
 				
 				# Read the action 
-				print "Agent: [".$fence_agent."]; actions (default: [".$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'}."]);\n";
+				print "Agent: [".$fence_agent."]; actions (default: [".$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'}."]);\n";
 				foreach my $array_ref (sort {$a cmp $b} @{$agent_ref->{'resource-agent'}->{actions}->{action}})
 				{
 					# There are several options that don't make sense for us.
@@ -208,72 +208,72 @@ sub get_fence_data
 					next if $array_ref->{name} eq "metadata";
 					next if $array_ref->{name} eq "on";
 					
-					push @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}}, $array_ref->{name};
+					push @{$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options}}, $array_ref->{name};
 				}
 				
-				foreach my $option (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}})
+				foreach my $option (sort {$a cmp $b} @{$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { option => $option }});
 				}
 			}
-			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "string")
+			elsif ($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type} eq "string")
 			{
-				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
+					"fence_data::${fence_agent}::parameters::${name}::default" => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'},
 				}});
 			}
-			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "select")
+			elsif ($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type} eq "select")
 			{
-				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options} = [];
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options} = [];
 				foreach my $option_ref (@{$hash_ref->{content}->{option}})
 				{
-					push @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}}, $option_ref->{value};
+					push @{$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options}}, $option_ref->{value};
 				}
 				
-				foreach my $option (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{parameters}{$name}{options}})
+				foreach my $option (sort {$a cmp $b} @{$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { option => $option }});
 				}
 			}
-			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "boolean")
+			elsif ($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type} eq "boolean")
 			{
 				# Nothing to collect here.
 			}
-			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "second")
+			elsif ($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type} eq "second")
 			{
 				# Nothing to collect here.
-				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
+					"fence_data::${fence_agent}::parameters::${name}::default" => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'},
 				}});
 			}
-			elsif ($anvil->data->{fences}{$fence_agent}{parameters}{$name}{content_type} eq "integer")
+			elsif ($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type} eq "integer")
 			{
 				# Nothing to collect here.
-				$anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";;
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} = exists $hash_ref->{content}->{'default'} ? $hash_ref->{content}->{'default'} : "";;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"fences::${fence_agent}::parameters::${name}::default" => $anvil->data->{fences}{$fence_agent}{parameters}{$name}{'default'},
+					"fence_data::${fence_agent}::parameters::${name}::default" => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'},
 				}});
 			}
 			
 			# If this obsoletes another parameter, mark it as such.
-			$anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement} = "" if not exists $anvil->data->{fences}{$fence_agent}{parameters}{$name}{replacement};
+			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{replacement} = "" if not exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{replacement};
 			if ($obsoletes)
 			{
-				$anvil->data->{fences}{$fence_agent}{parameters}{$obsoletes}{replacement} = $name;
+				$anvil->data->{fence_data}{$fence_agent}{parameters}{$obsoletes}{replacement} = $name;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"fences::${fence_agent}::parameters::${obsoletes}::replacement" => $anvil->data->{fences}{$fence_agent}{parameters}{$obsoletes}{replacement},
+					"fence_data::${fence_agent}::parameters::${obsoletes}::replacement" => $anvil->data->{fence_data}{$fence_agent}{parameters}{$obsoletes}{replacement},
 				}});
 			}
 		}
 		
-		$anvil->data->{fences}{$fence_agent}{actions} = [];
+		$anvil->data->{fence_data}{$fence_agent}{actions} = [];
 		foreach my $hash_ref (@{$agent_ref->{'resource-agent'}->{actions}{action}})
 		{
-			push @{$anvil->data->{fences}{$fence_agent}{actions}}, $hash_ref->{name};
+			push @{$anvil->data->{fence_data}{$fence_agent}{actions}}, $hash_ref->{name};
 		}
-		foreach my $action (sort {$a cmp $b} @{$anvil->data->{fences}{$fence_agent}{actions}})
+		foreach my $action (sort {$a cmp $b} @{$anvil->data->{fence_data}{$fence_agent}{actions}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { action => $action }});
 		}

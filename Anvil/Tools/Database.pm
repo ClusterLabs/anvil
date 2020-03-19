@@ -1460,9 +1460,105 @@ FROM
 		}});
 	}
 	
-	return();
+	return(0);
 }
 
+
+=head2 get_fences
+
+This loads the known fence devices into the C<< anvil::data >> hash at:
+
+* fences::fence_uuid::<fence_uuid>::fence_name
+* fences::fence_uuid::<fence_uuid>::fence_agent
+* fences::fence_uuid::<fence_uuid>::fence_arguments
+* fences::fence_uuid::<fence_uuid>::modified_date
+
+And, to allow for lookup by name;
+
+* fences::fence_name::<fence_name>::fence_uuid
+* fences::fence_name::<fence_name>::fence_agent
+* fences::fence_name::<fence_name>::fence_arguments
+* fences::fence_name::<fence_name>::modified_date
+
+If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+
+B<<Note>>: Deleted devices (ones where C<< fence_arguments >> is set to C<< DELETED >>) are ignored.
+
+=cut
+sub get_fences
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_from_uuid()" }});
+	
+	
+	if (exists $anvil->data->{fences})
+	{
+		delete $anvil->data->{fences};
+	}
+	
+	my $query = "
+SELECT 
+    fence_uuid, 
+    fence_name, 
+    fence_agent, 
+    fence_arguments, 
+    modified_date 
+FROM 
+    fences 
+WHERE 
+    fence_arguments != 'DELETED'
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $fence_uuid      = $row->[0];
+		my $fence_name      = $row->[1];
+		my $fence_agent     = $row->[2];
+		my $fence_arguments = $row->[3]; 
+		my $modified_date   = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			fence_uuid      => $fence_uuid, 
+			fence_name      => $fence_name, 
+			fence_agent     => $fence_agent, 
+			fence_arguments => $fence_arguments =~ /passwd=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+			modified_date   => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name}      = $fence_name;
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent}     = $fence_agent;
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments} = $fence_arguments;
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{modified_date}   = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"fences::fence_uuid::${fence_uuid}::fence_name"      => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name}, 
+			"fences::fence_uuid::${fence_uuid}::fence_agent"     => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent}, 
+			"fences::fence_uuid::${fence_uuid}::fence_arguments" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments} =~ /passwd=/ ? $anvil->Log->is_secure($anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments}) : $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments}, 
+			"fences::fence_uuid::${fence_uuid}::modified_date"   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{modified_date}, 
+		}});
+		
+		$anvil->data->{fences}{fence_name}{$fence_name}{fence_uuid}      = $fence_uuid;
+		$anvil->data->{fences}{fence_name}{$fence_name}{fence_agent}     = $fence_agent;
+		$anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments} = $fence_arguments;
+		$anvil->data->{fences}{fence_name}{$fence_name}{modified_date}   = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"fences::fence_name::${fence_name}::fence_uuid"      => $anvil->data->{fences}{fence_name}{$fence_name}{fence_uuid}, 
+			"fences::fence_name::${fence_name}::fence_agent"     => $anvil->data->{fences}{fence_name}{$fence_name}{fence_agent}, 
+			"fences::fence_name::${fence_name}::fence_arguments" => $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments} =~ /passwd=/ ? $anvil->Log->is_secure($anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments}) : $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments}, 
+			"fences::fence_name::${fence_name}::modified_date"   => $anvil->data->{fences}{fence_name}{$fence_name}{modified_date}, 
+		}});
+	}
+
+	return(0);
+}
 
 =head2 get_host_from_uuid
 
@@ -3077,7 +3173,7 @@ If set, this is the file line number logged as the source of any INSERTs or UPDA
 
 This is the name of the fence agent to use when communicating with this fence device. The agent must be installed on any machine that may need to fence (or check the fence/power state of) a node.
 
-=head3 fence_arguments (required)
+=head3 fence_arguments (optional, but generally required in practice)
 
 This is the string that tells machines how to communicate / control the the fence device. This is used when configuring pacemaker's stonith (fencing). 
 
@@ -3091,14 +3187,11 @@ B<< NOTES >>:
 * If C<< password_script >> is used, it is required that the user has copied the script to the nodes.
 * Do not use C<< action="..." >> or the fence agent name. If either is found in the string, they will be ignored.
 * Do not use C<< delay >>. It will be determined automatically based on which node has the most servers running on it.
+* If this is set to C<< DELETED >>, the fence device is considered no longer used and it will be ignored by C<< Database->get_fences() >>.
 
 =head3 fence_name (required)
 
 This is the name of the fence device. Genreally, this is the short host name of the device.
-
-=head3 fence_type (required)
-
-This is the name of the fence device type. Specifically, the corresponds C<< foo>> to the C<< <devices> <foo> ... </foo> </devices> >> section of the install manifest XML. Typically this is C<< pdu >> or C<< kvm >>.
 
 =head3 fence_uuid (required)
 
@@ -3119,8 +3212,7 @@ sub insert_or_update_fences
 	my $fence_agent     = defined $parameter->{fence_agent}     ? $parameter->{fence_agent}     : "";
 	my $fence_arguments = defined $parameter->{fence_arguments} ? $parameter->{fence_arguments} : "";
 	my $fence_name      = defined $parameter->{fence_name}      ? $parameter->{fence_name}      : "";
-	my $fence_type      = defined $parameter->{fence_type}      ? $parameter->{fence_type}      : $anvil->System->get_fence_type;
-	my $fence_uuid      = defined $parameter->{fence_uuid}      ? $parameter->{fence_uuid}      : $anvil->Get->fence_uuid;
+	my $fence_uuid      = defined $parameter->{fence_uuid}      ? $parameter->{fence_uuid}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid            => $uuid, 
 		file            => $file, 
@@ -3128,29 +3220,19 @@ sub insert_or_update_fences
 		fence_agent     => $fence_agent, 
 		fence_arguments => $fence_arguments =~ /passwork=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
 		fence_name      => $fence_name, 
-		fence_type      => $fence_type, 
 		fence_uuid      => $fence_uuid, 
 	}});
 	
-	### TODO: Left off here
+	# I can't imagine why you'd ever use no arguments, but it's not impossible. This doesn't include the
+	# "port", which could be all that 's needed I suppose.
 	if (not $fence_agent)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_agent" }});
 		return("");
 	}
-	if (not $fence_arguments)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_arguments" }});
-		return("");
-	}
 	if (not $fence_name)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_name" }});
-		return("");
-	}
-	if (not $fence_type)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_fences()", parameter => "fence_type" }});
 		return("");
 	}
 	
@@ -3164,8 +3246,6 @@ FROM
     fences 
 WHERE 
     fence_name = ".$anvil->Database->quote($fence_name)." 
-AND
-    fence_type = ".$anvil->Database->quote($fence_type)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -3190,7 +3270,6 @@ AND
 SELECT 
     fence_agent, 
     fence_name, 
-    fence_type, 
     fence_arguments  
 FROM 
     fences 
@@ -3209,17 +3288,14 @@ WHERE
 		{
 			my $old_fence_agent     = $row->[0];
 			my $old_fence_name      = $row->[1];
-			my $old_fence_type      = $row->[2];
-			my $old_fence_arguments = $row->[3];
+			my $old_fence_arguments = $row->[2];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 				old_fence_agent     => $old_fence_agent,
 				old_fence_name      => $old_fence_name =~ /passw/ ? $anvil->Log->is_secure($old_fence_name) : $old_fence_name, 
-				old_fence_type      => $old_fence_type, 
 				old_fence_arguments => $old_fence_arguments, 
 			}});
 			if (($old_fence_agent     ne $fence_agent) or 
 			    ($old_fence_name      ne $fence_name)  or 
-			    ($old_fence_type      ne $fence_type)  or 
 			    ($old_fence_arguments ne $fence_arguments))
 			{
 				# Clear the stop data.
@@ -3228,7 +3304,6 @@ UPDATE
     fences
 SET 
     fence_name      = ".$anvil->Database->quote($fence_name).", 
-    fence_type      = ".$anvil->Database->quote($fence_type).", 
     fence_arguments = ".$anvil->Database->quote($fence_arguments).", 
     fence_agent     = ".$anvil->Database->quote($fence_agent).", 
     modified_date   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
@@ -3250,14 +3325,12 @@ INSERT INTO
 (
     fence_uuid, 
     fence_name, 
-    fence_type, 
     fence_arguments, 
     fence_agent, 
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($fence_uuid).", 
     ".$anvil->Database->quote($fence_name).",
-    ".$anvil->Database->quote($fence_type).",
     ".$anvil->Database->quote($fence_arguments).",
     ".$anvil->Database->quote($fence_agent).",
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
