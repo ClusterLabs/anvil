@@ -124,7 +124,7 @@ sub get_fence_data
 	
 	foreach my $agent_ref (@{$parsed_xml->{agent}})
 	{
-		my $fence_agent                                      = $agent_ref->{name};
+		my $fence_agent                                          = $agent_ref->{name};
 		   $anvil->data->{fence_data}{$fence_agent}{description} = $agent_ref->{'resource-agent'}->{longdesc};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"fence_data::${fence_agent}::description" => $anvil->data->{fence_data}{$fence_agent}{description},

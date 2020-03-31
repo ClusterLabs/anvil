@@ -1584,7 +1584,7 @@ sub sanity_check_fence_agent_form
 			my $description = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
 			my $type        = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
 			my $default     = exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:name'        => $name,
 				's2:option_key'  => $option_key,
 				's3:unique'      => $unique, 
@@ -1687,6 +1687,91 @@ sub process_fences
 		"cgi::fence_agent::value" => $anvil->data->{cgi}{fence_agent}{value},
 		"cgi::fence_count::value" => $anvil->data->{cgi}{fence_count}{value},
 	}});
+	
+	# Are we deleting an agent?
+	if ((exists $anvil->data->{cgi}{delete_fence_uuid}) && ($anvil->data->{cgi}{delete_fence_uuid}{value}))
+	{
+		# Verify that the UUID is valid.
+		$anvil->Database->get_fences({debug => 2, include_deleted => 2});
+		my $fence_uuid  = $anvil->data->{cgi}{delete_fence_uuid}{value};
+		my $fence_name  = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name};
+		my $fence_agent = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
+		if (not exists $anvil->data->{fences}{fence_uuid}{$fence_uuid})
+		{
+			# Doesn't exist.
+			my $message = $anvil->Words->string({key => "warning_0034", variables => { uuid => $fence_uuid }});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+		}
+		elsif ($anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments} eq "DELETED")
+		{
+			# Already deleted.
+			my $message = $anvil->Words->string({key => "warning_0033", variables => { 
+				name => $fence_name,
+				uuid => $fence_uuid,
+			}});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+		}
+		
+		# Has the user confirmed?
+		if ((exists $anvil->data->{cgi}{confirm}) && ($anvil->data->{cgi}{confirm}{value}))
+		{
+			# Delete it
+			my ($fence_uuid) = $anvil->Database->insert_or_update_fences({
+				debug           => 2,
+				fence_uuid      => $fence_uuid,
+				fence_name      => $fence_name,
+				fence_agent     => $fence_agent, 
+				fence_arguments => "DELETED",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_uuid => $fence_uuid }});
+			if ($fence_uuid)
+			{
+				# Deleted successfully
+				my $message = $anvil->Words->string({key => "ok_0006", variables => { name => $fence_name }});
+				$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
+			}
+			else
+			{
+				# Something went wrong.
+				my $message = $anvil->Words->string({key => "warning_0035", variables => { 
+					name => $fence_name,
+					uuid => $fence_uuid,
+				}});
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+			}
+			
+			# Show the main menu and return.
+			show_fence_config_main_menu($anvil);
+			return(0);
+		}
+		else
+		{
+			# Ask the user to confirm.
+			my $fence_name       =  $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name};
+			my $fence_arguments  =  $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments};
+			my $say_fence_device =  $fence_agent." ".$fence_arguments;
+			   $say_fence_device =~ s/passw(\w+)="(.*?)"/passw$1="--"/g;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				fence_uuid       => $fence_uuid,
+				fence_agent      => $fence_agent, 
+				fence_arguments  => $fence_arguments =~ /passw=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+				say_fence_device => $say_fence_device, 
+			}});
+			
+			# Are we asking the user to confirm one or more?
+			$anvil->data->{form}{back_link} = "?anvil=true&task=fences";
+			$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-delete-confirm", variables => {
+				fence_name => $fence_name, 
+				say_device => $say_fence_device, 
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+			return(0);
+		}
+	}
 	
 	# Are we configuring an agent/device?
 	if ($anvil->data->{cgi}{fence_agent}{value})
@@ -1896,6 +1981,7 @@ sub process_fences
 			if ((exists $anvil->data->{cgi}{$fence_uuid_key}) && ($anvil->data->{cgi}{$fence_uuid_key}{value}))
 			{
 				$anvil->Database->get_fences({debug => 2});
+				
 				my $fence_uuid = $anvil->data->{cgi}{$fence_uuid_key}{value};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { fence_uuid => $fence_uuid }});
 				if (exists $anvil->data->{fences}{fence_uuid}{$fence_uuid})
@@ -1924,9 +2010,28 @@ sub process_fences
 					{
 						$anvil->data->{cgi}{$fence_agent_key}{value} = "";
 					}
-					if ((not exists $anvil->data->{cgi}{$fence_arguments_key}) or (not defined $anvil->data->{cgi}{$fence_arguments_key}{value}))
+					# For arguments, we need to break up the arguments string, append the integer to the variable, and see if that CGI is set yet.
+					$old_fence_arguments =~ s/="(.*?)" /="$1",/;
+					foreach my $pair (split/,/, $old_fence_arguments)
 					{
-						$anvil->data->{cgi}{$fence_arguments_key}{value} = "";
+						$pair =~ s/^\s+//; $pair =~ s/\s+$//;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pair => $pair }});
+						
+						my ($variable, $value) = ($pair =~ /^(.*?)="(.*)"$/);
+						my $cgi_key = $variable."_".$i;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:variable' => $variable,
+							's2:value'    => $variable =~ /passw=/ ? $anvil->Log->is_secure($value) : $value, 
+							's3:cgi_key'  => $cgi_key, 
+						}});
+						
+						if ((not defined $anvil->data->{cgi}{$cgi_key}{value}) or ($anvil->data->{cgi}{$cgi_key}{value} eq ""))
+						{
+							$anvil->data->{cgi}{$cgi_key}{value} = $value;
+						}
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${cgi_key}::value" => $anvil->data->{cgi}{$cgi_key}{value}, 
+						}});
 					}
 					
 					# Now if we don't have a value in CGI but do from the database, set the CGI.
@@ -2088,7 +2193,7 @@ sub show_fence_config_main_menu
 	my ($anvil) = @_;
 	
 	# Read in known fence devices
-	$anvil->Database->get_fences({debug => 2});
+	$anvil->Database->get_fences({debug => 3});
 	
 	# Get a list of current fence agents.
 	my $existing_fences = "";
@@ -2107,11 +2212,11 @@ sub show_fence_config_main_menu
 				my $fence_agent      =  $anvil->data->{fences}{fence_name}{$fence_name}{fence_agent};
 				my $fence_arguments  =  $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments};
 				my $say_fence_device =  $fence_agent." ".$fence_arguments;
-				   $say_fence_device =~ s/passwd="(.*?)"/passwd="--"/g;
+				   $say_fence_device =~ s/passw(\w+)="(.*?)"/passw$1="--"/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					fence_uuid       => $fence_uuid,
 					fence_agent      => $fence_agent, 
-					fence_arguments  => $fence_arguments =~ /passwd=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+					fence_arguments  => $fence_arguments =~ /passw=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
 					say_fence_device => $say_fence_device, 
 				}});
 				
@@ -2345,7 +2450,8 @@ sub process_prep_network
 	if (not $host_name)
 	{
 		# Didn't find it.
-		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0014", variables => { host_uuid => $anvil->data->{cgi}{host_uuid}{value} } }) }});
+		my $message = $anvil->Words->string({key => "warning_0014", variables => { host_uuid => $anvil->data->{cgi}{host_uuid}{value} } });
+		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
 		$anvil->data->{cgi}{task}{value}    = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"cgi::task::value"    => $anvil->data->{cgi}{task}{value},

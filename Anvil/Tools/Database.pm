@@ -20,7 +20,7 @@ my $THIS_FILE = "Database.pm";
 # configure_pgsql
 # connect
 # disconnect
-# get_recipients
+# get_fences
 # get_host_from_uuid
 # get_hosts
 # get_hosts_info
@@ -29,6 +29,7 @@ my $THIS_FILE = "Database.pm";
 # get_local_uuid
 # get_mail_servers
 # get_notifications
+# get_recipients
 # initialize
 # insert_or_update_anvils
 # insert_or_update_bridges
@@ -1482,7 +1483,13 @@ And, to allow for lookup by name;
 
 If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
 
-B<<Note>>: Deleted devices (ones where C<< fence_arguments >> is set to C<< DELETED >>) are ignored.
+B<<Note>>: Deleted devices (ones where C<< fence_arguments >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
+
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted agents are included when loading the data. When C<< 0 >> is set, the default, any fence agent with C<< fence_arguments >> set to C<< DELETED >> is ignored.
 
 =cut
 sub get_fences
@@ -1493,6 +1500,10 @@ sub get_fences
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_from_uuid()" }});
 	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
 	
 	if (exists $anvil->data->{fences})
 	{
@@ -1507,9 +1518,14 @@ SELECT
     fence_arguments, 
     modified_date 
 FROM 
-    fences 
+    fences ";
+	if (not $include_deleted)
+	{
+		$query .= "
 WHERE 
-    fence_arguments != 'DELETED'
+    fence_arguments != 'DELETED'";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -1529,7 +1545,7 @@ WHERE
 			fence_uuid      => $fence_uuid, 
 			fence_name      => $fence_name, 
 			fence_agent     => $fence_agent, 
-			fence_arguments => $fence_arguments =~ /passwd=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+			fence_arguments => $fence_arguments =~ /passw=/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
 			modified_date   => $modified_date, 
 		}});
 		
@@ -1541,7 +1557,7 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"fences::fence_uuid::${fence_uuid}::fence_name"      => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name}, 
 			"fences::fence_uuid::${fence_uuid}::fence_agent"     => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent}, 
-			"fences::fence_uuid::${fence_uuid}::fence_arguments" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments} =~ /passwd=/ ? $anvil->Log->is_secure($anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments}) : $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments}, 
+			"fences::fence_uuid::${fence_uuid}::fence_arguments" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments} =~ /passw=/ ? $anvil->Log->is_secure($anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments}) : $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments}, 
 			"fences::fence_uuid::${fence_uuid}::modified_date"   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{modified_date}, 
 		}});
 		
@@ -1552,7 +1568,7 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"fences::fence_name::${fence_name}::fence_uuid"      => $anvil->data->{fences}{fence_name}{$fence_name}{fence_uuid}, 
 			"fences::fence_name::${fence_name}::fence_agent"     => $anvil->data->{fences}{fence_name}{$fence_name}{fence_agent}, 
-			"fences::fence_name::${fence_name}::fence_arguments" => $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments} =~ /passwd=/ ? $anvil->Log->is_secure($anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments}) : $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments}, 
+			"fences::fence_name::${fence_name}::fence_arguments" => $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments} =~ /passw=/ ? $anvil->Log->is_secure($anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments}) : $anvil->data->{fences}{fence_name}{$fence_name}{fence_arguments}, 
 			"fences::fence_name::${fence_name}::modified_date"   => $anvil->data->{fences}{fence_name}{$fence_name}{modified_date}, 
 		}});
 	}

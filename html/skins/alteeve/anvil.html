@@ -210,6 +210,83 @@
 		</table>
 <!-- end fence-agent-confirm -->
 
+<!-- start fence-agent-delete-confirm -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/fence.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0225!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+				
+					#!variable!confirm_string!#
+				
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<form name="conce_configuration" action="" method="post">
+					<table class="centered">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td colspan="2" class="column_header">
+								#!string!header_0023!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td colspan="2" class="fixed_width">
+								#!variable!say_device!#
+								<input type="hidden" name="delete_fence_uuid" id="delete_fence_uuid" value="#!data!cgi::delete_fence_uuid::value!#">
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td class="close_top">
+								&nbsp;<br />
+								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
+							</td>
+							<td class="close_top" style="text-align: right;">
+								&nbsp;<br />
+								<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#" class="button">
+							</td>
+							<input type="hidden" name="anvil" id="anvil" value="true">
+							<input type="hidden" name="task"  id="task"  value="fences">
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+		</table>
+<!-- end fence-agent-delete-confirm -->
+
 <!-- start fence-agent-option-menu -->
 						<tr>
 							<td colspan="3" class="menu_title">
@@ -279,12 +356,21 @@
 					<table>
 						<div id="existing_fence_devices">
 						<tr style="border: 1px dotted #7f7f7f;">
+							<!-- Device name -->
 							<td class="column_header">
 								#!string!header_0003!#:
 							</td>
 							<td>
 								&nbsp;
 							</td>
+							<!-- Delete -->
+							<td class="column_header">
+								#!string!header_0022!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<!-- agent and arguments -->
 							<td class="column_header">
 								#!string!header_0021!#
 							</td>
@@ -304,7 +390,13 @@
 <!-- start existing-fence-device-entry -->
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td>
-								<a href="?anvil=true&task=fences&fence_agent=#!variable!fence_agent!#&fence_count=1&fence_uuid_1=#!variable!fence_uuid!#" class="fixed_link_highlight">#!variable!name!#</a>:
+								<a href="?anvil=true&task=fences&fence_agent=#!variable!fence_agent!#&fence_count=1&fence_uuid_1=#!variable!fence_uuid!#" class="fixed_link_highlight">#!variable!name!#</a>
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td style="text-align: center;">
+								<a href="?anvil=true&task=fences&delete_fence_uuid=#!variable!fence_uuid!#" class="fixed_link_highlight"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
 							</td>
 							<td>
 								&nbsp;
