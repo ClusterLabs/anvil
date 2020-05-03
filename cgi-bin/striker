@@ -72,8 +72,7 @@ if (not $anvil->data->{sys}{database}{connections})
 my $configured = $anvil->System->check_if_configured;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
 
-### TODO: Something is causing fairly frequent resyncs, which results in Striker going in and out of 
-###       maintenance mode.
+# Are we in maintenance mode?
 my $available = $configured ? check_availability($anvil) : 0;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => {available => $available }});
 if (not $configured)
@@ -1506,16 +1505,17 @@ sub process_anvil_menu
 	{
 		process_fences($anvil);
 	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "upses")
+	{
+		process_upses($anvil);
+	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "create")
 	{
-		if ($anvil->data->{cgi}{subtask}{value} eq "manifest")
-		{
-			#process_manifest($anvil);
-		}
-		else
-		{
-			process_create($anvil);
-		}
+		process_manifests($anvil);
+	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "manifest")
+	{
+		process_manifests($anvil);
 	}
 	else
 	{
@@ -1528,149 +1528,664 @@ sub process_anvil_menu
 	return(0);
 }
 
+# This handles creating an Install Manifest.
 sub handle_new_manifest
 {
 	my ($anvil) = @_;
 	
+	# Step 1 is to ask for the sequence number, prefix, and the number of IFNs (and later, BCNs)
 	
+	
+	$anvil->data->{form}{back_link}     = "?anvil=true&task=create";
+	$anvil->data->{form}{refresh_link}  = "?anvil=true&task=create&manifest=new";
+	$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
+	$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
+	$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
+	$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "create-menu", variables => {
+		existing_manifests => "", 
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
 	return(0);
 }
 
-# This sanity checks the fence agent forms.
-sub sanity_check_fence_agent_form
+# This handles all aspects of Install Manifests.
+sub process_manifests
 {
-	my ($anvil, $fence_agent) = @_;
+	my ($anvil) = @_;
 	
-	my $sane         = 1;
-	my $confirn_form = "";
-	foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
+	# Are we creating a new manifest?
+	$anvil->data->{cgi}{manifest}{value} = "" if not defined $anvil->data->{cgi}{manifest}{value};
+	if ($anvil->data->{cgi}{manifest}{value} eq "new")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { i => $i }});
+		handle_new_manifest($anvil);
+	}
+	else
+	{
+		# Show existing manifests.
+		my $query = "
+SELECT 
+    manifest_uuid, 
+    manifest_name, 
+    manifest_last_ran, 
+    manifest_xml, 
+    manifest_note 
+FROM 
+    manifests 
+ORDER BY 
+    manifest_name ASC;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
 		
-		# Make sure there is a fence name.
-		my $fence_name_key = "fence_name_".$i;
-		if (not $anvil->data->{cgi}{$fence_name_key}{value})
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		my $manifest_template = "";
+		if ($count)
 		{
-			$sane                                       = 0;
-			$anvil->data->{cgi}{$fence_name_key}{alert} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"cgi::${fence_name_key}::alert" => $anvil->data->{cgi}{$fence_name_key}{alert}, 
-				sane                            => $sane, 
+			foreach my $row (@{$results})
+			{
+				my $manifest_uuid     = $row->[0];
+				my $manifest_name     = $row->[1];
+				my $manifest_last_ran = $row->[2];
+				my $manifest_xml      = $row->[3];
+				my $manifest_note     = $row->[4];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					manifest_uuid     => $manifest_uuid, 
+					manifest_name     => $manifest_name, 
+					manifest_last_ran => $manifest_last_ran,
+					manifest_xml      => $manifest_xml, 
+					manifest_note     => $manifest_note, 
+				}});
+				$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "existing-manifest-entry", variables => {
+					manifest_uuid => $manifest_uuid, 
+					manifest_name => $manifest_name, 
+				}});
+			}
+		}
+		
+		# Store the previous CGI variables and display the new fields.
+		$anvil->data->{form}{back_link}     = "?anvil=true";
+		$anvil->data->{form}{refresh_link}  = "?anvil=true&task=create";
+		$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
+		$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
+		$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
+		$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "create-menu", variables => {
+			existing_manifests => $manifest_template, 
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+	}
+	
+	return(0);
+}
+
+# This allows the user to tell us about upses. 
+sub process_upses
+{
+	my ($anvil) = @_;
+	
+	# Pull the data of supported UPSes out of the specual 'ups_X' strings.
+	$anvil->Striker->get_ups_data({debug => 3});
+
+	foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{ups_data}})
+	{
+		my $agent       = $anvil->data->{ups_data}{$key}{agent};
+		my $brand       = $anvil->data->{ups_data}{$key}{brand};
+		my $description = $anvil->data->{ups_data}{$key}{description};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"s1:key"         => $key,
+			"s2:agent"       => $anvil->data->{ups_data}{$key}{agent},
+			"s3:brand"       => $anvil->data->{ups_data}{$key}{brand},
+			"s4:description" => $anvil->data->{ups_data}{$key}{description},
+		}});
+	}
+	
+	$anvil->data->{cgi}{ups_agent}{value} = "" if not defined $anvil->data->{cgi}{ups_agent}{value};
+	$anvil->data->{cgi}{ups_count}{value} = 1  if not defined $anvil->data->{cgi}{ups_count}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cgi::ups_agent::value" => $anvil->data->{cgi}{ups_agent}{value},
+		"cgi::ups_count::value" => $anvil->data->{cgi}{ups_count}{value},
+	}});
+	
+	# Are we going back to the form?
+	if ($anvil->data->{cgi}{back}{value})
+	{
+		$anvil->data->{cgi}{save}{value}            = "";
+		$anvil->data->{cgi}{confirm}{value}         = "";
+		$anvil->data->{cgi}{delete_ups_uuid}{value} = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::save::value"            => $anvil->data->{cgi}{save}{value},
+			"cgi::confirm::value"         => $anvil->data->{cgi}{confirm}{value},
+			"cgi::delete_ups_uuid::value" => $anvil->data->{cgi}{delete_ups_uuid}{value},
+		}});
+	}
+	
+	# Are we deleting an agent?
+	if ((exists $anvil->data->{cgi}{delete_ups_uuid}) && ($anvil->data->{cgi}{delete_ups_uuid}{value}))
+	{
+		# Verify that the UUID is valid.
+		$anvil->Database->get_upses({debug => 2, include_deleted => 1});
+		my $ups_uuid  = $anvil->data->{cgi}{delete_ups_uuid}{value};
+		my $ups_name  = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name};
+		my $ups_agent = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent};
+		
+		if (not exists $anvil->data->{upses}{ups_uuid}{$ups_uuid})
+		{
+			# Doesn't exist.
+			my $message = $anvil->Words->string({key => "warning_0036", variables => { uuid => $ups_uuid }});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+		}
+		elsif ($anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address} eq "DELETED")
+		{
+			# Already deleted.
+			my $message = $anvil->Words->string({key => "warning_0037", variables => { 
+				name => $ups_name,
+				uuid => $ups_uuid,
 			}});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+		}
+		
+		# Has the user confirmed?
+		if ((exists $anvil->data->{cgi}{confirm}) && ($anvil->data->{cgi}{confirm}{value}))
+		{
+			# Delete it
+			my ($ups_uuid) = $anvil->Database->insert_or_update_upses({
+				debug          => 2,
+				ups_uuid       => $ups_uuid,
+				ups_name       => $ups_name,
+				ups_agent      => $ups_agent, 
+				ups_ip_address => "DELETED",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_uuid => $ups_uuid }});
+			if ($ups_uuid)
+			{
+				# Deleted successfully
+				my $message = $anvil->Words->string({key => "ok_0008", variables => { name => $ups_name }});
+				$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
+			}
+			else
+			{
+				# Something went wrong.
+				my $message = $anvil->Words->string({key => "warning_0040", variables => { 
+					name => $ups_name,
+					uuid => $ups_uuid,
+				}});
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+			}
+			
+			# Show the main menu and return.
+			show_ups_config_main_menu($anvil);
+			return(0);
 		}
 		else
 		{
-			# It's good, add it manually to the hash.
-			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{'default'} = 0;
-			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{value}     = $anvil->data->{cgi}{$fence_name_key}{value};
-			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{say_value} = $anvil->data->{cgi}{$fence_name_key}{value};
+			# Ask the user to confirm.
+			my $ups_name       =  $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name};
+			my $ups_ip_address =  $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address};
+			my $say_ups_device =  $ups_name." - ".$ups_ip_address." (".$anvil->data->{ups_agent}{$ups_agent}{brand}.")";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"fence::confirm_table::data::fence_name::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{'default'}, 
-				"fence::confirm_table::data::fence_name::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{value}, 
-				"fence::confirm_table::data::fence_name::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{say_value}, 
+				ups_uuid       => $ups_uuid,
+				ups_agent      => $ups_agent, 
+				ups_ip_address => $ups_ip_address, 
+				say_ups_device => $say_ups_device, 
 			}});
+			
+			# Are we asking the user to confirm one or more?
+			$anvil->data->{form}{back_link} = "?anvil=true&task=upses";
+			$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "ups-delete-confirm", variables => {
+				name       => $ups_name, 
+				say_device => $say_ups_device, 
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+			return(0);
 		}
-		
-		# Read in the parameters for this agent, and compare to see if the value passed in differs.
-		foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$fence_agent}{parameters}})
+	}
+	
+	# Are we configuring an agent/device?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cgi::save::value"    => $anvil->data->{cgi}{save}{value},
+		"cgi::confirm::value" => $anvil->data->{cgi}{confirm}{value},
+	}});
+	if ($anvil->data->{cgi}{save}{value})
+	{
+		# Confirmed?
+		if ($anvil->data->{cgi}{confirm}{value})
 		{
-			# We don't show deprecated or replaced options.
-			next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{replacement};
-			next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated};
-			my $option_key  = $name."_".$i;
-			my $unique      = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique};
-			my $required    = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required};
-			my $description = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
-			my $type        = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
-			my $default     = exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				's1:name'        => $name,
-				's2:option_key'  => $option_key,
-				's3:unique'      => $unique, 
-				's4:required'    => $required, 
-				's5:description' => $description, 
-				's6:type'        => $type, 
-				's7:default'     => $default, 
-			}});
-			
-			# If this is 'boolean' and the default is '1', change the default to 'on' so that 
-			# it matches what we get from the form.
-			if (($type eq "boolean") && ($default eq "1"))
+			# Confirmed.
+			my $success = 1;
+			my $message = "";
+			foreach my $i (1..$anvil->data->{cgi}{ups_count}{value})
 			{
-				$default = "on";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'default' => $default }});
-			}
-			
-			my $is_default           = 1;
-			my $passed_parameter_key = $name."_".$i;
-			my $passed_value         = defined $anvil->data->{cgi}{$passed_parameter_key}{value} ? $anvil->data->{cgi}{$passed_parameter_key}{value} : "";
-			my $say_value            = $passed_value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				passed_parameter_key => $passed_parameter_key, 
-				passed_value         => $passed_value, 
-				'default'            => $default, 
-			}});
-			if ($type eq "boolean")
-			{
-				$say_value = "";
-				if (defined $passed_value)
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i }});
+				my $ups_uuid_key       = "ups_uuid_".$i;
+				my $ups_name_key       = "ups_name_".$i;
+				my $ups_agent_key      = "ups_agent_".$i;
+				my $ups_ip_address_key = "ups_ip_address_".$i;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ups_uuid_key       => $ups_uuid_key,
+					ups_name_key       => $ups_name_key, 
+					ups_agent_key      => $ups_agent_key, 
+					ups_ip_address_key => $ups_ip_address_key, 
+				}});
+				
+				my $ups_uuid       = $anvil->data->{cgi}{$ups_uuid_key}{value};
+				my $ups_name       = $anvil->data->{cgi}{$ups_name_key}{value};
+				my $ups_agent      = $anvil->data->{cgi}{$ups_agent_key}{value};
+				my $ups_ip_address = $anvil->data->{cgi}{$ups_ip_address_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:ups_uuid'       => $ups_uuid, 
+					's2:ups_name'       => $ups_name, 
+					's3:ups_agent'      => $ups_agent, 
+					's4:ups_ip_address' => $ups_ip_address,
+				}});
+				
+				# Save it
+				($ups_uuid) = $anvil->Database->insert_or_update_upses({
+					debug          => 2,
+					ups_uuid       => $ups_uuid,
+					ups_name       => $ups_name,
+					ups_agent      => $ups_agent, 
+					ups_ip_address => $ups_ip_address,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_uuid => $ups_uuid }});
+				if ($ups_uuid)
 				{
-					#                            Yes                      No
-					$say_value = $passed_value ? "#!string!unit_0001!#" : "#!string!unit_0002!#";
+					$message .= $anvil->Words->string({key => "ok_0007", variables => { name => $ups_name }})."<br />";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { message => $message }});
+					
+					# Clear CGI values so the form isn't pre-filled below.
+					foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{cgi}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { key => $key }});
+						if ($key =~ /_$i$/)
+						{
+							$anvil->data->{cgi}{$key}{value} = "";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::${key}::value" => $anvil->data->{cgi}{$key}{value} }});
+						}
+					}
 				}
 				else
 				{
-					#                       Yes                      No
-					$say_value = $default ? "#!string!unit_0001!#" : "#!string!unit_0002!#";
+					# Something went wrong.
+					$success = 0;
+					$message .= $anvil->Words->string({key => "warning_0038", variables => { name => $ups_name }})."<br />";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:success' => $success,
+						's2:message' => $message,
+					}});
 				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_value => $say_value }});
-			}
-			elsif ((($type eq "string") or ($type eq "select")) && ($passed_value eq ""))
-			{
-				$say_value = "--";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_value => $say_value }});
 			}
 			
-			# We always store the action, then anything else that isn't default.
-			if (($passed_value ne $default) or ($name eq "action"))
+			# Show it in the top-center.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+			if ($success)
 			{
-				# Something changed. Is it sane?
-				$is_default = 0;
-				if (($type eq "integer") or ($type eq "second"))
+				# Woot!
+				$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
+				
+				# Show the main menu and return.
+				show_ups_config_main_menu($anvil);
+				return(0);
+			}
+			else
+			{
+				# Something went wrong.
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+			}
+		}
+		else
+		{
+			# Loop through the UPSes and ask for confirmation.
+			my $sane       = 1;
+			my $upses_form = "";
+			foreach my $i (1..$anvil->data->{cgi}{ups_count}{value})
+			{
+				my $say_device = $anvil->Words->string({key => "striker_0239", variables => { number => $i }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					i          => $i,
+					say_device => $say_device, 
+				}});
+				
+				my $ups_uuid_key       = "ups_uuid_".$i;
+				my $ups_name_key       = "ups_name_".$i;
+				my $ups_agent_key      = "ups_agent_".$i;
+				my $ups_ip_address_key = "ups_ip_address_".$i;
+				my $agent              = $anvil->data->{cgi}{$ups_agent_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ups_uuid_key       => $ups_uuid_key,
+					ups_name_key       => $ups_name_key, 
+					ups_agent_key      => $ups_agent_key, 
+					ups_ip_address_key => $ups_ip_address_key, 
+					agent              => $agent, 
+				}});
+				
+				# Are any values insane?
+				if (not $anvil->Validate->is_host_name({name => $anvil->data->{cgi}{$ups_name_key}{value}, debug => 2}))
 				{
-					# Make sure the value is a bare integer
-					if ($passed_value =~ /\D/)
+					# Bad host name
+					$sane                                     = 0;
+					$anvil->data->{cgi}{$ups_name_key}{alert} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"cgi::${ups_name_key}::alert" => $anvil->data->{cgi}{$ups_name_key}{alert}, 
+						sane                          => $sane, 
+					}});
+				}
+				if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$ups_ip_address_key}{value}}))
+				{
+					# Bad IP address.
+					$sane                                     = 0;
+					$anvil->data->{cgi}{$ups_name_key}{alert} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"cgi::${ups_name_key}::alert" => $anvil->data->{cgi}{$ups_name_key}{alert}, 
+						sane                          => $sane, 
+					}});
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+				if ($sane)
+				{
+					$upses_form .= $anvil->Template->get({file => "anvil.html", name => "ups-option-menu-confirm", variables => {
+						device         => $say_device, 
+						name_key       => $ups_name_key, 
+						name           => $anvil->data->{cgi}{$ups_name_key}{value}, 
+						agent_key      => $ups_agent_key,
+						agent          => $anvil->data->{cgi}{$ups_agent_key}{value},
+						say_agent      => $anvil->data->{ups_agent}{$agent}{brand},
+						ip_address_key => $ups_ip_address_key,
+						ip_address     => $anvil->data->{cgi}{$ups_ip_address_key}{value},
+						ups_uuid_key   => $ups_uuid_key, 
+						ups_uuid       => $anvil->data->{cgi}{$ups_uuid_key}{value},
+					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { upses_form => $upses_form }});
+				}
+			}
+			
+			if ($sane)
+			{
+				$anvil->data->{form}{back_link} = "?anvil=true&task=upses";
+				$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "ups-configuration-confirm", variables => {
+					upses => $upses_form, 
+				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+				return(0);
+			}
+			else
+			{
+				# Send the user back to the form.
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => "#!string!warning_0039!#" }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+			}
+		}
+	}
+	
+	if ($anvil->data->{cgi}{ups_agent}{value})
+	{
+		my $ups_agent       = $anvil->data->{cgi}{ups_agent}{value};
+		my $ups_brand       = $anvil->data->{ups_agent}{$ups_agent}{brand};
+		my $ups_description = $anvil->data->{ups_agent}{$ups_agent}{description};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			ups_agent       => $ups_agent,
+			ups_brand       => $ups_brand, 
+			ups_description => $ups_description, 
+		}});
+		
+		# Are we going back to the form?
+		if ($anvil->data->{cgi}{back}{value})
+		{
+			$anvil->data->{cgi}{save}{value}    = "";
+			$anvil->data->{cgi}{confirm}{value} = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cgi::save::value"    => $anvil->data->{cgi}{save}{value},
+				"cgi::confirm::value" => $anvil->data->{cgi}{confirm}{value},
+			}});
+		}
+		
+		# This will be used in forms
+		my $brands           = [];
+		my $description_form = "";
+		foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{ups_data}})
+		{
+			my $agent       = $anvil->data->{ups_data}{$key}{agent};
+			my $brand       = $anvil->data->{ups_data}{$key}{brand};
+			my $description = $anvil->data->{ups_data}{$key}{description};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:key"         => $key,
+				"s2:agent"       => $anvil->data->{ups_data}{$key}{agent},
+				"s3:brand"       => $anvil->data->{ups_data}{$key}{brand},
+				"s4:description" => $anvil->data->{ups_data}{$key}{description},
+			}});
+			
+			push @{$brands}, $agent."#!#".$brand;
+		}
+		
+		# Walk through the list of UPSes
+		$anvil->Database->get_upses({debug => 3});
+		my $upses_form = "";
+		if ((not exists $anvil->data->{cgi}{ups_brand}) or (not defined $anvil->data->{cgi}{ups_brand}{value}))
+		{
+			$anvil->data->{cgi}{ups_brand}{value} = $ups_brand;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cgi::ups_brand::value" => $anvil->data->{cgi}{ups_brand}{value}, 
+			}});
+		}
+		
+		foreach my $i (1..$anvil->data->{cgi}{ups_count}{value})
+		{
+			my $say_device = $anvil->Words->string({key => "striker_0239", variables => { number => $i }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				i          => $i,
+				say_device => $say_device, 
+			}});
+			
+			my $ups_uuid_key       = "ups_uuid_".$i;
+			my $ups_name_key       = "ups_name_".$i;
+			my $ups_agent_key      = "ups_agent_".$i;
+			my $ups_ip_address_key = "ups_ip_address_".$i;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				ups_uuid_key       => $ups_uuid_key,
+				ups_name_key       => $ups_name_key, 
+				ups_agent_key      => $ups_agent_key, 
+				ups_ip_address_key => $ups_ip_address_key 
+			}});
+			
+			# Make sure we don't get any undefined warnings
+			if ((not exists $anvil->data->{cgi}{$ups_name_key}) or (not defined $anvil->data->{cgi}{$ups_name_key}{value}))
+			{
+				$anvil->data->{cgi}{$ups_name_key}{value} = "";
+			}
+			if ((not exists $anvil->data->{cgi}{$ups_agent_key}) or (not defined $anvil->data->{cgi}{$ups_agent_key}{value}))
+			{
+				$anvil->data->{cgi}{$ups_agent_key}{value} = "";
+			}
+			if ((not exists $anvil->data->{cgi}{$ups_uuid_key}) or (not defined $anvil->data->{cgi}{$ups_uuid_key}{value}))
+			{
+				$anvil->data->{cgi}{$ups_uuid_key}{value} = "";
+			}
+			
+			# If we have a ups_uuid_X, read in the details.
+			if ($anvil->data->{cgi}{$ups_uuid_key}{value})
+			{
+				my $ups_uuid = $anvil->data->{cgi}{$ups_uuid_key}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_uuid => $ups_uuid }});
+				if (exists $anvil->data->{upses}{ups_uuid}{$ups_uuid})
+				{
+					my $old_ups_name       = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name};
+					my $old_ups_agent      = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent};
+					my $old_ups_ip_address = $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						old_ups_name       => $old_ups_name, 
+						old_ups_agent      => $old_ups_agent,
+						old_ups_ip_address => $old_ups_ip_address, 
+						ups_name_key       => $ups_name_key, 
+						ups_agent_key      => $ups_agent_key, 
+						ups_ip_address_key => $ups_ip_address_key, 
+					}});
+					
+					# Now if we don't have a value in CGI but do from the database, set the CGI.
+					if ((not $anvil->data->{cgi}{$ups_name_key}{value}) && ($old_ups_name))
 					{
-						# Problem.
-						$sane                                             = 0;
-						$anvil->data->{cgi}{$passed_parameter_key}{alert} = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-							"cgi::${passed_parameter_key}::alert" => $anvil->data->{cgi}{$passed_parameter_key}{alert}, 
-							sane                                  => $sane, 
+						$anvil->data->{cgi}{$ups_name_key}{value} = $old_ups_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${ups_name_key}::value" => $anvil->data->{cgi}{$ups_name_key}{value},
+						}});
+					}
+					if ((not $anvil->data->{cgi}{$ups_agent_key}{value}) && ($old_ups_agent))
+					{
+						$anvil->data->{cgi}{$ups_agent_key}{value} = $old_ups_agent;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${ups_agent_key}::value" => $anvil->data->{cgi}{$ups_agent_key}{value},
+						}});
+					}
+					if ((not $anvil->data->{cgi}{$ups_ip_address_key}{value}) && ($old_ups_ip_address))
+					{
+						$anvil->data->{cgi}{$ups_ip_address_key}{value} = $old_ups_ip_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"cgi::${ups_ip_address_key}::value" => $anvil->data->{cgi}{$ups_ip_address_key}{value},
 						}});
 					}
 				}
+			}
+			
+			my $ups_agent_select = $anvil->Template->select_form({
+				name     => $ups_agent_key,
+				options  => $brands,
+				blank    => 0,
+				'sort'   => 1,
+				selected => $anvil->data->{cgi}{$ups_agent_key}{value} ? $anvil->data->{cgi}{$ups_agent_key}{value} : $anvil->data->{cgi}{ups_agent}{value},
+				class    => "input_clear",
+			});
+			
+			$upses_form .= $anvil->Template->get({file => "anvil.html", name => "ups-option-menu", variables => {
+				device         => $say_device, 
+				name_key       => $ups_name_key, 
+				name           => $anvil->data->{cgi}{$ups_name_key}{value}, 
+				agent          => $ups_agent_select,
+				ip_address_key => $ups_ip_address_key,
+				ip_address     => $anvil->data->{cgi}{$ups_ip_address_key}{value},
+				ups_uuid_key   => $ups_uuid_key, 
+				ups_uuid       => $anvil->data->{cgi}{$ups_uuid_key}{value},
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { upses_form => $upses_form }});
+		}
+		
+		$anvil->data->{form}{back_link} = "?anvil=true&task=upses";
+		$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "ups-configuration", variables => {
+			description => $ups_description, 
+			upses       => $upses_form, 
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'form::body' => $anvil->data->{form}{body} }});
+	}
+	else
+	{
+		# Show the main menu
+		show_ups_config_main_menu($anvil);
+	}
+	
+	return(0);
+}
+
+sub show_ups_config_main_menu
+{
+	my ($anvil) = @_;
+	
+	# Read in known UPSes
+	$anvil->Database->get_upses({debug => 3});
+	
+	# Get a list of current ups agents.
+	my $existing_upses = "";
+	if (exists $anvil->data->{upses}{ups_uuid})
+	{
+		# How many do we have?
+		my $ups_count = keys %{$anvil->data->{upses}{ups_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_count => $ups_count }});
+		if ($ups_count)
+		{
+			# We've got devices.
+			my $ups_devices = "";
+			foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
+			{
+				my $ups_uuid       = $anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid};
+				my $ups_agent      = $anvil->data->{upses}{ups_name}{$ups_name}{ups_agent};
+				my $ups_ip_address = $anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address};
+				my $say_ups_device = $ups_agent." ".$ups_ip_address;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					ups_uuid       => $ups_uuid,
+					ups_agent      => $ups_agent, 
+					ups_ip_address => $ups_ip_address, 
+					say_ups_device => $say_ups_device, 
+				}});
 				
-				# This will be used to assemble the base shell call later
-				$anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set} = $passed_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					"fence::${fence_agent}::set::${i}::parameter::${name}::set" => $anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set}, 
+				$ups_devices .= $anvil->Template->get({file => "anvil.html", name => "existing-ups-entry", variables => {
+					name       => $ups_name, 
+					ip_address => $say_ups_device,
+					ups_agent  => $ups_agent, 
+					ups_uuid   => $ups_uuid, 
 				}});
 			}
-			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'} = $is_default;
-			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}     = $passed_value ? $passed_value : $default;
-			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value} = $say_value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"fence::confirm_table::data::${name}::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'}, 
-				"fence::confirm_table::data::${name}::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}, 
-				"fence::confirm_table::data::${name}::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value}, 
+			$existing_upses .= $anvil->Template->get({file => "anvil.html", name => "existing-upses", variables => {
+				upses => $ups_devices, 
 			}});
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
-	return($sane);
+	# For each agent, we'll create a <div> with it's options that will be shown/hidden basen on the agent
+	# select box.
+	my $brands           = [];
+	my $description_form = "";
+	foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{ups_data}})
+	{
+		my $agent       = $anvil->data->{ups_data}{$key}{agent};
+		my $brand       = $anvil->data->{ups_data}{$key}{brand};
+		my $description = $anvil->data->{ups_data}{$key}{description};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:key"         => $key,
+			"s2:agent"       => $anvil->data->{ups_data}{$key}{agent},
+			"s3:brand"       => $anvil->data->{ups_data}{$key}{brand},
+			"s4:description" => $anvil->data->{ups_data}{$key}{description},
+		}});
+		
+		push @{$brands}, $agent."#!#".$brand;
+		$description_form .= $anvil->Template->get({file => "anvil.html", name => "ups-agent-description", variables => {
+			name        => $brand, 
+			description => $description,
+		}});
+	}
+	
+	my $ups_agent_select = $anvil->Template->select_form({
+		name     => "ups_agent",
+		options  => $brands,
+		blank    => 0,
+		'sort'   => 1,
+		selected => $anvil->data->{cgi}{ups_agent}{value} ? $anvil->data->{cgi}{ups_agent}{value} : "scan_ups_apc",
+		class    => "input_clear",
+	});
+	my $ups_count_select = $anvil->Template->select_form({
+		name     => "ups_count",
+		options  => [1, 2, 3, 4],
+		blank    => 0,
+		'sort'   => 0,
+		selected => $anvil->data->{cgi}{ups_count}{value},
+		class    => "input_clear",
+	});
+
+	$anvil->data->{form}{back_link}    = "?anvil=true&task=create";
+	$anvil->data->{form}{refresh_link} = "?anvil=true&task=upses";
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "ups-agent-menu", variables => {
+		ups_select     => $ups_agent_select, 
+		ups_count      => $ups_count_select,
+		descriptions   => $description_form, 
+		existing_upses => $existing_upses,
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+	
+	return(0);
 }
 
 # This allows the user to tell us about fence devices. 
@@ -1692,7 +2207,7 @@ sub process_fences
 	if ((exists $anvil->data->{cgi}{delete_fence_uuid}) && ($anvil->data->{cgi}{delete_fence_uuid}{value}))
 	{
 		# Verify that the UUID is valid.
-		$anvil->Database->get_fences({debug => 2, include_deleted => 2});
+		$anvil->Database->get_fences({debug => 2, include_deleted => 1});
 		my $fence_uuid  = $anvil->data->{cgi}{delete_fence_uuid}{value};
 		my $fence_name  = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name};
 		my $fence_agent = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
@@ -1765,7 +2280,7 @@ sub process_fences
 			# Are we asking the user to confirm one or more?
 			$anvil->data->{form}{back_link} = "?anvil=true&task=fences";
 			$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "fence-agent-delete-confirm", variables => {
-				fence_name => $fence_name, 
+				name       => $fence_name, 
 				say_device => $say_fence_device, 
 			}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
@@ -1853,7 +2368,7 @@ sub process_fences
 						{
 							# Something went wrong.
 							$success = 0;
-							$message .= $anvil->Words->string({key => "ok_0005", variables => { name => $fence_name }})."<br />";
+							$message .= $anvil->Words->string({key => "warning_0032", variables => { name => $fence_name }})."<br />";
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 								's1:success' => $success,
 								's2:message' => $message,
@@ -2188,6 +2703,142 @@ sub process_fences
 	return(0);
 }
 
+# This sanity checks the fence agent forms.
+sub sanity_check_fence_agent_form
+{
+	my ($anvil, $fence_agent) = @_;
+	
+	my $sane         = 1;
+	my $confirn_form = "";
+	foreach my $i (1..$anvil->data->{cgi}{fence_count}{value})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { i => $i }});
+		
+		# Make sure there is a fence name.
+		my $fence_name_key = "fence_name_".$i;
+		if (not $anvil->data->{cgi}{$fence_name_key}{value})
+		{
+			$sane                                       = 0;
+			$anvil->data->{cgi}{$fence_name_key}{alert} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"cgi::${fence_name_key}::alert" => $anvil->data->{cgi}{$fence_name_key}{alert}, 
+				sane                            => $sane, 
+			}});
+		}
+		else
+		{
+			# It's good, add it manually to the hash.
+			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{'default'} = 0;
+			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{value}     = $anvil->data->{cgi}{$fence_name_key}{value};
+			$anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{say_value} = $anvil->data->{cgi}{$fence_name_key}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"fence::confirm_table::data::fence_name::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{'default'}, 
+				"fence::confirm_table::data::fence_name::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{value}, 
+				"fence::confirm_table::data::fence_name::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{fence_name}{$i}{say_value}, 
+			}});
+		}
+		
+		# Read in the parameters for this agent, and compare to see if the value passed in differs.
+		foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$fence_agent}{parameters}})
+		{
+			# We don't show deprecated or replaced options.
+			next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{replacement};
+			next if $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated};
+			my $option_key  = $name."_".$i;
+			my $unique      = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique};
+			my $required    = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required};
+			my $description = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
+			my $type        = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
+			my $default     = exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				's1:name'        => $name,
+				's2:option_key'  => $option_key,
+				's3:unique'      => $unique, 
+				's4:required'    => $required, 
+				's5:description' => $description, 
+				's6:type'        => $type, 
+				's7:default'     => $default, 
+			}});
+			
+			# If this is 'boolean' and the default is '1', change the default to 'on' so that 
+			# it matches what we get from the form.
+			if (($type eq "boolean") && ($default eq "1"))
+			{
+				$default = "on";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'default' => $default }});
+			}
+			
+			my $is_default           = 1;
+			my $passed_parameter_key = $name."_".$i;
+			my $passed_value         = defined $anvil->data->{cgi}{$passed_parameter_key}{value} ? $anvil->data->{cgi}{$passed_parameter_key}{value} : "";
+			my $say_value            = $passed_value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				passed_parameter_key => $passed_parameter_key, 
+				passed_value         => $passed_value, 
+				'default'            => $default, 
+			}});
+			if ($type eq "boolean")
+			{
+				$say_value = "";
+				if (defined $passed_value)
+				{
+					#                            Yes                      No
+					$say_value = $passed_value ? "#!string!unit_0001!#" : "#!string!unit_0002!#";
+				}
+				else
+				{
+					#                       Yes                      No
+					$say_value = $default ? "#!string!unit_0001!#" : "#!string!unit_0002!#";
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_value => $say_value }});
+			}
+			elsif ((($type eq "string") or ($type eq "select")) && ($passed_value eq ""))
+			{
+				$say_value = "--";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_value => $say_value }});
+			}
+			
+			# We always store the action, then anything else that isn't default.
+			if (($passed_value ne $default) or ($name eq "action"))
+			{
+				# Something changed. Is it sane?
+				$is_default = 0;
+				if (($type eq "integer") or ($type eq "second"))
+				{
+					# Make sure the value is a bare integer
+					if ($passed_value =~ /\D/)
+					{
+						# Problem.
+						$sane                                             = 0;
+						$anvil->data->{cgi}{$passed_parameter_key}{alert} = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+							"cgi::${passed_parameter_key}::alert" => $anvil->data->{cgi}{$passed_parameter_key}{alert}, 
+							sane                                  => $sane, 
+						}});
+					}
+				}
+				
+				# This will be used to assemble the base shell call later
+				$anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set} = $passed_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					"fence::${fence_agent}::set::${i}::parameter::${name}::set" => $anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set}, 
+				}});
+			}
+			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'} = $is_default;
+			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}     = $passed_value ? $passed_value : $default;
+			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value} = $say_value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"fence::confirm_table::data::${name}::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'}, 
+				"fence::confirm_table::data::${name}::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}, 
+				"fence::confirm_table::data::${name}::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value}, 
+			}});
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+	return($sane);
+}
+
 sub show_fence_config_main_menu
 {
 	my ($anvil) = @_;
@@ -2343,75 +2994,6 @@ sub format_fence_description
 	}
 	
 	return($agent_description);
-}
-
-# This handles creating an Anvil! from an existing manifest
-sub process_create
-{
-	my ($anvil) = @_;
-	
-	# Are we creating a new manifest?
-	if ($anvil->data->{cgi}{task}{value})
-	{
-		handle_new_manifest($anvil);
-	}
-	
-	# Show existing manifests.
-	my $query = "
-SELECT 
-    manifest_uuid, 
-    manifest_name, 
-    manifest_last_ran, 
-    manifest_xml, 
-    manifest_note 
-FROM 
-    manifests 
-ORDER BY 
-    manifest_name ASC;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count,
-	}});
-	my $manifest_template = "";
-	if ($count)
-	{
-		foreach my $row (@{$results})
-		{
-			my $manifest_uuid     = $row->[0];
-			my $manifest_name     = $row->[1];
-			my $manifest_last_ran = $row->[2];
-			my $manifest_xml      = $row->[3];
-			my $manifest_note     = $row->[4];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				manifest_uuid     => $manifest_uuid, 
-				manifest_name     => $manifest_name, 
-				manifest_last_ran => $manifest_last_ran,
-				manifest_xml      => $manifest_xml, 
-				manifest_note     => $manifest_note, 
-			}});
-			$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "existing-manifest-entry", variables => {
-				manifest_uuid => $manifest_uuid, 
-				manifest_name => $manifest_name, 
-			}});
-		}
-	}
-	
-	# Store the previous CGI variables and display the new fields.
-	$anvil->data->{form}{back_link}     = "?anvil=true";
-	$anvil->data->{form}{refresh_link}  = "?anvil=true&task=create";
-	$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
-	$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
-	$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
-	$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "create-menu", variables => {
-		existing_manifests => $manifest_template, 
-	}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
-	
-	return(0);
 }
 
 # This handles configuring a remote target's network interfaces (renaming them, bonding and bridging them).

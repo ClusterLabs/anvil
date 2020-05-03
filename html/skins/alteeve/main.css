@@ -415,6 +415,12 @@ td.column_row_value_fixed_centered {
 	font-size:   0.9em;
 }
 
+td.column_row_centered_input {
+	text-align:     center;
+	vertical-align: middle;
+	padding:        0.2em;
+}
+
 td.column_subrow_name {
 	text-align:     right;
 	vertical-align: top;

@@ -24,246 +24,263 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<!-- Alert messages -->
 		<key name="alert_message_0001">The scan agent: [#!variable!agent_name!#] timed out! It was given: [#!variable!timeout!#] seconds to run, but it didn't return, so it was terminated.</key>
 		
-		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
-		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
-		<key name="message_0002">The connection to: [#!variable!connection!#] was refused. If you recently booted the target, the network might have started, the ssh daemon might not be running yet.</key>
-		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine (or the interface) up?</key>
-		<key name="message_0004">Timed out while waiting for a reply from: [#!variable!target!#]. Is the machine booting up? If so, please wait a minute or two and try again.</key>
-		<key name="message_0005">There was an unknown error while connecting to: [#!variable!target!#]. The error was: [#!variable!error!#]</key>
-		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
-		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
-		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error: [#!variable!error!#].</key>
-		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
-		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
-		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
-		<key name="message_0012">Wrote the journald config file: [#!variable!file!#] to disable rate limiting to ensure high log levels are not lost.</key>
-		<key name="message_0013">#!free!#</key>
-		<key name="message_0014">One or more files on disk have changed. Exiting to reload.</key>
-		<key name="message_0015">The reconfigure of the network has begun.</key>
-		<key name="message_0016">The host name: [#!variable!host_name!#] has been set.</key>
-		<key name="message_0017">Failed to set the host name: [#!variable!host_name!#]! The host name is currently [#!variable!bad_host_name!#]. This is probably a program error.</key>
-		<key name="message_0018">What would you like the new password to be?</key>
-		<key name="message_0019">Please enter the password again to confirm.</key>
-		<key name="message_0020">About to update the local passwords (shell users, database and web interface).</key>
-		<key name="message_0021">Proceed? [y/N]</key>
-		<key name="message_0022">Aborting.</key>
-		<key name="message_0023">Auto-approved by command line switch, proceeding.</key>
-		<key name="message_0024">Updating the Striker user: [#!variable!user!#] password... </key>
-		<key name="message_0025">Done.</key>
-		<key name="message_0026">Updating the database user: [#!variable!user!#] password... </key>
-		<key name="message_0027">Updating the local config file: [#!variable!file!#] database password... </key>
-		<key name="message_0028">Updating the shell user: [#!variable!user!#] password... </key>
-		<key name="message_0029">Finished! 
-
-NOTE: You must update the password of any other system using this host's 
-      database manually!
+		<!-- Branded strings reskinners may wish to change. -->
+		<key name="brand_0001">Alteeve</key>
+		<key name="brand_0002">Anvil!</key>
+		<key name="brand_0003">Striker</key>
+		<key name="brand_0004">ScanCore</key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2020 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
+		<key name="brand_0007">Node</key>
+		<key name="brand_0008">DR Host</key>
+		
+		<!-- Errors -->
+		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
+		<key name="error_0002">The local system UUID can't be read yet. This might be because the system is brand new and/or ScanCore hasn't run yet. Please try again in a minute.</key>
+		<key name="error_0003">None of the databases are accessible, unable to proceed. Please be sure that 'anvil-daemon' is enabled and running on the database machine(s).</key>
+		<key name="error_0004">The gateway address doesn't match any of your networks.</key>
+		<key name="error_0005">This program must run with 'root' level privileges.</key>
+		<key name="error_0006">No password was given, exiting.</key>
+		<key name="error_0007">The passwords don't match, exiting.</key>
+		<key name="error_0008">Failed to read the file: [#!variable!file!#]. It doesn't appear to exist.</key>
+		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
+		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
+		<key name="error_0011">Something went wrong while trying to update the password. The return code was: [#!variable!return_code!#], but '0' was expected.</key>
+		<key name="error_0012"><![CDATA[The <a href="https://en.wikipedia.org/wiki/Hostname" target="_new">host name</a> has to be set to a valid value.]]></key>
+		<key name="error_0013">A user name must be set. This is usually 'admin'.</key>
+		<key name="error_0014">You must set a password. There are no complexity rules, but a long password is strongly recommended.</key>
+		<key name="error_0015">A DNS entry is bad. One or more IPv4 addresses can be specified, with a comma separating multiple IPs.</key>
+		<key name="error_0016">The IPv4 address assigned to: [#!variable!network!#] is invalid.</key>
+		<key name="error_0017">An interface to use in: [#!variable!network!# - Link #!variable!link!#] must be selected.</key>
+		<key name="error_0018">Network interfaces can only be selected once.</key>
+		<key name="error_0019">The gateway appears to have an invalid IPv4 address set.</key>
+		<key name="error_0020">The: [#!variable!field!#] field can't be empty.</key>
+		<key name="error_0021">The prefix needs to be set, and be between 1 and 5 characters long.</key>
+		<key name="error_0022">The: [#!variable!field!#] must be a positive integer.</key>
+		<key name="error_0023">There was a problem reading your session details. To be safe, you have been logged out. Please try logging back in.</key>
+		<key name="error_0024">It appears that your session has expired. To be safe, you have been logged out. Please try logging back in.</key>
+		<key name="error_0025"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.]]></key>
+		<key name="error_0026"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.]]></key>
+		<key name="error_0027">Login failed, please try again.</key>
+		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!path::log::main!#</span>] for details.]]></key>
+		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
+		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!path::log::main!#</span>].]]></key>
+		<key name="error_0031">The 'host-uuid': [#!variable!host_uuid!#] is not valid.</key>
+		<key name="error_0032">The '#!variable!switch!#' switch is missing.</key>
+		<key name="error_0033">The job UUID was passed via '--job-uuid' but the passed in value: [#!variable!uuid!#] is not a valid UUID.</key>
+		<key name="error_0034">The job UUID was passed via '--job-uuid': [#!variable!uuid!#] doesn't match a job in the database.</key>
+		<key name="error_0035">
+The update appears to have not completed successfully. The output was:
+====
+#!variable!output!#
+====
 		</key>
-		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
-		<key name="message_0031">Beginning configuration of local system.</key>
-		<key name="message_0032">Peer: [#!variable!peer!#], database: [#!variable!name!#], UUID: [#!variable!uuid!#]</key>
-		<key name="message_0033">Clearing update cache and checking for available updates.</key>
-		<key name="message_0034"><![CDATA[Logged in as: [<span class="fixed_width">#!data!sys::users::user_name!#</span>]]]></key>
-		<key name="message_0035">Downloading approximately: [#!variable!size!#] worth of updates.</key>
-		<key name="message_0036">ERROR: There was a problem with the OS update process. Please check the system logs for more details.</key>
-		<key name="message_0037">Downloading complete. Installation of updates now underway.</key>
-		<key name="message_0038">Updates finished. Verifying now.</key>
-		<key name="message_0039">System update complete! The kernel was updated, so a reboot is required.</key>
-		<key name="message_0040">System update complete! A reboot is not required.</key>
-		<key name="message_0041">This system has been placed into maintenance mode.</key>
-		<key name="message_0042">This system was already in maintenance mode, nothing changed.</key>
-		<key name="message_0043">This system has been removed from maintenance mode.</key>
-		<key name="message_0044">This system was not in maintenance mode, nothing changed.</key>
-		<key name="message_0045">Bad call. Usage: 
-Set maintenance mode:    #!variable!program!# --set 1
-Clear maintenance mode:  #!variable!program!# --set 0
-Report maintenance mode: #!variable!program!#
+		<key name="error_0036"></key>
+		<key name="error_0037"><![CDATA[In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].]]></key>
+		<key name="error_0038">The TCP port: [#!variable!port!#] is not a valid.</key>
+		<key name="error_0039"><![CDATA[The password for the host was not provided by '--password-file' or in 'job_data' (as 'password=<secret>').]]></key>
+		<key name="error_0040">Logging out failed. The user's UUID wasn't passed and 'sys::users::user_uuid' wasn't set. Was the user already logged out?</key>
+		<key name="error_0041">Failed to install the Alteeve repo, unable to proceed.</key>
+		<key name="error_0042">No BCN interface found. Unable to configure the install target feature yet.</key>
+		<key name="error_0043">Failed to write or update the file: [#!variable!file!#]. Please see the system log for more information.</key>
+		<key name="error_0044">This is not a configured Striker dashboard, exiting.</key>
+		<key name="error_0045">
+[ Error ] - There was a problem downloading packages. The error was:
+====
+#!variable!error!#
+====
 		</key>
-		<key name="message_0046">This system is in maintenance mode.</key>
-		<key name="message_0047">This system is NOT in maintenance mode.</key>
-		<key name="message_0048">This system has been set to need a reboot.</key>
-		<key name="message_0049">This system was already set to need a reboot, nothing changed.</key>
-		<key name="message_0050">This system has has been set to no longer need a reboot.</key>
-		<key name="message_0051">This system was not in maintenance mode, nothing changed.</key>
-		<key name="message_0052">Bad call. Usage: 
-Set that a reboot is required: #!variable!program!# --reboot-needed 1
-Clear the need for a reboot:   #!variable!program!# --reboot-neededset 0
-Report if a reboot is needed:  #!variable!program!#
-Reboot the system:             #!variable!program!# --reboot [-y]
-Poweroff the system:           #!variable!program!# --poweroff [-y]
-The '-y' option prevents a confirmation prompt.
+		<key name="error_0046">This Striker system is not configured yet. This tool will not be available until it is.</key>
+		<key name="error_0047">Failed to start the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
+		<key name="error_0048">Failed to stop the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
+		<key name="error_0049">A request to rename a file was made, but no file name was given.</key>
+		<key name="error_0050">A request to rename the file: [#!variable!file!#] was made, but the new name wasn't given. Was '--to X' given?</key>
+		<key name="error_0051">A request to rename the file: [#!variable!file!#] was made, but that file doesn't exist.</key>
+		<key name="error_0052">A request to delete a file was made, but no file name was given.</key>
+		<key name="error_0053">A request to delete the file: [#!variable!file!#] was received, but it is not under '/mnt/shared/'. This program can only work on or under that directory.</key>
+		<key name="error_0054">Failed!</key>
+		<key name="error_0055">A request to toggle the script flag was received, but no file name was given.</key>
+		<key name="error_0056">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
+		<key name="error_0057">
+Failed to generate an RSA public key for the user: [#!variable!user!#]. The output, if any, is below:
+====
+#!variable!output!#
+====
 		</key>
-		<key name="message_0053">This system needs to be rebooted.</key>
-		<key name="message_0054">This system does NOT need to be rebooted.</key>
-		<key name="message_0055">Asked to only run once, so exiting now.</key>
-		<key name="message_0056">Previous run exited early. Restarting momentarily.</key>
-		<key name="message_0057">No updates were found or needed.</key>
-		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
-		<key name="message_0058">* Packages downloaded: [#!variable!downloaded!#], Installed or updated: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
-		<key name="message_0059">Are you sure you want to reboot this system? [y/N].</key>
-		<key name="message_0060">Are you sure you want to power off this system? [y/N].</key>
-		<key name="message_0061">Aborting.</key>
-		<key name="message_0062">Powering off the local system now.</key>
-		<key name="message_0063">Rebooting the local system now.</key>
-		<key name="message_0064">The Anvil! has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
-		<key name="message_0065">You will now be logged out and this machine will now be rebooted so that the new configuration can take effect.</key>
-		<key name="message_0066">Starting the job to add or update an Anvil! database peer.</key>
-		<key name="message_0067">Starting the job to remove an Anvil! database peer.</key>
-		<key name="message_0068">Sanity checkes passed.</key>
-		<key name="message_0069">Added the peer to the config file.</key>
-		<key name="message_0070">Old peer found and removed from the config file.</key>
-		<key name="message_0071">Existing peer found and update needed and made.</key>
-		<key name="message_0072">Configuration changed, existing config backed up as: [#!variable!backup!#].</key>
-		<key name="message_0073">New config written to disk.</key>
-		<key name="message_0074">Reconnecting to the database(s) to ask the peer to add us. Will hold here until the peer is added to the 'hosts' table. Please be patient.</key>
-		<key name="message_0075">The peer: [#!variable!host!#] is now in the database. Proceeding.</key>
-		<key name="message_0076">The job the peer add us has been registered. It should add us as soon as it looks for new jobs (generally within a second or two).</key>
-		<key name="message_0077">
-NOTE: Please be patient! 
-      The 'dnf' cache will be cleared to ensure the freshest RPMs are download. This will cause a delay 
-      before output starts to appear. Once started, each RPM will be reported after it is downloaded. Large
-      RPMs may cause the output to appear stalled. You can verify that the download it proceeding by using
-      'df -hs #!variable!directory!#' to verify the numbers are increasing.
+		<key name="error_0058">Failed to backup: [#!variable!file!#], skipping.</key>
+		<key name="error_0059">The file to be downloaded: [#!variable!file!#], already exists. Either remove it, or call again with '--overwrite'.</key>
+		<key name="error_0060">Something went wrong moving the downloaded file from the temporary location: [#!variable!source_file!#] to the output: [#!variable!target_file!#]. Useful errors may be above this message.</key>
+		<key name="error_0061">The download job with UUID: [#!variable!job_uuid!#] is not valid.</key>
+		<key name="error_0062">The download job with UUID: [#!variable!job_uuid!#] is already being handled by another process.</key>
+		<key name="error_0063">Something went wrong trying to download: [#!variable!packages!#]. The return code should have been '0'. but: [#!variable!return_code!#] was received. Is a package missing upstream?</key>
+		<key name="error_0064">A request to active the logical volume: [#!variable!path!#] was made, but that path doesn't exist or isn't a block device.</key>
+		<key name="error_0065"><![CDATA[No program name given (via --program <name>), unable to proceed.]]></key>
+		<key name="error_0066"><![CDATA[The program: [#!variable!program!#] was not found to be running on this system.]]></key>
+		<key name="error_0067"><![CDATA[Unable to connect to the database, unable to read the peer's password.]]></key>
+		<key name="error_0068"><![CDATA[There was a problem reading the password from the database.]]></key>
+		<key name="error_0069"><![CDATA[Unable to access the host: [#!variable!host!#].]]></key>
+		<key name="error_0070"><![CDATA[Unable to find the host UUID on the host: [#!variable!host!#].]]></key>
+		<key name="error_0071">Something went wrong trying to write: [#!variable!file!#], unable to proceed.</key>
+		<key name="error_0072">Something went wrong trying to compile the C-program: [#!variable!file!#], unable to proceed.</key>
+		<key name="error_0073">The job UUID was not passed via '--job-uuid' and no unclaimed job was found in the database.</key>
+		<key name="error_0074">The initialization target: [#!variable!target!#] is not accessible. Will keep trying...</key>
+		<key name="error_0075">There are no databases available. Will check periodically, waiting until one becomes available.</key>
+		<key name="error_0076">There was a problem adding out database to the target's anvil.conf file.</key>
+		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
+		<key name="error_0078">Did not find any offending keys on this host, exiting.</key>
+		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
+		<key name="error_0080">No job UUID was passwed .</key>
+		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
+		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
+		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
+		<key name="error_0084">Unable to find a common network between the target and this machine. This shouldn't be possible, given we're able to talk to it. This is probably a program error.</key>
+		<key name="error_0085">The URL: [#!variable!url!#] is not supported. The URL must start with 'http://', 'https://' or 'ftp://'.</key>
+		<key name="error_0086">The requested URL: [#!variable!url!#] was not found on the remote server.</key>
+		<key name="error_0087">The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
+		<key name="error_0088">The requested URL: [#!variable!url!#] failed because the remote host refused the connection.</key>
+		<key name="error_0089">The requested URL: [#!variable!url!#] failed because there is no route to that host.</key>
+		<key name="error_0090">The requested URL: [#!variable!url!#] failed because the network is unreachable.</key>
+		<key name="error_0091">The requested URL: [#!variable!url!#] failed, access was forbidden (error 403).</key>
+		<key name="error_0092">The requested URL: [#!variable!url!#] failed, the file was not found on the source (error 404).</key>
+		<key name="error_0093">The requested URL: [#!variable!url!#] failed with HTTP error: [#!variable!error_code!#] (message: [#!variable!error_message!#]).</key>
+		<key name="error_0094">Aborting the download of: [#!variable!url!#] to: [#!variable!save_to!#]. The target file already exists and 'overwrite' was not set.</key>
+		<key name="error_0095">There was a problem downloading: [#!variable!url!#] to: [#!variable!file!#]. Aborting parsing of the OUI data.</key>
+		<key name="error_0096">The 'oui_mac_prefix': [#!variable!oui_mac_prefix!#] string doesn't appear to be a valid 6-byte hex string.</key>
+		<key name="error_0097"><![CDATA[The network range: [#!variable!range!#] does not appear to be valid. It must be '<ip>/<subnet>' (subnet can be dotted-decimal or CIDR notation) or be 'bcn', 'sn', 'ifn' or a specific variant like 'bcn1', 'sn2', or 'ifn2'. Alternatively, so not use '--network X' at all and all networks with host is connected to will be scanned.]]></key>
+		<key name="error_0098">Failed to create the archive directory: [#!variable!directory!#]. Skipping the archive process.</key>
+		<key name="error_0099">There was a problem writing out the records to file: [#!variable!file!#]. There may be more information in #!data!path::log::main!#. Skipping further attempts to archive: [#!variable!table!#].</key>
+		<key name="error_0100">Compression appears to have failed. The return code '0' was expected from the bzip2 call, but: [#!variable!return_code!#] was returned. The output, if any, was: [#!variable!output!#].</key>
+		<key name="error_0101">Compression appears to have failed. The output file: [#!variable!out_file!#] was not found.</key>
+		<key name="error_0102">Failed to check the existence and size of the file: [#!variable!file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
+		<key name="error_0103">The file: [#!variable!file!#] wasn't found.</key>
+		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
+		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
+		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target?]]></key>
+		<key name="error_0107">Failed to reconnect after reconfiguring the network, exiting.</key>
+		<key name="error_0108">The 'recipient_new_level': [#!variable!recipient_new_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
+		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
+		<key name="error_0110">The 'notification_uuid': [#!variable!notification_uuid!#] was not found in the database.</key>
+		<key name="error_0111">
+[ Error ] - The was a problem parsing the unified metadata:
+===========================================================
+#!variable!xml_body!#
+===========================================================
+The error was:
+===========================================================
+#!variable!eval_error!#
+===========================================================
+</key>
+		<key name="error_0112"><![CDATA[Failed to read valid unified XML data from: [#!variable!file!#]. It should start with: [<?xml version="1.0" ?>]]]></key>
+		<key name="error_0113">The unified metadata file: [#!data!path::data::fences_unified_metadata!#] was not found. There may have been a problem creating it.</key>
+		<key name="error_0114">This row's modified_date wasn't the first column returned in query: [#!variable!query!#]</key>
+		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
+		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!variable!source!#] to: [#!variable!target!#], but that renane failed.</key>
+		
+		<!-- Table headers -->
+		<key name="header_0001">Current Network Interfaces and States</key>
+		<key name="header_0002">MAC Address</key>
+		<key name="header_0003">Name</key>
+		<key name="header_0004">State</key>
+		<key name="header_0005">Speed</key>
+		<key name="header_0006">Change Order</key>
+		<key name="header_0007">Inbound Connections</key>
+		<key name="header_0008">Via network:</key>
+		<key name="header_0009">Peer Connections</key>
+		<key name="header_0010">Ping</key>
+		<key name="header_0011">Jobs</key>
+		<key name="header_0012">Target</key>
+		<key name="header_0013">User</key>
+		<key name="header_0014">File</key>
+		<key name="header_0015">On Host</key>
+		<key name="header_0016">Unconfigured Hosts</key>
+		<key name="header_0017">Accessible?</key>
+		<key name="header_0018">Configured Hosts</key>
+		<key name="header_0019">Type</key>
+		<key name="header_0020">At IP</key>
+		<key name="header_0021">Agent and Arguments</key>
+		<key name="header_0022">Delete</key>
+		<key name="header_0023">Fence Device</key>
+		<key name="header_0024">UPS</key>
+		<key name="header_0025">IP Address</key>
+		<key name="header_0026">Host Name</key>
+		<key name="header_0027">Brand</key>
+		
+		<!-- Strings used by jobs -->
+		<key name="job_0001">Configure Network</key>
+		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
+		<key name="job_0003">Update Striker</key>
+		<key name="job_0004">This system is now scheduled to be updated.</key>
+		<key name="job_0005">Reboot Striker</key>
+		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
+		<key name="job_0007">Poweroff Striker</key>
+		<key name="job_0008">This system will be powered off momentarily. It will not respond until it has turned back on.</key>
+		<key name="job_0009">Reboot...</key>
+		<key name="job_0010">Powering off...</key>
+		<key name="job_0011">Add a Striker Peer</key>
+		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
+		<key name="job_0013">Remove a Striker Peer</key>
+		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
+		<key name="job_0015">Manager Install Target.</key>
+		<key name="job_0016">Enable or disable the 'Install Target' feature.</key>
+		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
+		<key name="job_0018">Download a file</key>
+		<key name="job_0019">The referenced file will be downloaded by the target host.</key>
+		<key name="job_0020">Initialize a new Anvil! Node</key>
+		<key name="job_0021">Initialize a new DR Host</key>
+		<key name="job_0022">The target will be setup to talk to this and our peer dashboards. When initialization is complete, you will be able to map the target's network.</key>
+		<key name="job_0023">Connecting to the target: [#!variable!target!#]...</key>
+		<key name="job_0024">Connected!</key>
+		<key name="job_0025">Unable to connect to: [#!variable!target!#]. Will keep trying for another: [#!variable!timeout!#] seconds...</key>
+		<key name="job_0026">Unable to connect, the job has failed.</key>
+		<key name="job_0027">'Initialize host' job: [#!variable!job-uuid!#] picked up.</key>
+		<key name="job_0028">Adding repositories.</key>
+		<key name="job_0029">Added the repository for this dashboard.</key>
+		<key name="job_0030">Red Hat subscription information provides, attempting to register now.</key>
+		<key name="job_0031">This machine is already registered with Red Hat. Skipping it.</key>
+		<key name="job_0032">Unable to reach the Red Hat subscription service. Is the Internet working on this host?</key>
+		<key name="job_0033">Please be patient, subscription can take a while to complete.</key>
+		<key name="job_0034">Success!</key>
+		<key name="job_0035">
+Failure! The return code: [#!variable!return_code!#] was received ('0' was expected). Possibly helpful information:
+* Output: [#!variable!output!#]
+* Error: [#!variable!error!#]
 		</key>
-		<key name="message_0078">Output: [#!variable!line!#].</key>
-		<key name="message_0079">Error:  [#!variable!line!#].</key>
-		<!-- The strings below are used in the 'default' PXE menu. Entries used as option labels use '^' to indicate the hotkey, and must be unique in a given menu. -->
-		<key name="message_0080">Anvil! - Install Target Menu</key>
-		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
-		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
-		<key name="message_0083">Editing of this option is disabled.</key>
-		<key name="message_0084">^1. Install a Striker dashboard (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
-<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /===========================================================================================================\ -->
-		<key name="message_0085">
-	This install will choose the largest available fixed disk (spindle or platter), remove any data from it, 
-	repartition in and install. This is a fully automated process! Once selected, the only way to abort will be
-	a manual reboot on the system.
-	
-	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
-	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
-		</key>
-<!--    \===========================================================================================================/ -->
-		<key name="message_0086">^2. Install an Anvil! Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
-<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /===========================================================================================================\ -->
-		<key name="message_0087">
-	This install will choose the smallest available fixed rotating disk, if available. If none is found, the 
-	smallest solid-state fixed disk will be chosen. All data will be removed, the disk repartitioned and a new OS 
-	will be installed. This is a fully automated process! Once selected, the only way to abort will be a manual 
-	reboot on the system.
-	
-	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
-	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
-		</key>
-<!--    \===========================================================================================================/ -->
-		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
-		<key name="message_0089">
-<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /===========================================================================================================\ -->
-	This install will choose the smallest available fixed rotating disk, if available. If none is found, the 
-	smallest solid-state fixed disk will be chosen. All data will be removed, the disk repartitioned and a new OS
-	will be installed. This is a fully automated process! Once selected, the only way to abort will be a manual 
-	reboot on the system.
-	
-	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
-	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
-<!--    \===========================================================================================================/ -->
-		</key>
-		<key name="message_0090">Boot into a ^Rescue session</key>
-		<key name="message_0091">
-<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /===========================================================================================================\ -->
-	This will boot into a rescue shell. From there, you can access the bare hard drive on the machine to attempt 
-	to diagnose and repair problems that might be preventing a system from booting.
-	
-	No data on the target machine will be changed by this option.
-		</key>
-<!--    \===========================================================================================================/ -->
-		<key name="message_0092">Install ^Standard #!data!host_os::os_name!# #!data!host_os::os_arch!# Install</key>
-<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
-<!--    /===========================================================================================================\ -->
-		<key name="message_0093">
-	This will start a standard install of #!data!host_os::os_name!#.
-	
-	This option will not change anything on disk until and unless you choose to do so.
-		</key>
-<!--    \===========================================================================================================/ -->
-		<key name="message_0094">Boot from Next ^Boot Device</key>
-		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
-		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
-		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>
-		<key name="message_0098">Enabling and starting: [#!variable!daemon!#]</key>
-		<key name="message_0099">The daemon: [#!variable!daemon!#] is already enabled, skipping.</key>
-		<key name="message_0100">Copying the syslinux files: [#!data!path::directories::syslinux!#/*] into the tftpboot directory: [#!data!path::directories::tftpboot!#].</key>
-		<key name="message_0101">The syslinux files from: [#!data!path::directories::syslinux!#] appear to already be in the tftpboot directory: [#!data!path::directories::tftpboot!#], skipping.</key>
-		<key name="message_0102">Checking that the "Install Target" function is configured and updated.</key>
-		<!-- The strings below are printed in bash, so be mindful of escaping characters. The strings are wrapped in double-quotes ("), so escape them with a back-slash (\") -->
-		<key name="message_0103">Finding install drive for a Striker dashboard.</key>
-		<key name="message_0104">Finding install drive for an Anvil! node.</key>
-		<key name="message_0105">Finding install drive for a DR (disaster recovery) host.</key>
-		<key name="message_0106">
-[ Error ] - Target type not specified. Be sure that '\$type' is set to 
-            'striker', 'node' or 'dr' in the \%pre section of the kickstart
-            script.
-		</key>
-		<!-- These are injected into the perl script in the kickstart files. Leave the string variables and function calls in place! -->
-		<key name="message_0107"><![CDATA[Analyzing platter drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".hr_size($device->{$path}{size}).")]]]></key>
-		<key name="message_0108"><![CDATA[Analyzing solid-state drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".hr_size($device->{$path}{size}).")]]]></key>
-		<key name="message_0109"><![CDATA[Selected the largest disk: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]]]></key>
-		<key name="message_0110"><![CDATA[Selected the smallest platter drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]]]></key>
-		<key name="message_0111"><![CDATA[Selected the smallest solid-state drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."] (no platter drives found)]]></key>
-		<key name="message_0112"><![CDATA[[ Error ] - Failed to find any fixed drives (platter or USB, not removable) to install onto. Unable to proceed.]]></key>
-		<key name="message_0113"><![CDATA[Writing out the partition plan to: [".$partition_file."]]]></key>
-		<key name="message_0114"><![CDATA[Completed successfully, exiting.]]></key>
-		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
-		<key name="message_0115">Striker Dashboard</key>
-		<key name="message_0116">Anvil! Node</key>
-		<key name="message_0117">Disaster Recovery (DR) Host</key>
-		<key name="message_0118">Regenerating the source repository metadata.</key>
-		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is the 'anvil-striker-extra' package installed?</key>
-		<key name="message_0120">
-About to try to download aproximately: [#!variable!packages!#] packages needed to:
-- [#!variable!directory!#].
-		</key>
-		<key name="message_0121">Successfully enabled the Install Target function.</key>
-		<key name="message_0122">Successfully disabled the Install Target function.</key>
-		<key name="message_0123">The 'Install Target' function is enabled.</key>
-		<key name="message_0124">The 'Install Target' function is disabled.</key>
-		<key name="message_0125">The 'Install Target' function has been disabled.</key>
-		<key name="message_0126">The attempt to disabled the 'Install Target' function failed! Please check the logs for details.</key>
-		<key name="message_0127">The 'Install Target' function has been enabled.</key>
-		<key name="message_0128">The attempt to enable the 'Install Target' function failed! Please check the logs for details.</key>
-		<key name="message_0129">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was found, but something failed when we tried to copy it to: [#!variable!target_comps!#].</key>
-		<key name="message_0130">Updated repository data.</key>
-		<key name="message_0131">Back-Channel Network ##!variable!number!# - Used for all inter-machine communication in the Anvil!, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
-		<key name="message_0132">Storage Network ##!variable!number!# - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
-		<key name="message_0133">Internet/Intranet-Facing Network ##!variable!number!# - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</key>
-		<key name="message_0134">Updating / configuring the firewall.</key>
-		<key name="message_0135">It appears like we need to accept the fingerprint. Will do so now and then try to conenct again.</key>
-		<key name="message_0136">The zone: [#!variable!zone!#] file: [#!variable!file!#] needs to be updated.</key>
-		<key name="message_0137">The zone: [#!variable!zone!#] file: [#!variable!file!#] doesn't exist, it will now be created.</key>
-		<key name="message_0138">The interface: [#!variable!interface!#] will be added to the zone: [#!variable!zone!#].</key>
-		<key name="message_0139">Reloading the firewall...</key>
-		<key name="message_0140">Restarting the firewall...</key>
-		<key name="message_0141">Changing the default zone to: [#!variable!zone!#].</key>
-		<key name="message_0142">* Download progress: [#!variable!percentage!# %], Downloaded: [#!variable!downloaded!#], Current rate: [#!variable!current_rate!#], Average Rate: [#!variable!average_rate!#], Time Running: [#!variable!running_time!#], Estimated left: [#!variable!estimated_left!#].</key>
-		<key name="message_0143">The zone: [#!variable!zone!#]'s user-land file: [#!variable!file!#] exists. Skipping checking the configuration of this zone.</key>
-		<key name="message_0144">Red Hat user</key>
-		<key name="message_0145">Red Hat password</key>
-		<key name="message_0146">What kind of machine will this host be?</key>
-		<key name="message_0147"><![CDATA[What is the host's <b>current</b> IP address and password?]]></key>
-		<key name="message_0148"><![CDATA[This is a RHEL host and has not yet been subscribed. You can enter your Red Hat subscription credentials below. If the host has internet access, the host will be subscribed during setup.]]></key>
-		<key name="message_0149">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
-		<key name="message_0150">Set the new host name.</key>
-		<key name="message_0151">This is a RHEL host and has not yet been subscribed, but there is no internet access detected. OS Updates likely won't work, nor will subscribing the system. These tasks will be deferred until later in the setup process.</key>
-		<key name="message_0152">There is no internet access detected. OS Updates likely won't work and will be deferred until later in the setup process.</key>
-		<key name="message_0153">Local repository</key>
-		<key name="message_0154">Mail Server Configuration</key>
-		<key name="message_0155">When alert emails are sent, they are stored locally and then forwarded to a mail server. This is where you can configure the mail server that alerts are forwarded to for delivery to recipients.</key>
-		<key name="message_0156">Alert recipient Configuration</key>
-		<key name="message_0157">When a system alert is recorded, any alert recipient interested in that alert will be notified by email. This is determined by the alert's level, and the recipients alert level interest. If the alert's level is equal to or higher than a given alert, an email will be crafted for them, in their chosen language and units.</key>
-		<key name="message_0158">[ Error ] - The modules.yaml file: [#!variable!modules_yaml!#] was found, but something failed when we tried to copy it to: [#!variable!target_modules!#].</key>
-		<key name="message_0159">Updated module metadata.</key>
+		<key name="job_0036">Adding the repo: [#!variable!repo!#]</key>
+		<key name="job_0037">Verifying the the needed repos are enabled now.</key>
+		<key name="job_0038">[ Warning ] - The repo: [#!variable!repo!#] is not subcribed to this system! Initialization will continue, but it might fail.</key>
+		<key name="job_0039">Updating the target's operating system prior to package install.</key>
+		<key name="job_0040">[ Note ] - This step can take a while to finish, and there will be no input here until it completes.</key>
+		<key name="job_0041">Removing conflicting packages.</key>
+		<key name="job_0042">Will now install: [#!variable!package!#].</key>
+		<key name="job_0043">Verifying installation.</key>
+		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::log::main!#.</key>
+		<key name="job_0045">Success!</key>
+		<key name="job_0046">Adding our database connection information to the target's anvil.conf file.</key>
+		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
+		<key name="job_0048">Removing bad machine keys.</key>
+		<key name="job_0049">Removing existing entries for the target machine: [#!variable!target!#] from: [#!variable!file!#].</key>
+		<key name="job_0050">[ Error ] - The known hosts file: [#!variable!file!#] was not found. Skipping it.</key>
+		<key name="job_0051">Finished.</key>
+		<key name="job_0052">[ Error ] - There was a problem reading the known hosts file: [#!variable!file!#]. Skipping it.</key>
+		<key name="job_0053">Found an entry for the target at line: [#!variable!line!#], removing it.</key>
+		<key name="job_0054">[ Error ] - The line number: [#!variable!line!#] in: [#!variable!file!#] does not appear to be for the target: [#!variable!target!#]. Has the file already been updated? Skipping it.</key>
+		<key name="job_0055">Rewriing: [#!variable!file!#].</key>
+		<key name="job_0056">Manage Keys</key>
+		<key name="job_0057">The selected bad key(s) will be removed from the specified files.</key>
+		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a progrem error, skipping this.</key>
+		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
+		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
+		<key name="job_0061">Setting the host name to: [#!variable!host_name!#]...</key>
+		<key name="job_0062">[ Error ] - The host name: [#!variable!host_name!#] is invalid. Skipping host name setup.</key>
+		<key name="job_0063">[ Error ] - Something went wrong. The host name was set to: [#!variable!host_name!#], but the host name returned was: [#!variable!current_host_name!#].</key>
+		<key name="job_0064">OUI Database.</key>
+		<key name="job_0065">Refresh the 'OUI' database used to cross reference MAC addresses to the companies that own them.</key>
+		<key name="job_0066">Network Scan.</key>
+		<key name="job_0067">This job does a simple ping scan of the networks connected to this host. Any detected hosts have their MAC / IP addresses recorded. This is designed to help determine IP addresses assigned to servers hosted on the Anvil! system.</key>
+		<key name="job_0068">Adding the database connection information for the dashboard: [#!variable!host_name!#] to the target's anvil.conf file.</key>
+		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
+		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
+		<key name="job_0071">The network configuration will be updated based on the variables stored in the database. When complete, the system will reboot.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -815,56 +832,264 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0474">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] old and will now be refreshed.</key>
 		<key name="log_0475">This is a CentOS machine, moving the directory: [#!variable!source!#] to: [#!variable!target!#].</key>
 		
-		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
-		<key name="t_0000">Test</key>
-		<key name="t_0001">Test replace: [#!variable!test!#].</key>
-		<key name="t_0002">Test Out of order: [#!variable!second!#] replace: [#!variable!first!#].</key>
-		<!-- Do not use 't_0003'. It is used to test failures caused by calling a non-existent key. -->
-		<key name="t_0004">#!FREE!#</key>
-		<key name="t_0005">
-This is a multi-line test string with various items to insert.
+		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
+		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
+		<key name="message_0002">The connection to: [#!variable!connection!#] was refused. If you recently booted the target, the network might have started, the ssh daemon might not be running yet.</key>
+		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine (or the interface) up?</key>
+		<key name="message_0004">Timed out while waiting for a reply from: [#!variable!target!#]. Is the machine booting up? If so, please wait a minute or two and try again.</key>
+		<key name="message_0005">There was an unknown error while connecting to: [#!variable!target!#]. The error was: [#!variable!error!#]</key>
+		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
+		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
+		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error: [#!variable!error!#].</key>
+		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
+		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
+		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
+		<key name="message_0012">Wrote the journald config file: [#!variable!file!#] to disable rate limiting to ensure high log levels are not lost.</key>
+		<key name="message_0013">#!free!#</key>
+		<key name="message_0014">One or more files on disk have changed. Exiting to reload.</key>
+		<key name="message_0015">The reconfigure of the network has begun.</key>
+		<key name="message_0016">The host name: [#!variable!host_name!#] has been set.</key>
+		<key name="message_0017">Failed to set the host name: [#!variable!host_name!#]! The host name is currently [#!variable!bad_host_name!#]. This is probably a program error.</key>
+		<key name="message_0018">What would you like the new password to be?</key>
+		<key name="message_0019">Please enter the password again to confirm.</key>
+		<key name="message_0020">About to update the local passwords (shell users, database and web interface).</key>
+		<key name="message_0021">Proceed? [y/N]</key>
+		<key name="message_0022">Aborting.</key>
+		<key name="message_0023">Auto-approved by command line switch, proceeding.</key>
+		<key name="message_0024">Updating the Striker user: [#!variable!user!#] password... </key>
+		<key name="message_0025">Done.</key>
+		<key name="message_0026">Updating the database user: [#!variable!user!#] password... </key>
+		<key name="message_0027">Updating the local config file: [#!variable!file!#] database password... </key>
+		<key name="message_0028">Updating the shell user: [#!variable!user!#] password... </key>
+		<key name="message_0029">Finished! 
 
-It also has some #!invalid!# replacement #!keys!# to test the escaping and restoring.
-
-Here is the default output language: [#!data!defaults::language::output!#]
-Here we will inject 't_0000': [#!string!t_0001!#] 
-Here we will inject 't_0002' with its embedded variables: [#!string!t_0002!#]
-Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!string!t_0006!#].
+NOTE: You must update the password of any other system using this host's 
+      database manually!
 		</key>
-		<key name="t_0006">This string embeds 't_0001': [#!string!t_0001!#]</key>
+		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
+		<key name="message_0031">Beginning configuration of local system.</key>
+		<key name="message_0032">Peer: [#!variable!peer!#], database: [#!variable!name!#], UUID: [#!variable!uuid!#]</key>
+		<key name="message_0033">Clearing update cache and checking for available updates.</key>
+		<key name="message_0034"><![CDATA[Logged in as: [<span class="fixed_width">#!data!sys::users::user_name!#</span>]]]></key>
+		<key name="message_0035">Downloading approximately: [#!variable!size!#] worth of updates.</key>
+		<key name="message_0036">ERROR: There was a problem with the OS update process. Please check the system logs for more details.</key>
+		<key name="message_0037">Downloading complete. Installation of updates now underway.</key>
+		<key name="message_0038">Updates finished. Verifying now.</key>
+		<key name="message_0039">System update complete! The kernel was updated, so a reboot is required.</key>
+		<key name="message_0040">System update complete! A reboot is not required.</key>
+		<key name="message_0041">This system has been placed into maintenance mode.</key>
+		<key name="message_0042">This system was already in maintenance mode, nothing changed.</key>
+		<key name="message_0043">This system has been removed from maintenance mode.</key>
+		<key name="message_0044">This system was not in maintenance mode, nothing changed.</key>
+		<key name="message_0045">Bad call. Usage: 
+Set maintenance mode:    #!variable!program!# --set 1
+Clear maintenance mode:  #!variable!program!# --set 0
+Report maintenance mode: #!variable!program!#
+		</key>
+		<key name="message_0046">This system is in maintenance mode.</key>
+		<key name="message_0047">This system is NOT in maintenance mode.</key>
+		<key name="message_0048">This system has been set to need a reboot.</key>
+		<key name="message_0049">This system was already set to need a reboot, nothing changed.</key>
+		<key name="message_0050">This system has has been set to no longer need a reboot.</key>
+		<key name="message_0051">This system was not in maintenance mode, nothing changed.</key>
+		<key name="message_0052">Bad call. Usage: 
+Set that a reboot is required: #!variable!program!# --reboot-needed 1
+Clear the need for a reboot:   #!variable!program!# --reboot-neededset 0
+Report if a reboot is needed:  #!variable!program!#
+Reboot the system:             #!variable!program!# --reboot [-y]
+Poweroff the system:           #!variable!program!# --poweroff [-y]
+The '-y' option prevents a confirmation prompt.
+		</key>
+		<key name="message_0053">This system needs to be rebooted.</key>
+		<key name="message_0054">This system does NOT need to be rebooted.</key>
+		<key name="message_0055">Asked to only run once, so exiting now.</key>
+		<key name="message_0056">Previous run exited early. Restarting momentarily.</key>
+		<key name="message_0057">No updates were found or needed.</key>
+		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
+		<key name="message_0058">* Packages downloaded: [#!variable!downloaded!#], Installed or updated: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
+		<key name="message_0059">Are you sure you want to reboot this system? [y/N].</key>
+		<key name="message_0060">Are you sure you want to power off this system? [y/N].</key>
+		<key name="message_0061">Aborting.</key>
+		<key name="message_0062">Powering off the local system now.</key>
+		<key name="message_0063">Rebooting the local system now.</key>
+		<key name="message_0064">The Anvil! has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
+		<key name="message_0065">You will now be logged out and this machine will now be rebooted so that the new configuration can take effect.</key>
+		<key name="message_0066">Starting the job to add or update an Anvil! database peer.</key>
+		<key name="message_0067">Starting the job to remove an Anvil! database peer.</key>
+		<key name="message_0068">Sanity checkes passed.</key>
+		<key name="message_0069">Added the peer to the config file.</key>
+		<key name="message_0070">Old peer found and removed from the config file.</key>
+		<key name="message_0071">Existing peer found and update needed and made.</key>
+		<key name="message_0072">Configuration changed, existing config backed up as: [#!variable!backup!#].</key>
+		<key name="message_0073">New config written to disk.</key>
+		<key name="message_0074">Reconnecting to the database(s) to ask the peer to add us. Will hold here until the peer is added to the 'hosts' table. Please be patient.</key>
+		<key name="message_0075">The peer: [#!variable!host!#] is now in the database. Proceeding.</key>
+		<key name="message_0076">The job the peer add us has been registered. It should add us as soon as it looks for new jobs (generally within a second or two).</key>
+		<key name="message_0077">
+NOTE: Please be patient! 
+      The 'dnf' cache will be cleared to ensure the freshest RPMs are download. This will cause a delay 
+      before output starts to appear. Once started, each RPM will be reported after it is downloaded. Large
+      RPMs may cause the output to appear stalled. You can verify that the download it proceeding by using
+      'df -hs #!variable!directory!#' to verify the numbers are increasing.
+		</key>
+		<key name="message_0078">Output: [#!variable!line!#].</key>
+		<key name="message_0079">Error:  [#!variable!line!#].</key>
+		<!-- The strings below are used in the 'default' PXE menu. Entries used as option labels use '^' to indicate the hotkey, and must be unique in a given menu. -->
+		<key name="message_0080">Anvil! - Install Target Menu</key>
+		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
+		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
+		<key name="message_0083">Editing of this option is disabled.</key>
+		<key name="message_0084">^1. Install a Striker dashboard (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
+<!--    /===========================================================================================================\ -->
+		<key name="message_0085">
+	This install will choose the largest available fixed disk (spindle or platter), remove any data from it, 
+	repartition in and install. This is a fully automated process! Once selected, the only way to abort will be
+	a manual reboot on the system.
+	
+	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
+	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
+		</key>
+<!--    \===========================================================================================================/ -->
+		<key name="message_0086">^2. Install an Anvil! Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
+<!--    /===========================================================================================================\ -->
+		<key name="message_0087">
+	This install will choose the smallest available fixed rotating disk, if available. If none is found, the 
+	smallest solid-state fixed disk will be chosen. All data will be removed, the disk repartitioned and a new OS 
+	will be installed. This is a fully automated process! Once selected, the only way to abort will be a manual 
+	reboot on the system.
+	
+	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
+	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
+		</key>
+<!--    \===========================================================================================================/ -->
+		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0089">
+<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
+<!--    /===========================================================================================================\ -->
+	This install will choose the smallest available fixed rotating disk, if available. If none is found, the 
+	smallest solid-state fixed disk will be chosen. All data will be removed, the disk repartitioned and a new OS
+	will be installed. This is a fully automated process! Once selected, the only way to abort will be a manual 
+	reboot on the system.
+	
+	                         ***  ALL EXISTING DATA ON SELECTED DRIVE WILL BE LOST!  ***
+	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
+<!--    \===========================================================================================================/ -->
+		</key>
+		<key name="message_0090">Boot into a ^Rescue session</key>
+		<key name="message_0091">
+<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
+<!--    /===========================================================================================================\ -->
+	This will boot into a rescue shell. From there, you can access the bare hard drive on the machine to attempt 
+	to diagnose and repair problems that might be preventing a system from booting.
+	
+	No data on the target machine will be changed by this option.
+		</key>
+<!--    \===========================================================================================================/ -->
+		<key name="message_0092">Install ^Standard #!data!host_os::os_name!# #!data!host_os::os_arch!# Install</key>
+<!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
+<!--    /===========================================================================================================\ -->
+		<key name="message_0093">
+	This will start a standard install of #!data!host_os::os_name!#.
+	
+	This option will not change anything on disk until and unless you choose to do so.
+		</key>
+<!--    \===========================================================================================================/ -->
+		<key name="message_0094">Boot from Next ^Boot Device</key>
+		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
+		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
+		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>
+		<key name="message_0098">Enabling and starting: [#!variable!daemon!#]</key>
+		<key name="message_0099">The daemon: [#!variable!daemon!#] is already enabled, skipping.</key>
+		<key name="message_0100">Copying the syslinux files: [#!data!path::directories::syslinux!#/*] into the tftpboot directory: [#!data!path::directories::tftpboot!#].</key>
+		<key name="message_0101">The syslinux files from: [#!data!path::directories::syslinux!#] appear to already be in the tftpboot directory: [#!data!path::directories::tftpboot!#], skipping.</key>
+		<key name="message_0102">Checking that the "Install Target" function is configured and updated.</key>
+		<!-- The strings below are printed in bash, so be mindful of escaping characters. The strings are wrapped in double-quotes ("), so escape them with a back-slash (\") -->
+		<key name="message_0103">Finding install drive for a Striker dashboard.</key>
+		<key name="message_0104">Finding install drive for an Anvil! node.</key>
+		<key name="message_0105">Finding install drive for a DR (disaster recovery) host.</key>
+		<key name="message_0106">
+[ Error ] - Target type not specified. Be sure that '\$type' is set to 
+            'striker', 'node' or 'dr' in the \%pre section of the kickstart
+            script.
+		</key>
+		<!-- These are injected into the perl script in the kickstart files. Leave the string variables and function calls in place! -->
+		<key name="message_0107"><![CDATA[Analyzing platter drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".hr_size($device->{$path}{size}).")]]]></key>
+		<key name="message_0108"><![CDATA[Analyzing solid-state drive: [".$path."], using the transport: [".$device->{$path}{transport}."], of the size: [".$device->{$path}{size}." (".hr_size($device->{$path}{size}).")]]]></key>
+		<key name="message_0109"><![CDATA[Selected the largest disk: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]]]></key>
+		<key name="message_0110"><![CDATA[Selected the smallest platter drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."]]]></key>
+		<key name="message_0111"><![CDATA[Selected the smallest solid-state drive: [".$use_drive."], which has a capacity of: [".hr_size($device->{$use_drive}{size})."] (no platter drives found)]]></key>
+		<key name="message_0112"><![CDATA[[ Error ] - Failed to find any fixed drives (platter or USB, not removable) to install onto. Unable to proceed.]]></key>
+		<key name="message_0113"><![CDATA[Writing out the partition plan to: [".$partition_file."]]]></key>
+		<key name="message_0114"><![CDATA[Completed successfully, exiting.]]></key>
+		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
+		<key name="message_0115">Striker Dashboard</key>
+		<key name="message_0116">Anvil! Node</key>
+		<key name="message_0117">Disaster Recovery (DR) Host</key>
+		<key name="message_0118">Regenerating the source repository metadata.</key>
+		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is the 'anvil-striker-extra' package installed?</key>
+		<key name="message_0120">
+About to try to download aproximately: [#!variable!packages!#] packages needed to:
+- [#!variable!directory!#].
+		</key>
+		<key name="message_0121">Successfully enabled the Install Target function.</key>
+		<key name="message_0122">Successfully disabled the Install Target function.</key>
+		<key name="message_0123">The 'Install Target' function is enabled.</key>
+		<key name="message_0124">The 'Install Target' function is disabled.</key>
+		<key name="message_0125">The 'Install Target' function has been disabled.</key>
+		<key name="message_0126">The attempt to disabled the 'Install Target' function failed! Please check the logs for details.</key>
+		<key name="message_0127">The 'Install Target' function has been enabled.</key>
+		<key name="message_0128">The attempt to enable the 'Install Target' function failed! Please check the logs for details.</key>
+		<key name="message_0129">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was found, but something failed when we tried to copy it to: [#!variable!target_comps!#].</key>
+		<key name="message_0130">Updated repository data.</key>
+		<key name="message_0131">Back-Channel Network ##!variable!number!# - Used for all inter-machine communication in the Anvil!, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
+		<key name="message_0132">Storage Network ##!variable!number!# - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
+		<key name="message_0133">Internet/Intranet-Facing Network ##!variable!number!# - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</key>
+		<key name="message_0134">Updating / configuring the firewall.</key>
+		<key name="message_0135">It appears like we need to accept the fingerprint. Will do so now and then try to conenct again.</key>
+		<key name="message_0136">The zone: [#!variable!zone!#] file: [#!variable!file!#] needs to be updated.</key>
+		<key name="message_0137">The zone: [#!variable!zone!#] file: [#!variable!file!#] doesn't exist, it will now be created.</key>
+		<key name="message_0138">The interface: [#!variable!interface!#] will be added to the zone: [#!variable!zone!#].</key>
+		<key name="message_0139">Reloading the firewall...</key>
+		<key name="message_0140">Restarting the firewall...</key>
+		<key name="message_0141">Changing the default zone to: [#!variable!zone!#].</key>
+		<key name="message_0142">* Download progress: [#!variable!percentage!# %], Downloaded: [#!variable!downloaded!#], Current rate: [#!variable!current_rate!#], Average Rate: [#!variable!average_rate!#], Time Running: [#!variable!running_time!#], Estimated left: [#!variable!estimated_left!#].</key>
+		<key name="message_0143">The zone: [#!variable!zone!#]'s user-land file: [#!variable!file!#] exists. Skipping checking the configuration of this zone.</key>
+		<key name="message_0144">Red Hat user</key>
+		<key name="message_0145">Red Hat password</key>
+		<key name="message_0146">What kind of machine will this host be?</key>
+		<key name="message_0147"><![CDATA[What is the host's <b>current</b> IP address and password?]]></key>
+		<key name="message_0148"><![CDATA[This is a RHEL host and has not yet been subscribed. You can enter your Red Hat subscription credentials below. If the host has internet access, the host will be subscribed during setup.]]></key>
+		<key name="message_0149">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
+		<key name="message_0150">Set the new host name.</key>
+		<key name="message_0151">This is a RHEL host and has not yet been subscribed, but there is no internet access detected. OS Updates likely won't work, nor will subscribing the system. These tasks will be deferred until later in the setup process.</key>
+		<key name="message_0152">There is no internet access detected. OS Updates likely won't work and will be deferred until later in the setup process.</key>
+		<key name="message_0153">Local repository</key>
+		<key name="message_0154">Mail Server Configuration</key>
+		<key name="message_0155">When alert emails are sent, they are stored locally and then forwarded to a mail server. This is where you can configure the mail server that alerts are forwarded to for delivery to recipients.</key>
+		<key name="message_0156">Alert recipient Configuration</key>
+		<key name="message_0157">When a system alert is recorded, any alert recipient interested in that alert will be notified by email. This is determined by the alert's level, and the recipients alert level interest. If the alert's level is equal to or higher than a given alert, an email will be crafted for them, in their chosen language and units.</key>
+		<key name="message_0158">[ Error ] - The modules.yaml file: [#!variable!modules_yaml!#] was found, but something failed when we tried to copy it to: [#!variable!target_modules!#].</key>
+		<key name="message_0159">Updated module metadata.</key>
 		
-		<key name="brand_0001">Alteeve</key>
-		<key name="brand_0002">Anvil!</key>
-		<key name="brand_0003">Striker</key>
-		<key name="brand_0004">ScanCore</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2020 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
-		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
-		<key name="brand_0007">Node</key>
-		<key name="brand_0008">DR Host</key>
-		
-		<key name="header_0001">Current Network Interfaces and States</key>
-		<key name="header_0002">MAC Address</key>
-		<key name="header_0003">Name</key>
-		<key name="header_0004">State</key>
-		<key name="header_0005">Speed</key>
-		<key name="header_0006">Change Order</key>
-		<key name="header_0007">Inbound Connections</key>
-		<key name="header_0008">Via network:</key>
-		<key name="header_0009">Peer Connections</key>
-		<key name="header_0010">Ping</key>
-		<key name="header_0011">Jobs</key>
-		<key name="header_0012">Target</key>
-		<key name="header_0013">User</key>
-		<key name="header_0014">File</key>
-		<key name="header_0015">On Host</key>
-		<key name="header_0016">Unconfigured Hosts</key>
-		<key name="header_0017">Accessible?</key>
-		<key name="header_0018">Configured Hosts</key>
-		<key name="header_0019">Type</key>
-		<key name="header_0020">At IP</key>
-		<key name="header_0021">Agent and Arguments</key>
-		<key name="header_0022">Delete</key>
-		<key name="header_0023">Fence Device</key>
+		<!-- Success messages shown to the user --> 
+		<key name="ok_0001">Saved the mail server information successfully!</key>
+		<key name="ok_0002">The mail server: [#!variable!mail_server!#] has been deleted.</key>
+		<key name="ok_0003">The alert recipient: [#!variable!recipient_email!#] has been deleted.</key>
+		<key name="ok_0004">Saved the alert recipient information successfully!</key>
+		<key name="ok_0005">The fence device: [#!variable!name!#] has been successfully saved!</key>
+		<key name="ok_0006">The fence device: [#!variable!name!#] has been successfully deleted!</key>
+		<key name="ok_0007">The UPS: [#!variable!name!#] has been successfully saved!</key>
+		<key name="ok_0008">The UPS: [#!variable!name!#] has been successfully deleted!</key>
+
+		<!-- String prefixes -->
+		<key name="prefix_0001">[ Error ]   - </key>
+		<key name="prefix_0002">[ Warning ] - </key>
+		<key name="prefix_0003">[ Note ]    - </key>
+		<key name="prefix_0004">Error</key>
+		<key name="prefix_0005">Warning</key>
+		<key name="prefix_0006">Note</key>
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">Welcome! Lets setup your #!string!brand_0003!# dashboard...</key>
@@ -1097,7 +1322,25 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0222">Please confirm the fence device is configured the way you like.</key>
 		<key name="striker_0223">This is the unique name (often the host name) of this specific fence device.</key>
 		<key name="striker_0224">Existing fence devices:</key>
-		<key name="striker_0225">Confirm deleting '#!variable!fence_name!#'</key>
+		<key name="striker_0225">Confirm deleting '#!variable!name!#'</key>
+		<key name="striker_0226">New Manifest; Step 1</key>
+		<key name="striker_0227">These questions will setup the values pre-filled into step 2, which will hopefully simplify filling the next, longer form.</key>
+		<key name="striker_0228">Anvil! prefix:</key>
+		<key name="striker_0229">Anvil! Sequence:</key>
+		<key name="striker_0230"><![CDATA[Number of <a href="https://www.alteeve.com/w/IFN" target="_new">IFNs</a>.]]></key>
+		<key name="striker_0231">Add UPSes.</key>
+		<key name="striker_0232">UPS #!variable!number!#:</key>
+		<key name="striker_0233">Please confirm the UPS is configured the way you like.</key>
+		<key name="striker_0234">Please confirm the UPSes are configured the way you like.</key>
+		<key name="striker_0235">This is the unique name (often the host name) of this specific UPS.</key>
+		<key name="striker_0236">Existing UPSes:</key>
+		<key name="striker_0237">These will be used when creating install manifests and are used to know when to shed load, full shut down and when to restore services.</key>
+		<key name="striker_0238">List of UPSes supported by ScanCore on this system:</key>
+		<key name="striker_0239">UPS #!variable!number!#:</key>
+		<key name="striker_0240">Configuring '#!data!cgi::ups_brand::value!#'</key>
+		<key name="striker_0241">This is the IP address of the UPS. This must be reachable by nodes powered by this UPS.</key>
+		<key name="striker_0242">The only time to change this is if a UPS has been replaced (using the same name/IP) by a UPS of a different brand.</key>
+		<key name="striker_0243">Saving UPS data</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1156,98 +1399,69 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="suffix_0054">Ebps</key>		<!-- Short suffix for 'exabits per second' (1,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0055">Zbps</key>		<!-- Short suffix for 'zettabits per second' (1,000,000,000,000,000,000,000 bits per second). -->
 		<key name="suffix_0056">Ybps</key>		<!-- Short suffix for 'yotabits per second' (1,000,000,000,000,000,000,000,000 bits per second). -->
+		
+		<!-- Test words. Do NOT change unless you update 't/Words.t' or tests will needlessly fail. -->
+		<key name="t_0000">Test</key>
+		<key name="t_0001">Test replace: [#!variable!test!#].</key>
+		<key name="t_0002">Test Out of order: [#!variable!second!#] replace: [#!variable!first!#].</key>
+		<!-- Do not use 't_0003'. It is used to test failures caused by calling a non-existent key. -->
+		<key name="t_0004">#!FREE!#</key>
+		<key name="t_0005">
+This is a multi-line test string with various items to insert.
 
-		<key name="prefix_0001">[ Error ]   - </key>
-		<key name="prefix_0002">[ Warning ] - </key>
-		<key name="prefix_0003">[ Note ]    - </key>
-		<key name="prefix_0004">Error</key>
-		<key name="prefix_0005">Warning</key>
-		<key name="prefix_0006">Note</key>
-		
-		<!-- Strings used by jobs -->
-		<key name="job_0001">Configure Network</key>
-		<key name="job_0002">The network configuration will be updated based on the variables stored in the database. Reconnecting to the machine using the new IP address may be required.</key>
-		<key name="job_0003">Update Striker</key>
-		<key name="job_0004">This system is now scheduled to be updated.</key>
-		<key name="job_0005">Reboot Striker</key>
-		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
-		<key name="job_0007">Poweroff Striker</key>
-		<key name="job_0008">This system will be powered off momentarily. It will not respond until it has turned back on.</key>
-		<key name="job_0009">Reboot...</key>
-		<key name="job_0010">Powering off...</key>
-		<key name="job_0011">Add a Striker Peer</key>
-		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
-		<key name="job_0013">Remove a Striker Peer</key>
-		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
-		<key name="job_0015">Manager Install Target.</key>
-		<key name="job_0016">Enable or disable the 'Install Target' feature.</key>
-		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
-		<key name="job_0018">Download a file</key>
-		<key name="job_0019">The referenced file will be downloaded by the target host.</key>
-		<key name="job_0020">Initialize a new Anvil! Node</key>
-		<key name="job_0021">Initialize a new DR Host</key>
-		<key name="job_0022">The target will be setup to talk to this and our peer dashboards. When initialization is complete, you will be able to map the target's network.</key>
-		<key name="job_0023">Connecting to the target: [#!variable!target!#]...</key>
-		<key name="job_0024">Connected!</key>
-		<key name="job_0025">Unable to connect to: [#!variable!target!#]. Will keep trying for another: [#!variable!timeout!#] seconds...</key>
-		<key name="job_0026">Unable to connect, the job has failed.</key>
-		<key name="job_0027">'Initialize host' job: [#!variable!job-uuid!#] picked up.</key>
-		<key name="job_0028">Adding repositories.</key>
-		<key name="job_0029">Added the repository for this dashboard.</key>
-		<key name="job_0030">Red Hat subscription information provides, attempting to register now.</key>
-		<key name="job_0031">This machine is already registered with Red Hat. Skipping it.</key>
-		<key name="job_0032">Unable to reach the Red Hat subscription service. Is the Internet working on this host?</key>
-		<key name="job_0033">Please be patient, subscription can take a while to complete.</key>
-		<key name="job_0034">Success!</key>
-		<key name="job_0035">
-Failure! The return code: [#!variable!return_code!#] was received ('0' was expected). Possibly helpful information:
-* Output: [#!variable!output!#]
-* Error: [#!variable!error!#]
+It also has some #!invalid!# replacement #!keys!# to test the escaping and restoring.
+
+Here is the default output language: [#!data!defaults::language::output!#]
+Here we will inject 't_0000': [#!string!t_0001!#] 
+Here we will inject 't_0002' with its embedded variables: [#!string!t_0002!#]
+Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!string!t_0006!#].
 		</key>
-		<key name="job_0036">Adding the repo: [#!variable!repo!#]</key>
-		<key name="job_0037">Verifying the the needed repos are enabled now.</key>
-		<key name="job_0038">[ Warning ] - The repo: [#!variable!repo!#] is not subcribed to this system! Initialization will continue, but it might fail.</key>
-		<key name="job_0039">Updating the target's operating system prior to package install.</key>
-		<key name="job_0040">[ Note ] - This step can take a while to finish, and there will be no input here until it completes.</key>
-		<key name="job_0041">Removing conflicting packages.</key>
-		<key name="job_0042">Will now install: [#!variable!package!#].</key>
-		<key name="job_0043">Verifying installation.</key>
-		<key name="job_0044">[ Failed ] - There may be more information in #!data!path::log::main!#.</key>
-		<key name="job_0045">Success!</key>
-		<key name="job_0046">Adding our database connection information to the target's anvil.conf file.</key>
-		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
-		<key name="job_0048">Removing bad machine keys.</key>
-		<key name="job_0049">Removing existing entries for the target machine: [#!variable!target!#] from: [#!variable!file!#].</key>
-		<key name="job_0050">[ Error ] - The known hosts file: [#!variable!file!#] was not found. Skipping it.</key>
-		<key name="job_0051">Finished.</key>
-		<key name="job_0052">[ Error ] - There was a problem reading the known hosts file: [#!variable!file!#]. Skipping it.</key>
-		<key name="job_0053">Found an entry for the target at line: [#!variable!line!#], removing it.</key>
-		<key name="job_0054">[ Error ] - The line number: [#!variable!line!#] in: [#!variable!file!#] does not appear to be for the target: [#!variable!target!#]. Has the file already been updated? Skipping it.</key>
-		<key name="job_0055">Rewriing: [#!variable!file!#].</key>
-		<key name="job_0056">Manage Keys</key>
-		<key name="job_0057">The selected bad key(s) will be removed from the specified files.</key>
-		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a progrem error, skipping this.</key>
-		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
-		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
-		<key name="job_0061">Setting the host name to: [#!variable!host_name!#]...</key>
-		<key name="job_0062">[ Error ] - The host name: [#!variable!host_name!#] is invalid. Skipping host name setup.</key>
-		<key name="job_0063">[ Error ] - Something went wrong. The host name was set to: [#!variable!host_name!#], but the host name returned was: [#!variable!current_host_name!#].</key>
-		<key name="job_0064">OUI Database.</key>
-		<key name="job_0065">Refresh the 'OUI' database used to cross reference MAC addresses to the companies that own them.</key>
-		<key name="job_0066">Network Scan.</key>
-		<key name="job_0067">This job does a simple ping scan of the networks connected to this host. Any detected hosts have their MAC / IP addresses recorded. This is designed to help determine IP addresses assigned to servers hosted on the Anvil! system.</key>
-		<key name="job_0068">Adding the database connection information for the dashboard: [#!variable!host_name!#] to the target's anvil.conf file.</key>
-		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
-		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
-		<key name="job_0071">The network configuration will be updated based on the variables stored in the database. When complete, the system will reboot.</key>
+		<key name="t_0006">This string embeds 't_0001': [#!string!t_0001!#]</key>
 		
-		<!-- Success messages shown to the user --> 
-		<key name="ok_0001">Saved the mail server information successfully!</key>
-		<key name="ok_0002">The mail server: [#!variable!mail_server!#] has been deleted.</key>
-		<key name="ok_0003">The alert recipient: [#!variable!recipient_email!#] has been deleted.</key>
-		<key name="ok_0004">Saved the alert recipient information successfully!</key>
-		<key name="ok_0005">The fence device: [#!variable!name!#] has been successfully saved!</key>
-		<key name="ok_0006">The fence device: [#!variable!name!#] has been successfully deleted!</key>
+		<!-- These are units, words and so on used when displaying information. -->
+		<key name="unit_0001">Yes</key>
+		<key name="unit_0002">No</key>
+		<key name="unit_0003">None</key>
+		<key name="unit_0004">Unknown</key>
+		<key name="unit_0005"><![CDATA[<none>]]></key>
+		<key name="unit_0006">Balance Round-Robin</key>			<!-- Bonding mode 0 (balance-rr) - See: /usr/share/doc/iputils/README.bonding -->
+		<key name="unit_0007">Active/Backup</key>			<!-- Bonding mode 1 (active-backup) -->
+		<key name="unit_0008">Balanced Exclusive OR</key>		<!-- Bonding mode 2 (balanced-xor) -->
+		<key name="unit_0009">Broadcast</key>				<!-- Bonding mode 3 (broadcast) -->
+		<key name="unit_0010">Dynamic Link Aggregation (802.3ad)</key>	<!-- Bonding mode 4 (802.3ad) -->
+		<key name="unit_0011">Balanced Transmit Load balancing</key>	<!-- Bonding mode 5 (balanced-tlb) -->
+		<key name="unit_0012">Balanced Adaptive Load balancing</key>	<!-- Bonding mode 6 (balanced-alb) -->
+		<key name="unit_0013">Up</key>					<!-- Network Link State up -->
+		<key name="unit_0014">Down</key>				<!-- Network Link State down -->
+		<key name="unit_0015">Full</key>				<!-- Full Duplex -->
+		<key name="unit_0016">Half</key>				<!-- Half Duplex -->
+		<key name="unit_0017">Always Use Primary</key>			<!-- Bonding always reselect primary interface - See: bonding.txt as provided by 'kernel-doc' -->
+		<key name="unit_0018">Select Better</key>			<!-- Bonding reselect primary interface if better -->
+		<key name="unit_0019">On Failure</key>				<!-- Bonding reselect primary interface if peer fails -->
+		<key name="unit_0020">STP Disabled</key>			<!-- Bridge STP state disabled - See: https://github.com/mstpd/mstpd/issues/17#issuecomment-245395763 -->
+		<key name="unit_0021">STP Enabled in Kernel</key>		<!-- Bridge STP state kernel -->
+		<key name="unit_0022">STP Enabled in User land</key>		<!-- Bridge STP state user -->
+		<key name="unit_0023">Ignore</key>				<!-- Alert level for Anvil! systems added in the future -->
+		<key name="unit_0024">Critical</key>				<!-- Alert level 1 -->
+		<key name="unit_0025">Warning</key>				<!-- Alert level 2 -->
+		<key name="unit_0026">Notice</key>				<!-- Alert level 3 -->
+		<key name="unit_0027">Metric</key>
+		<key name="unit_0028">Imperial</key>
+		<key name="unit_0029">Up</key>
+		<key name="unit_0030">Down</key>
+		<key name="unit_0031">Mbps</key>
+		<key name="unit_0032">waiting for job output...</key>
+		
+		<!-- These are special. These are used to describe the UPSes that ScanCore supports. These 
+		     are used when adding UPSes to the system for use in Install Manifests.
+		     NOTE: These are recorded here instead of the database to simplify localization and 
+		           expansion of the list. Please do NOT remove any entries as they are linked by the 
+		           database. When translating, DO NOT CHANGE 'name' or 'agent'! The 'brand' key can
+		           be changed just fine though. -->
+		<key name="ups_0001" agent="scan_ups_apc" brand="APC"><![CDATA[APC (by Schneider) Networked UPS - <a href="https://www.apc.com/shop/ca/en/categories/power/uninterruptible-power-supply-ups-/network-and-server/N-15e4jmd" target="_new">Link</a>.]]></key>
+		<key name="ups_0002" agent="scan_ups_eaton" brand="Eaton"><![CDATA[Eaton Networked UPS - <a href="https://powerquality.eaton.com/Products-services/Backup-Power-UPS/default.asp" target="_new">Link</a>.]]></key>
+		<key name="ups_0003" agent="scan_ups_tripplite" brand="TrippLite"><![CDATA[TrippLite Networked UPS - <a href="https://www.tripplite.com/products/ups-battery-backup~11" target="_new">Link</a>.]]></key>
+		<key name="ups_0004" agent="scan_ups_cyberpower" brand="Cyberpower"><![CDATA[Cyberpower Networked UPS - <a href="https://www.cyberpowersystems.com/products/ups/" target="_new">Link</a>.]]></key>
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">[ Warning ] - The IP address will change. You will need to reconnect after applying these changes.</key>
@@ -1285,185 +1499,11 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="warning_0033">[ Warning ] - The fence device: [#!variable!name!#] with the UUID: [#!variable!uuid!#] has already been deleted.</key>
 		<key name="warning_0034">[ Warning ] - The fence device with the UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="warning_0035">[ Warning ] - The fence device: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
-		
-		<!-- Errors -->
-		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
-		<key name="error_0002">The local system UUID can't be read yet. This might be because the system is brand new and/or ScanCore hasn't run yet. Please try again in a minute.</key>
-		<key name="error_0003">None of the databases are accessible, unable to proceed. Please be sure that 'anvil-daemon' is enabled and running on the database machine(s).</key>
-		<key name="error_0004">The gateway address doesn't match any of your networks.</key>
-		<key name="error_0005">This program must run with 'root' level privileges.</key>
-		<key name="error_0006">No password was given, exiting.</key>
-		<key name="error_0007">The passwords don't match, exiting.</key>
-		<key name="error_0008">Failed to read the file: [#!variable!file!#]. It doesn't appear to exist.</key>
-		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
-		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
-		<key name="error_0011">Something went wrong while trying to update the password. The return code was: [#!variable!return_code!#], but '0' was expected.</key>
-		<key name="error_0012"><![CDATA[The <a href="https://en.wikipedia.org/wiki/Hostname" target="_new">host name</a> has to be set to a valid value.]]></key>
-		<key name="error_0013">A user name must be set. This is usually 'admin'.</key>
-		<key name="error_0014">You must set a password. There are no complexity rules, but a long password is strongly recommended.</key>
-		<key name="error_0015">A DNS entry is bad. One or more IPv4 addresses can be specified, with a comma separating multiple IPs.</key>
-		<key name="error_0016">The IPv4 address assigned to: [#!variable!network!#] is invalid.</key>
-		<key name="error_0017">An interface to use in: [#!variable!network!# - Link #!variable!link!#] must be selected.</key>
-		<key name="error_0018">Network interfaces can only be selected once.</key>
-		<key name="error_0019">The gateway appears to have an invalid IPv4 address set.</key>
-		<key name="error_0020">The: [#!variable!field!#] field can't be empty.</key>
-		<key name="error_0021">The prefix needs to be set, and be between 1 and 5 characters long.</key>
-		<key name="error_0022">The: [#!variable!field!#] must be a positive integer.</key>
-		<key name="error_0023">There was a problem reading your session details. To be safe, you have been logged out. Please try logging back in.</key>
-		<key name="error_0024">It appears that your session has expired. To be safe, you have been logged out. Please try logging back in.</key>
-		<key name="error_0025"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.]]></key>
-		<key name="error_0026"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] was not found in the database.]]></key>
-		<key name="error_0027">Login failed, please try again.</key>
-		<key name="error_0028"><![CDATA[There appears to be a problem with Striker. The login failed, please check: [<span class="code">#!data!path::log::main!#</span>] for details.]]></key>
-		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
-		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!path::log::main!#</span>].]]></key>
-		<key name="error_0031">The 'host-uuid': [#!variable!host_uuid!#] is not valid.</key>
-		<key name="error_0032">The '#!variable!switch!#' switch is missing.</key>
-		<key name="error_0033">The job UUID was passed via '--job-uuid' but the passed in value: [#!variable!uuid!#] is not a valid UUID.</key>
-		<key name="error_0034">The job UUID was passed via '--job-uuid': [#!variable!uuid!#] doesn't match a job in the database.</key>
-		<key name="error_0035">
-The update appears to have not completed successfully. The output was:
-====
-#!variable!output!#
-====
-		</key>
-		<key name="error_0036"></key>
-		<key name="error_0037"><![CDATA[In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].]]></key>
-		<key name="error_0038">The TCP port: [#!variable!port!#] is not a valid.</key>
-		<key name="error_0039"><![CDATA[The password for the host was not provided by '--password-file' or in 'job_data' (as 'password=<secret>').]]></key>
-		<key name="error_0040">Logging out failed. The user's UUID wasn't passed and 'sys::users::user_uuid' wasn't set. Was the user already logged out?</key>
-		<key name="error_0041">Failed to install the Alteeve repo, unable to proceed.</key>
-		<key name="error_0042">No BCN interface found. Unable to configure the install target feature yet.</key>
-		<key name="error_0043">Failed to write or update the file: [#!variable!file!#]. Please see the system log for more information.</key>
-		<key name="error_0044">This is not a configured Striker dashboard, exiting.</key>
-		<key name="error_0045">
-[ Error ] - There was a problem downloading packages. The error was:
-====
-#!variable!error!#
-====
-		</key>
-		<key name="error_0046">This Striker system is not configured yet. This tool will not be available until it is.</key>
-		<key name="error_0047">Failed to start the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
-		<key name="error_0048">Failed to stop the Install Target feature. Got a non-zero return code when starting: [#!data!sys::daemon::dhcpd!#] (got: [#!variable!rc!#]).</key>
-		<key name="error_0049">A request to rename a file was made, but no file name was given.</key>
-		<key name="error_0050">A request to rename the file: [#!variable!file!#] was made, but the new name wasn't given. Was '--to X' given?</key>
-		<key name="error_0051">A request to rename the file: [#!variable!file!#] was made, but that file doesn't exist.</key>
-		<key name="error_0052">A request to delete a file was made, but no file name was given.</key>
-		<key name="error_0053">A request to delete the file: [#!variable!file!#] was received, but it is not under '/mnt/shared/'. This program can only work on or under that directory.</key>
-		<key name="error_0054">Failed!</key>
-		<key name="error_0055">A request to toggle the script flag was received, but no file name was given.</key>
-		<key name="error_0056">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
-		<key name="error_0057">
-Failed to generate an RSA public key for the user: [#!variable!user!#]. The output, if any, is below:
-====
-#!variable!output!#
-====
-		</key>
-		<key name="error_0058">Failed to backup: [#!variable!file!#], skipping.</key>
-		<key name="error_0059">The file to be downloaded: [#!variable!file!#], already exists. Either remove it, or call again with '--overwrite'.</key>
-		<key name="error_0060">Something went wrong moving the downloaded file from the temporary location: [#!variable!source_file!#] to the output: [#!variable!target_file!#]. Useful errors may be above this message.</key>
-		<key name="error_0061">The download job with UUID: [#!variable!job_uuid!#] is not valid.</key>
-		<key name="error_0062">The download job with UUID: [#!variable!job_uuid!#] is already being handled by another process.</key>
-		<key name="error_0063">Something went wrong trying to download: [#!variable!packages!#]. The return code should have been '0'. but: [#!variable!return_code!#] was received. Is a package missing upstream?</key>
-		<key name="error_0064">A request to active the logical volume: [#!variable!path!#] was made, but that path doesn't exist or isn't a block device.</key>
-		<key name="error_0065"><![CDATA[No program name given (via --program <name>), unable to proceed.]]></key>
-		<key name="error_0066"><![CDATA[The program: [#!variable!program!#] was not found to be running on this system.]]></key>
-		<key name="error_0067"><![CDATA[Unable to connect to the database, unable to read the peer's password.]]></key>
-		<key name="error_0068"><![CDATA[There was a problem reading the password from the database.]]></key>
-		<key name="error_0069"><![CDATA[Unable to access the host: [#!variable!host!#].]]></key>
-		<key name="error_0070"><![CDATA[Unable to find the host UUID on the host: [#!variable!host!#].]]></key>
-		<key name="error_0071">Something went wrong trying to write: [#!variable!file!#], unable to proceed.</key>
-		<key name="error_0072">Something went wrong trying to compile the C-program: [#!variable!file!#], unable to proceed.</key>
-		<key name="error_0073">The job UUID was not passed via '--job-uuid' and no unclaimed job was found in the database.</key>
-		<key name="error_0074">The initialization target: [#!variable!target!#] is not accessible. Will keep trying...</key>
-		<key name="error_0075">There are no databases available. Will check periodically, waiting until one becomes available.</key>
-		<key name="error_0076">There was a problem adding out database to the target's anvil.conf file.</key>
-		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
-		<key name="error_0078">Did not find any offending keys on this host, exiting.</key>
-		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
-		<key name="error_0080">No job UUID was passwed .</key>
-		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
-		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
-		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
-		<key name="error_0084">Unable to find a common network between the target and this machine. This shouldn't be possible, given we're able to talk to it. This is probably a program error.</key>
-		<key name="error_0085">The URL: [#!variable!url!#] is not supported. The URL must start with 'http://', 'https://' or 'ftp://'.</key>
-		<key name="error_0086">The requested URL: [#!variable!url!#] was not found on the remote server.</key>
-		<key name="error_0087">The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
-		<key name="error_0088">The requested URL: [#!variable!url!#] failed because the remote host refused the connection.</key>
-		<key name="error_0089">The requested URL: [#!variable!url!#] failed because there is no route to that host.</key>
-		<key name="error_0090">The requested URL: [#!variable!url!#] failed because the network is unreachable.</key>
-		<key name="error_0091">The requested URL: [#!variable!url!#] failed, access was forbidden (error 403).</key>
-		<key name="error_0092">The requested URL: [#!variable!url!#] failed, the file was not found on the source (error 404).</key>
-		<key name="error_0093">The requested URL: [#!variable!url!#] failed with HTTP error: [#!variable!error_code!#] (message: [#!variable!error_message!#]).</key>
-		<key name="error_0094">Aborting the download of: [#!variable!url!#] to: [#!variable!save_to!#]. The target file already exists and 'overwrite' was not set.</key>
-		<key name="error_0095">There was a problem downloading: [#!variable!url!#] to: [#!variable!file!#]. Aborting parsing of the OUI data.</key>
-		<key name="error_0096">The 'oui_mac_prefix': [#!variable!oui_mac_prefix!#] string doesn't appear to be a valid 6-byte hex string.</key>
-		<key name="error_0097"><![CDATA[The network range: [#!variable!range!#] does not appear to be valid. It must be '<ip>/<subnet>' (subnet can be dotted-decimal or CIDR notation) or be 'bcn', 'sn', 'ifn' or a specific variant like 'bcn1', 'sn2', or 'ifn2'. Alternatively, so not use '--network X' at all and all networks with host is connected to will be scanned.]]></key>
-		<key name="error_0098">Failed to create the archive directory: [#!variable!directory!#]. Skipping the archive process.</key>
-		<key name="error_0099">There was a problem writing out the records to file: [#!variable!file!#]. There may be more information in #!data!path::log::main!#. Skipping further attempts to archive: [#!variable!table!#].</key>
-		<key name="error_0100">Compression appears to have failed. The return code '0' was expected from the bzip2 call, but: [#!variable!return_code!#] was returned. The output, if any, was: [#!variable!output!#].</key>
-		<key name="error_0101">Compression appears to have failed. The output file: [#!variable!out_file!#] was not found.</key>
-		<key name="error_0102">Failed to check the existence and size of the file: [#!variable!file!#] on the target: [#!variable!target!#] as: [#!variable!remote_user!#]. The error (if any) was: [#!variable!error!#] and the output (if any) was: [#!variable!output!#].</key>
-		<key name="error_0103">The file: [#!variable!file!#] wasn't found.</key>
-		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
-		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
-		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target?]]></key>
-		<key name="error_0107">Failed to reconnect after reconfiguring the network, exiting.</key>
-		<key name="error_0108">The 'recipient_new_level': [#!variable!recipient_new_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
-		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', or '3'.</key>
-		<key name="error_0110">The 'notification_uuid': [#!variable!notification_uuid!#] was not found in the database.</key>
-		<key name="error_0111">
-[ Error ] - The was a problem parsing the unified metadata:
-===========================================================
-#!variable!xml_body!#
-===========================================================
-The error was:
-===========================================================
-#!variable!eval_error!#
-===========================================================
-</key>
-		<key name="error_0112"><![CDATA[Failed to read valid unified XML data from: [#!variable!file!#]. It should start with: [<?xml version="1.0" ?>]]]></key>
-		<key name="error_0113">The unified metadata file: [#!data!path::data::fences_unified_metadata!#] was not found. There may have been a problem creating it.</key>
-		<key name="error_0114">This row's modified_date wasn't the first column returned in query: [#!variable!query!#]</key>
-		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
-		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!variable!source!#] to: [#!variable!target!#], but that renane failed.</key>
-		
-		<!-- These are units, words and so on used when displaying information. -->
-		<key name="unit_0001">Yes</key>
-		<key name="unit_0002">No</key>
-		<key name="unit_0003">None</key>
-		<key name="unit_0004">Unknown</key>
-		<key name="unit_0005"><![CDATA[<none>]]></key>
-		<key name="unit_0006">Balance Round-Robin</key>			<!-- Bonding mode 0 (balance-rr) - See: /usr/share/doc/iputils/README.bonding -->
-		<key name="unit_0007">Active/Backup</key>			<!-- Bonding mode 1 (active-backup) -->
-		<key name="unit_0008">Balanced Exclusive OR</key>		<!-- Bonding mode 2 (balanced-xor) -->
-		<key name="unit_0009">Broadcast</key>				<!-- Bonding mode 3 (broadcast) -->
-		<key name="unit_0010">Dynamic Link Aggregation (802.3ad)</key>	<!-- Bonding mode 4 (802.3ad) -->
-		<key name="unit_0011">Balanced Transmit Load balancing</key>	<!-- Bonding mode 5 (balanced-tlb) -->
-		<key name="unit_0012">Balanced Adaptive Load balancing</key>	<!-- Bonding mode 6 (balanced-alb) -->
-		<key name="unit_0013">Up</key>					<!-- Network Link State up -->
-		<key name="unit_0014">Down</key>				<!-- Network Link State down -->
-		<key name="unit_0015">Full</key>				<!-- Full Duplex -->
-		<key name="unit_0016">Half</key>				<!-- Half Duplex -->
-		<key name="unit_0017">Always Use Primary</key>			<!-- Bonding always reselect primary interface - See: bonding.txt as provided by 'kernel-doc' -->
-		<key name="unit_0018">Select Better</key>			<!-- Bonding reselect primary interface if better -->
-		<key name="unit_0019">On Failure</key>				<!-- Bonding reselect primary interface if peer fails -->
-		<key name="unit_0020">STP Disabled</key>			<!-- Bridge STP state disabled - See: https://github.com/mstpd/mstpd/issues/17#issuecomment-245395763 -->
-		<key name="unit_0021">STP Enabled in Kernel</key>		<!-- Bridge STP state kernel -->
-		<key name="unit_0022">STP Enabled in User land</key>		<!-- Bridge STP state user -->
-		<key name="unit_0023">Ignore</key>				<!-- Alert level for Anvil! systems added in the future -->
-		<key name="unit_0024">Critical</key>				<!-- Alert level 1 -->
-		<key name="unit_0025">Warning</key>				<!-- Alert level 2 -->
-		<key name="unit_0026">Notice</key>				<!-- Alert level 3 -->
-		<key name="unit_0027">Metric</key>
-		<key name="unit_0028">Imperial</key>
-		
-		<!-- TODO: Merge these into 'unit' -->
-		<!-- These are works and strings used by javascript/jqery -->
-		<key name="js_0001">Up</key>
-		<key name="js_0002">Down</key>
-		<key name="js_0003">Mbps</key>
-		<key name="js_0004">waiting for job output...</key>
+		<key name="warning_0036">[ Warning ] - The UPS with the UUID: [#!variable!uuid!#] was not found.</key>
+		<key name="warning_0037">[ Warning ] - The UPS: [#!variable!name!#] with the UUID: [#!variable!uuid!#] has already been deleted.</key>
+		<key name="warning_0038">[ Warning ] - The UPS: [#!variable!name!#] appears to have not been saved.</key>
+		<key name="warning_0039">[ Warning ] - There's a problem with the form.</key>
+		<key name="warning_0040">[ Warning ] - The UPS: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
 		
 	</language>
 	<!-- 日本語 -->

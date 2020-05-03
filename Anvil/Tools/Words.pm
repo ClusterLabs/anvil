@@ -224,7 +224,7 @@ sub key
 
 This sets or returns the output language ISO code.
 
-Get the current log language;
+Get the current active language;
 
  my $language = $anvil->Words->language;
  

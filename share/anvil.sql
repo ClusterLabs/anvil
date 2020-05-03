@@ -1562,6 +1562,54 @@ CREATE TRIGGER trigger_fences
     FOR EACH ROW EXECUTE PROCEDURE history_fences();
 
 
+-- This stores the information about UPSes powering devices.
+CREATE TABLE upses (
+    ups_uuid          uuid                        not null    primary key,
+    ups_name          text                        not null,                   -- This is the name of the ups device. Usually this is the host name of the device (ie: xx-pdu01.example.com)
+    ups_agent         text                        not null,                   -- This is the ups agent name used to communicate with the device. ie: 'ups_apc_ups', 'ups_virsh', etc.
+    ups_ip_address    text                        not null,                   -- This is the IP address of the UPS
+    modified_date     timestamp with time zone    not null 
+);
+ALTER TABLE upses OWNER TO admin;
+
+CREATE TABLE history.upses (
+    history_id        bigserial, 
+    ups_uuid          uuid, 
+    ups_name          text,
+    ups_agent         text, 
+    ups_ip_address    text, 
+    modified_date     timestamp with time zone
+);
+ALTER TABLE history.upses OWNER TO admin;
+
+CREATE FUNCTION history_upses() RETURNS trigger
+AS $$
+DECLARE
+    history_upses RECORD;
+BEGIN
+    SELECT INTO history_upses * FROM upses WHERE ups_uuid = new.ups_uuid;
+    INSERT INTO history.upses
+        (ups_uuid, 
+         ups_name,
+         ups_agent, 
+         ups_ip_address, 
+         modified_date)
+    VALUES
+        (history_upses.ups_uuid, 
+         history_upses.ups_name,
+         history_upses.ups_agent, 
+         history_upses.ups_ip_address, 
+         history_upses.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_upses() OWNER TO admin;
+
+CREATE TRIGGER trigger_upses
+    AFTER INSERT OR UPDATE ON upses
+    FOR EACH ROW EXECUTE PROCEDURE history_upses();
+
 
 -- ------------------------------------------------------------------------------------------------------- --
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --

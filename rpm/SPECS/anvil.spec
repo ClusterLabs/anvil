@@ -43,6 +43,7 @@ Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
 Requires:       perl-DBD-Pg 
 Requires:       perl-DBI
+Requires:       perl-Data-Validate-Domain
 Requires:       perl-Digest-SHA
 Requires:       perl-File-MimeInfo
 Requires:       perl-HTML-FromText

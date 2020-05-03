@@ -76,3 +76,6 @@ instructions by Prettycons from the Noun Project (https://thenounproject.com/ter
 
 Fence by P Thanga Vignesh from the Noun Project (https://thenounproject.com/term/fence/1010653/)
  - fence.png
+
+uninterruptible power supply by Denis Shumaylov from the Noun Project (https://thenounproject.com/term/uninterruptible-power-supply/1201263/)
+ - ups.png

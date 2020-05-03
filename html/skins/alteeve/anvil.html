@@ -26,10 +26,18 @@
 			</tr>
 			<tr>
 				<td class="main_option_icon">
-					<a href="?anvil=true&task=create&new=step1"><img src="#!data!skin::url!#/images/manifest.png" class="top_icon" ></a>
+					<a href="?anvil=true&task=upses"><img src="#!data!skin::url!#/images/ups.png" class="top_icon" ></a>
 				</td>
 				<td class="main_option">
-					<a href="?anvil=true&task=create&new=step1">#!string!striker_0204!#</a>
+					<a href="?anvil=true&task=upses">#!string!striker_0231!# #!string!striker_0237!#</a>
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<a href="?anvil=true&task=manifests&manifest=new"><img src="#!data!skin::url!#/images/manifest.png" class="top_icon" ></a>
+				</td>
+				<td class="main_option">
+					<a href="?anvil=true&task=manifests&manifest=new">#!string!striker_0204!#</a>
 				</td>
 			</tr>
 			<tr>
@@ -57,6 +65,91 @@
 			</tr>
 		</table>
 <!-- end create-menu -->
+
+<!-- start new-manifest-step1 -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="title">
+					#!string!striker_0226!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="description">
+					#!string!striker_0227!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<form name="manifest_step1" action="" method="post">
+					<table align="center" class="anvil_main_menu">
+						<tr>
+							<td class="header">
+								<!-- prefix -->
+								#!string!striker_0228!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="header">
+								<!-- Sequence -->
+								#!string!striker_0229!#
+							</td>
+						</tr>
+						<!-- TODO: Left off here, add IFN count and make the above "[  ]-anvil-[  ]". -->
+						<tr>
+							<td>
+								<input type="text"   name="prefix"         id="prefix"         value="#!variable!prefix!#" placeholder="xx-" />
+								<input type="hidden" name="default_prefix" id="default_prefix" value="#!variable!default_prefix!#"/>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<input type="text" name="sequence" id="sequence" value="#!variable!sequence!#" placeholder="#" />
+							</td>
+						</tr>
+						<tr>
+							<td class="close_top">
+								&nbsp;<br />
+								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
+							</td>
+							<td class="close_top" style="text-align: right;" colspan="#!variable!span_count!#">
+								&nbsp;<br />
+								<input type="submit" name="save" id="save" value="#!string!striker_0067!#" class="button">
+							</td>
+							<input type="hidden" name="fence_agent" id="fence_agent" value="#!data!cgi::fence_agent::value!#">
+							<input type="hidden" name="fence_count" id="fence_count" value="#!data!cgi::fence_count::value!#">
+							<input type="hidden" name="add"         id="add"         value="true">
+							<input type="hidden" name="anvil"       id="anvil"       value="true">
+							<input type="hidden" name="task"        id="task"        value="fences">
+							<input type="hidden" name="confirm"     id="confirm"     value="true">
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+		</table>
+<!-- end new-manifest-step1 -->
 
 <!-- start fence-agent-configuration -->
 		<table align="center" class="anvil_main_menu">
@@ -102,7 +195,7 @@
 			</tr>
 			<tr>
 				<td colspan="2">
-					<form name="conce_configuration" action="" method="post">
+					<form name="fence_configuration" action="" method="post">
 					<table class="centered">
 						#!variable!options!#
 						<tr>
@@ -127,6 +220,208 @@
 		</table>
 <!-- end fence-agent-configuration -->
 
+<!-- start ups-option-menu -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td>
+								 #!variable!device!# &nbsp;
+							</td>
+							<td class="column_row_centered_input">
+								<input type="text" name="#!variable!name_key!#" id="#!variable!name_key!#" placeholder="#!string!striker_0016!#" value="#!variable!name!#" />
+							</td>
+							<td class="column_row_centered_input">
+								<input type="text" name="#!variable!ip_address_key!#" id="#!variable!ip_address_key!#" placeholder="#!string!striker_0024!#" value="#!variable!ip_address!#" />
+							</td>
+							<td>
+								#!variable!agent!#
+							</td>
+						</tr>
+						<input type="hidden" name="#!variable!fence_uuid_key!#" id="#!variable!fence_uuid_key!#" value="#!variable!fence_uuid!#" />
+<!-- end ups-option-menu -->
+
+<!-- start ups-option-menu-confirm -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td>
+								 #!variable!device!# &nbsp;
+							</td>
+							<td class="column_row_centered_input">
+								&nbsp; #!variable!name!# &nbsp;
+								<input type="hidden" name="#!variable!name_key!#" id="#!variable!name_key!#" value="#!variable!name!#" />
+							</td>
+							<td class="column_row_centered_input">
+								&nbsp; #!variable!ip_address!# &nbsp;
+								<input type="hidden" name="#!variable!ip_address_key!#" id="#!variable!ip_address_key!#" value="#!variable!ip_address!#" />
+							</td>
+							<td>
+								&nbsp; #!variable!say_agent!#
+								<input type="hidden" name="#!variable!agent_key!#" id="#!variable!agent_key!#" value="#!variable!agent!#" />
+							</td>
+						</tr>
+						<input type="hidden" name="#!variable!fence_uuid_key!#" id="#!variable!fence_uuid_key!#" value="#!variable!fence_uuid!#" />
+<!-- end ups-option-menu-confirm -->
+
+<!-- start ups-configuration -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/ups.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0240!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td class="description">
+					#!variable!description!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<form name="ups_configuration" action="" method="post">
+					<table class="centered">
+						<tr>
+							<td class="column_header">
+								 &nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Name -->
+								#!string!header_0026!#
+							</td>
+							<td class="column_header">
+								<!-- IP Address -->
+								#!string!header_0025!#
+							</td>
+							<td class="column_header">
+								<!-- Brand (agent) -->
+								#!string!header_0027!#
+							</td>
+						</tr>
+						#!variable!upses!#
+						<tr>
+							<td colspan="4" class="button_cell">
+								<input type="submit" name="save"      id="save"      value="#!string!striker_0067!#" class="button">
+								<input type="hidden" name="ups_agent" id="ups_agent" value="#!data!cgi::ups_agent::value!#">
+								<input type="hidden" name="ups_count" id="ups_count" value="#!data!cgi::ups_count::value!#">
+								<input type="hidden" name="anvil"     id="anvil"     value="true">
+								<input type="hidden" name="task"      id="task"      value="upses">
+							</td>
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table class="centered">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								 <!-- Name -->
+								#!string!header_0026!# &nbsp; 
+							</td>
+							<td>
+								#!string!striker_0235!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								 <!-- IP Address -->
+								#!string!header_0025!# &nbsp; 
+							</td>
+							<td>
+								#!string!striker_0241!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								 <!-- Brand (agent) -->
+								#!string!header_0027!# &nbsp; 
+							</td>
+							<td>
+								#!string!striker_0242!#
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+<!-- end ups-configuration -->
+
+<!-- start ups-configuration-confirm -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/ups.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0243!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td class="description">
+					#!variable!confirm!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<form name="ups_configuration" action="" method="post">
+					<table class="centered">
+						<tr>
+							<td class="column_header">
+								 &nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Name -->
+								#!string!header_0026!#
+							</td>
+							<td class="column_header">
+								<!-- IP Address -->
+								#!string!header_0025!#
+							</td>
+							<td class="column_header">
+								<!-- Brand (agent) -->
+								#!string!header_0027!#
+							</td>
+						</tr>
+						#!variable!upses!#
+						<tr>
+							<td colspan="4" class="button_cell">
+								<input type="submit" name="confirm"   id="confirm"   value="#!string!striker_0082!#" class="button">
+								<input type="hidden" name="ups_count" id="ups_count" value="#!data!cgi::ups_count::value!#">
+								<input type="hidden" name="save"      id="save"      value="true">
+								<input type="hidden" name="confirm"   id="confirm"   value="true">
+								<input type="hidden" name="anvil"     id="anvil"     value="true">
+								<input type="hidden" name="task"      id="task"      value="upses">
+							</td>
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+		</table>
+<!-- end ups-configuration-confirm -->
+
 <!-- start fence-agent-row -->
 						<tr>
 							#!variable!columns!#
@@ -145,6 +440,19 @@
 								<input type="hidden" name="#!variable!name!#" id="#!variable!name!#" value="#!variable!value!#" />
 							</td>
 <!-- end fence-agent-column-hidden-value -->
+
+<!-- start ups-column -->
+							<td class="column_row_value_centered_border">
+								<span class="#!variable!class!#">#!variable!value!#</span>
+							</td>
+<!-- end ups-column -->
+
+<!-- start ups-column-hidden-value -->
+							<td class="column_row_value_centered_border">
+								<span class="#!variable!class!#">#!variable!say_value!#</span>
+								<input type="hidden" name="#!variable!name!#" id="#!variable!name!#" value="#!variable!value!#" />
+							</td>
+<!-- end ups-column-hidden-value -->
 
 <!-- start fence-agent-confirm -->
 		<table align="center" class="anvil_main_menu">
@@ -179,7 +487,7 @@
 			</tr>
 			<tr>
 				<td colspan="2">
-					<form name="conce_configuration" action="" method="post">
+					<form name="fence_configuration" action="" method="post">
 					<table class="centered">
 						#!variable!table!#
 						<tr>
@@ -210,6 +518,71 @@
 		</table>
 <!-- end fence-agent-confirm -->
 
+<!-- start ups-delete-confirm -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/ups.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0225!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<form name="ups_configuration" action="" method="post">
+					<table class="centered">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td colspan="2" class="column_header">
+								#!string!header_0024!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td colspan="2" class="fixed_width">
+								#!variable!say_device!#
+								<input type="hidden" name="delete_ups_uuid" id="delete_ups_uuid" value="#!data!cgi::delete_ups_uuid::value!#">
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td class="close_top">
+								&nbsp;<br />
+								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
+							</td>
+							<td class="close_top" style="text-align: right;">
+								&nbsp;<br />
+								<input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#" class="button">
+							</td>
+							<input type="hidden" name="anvil" id="anvil" value="true">
+							<input type="hidden" name="task"  id="task"  value="upses">
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+		</table>
+<!-- end ups-delete-confirm -->
+
 <!-- start fence-agent-delete-confirm -->
 		<table align="center" class="anvil_main_menu">
 			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
@@ -233,9 +606,7 @@
 			</tr>
 			<tr>
 				<td colspan="2">
-				
 					#!variable!confirm_string!#
-				
 				</td>
 			</tr>
 			<tr>
@@ -245,7 +616,7 @@
 			</tr>
 			<tr>
 				<td colspan="2">
-					<form name="conce_configuration" action="" method="post">
+					<form name="fence_configuration" action="" method="post">
 					<table class="centered">
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td colspan="2" class="column_header">
@@ -349,6 +720,11 @@
 				</td>
 			</tr>
 			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
 				<td>
 					&nbsp;
 				</td>
@@ -387,6 +763,59 @@
 			</tr>
 <!-- end existing-fence-devices -->
 
+<!-- start existing-upses -->
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td>
+					#!string!striker_0236!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td>
+					<table>
+						<div id="existing_ups_devices">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<!-- Device name -->
+							<td class="column_header">
+								#!string!header_0003!#:
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<!-- Delete -->
+							<td class="column_header">
+								#!string!header_0022!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<!-- agent and arguments -->
+							<td class="column_header">
+								#!string!header_0025!#
+							</td>
+						</tr>
+						#!variable!upses!#
+						</div>
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+<!-- end existing-upses -->
+
 <!-- start existing-fence-device-entry -->
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td>
@@ -406,6 +835,26 @@
 							</td>
 						</tr>
 <!-- end existing-fence-device-entry -->
+
+<!-- start existing-ups-entry -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td>
+								<a href="?anvil=true&task=upses&ups_agent=#!variable!ups_agent!#&ups_count=1&ups_uuid_1=#!variable!ups_uuid!#" class="fixed_link_highlight">#!variable!name!#</a>
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td style="text-align: center;">
+								<a href="?anvil=true&task=upses&delete_ups_uuid=#!variable!ups_uuid!#" class="fixed_link_highlight"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="fixed_width">
+								#!variable!ip_address!#
+							</td>
+						</tr>
+<!-- end existing-ups-entry -->
 
 <!-- start fence-agent-menu -->
 		<table align="center" class="anvil_main_menu">
@@ -525,6 +974,123 @@
 		</table>
 <!-- end fence-agent-menu -->
 
+<!-- start ups-agent-menu -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/ups.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0231!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td class="description">
+					#!string!striker_0237!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			#!variable!existing_upses!#
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td>
+					#!string!striker_0231!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+				<td>
+					<table>
+						<div id="new_upses">
+						<form name="new_upses" action="" method="post">
+						<tr>
+							<td>
+								#!string!striker_0070!#:
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td>
+								#!variable!ups_select!#
+							</td>
+						</tr>
+						<tr>
+							<td>
+								#!string!striker_0212!#:
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td>
+								#!variable!ups_count!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="3">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td colspan="3" class="no_border_right">
+								<input type="submit" name="add" id="add" class="button" value="#!string!striker_0070!#">
+								<input type="hidden" name="anvil" id="anvil" value="true">
+								<input type="hidden" name="task"  id="task"  value="upses">
+							</td>
+						</tr>
+						</form>
+						</div>
+					</table>
+				</td>
+			</tr>
+			<div id="ups_agent_list">
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					#!string!striker_0238!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table>
+						#!variable!descriptions!#
+					</table>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			</div>
+		</table>
+<!-- end ups-agent-menu -->
+
 <!-- start fence-agent-description -->
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td>
@@ -535,6 +1101,17 @@
 							</td>
 						</tr>
 <!-- end fence-agent-description -->
+
+<!-- start ups-agent-description -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td>
+								<span class="column_row_value_fixed">#!variable!name!#</a> &nbsp;
+							</td>
+							<td>
+								&nbsp; #!variable!description!#
+							</td>
+						</tr>
+<!-- end ups-agent-description -->
 
 <!-- start existing-manifest-entry -->
 						<tr>

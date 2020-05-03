@@ -16,6 +16,7 @@ my $THIS_FILE = "Striker.pm";
 # get_fence_data
 # get_local_repo
 # get_peer_data
+# get_ups_data
 # parse_all_status_json
 
 =pod
@@ -525,6 +526,78 @@ sub get_peer_data
 	return($connected, $data);
 }
 
+=head2 get_ups_data
+
+This parses the special C<< ups_X >> string keys to create a list of supported UPSes (in ScanCore and Install Manifests).
+
+Parsed data is stored in;
+* C<< ups_data::<key>::agent >>
+* C<< ups_data::<key>::brand >>
+* C<< ups_data::<key>::description >>
+
+The language used is the language returned by C<< Words->language() >>.
+
+This method takes no parameters.
+
+=cut
+sub get_ups_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_ups_data()" }});
+	
+	# In case we've loaded the data before, clear it.
+	if (exists $anvil->data->{ups_data})
+	{
+		delete $anvil->data->{ups_data};
+	}
+	
+	my $language = $anvil->Words->language();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { language => $language }});
+	
+	foreach my $word_file (sort {$a cmp $b} keys %{$anvil->data->{words}})
+	{
+		# Now loop through all keys looking for 'ups_*'.
+		foreach my $key (sort {$a cmp $b} keys %{$anvil->data->{words}{$word_file}{language}{$language}{key}})
+		{
+			next if $key !~ /^ups_(\d+)/;
+			
+			# If we're here, we've got a UPS.
+			my $description = $anvil->data->{words}{$word_file}{language}{$language}{key}{$key}{content};
+			my $brand       = $anvil->data->{words}{$word_file}{language}{$language}{key}{$key}{brand};
+			my $agent       = $anvil->data->{words}{$word_file}{language}{$language}{key}{$key}{agent};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:brand'       => $brand,
+				's2:agent'       => $agent,
+				's3:description' => $description,
+			}});
+			
+			$anvil->data->{ups_data}{$key}{agent}       = $agent;
+			$anvil->data->{ups_data}{$key}{brand}       = $brand;
+			$anvil->data->{ups_data}{$key}{description} = $description;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:ups_data::${key}::agent"       => $anvil->data->{ups_data}{$key}{agent},
+				"s2:ups_data::${key}::brand"       => $anvil->data->{ups_data}{$key}{brand},
+				"s3:ups_data::${key}::description" => $anvil->data->{ups_data}{$key}{description},
+			}});
+			
+			# Make it easy to convert the agent to the brand.
+			$anvil->data->{ups_agent}{$agent}{brand}       = $brand;
+			$anvil->data->{ups_agent}{$agent}{key}         = $key;
+			$anvil->data->{ups_agent}{$agent}{description} = $description;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"ups_agent::${agent}::brand"       => $anvil->data->{ups_agent}{$agent}{brand},
+				"ups_agent::${agent}::key"         => $anvil->data->{ups_agent}{$agent}{key},
+				"ups_agent::${agent}::description" => $anvil->data->{ups_agent}{$agent}{description},
+			}});
+		}
+	}
+	
+	return(0);
+}
+
 =head2 parse_all_status_json
 
 This parses the c<< all_status.json >> file is a way that Striker can more readily use. If the read or parse failes, C<< 1 >> is returned. Otherwise C<< 0 >> is returned.
@@ -538,7 +611,7 @@ sub parse_all_status_json
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_peer_data()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->parse_all_status_json()" }});
 	
 	# Read it in
 	my $json_file = $anvil->data->{path}{directories}{status}."/".$anvil->data->{path}{json}{all_status};

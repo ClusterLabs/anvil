@@ -6,6 +6,7 @@ package Anvil::Tools::Validate;
 use strict;
 use warnings;
 use Data::Dumper;
+use Data::Validate::Domain qw(is_domain);
 use Scalar::Util qw(weaken isweak);
 use Mail::RFC822::Address qw(valid validlist);
 
@@ -18,6 +19,7 @@ my $THIS_FILE = "Validate.pm";
 # is_domain_name
 # is_email
 # is_hex
+# is_host_name
 # is_ipv4
 # is_mac
 # is_positive_integer
@@ -305,16 +307,28 @@ sub is_domain_name
 		$valid = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	}
-	elsif (($name !~ /^((([a-z]|[0-9]|\-)+)\.)+([a-z])+$/i) && (($name !~ /^\w+$/) && ($name !~ /-/)))
+	else
 	{
-		# Doesn't appear to be valid.
-		$valid = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+		# Underscores are allowd in domain names, but not host names. We disable TLD checks as we
+		# frequently use '.remote', '.bcn', etc. 
+		### TODO: Add a 'strict' parameter to control this) and/or support domain_private_tld
+		my %options = (domain_allow_underscore => 1, domain_disable_tld_validation => 1);
+		my $dvd     = Data::Validate::Domain->new(%options);
+		my $test    = $dvd->is_domain($name);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test => $test }});
+		if (not $test)
+		{
+			# Doesn't appear to be valid.
+			$valid = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+		}
 	}
 	
+
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	return($valid);
 }
+
 
 =head2 is_hex
 
@@ -361,6 +375,80 @@ sub is_hex
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
+
+=head2 is_host_name
+
+Checks if the passed-in string is a valid host name. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+B<NOTE>: If this method receives a full domain name, the host name is checked in this method and the domain (anything after the first C<< . >>) is tested using C<< Validate->is_domain_name >>. If either fails, C<< 0 >> is returned.
+
+ $name = "an-a05n01";
+ if ($anvil->Validate->is_host_name({name => $name}))
+ {
+ 	print "The host name: [$name] is valid!\n";
+ }
+
+Parameters;
+
+=head3 name (required)
+
+This is the host name to validate.
+
+=cut
+sub is_host_name
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $valid = 1;
+	my $name  = $parameter->{name} ? $parameter->{name} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
+	
+	my $domain = "";
+	if ($name =~ /\./)
+	{
+		($name, $domain) = ($name =~ /^(.*?)\.(.*)$/);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			name   => $name,
+			domain => $domain, 
+		}});
+	}
+	
+	if ($domain)
+	{
+		$valid = $anvil->Validate->is_domain_name({
+			name  => $domain, 
+			debug => $debug,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	if (not $name)
+	{
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	else
+	{
+		# Underscores are allowd in domain names, but not host names.
+		my %options = (domain_allow_underscore => 1);
+		my $dvd     = Data::Validate::Domain->new(%options);
+		my $test    = $dvd->is_hostname($name);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test => $test }});
+		if (not $test)
+		{
+			# Doesn't appear to be valid.
+			$valid = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+		}
+	}
+
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	return($valid);
 }

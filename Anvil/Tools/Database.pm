@@ -30,6 +30,7 @@ my $THIS_FILE = "Database.pm";
 # get_mail_servers
 # get_notifications
 # get_recipients
+# get_upses
 # initialize
 # insert_or_update_anvils
 # insert_or_update_bridges
@@ -50,6 +51,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_recipients
 # insert_or_update_sessions
 # insert_or_update_states
+# insert_or_update_upses
 # insert_or_update_users
 # insert_or_update_variables
 # lock_file
@@ -1576,6 +1578,7 @@ WHERE
 	return(0);
 }
 
+
 =head2 get_host_from_uuid
 
 This takes a host UUID and returns the host's name. If there is a problem, or if the host UUID isn't found, an empty string is returned.
@@ -2317,6 +2320,118 @@ FROM
 		}});
 	}
 	
+	return(0);
+}
+
+
+=head2 get_upses
+
+This loads the known UPSes (uninterruptible power supplies) into the C<< anvil::data >> hash at:
+
+* upses::ups_uuid::<ups_uuid>::ups_name
+* upses::ups_uuid::<ups_uuid>::ups_agent
+* upses::ups_uuid::<ups_uuid>::ups_ip_address
+* upses::ups_uuid::<ups_uuid>::modified_date
+
+And, to allow for lookup by name;
+
+* upses::ups_name::<ups_name>::ups_uuid
+* upses::ups_name::<ups_name>::ups_agent
+* upses::ups_name::<ups_name>::ups_ip_address
+* upses::ups_name::<ups_name>::modified_date
+
+If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+
+B<<Note>>: Deleted devices (ones where C<< ups_ip_address >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
+
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted agents are included when loading the data. When C<< 0 >> is set, the default, any ups agent with C<< ups_ip_address >> set to C<< DELETED >> is ignored.
+
+=cut
+sub get_upses
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_from_uuid()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
+	
+	if (exists $anvil->data->{upses})
+	{
+		delete $anvil->data->{upses};
+	}
+	
+	my $query = "
+SELECT 
+    ups_uuid, 
+    ups_name, 
+    ups_agent, 
+    ups_ip_address, 
+    modified_date 
+FROM 
+    upses ";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    ups_ip_address != 'DELETED'";
+	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $ups_uuid       = $row->[0];
+		my $ups_name       = $row->[1];
+		my $ups_agent      = $row->[2];
+		my $ups_ip_address = $row->[3]; 
+		my $modified_date  = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ups_uuid       => $ups_uuid, 
+			ups_name       => $ups_name, 
+			ups_agent      => $ups_agent, 
+			ups_ip_address => $ups_ip_address, 
+			modified_date  => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name}       = $ups_name;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}      = $ups_agent;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address} = $ups_ip_address;
+		$anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date}  = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"upses::ups_uuid::${ups_uuid}::ups_name"       => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_name}, 
+			"upses::ups_uuid::${ups_uuid}::ups_agent"      => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_agent}, 
+			"upses::ups_uuid::${ups_uuid}::ups_ip_address" => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{ups_ip_address}, 
+			"upses::ups_uuid::${ups_uuid}::modified_date"  => $anvil->data->{upses}{ups_uuid}{$ups_uuid}{modified_date}, 
+		}});
+		
+		$anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}       = $ups_uuid;
+		$anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}      = $ups_agent;
+		$anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address} = $ups_ip_address;
+		$anvil->data->{upses}{ups_name}{$ups_name}{modified_date}  = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"upses::ups_name::${ups_name}::ups_uuid"       => $anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}, 
+			"upses::ups_name::${ups_name}::ups_agent"      => $anvil->data->{upses}{ups_name}{$ups_name}{ups_agent}, 
+			"upses::ups_name::${ups_name}::ups_ip_address" => $anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address}, 
+			"upses::ups_name::${ups_name}::modified_date"  => $anvil->data->{upses}{ups_name}{$ups_name}{modified_date}, 
+		}});
+	}
+
 	return(0);
 }
 
@@ -7396,6 +7511,207 @@ WHERE
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 	return($state_uuid);
+}
+
+
+=head2 insert_or_update_upses
+
+This updates (or inserts) a record in the 'upses' table. The C<< ups_uuid >> UUID will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 ups_agent (required)
+
+This is the name of the ups agent to use when communicating with this ups device. The agent must be installed on any machine that may need to ups (or check the ups/power state of) a node.
+
+=head3 ups_ip_address (optional, but generally required in practice)
+
+This is the string that tells machines how to communicate / control the the ups device. This is used when configuring pacemaker's stonith (fencing). 
+
+The exact formatting needs to match the STDIN parameters supported by C<< ups_agent >>. Please see C<< STDIN PARAMETERS >> section of the ups agent man page for this device.
+
+For example, this can be set to:
+
+* C<< ip="10.201.11.1" lanplus="1" username="admin" password="super secret password" 
+
+B<< NOTES >>: 
+* If C<< password_script >> is used, it is required that the user has copied the script to the nodes.
+* Do not use C<< action="..." >> or the ups agent name. If either is found in the string, they will be ignored.
+* Do not use C<< delay >>. It will be determined automatically based on which node has the most servers running on it.
+* If this is set to C<< DELETED >>, the ups device is considered no longer used and it will be ignored by C<< Database->get_upses() >>.
+
+=head3 ups_name (required)
+
+This is the name of the ups device. Genreally, this is the short host name of the device.
+
+=head3 ups_uuid (required)
+
+The default value is the ups's UUID. When passed, the specific record is updated.
+
+=cut
+sub insert_or_update_upses
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_upses()" }});
+	
+	my $uuid           = defined $parameter->{uuid}           ? $parameter->{uuid}           : "";
+	my $file           = defined $parameter->{file}           ? $parameter->{file}           : "";
+	my $line           = defined $parameter->{line}           ? $parameter->{line}           : "";
+	my $ups_agent      = defined $parameter->{ups_agent}      ? $parameter->{ups_agent}      : "";
+	my $ups_ip_address = defined $parameter->{ups_ip_address} ? $parameter->{ups_ip_address} : "";
+	my $ups_name       = defined $parameter->{ups_name}       ? $parameter->{ups_name}       : "";
+	my $ups_uuid       = defined $parameter->{ups_uuid}       ? $parameter->{ups_uuid}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid           => $uuid, 
+		file           => $file, 
+		line           => $line, 
+		ups_agent      => $ups_agent, 
+		ups_ip_address => $ups_ip_address =~ /passwork=/ ? $anvil->Log->is_secure($ups_ip_address) : $ups_ip_address, 
+		ups_name       => $ups_name, 
+		ups_uuid       => $ups_uuid, 
+	}});
+	
+	if (not $ups_agent)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_upses()", parameter => "ups_agent" }});
+		return("");
+	}
+	if (not $ups_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_upses()", parameter => "ups_name" }});
+		return("");
+	}
+	if (not $ups_ip_address)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_upses()", parameter => "ups_ip_address" }});
+		return("");
+	}
+	
+	# Do we have a UUID?
+	if (not $ups_uuid)
+	{
+		### TODO: We might want to try finding it by the IP address, if the name doesn't match. This 
+		###       might cause issues though if different UPSes spanning different BCNs could be 
+		###       confused, perhaps?
+		my $query = "
+SELECT 
+    ups_uuid 
+FROM 
+    upses 
+WHERE 
+    ups_name = ".$anvil->Database->quote($ups_name)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$ups_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ups_uuid => $ups_uuid }});
+		}
+	}
+	
+	# Do we have a UUID?
+	if ($ups_uuid)
+	{
+		# Yup. Has something changed?
+		my $query = "
+SELECT 
+    ups_agent, 
+    ups_name, 
+    ups_ip_address  
+FROM 
+    upses 
+WHERE 
+    ups_uuid = ".$anvil->Database->quote($ups_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_ups_agent     = $row->[0];
+			my $old_ups_name      = $row->[1];
+			my $old_ups_ip_address = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				old_ups_agent     => $old_ups_agent,
+				old_ups_name      => $old_ups_name =~ /passw/ ? $anvil->Log->is_secure($old_ups_name) : $old_ups_name, 
+				old_ups_ip_address => $old_ups_ip_address, 
+			}});
+			if (($old_ups_agent     ne $ups_agent) or 
+			    ($old_ups_name      ne $ups_name)  or 
+			    ($old_ups_ip_address ne $ups_ip_address))
+			{
+				# Clear the stop data.
+				my $query = "
+UPDATE 
+    upses
+SET 
+    ups_name       = ".$anvil->Database->quote($ups_name).", 
+    ups_ip_address = ".$anvil->Database->quote($ups_ip_address).", 
+    ups_agent      = ".$anvil->Database->quote($ups_agent).", 
+    modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    ups_uuid       = ".$anvil->Database->quote($ups_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		# No, INSERT.
+		   $ups_uuid = $anvil->Get->uuid();
+		my $query      = "
+INSERT INTO 
+    upses 
+(
+    ups_uuid, 
+    ups_name, 
+    ups_ip_address, 
+    ups_agent, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($ups_uuid).", 
+    ".$anvil->Database->quote($ups_name).",
+    ".$anvil->Database->quote($ups_ip_address).",
+    ".$anvil->Database->quote($ups_agent).",
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($ups_uuid);
 }
 
 
