@@ -1323,8 +1323,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0223">This is the unique name (often the host name) of this specific fence device.</key>
 		<key name="striker_0224">Existing fence devices:</key>
 		<key name="striker_0225">Confirm deleting '#!variable!name!#'</key>
-		<key name="striker_0226">New Manifest; Step 1</key>
-		<key name="striker_0227">These questions will setup the values pre-filled into step 2, which will hopefully simplify filling the next, longer form.</key>
+		<key name="striker_0226">Install Manifest; Step 1</key>
+		<key name="striker_0227">First step are some simple questions to know what kind of Anvil! this manifest will build.</key>
 		<key name="striker_0228">Anvil! prefix:</key>
 		<key name="striker_0229">Anvil! Sequence:</key>
 		<key name="striker_0230"><![CDATA[Number of <a href="https://www.alteeve.com/w/IFN" target="_new">IFNs</a>.]]></key>

@@ -1501,6 +1501,11 @@ sub process_anvil_menu
 	{
 		process_prep_network($anvil);
 	}
+	elsif ($anvil->data->{cgi}{task}{value} eq "create")
+	{
+		# This handles the main "create an anvil" page.
+		process_create($anvil);
+	}
 	elsif ($anvil->data->{cgi}{task}{value} eq "fences")
 	{
 		process_fences($anvil);
@@ -1509,11 +1514,7 @@ sub process_anvil_menu
 	{
 		process_upses($anvil);
 	}
-	elsif ($anvil->data->{cgi}{task}{value} eq "create")
-	{
-		process_manifests($anvil);
-	}
-	elsif ($anvil->data->{cgi}{task}{value} eq "manifest")
+	elsif ($anvil->data->{cgi}{task}{value} eq "manifests")
 	{
 		process_manifests($anvil);
 	}
@@ -1528,21 +1529,167 @@ sub process_anvil_menu
 	return(0);
 }
 
-# This handles creating an Install Manifest.
-sub handle_new_manifest
+# This handles creating or editing an Install Manifest.
+sub handle_manifest
 {
 	my ($anvil) = @_;
 	
+	$anvil->data->{cgi}{prefix}{value}    = "" if not defined $anvil->data->{cgi}{prefix}{value};
+	$anvil->data->{cgi}{sequence}{value}  = "" if not defined $anvil->data->{cgi}{sequence}{value};
+	$anvil->data->{cgi}{ifn_count}{value} = "" if not defined $anvil->data->{cgi}{ifn_count}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cgi::prefix::value"    => $anvil->data->{cgi}{prefix}{value},
+		"cgi::sequence::value"  => $anvil->data->{cgi}{sequence}{value},
+		"cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value},
+	}});
+	
 	# Step 1 is to ask for the sequence number, prefix, and the number of IFNs (and later, BCNs)
+	my $prefix    = "";
+	my $sequence  = 1;
+	my $ifn_count = 1;
+	if (($anvil->data->{cgi}{manifest_uuid}{value} eq "new") && ($anvil->data->{cgi}{step}{value} eq "1"))
+	{
+		# Pre-load values
+		if ($anvil->data->{cgi}{prefix}{value})
+		{
+			$prefix = $anvil->data->{cgi}{prefix}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { prefix => $prefix }});
+		}
+		else
+		{
+			$prefix =  $anvil->_short_host_name() =~ /-/ ? $anvil->_short_host_name() : "xx";
+			$prefix =~ s/-.*$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { prefix => $prefix }});
+		}
+		
+		if ($anvil->data->{cgi}{sequence}{value})
+		{
+			$sequence = $anvil->data->{cgi}{sequence}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sequence => $sequence }});
+		}
+		else
+		{
+			# Count the number of existing manifests! systems with the default prefix to guess the next sequence.
+			my $query = "SELECT manifest_name FROM manifests WHERE manifest_name LIKE ".$anvil->Database->quote($prefix."-%")." ORDER BY manifest_name ASC;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count,
+			}});
+			if ($count)
+			{
+				# Yup, key has changed.
+				foreach my $row (@{$results})
+				{
+					my $manifest_name = $row->[0];
+					my $this_sequence = ($manifest_name =~ /-(\d+)$/)[0];
+					$this_sequence =~ s/^0//g;
+					$this_sequence = 0 if not $this_sequence;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						manifest_name => $manifest_name,
+						this_sequence => $this_sequence, 
+					}});
+					if ($this_sequence >= $sequence)
+					{
+						$sequence = $this_sequence + 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sequence => $sequence }});
+					}
+				}
+			}
+		}
+		
+		if ($anvil->data->{cgi}{ifn_count}{value})
+		{
+			$ifn_count = $anvil->data->{cgi}{ifn_count}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifn_count => $ifn_count }});
+		}
+	}
+	else
+	{
+		# Load an existing manifest.
+		#$anvil->Striker->load_manifest({
+		#	debug         => 2,
+		#	manifest_uuid => $anvil->data->{cgi}{manifest_uuid}{value},
+		#});
+	}
+
+	# Show the menu
+	if ($anvil->data->{cgi}{step}{value} eq "1")
+	{
+		# Step 1 menu.
+		$anvil->data->{form}{back_link}    = "?anvil=true&task=create";
+		$anvil->data->{form}{refresh_link} = "?anvil=true&task=create&manifest_uuid=".$anvil->data->{cgi}{manifest_uuid}{value}."&step=".$anvil->data->{cgi}{step}{value};
+		$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "manifest-step1", variables => {
+			prefix    => $prefix,
+			sequence  => $sequence, 
+			ifn_count => $ifn_count, 
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'form::body' => $anvil->data->{form}{body} }});
+	}
 	
 	
-	$anvil->data->{form}{back_link}     = "?anvil=true&task=create";
-	$anvil->data->{form}{refresh_link}  = "?anvil=true&task=create&manifest=new";
+	return(0);
+}
+
+# Show the create manifest (and Fence devices and UPSes) menu
+sub process_create
+{
+	my ($anvil) = @_;
+	
+	# Show existing manifests.
+	my $query = "
+SELECT 
+    manifest_uuid, 
+    manifest_name, 
+    manifest_last_ran, 
+    manifest_xml, 
+    manifest_note 
+FROM 
+    manifests 
+ORDER BY 
+    manifest_name ASC;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	my $manifest_template = "";
+	if ($count)
+	{
+		foreach my $row (@{$results})
+		{
+			my $manifest_uuid     = $row->[0];
+			my $manifest_name     = $row->[1];
+			my $manifest_last_ran = $row->[2];
+			my $manifest_xml      = $row->[3];
+			my $manifest_note     = $row->[4];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				manifest_uuid     => $manifest_uuid, 
+				manifest_name     => $manifest_name, 
+				manifest_last_ran => $manifest_last_ran,
+				manifest_xml      => $manifest_xml, 
+				manifest_note     => $manifest_note, 
+			}});
+			$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "existing-manifest-entry", variables => {
+				manifest_uuid => $manifest_uuid, 
+				manifest_name => $manifest_name, 
+			}});
+		}
+	}
+	
+	# Store the previous CGI variables and display the new fields.
+	$anvil->data->{form}{back_link}     = "?anvil=true";
+	$anvil->data->{form}{refresh_link}  = "?anvil=true&task=create";
 	$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
 	$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
 	$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
 	$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "create-menu", variables => {
-		existing_manifests => "", 
+		existing_manifests => $manifest_template, 
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
@@ -1555,67 +1702,25 @@ sub process_manifests
 	my ($anvil) = @_;
 	
 	# Are we creating a new manifest?
-	$anvil->data->{cgi}{manifest}{value} = "" if not defined $anvil->data->{cgi}{manifest}{value};
-	if ($anvil->data->{cgi}{manifest}{value} eq "new")
+	$anvil->data->{cgi}{manifest_uuid}{value} = "" if not defined $anvil->data->{cgi}{manifest_uuid}{value};
+	$anvil->data->{cgi}{run}{value}           = "" if not defined $anvil->data->{cgi}{run}{value};
+	$anvil->data->{cgi}{step}{value}          = 1  if not defined $anvil->data->{cgi}{step}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'cgi::manifest_uuid::value' => $anvil->data->{cgi}{manifest_uuid}{value},
+	}});
+	
+	# Are we running a manifest, or creating/editing one?
+	if ($anvil->data->{cgi}{run}{value})
 	{
-		handle_new_manifest($anvil);
+		#run_manifest($anvil);
+	}
+	elsif ($anvil->data->{cgi}{manifest_uuid}{value})
+	{
+		handle_manifest($anvil);
 	}
 	else
 	{
-		# Show existing manifests.
-		my $query = "
-SELECT 
-    manifest_uuid, 
-    manifest_name, 
-    manifest_last_ran, 
-    manifest_xml, 
-    manifest_note 
-FROM 
-    manifests 
-ORDER BY 
-    manifest_name ASC;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			results => $results, 
-			count   => $count,
-		}});
-		my $manifest_template = "";
-		if ($count)
-		{
-			foreach my $row (@{$results})
-			{
-				my $manifest_uuid     = $row->[0];
-				my $manifest_name     = $row->[1];
-				my $manifest_last_ran = $row->[2];
-				my $manifest_xml      = $row->[3];
-				my $manifest_note     = $row->[4];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					manifest_uuid     => $manifest_uuid, 
-					manifest_name     => $manifest_name, 
-					manifest_last_ran => $manifest_last_ran,
-					manifest_xml      => $manifest_xml, 
-					manifest_note     => $manifest_note, 
-				}});
-				$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "existing-manifest-entry", variables => {
-					manifest_uuid => $manifest_uuid, 
-					manifest_name => $manifest_name, 
-				}});
-			}
-		}
-		
-		# Store the previous CGI variables and display the new fields.
-		$anvil->data->{form}{back_link}     = "?anvil=true";
-		$anvil->data->{form}{refresh_link}  = "?anvil=true&task=create";
-		$anvil->data->{cgi}{task}{value}    = "" if not defined $anvil->data->{cgi}{task}{value};
-		$anvil->data->{cgi}{subtask}{value} = "" if not defined $anvil->data->{cgi}{subtask}{value};
-		$anvil->data->{cgi}{action}{value}  = "" if not defined $anvil->data->{cgi}{action}{value};
-		$anvil->data->{form}{body}          = $anvil->Template->get({file => "anvil.html", name => "create-menu", variables => {
-			existing_manifests => $manifest_template, 
-		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+		# Uhhhh...
 	}
 	
 	return(0);

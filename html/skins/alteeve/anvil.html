@@ -34,7 +34,7 @@
 			</tr>
 			<tr>
 				<td class="main_option_icon">
-					<a href="?anvil=true&task=manifests&manifest=new"><img src="#!data!skin::url!#/images/manifest.png" class="top_icon" ></a>
+					<a href="?anvil=true&task=manifests&manifest_uuid=new&step=1"><img src="#!data!skin::url!#/images/manifest.png" class="top_icon" ></a>
 				</td>
 				<td class="main_option">
 					<a href="?anvil=true&task=manifests&manifest=new">#!string!striker_0204!#</a>
@@ -66,7 +66,7 @@
 		</table>
 <!-- end create-menu -->
 
-<!-- start new-manifest-step1 -->
+<!-- start manifest-step1 -->
 		<table align="center" class="anvil_main_menu">
 			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
 			<tr>
@@ -99,45 +99,47 @@
 					<form name="manifest_step1" action="" method="post">
 					<table align="center" class="anvil_main_menu">
 						<tr>
-							<td class="header">
+							<td class="column_header">
 								<!-- prefix -->
 								#!string!striker_0228!#
 							</td>
 							<td>
-								&nbsp;
+								<input type="text" name="prefix" id="prefix" value="#!variable!prefix!#" placeholder="xx" />
 							</td>
-							<td class="header">
+						</tr>
+						<tr>
+							<td class="column_header">
 								<!-- Sequence -->
 								#!string!striker_0229!#
 							</td>
-						</tr>
-						<!-- TODO: Left off here, add IFN count and make the above "[  ]-anvil-[  ]". -->
-						<tr>
 							<td>
-								<input type="text"   name="prefix"         id="prefix"         value="#!variable!prefix!#" placeholder="xx-" />
-								<input type="hidden" name="default_prefix" id="default_prefix" value="#!variable!default_prefix!#"/>
+								<input type="text" name="sequence" id="sequence" value="#!variable!sequence!#" placeholder="1" />
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- IFN Count -->
+								#!string!striker_0230!#
+							</td>
+							<td>
+								<input type="text" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#" placeholder="1" />
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								&nbsp;
 							</td>
 						</tr>
 						<tr>
 							<td>
-								<input type="text" name="sequence" id="sequence" value="#!variable!sequence!#" placeholder="#" />
-							</td>
-						</tr>
-						<tr>
-							<td class="close_top">
-								&nbsp;<br />
 								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
 							</td>
-							<td class="close_top" style="text-align: right;" colspan="#!variable!span_count!#">
-								&nbsp;<br />
-								<input type="submit" name="save" id="save" value="#!string!striker_0067!#" class="button">
+							<td style="text-align: right;">
+								<input type="submit" name="next" id="next" value="#!string!striker_0013!#" class="button">
 							</td>
-							<input type="hidden" name="fence_agent" id="fence_agent" value="#!data!cgi::fence_agent::value!#">
-							<input type="hidden" name="fence_count" id="fence_count" value="#!data!cgi::fence_count::value!#">
-							<input type="hidden" name="add"         id="add"         value="true">
+							<input type="hidden" name="step"        id="step"        value="2">
 							<input type="hidden" name="anvil"       id="anvil"       value="true">
 							<input type="hidden" name="task"        id="task"        value="fences">
-							<input type="hidden" name="confirm"     id="confirm"     value="true">
 						</tr>
 					</table>
 					</form>
@@ -149,7 +151,7 @@
 				</td>
 			</tr>
 		</table>
-<!-- end new-manifest-step1 -->
+<!-- end manifest-step1 -->
 
 <!-- start fence-agent-configuration -->
 		<table align="center" class="anvil_main_menu">
