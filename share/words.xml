@@ -55,7 +55,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="error_0018">Network interfaces can only be selected once.</key>
 		<key name="error_0019">The gateway appears to have an invalid IPv4 address set.</key>
 		<key name="error_0020">The: [#!variable!field!#] field can't be empty.</key>
-		<key name="error_0021">The prefix needs to be set, and be between 1 and 5 characters long.</key>
+		<key name="error_0021">The prefix needs to be set, and be between 1 and 5 alphanumeric characters long.</key>
 		<key name="error_0022">The: [#!variable!field!#] must be a positive integer.</key>
 		<key name="error_0023">There was a problem reading your session details. To be safe, you have been logged out. Please try logging back in.</key>
 		<key name="error_0024">It appears that your session has expired. To be safe, you have been logged out. Please try logging back in.</key>
@@ -175,6 +175,7 @@ The error was:
 		<key name="error_0114">This row's modified_date wasn't the first column returned in query: [#!variable!query!#]</key>
 		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
 		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!variable!source!#] to: [#!variable!target!#], but that renane failed.</key>
+		<key name="error_0117">The domain name: [#!variable!name!#] does not appear to be valid.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1045,7 +1046,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0130">Updated repository data.</key>
 		<key name="message_0131">Back-Channel Network ##!variable!number!# - Used for all inter-machine communication in the Anvil!, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
 		<key name="message_0132">Storage Network ##!variable!number!# - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
-		<key name="message_0133">Internet/Intranet-Facing Network ##!variable!number!# - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</key>
+		<key name="message_0133">Internet-Facing Network ##!variable!number!# - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</key>
 		<key name="message_0134">Updating / configuring the firewall.</key>
 		<key name="message_0135">It appears like we need to accept the fingerprint. Will do so now and then try to conenct again.</key>
 		<key name="message_0136">The zone: [#!variable!zone!#] file: [#!variable!file!#] needs to be updated.</key>
@@ -1072,6 +1073,9 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0157">When a system alert is recorded, any alert recipient interested in that alert will be notified by email. This is determined by the alert's level, and the recipients alert level interest. If the alert's level is equal to or higher than a given alert, an email will be crafted for them, in their chosen language and units.</key>
 		<key name="message_0158">[ Error ] - The modules.yaml file: [#!variable!modules_yaml!#] was found, but something failed when we tried to copy it to: [#!variable!target_modules!#].</key>
 		<key name="message_0159">Updated module metadata.</key>
+		<key name="message_0160">Back-Channel Network</key>
+		<key name="message_0161">Storage Network</key>
+		<key name="message_0162">Internet-Facing Network</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -1097,7 +1101,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="striker_0003">Organization name</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
 		<key name="striker_0005">Prefix</key>
-		<key name="striker_0006">This is a two to five character prefix used to identify this organization. It is used as the prefix for host names for dashboards, nodes and foundation pack equipment. You can use letters and numbers and set whatever makes sense to you.</key>
+		<key name="striker_0006">This is a one to five character prefix used to identify this organization. It is used as the prefix for host names for dashboards, nodes and foundation pack equipment. You can use letters and numbers and set whatever makes sense to you.</key>
 		<key name="striker_0007">Domain Name</key>
 		<key name="striker_0008">This is the domain name you would like to use for this dashboard. This will also be used as the default domain used when creating new install manifests.</key>
 		<key name="striker_0009">Sequence Number</key>
@@ -1323,7 +1327,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0223">This is the unique name (often the host name) of this specific fence device.</key>
 		<key name="striker_0224">Existing fence devices:</key>
 		<key name="striker_0225">Confirm deleting '#!variable!name!#'</key>
-		<key name="striker_0226">Install Manifest; Step 1</key>
+		<key name="striker_0226">Install Manifest; Step #!variable!number!#</key>
 		<key name="striker_0227">First step are some simple questions to know what kind of Anvil! this manifest will build.</key>
 		<key name="striker_0228">Anvil! prefix:</key>
 		<key name="striker_0229">Anvil! Sequence:</key>
@@ -1341,6 +1345,11 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0241">This is the IP address of the UPS. This must be reachable by nodes powered by this UPS.</key>
 		<key name="striker_0242">The only time to change this is if a UPS has been replaced (using the same name/IP) by a UPS of a different brand.</key>
 		<key name="striker_0243">Saving UPS data</key>
+		<key name="striker_0244">This is the sequence number for this #!string!brand_0006!#. The first #!string!brand_0006!# will be '1', the second will be '2', etc. This is used to preset IP addresses, PDU outlet positions, etc.</key>
+		<key name="striker_0245"><![CDATA[In most cases, there is only one <a href="https://www.alteeve.com/w/IFN" target="_new">IFN</a> on an #!string!brand_0006!#. If you have separate networks and plan to restrict certain servers to certain networks, you can install extra network interfaces into the nodes (two per IFN). If this is your plan, set this value to the number of IFNs you plan to use.]]></key>
+		<key name="striker_0246">This is a one to five character prefix used to identify the department, organization, or company whose servers will run on this #!string!brand_0006!#. You can use letters and numbers and set whatever makes sense to you.</key>
+		<key name="striker_0247">This is the domain name you would like to use for this #!string!brand_0006!#. This will be used in the next step when setting default hostnames for various devices.</key>
+		<key name="striker_0248">The second step specified the networks (subnets) that will be used for each network. Generally, you only want to change the IFN(s). The BCN and SN are always '/16' subnets and should only be changed if they conflict with an existing IFN.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

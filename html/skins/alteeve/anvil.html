@@ -76,7 +76,7 @@
 			</tr>
 			<tr>
 				<td class="title">
-					#!string!striker_0226!#
+					#!variable!title!#
 				</td>
 			</tr>
 			<tr>
@@ -104,7 +104,16 @@
 								#!string!striker_0228!#
 							</td>
 							<td>
-								<input type="text" name="prefix" id="prefix" value="#!variable!prefix!#" placeholder="xx" />
+								<input type="text" name="prefix" id="prefix" value="#!variable!prefix!#" placeholder="xx" class="#!variable!prefix_class!#"/>
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- domain -->
+								#!string!striker_0007!#
+							</td>
+							<td>
+								<input type="text" name="domain" id="domain" value="#!variable!domain!#" placeholder="example.com" class="#!variable!domain_class!#"/>
 							</td>
 						</tr>
 						<tr>
@@ -113,7 +122,7 @@
 								#!string!striker_0229!#
 							</td>
 							<td>
-								<input type="text" name="sequence" id="sequence" value="#!variable!sequence!#" placeholder="1" />
+								<input type="number" name="sequence" id="sequence" value="#!variable!sequence!#" placeholder="1" class="#!variable!sequence_class!#"/>
 							</td>
 						</tr>
 						<tr>
@@ -122,7 +131,7 @@
 								#!string!striker_0230!#
 							</td>
 							<td>
-								<input type="text" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#" placeholder="1" />
+								<input type="number" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#" placeholder="1" class="#!variable!ifn_count_class!#"/>
 							</td>
 						</tr>
 						<tr>
@@ -137,9 +146,10 @@
 							<td style="text-align: right;">
 								<input type="submit" name="next" id="next" value="#!string!striker_0013!#" class="button">
 							</td>
-							<input type="hidden" name="step"        id="step"        value="2">
-							<input type="hidden" name="anvil"       id="anvil"       value="true">
-							<input type="hidden" name="task"        id="task"        value="fences">
+							<input type="hidden" name="step"          id="step"          value="2">
+							<input type="hidden" name="anvil"         id="anvil"         value="true">
+							<input type="hidden" name="task"          id="task"          value="manifests">
+							<input type="hidden" name="manifest_uuid" id="manifest_uuid" value="#!data!cgi::manifest_uuid::value!#">
 						</tr>
 					</table>
 					</form>
@@ -150,8 +160,161 @@
 					&nbsp;
 				</td>
 			</tr>
+			<tr>
+				<td colspan="2">
+					<table class="centered">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Prefix -->
+								#!string!striker_0228!# &nbsp;
+							</td>
+							<td>
+								#!string!striker_0246!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Domain -->
+								#!string!striker_0007!# &nbsp;
+							</td>
+							<td>
+								#!string!striker_0247!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Sequence -->
+								#!string!striker_0229!# &nbsp; 
+							</td>
+							<td>
+								#!string!striker_0244!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- IFN Count -->
+								#!string!striker_0230!#
+							</td>
+							<td>
+								#!string!striker_0245!#
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
 		</table>
 <!-- end manifest-step1 -->
+
+<!-- start manifest-step2-network-entry -->
+						<tr>
+							<td class="column_header">
+								<!-- prefix -->
+								#!variable!network!#: &nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="#!variable!name!#" id="#!variable!name!#" value="#!variable!value!#" width="15" style="width: 15em;" class="#!variable!class!#" /> / #!variable!subnet!#
+							</td>
+						</tr>
+<!-- end manifest-step2-network-entry -->
+
+<!-- start manifest-step2 -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="title">
+					#!variable!title!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="description">
+					#!string!striker_0248!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<form name="manifest_step2" action="" method="post">
+					<table align="center" class="anvil_main_menu">
+						#!variable!networks!#
+						<tr>
+							<td colspan="2">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
+							</td>
+							<td style="text-align: right;">
+								<input type="submit" name="next" id="next" value="#!string!striker_0013!#" class="button">
+							</td>
+							<input type="hidden" name="prefix"    id="prefix"    value="#!data!cgi::prefix::value!#">
+							<input type="hidden" name="domain"    id="domain"    value="#!data!cgi::domain::value!#">
+							<input type="hidden" name="sequence"  id="sequence"  value="#!data!cgi::sequence::value!#">
+							<input type="hidden" name="bcn_count" id="bcn_count" value="#!data!cgi::bcn_count::value!#">
+							<input type="hidden" name="ifn_count" id="ifn_count" value="#!data!cgi::ifn_count::value!#">
+							<input type="hidden" name="step"      id="step"      value="2">
+							<input type="hidden" name="anvil"     id="anvil"     value="true">
+							<input type="hidden" name="task"      id="task"      value="fences">
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table class="centered">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- BCN -->
+								#!string!message_0160!# &nbsp;
+							</td>
+							<td>
+								#!variable!bcn_message!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- SN -->
+								#!string!message_0161!# &nbsp;
+							</td>
+							<td>
+								#!variable!sn_message!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- IFN -->
+								#!string!message_0162!# &nbsp;
+							</td>
+							<td>
+								#!variable!ifn_message!#
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+<!-- end manifest-step2 -->
 
 <!-- start fence-agent-configuration -->
 		<table align="center" class="anvil_main_menu">

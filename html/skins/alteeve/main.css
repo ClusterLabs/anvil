@@ -56,9 +56,10 @@ body {
 }
 
 .column_header {
-	text-align: left;
-	color:      #9ba0a5;
-	padding:    0.15em;
+	text-align:  left;
+	color:       #9ba0a5;
+	padding:     0.15em;
+	white-space: nowrap;
 }
 
 .column_header_veritcal {
@@ -103,6 +104,11 @@ body {
 
 .fixed_width {
 	font-family: 'Dejavu Sans Mono', Courier;
+}
+
+.fixed_width_no_wrap {
+	font-family: 'Dejavu Sans Mono', Courier;
+	white-space: nowrap;
 }
 
 .footer {

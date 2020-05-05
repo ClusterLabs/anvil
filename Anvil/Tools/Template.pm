@@ -313,6 +313,8 @@ This is the name of the select box.
 
 This is an array reference of options to put into the select box.
 
+B<NOTE>: The special value C<< subnet >> is allowed. When C<< options >> is C<< subnet >>, a list of valid subnets with CIDR notaion is returned. The common values C<< 255.255.255.0 >>, C<< 255.255.0.0 >> and C<< 255.0.0.0 >> are the first three options and the rest of the useful values (C<< 128.0.0.0 (/1)>> through to C<< 255.255.255.248 (/29) >>) follow. When used, C<< select >> can be set to the dotted-decimal (ie: C<< 255.255.0.0 >>) to select an entry.
+
 Example;
 
  my $options = ["a", "b", "c"];
@@ -337,6 +339,10 @@ If this is set and if it matches one of the C<< options >> array values, then th
 
 By default, the options array will be sorted alphabetically. If this is set to C<< 0 >>, then the order the options were entered into the array is used.
 
+=head3 style (optional)
+
+If desired, this can be set to assign a CSS style to the selection box.
+
 =cut
 sub select_form
 {
@@ -346,28 +352,39 @@ sub select_form
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
-	my $options   = defined $parameter->{options}   ? $parameter->{options}   : "";
-	my $id        = defined $parameter->{id}        ? $parameter->{id}        : $name;
-	my $sort      = defined $parameter->{'sort'}    ? $parameter->{'sort'}    : 1;	# Sort the entries?
-	my $class     = defined $parameter->{class}     ? $parameter->{class}     : "";
 	my $blank     = defined $parameter->{blank}     ? $parameter->{blank}     : 0;	# Add a blank/null entry?
+	my $class     = defined $parameter->{class}     ? $parameter->{class}     : "";
+	my $id        = defined $parameter->{id}        ? $parameter->{id}        : $name;
+	my $options   = defined $parameter->{options}   ? $parameter->{options}   : "";
 	my $say_blank = defined $parameter->{say_blank} ? $parameter->{say_blank} : "";	# An optional, grayed-out string in the place of the "blank" option
 	my $selected  = defined $parameter->{selected}  ? $parameter->{selected}  : "";	# Pre-select an option?
+	my $sort      = defined $parameter->{'sort'}    ? $parameter->{'sort'}    : 1;	# Sort the entries?
+	my $style     = defined $parameter->{style}     ? $parameter->{style}     : "";	# CSS style attribute
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		blank     => $blank, 
+		class     => $class, 
+		id        => $id,
 		name      => $name, 
 		options   => $options, 
-		'sort'    => $sort, 
-		class     => $class, 
-		blank     => $blank, 
 		say_blank => $say_blank, 
 		selected  => $selected, 
+		'sort'    => $sort, 
+		style     => $style, 
 	}});
 	
 	# Lets start!
 	my $select = "<select name=\"$name\" id=\"$id\">\n";
-	if ($class)
+	if (($class) && ($style))
+	{
+		$select = "<select name=\"$name\" id=\"$id\" class=\"$class\" style=\"$style\">\n";
+	}
+	elsif ($class)
 	{
 		$select = "<select name=\"$name\" id=\"$id\" class=\"$class\">\n";
+	}
+	elsif ($style)
+	{
+		$select = "<select name=\"$name\" id=\"$id\" style=\"$style\">\n";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 	
@@ -393,6 +410,85 @@ sub select_form
 			$select .= "<option value=\"\" $blank_class>$blank_string</option>\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'select' => $select }});
 		}
+	}
+	
+	# If 'options' is 'subnet', set ours;
+	if ($options eq "subnet")
+	{
+=cut
+CIDR        Total number    Network             Description:
+Notation:   of addresses:   Mask:
+--------------------------------------------------------------
+/0          4,294,967,296   0.0.0.0             Every Address
+/1          2,147,483,648   128.0.0.0           128 /8 nets
+/2          1,073,741,824   192.0.0.0           64 /8 nets
+/3          536,870,912     224.0.0.0           32 /8 nets
+/4          268,435,456     240.0.0.0           16 /8 nets
+/5          134,217,728     248.0.0.0           8 /8 nets
+/6          67,108,864      252.0.0.0           4 /8 nets
+/7          33,554,432      254.0.0.0           2 /8 nets
+/8          16,777,214      255.0.0.0           1 /8 net
+--------------------------------------------------------------
+/9          8,388,608       255.128.0.0         128 /16 nets
+/10         4,194,304       255.192.0.0         64 /16 nets
+/11         2,097,152       255.224.0.0         32 /16 nets
+/12         1,048,576       255.240.0.0         16 /16 nets
+/13         524,288         255.248.0.0         8 /16 nets
+/14         262,144         255.252.0.0         4 /16 nets
+/15         131.072         255.254.0.0         2 /16 nets
+/16         65,536          255.255.0.0         1 /16
+--------------------------------------------------------------
+/17         32,768          255.255.128.0       128 /24 nets
+/18         16,384          255.255.192.0       64 /24 nets
+/19         8,192           255.255.224.0       32 /24 nets
+/20         4,096           255.255.240.0       16 /24 nets
+/21         2,048           255.255.248.0       8 /24 nets
+/22         1,024           255.255.252.0       4 /24 nets
+/23         512             255.255.254.0       2 /24 nets
+/24         256             255.255.255.0       1 /24
+--------------------------------------------------------------
+/25         128             255.255.255.128     Half of a /24
+/26         64              255.255.255.192     Fourth of a /24
+/27         32              255.255.255.224     Eighth of a /24
+/28         16              255.255.255.240     1/16th of a /24
+/29         8               255.255.255.248     5 Usable addresses
+/30         4               255.255.255.252     1 Usable address
+/31         2               255.255.255.254     Unusable
+/32         1               255.255.255.255     Single host
+--------------------------------------------------------------
+=cut
+		$sort    = 0;
+		$options = [
+			"255.255.255.0#!#255.255.255.0   (/24)",
+			"255.255.0.0#!#255.255.0.0     (/16)",
+			"255.0.0.0#!#255.0.0.0        (/8)",
+			"255.255.255.248#!#255.255.255.248 (/29)",
+			"255.255.255.240#!#255.255.255.240 (/28)",
+			"255.255.255.224#!#255.255.255.224 (/27)",
+			"255.255.255.192#!#255.255.255.192 (/26)",
+			"255.255.255.128#!#255.255.255.128 (/25)",
+			"255.255.254.0#!#255.255.254.0   (/23)",
+			"255.255.252.0#!#255.255.252.0   (/22)",
+			"255.255.248.0#!#255.255.248.0   (/21)",
+			"255.255.240.0#!#255.255.240.0   (/20)",
+			"255.255.224.0#!#255.255.224.0   (/19)",
+			"255.255.192.0#!#255.255.192.0   (/18)",
+			"255.255.128.0#!#255.255.128.0   (/17)",
+			"255.254.0.0#!#255.254.0.0     (/15)", 
+			"255.252.0.0#!#255.252.0.0     (/14)",
+			"255.248.0.0#!#255.248.0.0     (/13)",
+			"255.240.0.0#!#255.240.0.0     (/12)",
+			"255.224.0.0#!#255.224.0.0     (/11)",
+			"255.192.0.0#!#255.192.0.0     (/10)",
+			"255.128.0.0#!#255.128.0.0      (/9)",
+			"254.0.0.0#!#254.0.0.0        (/7)",
+			"252.0.0.0#!#252.0.0.0        (/6)",
+			"248.0.0.0#!#248.0.0.0        (/5)",
+			"240.0.0.0#!#240.0.0.0        (/4)", 
+			"224.0.0.0#!#224.0.0.0        (/3)",
+			"192.0.0.0#!#192.0.0.0        (/2)",
+			"128.0.0.0#!#128.0.0.0        (/1)",
+		];
 	}
 	
 	# TODO: This needs to be smarter... I shouldn't need two loops for sorted/not sorted.
