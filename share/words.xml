@@ -176,6 +176,10 @@ The error was:
 		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
 		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!variable!source!#] to: [#!variable!target!#], but that renane failed.</key>
 		<key name="error_0117">The domain name: [#!variable!name!#] does not appear to be valid.</key>
+		<key name="error_0118">The IP address: [#!variable!ip!#] does not appear to be valid.</key>
+		<key name="error_0119">The IP given for the network: [#!variable!name!#] does not appear to be the network base IP. Did you mean: [#!variable!ip!#]?</key>
+		<key name="error_0120">The IP given for the network: [#!variable!network!#] with the subnet mask: [#!variable!subnet!#] does not appear to be a valid network range.</key>
+		<key name="error_0121">The gateway: [#!variable!gateway!#] does not apear to be in the network: [#!variable!network!#]/[#!variable!subnet!#].</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -226,7 +230,7 @@ The error was:
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
 		<key name="job_0018">Download a file</key>
 		<key name="job_0019">The referenced file will be downloaded by the target host.</key>
-		<key name="job_0020">Initialize a new Anvil! Node</key>
+		<key name="job_0020">Initialize a new #!string!brand_0002!# Node</key>
 		<key name="job_0021">Initialize a new DR Host</key>
 		<key name="job_0022">The target will be setup to talk to this and our peer dashboards. When initialization is complete, you will be able to map the target's network.</key>
 		<key name="job_0023">Connecting to the target: [#!variable!target!#]...</key>
@@ -277,7 +281,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0064">OUI Database.</key>
 		<key name="job_0065">Refresh the 'OUI' database used to cross reference MAC addresses to the companies that own them.</key>
 		<key name="job_0066">Network Scan.</key>
-		<key name="job_0067">This job does a simple ping scan of the networks connected to this host. Any detected hosts have their MAC / IP addresses recorded. This is designed to help determine IP addresses assigned to servers hosted on the Anvil! system.</key>
+		<key name="job_0067">This job does a simple ping scan of the networks connected to this host. Any detected hosts have their MAC / IP addresses recorded. This is designed to help determine IP addresses assigned to servers hosted on the #!string!brand_0002!# system.</key>
 		<key name="job_0068">Adding the database connection information for the dashboard: [#!variable!host_name!#] to the target's anvil.conf file.</key>
 		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
 		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
@@ -415,18 +419,18 @@ The database connection error was:
 - Name: ......... [#!variable!name!#]
 - Timestamp: .... [#!variable!modified_date!#]
 		</key>
-		<key name="log_0099">[ Error ] - There is no Anvil! database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#].</key>
+		<key name="log_0099">[ Error ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#].</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
 		<key name="log_0101">Failed to connect to: [#!variable!target!#:#!variable!port!#], sleeping for a second and then trying again.</key>
 		<key name="log_0102">I am not recording the alert with message_key: [#!variable!message_key!#] to the database because its log level was lower than any recipients.</key>
 		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">The database with UUID: [#!variable!uuid!#] for: [#!variable!file!#] is behind.</key>
-		<key name="log_0105">Anvil! database: [#!variable!database!#] already exists.</key>
+		<key name="log_0105">#!string!brand_0002!# database: [#!variable!database!#] already exists.</key>
 		<key name="log_0106">The table: [#!variable!table!#] (and possibly others) in the database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) is behind by: [#!variable!seconds!#] seconds. A database resync will be requested.</key>
 		<key name="log_0107">[ Warning ] - Failed to delete the temporary postgres password.</key>
 		<key name="log_0108"><![CDATA[[ Error ] - The method Database->insert_or_update_states() was called but the 'state_host_uuid' parameter was not passed or it is empty. Normally this is set to 'sys::data_uuid'.]]></key>
-		<key name="log_0109">[ Error ] - Failed to create the Anvil! database: [#!variable!database!#]</key>
-		<key name="log_0110">Anvil! database: [#!variable!database!#] created.</key>
+		<key name="log_0109">[ Error ] - Failed to create the #!string!brand_0002!# database: [#!variable!database!#]</key>
+		<key name="log_0110">#!string!brand_0002!# database: [#!variable!database!#] created.</key>
 		<key name="log_0111">[ Warning ] - Failed to reload the Postgres server. Please check the system logs for details. The updated configuration is probably not active yet.</key>
 		<key name="log_0112">Reloaded the PostgreSQL database server.</key>
 		<key name="log_0113"><![CDATA[[ Note ] - The 'Database->configure_pgsql() method was called but the parent program is not running with root priviledges. Returning without doing anything.]]></key>
@@ -461,7 +465,7 @@ The database connection error was:
 		<key name="log_0142"><![CDATA[[ Error ] - The system call: [#!variable!shell_call!#] will fail because the program: [#!variable!program!#] isn't executable.]]></key>
 		<key name="log_0143">Failed to find a local ID, no databases are stored on this machine.</key>
 		<key name="log_0144">PostgreSQL server is not installed, unable to proceed.</key>
-		<key name="log_0145"><![CDATA[[ Warning ] - Unable to use the database on the host: [#!variable!host!#]. The local Anvil! version is: [#!variable!local_version!#], and the target host's is: [#!variable!target_version!#]. If you are upgrading, we will resync and use it once the host and our version is again the same.]]></key>
+		<key name="log_0145"><![CDATA[[ Warning ] - Unable to use the database on the host: [#!variable!host!#]. The local #!string!brand_0002!# version is: [#!variable!local_version!#], and the target host's is: [#!variable!target_version!#]. If you are upgrading, we will resync and use it once the host and our version is again the same.]]></key>
 		<key name="log_0146">A job to configure the network was found, but it has already been picked up by: [#!variable!pid!#].</key>
 		<key name="log_0147">A job to configure the network was found, and it was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Taking the job.</key>
 		<key name="log_0148">The network: [#!variable!network!#] has something set for the IP [#!variable!ip!#], but it appears to be invalid. Ignoring this network.</key>
@@ -747,7 +751,7 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0398">The server has the ISO: [#!variable!file!#] mounted in its optical drive, but that file doesn't exist on this system.</key>
 		<key name="log_0399">The server has the ISO: [#!variable!file!#] mounted in its optical drive, which we have, but we can't read it. Check permissions and for SELinux denials.</key>
 		<key name="log_0400">The server has the ISO: [#!variable!file!#] mounted in its optical drive, which we have.</key>
-		<key name="log_0401">The server wants to use the emulator: [#!variable!emulator!#] which doesn't exist on this node. Was this server migrated from a different generation Anvil! system? Please update '<emulator>...</emulator>' in the server's definition file: [#!variable!definition_file!#].</key>
+		<key name="log_0401">The server wants to use the emulator: [#!variable!emulator!#] which doesn't exist on this node. Was this server migrated from a different generation #!string!brand_0002!# system? Please update '<emulator>...</emulator>' in the server's definition file: [#!variable!definition_file!#].</key>
 		<key name="log_0402">The server wants to use the emulator: [#!variable!emulator!#] which exists, but we can't run. Please check permissions and for SELinux denials.</key>
 		<key name="log_0403">The configured server name: [#!variable!server!#] does not match the name of the server in the definition file: [#!variable!name!#]!</key>
 		<key name="log_0404">The configured server name: [#!variable!name!#] needs: [#!variable!ram!# (#!variable!ram_bytes!# bytes)] of RAM, but only: #!variable!available_ram!# (#!variable!available_ram_bytes!# bytes)] are available!</key>
@@ -913,10 +917,10 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0061">Aborting.</key>
 		<key name="message_0062">Powering off the local system now.</key>
 		<key name="message_0063">Rebooting the local system now.</key>
-		<key name="message_0064">The Anvil! has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
+		<key name="message_0064">The #!string!brand_0006!# has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
 		<key name="message_0065">You will now be logged out and this machine will now be rebooted so that the new configuration can take effect.</key>
-		<key name="message_0066">Starting the job to add or update an Anvil! database peer.</key>
-		<key name="message_0067">Starting the job to remove an Anvil! database peer.</key>
+		<key name="message_0066">Starting the job to add or update an #!string!brand_0006!# database peer.</key>
+		<key name="message_0067">Starting the job to remove an #!string!brand_0006!# database peer.</key>
 		<key name="message_0068">Sanity checkes passed.</key>
 		<key name="message_0069">Added the peer to the config file.</key>
 		<key name="message_0070">Old peer found and removed from the config file.</key>
@@ -936,7 +940,7 @@ NOTE: Please be patient!
 		<key name="message_0078">Output: [#!variable!line!#].</key>
 		<key name="message_0079">Error:  [#!variable!line!#].</key>
 		<!-- The strings below are used in the 'default' PXE menu. Entries used as option labels use '^' to indicate the hotkey, and must be unique in a given menu. -->
-		<key name="message_0080">Anvil! - Install Target Menu</key>
+		<key name="message_0080">#!string!brand_0006!# - Install Target Menu</key>
 		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
 		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
 		<key name="message_0083">Editing of this option is disabled.</key>
@@ -952,7 +956,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0086">^2. Install an Anvil! Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0086">^2. Install an #!string!brand_0006!# Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0087">
@@ -965,7 +969,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0088">^3. Install an Anvil! Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0088">^3. Install an #!string!brand_0006!# Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
@@ -1008,7 +1012,7 @@ NOTE: Please be patient!
 		<key name="message_0102">Checking that the "Install Target" function is configured and updated.</key>
 		<!-- The strings below are printed in bash, so be mindful of escaping characters. The strings are wrapped in double-quotes ("), so escape them with a back-slash (\") -->
 		<key name="message_0103">Finding install drive for a Striker dashboard.</key>
-		<key name="message_0104">Finding install drive for an Anvil! node.</key>
+		<key name="message_0104">Finding install drive for an #!string!brand_0006!# node.</key>
 		<key name="message_0105">Finding install drive for a DR (disaster recovery) host.</key>
 		<key name="message_0106">
 [ Error ] - Target type not specified. Be sure that '\$type' is set to 
@@ -1026,7 +1030,7 @@ NOTE: Please be patient!
 		<key name="message_0114"><![CDATA[Completed successfully, exiting.]]></key>
 		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
 		<key name="message_0115">Striker Dashboard</key>
-		<key name="message_0116">Anvil! Node</key>
+		<key name="message_0116">#!string!brand_0006!# Node</key>
 		<key name="message_0117">Disaster Recovery (DR) Host</key>
 		<key name="message_0118">Regenerating the source repository metadata.</key>
 		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is the 'anvil-striker-extra' package installed?</key>
@@ -1044,7 +1048,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0128">The attempt to enable the 'Install Target' function failed! Please check the logs for details.</key>
 		<key name="message_0129">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was found, but something failed when we tried to copy it to: [#!variable!target_comps!#].</key>
 		<key name="message_0130">Updated repository data.</key>
-		<key name="message_0131">Back-Channel Network ##!variable!number!# - Used for all inter-machine communication in the Anvil!, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
+		<key name="message_0131">Back-Channel Network ##!variable!number!# - Used for all inter-machine communication in the #!string!brand_0006!#, as well as communication for foundation pack devices. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
 		<key name="message_0132">Storage Network ##!variable!number!# - Used for DRBD communication between nodes and DR hosts. Should be VLAN-isolated from the IFN and, thus, trusted.</key>
 		<key name="message_0133">Internet-Facing Network ##!variable!number!# - Used for all client/user facing traffic. Likely connected to a semi-trusted network only.</key>
 		<key name="message_0134">Updating / configuring the firewall.</key>
@@ -1076,6 +1080,12 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0160">Back-Channel Network</key>
 		<key name="message_0161">Storage Network</key>
 		<key name="message_0162">Internet-Facing Network</key>
+		<key name="message_0163">The network is the lowest IP in the subnet range. This is not any given IP address. For example, '10.255.0.0' for the mask '255.255.0.0', '192.168.1.0' for the mask '255.255.255.0', etc.</key>
+		<key name="message_0164">The subnet mask indicates the size of the network. The BCN and SN must be '255.255.0.0 (/16)'. Set the mask to match you IFN network(s).</key>
+		<key name="message_0165">If the network has a gateway (permanent or periodic), enter it here.</key>
+		<key name="message_0166">An isolated, VLAN'ed network used for all inter-machine communication in the #!string!brand_0006!#, as well as communication for foundation pack devices.</key>
+		<key name="message_0167">An isolated, VLAN'ed network Used for storage replication traffic only.</key>
+		<key name="message_0168">Connecting to the main site intranet. This is the network (or networks) that guest virtual servers will use to connect to all devices outside the #!string!brand_0006!# system.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -1120,7 +1130,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="striker_0022">Internet-Facing Network link #!variable!number!#</key>
 		<key name="striker_0023">This is where you configure the network to enable access this Internet-Facing Network.</key>
 		<key name="striker_0024">IP Address</key>
-		<key name="striker_0025">Subnet</key>
+		<key name="striker_0025">Subnet Mask</key>
 		<key name="striker_0026">Gateway</key>
 		<key name="striker_0027">DNS Server</key>
 		<key name="striker_0028">Network Interface</key>
@@ -1152,11 +1162,11 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="striker_0054">Configure Striker Peers</key>
 		<key name="striker_0055">When you sync with a peer, this machine's data will be copied to and recorded on the peer's database. Data gathered by ScanCore will also be kept in sync on both dashboards, and any general purpose data collected by other dashboards while this one is offline will be copied back when this machine comes online. Should this machine ever be rebuilt, data recorded from before the rebuild will be automatically restored as well.</key>
 		<key name="striker_0056">Update System</key>
-		<key name="striker_0057">This will update this system using any available software repositories. You can also use this to create or load update packs to allow for the update of offline or air-gapped Anvil! systems.</key>
+		<key name="striker_0057">This will update this system using any available software repositories. You can also use this to create or load update packs to allow for the update of offline or air-gapped #!string!brand_0006!# systems.</key>
 		<key name="striker_0058">Configure Striker</key>
 		<key name="striker_0059">Update the network configuration for this Striker.</key>
 		<key name="striker_0060">Welcome!</key>
-		<key name="striker_0061">Create or manage Anvil! systems</key>
+		<key name="striker_0061">Create or manage #!string!brand_0006!# systems</key>
 		<key name="striker_0062">Manage this Striker system and sync with others</key>
 		<key name="striker_0063">Log out</key>
 		<key name="striker_0064">Help and support</key>
@@ -1168,7 +1178,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="striker_0070">Add</key>
 		<key name="striker_0071">Ping</key>
 		<key name="striker_0072">Bi-directional</key>
-		<key name="striker_0073">When checked, the Anvil! will ping the peer before trying to connect to the database. This speeds up skipping a database that is offline, but won't help if the databsae is behind a router. When unchecked, connections will be a touch faster when the database is available.</key>
+		<key name="striker_0073">When checked, the #!string!brand_0006!# will ping the peer before trying to connect to the database. This speeds up skipping a database that is offline, but won't help if the databsae is behind a router. When unchecked, connections will be a touch faster when the database is available.</key>
 		<key name="striker_0074">When checked, the peer will be configured to add the local database as a peer at the same time that we add it to this system.</key>
 		<key name="striker_0075">Access</key>
 		<key name="striker_0076"><![CDATA[This tells Striker how to connect to the peer. The default username is '<span class="fixed_width">admin</span>', and the default port is '<span class="fixed_width">5432</span>'. If the peer uses these, then you only need to specify the IP address or host name of the peer. If the user name is not '<span class="fixed_width">admin</span>', then you need to use the format '<span class="fixed_width">user@host</span>. If the TCP port is not '<span class="fixed_width">5432</span>', then you need to use '<span class="fixed_width">host:port</span>. If both user and port are different, use the format '<span class="fixed_width">user@host:port</span>'.]]></key>
@@ -1205,16 +1215,16 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="striker_0107">Enable 'Install Target'</key>
 		<key name="striker_0108">Disable 'Install Target'</key>
 		<key name="striker_0109"><![CDATA[<span class="disabled">'Install Target' Not Available</span>]]></key>
-		<key name="striker_0110">The 'Install Target' feature is used to do base (stage 1) installs on new or rebuilt Striker dashboards, Anvil! nodes or Disaster Recivery hosts. Specifically, it allows machines to boot off their BCN network interface and install the base operating system.</key>
+		<key name="striker_0110">The 'Install Target' feature is used to do base (stage 1) installs on new or rebuilt Striker dashboards, #!string!brand_0006!# nodes or Disaster Recivery hosts. Specifically, it allows machines to boot off their BCN network interface and install the base operating system.</key>
 		<key name="striker_0111">The 'Install Target' disable job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been enabled.</key>
 		<key name="striker_0112">The 'Install Target' enabled job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been disabled.</key>
-		<key name="striker_0113">Anvil! Configuration and Management.</key>
-		<key name="striker_0114">Create a new Anvil! system.</key>
+		<key name="striker_0113">#!string!brand_0006!# Configuration and Management.</key>
+		<key name="striker_0114">Create a new #!string!brand_0006!# system.</key>
 		<key name="striker_0115">Any running jobs, or jobs that have ended recently, are displayed below.</key>
-		<key name="striker_0116">Initialize an Anvil! node or disaster recovery target.</key>
+		<key name="striker_0116">Initialize an #!string!brand_0006!# node or disaster recovery target.</key>
 		<key name="striker_0117">Initial host configuration.</key>
-		<key name="striker_0118">Prepare a new machine for use as an Anvil! node or DR (disaster recovery) host. This process will setup the repository, install the appropriate anvil packages and link it to the Anvil! databases on the Strikers you choose.</key>
-		<key name="striker_0119">Anvil! File Manager.</key>
+		<key name="striker_0118">Prepare a new machine for use as an #!string!brand_0006!# node or DR (disaster recovery) host. This process will setup the repository, install the appropriate anvil packages and link it to the #!string!brand_0006!# databases on the Strikers you choose.</key>
+		<key name="striker_0119">#!string!brand_0006!# File Manager.</key>
 		<key name="striker_0120">Saving File...</key>
 		<key name="striker_0121">Prepare Node or DR Host</key>
 		<key name="striker_0122">Please enter the IP address and root password of the target machine you want to configure.</key>
@@ -1243,8 +1253,8 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0139"><![CDATA[<unchanged>]]></key>
 		<key name="striker_0140">Indicates when the last time the networks connected to this host were scanned. The scan is done to help find the IP addresses assigned to hosted servers and virtual machine equipment. The scan is a simple, sequential nmap ping scan in an attempt to be as non-invasive as possible. The frequency of these scans can be controlled by setting 'network-scan::scan-period' to a number of seconds (the current value is: [#!data!network-scan::scan-period!# seconds]).</key>
 		<key name="striker_0141">Configure the network interfaces for this host.</key>
-		<key name="striker_0142"><![CDATA[This step renames the real network interfaces, pairs them into redundant bonds and creates bridges for connecting to hosted servers.<br /><br />IPs and host names are optional, and can be set when assembling this host into an Anvil! system later.]]></key>
-		<key name="striker_0143">If you would like to change the host name now, you can do so here. When adding this machine to an Anvil!, the host name will be set there as well making this optional.</key>
+		<key name="striker_0142"><![CDATA[This step renames the real network interfaces, pairs them into redundant bonds and creates bridges for connecting to hosted servers.<br /><br />IPs and host names are optional, and can be set when assembling this host into an #!string!brand_0006!# system later.]]></key>
+		<key name="striker_0143">If you would like to change the host name now, you can do so here. When adding this machine to an #!string!brand_0006!#, the host name will be set there as well making this optional.</key>
 		<key name="striker_0144">This is the network gateway used to access the outside world. We'll match it to the appropriate network interface.</key>
 		<key name="striker_0145">If left blank, the interface will be configured for DHCP.</key>
 		<key name="striker_0146">Confirm network configuration.</key>
@@ -1301,11 +1311,11 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0197">The email that alerts are sent to.</key>
 		<key name="striker_0198">The language the user will receive alerts in.</key>
 		<key name="striker_0199">Does the user want imperial or metric units?</key>
-		<key name="striker_0200">The alert level used for new (and existing) Anvil! systems.</key>
+		<key name="striker_0200">The alert level used for new (and existing) #!string!brand_0006!# systems.</key>
 		<key name="striker_0201">Existing alert recipients:</key>
 		<key name="striker_0202">This puts the host into network mapping mode. In this most, most functions are disabled and the link status of network interfaces are closely monitored.</key>
 		<key name="striker_0203">Create or Run an Install Manifest</key>
-		<key name="striker_0204">Create a new Install Manifest; The instructions used to assemble/repair a given Anvil! system.</key>
+		<key name="striker_0204">Create a new Install Manifest; The instructions used to assemble/repair a given #!string!brand_0006!# system.</key>
 		<key name="striker_0205">Existing Manifests:</key>
 		<key name="striker_0206">Run</key>
 		<key name="striker_0207">Edit</key>
@@ -1328,9 +1338,9 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0224">Existing fence devices:</key>
 		<key name="striker_0225">Confirm deleting '#!variable!name!#'</key>
 		<key name="striker_0226">Install Manifest; Step #!variable!number!#</key>
-		<key name="striker_0227">First step are some simple questions to know what kind of Anvil! this manifest will build.</key>
-		<key name="striker_0228">Anvil! prefix:</key>
-		<key name="striker_0229">Anvil! Sequence:</key>
+		<key name="striker_0227">First step are some simple questions to know what kind of #!string!brand_0006!# this manifest will build.</key>
+		<key name="striker_0228">#!string!brand_0006!# prefix:</key>
+		<key name="striker_0229">#!string!brand_0006!# Sequence:</key>
 		<key name="striker_0230"><![CDATA[Number of <a href="https://www.alteeve.com/w/IFN" target="_new">IFNs</a>.]]></key>
 		<key name="striker_0231">Add UPSes.</key>
 		<key name="striker_0232">UPS #!variable!number!#:</key>
@@ -1350,6 +1360,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0246">This is a one to five character prefix used to identify the department, organization, or company whose servers will run on this #!string!brand_0006!#. You can use letters and numbers and set whatever makes sense to you.</key>
 		<key name="striker_0247">This is the domain name you would like to use for this #!string!brand_0006!#. This will be used in the next step when setting default hostnames for various devices.</key>
 		<key name="striker_0248">The second step specified the networks (subnets) that will be used for each network. Generally, you only want to change the IFN(s). The BCN and SN are always '/16' subnets and should only be changed if they conflict with an existing IFN.</key>
+		<key name="striker_0249">Default</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1487,7 +1498,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0012">[ Warning ] - Failed to log into the host. Is the IP or root user's password right?</key>
 		<key name="warning_0013"><![CDATA[[ Warning ] - The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. <a href="?striker=true&task=keys" target="_new">Click here</a> to resolve.]]></key>
 		<key name="warning_0014">[ Warning ] - The host UUID: [#!variable!host_uuid!#] was not found in the #!data!path::json::all_status!# file on the local dashboard.</key>
-		<key name="warning_0015">[ Warning ] - To configure a host as either an Anvil! node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
+		<key name="warning_0015">[ Warning ] - To configure a host as either an #!string!brand_0002!# node or a disaster recovery host, there must be at least 6 network interfaces. This machine only has: [#!variable!interface_count!#] interfaces.</key>
 		<key name="warning_0016">[ Warning ] - No databases are available. Changes to the network interfaces will be cached.</key>
 		<key name="warning_0017">[ Warning ] - The subnet mask is not valid</key>
 		<key name="warning_0018">[ Warning ] - The IP address was specified, but the subnet mask was not</key>

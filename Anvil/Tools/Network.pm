@@ -1156,7 +1156,7 @@ sub load_ips
 	
 	if (not $host_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->get_network()", parameter => "ip" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_ips()", parameter => "ip" }});
 		return("");
 	}
 	

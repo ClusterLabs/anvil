@@ -1564,6 +1564,17 @@ sub handle_manifest
 			$anvil->data->{cgi}{step}{value} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::step::value" => $anvil->data->{cgi}{step}{value} }});
 		}
+		elsif ($anvil->data->{cgi}{step}{value} > 2)
+		{
+			my ($sane) = sanity_check_manifest_step2($anvil);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+			if (not $sane)
+			{
+				# Go back to the second page
+				$anvil->data->{cgi}{step}{value} = 2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::step::value" => $anvil->data->{cgi}{step}{value} }});
+			}
+		}
 	}
 	
 	# Step 1 is to ask for the sequence number, prefix, and the number of IFNs (and later, BCNs)
@@ -1663,18 +1674,33 @@ sub handle_manifest
 		{
 			my $say_bcn     = $anvil->Words->string({key => "striker_0018", variables => { number => $i }});
 			my $network_key = "bcn".$i."_network";
+			my $gateway_key = "bcn".$i."_gateway";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				say_bcn     => $say_bcn,
 				network_key => $network_key, 
+				gateway_key => $gateway_key, 
 			}});
 			
 			$anvil->data->{cgi}{$network_key}{value} = "10.20".$i.".0.0" if not defined $anvil->data->{cgi}{$network_key}{value};
-			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry", variables => {
-				network => $say_bcn,
-				name    => $network_key, 
-				class   => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
-				value   => $anvil->data->{cgi}{$network_key}{value}, 
-				subnet  => "255.255.0.0",
+			$anvil->data->{cgi}{$network_key}{alert} = 0                 if not defined $anvil->data->{cgi}{$network_key}{alert};
+			$anvil->data->{cgi}{$gateway_key}{value} = ""                if not defined $anvil->data->{cgi}{$gateway_key}{value};
+			$anvil->data->{cgi}{$gateway_key}{alert} = 0                 if not defined $anvil->data->{cgi}{$gateway_key}{alert};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+				"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
+				"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
+				"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
+			}});
+			
+			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry-gateway", variables => {
+				network       => $say_bcn,
+				network_name  => $network_key, 
+				network_class => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
+				network_value => $anvil->data->{cgi}{$network_key}{value}, 
+				subnet        => "255.255.0.0",
+				gateway_name  => $gateway_key, 
+				gateway_class => $anvil->data->{cgi}{$gateway_key}{alert} ? "input_alert" : "",
+				gateway_value => $anvil->data->{cgi}{$gateway_key}{value}, 
 			}});
 		}
 		
@@ -1683,13 +1709,14 @@ sub handle_manifest
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_sn => $say_sn }});
 		
 		$anvil->data->{cgi}{sn1_network}{value} = "10.101.0.0" if not defined $anvil->data->{cgi}{sn1_network}{value};
+		$anvil->data->{cgi}{sn1_network}{alert} = 0            if not defined $anvil->data->{cgi}{sn1_network}{alert};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::sn1_network::value" => $anvil->data->{cgi}{sn1_network}{value} }});
 		$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry", variables => {
-			network => $say_sn,
-			name    => "sn1_network", 
-			class   => $anvil->data->{cgi}{sn1_network}{alert} ? "input_alert" : "",
-			value   => $anvil->data->{cgi}{sn1_network}{value}, 
-			subnet  => "255.255.0.0",
+			network       => $say_sn,
+			network_name  => "sn1_network", 
+			network_class => $anvil->data->{cgi}{sn1_network}{alert} ? "input_alert" : "",
+			network_value => $anvil->data->{cgi}{sn1_network}{value}, 
+			subnet        => "255.255.0.0",
 		}});
 		
 		# Now IFNs
@@ -1698,10 +1725,28 @@ sub handle_manifest
 			my $say_ifn     = $anvil->Words->string({key => "striker_0022", variables => { number => $i }});
 			my $network_key = "ifn".$i."_network";
 			my $subnet_key  = "ifn".$i."_subnet";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_ifn => $say_ifn }});
+			my $gateway_key = "ifn".$i."_gateway";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				say_bcn     => $say_ifn,
+				network_key => $network_key, 
+				subnet_key  => $subnet_key, 
+				gateway_key => $gateway_key, 
+			}});
 			
-			$anvil->data->{cgi}{$network_key}{value} = "10.20".$i.".0.0" if not defined $anvil->data->{cgi}{$network_key}{value};
-			$anvil->data->{cgi}{$subnet_key}{value}  = "255.255.0.0"     if not defined $anvil->data->{cgi}{$subnet_key}{value};
+			$anvil->data->{cgi}{$network_key}{value} = ""            if not defined $anvil->data->{cgi}{$network_key}{value};
+			$anvil->data->{cgi}{$network_key}{alert} = 0             if not defined $anvil->data->{cgi}{$network_key}{alert};
+			$anvil->data->{cgi}{$subnet_key}{value}  = "255.255.0.0" if not defined $anvil->data->{cgi}{$subnet_key}{value};
+			$anvil->data->{cgi}{$subnet_key}{alert}  = 0             if not defined $anvil->data->{cgi}{$subnet_key}{alert};
+			$anvil->data->{cgi}{$gateway_key}{value} = ""            if not defined $anvil->data->{cgi}{$gateway_key}{value};
+			$anvil->data->{cgi}{$gateway_key}{alert} = 0             if not defined $anvil->data->{cgi}{$gateway_key}{alert};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+				"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
+				"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value},
+				"cgi::${subnet_key}::alert"  => $anvil->data->{cgi}{$subnet_key}{alert},
+				"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
+				"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
+			}});
 			
 			my $select = $anvil->Template->select_form({
 				name     => $subnet_key,
@@ -1713,23 +1758,24 @@ sub handle_manifest
 				style    => "width: 15em;",
 			});
 			
-			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry", variables => {
-				network => $say_ifn,
-				name    => $network_key, 
-				class   => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
-				value   => $anvil->data->{cgi}{$network_key}{value}, 
-				subnet  => $select,
+			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry-gateway", variables => {
+				network       => $say_ifn,
+				network_name  => $network_key, 
+				network_class => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
+				network_value => $anvil->data->{cgi}{$network_key}{value}, 
+				subnet        => $select,
+				gateway_name  => $gateway_key, 
+				gateway_class => $anvil->data->{cgi}{$gateway_key}{alert} ? "input_alert" : "",
+				gateway_value => $anvil->data->{cgi}{$gateway_key}{value}, 
 			}});
 		}
 		
 		$anvil->data->{form}{back_link}    = "?anvil=true&task=manifests&manifest_uuid=".$anvil->data->{cgi}{manifest_uuid}{value}."&step=1&prefix=".$anvil->data->{cgi}{prefix}{value}."&domain=".$anvil->data->{cgi}{domain}{value}."&sequence=".$anvil->data->{cgi}{sequence}{value}."&ifn_count=".$anvil->data->{cgi}{ifn_count}{value};
 		$anvil->data->{form}{refresh_link} = "?anvil=true&task=manifests&manifest_uuid=".$anvil->data->{cgi}{manifest_uuid}{value}."&step=2&prefix=".$anvil->data->{cgi}{prefix}{value}."&domain=".$anvil->data->{cgi}{domain}{value}."&sequence=".$anvil->data->{cgi}{sequence}{value}."&ifn_count=".$anvil->data->{cgi}{ifn_count}{value};
 		$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "manifest-step2", variables => {
-			title     => $anvil->Words->string({key => "striker_0226", variables => { number => 2 }}),
-			networks  => $network_form, 
-			bcn_message => $anvil->Words->string({key => "message_0131", variables => { number => "X" }}),
-			sn_message  => $anvil->Words->string({key => "message_0132", variables => { number => "X" }}),
-			ifn_message => $anvil->Words->string({key => "message_0133", variables => { number => "X" }}),
+			title    => $anvil->Words->string({key => "striker_0226", variables => { number => 2 }}),
+			networks => $network_form, 
+			number   => "X", 
 		}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	}
@@ -1740,6 +1786,213 @@ sub handle_manifest
 	}
 	
 	return(0);
+}
+
+sub sanity_check_manifest_step2
+{
+	my ($anvil) = @_;
+	
+	my $sane = 1;
+	foreach my $i (1..$anvil->data->{cgi}{bcn_count}{value})
+	{
+		my $say_bcn     = $anvil->Words->string({key => "striker_0018", variables => { number => $i }});
+		my $network_key = "bcn".$i."_network";
+		my $subnet_key  = "bcn".$i."_subnet";
+		my $gateway_key = "bcn".$i."_gateway";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			network_key => $network_key, 
+			subnet_key  => $subnet_key, 
+			gateway_key => $gateway_key, 
+		}});
+		
+		# The BCN doesn't support setting the netmask (for now, anyway), so we'll set it here to /16.
+		# If later support is added, this will pick it up.
+		$anvil->data->{cgi}{$subnet_key}{value} = "255.255.0.0" if not defined $anvil->data->{cgi}{$subnet_key}{value};
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+			"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value},
+			"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
+		}});
+		
+		$sane = check_network($anvil, $sane, $say_bcn, $network_key, $subnet_key, $gateway_key);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+	}
+	
+	# There's only ever 1 SN
+	my $say_sn = $anvil->Words->string({key => "striker_0020", variables => { number => '1' }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_sn => $say_sn }});
+	
+	# The storage network always uses the subnet /16 and has no gateway.
+	$anvil->data->{cgi}{sn1_subnet}{value}  = "255.255.0.0" if not defined $anvil->data->{cgi}{sn1_subnet}{value};
+	$anvil->data->{cgi}{sn1_gateway}{value} = ""            if not defined $anvil->data->{cgi}{sn1_gateway}{value};
+		
+	$sane = check_network($anvil, $sane, $say_sn, "sn1_network", "sn1_subnet", "sn1_gateway");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+	
+	# Now IFNs
+	foreach my $i (1..$anvil->data->{cgi}{ifn_count}{value})
+	{
+		my $say_ifn     = $anvil->Words->string({key => "striker_0022", variables => { number => $i }});
+		my $network_key = "ifn".$i."_network";
+		my $subnet_key  = "ifn".$i."_subnet";
+		my $gateway_key = "ifn".$i."_gateway";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			say_bcn     => $say_ifn,
+			network_key => $network_key, 
+			subnet_key  => $subnet_key, 
+			gateway_key => $gateway_key, 
+		}});
+		
+		$anvil->data->{cgi}{$network_key}{value} = ""            if not defined $anvil->data->{cgi}{$network_key}{value};
+		$anvil->data->{cgi}{$network_key}{alert} = 0             if not defined $anvil->data->{cgi}{$network_key}{alert};
+		$anvil->data->{cgi}{$subnet_key}{value}  = "255.255.0.0" if not defined $anvil->data->{cgi}{$subnet_key}{value};
+		$anvil->data->{cgi}{$subnet_key}{alert}  = 0             if not defined $anvil->data->{cgi}{$subnet_key}{alert};
+		$anvil->data->{cgi}{$gateway_key}{value} = ""            if not defined $anvil->data->{cgi}{$gateway_key}{value};
+		$anvil->data->{cgi}{$gateway_key}{alert} = 0             if not defined $anvil->data->{cgi}{$gateway_key}{alert};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+			"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
+			"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value},
+			"cgi::${subnet_key}::alert"  => $anvil->data->{cgi}{$subnet_key}{alert},
+			"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
+			"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
+		}});
+		
+		$sane = check_network($anvil, $sane, $say_ifn, $network_key, $subnet_key, $gateway_key);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+	}
+	
+	return($sane);
+}
+
+### TODO: Make this a Validate module
+sub check_network
+{
+	my ($anvil, $sane, $say_network, $network_key, $subnet_key, $gateway_key) = @_;
+	
+	# Make sure the network and subnet are valid
+	my $local_sane = 1;
+	if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$network_key}{value}}))
+	{
+		# Bad network
+		my $message                                  = $anvil->Words->string({key => "error_0020", variables => { field => $say_network." - #!string!striker_0149!#" }});
+		   $anvil->data->{form}{error_massage}       = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+		   $anvil->data->{cgi}{$network_key}{alert}  = 1;
+		   $sane                                     = 0;
+		   $local_sane                               = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			sane                         => $sane, 
+			local_sane                   => $local_sane, 
+			"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
+			"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+		}});
+	}
+	if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$subnet_key}{value}}))
+	{
+		# Bad subnet
+		my $message                                 = $anvil->Words->string({key => "error_0020", variables => { field => $say_network." - #!string!striker_0025!#" }});
+		   $anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+		   $anvil->data->{cgi}{$subnet_key}{alert}  = 1;
+		   $sane                                    = 0;
+		   $local_sane                              = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			sane                        => $sane, 
+			local_sane                   => $local_sane, 
+			"cgi::${subnet_key}::alert" => $anvil->data->{cgi}{$subnet_key}{alert},
+			"cgi::${subnet_key}::value" => $anvil->data->{cgi}{$subnet_key}{value},
+		}});
+	}
+	
+	# The gateway can be blank
+	if (($anvil->data->{cgi}{$gateway_key}{value}) && (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$gateway_key}{value}})))
+	{
+		# It's not a valid IP.
+		my $message                                 = $anvil->Words->string({key => "error_0118", variables => { ip => $anvil->data->{cgi}{$gateway_key}{value} }});
+		   $anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+		   $anvil->data->{cgi}{$gateway_key}{alert} = 1;
+		   $sane                                    = 0;
+		   $local_sane                              = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			sane                         => $sane, 
+			local_sane                   => $local_sane, 
+			"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
+			"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
+		}});
+	}
+	
+	# If I'm still sane, make sure that the network is actually the bottom of the subnet.
+	if ($local_sane)
+	{
+		my $test_network = $anvil->Network->get_network({ip => $anvil->data->{cgi}{$network_key}{value}, subnet_mask => $anvil->data->{cgi}{$subnet_key}{value}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { test_network => $test_network }});
+		if (not $test_network)
+		{
+			# Something is invalid.
+			my $message = $anvil->Words->string({key => "error_0120", variables => { 
+				network => $anvil->data->{cgi}{$network_key}{value},
+				subnet  => $anvil->data->{cgi}{$subnet_key}{value},
+			}});
+			$anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->data->{cgi}{$network_key}{alert} = 1;
+			$anvil->data->{cgi}{$subnet_key}{alert}  = 1;
+			$sane                                    = 0;
+			$local_sane                              = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				sane                         => $sane, 
+				local_sane                   => $local_sane, 
+				"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
+				"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+				"cgi::${subnet_key}::alert"  => $anvil->data->{cgi}{$subnet_key}{alert},
+				"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value},
+			}});
+		}
+		elsif ($test_network ne $anvil->data->{cgi}{$network_key}{value})
+		{
+			# The user didn't give the base IP of the network. 
+			my $message = $anvil->Words->string({key => "error_0119", variables => { 
+				name => $say_network,
+				ip   => $test_network,
+			}});
+			$anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->data->{cgi}{$network_key}{alert} = 1;
+			$sane                                    = 0;
+			$local_sane                              = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				sane                         => $sane, 
+				local_sane                   => $local_sane, 
+				"cgi::${network_key}::alert" => $anvil->data->{cgi}{$network_key}{alert},
+				"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
+			}});
+		}
+		
+		# Lastly, if we've got a gateway, make sure it's in the network.
+		if (($local_sane) && ($anvil->data->{cgi}{$gateway_key}{value}))
+		{
+			my $base_ip = $anvil->Network->get_network({ip => $anvil->data->{cgi}{$gateway_key}{value}, subnet_mask => $anvil->data->{cgi}{$subnet_key}{value}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { base_ip => $base_ip }});
+			if ($base_ip ne $anvil->data->{cgi}{$network_key}{value})
+			{
+				# The gateway is not in the subnet
+				my $message = $anvil->Words->string({key => "error_0121", variables => { 
+					gateway => $anvil->data->{cgi}{$gateway_key}{value}, 
+					network => $anvil->data->{cgi}{$network_key}{value},
+					subnet  => $anvil->data->{cgi}{$subnet_key}{value},
+				}});
+				$anvil->data->{form}{error_massage}      = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->data->{cgi}{$gateway_key}{alert} = 1;
+				$sane                                    = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+					sane                         => $sane, 
+					"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
+					"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value},
+				}});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
+	return($sane);
 }
 
 sub sanity_check_manifest_step1

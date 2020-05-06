@@ -208,14 +208,38 @@
 <!-- start manifest-step2-network-entry -->
 						<tr>
 							<td class="column_header">
-								<!-- prefix -->
+								<!-- Network Name -->
 								#!variable!network!#: &nbsp; 
 							</td>
 							<td class="fixed_width_no_wrap">
-								<input type="text" name="#!variable!name!#" id="#!variable!name!#" value="#!variable!value!#" width="15" style="width: 15em;" class="#!variable!class!#" /> / #!variable!subnet!#
+								<input type="text" name="#!variable!network_name!#" id="#!variable!network_name!#" value="#!variable!network_value!#" width="15" style="width: 15em;" class="#!variable!network_class!#" />
+							</td>
+							<td class="fixed_width_no_wrap">
+								&nbsp; #!variable!subnet!# &nbsp;
+							</td>
+							<td class="fixed_width_no_wrap">
+								&nbsp;
 							</td>
 						</tr>
 <!-- end manifest-step2-network-entry -->
+
+<!-- start manifest-step2-network-entry-gateway -->
+						<tr>
+							<td class="column_header">
+								<!-- Network Name -->
+								#!variable!network!#: &nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="#!variable!network_name!#" id="#!variable!network_name!#" value="#!variable!network_value!#" width="15" style="width: 15em;" class="#!variable!network_class!#" />
+							</td>
+							<td class="fixed_width_no_wrap">
+								&nbsp; #!variable!subnet!# &nbsp;
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="#!variable!gateway_name!#" id="#!variable!gateway_name!#" value="#!variable!gateway_value!#" width="15" style="width: 15em;" class="#!variable!gateway_class!#" />
+							</td>
+						</tr>
+<!-- end manifest-step2-network-entry-gateway -->
 
 <!-- start manifest-step2 -->
 		<table align="center" class="anvil_main_menu">
@@ -249,27 +273,46 @@
 				<td>
 					<form name="manifest_step2" action="" method="post">
 					<table align="center" class="anvil_main_menu">
+						<tr>
+							<td class="column_header">
+								<!-- Network Name -->
+								&nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Network -->
+								#!string!striker_0149!#
+							</td>
+							<td class="column_header">
+								<!-- Subnet Mask -->
+								#!string!striker_0025!#
+							</td>
+							<td class="column_header">
+								<!-- Gateway -->
+								#!string!striker_0026!#
+							</td>
+						</tr>
 						#!variable!networks!#
 						<tr>
-							<td colspan="2">
+							<td colspan="4">
 								&nbsp;
 							</td>
 						</tr>
 						<tr>
-							<td>
+							<td colspan="2">
 								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
 							</td>
-							<td style="text-align: right;">
+							<td colspan="2" style="text-align: right;">
 								<input type="submit" name="next" id="next" value="#!string!striker_0013!#" class="button">
 							</td>
-							<input type="hidden" name="prefix"    id="prefix"    value="#!data!cgi::prefix::value!#">
-							<input type="hidden" name="domain"    id="domain"    value="#!data!cgi::domain::value!#">
-							<input type="hidden" name="sequence"  id="sequence"  value="#!data!cgi::sequence::value!#">
-							<input type="hidden" name="bcn_count" id="bcn_count" value="#!data!cgi::bcn_count::value!#">
-							<input type="hidden" name="ifn_count" id="ifn_count" value="#!data!cgi::ifn_count::value!#">
-							<input type="hidden" name="step"      id="step"      value="2">
-							<input type="hidden" name="anvil"     id="anvil"     value="true">
-							<input type="hidden" name="task"      id="task"      value="fences">
+							<input type="hidden" name="prefix"        id="prefix"        value="#!data!cgi::prefix::value!#">
+							<input type="hidden" name="domain"        id="domain"        value="#!data!cgi::domain::value!#">
+							<input type="hidden" name="sequence"      id="sequence"      value="#!data!cgi::sequence::value!#">
+							<input type="hidden" name="bcn_count"     id="bcn_count"     value="#!data!cgi::bcn_count::value!#">
+							<input type="hidden" name="ifn_count"     id="ifn_count"     value="#!data!cgi::ifn_count::value!#">
+							<input type="hidden" name="step"          id="step"          value="3">
+							<input type="hidden" name="anvil"         id="anvil"         value="true">
+							<input type="hidden" name="task"          id="task"          value="manifests">
+							<input type="hidden" name="manifest_uuid" id="manifest_uuid" value="#!data!cgi::manifest_uuid::value!#">
 						</tr>
 					</table>
 					</form>
@@ -285,11 +328,43 @@
 					<table class="centered">
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td class="column_header">
+								<!-- Network -->
+								#!string!striker_0149!#
+							</td>
+							<td>
+								#!string!message_0163!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Subnet Mask -->
+								#!string!striker_0025!#
+							</td>
+							<td>
+								#!string!message_0164!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Gateway -->
+								#!string!striker_0026!#
+							</td>
+							<td>
+								#!string!message_0165!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								&nbsp;
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
 								<!-- BCN -->
 								#!string!message_0160!# &nbsp;
 							</td>
 							<td>
-								#!variable!bcn_message!#
+								#!string!message_0131!#
 							</td>
 						</tr>
 						<tr style="border: 1px dotted #7f7f7f;">
@@ -298,7 +373,7 @@
 								#!string!message_0161!# &nbsp;
 							</td>
 							<td>
-								#!variable!sn_message!#
+								#!string!message_0132!#
 							</td>
 						</tr>
 						<tr style="border: 1px dotted #7f7f7f;">
@@ -307,7 +382,7 @@
 								#!string!message_0162!# &nbsp;
 							</td>
 							<td>
-								#!variable!ifn_message!#
+								#!string!message_0133!#
 							</td>
 						</tr>
 					</table>
