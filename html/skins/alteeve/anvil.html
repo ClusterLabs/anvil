@@ -298,6 +298,241 @@
 							</td>
 						</tr>
 						<tr>
+							<td class="column_header">
+								<!-- DNS --> 
+								#!string!striker_0037!#
+							</td>
+							<td colspan="3">
+								<input type="text" name="dns" id="dns" value="#!variable!dns!#" style="width: 30em;" class="#!variable!dns_class!#" />
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- NTP --> 
+								#!string!striker_0251!#
+							</td>
+							<td colspan="3">
+								<input type="text" name="ntp" id="ntp" value="#!variable!ntp!#" style="width: 30em;" class="#!variable!ntp_class!#" />
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- MTU --> 
+								#!string!striker_0253!#
+							</td>
+							<td colspan="3">
+								<input type="number" name="mtu" id="mtu" value="#!variable!mtu!#" style="width: 30em;" class="#!variable!mtu_class!#" />
+							</td>
+						</tr>
+						<tr>
+							<td colspan="4">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
+							</td>
+							<td colspan="2" style="text-align: right;">
+								<input type="submit" name="next" id="next" value="#!string!striker_0013!#" class="button">
+							</td>
+							<input type="hidden" name="prefix"        id="prefix"        value="#!data!cgi::prefix::value!#">
+							<input type="hidden" name="domain"        id="domain"        value="#!data!cgi::domain::value!#">
+							<input type="hidden" name="sequence"      id="sequence"      value="#!data!cgi::sequence::value!#">
+							<input type="hidden" name="bcn_count"     id="bcn_count"     value="#!data!cgi::bcn_count::value!#">
+							<input type="hidden" name="ifn_count"     id="ifn_count"     value="#!data!cgi::ifn_count::value!#">
+							<input type="hidden" name="step"          id="step"          value="3">
+							<input type="hidden" name="anvil"         id="anvil"         value="true">
+							<input type="hidden" name="task"          id="task"          value="manifests">
+							<input type="hidden" name="manifest_uuid" id="manifest_uuid" value="#!data!cgi::manifest_uuid::value!#">
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<table class="centered">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Network -->
+								#!string!striker_0149!#
+							</td>
+							<td>
+								#!string!message_0163!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Subnet Mask -->
+								#!string!striker_0025!#
+							</td>
+							<td>
+								#!string!message_0164!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Gateway -->
+								#!string!striker_0026!#
+							</td>
+							<td>
+								#!string!message_0165!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								&nbsp;
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- DNS --> 
+								#!string!striker_0037!#
+							</td>
+							<td>
+								#!string!striker_0038!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- NTP --> 
+								#!string!striker_0251!#
+							</td>
+							<td>
+								#!string!striker_0252!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- MTU --> 
+								#!string!striker_0253!#
+							</td>
+							<td>
+								#!string!striker_0254!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								&nbsp;
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- BCN -->
+								#!string!message_0160!# &nbsp;
+							</td>
+							<td>
+								#!string!message_0131!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- SN -->
+								#!string!message_0161!# &nbsp;
+							</td>
+							<td>
+								#!string!message_0132!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- IFN -->
+								#!string!message_0162!# &nbsp;
+							</td>
+							<td>
+								#!string!message_0133!#
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+<!-- end manifest-step2 -->
+
+<!-- start manifest-step3-network-entry -->
+						<tr>
+							<td class="column_header">
+								<!-- Network Name -->
+								#!variable!network!#: &nbsp; 
+								<input type="hidden" name="#!variable!network_name!#" id="#!variable!network_name!#" value="#!variable!network_value!#" />
+								<input type="hidden" name="#!variable!subnet_name!#"  id="#!variable!subnet_name!#"  value="#!variable!subnet_value!#" />
+								<input type="hidden" name="#!variable!gateway_name!#" id="#!variable!gateway_name!#" value="#!variable!gateway_value!#" />
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="#!variable!node1_network_name!#" id="#!variable!node1_network_name!#" value="#!variable!node1_network_value!#" width="15" style="width: 15em;" class="#!variable!node1_network_class!#" />
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="#!variable!node2_network_name!#" id="#!variable!node2_network_name!#" value="#!variable!node2_network_value!#" width="15" style="width: 15em;" class="#!variable!node2_network_class!#" />
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="#!variable!dr1_network_name!#"   id="#!variable!dr1_network_name!#"  value="#!variable!dr1_network_value!#"    width="15" style="width: 15em;" class="#!variable!dr1_network_class!#" />
+							</td>
+						</tr>
+<!-- end manifest-step3-network-entry -->
+
+<!-- start manifest-step3 -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="title">
+					#!variable!title!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="description">
+					#!string!striker_0250!#
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<form name="manifest_step3" action="" method="post">
+					<table align="center" class="anvil_main_menu">
+						<tr>
+							<td class="column_header">
+								<!-- Variable -->
+								&nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Node 1 -->
+								#!string!striker_0255!#
+							</td>
+							<td class="column_header">
+								<!-- Node 2 -->
+								#!string!striker_0256!#
+							</td>
+							<td class="column_header">
+								<!-- DR Host -->
+								#!string!striker_0257!#
+							</td>
+						</tr>
+						#!variable!networks!#
+						<tr>
+							<td colspan="4">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
 							<td colspan="2">
 								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button">
 							</td>
@@ -389,7 +624,7 @@
 				</td>
 			</tr>
 		</table>
-<!-- end manifest-step2 -->
+<!-- end manifest-step3 -->
 
 <!-- start fence-agent-configuration -->
 		<table align="center" class="anvil_main_menu">

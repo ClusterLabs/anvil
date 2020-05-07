@@ -180,6 +180,8 @@ The error was:
 		<key name="error_0119">The IP given for the network: [#!variable!name!#] does not appear to be the network base IP. Did you mean: [#!variable!ip!#]?</key>
 		<key name="error_0120">The IP given for the network: [#!variable!network!#] with the subnet mask: [#!variable!subnet!#] does not appear to be a valid network range.</key>
 		<key name="error_0121">The gateway: [#!variable!gateway!#] does not apear to be in the network: [#!variable!network!#]/[#!variable!subnet!#].</key>
+		<key name="error_0122">An NTP entry is bad. One or more IPv4 addresses can be specified, with a comma separating multiple IPs.</key>
+		<key name="error_0123">The MTU needs to be a positive integer equal or above '512' bytes.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1361,6 +1363,14 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0247">This is the domain name you would like to use for this #!string!brand_0006!#. This will be used in the next step when setting default hostnames for various devices.</key>
 		<key name="striker_0248">The second step specified the networks (subnets) that will be used for each network. Generally, you only want to change the IFN(s). The BCN and SN are always '/16' subnets and should only be changed if they conflict with an existing IFN.</key>
 		<key name="striker_0249">Default</key>
+		<key name="striker_0250">The third step is where it all comes together!</key>
+		<key name="striker_0251"><![CDATA[<a href="https://en.wikipedia.org/wiki/Network_Time_Protocol" target="_new">NTP</a>]]></key>
+		<key name="striker_0252"><![CDATA[You can specify which network time servers to use, if necessary. You can use commas to specify two or more <a href="https://en.wikipedia.org/wiki/Network_Time_Protocol" target="_new">NTP</a> servers.]]></key>
+		<key name="striker_0253"><![CDATA[<a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit" target="_new">MTU<a/>]]></key>
+		<key name="striker_0254"><![CDATA[If you network supports "Jumbo Frames" (maximum transmission unit size, <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit" target="_new">MTU<a/>, over 1500 bytes), you can specify the maximum size in bytes here. Be sure all equipment support your chosen MTU size! When in doubt, leave this set to 1500.]]></key>
+		<key name="striker_0255">Node 1</key>
+		<key name="striker_0256">Node 2</key>
+		<key name="striker_0257">DR Host</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
