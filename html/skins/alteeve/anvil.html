@@ -199,6 +199,15 @@
 								#!string!striker_0245!#
 							</td>
 						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- Password note -->
+								#!string!striker_0051!#
+							</td>
+							<td>
+								#!string!striker_0259!#
+							</td>
+						</tr>
 					</table>
 				</td>
 			</tr>
@@ -340,6 +349,7 @@
 							<input type="hidden" name="domain"        id="domain"        value="#!data!cgi::domain::value!#">
 							<input type="hidden" name="sequence"      id="sequence"      value="#!data!cgi::sequence::value!#">
 							<input type="hidden" name="bcn_count"     id="bcn_count"     value="#!data!cgi::bcn_count::value!#">
+							<input type="hidden" name="sn_count"      id="sn_count"      value="#!data!cgi::bcn_count::value!#">
 							<input type="hidden" name="ifn_count"     id="ifn_count"     value="#!data!cgi::ifn_count::value!#">
 							<input type="hidden" name="step"          id="step"          value="3">
 							<input type="hidden" name="anvil"         id="anvil"         value="true">
@@ -465,16 +475,76 @@
 								<input type="hidden" name="#!variable!gateway_name!#" id="#!variable!gateway_name!#" value="#!variable!gateway_value!#" />
 							</td>
 							<td class="fixed_width_no_wrap">
-								<input type="text" name="#!variable!node1_network_name!#" id="#!variable!node1_network_name!#" value="#!variable!node1_network_value!#" width="15" style="width: 15em;" class="#!variable!node1_network_class!#" />
+								<input type="text" name="#!variable!node1_network_name!#" id="#!variable!node1_network_name!#" value="#!variable!node1_network_value!#" width="15" style="width: 15em;" class="#!variable!node1_network_class!#" /> &nbsp; 
 							</td>
 							<td class="fixed_width_no_wrap">
-								<input type="text" name="#!variable!node2_network_name!#" id="#!variable!node2_network_name!#" value="#!variable!node2_network_value!#" width="15" style="width: 15em;" class="#!variable!node2_network_class!#" />
+								&nbsp; <input type="text" name="#!variable!node2_network_name!#" id="#!variable!node2_network_name!#" value="#!variable!node2_network_value!#" width="15" style="width: 15em;" class="#!variable!node2_network_class!#" /> &nbsp;
 							</td>
 							<td class="fixed_width_no_wrap">
-								<input type="text" name="#!variable!dr1_network_name!#"   id="#!variable!dr1_network_name!#"  value="#!variable!dr1_network_value!#"    width="15" style="width: 15em;" class="#!variable!dr1_network_class!#" />
+								&nbsp; <input type="text" name="#!variable!dr1_network_name!#" id="#!variable!dr1_network_name!#" value="#!variable!dr1_network_value!#" width="15" style="width: 15em;" class="#!variable!dr1_network_class!#" />
 							</td>
 						</tr>
 <!-- end manifest-step3-network-entry -->
+
+<!-- start manifest-step3-ipmi-entry -->
+						<tr>
+							<td class="column_header">
+								<!-- Network Name -->
+								#!string!striker_0258!#: &nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="node1_ipmi_ip" id="node1_ipmi_ip" value="#!variable!node1_value!#" width="15" style="width: 15em;" class="#!variable!node1_class!#" /> &nbsp;
+							</td>
+							<td class="fixed_width_no_wrap">
+								&nbsp; <input type="text" name="node2_ipmi_ip" id="node2_ipmi_ip" value="#!variable!node2_value!#" width="15" style="width: 15em;" class="#!variable!node2_class!#" /> &nbsp;
+							</td>
+							<td class="fixed_width_no_wrap">
+								&nbsp; <input type="text" name="dr1_ipmi_ip" id="dr1_ipmi_ip" value="#!variable!dr1_value!#" width="15" style="width: 15em;" class="#!variable!dr1_class!#" />
+							</td>
+						</tr>
+<!-- end manifest-step3-ipmi-entry -->
+
+<!-- start manifest-step3-fence-entry -->
+						<tr>
+							<td class="column_header">
+								<!-- Fence Name -->
+								#!variable!name!#: &nbsp; 
+								<input type="hidden" name="#!variable!fence_uuid_name!#" id="#!variable!fence_uuid_name!#" value="#!variable!fence_uuid_value!#" />
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="text" name="#!variable!node1_fence_name!#" id="#!variable!node1_fence_name!#" value="#!variable!node1_fence_value!#" style="width: 15em;" class="#!variable!node1_fence_class!#" /> &nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap">
+								&nbsp; <input type="text" name="#!variable!node2_fence_name!#" id="#!variable!node2_fence_name!#" value="#!variable!node2_fence_value!#" style="width: 15em;" class="#!variable!node2_fence_class!#" /> &nbsp;
+							</td>
+							<td class="fixed_width_no_wrap">
+								<!-- For now, we don't care about DR fencing, Maybe this will change later -->
+								<!-- &nbsp; <input type="text" name="#!variable!dr1_fence_name!#" id="#!variable!dr1_fence_name!#" value="#!variable!dr1_fence_value!#" style="width: 15em;" class="#!variable!dr1_fence_class!#" /> -->
+								&nbsp;
+							</td>
+						</tr>
+<!-- end manifest-step3-fence-entry -->
+
+<!-- start manifest-step3-ups-entry -->
+						<tr>
+							<td class="column_header">
+								<!-- UPS Name -->
+								#!variable!name!#: &nbsp; 
+								<input type="hidden" name="#!variable!ups_uuid_name!#" id="#!variable!ups_uuid_name!#" value="#!variable!ups_uuid_value!#" />
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="checkbox" name="#!variable!node1_ups_name!#" id="#!variable!node1_ups_name!#" #!variable!node1_ups_checked!# /> &nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap">
+								<input type="checkbox" name="#!variable!node2_ups_name!#" id="#!variable!node2_ups_name!#" #!variable!node2_ups_checked!# /> &nbsp; 
+							</td>
+							<td class="fixed_width_no_wrap">
+								<!-- For now, we don't care about DR's UPSes, Maybe this will change later -->
+								<!-- <input type="checkbox" name="#!variable!dr1_ups_name!#" id="#!variable!dr1_ups_name!#" #!variable!dr1_ups_checked!# /> &nbsp; -->
+								&nbsp;
+							</td>
+						</tr>
+<!-- end manifest-step3-ups-entry -->
 
 <!-- start manifest-step3 -->
 		<table align="center" class="anvil_main_menu">
@@ -508,6 +578,7 @@
 				<td>
 					<form name="manifest_step3" action="" method="post">
 					<table align="center" class="anvil_main_menu">
+						<!-- IPs -->
 						<tr>
 							<td class="column_header">
 								<!-- Variable -->
@@ -519,14 +590,58 @@
 							</td>
 							<td class="column_header">
 								<!-- Node 2 -->
-								#!string!striker_0256!#
+								&nbsp; &nbsp; #!string!striker_0256!#
 							</td>
 							<td class="column_header">
 								<!-- DR Host -->
-								#!string!striker_0257!#
+								&nbsp; &nbsp; #!string!striker_0257!#
 							</td>
 						</tr>
 						#!variable!networks!#
+						<!-- Fences -->
+						<tr>
+							<td class="column_header">
+								<!-- Fence Name -->
+								&nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Node 1 -->
+								#!string!striker_0262!#
+							</td>
+							<td class="column_header">
+								<!-- Node 2 -->
+								&nbsp; &nbsp; #!string!striker_0262!#
+							</td>
+							<td class="column_header">
+								<!-- DR Host -->
+								<!-- For now, we don't care about DR fencing, Maybe this will change later -->
+								<!-- &nbsp; &nbsp; #!string!striker_0262!# -->
+								&nbsp;
+							</td>
+						</tr>
+						#!variable!fences!#
+						<!-- UPSes -->
+						<tr>
+							<td class="column_header">
+								<!-- UPS Name -->
+								&nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Node 1 -->
+								#!string!striker_0264!#
+							</td>
+							<td class="column_header">
+								<!-- Node 2 -->
+								&nbsp; &nbsp; #!string!striker_0264!#
+							</td>
+							<td class="column_header">
+								<!-- DR Host -->
+								<!-- For now, we don't care about DR fencing, Maybe this will change later -->
+								<!-- &nbsp; &nbsp; #!string!striker_0264!# -->
+								&nbsp;
+							</td>
+						</tr>
+						#!variable!upses!#
 						<tr>
 							<td colspan="4">
 								&nbsp;
@@ -543,8 +658,13 @@
 							<input type="hidden" name="domain"        id="domain"        value="#!data!cgi::domain::value!#">
 							<input type="hidden" name="sequence"      id="sequence"      value="#!data!cgi::sequence::value!#">
 							<input type="hidden" name="bcn_count"     id="bcn_count"     value="#!data!cgi::bcn_count::value!#">
+							<input type="hidden" name="sn_count"      id="sn_count"      value="#!data!cgi::sn_count::value!#">
 							<input type="hidden" name="ifn_count"     id="ifn_count"     value="#!data!cgi::ifn_count::value!#">
-							<input type="hidden" name="step"          id="step"          value="3">
+							<input type="hidden" name="dns"           id="dns"           value="#!data!cgi::dns::value!#" />
+							<input type="hidden" name="ntp"           id="ntp"           value="#!data!cgi::ntp::value!#" />
+							<input type="hidden" name="mtu"           id="mtu"           value="#!data!cgi::mtu::value!#" />
+							<input type="hidden" name="step"          id="step"          value="4">
+							<input type="hidden" name="reload"        id="reload"        value="true">
 							<input type="hidden" name="anvil"         id="anvil"         value="true">
 							<input type="hidden" name="task"          id="task"          value="manifests">
 							<input type="hidden" name="manifest_uuid" id="manifest_uuid" value="#!data!cgi::manifest_uuid::value!#">
@@ -563,29 +683,38 @@
 					<table class="centered">
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td class="column_header">
-								<!-- Network -->
-								#!string!striker_0149!#
+								<!-- IPMI IP -->
+								#!string!striker_0258!# &nbsp;
 							</td>
 							<td>
-								#!string!message_0163!#
+								#!string!striker_0261!#
 							</td>
 						</tr>
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td class="column_header">
-								<!-- Subnet Mask -->
-								#!string!striker_0025!#
+								<!-- IPMI Note -->
+								#!string!striker_0260!# &nbsp;
 							</td>
 							<td>
-								#!string!message_0164!#
+								#!string!striker_0266!#
 							</td>
 						</tr>
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td class="column_header">
-								<!-- Gateway -->
-								#!string!striker_0026!#
+								<!-- Fence Note -->
+								#!string!striker_0262!# &nbsp;
 							</td>
 							<td>
-								#!string!message_0165!#
+								#!string!striker_0263!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								<!-- UPS Note -->
+								#!string!striker_0264!# &nbsp;
+							</td>
+							<td>
+								#!string!striker_0265!#
 							</td>
 						</tr>
 						<tr>
@@ -593,38 +722,23 @@
 								&nbsp;
 							</td>
 						</tr>
-						<tr style="border: 1px dotted #7f7f7f;">
-							<td class="column_header">
-								<!-- BCN -->
-								#!string!message_0160!# &nbsp;
-							</td>
-							<td>
-								#!string!message_0131!#
-							</td>
-						</tr>
-						<tr style="border: 1px dotted #7f7f7f;">
-							<td class="column_header">
-								<!-- SN -->
-								#!string!message_0161!# &nbsp;
-							</td>
-							<td>
-								#!string!message_0132!#
-							</td>
-						</tr>
-						<tr style="border: 1px dotted #7f7f7f;">
-							<td class="column_header">
-								<!-- IFN -->
-								#!string!message_0162!# &nbsp;
-							</td>
-							<td>
-								#!string!message_0133!#
-							</td>
-						</tr>
+						#!variable!network_note!#
 					</table>
 				</td>
 			</tr>
 		</table>
 <!-- end manifest-step3 -->
+
+<!-- start manifest-step3-network-note-entry -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								#!variable!name!# &nbsp;
+							</td>
+							<td>
+								#!variable!message!#
+							</td>
+						</tr>
+<!-- end manifest-step3-network-note-entry -->
 
 <!-- start fence-agent-configuration -->
 		<table align="center" class="anvil_main_menu">

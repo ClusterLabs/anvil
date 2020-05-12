@@ -13,6 +13,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Striker.pm";
 
 ### Methods;
+# generate_manifest
 # get_fence_data
 # get_local_repo
 # get_peer_data
@@ -78,6 +79,24 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 generate_manifest
+
+This reads the CGI data coming from the manifest form to generate the manifest JSON.
+
+=cut
+sub generate_manifest
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_fence_data()" }});
+	
+	my $manifest_uuid = "";
+	
+	return($manifest_uuid);
+}
 
 =head2 get_fence_data
 

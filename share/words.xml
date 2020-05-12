@@ -182,6 +182,9 @@ The error was:
 		<key name="error_0121">The gateway: [#!variable!gateway!#] does not apear to be in the network: [#!variable!network!#]/[#!variable!subnet!#].</key>
 		<key name="error_0122">An NTP entry is bad. One or more IPv4 addresses can be specified, with a comma separating multiple IPs.</key>
 		<key name="error_0123">The MTU needs to be a positive integer equal or above '512' bytes.</key>
+		<key name="error_0124">The IP address: [#!variable!ip!#] does not appear to be within any of the configured networks.</key>
+		<key name="error_0125">The IPv4 address assigned to the IPMI interface on: [#!variable!network!#] is invalid.</key>
+		<key name="error_0126">The IP address: [#!variable!ip!#] does not appear to be in the network: [#!variable!network!#].</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1371,6 +1374,16 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0255">Node 1</key>
 		<key name="striker_0256">Node 2</key>
 		<key name="striker_0257">DR Host</key>
+		<key name="striker_0258">IPMI IP</key>
+		<key name="striker_0259"><![CDATA[<span class="notice">Note</span>: The password to use for an #!string!brand_0006!# will be asked when the manifest is actually run. The password is not stored in the manifest.]]></key>
+		<key name="striker_0260">IPMI Details</key>
+		<key name="striker_0261"><![CDATA[<span class="notice">Note</span>: The IPMI information is set when a node is initialized. The only thing set here is the IP address.]]></key>
+		<key name="striker_0262">Fence Port</key>
+		<key name="striker_0263">This is the "port" (outlet, name or other ID) that the associated fence device uses to terminate the target node. This could be the outlet number on a PDU, VM name on a hypervisor host, etc.</key>
+		<key name="striker_0264">Powered By UPS</key>
+		<key name="striker_0265">If the machine is powered by a given UPS, click to check the corresponding box. This information will be used in power loss events to decide what machine should host servers, which should be powered off during load-shed conditions and when to gracefully power off entirely.</key>
+		<key name="striker_0266">If your machine has an IPMI BMC, (iDRAC, iLO, iRMC, etc), then you can enter the IP to give it here. Further details will be collected when the manifest runs. Leave blank if the machine doesn't have IPMI.</key>
+		<key name="striker_0267"><![CDATA[Network: [<span class="code">#!variable!network!#</span>].]]></key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
