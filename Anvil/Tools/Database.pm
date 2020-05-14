@@ -5545,9 +5545,9 @@ When set, this UUID is used to update an existing record. When not passed, the C
 
 This is the name of the manifest. Generally, this is the name of the Anvil! itself. It can be set to something more useful to the user, however.
 
-=head3 manifest_last_ran (required)
+=head3 manifest_last_ran (optional, default 0)
 
-This is the unix time when the manifest was last used to (re)build an Anvil! system. Set this to C<< 0 >> if the manifest hasn't been used yet.
+This is the unix time when the manifest was last used to (re)build an Anvil! system. If not passed, the value is not changed. If the manifest is new, this is set to C<< 0 >>.
 
 =head3 manifest_xml (required)
 
@@ -5586,7 +5586,6 @@ sub insert_or_update_manifests
 		manifest_note     => $manifest_note, 
 	}});
 	
-	
 	# INSERT, but make sure we have enough data first.
 	if (not $delete)
 	{
@@ -5609,7 +5608,8 @@ sub insert_or_update_manifests
 		# devices can share the MAC with the real interface.
 		my $query = "
 SELECT 
-    manifest_uuid 
+    manifest_uuid, 
+    manifest_last_ran 
 FROM 
     manifests 
 WHERE 
@@ -5617,9 +5617,28 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		$manifest_uuid = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__})->[0]->[0];
-		$manifest_uuid = "" if not defined $manifest_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		if ($count)
+		{
+			# If we weren't passed a 'manifest_last_ran', load the old value here.
+			$manifest_uuid     = $results->[0]->[0];
+			$manifest_last_ran = $results->[0]->[1] if $manifest_last_ran eq "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				manifest_uuid     => $manifest_uuid,
+				manifest_last_ran => $manifest_last_ran, 
+			}});
+		}
+		elsif ($manifest_last_ran eq "")
+		{
+			# This is a new manifest and 'manifest_last_ran' wasn't passed, so set it to 0.
+			$manifest_last_ran = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_last_ran => $manifest_last_ran }});
+		}
 	}
 	
 	if ($delete)

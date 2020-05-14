@@ -49,22 +49,49 @@
 				<td class="main_option_icon">
 					&nbsp;
 				</td>
-				<td class="main_option">
+				<td>
 					#!string!striker_0205!#
 				</td>
 			</tr>
 			<tr>
-				<td class="main_option_icon">
+				<td>
 					&nbsp;
 				</td>
-				<td class="main_option">
+				<td class="main_option" col>
 					<table>
-						#!variable!existing_manifests!#
+						<div id="existing_manifests">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td class="column_header">
+								#!string!striker_0207!#
+							</td>
+							<td class="column_header">
+								#!string!striker_0206!#
+							</td>
+							<td class="column_header">
+								#!string!header_0022!#
+							</td>
+						</tr>
+					#!variable!existing_manifests!#
+						</div>
 					</table>
 				</td>
 			</tr>
 		</table>
 <!-- end create-menu -->
+
+<!-- start create-menu-existing-manifest-entry -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td>
+								<a href="?anvil=true&task=manifest&edit=true&manifest_uuid=#!variable!manifest_uuid!#" class="fixed_link_highlight">#!variable!manifest_name!#</a> &nbsp; 
+							</td>
+							<td style="text-align: center;">
+								<a href="?anvil=true&task=manifest&run=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/run.png" alt="#!string!striker_0206!#" style="height: .8em;"></a> &nbsp; 
+							</td>
+							<td style="text-align: center;">
+								<a href="?anvil=true&task=manifest&delete=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
+							</td>
+						</tr>
+<!-- end create-menu-existing-manifest-entry -->
 
 <!-- start manifest-step1 -->
 		<table align="center" class="anvil_main_menu">
@@ -1701,23 +1728,6 @@
 							</td>
 						</tr>
 <!-- end ups-agent-description -->
-
-<!-- start existing-manifest-entry -->
-						<tr>
-							<td>
-								<a href="?anvil=true&task=manifest&run=true&manifest_uuid=#!variable!manifest_uuid!#">#!string!striker_0206!#</a>
-							</td>
-							<td>
-								#!variable!manifest_name!#
-							</td>
-							<td>
-								<a href="?anvil=true&task=manifest&edit=true&manifest_uuid=#!variable!manifest_uuid!#">#!string!striker_0207!#</a>
-							</td>
-							<td>
-								<a href="?anvil=true&task=manifest&delete=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
-							</td>
-						</tr>
-<!-- end existing-manifest-entry -->
 
 <!-- start main-menu -->
 		<table align="center" class="anvil_main_menu">

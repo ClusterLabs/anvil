@@ -96,7 +96,7 @@ sub generate_manifest
 	$anvil->Database->get_upses({debug => $debug});
 	$anvil->Database->get_fences({debug => $debug});
 	
-	my $manifest_uuid   = $anvil->data->{cgi}{manifest_uuid}{value};
+	my $manifest_uuid   = $anvil->data->{cgi}{manifest_uuid}{value} eq "new" ? "" : $anvil->data->{cgi}{manifest_uuid}{value};
 	my $padded_sequence = $anvil->data->{cgi}{sequence}{value};
 	if (length($padded_sequence) == 1)
 	{
@@ -179,30 +179,8 @@ sub generate_manifest
 	$manifest_xml .= '	</fences>
 	<machines>
 ';
-=cut
-2020/05/13 11:59:14:Get.pm:394; cgi::dr1_bcn1_network::value ... : [10.201.14.3]
-2020/05/13 11:59:14:Get.pm:394; cgi::dr1_ifn1_network::value ... : [10.255.14.3]
-2020/05/13 11:59:14:Get.pm:394; cgi::dr1_ifn2_network::value ... : [192.168.122.16]
-2020/05/13 11:59:14:Get.pm:394; cgi::dr1_sn1_network::value .... : [10.101.14.3]
 
-2020/05/13 11:59:14:Get.pm:394; cgi::node1_bcn1_network::value . : [10.201.14.1]
-2020/05/13 11:59:14:Get.pm:394; cgi::node1_ifn1_network::value . : [10.255.14.1]
-2020/05/13 11:59:14:Get.pm:394; cgi::node1_ifn2_network::value . : [192.168.122.14]
-2020/05/13 11:59:14:Get.pm:394; cgi::node1_sn1_network::value .. : [10.101.14.1]
-
-2020/05/13 11:59:14:Get.pm:394; cgi::node2_bcn1_network::value . : [10.201.14.2]
-2020/05/13 11:59:14:Get.pm:394; cgi::node2_ifn1_network::value . : [10.255.14.2]
-2020/05/13 11:59:14:Get.pm:394; cgi::node2_ifn2_network::value . : [192.168.122.15]
-2020/05/13 11:59:14:Get.pm:394; cgi::node2_ipmi_ip::value ...... : [10.201.15.2]
-2020/05/13 11:59:14:Get.pm:394; cgi::node2_sn1_network::value .. : [10.101.14.2]
-
-2020/05/13 11:59:14:Get.pm:394; cgi::node1_fence_el8-pdu01::value: [1]
-2020/05/13 11:59:14:Get.pm:394; cgi::node1_fence_el8-pdu02::value: [1]
-2020/05/13 11:59:14:Get.pm:394; cgi::node2_fence_el8-pdu01::value: [2]
-2020/05/13 11:59:14:Get.pm:394; cgi::node2_fence_el8-pdu02::value: [2]
-
-2020/05/13 11:59:14:Get.pm:394; cgi::manifest_uuid::value ...... : [new]
-=cut
+	# Now record the info about the machines.
 	foreach my $machine (sort {$a cmp $b} keys %{$machines})
 	{
 		my $host_name = $node1_name;
@@ -241,7 +219,15 @@ sub generate_manifest
 ';
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_xml => $manifest_xml }});
 	
-	return($manifest_uuid);
+	# Now save the manifest!
+	($manifest_uuid) = $anvil->Database->insert_or_update_manifests({
+		debug         => $debug,
+		manifest_uuid => $manifest_uuid, 
+		manifest_name => $anvil_name, 
+		manifest_xml  => $manifest_xml, 
+	});
+	
+	return($manifest_uuid, $anvil_name);
 }
 
 =head2 get_fence_data

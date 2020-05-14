@@ -1101,6 +1101,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="ok_0006">The fence device: [#!variable!name!#] has been successfully deleted!</key>
 		<key name="ok_0007">The UPS: [#!variable!name!#] has been successfully saved!</key>
 		<key name="ok_0008">The UPS: [#!variable!name!#] has been successfully deleted!</key>
+		<key name="ok_0009">The install manifest: [#!variable!name!#] has been successfully saved!</key>
 
 		<!-- String prefixes -->
 		<key name="prefix_0001">[ Error ]   - </key>
@@ -1547,6 +1548,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0038">[ Warning ] - The UPS: [#!variable!name!#] appears to have not been saved.</key>
 		<key name="warning_0039">[ Warning ] - There's a problem with the form.</key>
 		<key name="warning_0040">[ Warning ] - The UPS: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
+		<key name="warning_0041">[ Warning ] - There was a problem saving the install manifest. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
 		
 	</language>
 	<!-- 日本語 -->

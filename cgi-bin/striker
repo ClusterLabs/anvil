@@ -1599,8 +1599,26 @@ sub handle_manifest
 				else
 				{
 					# Save the manifest!
-					$anvil->data->{cgi}{step}{value} = 3;
-					my ($manifest_uuid) = $anvil->Striker->generate_manifest({debug => 2});
+					my ($manifest_uuid, $manifest_name) = $anvil->Striker->generate_manifest({debug => 2});
+					if ($manifest_uuid)
+					{
+						# Success! 
+						my $message                         = $anvil->Words->string({key => "ok_0009", variables => { name => $manifest_name }});
+						   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
+						
+						# Go back to the main page.
+						process_create($anvil);
+						return(0);
+					}
+					else
+					{
+						# Something went wrong, go back to the third page
+						   $anvil->data->{cgi}{step}{value}    = 3;
+						my $message                            = $anvil->Words->string({key => "warning_0041"});
+						   $anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+					}
 				}
 			}
 		}
@@ -2677,7 +2695,7 @@ ORDER BY
 				manifest_xml      => $manifest_xml, 
 				manifest_note     => $manifest_note, 
 			}});
-			$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "existing-manifest-entry", variables => {
+			$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "create-menu-existing-manifest-entry", variables => {
 				manifest_uuid => $manifest_uuid, 
 				manifest_name => $manifest_name, 
 			}});
@@ -2811,8 +2829,8 @@ sub process_upses
 			if ($ups_uuid)
 			{
 				# Deleted successfully
-				my $message = $anvil->Words->string({key => "ok_0008", variables => { name => $ups_name }});
-				$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
+				my $message                         = $anvil->Words->string({key => "ok_0008", variables => { name => $ups_name }});
+				   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
 			}
 			else

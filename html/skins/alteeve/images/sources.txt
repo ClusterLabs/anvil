@@ -79,3 +79,6 @@ Fence by P Thanga Vignesh from the Noun Project (https://thenounproject.com/term
 
 uninterruptible power supply by Denis Shumaylov from the Noun Project (https://thenounproject.com/term/uninterruptible-power-supply/1201263/)
  - ups.png
+
+operation by Adrien Coquet from the Noun Project (https://thenounproject.com/term/operation/2998606/)
+ - run.png
