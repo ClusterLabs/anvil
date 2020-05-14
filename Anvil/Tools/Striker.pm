@@ -82,7 +82,7 @@ sub parent
 
 =head2 generate_manifest
 
-This reads the CGI data coming from the manifest form to generate the manifest JSON.
+This reads the CGI data coming from the manifest form to generate the manifest XML.
 
 =cut
 sub generate_manifest
@@ -91,9 +91,155 @@ sub generate_manifest
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->get_fence_data()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->generate_manifest()" }});
 	
-	my $manifest_uuid = "";
+	$anvil->Database->get_upses({debug => $debug});
+	$anvil->Database->get_fences({debug => $debug});
+	
+	my $manifest_uuid   = $anvil->data->{cgi}{manifest_uuid}{value};
+	my $padded_sequence = $anvil->data->{cgi}{sequence}{value};
+	if (length($padded_sequence) == 1)
+	{
+		$padded_sequence = sprintf("%02d", $padded_sequence);
+	}
+	my $anvil_name = $anvil->data->{cgi}{prefix}{value}."-anvil-".$padded_sequence;
+	my $node1_name = $anvil->data->{cgi}{prefix}{value}."-a".$padded_sequence."n01";
+	my $node2_name = $anvil->data->{cgi}{prefix}{value}."-a".$padded_sequence."n02";
+	my $dr1_name   = $anvil->data->{cgi}{prefix}{value}."-a".$padded_sequence."dr01";
+	my $machines   = {};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+	my $manifest_xml = '<?xml version="1.0" encoding="UTF-8"?>
+<install_manifest name="'.$anvil_name.'" domain="'.$anvil->data->{cgi}{domain}{value}.'">
+	<networks mtu="'.$anvil->data->{cgi}{mtu}{value}.'" dns="'.$anvil->data->{cgi}{dns}{value}.'" ntp="'.$anvil->data->{cgi}{ntp}{value}.'">
+';
+	foreach my $network ("bcn", "sn", "ifn")
+	{
+		my $count_key = $network."_count";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cgi::${count_key}::value" => $anvil->data->{cgi}{$count_key}{value} }});
+		foreach my $i (1..$anvil->data->{cgi}{$count_key}{value})
+		{
+			my $network_name =  $network.$i;
+			my $network_key  =  $network_name."_network";
+			my $subnet_key   =  $network_name."_subnet";
+			my $gateway_key  =  $network_name."_gateway";
+			   $manifest_xml .= '		<network name="'.$network_name.'" network="'.$anvil->data->{cgi}{$network_key}{value}.'" subnet="'.$anvil->data->{cgi}{$subnet_key}{value}.'" gateway="'.$anvil->data->{cgi}{$gateway_key}{value}.'" />'."\n";
+			
+			# While we're here, gather the network data for the machines.
+			foreach my $machine ("node1", "node2", "dr1")
+			{
+				# Record the network
+				my $ip_key = $machine."_".$network_name."_network";
+				$machines->{$machine}{network}{$network_name} = defined $anvil->data->{cgi}{$ip_key}{value} ? $anvil->data->{cgi}{$ip_key}{value} : "";
+				
+				# On the first loop (bcn1), pull in the other information as well.
+				if (($network eq "bcn") && ($i eq "1"))
+				{
+					# Get the IP.
+					my $ipmi_ip_key = $machine."_ipmi_ip";
+					$machines->{$machine}{ipmi_ip} = defined $anvil->data->{cgi}{$ipmi_ip_key}{value} ? $anvil->data->{cgi}{$ipmi_ip_key}{value} : "";
+					
+					# Find the UPSes.
+					foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
+					{
+						my $ups_key                              = $machine."_ups_".$ups_name;
+						   $anvil->data->{cgi}{$ups_key}{value}  = "" if not defined $anvil->data->{cgi}{$ups_key}{value};
+						   $machines->{$machine}{ups}{$ups_name} = $anvil->data->{cgi}{$ups_key}{value} ? "1" : "0";
+					}
+					
+					# Find the Fence devices.
+					foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_name}})
+					{
+						my $fence_key                                = $machine."_fence_".$fence_name;
+						   $anvil->data->{cgi}{$fence_key}{value}    = "" if not defined $anvil->data->{cgi}{$fence_key}{value};
+						   $machines->{$machine}{fence}{$fence_name} = $anvil->data->{cgi}{$fence_key}{value};
+					}
+				}
+			}
+		}
+	}
+	$manifest_xml .= '	</networks>
+	<upses>
+';
+	# We don't store information about the UPS as it may change over time. We just need the reference.
+	foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
+	{
+		$manifest_xml .= '		<ups name="'.$ups_name.'" uuid="'.$anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid}.'" />
+';
+	}
+	$manifest_xml .= '	</upses>
+	<fences>
+';
+	
+	# We don't store information about the UPS as it may change over time. We just need the reference.
+	foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_name}})
+	{
+		$manifest_xml .= '		<fence name="'.$fence_name.'" uuid="'.$anvil->data->{fences}{fence_name}{$fence_name}{fence_uuid}.'" />
+';
+	}
+	$manifest_xml .= '	</fences>
+	<machines>
+';
+=cut
+2020/05/13 11:59:14:Get.pm:394; cgi::dr1_bcn1_network::value ... : [10.201.14.3]
+2020/05/13 11:59:14:Get.pm:394; cgi::dr1_ifn1_network::value ... : [10.255.14.3]
+2020/05/13 11:59:14:Get.pm:394; cgi::dr1_ifn2_network::value ... : [192.168.122.16]
+2020/05/13 11:59:14:Get.pm:394; cgi::dr1_sn1_network::value .... : [10.101.14.3]
+
+2020/05/13 11:59:14:Get.pm:394; cgi::node1_bcn1_network::value . : [10.201.14.1]
+2020/05/13 11:59:14:Get.pm:394; cgi::node1_ifn1_network::value . : [10.255.14.1]
+2020/05/13 11:59:14:Get.pm:394; cgi::node1_ifn2_network::value . : [192.168.122.14]
+2020/05/13 11:59:14:Get.pm:394; cgi::node1_sn1_network::value .. : [10.101.14.1]
+
+2020/05/13 11:59:14:Get.pm:394; cgi::node2_bcn1_network::value . : [10.201.14.2]
+2020/05/13 11:59:14:Get.pm:394; cgi::node2_ifn1_network::value . : [10.255.14.2]
+2020/05/13 11:59:14:Get.pm:394; cgi::node2_ifn2_network::value . : [192.168.122.15]
+2020/05/13 11:59:14:Get.pm:394; cgi::node2_ipmi_ip::value ...... : [10.201.15.2]
+2020/05/13 11:59:14:Get.pm:394; cgi::node2_sn1_network::value .. : [10.101.14.2]
+
+2020/05/13 11:59:14:Get.pm:394; cgi::node1_fence_el8-pdu01::value: [1]
+2020/05/13 11:59:14:Get.pm:394; cgi::node1_fence_el8-pdu02::value: [1]
+2020/05/13 11:59:14:Get.pm:394; cgi::node2_fence_el8-pdu01::value: [2]
+2020/05/13 11:59:14:Get.pm:394; cgi::node2_fence_el8-pdu02::value: [2]
+
+2020/05/13 11:59:14:Get.pm:394; cgi::manifest_uuid::value ...... : [new]
+=cut
+	foreach my $machine (sort {$a cmp $b} keys %{$machines})
+	{
+		my $host_name = $node1_name;
+		if    ($machine eq "node2") { $host_name = $node2_name; }
+		elsif ($machine eq "dr1")   { $host_name = $dr1_name; }
+		$manifest_xml .= '		<'.$machine.' name="'.$host_name.'" ipmi_ip="'.$machines->{$machine}{ipmi_ip}.'">
+			<networks>
+';
+		foreach my $network_name (sort {$a cmp $b} keys %{$machines->{$machine}{network}})
+		{
+			$manifest_xml .= '				<network name="'.$network_name.'" ip="'.$machines->{$machine}{network}{$network_name}.'" />
+';
+		}
+		$manifest_xml .= '			</networks>
+			<upses>
+';
+		foreach my $ups_name (sort {$a cmp $b} keys %{$machines->{$machine}{ups}})
+		{
+			$manifest_xml .= '				<ups name="'.$ups_name.'" used="'.$machines->{$machine}{ups}{$ups_name}.'" />
+';
+		}
+		$manifest_xml .= '			</upses>
+			<fences>
+';
+		foreach my $fence_name (sort {$a cmp $b} keys %{$machines->{$machine}{fence}})
+		{
+			$manifest_xml .= '				<fence name="'.$fence_name.'" port="'.$machines->{$machine}{fence}{$fence_name}.'" />
+';
+		}
+		$manifest_xml .= '			</fences>
+		</'.$machine.'>
+';
+	}
+	$manifest_xml .= '	</machines>
+</install_manifest>
+';
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_xml => $manifest_xml }});
 	
 	return($manifest_uuid);
 }

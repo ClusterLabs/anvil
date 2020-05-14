@@ -1600,9 +1600,7 @@ sub handle_manifest
 				{
 					# Save the manifest!
 					$anvil->data->{cgi}{step}{value} = 3;
-# 					my ($manifest_uuid) = $anvil->Striker->generate_manifest({
-# 						
-# 					});
+					my ($manifest_uuid) = $anvil->Striker->generate_manifest({debug => 2});
 				}
 			}
 		}
