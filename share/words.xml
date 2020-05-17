@@ -1549,6 +1549,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0039">[ Warning ] - There's a problem with the form.</key>
 		<key name="warning_0040">[ Warning ] - The UPS: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
 		<key name="warning_0041">[ Warning ] - There was a problem saving the install manifest. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
+		<key name="warning_0042">[ Warning ] - No record found for the table/columns: [#!variable!table!# -> #!variable!column!#] for the value: [#!variable!value!#].</key>
 		
 	</language>
 	<!-- 日本語 -->

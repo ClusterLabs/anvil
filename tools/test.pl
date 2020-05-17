@@ -20,26 +20,15 @@ my $anvil = Anvil::Tools->new({debug => 2});
 $anvil->Log->secure({set => 1});
 $anvil->Log->level({set => 2});
 
-my $parsed_xml = "";
-my $xml_body   = $anvil->Storage->read_file({file => "/root/test.xml"});
+print "Connecting to the database(s);\b";
+$anvil->Database->connect({debug => 3});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+print "DB Connections: [".$anvil->data->{sys}{database}{connections}."]\n";
 
+my $manifest_uuid = "8b4734e0-df34-4653-966f-73d8f29b6931";
+$anvil->Striker->load_manifest({
+	debug         => 2,
+	manifest_uuid => $manifest_uuid,
+});
 
-my $xml = XML::Simple->new();
-eval { $parsed_xml = $xml->XMLin($xml_body, KeyAttr => { key => 'name' }, ForceArray => []) };
-if ($@)
-{
-	chomp $@;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0111", variables => { 
-		xml_body   => $xml_body, 
-		eval_error => $@,
-	}});
-	return(1);
-}
-
-print Dumper $parsed_xml;
-
-#print "Connecting to the database(s);\b";
-#$anvil->Database->connect({debug => 3});
-#$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
-#print "DB Connections: [".$anvil->data->{sys}{database}{connections}."]\n";
-#$anvil->Striker->get_ups_data({debug => 2});
+print Dumper $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid};
