@@ -766,23 +766,26 @@ The following hash is used to facilitate manifest name to UUID look up.
 
  manifests::name_to_uuid::<manifest_name> = <manifest_uuid>
 
-The parsed manifest XML is stored as:
+The parsed manifest XML is stored as (<machine> == node1, node2 or dr1):
 
- manifests::manifest_uuid::<manifest_uuid>::parsed::name                                              = <Anvil! name>
- manifests::manifest_uuid::<manifest_uuid>::parsed::domain                                            = <Anvil! domain name>
- manifests::manifest_uuid::<manifest_uuid>::parsed::upses::<ups_name>::uuid                           = <upses -> ups_uuid of named UPS>
- manifests::manifest_uuid::<manifest_uuid>::parsed::fences::<fence_name>::uuid                        = <fences -> fence_uuid of named fence device>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::dns                                     = <DNS to use, default is '8.8.8.8,8.8.4.4'>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::ntp                                     = <NTP to use, if any>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::mtu                                     = <MTU of network>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::network           = <base network ip, ie: 10.255.0.0>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::subnet            = <subnet mask>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::gateway           = <gateway ip, if any>
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<host_name>::type                        = <node1, node2 or dr1>
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<host_name>::ipmi_ip                     = <ip of IPMI BMC, if any>
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<host_name>::fence::<fence_name>::port   = <'port' name/number (see fence agent man page)
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<host_name>::ups::<ups_name>::used       = <1 if powered by USB, 0 if not>
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<host_name>::network::<network_name>::ip = <ip used on network>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::name                                            = <Anvil! name>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::domain                                          = <Anvil! domain name>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::upses::<ups_name>::uuid                         = <upses -> ups_uuid of named UPS>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::fences::<fence_name>::uuid                      = <fences -> fence_uuid of named fence device>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::dns                                   = <DNS to use, default is '8.8.8.8,8.8.4.4'>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::ntp                                   = <NTP to use, if any>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::mtu                                   = <MTU of network>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::bcn_count                             = <number of BCNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::sn_count                              = <number of SNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::ifn_count                             = <number of IFNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::network         = <base network ip, ie: 10.255.0.0>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::subnet          = <subnet mask>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::gateway         = <gateway ip, if any>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::name                        = <host name>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::ipmi_ip                     = <ip of IPMI BMC, if any>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::fence::<fence_name>::port   = <'port' name/number (see fence agent man page)
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::ups::<ups_name>::used       = <1 if powered by USB, 0 if not>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::network::<network_name>::ip = <ip used on network>
 
 B<Note>: The machines to use in each role is selected when the manifest is run. Unlike in M2, the manifest does not store machine-specific information (like MAC addresses, etc). The chosen machines at run time contain that information. Similarly, passwords are NOT stored in the manifest, and passed when the manifest is run.
  
@@ -923,6 +926,9 @@ WHERE
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::ntp" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp}, 
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::mtu" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{mtu}, 
 		}});
+		my $bcn_count = 0;
+		my $sn_count  = 0;
+		my $ifn_count = 0;
 		foreach my $hash_ref (@{$parsed_xml->{networks}{network}})
 		{
 			my $network_name                                                                                            = $hash_ref->{name};
@@ -934,42 +940,52 @@ WHERE
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::name::${network_name}::subnet"  => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{subnet}, 
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::name::${network_name}::gateway" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{gateway}, 
 			}});
+			if    ($network_name =~ /^bcn/) { $bcn_count++; }
+			elsif ($network_name =~ /^sn/)  { $sn_count++; }
+			elsif ($network_name =~ /^ifn/) { $ifn_count++; }
 		}
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{bcn_count} = $bcn_count;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{sn_count}  = $sn_count;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ifn_count} = $ifn_count;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::bcn_count" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{bcn_count}, 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::sn_count"  => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{sn_count}, 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::ifn_count" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ifn_count}, 
+		}});
 		
 		foreach my $machine (sort {$a cmp $b} keys %{$parsed_xml->{machines}})
 		{
-			my $host_name                                                                                     = $parsed_xml->{machines}{$machine}{name};
-			   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{type}    = $machine;
-			   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{ipmi_ip} = $parsed_xml->{machines}{$machine}{ipmi_ip};
+			$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name}    = $parsed_xml->{machines}{$machine}{name};
+			$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip} = $parsed_xml->{machines}{$machine}{ipmi_ip};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${host_name}::type"    => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{type}, 
-				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${host_name}::ipmi_ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{ipmi_ip}, 
+				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::type"    => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{type}, 
+				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ipmi_ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip}, 
 			}});
 			
 			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{fences}{fence}})
 			{
 				my $fence_name                                                                                                     = $hash_ref->{name};
-				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{fence}{$fence_name}{port} = $hash_ref->{port};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $hash_ref->{port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${host_name}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{fence}{$fence_name}{port}, 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
 				}});
 			}
 			
 			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{upses}{ups}})
 			{
 				my $ups_name                                                                                                   = $hash_ref->{name};
-				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{ups}{$ups_name}{used} = $hash_ref->{used};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used} = $hash_ref->{used};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${host_name}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{ups}{$ups_name}{used}, 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used}, 
 				}});
 			}
 			
 			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{networks}{network}})
 			{
 				my $network_name                                                                                                     = $hash_ref->{name};
-				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{network}{$network_name}{ip} = $hash_ref->{ip};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}{$network_name}{ip} = $hash_ref->{ip};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${host_name}::network::${network_name}::ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$host_name}{network}{$network_name}{ip}, 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::network::${network_name}::ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}{$network_name}{ip}, 
 				}});
 			}
 		}

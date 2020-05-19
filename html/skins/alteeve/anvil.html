@@ -82,7 +82,7 @@
 <!-- start create-menu-existing-manifest-entry -->
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td>
-								<a href="?anvil=true&task=manifest&edit=true&manifest_uuid=#!variable!manifest_uuid!#" class="fixed_link_highlight">#!variable!manifest_name!#</a> &nbsp; 
+								<a href="?anvil=true&task=manifests&manifest_uuid=#!variable!manifest_uuid!#&step=1" class="fixed_link_highlight">#!variable!manifest_name!#</a> &nbsp; 
 							</td>
 							<td style="text-align: center;">
 								<a href="?anvil=true&task=manifest&run=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/run.png" alt="#!string!striker_0206!#" style="height: .8em;"></a>
@@ -159,6 +159,9 @@
 							</td>
 							<td>
 								<input type="number" name="ifn_count" id="ifn_count" value="#!variable!ifn_count!#" placeholder="1" class="#!variable!ifn_count_class!#"/>
+								<!-- Note: Currently, the user can't choose the number of BCN and SNs. However, this may change later, so we already setup for it. -->
+								<input type="hidden" name="sn_count"  id="sn_count"  value="#!variable!sn_count!#" />
+								<input type="hidden" name="bcn_count" id="bcn_count" value="#!variable!bcn_count!#" />
 							</td>
 						</tr>
 						<tr>
@@ -502,13 +505,13 @@
 								<input type="hidden" name="#!variable!gateway_name!#" id="#!variable!gateway_name!#" value="#!variable!gateway_value!#" />
 							</td>
 							<td class="fixed_width_no_wrap">
-								<input type="text" name="#!variable!node1_network_name!#" id="#!variable!node1_network_name!#" value="#!variable!node1_network_value!#" width="15" style="width: 15em;" class="#!variable!node1_network_class!#" /> &nbsp; 
+								<input type="text" name="#!variable!node1_ip_name!#" id="#!variable!node1_ip_name!#" value="#!variable!node1_ip_value!#" width="15" style="width: 15em;" class="#!variable!node1_ip_class!#" /> &nbsp; 
 							</td>
 							<td class="fixed_width_no_wrap">
-								&nbsp; <input type="text" name="#!variable!node2_network_name!#" id="#!variable!node2_network_name!#" value="#!variable!node2_network_value!#" width="15" style="width: 15em;" class="#!variable!node2_network_class!#" /> &nbsp;
+								&nbsp; <input type="text" name="#!variable!node2_ip_name!#" id="#!variable!node2_ip_name!#" value="#!variable!node2_ip_value!#" width="15" style="width: 15em;" class="#!variable!node2_ip_class!#" /> &nbsp;
 							</td>
 							<td class="fixed_width_no_wrap">
-								&nbsp; <input type="text" name="#!variable!dr1_network_name!#" id="#!variable!dr1_network_name!#" value="#!variable!dr1_network_value!#" width="15" style="width: 15em;" class="#!variable!dr1_network_class!#" />
+								&nbsp; <input type="text" name="#!variable!dr1_ip_name!#" id="#!variable!dr1_ip_name!#" value="#!variable!dr1_ip_value!#" width="15" style="width: 15em;" class="#!variable!dr1_ip_class!#" />
 							</td>
 						</tr>
 <!-- end manifest-step3-network-entry -->
