@@ -348,7 +348,7 @@ sub get_fence_data
 				$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{options}      = [];
 				
 				# Read the action 
-				print "Agent: [".$fence_agent."]; actions (default: [".$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'}."]);\n";
+				#print "Agent: [".$fence_agent."]; actions (default: [".$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'}."]);\n";
 				foreach my $array_ref (sort {$a cmp $b} @{$agent_ref->{'resource-agent'}->{actions}->{action}})
 				{
 					# There are several options that don't make sense for us.

@@ -5,7 +5,15 @@
 # 1 == Host UUID not available yet.
 # 
 # TODO: 
-# * Make the BCN count a thing, remove Striker user and make it statically 'admin'.
+# * Switch out XML::Simple to XML::Twig or libXML
+#   - 15:05 < perlbot> XML::Simple commits the fatal flaw of trying to massage complicated and often 
+#                      irregular XML into the simple and highly regular world of perl data structures. 
+#                      Irregularities cause "not a hashref" sort of errors in your program. Use a real 
+#                      parser. see: xml
+#   - 15:06 < perlbot> Don't parse XML with regex! Use a real parser. Avoid XML::Simple (see the xml::simple 
+#                      factoid). Choices are ::Easy, ::TreeBuilder, ::Twig, Mojo::DOM (in XML mode) for 
+#                      simple stuff. LibXML is a good general purpose starting point. See also XML::All. 
+#                      http://perl-xml.sf.net/faq/
 # 
 
 use strict;
@@ -3722,9 +3730,11 @@ sub process_fences
 						}});
 						foreach my $i (sort {$a cmp $b} keys %{$anvil->data->{fence}{confirm_table}{data}{$name}})
 						{
-							my $is_default = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'};
-							my $say_value  = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value};
-							my $value      = $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value};
+							my $is_default =  $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'};
+							my $say_value  =  $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value};
+							   $say_value  =~ s/"/&quot;/g;
+							my $value      =  $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value};
+							   $value      =~ s/"/&quot;/g;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:name'       => $name,
 								's2:i'          => $i,
@@ -3891,6 +3901,10 @@ sub process_fences
 					'default'   => $default, 
 				}});
 				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> default" => $default }});
+				$default =~ s/"/&quot;/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< default" => $default }});
+				
 				# Set the cgi variable to the default, if not already set.
 				$anvil->data->{cgi}{$option_key}{alert} = ""       if not defined $anvil->data->{cgi}{$option_key}{alert};
 				$anvil->data->{cgi}{$option_key}{value} = $default if not defined $anvil->data->{cgi}{$option_key}{value};
@@ -4038,7 +4052,7 @@ sub sanity_check_fence_agent_form
 			my $description = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
 			my $type        = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
 			my $default     = exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:name'        => $name,
 				's2:option_key'  => $option_key,
 				's3:unique'      => $unique, 
@@ -4060,7 +4074,7 @@ sub sanity_check_fence_agent_form
 			my $passed_parameter_key = $name."_".$i;
 			my $passed_value         = defined $anvil->data->{cgi}{$passed_parameter_key}{value} ? $anvil->data->{cgi}{$passed_parameter_key}{value} : "";
 			my $say_value            = $passed_value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				passed_parameter_key => $passed_parameter_key, 
 				passed_value         => $passed_value, 
 				'default'            => $default, 
@@ -4108,14 +4122,14 @@ sub sanity_check_fence_agent_form
 				
 				# This will be used to assemble the base shell call later
 				$anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set} = $passed_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"fence::${fence_agent}::set::${i}::parameter::${name}::set" => $anvil->data->{fence}{$fence_agent}{set}{$i}{parameter}{$name}{set}, 
 				}});
 			}
 			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'} = $is_default;
 			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}     = $passed_value ? $passed_value : $default;
 			$anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value} = $say_value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"fence::confirm_table::data::${name}::${i}::default"   => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{'default'}, 
 				"fence::confirm_table::data::${name}::${i}::value"     => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{value}, 
 				"fence::confirm_table::data::${name}::${i}::say_value" => $anvil->data->{fence}{confirm_table}{data}{$name}{$i}{say_value}, 
