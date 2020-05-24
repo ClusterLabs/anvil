@@ -129,7 +129,7 @@ sub generate_manifest
 			foreach my $machine ("node1", "node2", "dr1")
 			{
 				# Record the network
-				my $ip_key = $machine."_".$network_name."_network";
+				my $ip_key = $machine."_".$network_name."_ip";
 				$machines->{$machine}{network}{$network_name} = defined $anvil->data->{cgi}{$ip_key}{value} ? $anvil->data->{cgi}{$ip_key}{value} : "";
 				
 				# On the first loop (bcn1), pull in the other information as well.

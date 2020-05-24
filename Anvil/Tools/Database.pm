@@ -28,6 +28,7 @@ my $THIS_FILE = "Database.pm";
 # get_jobs
 # get_local_uuid
 # get_mail_servers
+# get_manifests
 # get_notifications
 # get_recipients
 # get_upses
@@ -2262,6 +2263,127 @@ AND
 =cut
 	}
 	
+	return(0);
+}
+
+
+=head2 get_manifests
+
+This loads the known install manifests into the C<< anvil::data >> hash at:
+
+* manifests::manifest_uuid::<manifest_uuid>::manifest_name
+* manifests::manifest_uuid::<manifest_uuid>::manifest_last_ran
+* manifests::manifest_uuid::<manifest_uuid>::manifest_xml
+* manifests::manifest_uuid::<manifest_uuid>::manifest_note
+* manifests::manifest_uuid::<manifest_uuid>::modified_date
+
+And, to allow for lookup by name;
+
+* manifests::manifest_name::<manifest_name>::manifest_uuid
+* manifests::manifest_name::<manifest_name>::manifest_last_ran
+* manifests::manifest_name::<manifest_name>::manifest_xml
+* manifests::manifest_name::<manifest_name>::manifest_note
+* manifests::manifest_name::<manifest_name>::modified_date
+
+If the hash was already populated, it is cleared before repopulating to ensure no stray data remains. 
+
+B<<Note>>: Deleted devices (ones where C<< manifest_note >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
+
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted last_rans are included when loading the data. When C<< 0 >> is set, the default, any manifest last_ran with C<< manifest_note >> set to C<< DELETED >> is ignored.
+
+=cut
+sub get_manifests
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_manifests()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
+	
+	if (exists $anvil->data->{manifests})
+	{
+		delete $anvil->data->{manifests};
+	}
+	
+	my $query = "
+SELECT 
+    manifest_uuid, 
+    manifest_name, 
+    manifest_last_ran, 
+    manifest_xml, 
+    manifest_note, 
+    modified_date 
+FROM 
+    manifests ";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    manifest_note != 'DELETED'";
+	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $manifest_uuid     = $row->[0];
+		my $manifest_name     = $row->[1];
+		my $manifest_last_ran = $row->[2];
+		my $manifest_xml      = $row->[3]; 
+		my $manifest_note     = $row->[4]; 
+		my $modified_date     = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			manifest_uuid     => $manifest_uuid, 
+			manifest_name     => $manifest_name, 
+			manifest_last_ran => $manifest_last_ran, 
+			manifest_note     => $manifest_note, 
+			manifest_xml      => $manifest_xml, 
+			modified_date     => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_name}     = $manifest_name;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_last_ran} = $manifest_last_ran;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_xml}      = $manifest_xml;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_note}     = $manifest_note;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{modified_date}     = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"manifests::manifest_uuid::${manifest_uuid}::manifest_name"     => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_name}, 
+			"manifests::manifest_uuid::${manifest_uuid}::manifest_last_ran" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_last_ran}, 
+			"manifests::manifest_uuid::${manifest_uuid}::manifest_xml"      => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_xml}, 
+			"manifests::manifest_uuid::${manifest_uuid}::manifest_note"     => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_note}, 
+			"manifests::manifest_uuid::${manifest_uuid}::modified_date"     => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{modified_date}, 
+		}});
+		
+		$anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_uuid}     = $manifest_uuid;
+		$anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_last_ran} = $manifest_last_ran;
+		$anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_xml}      = $manifest_xml;
+		$anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_note}     = $manifest_note;
+		$anvil->data->{manifests}{manifest_name}{$manifest_name}{modified_date}     = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"manifests::manifest_name::${manifest_name}::manifest_uuid"     => $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_uuid}, 
+			"manifests::manifest_name::${manifest_name}::manifest_last_ran" => $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_last_ran}, 
+			"manifests::manifest_name::${manifest_name}::manifest_xml"      => $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_xml}, 
+			"manifests::manifest_name::${manifest_name}::manifest_note"     => $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_note}, 
+			"manifests::manifest_name::${manifest_name}::modified_date"     => $anvil->data->{manifests}{manifest_name}{$manifest_name}{modified_date}, 
+		}});
+	}
+
 	return(0);
 }
 

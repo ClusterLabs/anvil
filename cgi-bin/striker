@@ -1542,37 +1542,127 @@ sub handle_manifest
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{cgi}{step}{value}      = 1                 if not defined $anvil->data->{cgi}{step}{value};
-	$anvil->data->{cgi}{prefix}{value}    = ""                if not defined $anvil->data->{cgi}{prefix}{value};
-	$anvil->data->{cgi}{prefix}{alert}    = 0                 if not defined $anvil->data->{cgi}{prefix}{alert};
-	$anvil->data->{cgi}{domain}{value}    = ""                if not defined $anvil->data->{cgi}{domain}{value};
-	$anvil->data->{cgi}{domain}{alert}    = 0                 if not defined $anvil->data->{cgi}{domain}{alert};
-	$anvil->data->{cgi}{sequence}{value}  = ""                if not defined $anvil->data->{cgi}{sequence}{value};
-	$anvil->data->{cgi}{sequence}{alert}  = 0                 if not defined $anvil->data->{cgi}{sequence}{alert};
-	$anvil->data->{cgi}{bcn_count}{value} = 0                 if not defined $anvil->data->{cgi}{bcn_count}{value};
-	$anvil->data->{cgi}{bcn_count}{alert} = 0                 if not defined $anvil->data->{cgi}{bcn_count}{alert};
-	$anvil->data->{cgi}{sn_count}{value}  = 0                 if not defined $anvil->data->{cgi}{sn_count}{value};
-	$anvil->data->{cgi}{sn_count}{alert}  = 0                 if not defined $anvil->data->{cgi}{sn_count}{alert};
-	$anvil->data->{cgi}{ifn_count}{value} = 0                 if not defined $anvil->data->{cgi}{ifn_count}{value};
-	$anvil->data->{cgi}{ifn_count}{alert} = 0                 if not defined $anvil->data->{cgi}{ifn_count}{alert};
-	$anvil->data->{cgi}{dns}{value}       = "8.8.8.8,8.8.4.4" if not defined $anvil->data->{cgi}{dns}{value};
-	$anvil->data->{cgi}{dns}{alert}       = 0                 if not defined $anvil->data->{cgi}{dns}{alert};
-	$anvil->data->{cgi}{ntp}{value}       = ""                if not defined $anvil->data->{cgi}{ntp}{value};
-	$anvil->data->{cgi}{ntp}{alert}       = 0                 if not defined $anvil->data->{cgi}{ntp}{alert};
-	$anvil->data->{cgi}{mtu}{value}       = 1500              if not defined $anvil->data->{cgi}{mtu}{value};
-	$anvil->data->{cgi}{mtu}{alert}       = 0                 if not defined $anvil->data->{cgi}{mtu}{alert};
+	$anvil->data->{cgi}{step}{value}          = 1                 if not defined $anvil->data->{cgi}{step}{value};
+	$anvil->data->{cgi}{prefix}{value}        = ""                if not defined $anvil->data->{cgi}{prefix}{value};
+	$anvil->data->{cgi}{prefix}{alert}        = 0                 if not defined $anvil->data->{cgi}{prefix}{alert};
+	$anvil->data->{cgi}{domain}{value}        = ""                if not defined $anvil->data->{cgi}{domain}{value};
+	$anvil->data->{cgi}{domain}{alert}        = 0                 if not defined $anvil->data->{cgi}{domain}{alert};
+	$anvil->data->{cgi}{sequence}{value}      = ""                if not defined $anvil->data->{cgi}{sequence}{value};
+	$anvil->data->{cgi}{sequence}{alert}      = 0                 if not defined $anvil->data->{cgi}{sequence}{alert};
+	$anvil->data->{cgi}{bcn_count}{value}     = 0                 if not defined $anvil->data->{cgi}{bcn_count}{value};
+	$anvil->data->{cgi}{bcn_count}{alert}     = 0                 if not defined $anvil->data->{cgi}{bcn_count}{alert};
+	$anvil->data->{cgi}{sn_count}{value}      = 0                 if not defined $anvil->data->{cgi}{sn_count}{value};
+	$anvil->data->{cgi}{sn_count}{alert}      = 0                 if not defined $anvil->data->{cgi}{sn_count}{alert};
+	$anvil->data->{cgi}{ifn_count}{value}     = 0                 if not defined $anvil->data->{cgi}{ifn_count}{value};
+	$anvil->data->{cgi}{ifn_count}{alert}     = 0                 if not defined $anvil->data->{cgi}{ifn_count}{alert};
+	$anvil->data->{cgi}{dns}{value}           = "8.8.8.8,8.8.4.4" if not defined $anvil->data->{cgi}{dns}{value};
+	$anvil->data->{cgi}{dns}{alert}           = 0                 if not defined $anvil->data->{cgi}{dns}{alert};
+	$anvil->data->{cgi}{ntp}{value}           = ""                if not defined $anvil->data->{cgi}{ntp}{value};
+	$anvil->data->{cgi}{ntp}{alert}           = 0                 if not defined $anvil->data->{cgi}{ntp}{alert};
+	$anvil->data->{cgi}{mtu}{value}           = 1500              if not defined $anvil->data->{cgi}{mtu}{value};
+	$anvil->data->{cgi}{mtu}{alert}           = 0                 if not defined $anvil->data->{cgi}{mtu}{alert};
+	$anvil->data->{cgi}{'delete'}{value}      = ""                if not defined $anvil->data->{cgi}{'delete'}{alert};
+	$anvil->data->{cgi}{manifest_uuid}{value} = ""                if not defined $anvil->data->{cgi}{manifest_uuid}{alert};
+	$anvil->data->{cgi}{confirm}{value}       = ""                if not defined $anvil->data->{cgi}{confirm}{alert};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"cgi::step::value"      => $anvil->data->{cgi}{step}{value},
-		"cgi::prefix::value"    => $anvil->data->{cgi}{prefix}{value},
-		"cgi::domain::value"    => $anvil->data->{cgi}{domain}{value},
-		"cgi::sequence::value"  => $anvil->data->{cgi}{sequence}{value},
-		"cgi::bcn_count::value" => $anvil->data->{cgi}{bcn_count}{value},
-		"cgi::sn_count::value"  => $anvil->data->{cgi}{sn_count}{value},
-		"cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value},
-		"cgi::dns::value"       => $anvil->data->{cgi}{dns}{value},
-		"cgi::ntp::value"       => $anvil->data->{cgi}{ntp}{value},
-		"cgi::mtu::value"       => $anvil->data->{cgi}{mtu}{value},
+		"cgi::step::value"          => $anvil->data->{cgi}{step}{value},
+		"cgi::prefix::value"        => $anvil->data->{cgi}{prefix}{value},
+		"cgi::domain::value"        => $anvil->data->{cgi}{domain}{value},
+		"cgi::sequence::value"      => $anvil->data->{cgi}{sequence}{value},
+		"cgi::bcn_count::value"     => $anvil->data->{cgi}{bcn_count}{value},
+		"cgi::sn_count::value"      => $anvil->data->{cgi}{sn_count}{value},
+		"cgi::ifn_count::value"     => $anvil->data->{cgi}{ifn_count}{value},
+		"cgi::dns::value"           => $anvil->data->{cgi}{dns}{value},
+		"cgi::ntp::value"           => $anvil->data->{cgi}{ntp}{value},
+		"cgi::mtu::value"           => $anvil->data->{cgi}{mtu}{value},
+		"cgi::delete::value"        => $anvil->data->{cgi}{'delete'}{value},
+		"cgi::manifest_uuid::value" => $anvil->data->{cgi}{manifest_uuid}{value},
+		"cgi::confirm::value"       => $anvil->data->{cgi}{confirm}{value},
 	}});
+	
+	# Are we deleting a manifest?
+	if (($anvil->data->{cgi}{'delete'}{value}) && ($anvil->data->{cgi}{manifest_uuid}{value}))
+	{
+		# Verify that the UUID is valid.
+		$anvil->Database->get_manifests({debug => 2, include_deleted => 1});
+		my $manifest_uuid     = $anvil->data->{cgi}{manifest_uuid}{value};
+		my $manifest_name     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_name};
+		my $manifest_last_ran = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_last_ran};
+		my $manifest_xml      = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_xml};
+		my $manifest_note     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_note};
+		if (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid})
+		{
+			# Doesn't exist.
+			my $message                            = $anvil->Words->string({key => "warning_0043", variables => { uuid => $manifest_uuid }});
+			   $anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+		}
+		elsif ($anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{manifest_note} eq "DELETED")
+		{
+			# Already deleted.
+			my $message = $anvil->Words->string({key => "warning_0044", variables => { 
+				name => $manifest_name,
+				uuid => $manifest_uuid,
+			}});
+			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+		}
+		
+		# Has the user confirmed?
+		if ($anvil->data->{cgi}{confirm}{value})
+		{
+			# Delete it
+			my ($manifest_uuid) = $anvil->Database->insert_or_update_manifests({
+				debug             => 2,
+				manifest_uuid     => $manifest_uuid,
+				manifest_name     => $manifest_name,
+				manifest_last_ran => $manifest_last_ran, 
+				manifest_xml      => $manifest_xml,
+				manifest_note     => "DELETED",
+			});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { manifest_uuid => $manifest_uuid }});
+			if ($manifest_uuid)
+			{
+				# Deleted successfully
+				my $message                         = $anvil->Words->string({key => "ok_0010", variables => { name => $manifest_name }});
+				   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
+			}
+			else
+			{
+				# Something went wrong.
+				my $message = $anvil->Words->string({key => "warning_0045", variables => { 
+					name => $manifest_name,
+					uuid => $manifest_uuid,
+				}});
+				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+			}
+			
+			# Go back to the main page.
+			process_create($anvil);
+			return(0);
+		}
+		else
+		{
+			# Ask the user to confirm.
+			my $say_manifest = $manifest_name;
+			if ($manifest_note)
+			{
+				$say_manifest = $manifest_name." : ".$manifest_note;
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_manifest => $say_manifest }});
+			
+			$anvil->data->{form}{back_link} = "?anvil=true&task=create";
+			$anvil->data->{form}{body}      = $anvil->Template->get({file => "anvil.html", name => "manifest-delete-confirm", variables => {
+				name         => $manifest_name, 
+				say_manifest => $say_manifest, 
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'form::body' => $anvil->data->{form}{body} }});
+			return(0);
+		}
+	}
 	
 	if ($anvil->data->{cgi}{step}{value} > 1)
 	{
@@ -2401,7 +2491,7 @@ sub sanity_check_manifest_step3
 				my $say_network    = $anvil->Words->string({key => $say_network_code, variables => { number => $i }});
 				my $network_key    = $network.$i."_network";
 				my $subnet_key     = $network.$i."_subnet";
-				my $machine_ip_key = $machine."_".$network.$i."_network";
+				my $machine_ip_key = $machine."_".$network.$i."_ip";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					say_network    => $say_network,
 					network_key    => $network_key, 
@@ -2418,16 +2508,16 @@ sub sanity_check_manifest_step3
 				}});
 				
 				# Is the IP valid?
-				if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$machine_ip_key}{value}}))
+				if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$machine_ip_key}{value}, debug => 2}))
 				{
 					# Bad subnet
 					my $say_network = "#!string!striker_0255!#";
 					if    ($machine eq "node2") { $say_network = "#!string!striker_0256!#"; }
 					elsif ($machine eq "dr1")   { $say_network = "#!string!striker_0257!#"; }
 					my $message                                    = $anvil->Words->string({key => "error_0016", variables => { network => $say_network }});
-					$anvil->data->{form}{error_massage}         = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
-					$anvil->data->{cgi}{$machine_ip_key}{alert} = 1;
-					$sane                                       = 0;
+					   $anvil->data->{form}{error_massage}         = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+					   $anvil->data->{cgi}{$machine_ip_key}{alert} = 1;
+					   $sane                                       = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 						sane                            => $sane, 
 						"cgi::${machine_ip_key}::alert" => $anvil->data->{cgi}{$machine_ip_key}{alert},
@@ -2830,47 +2920,25 @@ sub process_create
 	my ($anvil) = @_;
 	
 	# Show existing manifests.
-	my $query = "
-SELECT 
-    manifest_uuid, 
-    manifest_name, 
-    manifest_last_ran, 
-    manifest_xml, 
-    manifest_note 
-FROM 
-    manifests 
-ORDER BY 
-    manifest_name ASC;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count,
-	}});
+	$anvil->Database->get_manifests();
 	my $manifest_template = "";
-	if ($count)
+	foreach my $manifest_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_name}})
 	{
-		foreach my $row (@{$results})
-		{
-			my $manifest_uuid     = $row->[0];
-			my $manifest_name     = $row->[1];
-			my $manifest_last_ran = $row->[2];
-			my $manifest_xml      = $row->[3];
-			my $manifest_note     = $row->[4];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				manifest_uuid     => $manifest_uuid, 
-				manifest_name     => $manifest_name, 
-				manifest_last_ran => $manifest_last_ran,
-				manifest_xml      => $manifest_xml, 
-				manifest_note     => $manifest_note, 
-			}});
-			$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "create-menu-existing-manifest-entry", variables => {
-				manifest_uuid => $manifest_uuid, 
-				manifest_name => $manifest_name, 
-			}});
-		}
+		my $manifest_uuid     = $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_uuid};
+		my $manifest_last_ran = $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_last_ran};
+		my $manifest_xml      = $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_xml};
+		my $manifest_note     = $anvil->data->{manifests}{manifest_name}{$manifest_name}{manifest_note};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			manifest_uuid     => $manifest_uuid, 
+			manifest_name     => $manifest_name, 
+			manifest_last_ran => $manifest_last_ran,
+			manifest_xml      => $manifest_xml, 
+			manifest_note     => $manifest_note, 
+		}});
+		$manifest_template .= $anvil->Template->get({file => "anvil.html", name => "create-menu-existing-manifest-entry", variables => {
+			manifest_uuid => $manifest_uuid, 
+			manifest_name => $manifest_name, 
+		}});
 	}
 	
 	# Store the previous CGI variables and display the new fields.
@@ -3886,12 +3954,13 @@ sub process_fences
 					$fence_name_seen = 1;
 				}
 				
-				my $option_key  = $name."_".$i;
-				my $unique      = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique};
-				my $required    = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required};
-				my $description = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
-				my $type        = $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
-				my $default     = exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
+				my $option_key  =  $name."_".$i;
+				my $unique      =  $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique};
+				my $required    =  $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required};
+				my $description =  $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{description};
+				my $type        =  $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type};
+				my $default     =  exists $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} ? $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{'default'} : "";
+				   $default     =~ s/"/&quot;/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					option_key  => $option_key,
 					unique      => $unique, 
@@ -3900,10 +3969,6 @@ sub process_fences
 					type        => $type, 
 					'default'   => $default, 
 				}});
-				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">> default" => $default }});
-				$default =~ s/"/&quot;/g;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<< default" => $default }});
 				
 				# Set the cgi variable to the default, if not already set.
 				$anvil->data->{cgi}{$option_key}{alert} = ""       if not defined $anvil->data->{cgi}{$option_key}{alert};

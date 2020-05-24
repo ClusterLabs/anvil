@@ -85,10 +85,10 @@
 								<a href="?anvil=true&task=manifests&manifest_uuid=#!variable!manifest_uuid!#&step=1" class="fixed_link_highlight">#!variable!manifest_name!#</a> &nbsp; 
 							</td>
 							<td style="text-align: center;">
-								<a href="?anvil=true&task=manifest&run=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/run.png" alt="#!string!striker_0206!#" style="height: .8em;"></a>
+								<a href="?anvil=true&task=manifests&run=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/run.png" alt="#!string!striker_0206!#" style="height: .8em;"></a>
 							</td>
 							<td style="text-align: center;">
-								<a href="?anvil=true&task=manifest&delete=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
+								<a href="?anvil=true&task=manifests&delete=true&manifest_uuid=#!variable!manifest_uuid!#"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
 							</td>
 						</tr>
 <!-- end create-menu-existing-manifest-entry -->
@@ -1201,6 +1201,70 @@
 			</tr>
 		</table>
 <!-- end ups-delete-confirm -->
+
+<!-- start manifest-delete-confirm -->
+		<table align="center" class="anvil_main_menu">
+			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td class="main_option_icon">
+					<img src="#!data!skin::url!#/images/manifest.png" class="top_icon" >
+				</td>
+				<td class="title">
+					#!string!striker_0225!#
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					<form name="manifest_delete" action="" method="post">
+					<table class="centered">
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td colspan="2" class="column_header">
+								#!string!header_0028!#
+							</td>
+						</tr>
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td colspan="2" class="column_row_value">
+								#!variable!say_manifest!#
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<input type="submit" name="back" id="back" value="#!string!striker_0098!#" class="button"> &nbsp;
+							</td>
+							<td style="text-align: right;">
+								&nbsp; <input type="submit" name="confirm" id="confirm" value="#!string!striker_0082!#" class="button">
+							</td>
+							<input type="hidden" name="anvil"         id="anvil"         value="true">
+							<input type="hidden" name="task"          id="task"          value="manifests">
+							<input type="hidden" name="delete"        id="delete"        value="true">
+							<input type="hidden" name="manifest_uuid" id="manifest_uuid" value="#!data!cgi::manifest_uuid::value!#">
+						</tr>
+					</table>
+					</form>
+				</td>
+			</tr>
+			<tr>
+				<td colspan="2">
+					&nbsp;
+				</td>
+			</tr>
+		</table>
+<!-- end manifest-delete-confirm -->
 
 <!-- start fence-agent-delete-confirm -->
 		<table align="center" class="anvil_main_menu">

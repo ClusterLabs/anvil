@@ -214,6 +214,7 @@ The error was:
 		<key name="header_0025">IP Address</key>
 		<key name="header_0026">Host Name</key>
 		<key name="header_0027">Brand</key>
+		<key name="header_0028">Install Manifest</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -1102,6 +1103,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="ok_0007">The UPS: [#!variable!name!#] has been successfully saved!</key>
 		<key name="ok_0008">The UPS: [#!variable!name!#] has been successfully deleted!</key>
 		<key name="ok_0009">The install manifest: [#!variable!name!#] has been successfully saved!</key>
+		<key name="ok_0010">The install manifest: [#!variable!name!#] has been successfully deleted!</key>
 
 		<!-- String prefixes -->
 		<key name="prefix_0001">[ Error ]   - </key>
@@ -1550,6 +1552,9 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0040">[ Warning ] - The UPS: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
 		<key name="warning_0041">[ Warning ] - There was a problem saving the install manifest. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
 		<key name="warning_0042">[ Warning ] - No record found for the table/columns: [#!variable!table!# -> #!variable!column!#] for the value: [#!variable!value!#].</key>
+		<key name="warning_0043">[ Warning ] - The install manifest with the UUID: [#!variable!uuid!#] was not found.</key>
+		<key name="warning_0044">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] has already been deleted.</key>
+		<key name="warning_0045">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
 		
 	</language>
 	<!-- 日本語 -->
