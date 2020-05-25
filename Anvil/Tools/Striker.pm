@@ -770,6 +770,8 @@ The parsed manifest XML is stored as (<machine> == node1, node2 or dr1):
 
  manifests::manifest_uuid::<manifest_uuid>::parsed::name                                            = <Anvil! name>
  manifests::manifest_uuid::<manifest_uuid>::parsed::domain                                          = <Anvil! domain name>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::prefix                                          = <Anvil! prefix>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::sequence                                        = <Anvil! sequence, zero-padded to two digits>
  manifests::manifest_uuid::<manifest_uuid>::parsed::upses::<ups_name>::uuid                         = <upses -> ups_uuid of named UPS>
  manifests::manifest_uuid::<manifest_uuid>::parsed::fences::<fence_name>::uuid                      = <fences -> fence_uuid of named fence device>
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::dns                                   = <DNS to use, default is '8.8.8.8,8.8.4.4'>
@@ -889,6 +891,15 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::domain" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{domain}, 
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::name"   => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name}, 
+		}});
+		
+		my ($prefix, $sequence) = ($anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name} =~ /^(.*?)-anvil-(\d+)$/);
+		   $sequence            = sprintf("%02d", $sequence);
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{prefix}   = $prefix;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{sequence} = $sequence;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::prefix"   => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{prefix}, 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::sequence" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{sequence}, 
 		}});
 		
 		foreach my $hash_ref (@{$parsed_xml->{upses}{ups}})

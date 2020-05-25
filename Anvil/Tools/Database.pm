@@ -20,6 +20,7 @@ my $THIS_FILE = "Database.pm";
 # configure_pgsql
 # connect
 # disconnect
+# get_anvils
 # get_fences
 # get_host_from_uuid
 # get_hosts
@@ -1468,6 +1469,167 @@ FROM
 }
 
 
+=head2 get_anvils
+
+This loads information about all known Anvil! systems as recorded in the C<< anvils >> table. 
+
+Data is stored in two hashes, one sorted by C<< anvil_uuid >> and one by C<< anvil_name >>. While loading, any referenced nodes and DR hosts are stored for quick reference as well. Data is stored as:
+
+ anvils::anvil_uuid::<anvil_uuid>::anvil_name
+ anvils::anvil_uuid::<anvil_uuid>::anvil_description
+ anvils::anvil_uuid::<anvil_uuid>::anvil_password
+ anvils::anvil_uuid::<anvil_uuid>::anvil_node1_host_uuid
+ anvils::anvil_uuid::<anvil_uuid>::anvil_node2_host_uuid
+ anvils::anvil_uuid::<anvil_uuid>::anvil_dr1_host_uuid
+ anvils::anvil_uuid::<anvil_uuid>::modified_date
+
+ anvils::anvil_name::<anvil_name>::anvil_uuid
+ anvils::anvil_name::<anvil_name>::anvil_description
+ anvils::anvil_name::<anvil_name>::anvil_password
+ anvils::anvil_name::<anvil_name>::anvil_node1_host_uuid
+ anvils::anvil_name::<anvil_name>::anvil_node2_host_uuid
+ anvils::anvil_name::<anvil_name>::anvil_dr1_host_uuid
+ anvils::anvil_name::<anvil_name>::modified_date
+
+When a host UUID is stored for either node or the DR host, it will be stored at:
+
+ anvils::host_uuid::<host_uuid>::anvil_name
+
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted last_rans are included when loading the data. When C<< 0 >> is set, the default, any C<< anvil_description >> set to C<< DELETED >> are ignored.
+
+=cut
+sub get_anvils
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_manifests()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
+	
+	if (exists $anvil->data->{manifests})
+	{
+		delete $anvil->data->{manifests};
+	}
+	
+	my $query = "
+SELECT 
+    anvil_uuid, 
+    anvil_name, 
+    anvil_description, 
+    anvil_password, 
+    anvil_node1_host_uuid, 
+    anvil_node2_host_uuid, 
+    anvil_dr1_host_uuid, 
+    modified_date 
+FROM 
+    anvils ";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    anvil_description != 'DELETED'";
+	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $anvil_uuid            =         $row->[0];
+		my $anvil_name            =         $row->[1];
+		my $anvil_description     =         $row->[2];
+		my $anvil_password        =         $row->[3]; 
+		my $anvil_node1_host_uuid = defined $row->[4] ? $row->[4] : ""; 
+		my $anvil_node2_host_uuid = defined $row->[5] ? $row->[5] : ""; 
+		my $anvil_dr1_host_uuid   = defined $row->[6] ? $row->[6] : ""; 
+		my $modified_date         =         $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			anvil_uuid            => $anvil_uuid, 
+			anvil_name            => $anvil_name, 
+			anvil_description     => $anvil_description, 
+			anvil_password        => $anvil->Log->is_secure($anvil_password), 
+			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
+			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
+			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
+			modified_date         => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}            = $anvil_name;
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description}     = $anvil_description;
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}        = $anvil_password;
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid} = $anvil_node1_host_uuid;
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
+		$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{modified_date}         = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvils::anvil_uuid::${anvil_uuid}::anvil_name"            => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name}, 
+			"anvils::anvil_uuid::${anvil_uuid}::anvil_description"     => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description}, 
+			"anvils::anvil_uuid::${anvil_uuid}::anvil_password"        => $anvil->Log->is_secure($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}), 
+			"anvils::anvil_uuid::${anvil_uuid}::anvil_node1_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}, 
+			"anvils::anvil_uuid::${anvil_uuid}::anvil_node2_host_uuid" => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}, 
+			"anvils::anvil_uuid::${anvil_uuid}::anvil_dr1_host_uuid"   => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid}, 
+			"anvils::anvil_uuid::${anvil_uuid}::modified_date"         => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{modified_date}, 
+		}});
+		
+		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid}            = $anvil_uuid;
+		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}     = $anvil_description;
+		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_password}        = $anvil_password;
+		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid} = $anvil_node1_host_uuid;
+		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid} = $anvil_node2_host_uuid;
+		$anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}   = $anvil_dr1_host_uuid;
+		$anvil->data->{anvils}{anvil_name}{$anvil_name}{modified_date}         = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvils::anvil_name::${anvil_name}::anvil_uuid"            => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid}, 
+			"anvils::anvil_name::${anvil_name}::anvil_description"     => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description}, 
+			"anvils::anvil_name::${anvil_name}::anvil_password"        => $anvil->Log->is_secure($anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_password}), 
+			"anvils::anvil_name::${anvil_name}::anvil_node1_host_uuid" => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid}, 
+			"anvils::anvil_name::${anvil_name}::anvil_node2_host_uuid" => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid}, 
+			"anvils::anvil_name::${anvil_name}::anvil_dr1_host_uuid"   => $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_dr1_host_uuid}, 
+			"anvils::anvil_name::${anvil_name}::modified_date"         => $anvil->data->{anvils}{anvil_name}{$anvil_name}{modified_date}, 
+		}});
+		
+		if ($anvil_node1_host_uuid)
+		{
+			$anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_name} = $anvil_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvils::host_uuid::${anvil_node1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_name}, 
+			}});
+		}
+		if ($anvil_node2_host_uuid)
+		{
+			$anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_name} = $anvil_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvils::host_uuid::${anvil_node2_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_name}, 
+			}});
+		}
+		if ($anvil_dr1_host_uuid)
+		{
+			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name} = $anvil_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name}, 
+			}});
+		}
+	}
+
+	return(0);
+}
+
+
 =head2 get_fences
 
 This loads the known fence devices into the C<< anvil::data >> hash at:
@@ -1654,7 +1816,18 @@ Each anonymous hash is structured as:
  host_type     => $host_type, 
  modified_date => $modified_date, 
 
-It also sets the variables C<< sys::hosts::by_uuid::<host_uuid> = <host_name> >> and C<< sys::hosts::by_name::<host_name> = <host_uuid> >> per host read, for quick reference.
+It also sets the variables;
+
+ hosts::host_uuid::<host_uuid>::host_name  = <host_name>;
+ hosts::host_uuid::<host_uuid>::host_type  = <host_type; node, dr or dashboard>
+ hosts::host_uuid::<host_uuid>::anvil_name = <anvil_name if associated with an anvil>
+
+And to simplify look-ups by UUID or name;
+
+ sys::hosts::by_uuid::<host_uuid> = <host_name>
+ sys::hosts::by_name::<host_name> = <host_uuid>
+
+To prevent some cases of recursion, C<< hosts::loaded >> is set on successful load, and if this is set, this method immediately returns with C<< 0 >>. 
 
 =cut
 sub get_hosts
@@ -1664,6 +1837,12 @@ sub get_hosts
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts()" }});
+	
+	# This prevents some recursive loops, like when Database->insert_or_update_anvils() is called.
+	return(0) if $anvil->data->{hosts}{loaded};
+	
+	# Load anvils. If a host is registered with an Anvil!, we'll note it.
+	$anvil->Database->get_anvils({debug => $debug});
 	
 	my $query = "
 SELECT 
@@ -1695,6 +1874,14 @@ FROM
 			host_type     => $host_type, 
 			modified_date => $modified_date, 
 		}});
+		
+		my $anvil_name = "";
+		if ((exists $anvil->data->{anvils}{host_uuid}{$host_uuid}) && ($anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_name}))
+		{
+			$anvil_name = $anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_name};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+		
 		push @{$return}, {
 			host_uuid     => $host_uuid,
 			host_name     => $host_name, 
@@ -1703,11 +1890,13 @@ FROM
 		};
 		
 		# Record the data in the hash, too.
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name} = $host_name;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type} = $host_type;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}  = $host_name;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}  = $host_type;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} = $anvil_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"hosts::host_uuid::${host_uuid}::host_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
-			"hosts::host_uuid::${host_uuid}::host_type" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+			"hosts::host_uuid::${host_uuid}::host_name"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+			"hosts::host_uuid::${host_uuid}::host_type"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+			"hosts::host_uuid::${host_uuid}::anvil_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
 		}});
 		
 		# Record the host_uuid in a hash so that the name can be easily retrieved.
@@ -1718,6 +1907,8 @@ FROM
 			"sys::hosts::by_name::${host_name}" => $anvil->data->{sys}{hosts}{by_name}{$host_name}, 
 		}});
 	}
+	
+	$anvil->data->{hosts}{loaded} = 1;
 	
 	my $return_count = @{$return};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_count => $return_count }});
@@ -2678,9 +2869,326 @@ sub initialize
 
 
 =head2 insert_or_update_anvils
+
+This updates (or inserts) a record in the C<< anvils >> table. The C<< anvil_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 anvil_description (optional)
+
+This is a free-form description for this Anvil! system. If this is set to C<< DELETED >>, the Anvil! will be considered to be deleted and no longer used.
+
+=head3 anvil_dr1_host_uuid (optional)
+
+This is the C<< hosts >> -> C<< host_uuid >> of the machine that is used as the DR host.
+
+B<< Note >>: If set, there must be a matching C<< hosts >> -> C<< host_uuid >> in the database.
+
+=head3 anvil_name (required)
+
+This is the anvil's name. It is usually in the format C<< <prefix>-anvil-<zero-padded-sequence> >>.
+
+=head3 anvil_password (required)
+
+This is the password used for this Anvil! system. Specifically, it is used to set the IPMI BMC user and for C<< hacluster >> and C<< root >> system users.
+
+=head3 anvil_uuid (optional)
+
+If not passed, a check will be made to see if an existing entry is found for C<< anvil_name >>. If found, that entry will be updated. If not found, a new record will be inserted.
+
+=head3 anvil_node1_host_uuid (optional)
+
+This is the C<< hosts >> -> C<< host_uuid >> of the machine that is used as node 1.
+
+B<< Note >>: If set, there must be a matching C<< hosts >> -> C<< host_uuid >> in the database.
+
+=head3 anvil_node2_host_uuid (optional)
+
+This is the C<< hosts >> -> C<< host_uuid >> of the machine that is used as node 2.
+
+B<< Note >>: If set, there must be a matching C<< hosts >> -> C<< host_uuid >> in the database.
+
+=head3 delete (optional, default '0')
+
+If set to C<< 1 >>, C<< anvil_description >> will be set to C<< DELETED >>, indicating that the anvil has been deleted from the system. If set, only C<< anvil_uuid >> or C<< anvil_name >> is needed.
+
 =cut
 sub insert_or_update_anvils
 {
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	
+	my $uuid                  = defined $parameter->{uuid}                  ? $parameter->{uuid}                  : "";
+	my $file                  = defined $parameter->{file}                  ? $parameter->{file}                  : "";
+	my $line                  = defined $parameter->{line}                  ? $parameter->{line}                  : "";
+	my $delete                = defined $parameter->{'delete'}              ? $parameter->{'delete'}              : "";
+	my $anvil_uuid            = defined $parameter->{anvil_uuid}            ? $parameter->{anvil_uuid}            : "";
+	my $anvil_description     = defined $parameter->{anvil_description}     ? $parameter->{anvil_description}     : $anvil->data->{sys}{host_uuid};
+	my $anvil_name            = defined $parameter->{anvil_name}            ? $parameter->{anvil_name}            : "";
+	my $anvil_password        = defined $parameter->{anvil_password}        ? $parameter->{anvil_password}        : "";
+	my $anvil_node1_host_uuid = defined $parameter->{anvil_node1_host_uuid} ? $parameter->{anvil_node1_host_uuid} : "NULL";
+	my $anvil_node2_host_uuid = defined $parameter->{anvil_node2_host_uuid} ? $parameter->{anvil_node2_host_uuid} : "NULL";
+	my $anvil_dr1_host_uuid   = defined $parameter->{anvil_dr1_host_uuid}   ? $parameter->{anvil_dr1_host_uuid}   : "NULL";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                  => $uuid, 
+		file                  => $file, 
+		line                  => $line, 
+		'delete'              => $delete, 
+		anvil_uuid            => $anvil_uuid, 
+		anvil_description     => $anvil_description, 
+		anvil_name            => $anvil_name, 
+		anvil_password        => $anvil_password, 
+		anvil_node1_host_uuid => $anvil_node1_host_uuid, 
+		anvil_node2_host_uuid => $anvil_node2_host_uuid, 
+		anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
+	}});
+	
+	if (not $delete)
+	{
+		if (not $anvil_name)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_anvils()", parameter => "anvil_name" }});
+			return("");
+		}
+		if (not $anvil_password)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_anvils()", parameter => "anvil_password" }});
+			return("");
+		}
+	}
+	elsif ((not $anvil_name) && (not $anvil_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0127", variables => { table => "anvils" }});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given anvil name.
+	if (not $anvil_uuid)
+	{
+		my $query = "
+SELECT 
+    anvil_uuid 
+FROM 
+    anvils 
+WHERE 
+    anvil_name      = ".$anvil->Database->quote($anvil_name)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$anvil_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		}
+	}
+	
+	# Make sure that, if any host_uuid's are passed, that they're valid.
+	$anvil->Database->get_hosts({debug => $debug}) if not $anvil->data->{hosts}{loaded};
+	if (($anvil_node1_host_uuid) && (not $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{host_name}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0128", variables => { uuid => $anvil_node1_host_uuid, column => "anvil_node1_host_uuid" }});
+		return("");
+	}
+	if (($anvil_node2_host_uuid) && (not $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{host_name}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0128", variables => { uuid => $anvil_node2_host_uuid, column => "anvil_node2_host_uuid" }});
+		return("");
+	}
+	if (($anvil_dr1_host_uuid) && (not $anvil->data->{hosts}{host_uuid}{$anvil_dr1_host_uuid}{host_name}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0128", variables => { uuid => $anvil_dr1_host_uuid, column => "anvil_dr1_host_uuid" }});
+		return("");
+	}
+	
+	if ($delete)
+	{
+		if (not $anvil_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_anvils()", parameter => "anvil_uuid" }});
+			return("");
+		}
+		else
+		{
+			# Delete it
+			my $query = "SELECT anvil_description FROM anvils WHERE anvil_uuid = ".$anvil->Database->quote($anvil_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				my $old_anvil_description = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_anvil_description => $old_anvil_description }});
+				
+				if ($old_anvil_description ne "DELETED")
+				{
+					my $query = "
+UPDATE 
+    anvils 
+SET 
+    anvil_description = 'DELETED', 
+    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    anvil_uuid        = ".$anvil->Database->quote($anvil_uuid)."
+;";
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				}
+				return($anvil_uuid);
+			}
+			else
+			{
+				# Not found.
+				return("");
+			}
+		}
+	}
+	
+	# NULL values can't be quoted
+	my $say_anvil_node1_host_uuid = $anvil_node1_host_uuid eq "NULL" ? "NULL" : $anvil->Database->quote($anvil_node1_host_uuid);
+	my $say_anvil_node2_host_uuid = $anvil_node2_host_uuid eq "NULL" ? "NULL" : $anvil->Database->quote($anvil_node2_host_uuid);
+	my $say_anvil_dr1_host_uuid   = $anvil_dr1_host_uuid   eq "NULL" ? "NULL" : $anvil->Database->quote($anvil_dr1_host_uuid);
+
+	
+	# If I still don't have an anvil_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+	if (not $anvil_uuid)
+	{
+		# INSERT
+		$anvil_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    anvils 
+(
+    anvil_uuid, 
+    anvil_name, 
+    anvil_description, 
+    anvil_password, 
+    anvil_node1_host_uuid, 
+    anvil_node2_host_uuid, 
+    anvil_dr1_host_uuid, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($anvil_uuid).", 
+    ".$anvil->Database->quote($anvil_name).", 
+    ".$anvil->Database->quote($anvil_description).", 
+    ".$anvil->Database->quote($anvil_password).", 
+    ".$say_anvil_node1_host_uuid.", 
+    ".$say_anvil_node2_host_uuid.", 
+    ".$say_anvil_dr1_host_uuid.", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    anvil_name, 
+    anvil_description, 
+    anvil_password, 
+    anvil_node1_host_uuid, 
+    anvil_node2_host_uuid, 
+    anvil_dr1_host_uuid 
+FROM 
+    anvils 
+WHERE 
+    anvil_uuid = ".$anvil->Database->quote($anvil_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a anvil_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "anvil_uuid", uuid => $anvil_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_anvil_name            =         $row->[0];
+			my $old_anvil_description     =         $row->[1];
+			my $old_anvil_password        =         $row->[2];
+			my $old_anvil_node1_host_uuid = defined $row->[3] ? $row->[3] : "NULL";
+			my $old_anvil_node2_host_uuid = defined $row->[4] ? $row->[4] : "NULL";
+			my $old_anvil_dr1_host_uuid   = defined $row->[5] ? $row->[5] : "NULL";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_anvil_name            => $old_anvil_name, 
+				old_anvil_description     => $old_anvil_description, 
+				old_anvil_password        => $old_anvil_password,
+				old_anvil_node1_host_uuid => $old_anvil_node1_host_uuid, 
+				old_anvil_node2_host_uuid => $old_anvil_node2_host_uuid,  
+				old_anvil_dr1_host_uuid   => $old_anvil_dr1_host_uuid,  
+			}});
+			
+			# Anything change?
+			if (($old_anvil_name            ne $anvil_name)            or 
+			    ($old_anvil_description     ne $anvil_description)     or 
+			    ($old_anvil_password        ne $anvil_password)        or 
+			    ($old_anvil_node1_host_uuid ne $anvil_node1_host_uuid) or 
+			    ($old_anvil_node2_host_uuid ne $anvil_node2_host_uuid) or 
+			    ($old_anvil_dr1_host_uuid   ne $anvil_dr1_host_uuid))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    anvils 
+SET 
+    anvil_name            = ".$anvil->Database->quote($anvil_name).", 
+    anvil_description     = ".$anvil->Database->quote($anvil_description).",  
+    anvil_password        = ".$anvil->Database->quote($anvil_password).", 
+    anvil_node1_host_uuid = ".$say_anvil_node1_host_uuid.", 
+    anvil_node2_host_uuid = ".$say_anvil_node2_host_uuid.", 
+    anvil_dr1_host_uuid   = ".$say_anvil_dr1_host_uuid.", 
+    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    anvil_uuid            = ".$anvil->Database->quote($anvil_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	return($anvil_uuid);
 }
 
 
@@ -2724,7 +3232,7 @@ This is the unique identifier for the bridge.
 
 This is the MAC address of the bridge.
 
-=head3 bridge_mto (optional)
+=head3 bridge_mtu (optional)
 
 This is the MTU (maximum transfer unit, size in bytes) of the bridge.
 
@@ -2778,6 +3286,11 @@ sub insert_or_update_bridges
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_bridges()", parameter => "bridge_name" }});
 			return("");
 		}
+	}
+	elsif ((not $bridge_name) && (not $bridge_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0127", variables => { table => "bridges" }});
+		return("");
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given bridge server name.
@@ -3139,6 +3652,11 @@ sub insert_or_update_bonds
 			$bond_bridge_uuid = 'NULL';
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_bridge_uuid => $bond_bridge_uuid }});
 		}
+	}
+	elsif ((not $bond_name) && (not $bond_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0127", variables => { table => "bonds" }});
+		return("");
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given bond server name.
@@ -5722,6 +6240,11 @@ sub insert_or_update_manifests
 			return("");
 		}
 	}
+	elsif ((not $manifest_name) && (not $manifest_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0127", variables => { table => "manifests" }});
+		return("");
+	}
 	
 	# If we don't have a network interface UUID, try to look one up using the MAC address
 	if (not $manifest_uuid)
@@ -6070,6 +6593,11 @@ sub insert_or_update_network_interfaces
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bridge_uuid", uuid => $network_interface_bridge_uuid }});
 			return("");
 		}
+	}
+	elsif ((not $network_interface_name) && (not $network_interface_uuid))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0127", variables => { table => "network_interfaces" }});
+		return("");
 	}
 	
 	# If we don't have a network interface UUID, try to look one up using the MAC address

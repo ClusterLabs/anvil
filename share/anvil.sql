@@ -330,21 +330,31 @@ CREATE TRIGGER trigger_sessions
 
 -- This stores information about Anvil! systems. 
 CREATE TABLE anvils (
-    anvil_uuid           uuid                        not null    primary key, 
-    anvil_name           text                        not null,
-    anvil_description    text                        not null,                -- This is a short, one-line (usually) description of this particular Anvil!. It is displayed in the Anvil! selection list.
-    anvil_password       text                        not null,                -- This is the 'hacluster' user password. It is also used to access nodes that don't have a specific password set.
-    modified_date        timestamp with time zone    not null
+    anvil_uuid               uuid                        not null    primary key, 
+    anvil_name               text                        not null,
+    anvil_description        text                        not null,                -- This is a short, one-line (usually) description of this particular Anvil!. It is displayed in the Anvil! selection list.
+    anvil_password           text                        not null,                -- This is the 'hacluster' user password. It is also used to access nodes that don't have a specific password set.
+    anvil_node1_host_uuid    uuid,                                                -- This is the host_uuid of the machine that is used as node 1. 
+    anvil_node2_host_uuid    uuid,                                                -- This is the host_uuid of the machine that is used as node 2. 
+    anvil_dr1_host_uuid      uuid,                                                -- This is the host_uuid of the machine that is used as DR host. 
+    modified_date            timestamp with time zone    not null, 
+    
+    FOREIGN KEY(anvil_node1_host_uuid) REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(anvil_node2_host_uuid) REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(anvil_dr1_host_uuid) REFERENCES hosts(host_uuid) 
 );
 ALTER TABLE anvils OWNER TO admin;
 
 CREATE TABLE history.anvils (
-    history_id           bigserial,
-    anvil_uuid           uuid,
-    anvil_name           text,
-    anvil_description    text,
-    anvil_password       text,
-    modified_date        timestamp with time zone    not null 
+    history_id               bigserial,
+    anvil_uuid               uuid,
+    anvil_name               text,
+    anvil_description        text,
+    anvil_password           text,
+    anvil_node1_host_uuid    uuid,
+    anvil_node2_host_uuid    uuid,
+    anvil_dr1_host_uuid      uuid,
+    modified_date            timestamp with time zone    not null 
 );
 ALTER TABLE history.anvils OWNER TO admin;
 
@@ -359,6 +369,9 @@ BEGIN
          anvil_name, 
          anvil_description, 
          anvil_password, 
+         anvil_node1_host_uuid,
+         anvil_node2_host_uuid,
+         anvil_dr1_host_uuid,
          modified_date)
     VALUES
         (history_anvils.anvil_uuid, 

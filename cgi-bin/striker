@@ -1537,47 +1537,243 @@ sub process_anvil_menu
 	return(0);
 }
 
+# This handles all aspects of Install Manifests.
+sub process_manifests
+{
+	my ($anvil) = @_;
+	
+	# Are we creating a new manifest?
+	$anvil->data->{cgi}{manifest_uuid}{value} = "" if not defined $anvil->data->{cgi}{manifest_uuid}{value};
+	$anvil->data->{cgi}{confirm}{value}       = "" if not defined $anvil->data->{cgi}{confirm}{alert};
+	$anvil->data->{cgi}{run}{value}           = "" if not defined $anvil->data->{cgi}{run}{value};
+	$anvil->data->{cgi}{step}{value}          = 1  if not defined $anvil->data->{cgi}{step}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'cgi::manifest_uuid::value' => $anvil->data->{cgi}{manifest_uuid}{value},
+	}});
+	
+	# Are we running a manifest, or creating/editing one?
+	if (($anvil->data->{cgi}{run}{value}) && ($anvil->Validate->is_uuid({uuid => $anvil->data->{cgi}{manifest_uuid}{value}})))
+	{
+		run_manifest($anvil);
+	}
+	else
+	{
+		handle_manifest($anvil);
+	}
+	
+	return(0);
+}
+
+# This is an extension to 'handle_manifests' that specifically handles running an install manifest.
+sub run_manifest
+{
+	my ($anvil) = @_;
+	
+	my $manifest_uuid = $anvil->data->{cgi}{manifest_uuid}{value};
+	my $problem       = $anvil->Striker->load_manifest({
+		debug         => 2,
+		manifest_uuid => $manifest_uuid, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		manifest_uuid => $manifest_uuid,
+		problem       => $problem, 
+	}});
+	
+	if ($problem)
+	{
+		# Report a problem and send the user back to the manifests page.
+		my $message                            = $anvil->Words->string({key => "warning_0046", variables => { uuid => $manifest_uuid }});
+		   $anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::error_massage" => $anvil->data->{form}{error_massage} }});
+	}
+
+=cut
+ manifests::manifest_uuid::<manifest_uuid>::parsed::name                                            = <Anvil! name>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::domain                                          = <Anvil! domain name>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::prefix                                          = <Anvil! prefix>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::sequence                                        = <Anvil! sequence, zero-padded to two digits>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::upses::<ups_name>::uuid                         = <upses -> ups_uuid of named UPS>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::fences::<fence_name>::uuid                      = <fences -> fence_uuid of named fence device>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::dns                                   = <DNS to use, default is '8.8.8.8,8.8.4.4'>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::ntp                                   = <NTP to use, if any>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::mtu                                   = <MTU of network>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::bcn_count                             = <number of BCNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::sn_count                              = <number of SNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::ifn_count                             = <number of IFNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::network         = <base network ip, ie: 10.255.0.0>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::subnet          = <subnet mask>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::gateway         = <gateway ip, if any>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::name                        = <host name>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::ipmi_ip                     = <ip of IPMI BMC, if any>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::fence::<fence_name>::port   = <'port' name/number (see fence agent man page)
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::ups::<ups_name>::used       = <1 if powered by USB, 0 if not>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::network::<network_name>::ip = <ip used on network>
+=cut
+	my $anvil_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
+	my $prefix     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{prefix};
+	my $sequence   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{sequence};
+	my $domain     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{domain};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_name => $anvil_name,
+		prefix     => $prefix, 
+		sequence   => $sequence, 
+		domain     => $domain, 
+	}});
+	
+	my $node1_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{name};
+	my $node2_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{name};
+	my $dr1_name   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		node1_name => $node1_name, 
+		node2_name => $node2_name, 
+		dr1_name   => $dr1_name, 
+	}});
+	
+	# If confirmed, run!
+	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
+	if ($anvil->data->{cgi}{confirm}{value})
+	{
+		# Save the jobs!
+	}
+	else
+	{
+		# Ask the user to choose the targets and confirm the manifest settings.
+		$anvil->Database->get_hosts();
+		my $nodes    = [];
+		my $dr_hosts = [];
+		foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+		{
+			my $host_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+			my $host_type  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+			my $host_anvil = "";
+			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}) && ($anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} ne $anvil_name))
+			{
+				$host_anvil = $anvil_name;
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				host_uuid  => $host_uuid, 
+				host_name  => $host_name,
+				host_type  => $host_type, 
+				host_anvil => $host_anvil, 
+			}});
+			
+			# Does this host belong to another Anvil! already?
+			if (($host_anvil) && ($host_anvil ne $anvil_name))
+			{
+				# yup, ignore it.
+				next;
+			}
+			
+			if ($host_type eq "node")
+			{
+				push @{$nodes}, $host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+	
+				if ((not defined $anvil->data->{cgi}{node1_host}{value}) && ($host_name eq $node1_name))
+				{
+					$anvil->data->{cgi}{node1_host}{value} = $host_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node1_host::value" => $anvil->data->{cgi}{node1_host}{value} }});
+				}
+				elsif ((not defined $anvil->data->{cgi}{node2_host}{value}) && ($host_name eq $node2_name))
+				{
+					$anvil->data->{cgi}{node2_host}{value} = $host_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node2_host::value" => $anvil->data->{cgi}{node2_host}{value} }});
+				}
+			}
+			elsif ($host_type eq "dr")
+			{
+				push @{$dr_hosts}, $host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+				if ((not defined $anvil->data->{cgi}{dr1_host}{value}) && ($host_name eq $dr1_name))
+				{
+					$anvil->data->{cgi}{node1_host}{value} = $host_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::dr1_host::value" => $anvil->data->{cgi}{dr1_host}{value} }});
+				}
+			}
+		}
+		
+		# We're going to need three selects; one for each node and one for DR. The DR is allowed to 
+		# be unselected so it has an empty entry.
+		my $select_node1 = $anvil->Template->select_form({
+			name     => "node1_host",
+			options  => $nodes,
+			blank    => 0,
+			'sort'   => 1,
+			selected => $anvil->data->{cgi}{node1_host}{value},
+			class    => $anvil->data->{cgi}{node1_host}{alert} ? "input_alert" : "input_clear",
+			style    => "",
+		});
+		
+		my $select_node2 = $anvil->Template->select_form({
+			name     => "node2_host",
+			options  => $nodes,
+			blank    => 0,
+			'sort'   => 1,
+			selected => $anvil->data->{cgi}{node2_host}{value},
+			class    => $anvil->data->{cgi}{node2_host}{alert} ? "input_alert" : "input_clear",
+			style    => "",
+		});
+		
+		my $select_dr1 = $anvil->Template->select_form({
+			name     => "dr_host",
+			options  => $dr_hosts,
+			blank    => 1,
+			'sort'   => 1,
+			selected => $anvil->data->{cgi}{dr_host}{value},
+			class    => $anvil->data->{cgi}{dr_host}{alert} ? "input_alert" : "input_clear",
+			style    => "",
+		});
+		
+		$anvil->data->{form}{back_link}    = "?anvil=true&task=create";
+		$anvil->data->{form}{refresh_link} = "?anvil=true&task=manifests&run=true&manifest_uuid=".$anvil->data->{cgi}{manifest_uuid}{value};
+		$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "run-manifest", variables => {
+			select_node1 => $select_node1,
+			select_node2 => $select_node2, 
+			select_dr1   => $select_dr1,
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
+	}
+	
+	return(0);
+}
+
 # This handles creating or editing an Install Manifest.
 sub handle_manifest
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{cgi}{step}{value}          = 1                 if not defined $anvil->data->{cgi}{step}{value};
-	$anvil->data->{cgi}{prefix}{value}        = ""                if not defined $anvil->data->{cgi}{prefix}{value};
-	$anvil->data->{cgi}{prefix}{alert}        = 0                 if not defined $anvil->data->{cgi}{prefix}{alert};
-	$anvil->data->{cgi}{domain}{value}        = ""                if not defined $anvil->data->{cgi}{domain}{value};
-	$anvil->data->{cgi}{domain}{alert}        = 0                 if not defined $anvil->data->{cgi}{domain}{alert};
-	$anvil->data->{cgi}{sequence}{value}      = ""                if not defined $anvil->data->{cgi}{sequence}{value};
-	$anvil->data->{cgi}{sequence}{alert}      = 0                 if not defined $anvil->data->{cgi}{sequence}{alert};
-	$anvil->data->{cgi}{bcn_count}{value}     = 0                 if not defined $anvil->data->{cgi}{bcn_count}{value};
-	$anvil->data->{cgi}{bcn_count}{alert}     = 0                 if not defined $anvil->data->{cgi}{bcn_count}{alert};
-	$anvil->data->{cgi}{sn_count}{value}      = 0                 if not defined $anvil->data->{cgi}{sn_count}{value};
-	$anvil->data->{cgi}{sn_count}{alert}      = 0                 if not defined $anvil->data->{cgi}{sn_count}{alert};
-	$anvil->data->{cgi}{ifn_count}{value}     = 0                 if not defined $anvil->data->{cgi}{ifn_count}{value};
-	$anvil->data->{cgi}{ifn_count}{alert}     = 0                 if not defined $anvil->data->{cgi}{ifn_count}{alert};
-	$anvil->data->{cgi}{dns}{value}           = "8.8.8.8,8.8.4.4" if not defined $anvil->data->{cgi}{dns}{value};
-	$anvil->data->{cgi}{dns}{alert}           = 0                 if not defined $anvil->data->{cgi}{dns}{alert};
-	$anvil->data->{cgi}{ntp}{value}           = ""                if not defined $anvil->data->{cgi}{ntp}{value};
-	$anvil->data->{cgi}{ntp}{alert}           = 0                 if not defined $anvil->data->{cgi}{ntp}{alert};
-	$anvil->data->{cgi}{mtu}{value}           = 1500              if not defined $anvil->data->{cgi}{mtu}{value};
-	$anvil->data->{cgi}{mtu}{alert}           = 0                 if not defined $anvil->data->{cgi}{mtu}{alert};
-	$anvil->data->{cgi}{'delete'}{value}      = ""                if not defined $anvil->data->{cgi}{'delete'}{alert};
-	$anvil->data->{cgi}{manifest_uuid}{value} = ""                if not defined $anvil->data->{cgi}{manifest_uuid}{alert};
-	$anvil->data->{cgi}{confirm}{value}       = ""                if not defined $anvil->data->{cgi}{confirm}{alert};
+	$anvil->data->{cgi}{step}{value}      = 1                 if not defined $anvil->data->{cgi}{step}{value};
+	$anvil->data->{cgi}{prefix}{value}    = ""                if not defined $anvil->data->{cgi}{prefix}{value};
+	$anvil->data->{cgi}{prefix}{alert}    = 0                 if not defined $anvil->data->{cgi}{prefix}{alert};
+	$anvil->data->{cgi}{domain}{value}    = ""                if not defined $anvil->data->{cgi}{domain}{value};
+	$anvil->data->{cgi}{domain}{alert}    = 0                 if not defined $anvil->data->{cgi}{domain}{alert};
+	$anvil->data->{cgi}{sequence}{value}  = ""                if not defined $anvil->data->{cgi}{sequence}{value};
+	$anvil->data->{cgi}{sequence}{alert}  = 0                 if not defined $anvil->data->{cgi}{sequence}{alert};
+	$anvil->data->{cgi}{bcn_count}{value} = 0                 if not defined $anvil->data->{cgi}{bcn_count}{value};
+	$anvil->data->{cgi}{bcn_count}{alert} = 0                 if not defined $anvil->data->{cgi}{bcn_count}{alert};
+	$anvil->data->{cgi}{sn_count}{value}  = 0                 if not defined $anvil->data->{cgi}{sn_count}{value};
+	$anvil->data->{cgi}{sn_count}{alert}  = 0                 if not defined $anvil->data->{cgi}{sn_count}{alert};
+	$anvil->data->{cgi}{ifn_count}{value} = 0                 if not defined $anvil->data->{cgi}{ifn_count}{value};
+	$anvil->data->{cgi}{ifn_count}{alert} = 0                 if not defined $anvil->data->{cgi}{ifn_count}{alert};
+	$anvil->data->{cgi}{dns}{value}       = "8.8.8.8,8.8.4.4" if not defined $anvil->data->{cgi}{dns}{value};
+	$anvil->data->{cgi}{dns}{alert}       = 0                 if not defined $anvil->data->{cgi}{dns}{alert};
+	$anvil->data->{cgi}{ntp}{value}       = ""                if not defined $anvil->data->{cgi}{ntp}{value};
+	$anvil->data->{cgi}{ntp}{alert}       = 0                 if not defined $anvil->data->{cgi}{ntp}{alert};
+	$anvil->data->{cgi}{mtu}{value}       = 1500              if not defined $anvil->data->{cgi}{mtu}{value};
+	$anvil->data->{cgi}{mtu}{alert}       = 0                 if not defined $anvil->data->{cgi}{mtu}{alert};
+	$anvil->data->{cgi}{'delete'}{value}  = ""                if not defined $anvil->data->{cgi}{'delete'}{alert};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"cgi::step::value"          => $anvil->data->{cgi}{step}{value},
-		"cgi::prefix::value"        => $anvil->data->{cgi}{prefix}{value},
-		"cgi::domain::value"        => $anvil->data->{cgi}{domain}{value},
-		"cgi::sequence::value"      => $anvil->data->{cgi}{sequence}{value},
-		"cgi::bcn_count::value"     => $anvil->data->{cgi}{bcn_count}{value},
-		"cgi::sn_count::value"      => $anvil->data->{cgi}{sn_count}{value},
-		"cgi::ifn_count::value"     => $anvil->data->{cgi}{ifn_count}{value},
-		"cgi::dns::value"           => $anvil->data->{cgi}{dns}{value},
-		"cgi::ntp::value"           => $anvil->data->{cgi}{ntp}{value},
-		"cgi::mtu::value"           => $anvil->data->{cgi}{mtu}{value},
-		"cgi::delete::value"        => $anvil->data->{cgi}{'delete'}{value},
-		"cgi::manifest_uuid::value" => $anvil->data->{cgi}{manifest_uuid}{value},
-		"cgi::confirm::value"       => $anvil->data->{cgi}{confirm}{value},
+		"cgi::step::value"      => $anvil->data->{cgi}{step}{value},
+		"cgi::prefix::value"    => $anvil->data->{cgi}{prefix}{value},
+		"cgi::domain::value"    => $anvil->data->{cgi}{domain}{value},
+		"cgi::sequence::value"  => $anvil->data->{cgi}{sequence}{value},
+		"cgi::bcn_count::value" => $anvil->data->{cgi}{bcn_count}{value},
+		"cgi::sn_count::value"  => $anvil->data->{cgi}{sn_count}{value},
+		"cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value},
+		"cgi::dns::value"       => $anvil->data->{cgi}{dns}{value},
+		"cgi::ntp::value"       => $anvil->data->{cgi}{ntp}{value},
+		"cgi::mtu::value"       => $anvil->data->{cgi}{mtu}{value},
+		"cgi::delete::value"    => $anvil->data->{cgi}{'delete'}{value},
 	}});
 	
 	# Are we deleting a manifest?
@@ -2951,36 +3147,6 @@ sub process_create
 		existing_manifests => $manifest_template, 
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
-	
-	return(0);
-}
-
-# This handles all aspects of Install Manifests.
-sub process_manifests
-{
-	my ($anvil) = @_;
-	
-	# Are we creating a new manifest?
-	$anvil->data->{cgi}{manifest_uuid}{value} = "" if not defined $anvil->data->{cgi}{manifest_uuid}{value};
-	$anvil->data->{cgi}{run}{value}           = "" if not defined $anvil->data->{cgi}{run}{value};
-	$anvil->data->{cgi}{step}{value}          = 1  if not defined $anvil->data->{cgi}{step}{value};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		'cgi::manifest_uuid::value' => $anvil->data->{cgi}{manifest_uuid}{value},
-	}});
-	
-	# Are we running a manifest, or creating/editing one?
-	if ($anvil->data->{cgi}{run}{value})
-	{
-		#run_manifest($anvil);
-	}
-	elsif ($anvil->data->{cgi}{manifest_uuid}{value})
-	{
-		handle_manifest($anvil);
-	}
-	else
-	{
-		# Uhhhh...
-	}
 	
 	return(0);
 }

@@ -185,6 +185,8 @@ The error was:
 		<key name="error_0124">The IP address: [#!variable!ip!#] does not appear to be within any of the configured networks.</key>
 		<key name="error_0125">The IPv4 address assigned to the IPMI interface on: [#!variable!network!#] is invalid.</key>
 		<key name="error_0126">The IP address: [#!variable!ip!#] does not appear to be in the network: [#!variable!network!#].</key>
+		<key name="error_0127">I was asked to delete and entry from: [#!variable!table!#] but neither the name or UUID was passed.</key>
+		<key name="error_0128">The host UUID: [#!variable!uuid!#] was set as the value for: [#!variable!column!#], but that host doesn't appear to exist.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -215,6 +217,7 @@ The error was:
 		<key name="header_0026">Host Name</key>
 		<key name="header_0027">Brand</key>
 		<key name="header_0028">Install Manifest</key>
+		<key name="header_0029">Machine</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -1387,6 +1390,16 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0265">If the machine is powered by a given UPS, click to check the corresponding box. This information will be used in power loss events to decide what machine should host servers, which should be powered off during load-shed conditions and when to gracefully power off entirely.</key>
 		<key name="striker_0266">If your machine has an IPMI BMC, (iDRAC, iLO, iRMC, etc), then you can enter the IP to give it here. Further details will be collected when the manifest runs. Leave blank if the machine doesn't have IPMI.</key>
 		<key name="striker_0267"><![CDATA[Network: [<span class="code">#!variable!network!#</span>].]]></key>
+		<key name="striker_0268"><![CDATA[Below is the install manifest you've selected to run. Please be sure that the details match how you want the nodes and, optionally, DR host to be set to.]]></key>
+		<key name="striker_0269"><![CDATA[
+A few notes:<br />
+<br />
+<ul>
+  <li>A node that is found to be running a server will <b>NOT</b> be changed, except to configure passwordless SSH to the peer node and/or DR host. As such, it is safe to run this manifest when adding a rebuilt node or adding a DR host to a live #!string!brand_0006!# system.</li>
+  <li>Adding a disaster recovery (DR) host is optional. You can add one later if you don't have one now.</li>
+  <li>If there are no servers on either node (as it a new #!string!brand_0006!# build), the OSes will be updated. Otherwise, they won't be updated. If the kernel is updated, or the network reconfigured, the node will be rebooted.</li>
+</ul>
+		]]></key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1555,6 +1568,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0043">[ Warning ] - The install manifest with the UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="warning_0044">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] has already been deleted.</key>
 		<key name="warning_0045">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
+		<key name="warning_0046">[ Warning ] - The Install Manifest with the UUID: [#!variable!uuid!#] was not found.</key>
 		
 	</language>
 	<!-- 日本語 -->
