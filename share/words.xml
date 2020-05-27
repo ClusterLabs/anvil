@@ -217,7 +217,16 @@ The error was:
 		<key name="header_0026">Host Name</key>
 		<key name="header_0027">Brand</key>
 		<key name="header_0028">Install Manifest</key>
-		<key name="header_0029">Machine</key>
+		<key name="header_0029">Select Machine</key>
+		<key name="header_0030">#!string!brand_0006!# Password</key>
+		<key name="header_0031">Confirm Password</key>
+		<key name="header_0032">DNS Server(s)</key>
+		<key name="header_0033">NTP Server(s)</key>
+		<key name="header_0034">MTU Size (Bytes)</key>
+		<key name="header_0035">Network common</key>
+		<key name="header_0036">BCN link #!variable!number!#</key>
+		<key name="header_0037">SN link #!variable!number!#</key>
+		<key name="header_0038">IFN link #!variable!number!#</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -1390,16 +1399,13 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0265">If the machine is powered by a given UPS, click to check the corresponding box. This information will be used in power loss events to decide what machine should host servers, which should be powered off during load-shed conditions and when to gracefully power off entirely.</key>
 		<key name="striker_0266">If your machine has an IPMI BMC, (iDRAC, iLO, iRMC, etc), then you can enter the IP to give it here. Further details will be collected when the manifest runs. Leave blank if the machine doesn't have IPMI.</key>
 		<key name="striker_0267"><![CDATA[Network: [<span class="code">#!variable!network!#</span>].]]></key>
-		<key name="striker_0268"><![CDATA[Below is the install manifest you've selected to run. Please be sure that the details match how you want the nodes and, optionally, DR host to be set to.]]></key>
-		<key name="striker_0269"><![CDATA[
-A few notes:<br />
-<br />
-<ul>
-  <li>A node that is found to be running a server will <b>NOT</b> be changed, except to configure passwordless SSH to the peer node and/or DR host. As such, it is safe to run this manifest when adding a rebuilt node or adding a DR host to a live #!string!brand_0006!# system.</li>
-  <li>Adding a disaster recovery (DR) host is optional. You can add one later if you don't have one now.</li>
-  <li>If there are no servers on either node (as it a new #!string!brand_0006!# build), the OSes will be updated. Otherwise, they won't be updated. If the kernel is updated, or the network reconfigured, the node will be rebooted.</li>
-</ul>
-		]]></key>
+		<key name="striker_0268"><![CDATA[Please be sure that the details match how you want your #!string!brand_0006!# to be configured.]]></key>
+		<key name="striker_0269">Notes</key>
+		<key name="striker_0270">Run manifest: [#!variable!name!#]:</key>
+		<key name="striker_0271">Set all passwords to...</key>
+		<key name="striker_0272"><![CDATA[A node that is found to be running a server will <b>NOT</b> be changed, except to configure passwordless SSH to the peer node and/or DR host. As such, it is safe to run this manifest when adding a rebuilt node or adding a DR host to a live #!string!brand_0006!# system.]]></key>
+		<key name="striker_0273">Adding a disaster recovery (DR) host is optional. You can add one later if you don't have one now.</key>
+		<key name="striker_0274">If there are no servers on either node (as it a new #!string!brand_0006!# build), the OSes will be updated. Otherwise, they won't be updated. If the kernel is updated, or the network reconfigured, the node will be rebooted.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

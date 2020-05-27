@@ -79,6 +79,116 @@
 		</table>
 <!-- end create-menu -->
 
+<!-- start run-manifest-network -->
+						<tr>
+							<td class="column_header">
+								<!-- Network name -->
+								#!variable!name!#:
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Network -->
+								#!variable!network!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Subnet -->
+								#!variable!subnet!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Gateway -->
+								#!variable!gateway!# #!variable!default!#
+							</td>
+						</tr>
+<!-- end run-manifest-network -->
+
+<!-- start run-manifest-ip -->
+						<tr>
+							<td class="column_header">
+								<!-- Network name -->
+								#!variable!name!#:
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Node 1 -->
+								#!variable!node1!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Node 2 -->
+								#!variable!node2!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- DR Host -->
+								#!variable!dr1!#
+							</td>
+						</tr>
+<!-- end run-manifest-ip -->
+
+<!-- start run-manifest-fence -->
+						<tr>
+							<td class="column_header">
+								<!-- Fence name -->
+								#!variable!name!#:
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Node 1 -->
+								#!variable!node1!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Node 2 -->
+								#!variable!node2!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- DR Host isn't tracked yet, but it might be in the future -->
+								<!-- #!variable!dr1!# -->
+								&nbsp;
+							</td>
+						</tr>
+<!-- end run-manifest-fence -->
+
+<!-- start run-manifest-ups -->
+						<tr>
+							<td class="column_header">
+								<!-- UPS name -->
+								#!variable!name!#:
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Node 1 -->
+								#!variable!node1!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- Node 2 -->
+								#!variable!node2!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_row_value_fixed">
+								<!-- DR Host isn't tracked yet, but it might be in the future -->
+								<!-- #!variable!dr1!# -->
+								&nbsp;
+							</td>
+						</tr>
+<!-- end run-manifest-ups -->
+
 <!-- start run-manifest -->
 		<table align="center" class="anvil_main_menu">
 			<script type="text/javascript" src="/skins/alteeve/anvil.js"></script>
@@ -89,7 +199,7 @@
 			</tr>
 			<tr>
 				<td class="title">
-					#!string!header_0028!#
+					#!variable!title!#
 				</td>
 			</tr>
 			<tr>
@@ -104,12 +214,6 @@
 			</tr>
 			<tr>
 				<td>
-					<!-- Notes -->
-					#!string!striker_0269!#
-				</td>
-			</tr>
-			<tr>
-				<td>
 					&nbsp;
 				</td>
 			</tr>
@@ -117,6 +221,29 @@
 				<td>
 					<form name="run_manifest" action="" method="post">
 					<table align="center" class="anvil_main_menu">
+						<tr>
+							<td class="column_header">
+								<!-- Password -->
+								#!string!header_0030!#:
+							</td>
+							<td colspan="5">
+								<input type="password" name="password1" id="password1" value="#!variable!password!#" placeholder="#!string!striker_0271!#" class="#!variable!password_class!#"/>
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- Confirm Password -->
+								#!string!header_0031!#:
+							</td>
+							<td colspan="5">
+								<input type="password" name="password2" id="password2" value="#!variable!password!#" placeholder="#!string!header_0031!#" class="#!variable!password_class!#"/>
+							</td>
+						</tr>
+						<tr>
+							<td colspan="6">
+								&nbsp;
+							</td>
+						</tr>
 						<tr>
 							<td>
 								&nbsp;
@@ -161,6 +288,102 @@
 								#!variable!select_dr1!#
 							</td>
 						</tr>
+						#!variable!machine_ips!#
+						<tr>
+							<td colspan="6">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_header" colspan="5">
+								<!-- Fence Port -->
+								#!string!striker_0262!#:
+							</td>
+						</tr>
+						#!variable!fences!#
+						<tr>
+							<td colspan="6">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_header" colspan="5">
+								<!-- UPSes -->
+								#!string!striker_0264!#:
+							</td>
+						</tr>
+						#!variable!upses!#
+						<tr>
+							<td colspan="6">
+								&nbsp;
+							</td>
+						</tr>
+						<tr>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Network -->
+								#!string!striker_0149!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Subnet -->
+								#!string!striker_0025!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_header">
+								<!-- Gateway -->
+								#!string!striker_0026!#
+							</td>
+						</tr>
+						#!variable!networks!#
+						<tr>
+							<td>
+								&nbsp;
+							</td>
+							<td class="column_header" colspan="5">
+								<!-- Network Common -->
+								#!string!header_0035!#
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- DNS -->
+								#!string!header_0032!#:
+							</td>
+							<td class="column_row_value_fixed" colspan="5">
+								#!variable!dns!#
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- NTP -->
+								#!string!header_0033!#:
+							</td>
+							<td class="column_row_value_fixed" colspan="5">
+								#!variable!ntp!#
+							</td>
+						</tr>
+						<tr>
+							<td class="column_header">
+								<!-- MTU -->
+								#!string!header_0034!#:
+							</td>
+							<td class="column_row_value_fixed" colspan="5">
+								#!variable!mtu!#
+							</td>
+						</tr>
 						<tr>
 							<td colspan="6">
 								&nbsp;
@@ -192,47 +415,27 @@
 					<table class="centered">
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td class="column_header">
-								<!-- Prefix -->
-								#!string!striker_0228!# &nbsp;
+								<!-- Notes -->
+								#!string!striker_0269!#: &nbsp;
 							</td>
 							<td>
-								#!string!striker_0246!#
+								#!string!striker_0272!#
 							</td>
 						</tr>
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td class="column_header">
-								<!-- Domain -->
-								#!string!striker_0007!# &nbsp;
+								&nbsp;
 							</td>
 							<td>
-								#!string!striker_0247!#
+								#!string!striker_0273!#
 							</td>
 						</tr>
 						<tr style="border: 1px dotted #7f7f7f;">
 							<td class="column_header">
-								<!-- Sequence -->
-								#!string!striker_0229!# &nbsp; 
+								&nbsp;
 							</td>
 							<td>
-								#!string!striker_0244!#
-							</td>
-						</tr>
-						<tr style="border: 1px dotted #7f7f7f;">
-							<td class="column_header">
-								<!-- IFN Count -->
-								#!string!striker_0230!#
-							</td>
-							<td>
-								#!string!striker_0245!#
-							</td>
-						</tr>
-						<tr style="border: 1px dotted #7f7f7f;">
-							<td class="column_header">
-								<!-- Password note -->
-								#!string!striker_0051!#
-							</td>
-							<td>
-								#!string!striker_0259!#
+								#!string!striker_0274!#
 							</td>
 						</tr>
 					</table>

@@ -777,9 +777,9 @@ The parsed manifest XML is stored as (<machine> == node1, node2 or dr1):
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::dns                                   = <DNS to use, default is '8.8.8.8,8.8.4.4'>
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::ntp                                   = <NTP to use, if any>
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::mtu                                   = <MTU of network>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::bcn_count                             = <number of BCNs>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::sn_count                              = <number of SNs>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::ifn_count                             = <number of IFNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::count::bcn                            = <number of BCNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::count::sn                             = <number of SNs>
+ manifests::manifest_uuid::<manifest_uuid>::parsed::networks::count::ifn                            = <number of IFNs>
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::network         = <base network ip, ie: 10.255.0.0>
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::subnet          = <subnet mask>
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::gateway         = <gateway ip, if any>
@@ -955,13 +955,13 @@ WHERE
 			elsif ($network_name =~ /^sn/)  { $sn_count++; }
 			elsif ($network_name =~ /^ifn/) { $ifn_count++; }
 		}
-		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{bcn_count} = $bcn_count;
-		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{sn_count}  = $sn_count;
-		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ifn_count} = $ifn_count;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{bcn} = $bcn_count;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{sn}  = $sn_count;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{ifn} = $ifn_count;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::bcn_count" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{bcn_count}, 
-			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::sn_count"  => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{sn_count}, 
-			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::ifn_count" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ifn_count}, 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::count::bcn" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{bcn}, 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::count::sn"  => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{sn}, 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::count::ifn" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{ifn}, 
 		}});
 		
 		foreach my $machine (sort {$a cmp $b} keys %{$parsed_xml->{machines}})
