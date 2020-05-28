@@ -42,10 +42,35 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# Load in the manifest 
+load_manifest($anvil);
+
+# Check if we need to change any IPs or our hostname.
+check_local_network($anvil);
+
 
 $anvil->nice_exit({code => 0});
-
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Check if we need to change any IPs or our hostname.
+sub check_local_network
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}
+
+# Load in the manifest 
+sub load_manifest
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}

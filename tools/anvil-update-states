@@ -531,6 +531,7 @@ sub update_network
 					if (($bridge_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
+							debug                      => 2,
 							file                       => $THIS_FILE,
 							line                       => __LINE__,
 							ip_address_on_type         => $type, 
@@ -561,7 +562,7 @@ sub update_network
 				if ($anvil->data->{sys}{database}{connections})
 				{
 					my $bond_uuid = $anvil->Database->insert_or_update_bonds({
-						debug                     => 3,
+						debug                     => 2,
 						file                      => $THIS_FILE,
 						line                      => __LINE__,
 						bond_name                 => $interface,
@@ -586,6 +587,7 @@ sub update_network
 					if (($bond_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
+							debug                      => 2,
 							file                       => $THIS_FILE,
 							line                       => __LINE__,
 							ip_address_on_type         => $type, 
@@ -647,6 +649,7 @@ sub update_network
 					if (($network_interface_uuid) && ($ip_address))
 					{
 						my $ip_address_uuid = $anvil->Database->insert_or_update_ip_addresses({
+							debug                      => 2,
 							file                       => $THIS_FILE,
 							line                       => __LINE__,
 							ip_address_on_type         => $type, 

@@ -3605,7 +3605,7 @@ sub insert_or_update_bonds
 	my $bond_down_delay           = defined $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "";
 	my $bond_mac_address          = defined $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "";
 	my $bond_operational          = defined $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "";
-	my $bond_bridge_uuid          = defined $parameter->{bond_bridge_uuid}          ? $parameter->{bond_bridge_uuid}          : "";
+	my $bond_bridge_uuid          = defined $parameter->{bond_bridge_uuid}          ? $parameter->{bond_bridge_uuid}          : 'NULL';
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                      => $uuid, 
 		file                      => $file, 
@@ -3839,19 +3839,19 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_bond_host_uuid            = $row->[0];
-			my $old_bond_name                 = $row->[1];
-			my $old_bond_mode                 = $row->[2];
-			my $old_bond_mtu                  = $row->[3];
-			my $old_bond_primary_interface    = $row->[4];
-			my $old_bond_primary_reselect     = $row->[5];
-			my $old_bond_active_interface     = $row->[6];
-			my $old_bond_mii_polling_interval = $row->[7];
-			my $old_bond_up_delay             = $row->[8];
-			my $old_bond_down_delay           = $row->[9];
-			my $old_bond_mac_address          = $row->[10];
-			my $old_bond_operational          = $row->[11];
-			my $old_bond_bridge_uuid          = $row->[12];
+			my $old_bond_host_uuid            =         $row->[0];
+			my $old_bond_name                 =         $row->[1];
+			my $old_bond_mode                 =         $row->[2];
+			my $old_bond_mtu                  =         $row->[3];
+			my $old_bond_primary_interface    =         $row->[4];
+			my $old_bond_primary_reselect     =         $row->[5];
+			my $old_bond_active_interface     =         $row->[6];
+			my $old_bond_mii_polling_interval =         $row->[7];
+			my $old_bond_up_delay             =         $row->[8];
+			my $old_bond_down_delay           =         $row->[9];
+			my $old_bond_mac_address          =         $row->[10];
+			my $old_bond_operational          =         $row->[11];
+			my $old_bond_bridge_uuid          = defined $row->[12] ? $row->[12] : 'NULL';
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bond_host_uuid            => $old_bond_host_uuid, 
 				old_bond_name                 => $old_bond_name, 
@@ -3905,6 +3905,7 @@ SET
 WHERE 
     bond_uuid                 = ".$anvil->Database->quote($bond_uuid)." 
 ";
+				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
@@ -5110,17 +5111,15 @@ sub insert_or_update_ip_addresses
 	# If we don't have a UUID, see if we can find one for the given ip_address name.
 	if (not $ip_address_uuid)
 	{
-		### NOTE: An IP can be on multiple machines at the same time (ie: 192.168.122.1), so we need
-		###       to restrict to this host.
+		# We'll try to find the existing interface a couple ways. First we'll look up using 
+		# '_on_uuid' as that's as specific as it gets.
 		my $query = "
 SELECT 
     ip_address_uuid 
 FROM 
     ip_addresses 
 WHERE 
-    ip_address_address   = ".$anvil->Database->quote($ip_address_address)." 
-AND 
-    ip_address_host_uuid = ".$anvil->Database->quote($ip_address_host_uuid)." 
+    ip_address_on_uuid = ".$anvil->Database->quote($ip_address_on_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -5134,6 +5133,35 @@ AND
 		{
 			$ip_address_uuid = $results->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address_uuid => $ip_address_uuid }});
+		}
+		
+		if (not $ip_address_uuid)
+		{
+			# No luck there... An IP can be on multiple machines at the same time 
+			# (ie: 192.168.122.1), so we need to restrict to this host.
+			my $query = "
+SELECT 
+    ip_address_uuid 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_address   = ".$anvil->Database->quote($ip_address_address)." 
+AND 
+    ip_address_host_uuid = ".$anvil->Database->quote($ip_address_host_uuid)." 
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			if ($count)
+			{
+				$ip_address_uuid = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address_uuid => $ip_address_uuid }});
+			}
 		}
 	}
 	
