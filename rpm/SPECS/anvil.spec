@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        32%{?dist}
+Release:        33%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -41,6 +41,7 @@ Requires:       mailx
 Requires:       mlocate 
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
+Requires:       perl-Data-Validate-Domain
 Requires:       perl-DBD-Pg 
 Requires:       perl-DBI
 Requires:       perl-Data-Validate-Domain
@@ -360,7 +361,10 @@ fi
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-32
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-33
+- Updated source.
+
+* Tue May 26 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-32
 - Updated source.
 
 * Mon Jan 6 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-31

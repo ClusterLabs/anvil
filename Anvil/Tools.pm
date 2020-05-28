@@ -1115,6 +1115,7 @@ sub _set_paths
 				'anvil-daemon'			=>	"/usr/sbin/anvil-daemon",
 				'anvil-download-file'		=>	"/usr/sbin/anvil-download-file",
 				'anvil-file-details'		=>	"/usr/sbin/anvil-file-details",
+				'anvil-join-anvil'		=>	"/usr/sbin/anvil-join-anvil",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",

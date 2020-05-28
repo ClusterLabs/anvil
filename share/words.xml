@@ -227,6 +227,7 @@ The error was:
 		<key name="header_0036">BCN link #!variable!number!#</key>
 		<key name="header_0037">SN link #!variable!number!#</key>
 		<key name="header_0038">IFN link #!variable!number!#</key>
+		<key name="header_0039">New Hostname</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -304,6 +305,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0069">Unable to find a matching network, skipping this database.</key>
 		<key name="job_0070">Something went wrong adding this database. Please see: [#!data!path::log::main!#] for details.</key>
 		<key name="job_0071">The network configuration will be updated based on the variables stored in the database. When complete, the system will reboot.</key>
+		<key name="job_0072">Join this machine to an #!string!brand_0006!#.</key>
+		<key name="job_0073">This machine will join an #!string!brand_0006!# as a node or DR host. The role and #!string!brand_0006!# will be determined by the associated Install Manifest UUID.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1048,7 +1051,7 @@ NOTE: Please be patient!
 		<key name="message_0114"><![CDATA[Completed successfully, exiting.]]></key>
 		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
 		<key name="message_0115">Striker Dashboard</key>
-		<key name="message_0116">#!string!brand_0006!# Node</key>
+		<key name="message_0116">#!string!brand_0002!# Node</key>
 		<key name="message_0117">Disaster Recovery (DR) Host</key>
 		<key name="message_0118">Regenerating the source repository metadata.</key>
 		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests. Is the 'anvil-striker-extra' package installed?</key>
@@ -1116,6 +1119,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="ok_0008">The UPS: [#!variable!name!#] has been successfully deleted!</key>
 		<key name="ok_0009">The install manifest: [#!variable!name!#] has been successfully saved!</key>
 		<key name="ok_0010">The install manifest: [#!variable!name!#] has been successfully deleted!</key>
+		<key name="ok_0011">The install manifest job has be initiated! Target machines should start configuring momentarily!</key>
 
 		<!-- String prefixes -->
 		<key name="prefix_0001">[ Error ]   - </key>
@@ -1575,6 +1579,10 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0044">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] has already been deleted.</key>
 		<key name="warning_0045">[ Warning ] - The install manifest: [#!variable!name!#] with the UUID: [#!variable!uuid!#] was NOT deleted. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
 		<key name="warning_0046">[ Warning ] - The Install Manifest with the UUID: [#!variable!uuid!#] was not found.</key>
+		<key name="warning_0047">[ Warning ] - The password to set for this #!string!brand_0006!# was not set.</key>
+		<key name="warning_0048">[ Warning ] - The password verification was not set.</key>
+		<key name="warning_0049">[ Warning ] - The passwords do not match.</key>
+		<key name="warning_0050">[ Warning ] - The host: [#!variable!host!#] now belongs to the #!string!brand_0006!#, it can't be used here anymore.</key>
 		
 	</language>
 	<!-- 日本語 -->

@@ -1838,9 +1838,6 @@ sub get_hosts
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts()" }});
 	
-	# This prevents some recursive loops, like when Database->insert_or_update_anvils() is called.
-	return(0) if $anvil->data->{hosts}{loaded};
-	
 	# Load anvils. If a host is registered with an Anvil!, we'll note it.
 	$anvil->Database->get_anvils({debug => $debug});
 	
@@ -1907,8 +1904,6 @@ FROM
 			"sys::hosts::by_name::${host_name}" => $anvil->data->{sys}{hosts}{by_name}{$host_name}, 
 		}});
 	}
-	
-	$anvil->data->{hosts}{loaded} = 1;
 	
 	my $return_count = @{$return};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_count => $return_count }});
@@ -3008,7 +3003,7 @@ WHERE
 	}
 	
 	# Make sure that, if any host_uuid's are passed, that they're valid.
-	$anvil->Database->get_hosts({debug => $debug}) if not $anvil->data->{hosts}{loaded};
+	$anvil->Database->get_hosts({debug => $debug}) if ref($anvil->data->{hosts}{host_uuid}) ne "HASH";
 	if (($anvil_node1_host_uuid) && (not $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{host_name}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0128", variables => { uuid => $anvil_node1_host_uuid, column => "anvil_node1_host_uuid" }});
@@ -3374,7 +3369,7 @@ WHERE
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -3740,7 +3735,7 @@ WHERE
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -4215,7 +4210,7 @@ AND
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -4458,7 +4453,7 @@ WHERE
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -5195,7 +5190,7 @@ WHERE
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -5578,7 +5573,7 @@ AND
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -8074,7 +8069,7 @@ AND
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{
@@ -8565,7 +8560,7 @@ WHERE
 	{
 		# It's possible that this is called before the host is recorded in the database. So to be
 		# safe, we'll return without doing anything if there is no host_uuid in the database.
-		my $hosts = $anvil->Database->get_hosts();
+		my $hosts = $anvil->Database->get_hosts({debug => $debug});
 		my $found = 0;
 		foreach my $hash_ref (@{$hosts})
 		{

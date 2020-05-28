@@ -1630,261 +1630,422 @@ sub run_manifest
 	$anvil->data->{cgi}{confirm}{value} = "" if not defined $anvil->data->{cgi}{confirm}{value};
 	if ($anvil->data->{cgi}{confirm}{value})
 	{
-		# Save the jobs!
-	}
-	else
-	{
-		# Ask the user to choose the targets and confirm the manifest settings.
-		my $nodes    = [];
-		my $dr_hosts = [];
-		foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+		# Make sure the passwords match.
+		my $problem = 0;
+		if (not $anvil->data->{cgi}{password1}{value})
 		{
-			my $host_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
-			my $host_type  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-			my $host_anvil = "";
-			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}) && ($anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} ne $anvil_name))
-			{
-				$host_anvil = $anvil_name;
-			}
+			# Didn't set a password
+			$problem                              = 1;
+			$anvil->data->{cgi}{password1}{alert} = 1;
+			$anvil->data->{form}{error_massage}   = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => "#!string!warning_0047!#" }});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				host_uuid  => $host_uuid, 
-				host_name  => $host_name,
-				host_type  => $host_type, 
-				host_anvil => $host_anvil, 
+				problem                 => $problem,
+				"cgi::password1::alert" => $anvil->data->{cgi}{password1}{alert},
+				"form::error_massage"   => $anvil->data->{form}{error_massage},
 			}});
-			
-			# Does this host belong to another Anvil! already?
-			if (($host_anvil) && ($host_anvil ne $anvil_name))
-			{
-				# yup, ignore it.
-				next;
-			}
-			
-			if ($host_type eq "node")
-			{
-				push @{$nodes}, $host_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
-	
-				if ((not defined $anvil->data->{cgi}{node1_host}{value}) && ($host_name eq $node1_name))
-				{
-					$anvil->data->{cgi}{node1_host}{value} = $host_name;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node1_host::value" => $anvil->data->{cgi}{node1_host}{value} }});
-				}
-				elsif ((not defined $anvil->data->{cgi}{node2_host}{value}) && ($host_name eq $node2_name))
-				{
-					$anvil->data->{cgi}{node2_host}{value} = $host_name;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node2_host::value" => $anvil->data->{cgi}{node2_host}{value} }});
-				}
-			}
-			elsif ($host_type eq "dr")
-			{
-				push @{$dr_hosts}, $host_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
-				if ((not defined $anvil->data->{cgi}{dr1_host}{value}) && ($host_name eq $dr1_name))
-				{
-					$anvil->data->{cgi}{dr1_host}{value} = $host_name;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::dr1_host::value" => $anvil->data->{cgi}{dr1_host}{value} }});
-				}
-			}
+		}
+		elsif (not $anvil->data->{cgi}{password2}{value})
+		{
+			# Missing both passwords
+			$problem                              = 1;
+			$anvil->data->{cgi}{password2}{alert} = 1;
+			$anvil->data->{form}{error_massage}   = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => "#!string!warning_0048!#" }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				problem                 => $problem,
+				"cgi::password2::alert" => $anvil->data->{cgi}{password2}{alert},
+				"form::error_massage"   => $anvil->data->{form}{error_massage},
+			}});
+		}
+		elsif ($anvil->data->{cgi}{password1}{value} ne $anvil->data->{cgi}{password2}{value})
+		{
+			$problem                              = 1;
+			$anvil->data->{cgi}{password1}{alert} = 1;
+			$anvil->data->{cgi}{password2}{alert} = 1;
+			$anvil->data->{form}{error_massage}   = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => "#!string!warning_0049!#" }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				problem                 => $problem,
+				"cgi::password1::alert" => $anvil->data->{cgi}{password1}{alert},
+				"cgi::password2::alert" => $anvil->data->{cgi}{password2}{alert},
+				"form::error_massage"   => $anvil->data->{form}{error_massage},
+			}});
 		}
 		
-		# We're going to need three selects; one for each node and one for DR. The DR is allowed to 
-		# be unselected so it has an empty entry.
-		my $select_node1 = $anvil->Template->select_form({
-			name     => "node1_host",
-			options  => $nodes,
-			blank    => 0,
-			'sort'   => 1,
-			selected => $anvil->data->{cgi}{node1_host}{value},
-			class    => $anvil->data->{cgi}{node1_host}{alert} ? "input_alert" : "input_clear",
-			style    => "",
-		});
-		
-		my $select_node2 = $anvil->Template->select_form({
-			name     => "node2_host",
-			options  => $nodes,
-			blank    => 0,
-			'sort'   => 1,
-			selected => $anvil->data->{cgi}{node2_host}{value},
-			class    => $anvil->data->{cgi}{node2_host}{alert} ? "input_alert" : "input_clear",
-			style    => "",
-		});
-		
-		my $select_dr1 = $anvil->Template->select_form({
-			name     => "dr_host",
-			options  => $dr_hosts,
-			blank    => 1,
-			'sort'   => 1,
-			selected => $anvil->data->{cgi}{dr1_host}{value},
-			class    => $anvil->data->{cgi}{dr1_host}{alert} ? "input_alert" : "input_clear",
-			style    => "",
-		});
-		
-		# Show the networks.
-		my $networks     = "";
-		my $default_seen = 0;
-		foreach my $network ("bcn", "sn", "ifn")
-		{
-			my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				network => $network, 
-				count   => $count,
-			}});
-			foreach my $i (1..$count)
-			{
-				my $network_name  = $network.$i;
-				my $network_range = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{network};
-				my $subnet        = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{subnet};
-				my $gateway       = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{gateway};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					network_name  => $network_name,
-					network_range => $network_range, 
-					subnet        => $subnet, 
-					gateway       => $gateway, 
-				}});
-				
-				my $say_default = "";
-				if (($network eq "ifn") && (not $default_seen) && ($gateway))
-				{
-					$default_seen = 1;
-					$say_default  = "(#!string!striker_0249!#)";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						default_seen => $default_seen, 
-						say_default  => $say_default, 
-					}});
-				}
-				
-				my $network_key = "header_0036";
-				if    ($network eq "sn")  { $network_key = "header_0037"; }
-				elsif ($network eq "ifn") { $network_key = "header_0038"; }
-				$networks .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-network", variables => {
-					name        => $anvil->Words->string({key => $network_key, variables => { number => $i }}), 
-					network     => $network_range,
-					subnet      => $subnet,
-					gateway     => $gateway ? $gateway : "--",
-					'default'   => $say_default,
-				}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
-			}
-		}
-		
-		# Pull out the IPs that will be assigned to servers.
-		my $machine_ips = "";
-		foreach my $network ("bcn", "sn", "ifn")
-		{
-			if ($network eq "sn")
-			{
-				# Inject the IPMI data.
-				my $node1_ipmi_ip = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{ipmi_ip};
-				my $node2_ipmi_ip = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{ipmi_ip};
-				my $dr1_ipmi_ip   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{ipmi_ip};
-				$machine_ips .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-ip", variables => {
-					name  => "#!string!striker_0258!#", 
-					node1 => $node1_ipmi_ip ? $node1_ipmi_ip : "--",
-					node2 => $node2_ipmi_ip ? $node2_ipmi_ip : "--",
-					dr1   => $dr1_ipmi_ip   ? $dr1_ipmi_ip   : "--",
-				}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
-				
-			}
-			my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				network => $network, 
-				count   => $count,
-			}});
-			foreach my $i (1..$count)
-			{
-				my $network_name = $network.$i;
-				my $node1_ip     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{network}{$network_name}{ip};
-				my $node2_ip     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{network}{$network_name}{ip};
-				my $dr1_ip       = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{network}{$network_name}{ip};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					network_name => $network_name, 
-					node1_ip     => $node1_ip,
-					node2_ip     => $node2_ip,
-					dr1_ip       => $dr1_ip,
-				}});
-				
-				my $network_key = "header_0036";
-				if    ($network eq "sn")  { $network_key = "header_0037"; }
-				elsif ($network eq "ifn") { $network_key = "header_0038"; }
-				$machine_ips .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-ip", variables => {
-					name  => $anvil->Words->string({key => $network_key, variables => { number => $i }}), 
-					node1 => $node1_ip ? $node1_ip : "--",
-					node2 => $node2_ip ? $node2_ip : "--",
-					dr1   => $dr1_ip   ? $dr1_ip   : "--",
-				}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
-
-			}
-		}
-=cut
- manifests::manifest_uuid::<manifest_uuid>::parsed::upses::<ups_name>::uuid                         = <upses -> ups_uuid of named UPS>
- manifests::manifest_uuid::<manifest_uuid>::parsed::fences::<fence_name>::uuid                      = <fences -> fence_uuid of named fence device>
- manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::network         = <base network ip, ie: 10.255.0.0>
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::name                        = <host name>
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::ups::<ups_name>::used       = <1 if powered by USB, 0 if not>
-=cut
-		
-		my $dns = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{dns};
-		my $ntp = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp}; 
-		my $mtu = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{mtu};
+		# Check that the machines selected didn't get added to another anvil while looking.
+		my $node1_host_name = $anvil->data->{cgi}{node1_host}{value};
+		my $node1_host_uuid = $anvil->data->{sys}{hosts}{by_name}{$node1_host_name};
+		my $node1_anvil     = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{anvil_name};
+		my $node2_host_name = $anvil->data->{cgi}{node2_host}{value};
+		my $node2_host_uuid = $anvil->data->{sys}{hosts}{by_name}{$node2_host_name};
+		my $node2_anvil     = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{anvil_name};
+		my $dr1_host_name   = $anvil->data->{cgi}{dr1_host}{value};
+		my $dr1_host_uuid   = $dr1_host_name ? $anvil->data->{sys}{hosts}{by_name}{$dr1_host_name}          : "";
+		my $dr1_anvil       = $dr1_host_name ? $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{anvil_name} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			dns => $dns, 
-			ntp => $ntp,
-			mtu => $mtu, 
+			node1_host_name => $node1_host_name,
+			node1_host_uuid => $node1_host_uuid, 
+			node1_anvil     => $node1_anvil,
+			node2_host_name => $node2_host_name,
+			node2_host_uuid => $node2_host_uuid, 
+			node2_anvil     => $node2_anvil,
+			dr1_host_name   => $dr1_host_name,
+			dr1_host_uuid   => $dr1_host_uuid, 
+			dr1_anvil       => $dr1_anvil,
 		}});
 		
-		my $fences = "";
-		foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{fence}})
+		if (($node1_anvil) && ($node1_anvil ne $anvil_name))
 		{
-			my $node1_port = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{fence}{$fence_name}{port};
-			my $node2_port = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{fence}{$fence_name}{port};
-			my $dr1_port   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{fence}{$fence_name}{port};
-			$fences .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-fence", variables => {
-				name  => $fence_name, 
-				node1 => $node1_port ? $node1_port : "--",
-				node2 => $node2_port ? $node2_port : "--",
-				dr1   => $dr1_port   ? $dr1_port   : "--",
+			# The server belongs to another Anvil! system.
+			my $message = $anvil->Words->string({key => "warning_0050", variables => { 
+				machine => $node1_host_name,
+				anvil   => $anvil_name,
 			}});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
+			$problem                               = 1;
+			$anvil->data->{cgi}{node1_host}{alert} = 1;
+			$anvil->data->{form}{error_massage}    = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				problem                  => $problem,
+				"cgi::node1_host::alert" => $anvil->data->{cgi}{node1_host}{alert},
+				"form::error_massage"    => $anvil->data->{form}{error_massage},
+			}});
+		}
+		if (($node2_anvil) && ($node2_anvil ne $anvil_name))
+		{
+			# The server belongs to another Anvil! system.
+			my $message = $anvil->Words->string({key => "warning_0050", variables => { 
+				machine => $node2_host_name,
+				anvil   => $anvil_name,
+			}});
+			$problem                               = 1;
+			$anvil->data->{cgi}{node2_host}{alert} = 1;
+			$anvil->data->{form}{error_massage}    = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				problem                  => $problem,
+				"cgi::node2_host::alert" => $anvil->data->{cgi}{node2_host}{alert},
+				"form::error_massage"    => $anvil->data->{form}{error_massage},
+			}});
+		}
+		if ($anvil->data->{cgi}{dr1_host}{value})
+		{
+			if (($dr1_anvil) && ($dr1_anvil ne $anvil_name))
+			{
+				# The server belongs to another Anvil! system.
+				my $message = $anvil->Words->string({key => "warning_0050", variables => { 
+					machine => $dr1_host_name,
+					anvil   => $anvil_name,
+				}});
+				$problem                             = 1;
+				$anvil->data->{cgi}{dr1_host}{alert} = 1;
+				$anvil->data->{form}{error_massage}  = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					problem                => $problem,
+					"cgi::dr1_host::alert" => $anvil->data->{cgi}{dr1_host}{alert},
+					"form::error_massage"  => $anvil->data->{form}{error_massage},
+				}});
+			}
 		}
 		
-		my $upses = "";
-		foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{ups}})
+		if (not $problem)
 		{
-			my $node1_uses = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{ups}{$ups_name}{used};
-			my $node2_uses = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{ups}{$ups_name}{used};
-			my $dr1_uses   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{ups}{$ups_name}{used};
-			$upses .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-ups", variables => {
-				name  => $ups_name, 
-				node1 => $node1_uses ? '<span class="available">#!string!unit_0001!#</span>' : '<span class="unavailable">#!string!unit_0002!#</span>',
-				node2 => $node2_uses ? '<span class="available">#!string!unit_0001!#</span>' : '<span class="unavailable">#!string!unit_0002!#</span>',
-				dr1   => $dr1_uses   ? '<span class="available">#!string!unit_0001!#</span>' : '<span class="unavailable">#!string!unit_0002!#</span>',
-			}});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
+			# Save the jobs!
+			my ($node1_job_uuid) = $anvil->Database->insert_or_update_jobs({
+				debug           => 2,
+				file            => $THIS_FILE, 
+				line            => __LINE__,
+				job_host_uuid   => $node1_host_uuid, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+				job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid, 
+				job_name        => "join_anvil::node1", 
+				job_title       => "job_0072", 
+				job_description => "job_0073", 
+				job_progress    => 0,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_job_uuid => $node1_job_uuid }});
+			
+			my ($node2_job_uuid) = $anvil->Database->insert_or_update_jobs({
+				debug           => 2,
+				file            => $THIS_FILE, 
+				line            => __LINE__,
+				job_host_uuid   => $node2_host_uuid, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+				job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid, 
+				job_name        => "join_anvil::node2", 
+				job_title       => "job_0072", 
+				job_description => "job_0073", 
+				job_progress    => 0,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_job_uuid => $node2_job_uuid }});
+			
+			if ($anvil->data->{cgi}{dr1_host}{value})
+			{
+				my ($dr1_job_uuid) = $anvil->Database->insert_or_update_jobs({
+					debug           => 2,
+					file            => $THIS_FILE, 
+					line            => __LINE__,
+					job_host_uuid   => $dr1_host_uuid, 
+					job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
+					job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid, 
+					job_name        => "join_anvil::dr1", 
+					job_title       => "job_0072", 
+					job_description => "job_0073", 
+					job_progress    => 0,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr1_job_uuid => $dr1_job_uuid }});
+			}
+			
+			# Tell them we're done and send them back to the main page.
+			$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => "#!string!ok_0011!#" }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "form::ok_message" => $anvil->data->{form}{ok_message} }});
+			process_create($anvil);
+			
+			return(0);
 		}
-		
-		$anvil->data->{form}{back_link}    = "?anvil=true&task=create";
-		$anvil->data->{form}{refresh_link} = "?anvil=true&task=manifests&run=true&manifest_uuid=".$anvil->data->{cgi}{manifest_uuid}{value};
-		$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "run-manifest", variables => {
-			debug          => 2,
-			title          => $anvil->Words->string({key => "striker_0270", variables => { name => $anvil_name }}), 
-			password       => $anvil->data->{cgi}{password}{value},
-			password_class => $anvil->data->{cgi}{password}{alert} ? "input_alert" : "",
-			fences         => $fences,
-			upses          => $upses,
-			networks       => $networks, 
-			dns            => $dns ? $dns : "8.8.8.8,8.8.4.4",
-			ntp            => $ntp ? $ntp : "--",
-			mtu            => $mtu ? $mtu : "1500",
-			select_node1   => $select_node1,
-			select_node2   => $select_node2, 
-			select_dr1     => $select_dr1,
-			machine_ips    => $machine_ips,
-		}});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	}
+
+	# Ask the user to choose the targets and confirm the manifest settings.
+	my $nodes    = [];
+	my $dr_hosts = [];
+	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+	{
+		my $host_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+		my $host_type  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		my $host_anvil = "";
+		if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}) && ($anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} ne $anvil_name))
+		{
+			$host_anvil = $anvil_name;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_uuid  => $host_uuid, 
+			host_name  => $host_name,
+			host_type  => $host_type, 
+			host_anvil => $host_anvil, 
+		}});
+		
+		# Does this host belong to another Anvil! already?
+		if (($host_anvil) && ($host_anvil ne $anvil_name))
+		{
+			# yup, ignore it.
+			next;
+		}
+		
+		if ($host_type eq "node")
+		{
+			push @{$nodes}, $host_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+
+			if ((not defined $anvil->data->{cgi}{node1_host}{value}) && ($host_name eq $node1_name))
+			{
+				$anvil->data->{cgi}{node1_host}{value} = $host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node1_host::value" => $anvil->data->{cgi}{node1_host}{value} }});
+			}
+			elsif ((not defined $anvil->data->{cgi}{node2_host}{value}) && ($host_name eq $node2_name))
+			{
+				$anvil->data->{cgi}{node2_host}{value} = $host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node2_host::value" => $anvil->data->{cgi}{node2_host}{value} }});
+			}
+		}
+		elsif ($host_type eq "dr")
+		{
+			push @{$dr_hosts}, $host_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+			if ((not defined $anvil->data->{cgi}{dr1_host}{value}) && ($host_name eq $dr1_name))
+			{
+				$anvil->data->{cgi}{dr1_host}{value} = $host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::dr1_host::value" => $anvil->data->{cgi}{dr1_host}{value} }});
+			}
+		}
+	}
+	
+	# We're going to need three selects; one for each node and one for DR. The DR is allowed to 
+	# be unselected so it has an empty entry.
+	my $select_node1 = $anvil->Template->select_form({
+		name     => "node1_host",
+		options  => $nodes,
+		blank    => 0,
+		'sort'   => 1,
+		selected => $anvil->data->{cgi}{node1_host}{value},
+		class    => $anvil->data->{cgi}{node1_host}{alert} ? "input_alert" : "input_clear",
+		style    => "",
+	});
+	
+	my $select_node2 = $anvil->Template->select_form({
+		name     => "node2_host",
+		options  => $nodes,
+		blank    => 0,
+		'sort'   => 1,
+		selected => $anvil->data->{cgi}{node2_host}{value},
+		class    => $anvil->data->{cgi}{node2_host}{alert} ? "input_alert" : "input_clear",
+		style    => "",
+	});
+	
+	my $select_dr1 = $anvil->Template->select_form({
+		name     => "dr1_host",
+		options  => $dr_hosts,
+		blank    => 1,
+		'sort'   => 1,
+		selected => $anvil->data->{cgi}{dr1_host}{value},
+		class    => $anvil->data->{cgi}{dr1_host}{alert} ? "input_alert" : "input_clear",
+		style    => "",
+	});
+	
+	# Show the networks.
+	my $networks     = "";
+	my $default_seen = 0;
+	foreach my $network ("bcn", "sn", "ifn")
+	{
+		my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			network => $network, 
+			count   => $count,
+		}});
+		foreach my $i (1..$count)
+		{
+			my $network_name  = $network.$i;
+			my $network_range = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{network};
+			my $subnet        = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{subnet};
+			my $gateway       = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{gateway};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				network_name  => $network_name,
+				network_range => $network_range, 
+				subnet        => $subnet, 
+				gateway       => $gateway, 
+			}});
+			
+			my $say_default = "";
+			if (($network eq "ifn") && (not $default_seen) && ($gateway))
+			{
+				$default_seen = 1;
+				$say_default  = "(#!string!striker_0249!#)";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					default_seen => $default_seen, 
+					say_default  => $say_default, 
+				}});
+			}
+			
+			my $network_key = "header_0036";
+			if    ($network eq "sn")  { $network_key = "header_0037"; }
+			elsif ($network eq "ifn") { $network_key = "header_0038"; }
+			$networks .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-network", variables => {
+				name        => $anvil->Words->string({key => $network_key, variables => { number => $i }}), 
+				network     => $network_range,
+				subnet      => $subnet,
+				gateway     => $gateway ? $gateway : "--",
+				'default'   => $say_default,
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
+		}
+	}
+	
+	# Pull out the IPs that will be assigned to servers.
+	my $machine_ips = "";
+	foreach my $network ("bcn", "sn", "ifn")
+	{
+		if ($network eq "sn")
+		{
+			# Inject the IPMI data.
+			my $node1_ipmi_ip = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{ipmi_ip};
+			my $node2_ipmi_ip = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{ipmi_ip};
+			my $dr1_ipmi_ip   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{ipmi_ip};
+			$machine_ips .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-ip", variables => {
+				name  => "#!string!striker_0258!#", 
+				node1 => $node1_ipmi_ip ? $node1_ipmi_ip : "--",
+				node2 => $node2_ipmi_ip ? $node2_ipmi_ip : "--",
+				dr1   => $dr1_ipmi_ip   ? $dr1_ipmi_ip   : "--",
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
+			
+		}
+		my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			network => $network, 
+			count   => $count,
+		}});
+		foreach my $i (1..$count)
+		{
+			my $network_name = $network.$i;
+			my $node1_ip     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{network}{$network_name}{ip};
+			my $node2_ip     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{network}{$network_name}{ip};
+			my $dr1_ip       = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{network}{$network_name}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				network_name => $network_name, 
+				node1_ip     => $node1_ip,
+				node2_ip     => $node2_ip,
+				dr1_ip       => $dr1_ip,
+			}});
+			
+			my $network_key = "header_0036";
+			if    ($network eq "sn")  { $network_key = "header_0037"; }
+			elsif ($network eq "ifn") { $network_key = "header_0038"; }
+			$machine_ips .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-ip", variables => {
+				name  => $anvil->Words->string({key => $network_key, variables => { number => $i }}), 
+				node1 => $node1_ip ? $node1_ip : "--",
+				node2 => $node2_ip ? $node2_ip : "--",
+				dr1   => $dr1_ip   ? $dr1_ip   : "--",
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
+		}
+	}
+	
+	my $dns = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{dns};
+	my $ntp = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp}; 
+	my $mtu = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{mtu};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		dns => $dns, 
+		ntp => $ntp,
+		mtu => $mtu, 
+	}});
+	
+	my $fences = "";
+	foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{fence}})
+	{
+		my $node1_port = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{fence}{$fence_name}{port};
+		my $node2_port = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{fence}{$fence_name}{port};
+		my $dr1_port   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{fence}{$fence_name}{port};
+		$fences .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-fence", variables => {
+			name  => $fence_name, 
+			node1 => $node1_port ? $node1_port : "--",
+			node2 => $node2_port ? $node2_port : "--",
+			dr1   => $dr1_port   ? $dr1_port   : "--",
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
+	}
+	
+	my $upses = "";
+	foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{ups}})
+	{
+		my $node1_uses = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node1}{ups}{$ups_name}{used};
+		my $node2_uses = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{node2}{ups}{$ups_name}{used};
+		my $dr1_uses   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{dr1}{ups}{$ups_name}{used};
+		$upses .= $anvil->Template->get({file => "anvil.html", name => "run-manifest-ups", variables => {
+			name  => $ups_name, 
+			node1 => $node1_uses ? '<span class="available">#!string!unit_0001!#</span>' : '<span class="unavailable">#!string!unit_0002!#</span>',
+			node2 => $node2_uses ? '<span class="available">#!string!unit_0001!#</span>' : '<span class="unavailable">#!string!unit_0002!#</span>',
+			dr1   => $dr1_uses   ? '<span class="available">#!string!unit_0001!#</span>' : '<span class="unavailable">#!string!unit_0002!#</span>',
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { networks => $networks }});
+	}
+	
+	$anvil->data->{form}{back_link}    = "?anvil=true&task=create";
+	$anvil->data->{form}{refresh_link} = "?anvil=true&task=manifests&run=true&manifest_uuid=".$anvil->data->{cgi}{manifest_uuid}{value};
+	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "run-manifest", variables => {
+		debug          => 2,
+		title          => $anvil->Words->string({key => "striker_0270", variables => { name => $anvil_name }}), 
+		password       => $anvil->data->{cgi}{password}{value},
+		password_class => $anvil->data->{cgi}{password}{alert} ? "input_alert" : "",
+		fences         => $fences,
+		upses          => $upses,
+		networks       => $networks, 
+		dns            => $dns ? $dns : "8.8.8.8,8.8.4.4",
+		ntp            => $ntp ? $ntp : "--",
+		mtu            => $mtu ? $mtu : "1500",
+		select_node1   => $select_node1,
+		select_node2   => $select_node2, 
+		select_dr1     => $select_dr1,
+		hostname_node1 => $node1_name,
+		hostname_node2 => $node2_name,
+		hostname_dr1   => $dr1_name,
+		machine_ips    => $machine_ips,
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	
 	return(0);
 }

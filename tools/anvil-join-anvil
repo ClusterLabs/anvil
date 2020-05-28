@@ -1,0 +1,51 @@
+#!/usr/bin/perl
+# 
+# This adds a node (or gets a node to join to a new/rebuilt peer or added DR) to an Anvil!.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 
+# TODO: 
+#
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
+# passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->Get->switches;
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0077"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+
+$anvil->nice_exit({code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
