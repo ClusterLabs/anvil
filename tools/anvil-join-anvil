@@ -559,7 +559,7 @@ sub check_local_network
 		
 		# Tell nmcli to re-read the config files.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
-		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
+		my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
 			output      => $output,
 			return_code => $return_code, 
@@ -568,10 +568,10 @@ sub check_local_network
 		foreach my $interface_name (sort {$a cmp $b} @{$restart_interfaces})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $interface_name }});
-			$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down ".$interface_name});
+			$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down \"".$interface_name."\""});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0464", variables => { interface => $interface_name }});
-			$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection up ".$interface_name});
+			$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection up \"".$interface_name."\""});
 		}
 	
 		# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
