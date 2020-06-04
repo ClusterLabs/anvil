@@ -3,7 +3,6 @@
 # This keeps an eye on the network configuration and ensures the firewall is configured appropriately. What
 # exactly that means depends on why kind of machine the local host is.
 # 
-# 
 # Exit codes;
 # 0 = Normal exit.
 # 1 = Failed to unlink an unneeded file.
@@ -12,6 +11,7 @@
 # TODO:
 # - TEMP: During development, firewalling is disabled.
 # - Add support for enabling/disabling MASQ'ing the BCN
+# - Add support for listening for NTP queries based on /etc/chrony.conf's Server entries (map them to networks / zones).
 #   
 #   # Allow routing/masq'ing through the IFN1 (provide net access to the BCN)
 #   firewall-cmd --zone=IFN1 --add-masquerade
@@ -70,20 +70,6 @@ $anvil->nice_exit({exit_code => 0});
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0134"});
 check_initial_setup($anvil);
-
-### TODO:
-=cut
-firewall-cmd --get-active-zones | grep -q virbr0
-if [ $? -eq 0 ]; 
-then 
-    echo "Removing libvirt firewall zone..."
-    firewall-cmd --zone=libvirt --remove-interface=virbr0 --permanent
-    firewall-cmd  --zone=libvirt --remove-interface=virbr0
-    echo "Done."
-else
-    echo "There is no libvirt firewall zone to remove."
-fi
-=cut
 
 # Restart, if needed.
 if ($anvil->data->{firewall}{reload})

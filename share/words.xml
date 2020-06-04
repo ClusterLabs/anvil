@@ -66,7 +66,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="error_0029"><![CDATA[Failed to find the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>].]]></key>
 		<key name="error_0030"><![CDATA[Failed to process the template: [<span class="code">#!variable!template!#</span>] in the template file: [<span class="code">#!variable!file!#</span>]. Details of the problem should be in: [<span class="code">#!data!path::log::main!#</span>].]]></key>
 		<key name="error_0031">The 'host-uuid': [#!variable!host_uuid!#] is not valid.</key>
-		<key name="error_0032">The '#!variable!switch!#' switch is missing.</key>
+		<key name="error_0032">The '#!variable!switch!#' switch is missing and no pending job was found.</key>
 		<key name="error_0033">The job UUID was passed via '--job-uuid' but the passed in value: [#!variable!uuid!#] is not a valid UUID.</key>
 		<key name="error_0034">The job UUID was passed via '--job-uuid': [#!variable!uuid!#] doesn't match a job in the database.</key>
 		<key name="error_0035">
@@ -129,7 +129,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
 		<key name="error_0078">Did not find any offending keys on this host, exiting.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
-		<key name="error_0080">No job UUID was passwed .</key>
+		<key name="error_0080">No job UUID was passed .</key>
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
@@ -187,6 +187,7 @@ The error was:
 		<key name="error_0126">The IP address: [#!variable!ip!#] does not appear to be in the network: [#!variable!network!#].</key>
 		<key name="error_0127">I was asked to delete and entry from: [#!variable!table!#] but neither the name or UUID was passed.</key>
 		<key name="error_0128">The host UUID: [#!variable!uuid!#] was set as the value for: [#!variable!column!#], but that host doesn't appear to exist.</key>
+		<key name="error_0129">Unable to connect to any database, unable to read the job details.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -288,7 +289,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0052">[ Error ] - There was a problem reading the known hosts file: [#!variable!file!#]. Skipping it.</key>
 		<key name="job_0053">Found an entry for the target at line: [#!variable!line!#], removing it.</key>
 		<key name="job_0054">[ Error ] - The line number: [#!variable!line!#] in: [#!variable!file!#] does not appear to be for the target: [#!variable!target!#]. Has the file already been updated? Skipping it.</key>
-		<key name="job_0055">Rewriing: [#!variable!file!#].</key>
+		<key name="job_0055">Rewriting: [#!variable!file!#].</key>
 		<key name="job_0056">Manage Keys</key>
 		<key name="job_0057">The selected bad key(s) will be removed from the specified files.</key>
 		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a progrem error, skipping this.</key>
@@ -307,6 +308,24 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0071">The network configuration will be updated based on the variables stored in the database. When complete, the system will reboot.</key>
 		<key name="job_0072">Join this machine to an #!string!brand_0006!#.</key>
 		<key name="job_0073">This machine will join an #!string!brand_0006!# as a node or DR host. The role and #!string!brand_0006!# will be determined by the associated Install Manifest UUID.</key>
+		<key name="job_0074">'Join #!string!brand_0002!#' job: [#!variable!job-uuid!#] picked up.</key>
+		<key name="job_0075">This will become: [#!variable!machine!#] using data from the install manifest UUID: [#!variable!manifest_uuid!#].</key>
+		<key name="job_0076">[ Error ] - Failed to load and parse the install manifest. Details will be found in the logs.</key>
+		<key name="job_0077">The host name is already: [#!variable!host_name!#], no change needed.</key>
+		<key name="job_0078">Updating the network configuration for: [#!variable!interface!#].</key>
+		<key name="job_0079">Disconnected from all database(s). Will reconnect after the network configuration changes have taken effect.</key>
+		<key name="job_0080">About to update the network, as necessary.</key>
+		<key name="job_0081">Checking: [#!variable!name!#].</key>
+		<key name="job_0082">No changes needed.</key>
+		<key name="job_0083">Backing up and writting out the new version of: [#!variable!file!#].</key>
+		<key name="job_0084">Reconnected to: [#!data!sys::database::connections!#] database(s).</key>
+		<key name="job_0085">The default 'virbr0' libvirtd bridge exists. Removing it.</key>
+		<key name="job_0086">Checking if the MTU needs to be updated on any interfaces.</key>
+		<key name="job_0087">The MTU on the interface: [#!variable!interface!#] is already: [#!variable!mtu!#] bytes, no update needed.</key>
+		<key name="job_0088">The MTU on the interface: [#!variable!interface!#] is currently: [#!variable!old_mtu!#] bytes, changing it to: [#!variable!mtu!#] bytes now.</key>
+		<key name="job_0089">Adding NTP (network time protocol) servers, if needed.</key>
+		<key name="job_0090">Adding the NTP server: [#!variable!server!#].</key>
+		<key name="job_0091">Restarting the daemon: [#!variable!daemon!#].</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

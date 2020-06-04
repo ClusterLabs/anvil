@@ -124,7 +124,7 @@ sub clear
 
 =head2 get_job_details
 
-This takes a C<< job_uuid >> and returns the job's details. If the job is found, C<< 0 >> is returned. If it isn't found, C<< 1 >> is returned. If it is found, but C<< check >> was set and the process is still alice, C<< 2 >> is returned.
+This takes a C<< job_uuid >> and returns the job's details. If the job is found, C<< 0 >> is returned. If it isn't found, C<< 1 >> is returned. If it is found, but C<< check >> was set and the process is still alive, C<< 2 >> is returned.
 
 When successful, the job details will be stored in;
 
@@ -147,9 +147,9 @@ Parameters;
 
 This checks to see if the job was picked up by a program that is still running. If set to C<< 1 >> and that process is running, this method will return C<< 2 >>. If set to C<< 0 >>, the job data will be loaded (if found) and C<< 0 >> will be returned.
 
-=head3 job_uuid (required)
+=head3 job_uuid (optional)
 
-This is the job UUID to pull up.
+This is the job UUID to pull up. If not passed, first a check is made to see if C<< --job-uuid >> was passed. If not, a check is made in the database for any pending jobs assigned to this host and whose C<< job_command >> matches the calling program.
 
 =cut
 sub get_job_details
@@ -169,9 +169,45 @@ sub get_job_details
 	# Were we passed a job uuid?
 	if ((not $job_uuid) && (not $anvil->data->{switches}{'job-uuid'}))
 	{
-		$job_uuid = $anvil->data->{switches}{'job-uuid'};
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0032", variables => { switch => '--job-uuid' } });
-		return(1);
+		# Try to find a job in the database.
+		my $command = $0."%";
+		my $query = "
+SELECT 
+    job_uuid
+FROM 
+    jobs 
+WHERE 
+    job_host_uuid =  ".$anvil->Database->quote($anvil->Get->host_uuid)."
+AND 
+    job_progress  != 100
+AND 
+    job_command LIKE ".$anvil->Database->quote($command)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$job_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+			
+			if (($job_uuid) && (not $anvil->data->{switches}{'job-uuid'}))
+			{
+				$anvil->data->{switches}{'job-uuid'} = $job_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
+			}
+		}
+		
+		if (not $job_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0032", variables => { switch => '--job-uuid' } });
+			return(1);
+		}
 	}
 	
 	if (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))

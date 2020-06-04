@@ -1433,7 +1433,8 @@ This method checks the local system for interfaces and stores them in:
 
 * C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
 * C<< network::<target>::interface::<iface_name>::subnet_mask >>     - If an IP is set
-* C<< network::<target>::interface::<iface_name>::mac >>             - Always set.
+* C<< network::<target>::interface::<iface_name>::mac_address >>     - Always set.
+* C<< network::<target>::interface::<iface_name>::mtu >>             - Always set.
 * C<< network::<target>::interface::<iface_name>::default_gateway >> = C<< 0 >> if not the default gateway, C<< 1 >> if so.
 * C<< network::<target>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
 * C<< network::<target>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
@@ -1535,6 +1536,7 @@ sub get_ips
 			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}              = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{ip};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask}     = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{mac_address}     = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address};
+			$anvil->data->{network}{$host}{interface}{$in_iface}{mtu}             = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{mtu};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway} = 0  if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{default_gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{gateway}         = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{gateway};
 			$anvil->data->{network}{$host}{interface}{$in_iface}{dns}             = "" if not defined $anvil->data->{network}{$host}{interface}{$in_iface}{dns};
@@ -1567,24 +1569,13 @@ sub get_ips
 				"s2:network::${host}::interface::${in_iface}::subnet_mask" => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask},
 			}});
 		}
-		if ($line =~ /ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}) /i)
+		if ($line =~ /mtu (\d+) /i)
 		{
-			my $mac_address                                                      = $1;
-			   $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $mac_address;
+			my $mtu                                                      = $1;
+			   $anvil->data->{network}{$host}{interface}{$in_iface}{mtu} = $mtu;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::${host}::interface::${in_iface}::mac_address" => $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address},
+				"network::${host}::interface::${in_iface}::mtu" => $anvil->data->{network}{$host}{interface}{$in_iface}{mtu},
 			}});
-			
-			# We only record the mac in 'network::mac' if this isn't a bond.
-			my $test_file = "/proc/net/bonding/".$in_iface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_file => $test_file }});
-			if (not -e $test_file)
-			{
-				$anvil->data->{network}{mac_address}{$mac_address}{iface} = $in_iface;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"network::mac_address::${mac_address}::iface" => $anvil->data->{network}{mac_address}{$mac_address}{iface}, 
-				}});
-			}
 		}
 	}
 	

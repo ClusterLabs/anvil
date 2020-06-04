@@ -1071,6 +1071,7 @@ sub _set_paths
 			},
 			data			=>	{
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
+				'chrony.conf'			=>	"/etc/chrony.conf",
 				group				=>	"/etc/group",
 				issue				=>	"/etc/issue",
 				httpd_conf			=>	"/etc/httpd/conf/httpd.conf",
@@ -1130,6 +1131,7 @@ sub _set_paths
 				cat				=>	"/usr/bin/cat",
 				'chmod'				=>	"/usr/bin/chmod",
 				'chown'				=>	"/usr/bin/chown",
+				chronyc				=>	"/usr/bin/chronyc",
 				cibadmin			=>	"/usr/sbin/cibadmin",
 				cp				=>	"/usr/bin/cp",
 				createdb			=>	"/usr/bin/createdb",
