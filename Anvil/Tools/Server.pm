@@ -226,7 +226,7 @@ sub find
 		delete $anvil->data->{server}{location};
 	}
 	
-	my $host_type    = $anvil->System->get_host_type({debug => $debug});
+	my $host_type    = $anvil->Get->host_type({debug => $debug});
 	my $host         = $anvil->_host_name;
 	my $virsh_output = "";
 	my $return_code  = "";

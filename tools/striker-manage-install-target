@@ -192,7 +192,7 @@ if (not $configured)
 load_os_info($anvil);
 
 # If this isn't a Striker dashboard, exit.
-if ($anvil->System->get_host_type ne "dashboard")
+if ($anvil->Get->host_type ne "striker")
 {
 	print $anvil->Words->string({key => "error_0044"})."\n";
 	update_progress($anvil, 100, "error_0044");
@@ -268,7 +268,7 @@ sub load_os_info
 {
 	my ($anvil) = @_;
 	
-	my ($os_type, $os_arch) = $anvil->System->get_os_type();
+	my ($os_type, $os_arch) = $anvil->Get->os_type();
 	$anvil->data->{host_os}{os_type} = $os_type;
 	$anvil->data->{host_os}{os_arch} = $os_arch;
 	$anvil->data->{host_os}{version} = ($os_type =~ /(\d+)$/)[0];
@@ -2440,7 +2440,7 @@ sub load_packages
 		],
 	};
 	
-	my ($os_type, $os_arch) = $anvil->System->get_os_type();
+	my ($os_type, $os_arch) = $anvil->Get->os_type();
 	if ($os_type eq "rhel8")
 	{
 		push @{$anvil->data->{packages}{r}}, "redhat-backgrounds.noarch";

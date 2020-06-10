@@ -247,7 +247,7 @@ elif [ -e '/etc/anvil/type.dr' ]
 then 
     rm -f /etc/anvil/type.dr
 fi
-touch /etc/anvil/type.dashboard
+touch /etc/anvil/type.striker
 
 
 ### TODO: I don't think we need this anymore
@@ -266,9 +266,9 @@ firewall-cmd --add-service=postgresql --permanent
 %post node
 # Touch the system type file.
 echo "Touching the system type file"
-if [ -e '/etc/anvil/type.dashboard' ]
+if [ -e '/etc/anvil/type.striker' ]
 then
-    rm -f /etc/anvil/type.dashboard
+    rm -f /etc/anvil/type.striker
 elif [ -e '/etc/anvil/type.dr' ]
 then 
     rm -f /etc/anvil/type.dr
@@ -282,9 +282,9 @@ touch /etc/anvil/type.node
 %post dr
 # Touch the system type file.
 echo "Touching the system type file"
-if [ -e '/etc/anvil/type.dashboard' ]
+if [ -e '/etc/anvil/type.striker' ]
 then
-    rm -f /etc/anvil/type.dashboard
+    rm -f /etc/anvil/type.striker
 elif [ -e '/etc/anvil/type.node' ]
 then 
     rm -f /etc/anvil/type.node
@@ -318,9 +318,9 @@ touch /etc/anvil/type.dr
 # systemctl stop postgresql.service
 
 # Remove the system type file.
-if [ -e '/etc/anvil/type.dashboard' ]
+if [ -e '/etc/anvil/type.striker' ]
 then
-    rm -f /etc/anvil/type.dashboard
+    rm -f /etc/anvil/type.striker
 fi
 
 %postun node

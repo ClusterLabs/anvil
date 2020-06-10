@@ -168,7 +168,7 @@ sub reconfigure_network
 	my $sn_count         = exists $anvil->data->{variables}{form}{config_step1}{sn_count}{value}     ? $anvil->data->{variables}{form}{config_step1}{sn_count}{value}     : 0;
 	my $ifn_count        = exists $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    ? $anvil->data->{variables}{form}{config_step1}{ifn_count}{value}    : 1;
 	my $new_host_name    = exists $anvil->data->{variables}{form}{config_step2}{host_name}{value}    ? $anvil->data->{variables}{form}{config_step2}{host_name}{value}    : "";
-	my $type             = $anvil->System->get_host_type();
+	my $type             = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { 
 		prefix        => $prefix, 
 		sequence      => $sequence,
@@ -182,7 +182,7 @@ sub reconfigure_network
 	}});
 	
 	# If we're configuring a dashboard and no host name was given, generate it.
-	if (($type eq "dashboard") && (not $new_host_name))
+	if (($type eq "striker") && (not $new_host_name))
 	{
 		$new_host_name = $prefix."-striker".sprintf("%02d", $sequence).".".$domain;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { new_host_name => $new_host_name }});
@@ -191,7 +191,7 @@ sub reconfigure_network
 	if ($new_host_name)
 	{
 		my $type_name = "";
-		if ($type eq "dashboard")
+		if ($type eq "striker")
 		{
 			$type_name = $anvil->Words->string({key => "brand_0003"});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { type_name => $type_name }});

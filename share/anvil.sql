@@ -97,60 +97,60 @@ CREATE TRIGGER trigger_hosts
 
 
 -- This stores the SSH _public_keys for a given user on a host. 
-CREATE TABLE host_keys (
-    host_key_uuid          uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
-    host_key_host_uuid     uuid                        not null,
-    host_key_user_name     text                        not null,                   -- This is the user name on the system, not a web interface user.
-    host_key_public_key    text                        not null,                   -- Either 'node', 'dashboard' or 'dr'
+CREATE TABLE ssh_keys (
+    ssh_key_uuid          uuid                        not null    primary key,
+    ssh_key_host_uuid     uuid                        not null,
+    ssh_key_user_name     text                        not null,                   -- This is the user name on the system, not a web interface user.
+    ssh_key_public_key    text                        not null,                   -- Either 'node', 'dashboard' or 'dr'
     modified_date          timestamp with time zone    not null, 
     
-    FOREIGN KEY(host_key_host_uuid) REFERENCES hosts(host_uuid)
+    FOREIGN KEY(ssh_key_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE host_keys OWNER TO admin;
+ALTER TABLE ssh_keys OWNER TO admin;
 
-CREATE TABLE history.host_keys (
+CREATE TABLE history.ssh_keys (
     history_id             bigserial,
-    host_key_uuid          uuid,
-    host_key_host_uuid     uuid,
-    host_key_user_name     text,
-    host_key_public_key    text,
+    ssh_key_uuid          uuid,
+    ssh_key_host_uuid     uuid,
+    ssh_key_user_name     text,
+    ssh_key_public_key    text,
     modified_date          timestamp with time zone    not null
 );
-ALTER TABLE history.host_keys OWNER TO admin;
+ALTER TABLE history.ssh_keys OWNER TO admin;
 
-CREATE FUNCTION history_host_keys() RETURNS trigger
+CREATE FUNCTION history_ssh_keys() RETURNS trigger
 AS $$
 DECLARE
-    history_host_keys RECORD;
+    history_ssh_keys RECORD;
 BEGIN
-    SELECT INTO history_host_keys * FROM host_keys WHERE host_key_uuid = new.host_key_uuid;
-    INSERT INTO history.host_keys
-        (host_key_uuid,
-         host_key_host_uuid, 
-         host_key_user_name, 
-         host_key_public_key, 
+    SELECT INTO history_ssh_keys * FROM ssh_keys WHERE ssh_key_uuid = new.ssh_key_uuid;
+    INSERT INTO history.ssh_keys
+        (ssh_key_uuid,
+         ssh_key_host_uuid, 
+         ssh_key_user_name, 
+         ssh_key_public_key, 
          modified_date)
     VALUES
-        (history_host_keys.host_key_uuid,
-         history_host_keys.host_key_host_uuid, 
-         history_host_keys.host_key_user_name, 
-         history_host_keys.host_key_public_key, 
-         history_host_keys.modified_date);
+        (history_ssh_keys.ssh_key_uuid,
+         history_ssh_keys.ssh_key_host_uuid, 
+         history_ssh_keys.ssh_key_user_name, 
+         history_ssh_keys.ssh_key_public_key, 
+         history_ssh_keys.modified_date);
     RETURN NULL;
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_host_keys() OWNER TO admin;
+ALTER FUNCTION history_ssh_keys() OWNER TO admin;
 
-CREATE TRIGGER trigger_host_keys
-    AFTER INSERT OR UPDATE ON host_keys
-    FOR EACH ROW EXECUTE PROCEDURE history_host_keys();
+CREATE TRIGGER trigger_ssh_keys
+    AFTER INSERT OR UPDATE ON ssh_keys
+    FOR EACH ROW EXECUTE PROCEDURE history_ssh_keys();
 
 
 -- This stores information about users. 
 -- Note that is all permissions are left false, the user can still interact with the Anvil! doing safe things, like changing optical media, perform migrations, start servers (but not stop them), etc. 
 CREATE TABLE users (
-    user_uuid              uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    user_uuid              uuid                        not null    primary key,
     user_name              text                        not null,
     user_password_hash     text                        not null,                   -- A user without a password is disabled.
     user_salt              text                        not null,                   -- This is used to enhance the security of the user's password.
@@ -223,7 +223,7 @@ CREATE TRIGGER trigger_users
 
 -- This stores special variables for a given host that programs may want to record.
 CREATE TABLE host_variable (
-    host_variable_uuid         uuid                        not null    primary key,    -- This is the single most important record in ScanCore. Everything links back to here.
+    host_variable_uuid         uuid                        not null    primary key,
     host_variable_host_uuid    uuid                        not null,
     host_variable_name         text                        not null,
     host_variable_value        text                        not null,
@@ -274,7 +274,7 @@ CREATE TRIGGER trigger_host_variable
 
 -- This stores user session information on a per-dashboard basis.
 CREATE TABLE sessions (
-    session_uuid          uuid                        not null    primary key,    -- This is the single most important record in Anvil!. Everything links back to here.
+    session_uuid          uuid                        not null    primary key,
     session_host_uuid     uuid                        not null,                   -- This is the host uuid for this session.
     session_user_uuid     uuid                        not null,                   -- This is the user uuid for the user logging in.
     session_salt          text                        not null,                   -- This is used when generating a session hash for a session when they log in.
@@ -642,7 +642,7 @@ CREATE TABLE variables (
     variable_default         text                        not null,                   -- This acts as a reference for the user should they want to roll-back changes.
     variable_description     text                        not null,                   -- This is a string key that describes this variable's use.
     variable_section         text                        not null,                   -- This is a free-form field that is used when displaying the various entries to a user. This allows for the various variables to be grouped into sections.
-    variable_source_uuid     text                        not null,                   -- Optional; Marks the variable as belonging to a specific X_uuid, where 'X' is a table name set in 'variable_source_table'
+    variable_source_uuid     uuid,                                                   -- Optional; Marks the variable as belonging to a specific X_uuid, where 'X' is a table name set in 'variable_source_table'
     variable_source_table    text                        not null,                   -- Optional; Marks the database table corresponding to the 'variable_source_uuid' value.
     modified_date            timestamp with time zone    not null 
 );
@@ -656,7 +656,7 @@ CREATE TABLE history.variables (
     variable_default         text,
     variable_description     text,
     variable_section         text,
-    variable_source_uuid     text,
+    variable_source_uuid     uuid,
     variable_source_table    text,
     modified_date            timestamp with time zone    not null 
 );

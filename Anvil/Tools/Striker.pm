@@ -186,7 +186,7 @@ sub generate_manifest
 	{
 		my $host_name = $node1_name;
 		if    ($machine eq "node2") { $host_name = $node2_name; }
-		elsif ($machine eq "dr1")   { $host_name = $dr1_name; }
+		elsif ($machine eq "dr1")   { $host_name = $dr1_name;   }
 		$manifest_xml .= '		<'.$machine.' name="'.$host_name.'" ipmi_ip="'.$machines->{$machine}{ipmi_ip}.'">
 			<networks>
 ';
@@ -967,7 +967,7 @@ WHERE
 		foreach my $machine (sort {$a cmp $b} keys %{$parsed_xml->{machines}})
 		{
 			$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name}    = $parsed_xml->{machines}{$machine}{name};
-			$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip} = $parsed_xml->{machines}{$machine}{ipmi_ip};
+			$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip} = defined $parsed_xml->{machines}{$machine}{ipmi_ip} ? $parsed_xml->{machines}{$machine}{ipmi_ip} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::type"    => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{type}, 
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ipmi_ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip}, 
@@ -975,7 +975,7 @@ WHERE
 			
 			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{fences}{fence}})
 			{
-				my $fence_name                                                                                                     = $hash_ref->{name};
+				my $fence_name                                                                                                   = $hash_ref->{name};
 				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $hash_ref->{port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
@@ -984,7 +984,7 @@ WHERE
 			
 			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{upses}{ups}})
 			{
-				my $ups_name                                                                                                   = $hash_ref->{name};
+				my $ups_name                                                                                                 = $hash_ref->{name};
 				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used} = $hash_ref->{used};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used}, 
@@ -993,7 +993,7 @@ WHERE
 			
 			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{networks}{network}})
 			{
-				my $network_name                                                                                                     = $hash_ref->{name};
+				my $network_name                                                                                                   = $hash_ref->{name};
 				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}{$network_name}{ip} = $hash_ref->{ip};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::network::${network_name}::ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}{$network_name}{ip}, 

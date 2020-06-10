@@ -16,11 +16,16 @@ my $THIS_FILE = "Get.pm";
 
 ### Methods;
 # anvil_version
+# bridges
 # cgi
 # date_and_time
+# free_memory
+# host_type
 # host_uuid
 # md5sum
+# os_type
 # switches
+# uptime
 # users_home
 # uuid
 # _salt
@@ -237,6 +242,98 @@ fi;
 	$version =~ s/\n//gs;
 	
 	return($version);
+}
+
+=head2 bridges
+
+This finds a list of bridges on the host. Bridges that are found are stored is '
+
+=cut
+sub bridges
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->bridges()" }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{bridge}." -json -details link show"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# Delete any previously known data
+	if (exists $anvil->data->{'local'}{network}{bridges})
+	{
+		delete $anvil->data->{'local'}{network}{bridges};
+	};
+	
+	my $json        = JSON->new->allow_nonref;
+	my $bridge_data = $json->decode($output);
+	#print Dumper $bridge_data;
+	foreach my $hash_ref (@{$bridge_data})
+	{
+		# If the ifname and master are the same, it's a bridge.
+		my $type           = "interface";
+		my $interface = $hash_ref->{ifname};
+		my $master_bridge  = $hash_ref->{master};
+		if ($interface eq $master_bridge)
+		{
+			$type = "bridge";
+			$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
+			}});
+		}
+		else
+		{
+			# Store this interface under the bridge.
+			$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
+			}});
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			interface     => $interface,
+			master_bridge => $master_bridge, 
+			type          => $type, 
+		}});
+		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
+		{
+			if (ref($hash_ref->{$key}) eq "ARRAY")
+			{
+				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = [];
+				foreach my $value (sort {$a cmp $b} @{$hash_ref->{$key}})
+				{
+					push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}, $value;
+				}
+				for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}; $i++)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"local::network::bridges::${type}::${interface}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}->[$i], 
+					}});
+				}
+			}
+			else
+			{
+				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = $hash_ref->{$key};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"local::network::bridges::${type}::${interface}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}, 
+				}});
+			}
+		}
+	}
+	
+	# Summary of found bridges.
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
+		}});
+	}
+	
+	return(0);
 }
 
 =head2 cgi
@@ -561,6 +658,142 @@ WHERE
 	return($host_name);
 }
 
+=head2 free_memory
+
+This returns, in bytes, host much free memory is available on the local system.
+
+=cut
+### TODO: Make this work on remote systems.
+sub free_memory
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->free_memory()" }});
+	
+	my $available               = 0;
+	my ($free_output, $free_rc) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{free}." --bytes"});
+	foreach my $line (split/\n/, $free_output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		if ($line =~ /Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
+		{
+			my $total     = $1;
+			my $used      = $2;
+			my $free      = $3;
+			my $shared    = $4;
+			my $cache     = $5;
+			   $available = $6;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				total     => $total." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $total})."})", 
+				used      => $used." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used})."})",
+				free      => $free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free})."})", 
+				shared    => $shared." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $shared})."})", 
+				cache     => $cache." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $cache})."})", 
+				available => $available." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available})."})", 
+			}});
+		}
+	}
+	
+	return($available);
+}
+
+=head2 host_type
+
+This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
+
+ my $type = $anvil->System->host_type();
+
+First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
+
+If that isn't set, it then looks to see if the file C<< /etc/anvil/type.X >> exists, where C<< X >> is C<< node >>, C<< striker >> or C<< dr >>. If found, the appropriate type is returned.
+
+If that file doesn't exist, then it then checks to see which C<< anvil-<type> >> rpm is installed. In order, it looks for C<< anvil-striker >>, then C<< anvil-node >> and finally C<< anvil-dr >>. If one of them is found, the appropriate C<< /etc/anvil/type.X >> is created.
+
+=cut
+sub host_type
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_type()" }});
+	
+	my $host_type = "";
+	my $host_name = $anvil->_short_host_name;
+	   $host_type = "unknown";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_type        => $host_type,
+		host_name        => $host_name,
+		"sys::host_type" => $anvil->data->{sys}{host_type},
+	}});
+
+	if ($anvil->data->{sys}{host_type})
+	{
+		$host_type = $anvil->data->{sys}{host_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	}
+	else
+	{
+		# Can I determine it by seeing a file?
+		if (-e $anvil->data->{path}{configs}{'type.node'})
+		{
+			$host_type = "node";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (-e $anvil->data->{path}{configs}{'type.striker'})
+		{
+			$host_type = "striker";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		elsif (-e $anvil->data->{path}{configs}{'type.dr'})
+		{
+			$host_type = "dr";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		}
+		else
+		{
+			# Last gasp here is to use 'rpm' to see which RPMs are installed. If we find one, 
+			# we'll touch 'type.X' file
+			foreach my $rpm ("anvil-striker", "anvil-node", "anvil-dr")
+			{
+				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{rpm}." -q ".$rpm});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+				if ($return_code eq "0")
+				{
+					# Found out what we are.
+					if ($rpm eq "anvil-striker")
+					{
+						$host_type = "striker";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+					}
+					
+					my $key  = "type.".$host_type;
+					my $file = $anvil->data->{path}{configs}{$key};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						key  => $key,
+						file => $file, 
+					}});
+					# If we have a file and we're root, touch to the file.
+					if (($file) && (($< == 0) or ($> == 0)))
+					{
+						my $error = $anvil->Storage->write_file({
+							debug => $debug,
+							body  => "",
+							file  => $file,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { error => $error }});
+					}
+					last;
+				}
+			}
+		}
+	}
+	
+	return($host_type);
+}
+
 =head2 host_uuid
 
 This returns the local host's system UUID (as reported by 'dmidecode'). If the host UUID isn't available, and the program is not running with root priviledges, C<< #!error!# >> is returned.
@@ -704,6 +937,68 @@ sub md5sum
 	return($sum);
 }
 
+=head2 os_type
+
+This returns the operating system type and the system architecture as two separate string variables.
+
+ # Run on RHEL 8, on a 64-bit system
+ my ($os_type, $os_arch) = $anvil->Get->os_type();
+ 
+ # '$os_type' holds 'rhel8'  ('rhel' or 'centos' + release version) 
+ # '$os_arch' holds 'x86_64' (specifically, 'uname --hardware-platform')
+
+If either can not be determined, C<< unknown >> will be returned.
+
+This method takes no parameters.
+
+=cut
+sub get_os_type
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->os_type()" }});
+	
+	my $os_type = "unknown";
+	my $os_arch = "unknown";
+	
+	### NOTE: Examples;
+	# Red Hat Enterprise Linux release 8.0 Beta (Ootpa)
+	# Red Hat Enterprise Linux Server release 7.5 (Maipo)
+	# CentOS Linux release 7.5.1804 (Core) 
+
+	# Read in the /etc/redhat-release file
+	my $release = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'redhat-release'}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { release => $release }});
+	if ($release =~ /Red Hat Enterprise Linux .* (\d+)\./)
+	{
+		# RHEL, with the major version number appended
+		$os_type = "rhel".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
+	}
+	elsif ($release =~ /CentOS .*? (\d+)\./)
+	{
+		# CentOS, with the major version number appended
+		$os_type = "centos".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
+	}
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uname}." --hardware-platform"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
+	if ($output)
+	{
+		$os_arch = $output;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_arch => $os_arch }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		os_type => $os_type, 
+		os_arch => $os_arch,
+	}});
+	return($os_type, $os_arch);
+}
+
 =head2 switches
 
 This reads in the command line switches used to invoke the parent program. 
@@ -782,6 +1077,38 @@ sub switches
 	$anvil->Log->_adjust_log_level();
 	
 	return(0);
+}
+
+=head2 uptime
+
+This returns, in seconds, how long the host has been up and running for. 
+
+This method takes no parameters.
+
+=cut
+### TODO: Make this work on remote hosts
+sub uptime
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->uptime()" }});
+	
+	my $uptime = $anvil->Storage->read_file({
+		force_read => 1,
+		cache      => 0,
+		file       => $anvil->data->{path}{proc}{uptime},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
+	
+	# Clean it up. We'll have gotten two numbers, the uptime in seconds (to two decimal places) and the 
+	# total idle time. We only care about the int number.
+	$uptime =~ s/^(\d+)\..*$/$1/;
+	$uptime =~ s/\n//gs;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
+	
+	return($uptime);
 }
 
 =head2 users_home

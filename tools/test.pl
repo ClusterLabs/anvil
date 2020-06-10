@@ -25,10 +25,4 @@ $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 print "DB Connections: [".$anvil->data->{sys}{database}{connections}."]\n";
 
-$anvil->Striker->get_fence_data();
-
-foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{fence_virsh}{parameters}})
-{
-	#print "Name: [".$name."]: [".sprintf('%vX', $anvil->data->{fence_data}{fence_virsh}{parameters}{$name}{'default'})."]\n";
-	print "Name: [".$name."]: [".$anvil->data->{fence_data}{fence_virsh}{parameters}{$name}{'default'}."]\n";
-}
+$anvil->System->check_ssh_keys({debug => 2});

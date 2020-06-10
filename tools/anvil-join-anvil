@@ -55,12 +55,57 @@ load_manifest($anvil);
 # Check if we need to change any IPs or our hostname.
 check_local_network($anvil);
 
+# (wait for out peer and) Configure pacemaker
+configure_pacemaker($anvil);
 
 $anvil->nice_exit({code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# (wait for out peer and) Configure pacemaker. If this is a DR host, this is skipped.
+sub configure_pacemaker
+{
+	my ($anvil) = @_;
+	
+	my $machine       = $anvil->data->{sys}{machine};
+	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
+	
+	### TODO: Move these to variables in the 'sys' hash
+	my $anvil_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
+	my $host_name  = $anvil->data->{sys}{host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:machine'    => $machine, 
+		's1:anvil_name' => $anvil_name, 
+		's3:host_name'  => $host_name, 
+	}});
+	
+=cut
+909; xxx::upses::el8-ups01::uuid: [7ebecdda-782d-4624-841d-98d912ed3d50]
+909; xxx::upses::el8-ups02::uuid: [7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f]
+918; xxx::fences::an-nas02::uuid: [4117a862-f58f-4676-991a-9ca257a3c612]
+
+949; xxx::networks::name::bcn1::gateway: [], xxx::networks::name::bcn1::network: [10.201.0.0], xxx::networks::name::bcn1::subnet: [255.255.0.0]
+949; xxx::networks::name::sn1::gateway: [], xxx::networks::name::sn1::network: [10.101.0.0], xxx::networks::name::sn1::subnet: [255.255.0.0]
+949; xxx::networks::name::ifn1::gateway: [10.255.255.254], xxx::networks::name::ifn1::network: [10.255.0.0], xxx::networks::name::ifn1::subnet: [255.255.0.0]
+961; xxx::networks::count::bcn: [1], xxx::networks::count::ifn: [1], xxx::networks::count::sn: [1]
+
+971; xxx::machine::node1::ipmi_ip: [], xxx::machine::node1::type: [!!undef!!]
+980; xxx::machine::node1::fence::an-nas02::port: [el8-a01n01]
+980; xxx::machine::node1::fence::el8-pdu01::port: []
+980; xxx::machine::node1::fence::el8-pdu02::port: []
+980; xxx::machine::node1::fence::pulsar::port: []
+989; xxx::machine::node1::ups::el8-ups01::used: [0]
+989; xxx::machine::node1::ups::el8-ups02::used: [0]
+998; xxx::machine::node1::network::bcn1::ip: [10.201.10.1]
+998; xxx::machine::node1::network::ifn1::ip: [10.255.10.1]
+998; xxx::machine::node1::network::sn1::ip: [10.101.10.1]
+=cut
+	
+	
+	return(0);
+}
 
 # Check if we need to change any IPs or our hostname.
 sub check_local_network
@@ -71,7 +116,6 @@ sub check_local_network
 	my $machine       = $anvil->data->{sys}{machine};
 	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
 	
-	my $anvil_name    = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
 	my $domain        = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{domain};
 	my $old_host_name = $anvil->_host_name;
 	my $new_host_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name};
@@ -80,11 +124,12 @@ sub check_local_network
 		$new_host_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name}.".".$domain;
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:anvil_name'    => $anvil_name, 
 		's2:domain'        => $domain, 
 		's3:old_host_name' => $old_host_name, 
 		's4:new_host_name' => $new_host_name, 
 	}});
+	
+	$anvil->data->{sys}{host_name} = $new_host_name;
 	
 	# If the hostname isn't the same, change it.
 	if ($old_host_name ne $new_host_name)
@@ -770,28 +815,13 @@ sub check_local_network
 		}
 	}
 	
+	### TODO: Do we really need passwordless SSH anymore?
+	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
+	$anvil->System->check_ssh_keys({debug => 2});
+	
+	
 	# Setup IPMI, if needed.
-=cut
-909; xxx::upses::el8-ups01::uuid: [7ebecdda-782d-4624-841d-98d912ed3d50]
-909; xxx::upses::el8-ups02::uuid: [7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f]
-918; xxx::fences::an-nas02::uuid: [4117a862-f58f-4676-991a-9ca257a3c612]
-
-949; xxx::networks::name::bcn1::gateway: [], xxx::networks::name::bcn1::network: [10.201.0.0], xxx::networks::name::bcn1::subnet: [255.255.0.0]
-949; xxx::networks::name::sn1::gateway: [], xxx::networks::name::sn1::network: [10.101.0.0], xxx::networks::name::sn1::subnet: [255.255.0.0]
-949; xxx::networks::name::ifn1::gateway: [10.255.255.254], xxx::networks::name::ifn1::network: [10.255.0.0], xxx::networks::name::ifn1::subnet: [255.255.0.0]
-961; xxx::networks::count::bcn: [1], xxx::networks::count::ifn: [1], xxx::networks::count::sn: [1]
-
-971; xxx::machine::node1::ipmi_ip: [], xxx::machine::node1::type: [!!undef!!]
-980; xxx::machine::node1::fence::an-nas02::port: [el8-a01n01]
-980; xxx::machine::node1::fence::el8-pdu01::port: []
-980; xxx::machine::node1::fence::el8-pdu02::port: []
-980; xxx::machine::node1::fence::pulsar::port: []
-989; xxx::machine::node1::ups::el8-ups01::used: [0]
-989; xxx::machine::node1::ups::el8-ups02::used: [0]
-998; xxx::machine::node1::network::bcn1::ip: [10.201.10.1]
-998; xxx::machine::node1::network::ifn1::ip: [10.255.10.1]
-998; xxx::machine::node1::network::sn1::ip: [10.101.10.1]
-=cut
+	### TODO: Do this when on real hardware
 	
 	return(0);
 }
@@ -815,17 +845,26 @@ sub load_job
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0074,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0074", variables => { 'job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 	
-	my ($machine, $manifest_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*)$/);
+	my ($machine, $manifest_uuid, $node1_host_uuid, $node2_host_uuid, $dr1_host_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),node1_host_uuid=(.*?),node2_host_uuid=(.*?),dr1_host_uuid=(.*?)$/);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		machine       => $machine,
-		manifest_uuid => $manifest_uuid, 
+		machine         => $machine,
+		manifest_uuid   => $manifest_uuid, 
+		node1_host_uuid => $node1_host_uuid, 
+		node2_host_uuid => $node2_host_uuid, 
+		dr1_host_uuid   => $dr1_host_uuid, 
 	}});
 	
-	$anvil->data->{sys}{machine}       = $machine;
-	$anvil->data->{sys}{manifest_uuid} = $manifest_uuid;
+	$anvil->data->{sys}{machine}         = $machine;
+	$anvil->data->{sys}{manifest_uuid}   = $manifest_uuid;
+	$anvil->data->{sys}{node1_host_uuid} = $node1_host_uuid;
+	$anvil->data->{sys}{node2_host_uuid} = $node2_host_uuid;
+	$anvil->data->{sys}{node1_host_uuid} = $node1_host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"sys::machine"       => $anvil->data->{sys}{machine},
-		"sys::manifest_uuid" => $anvil->data->{sys}{manifest_uuid},
+		"sys::machine"         => $anvil->data->{sys}{machine},
+		"sys::manifest_uuid"   => $anvil->data->{sys}{manifest_uuid},
+		"sys::node1_host_uuid" => $anvil->data->{sys}{node1_host_uuid},
+		"sys::node2_host_uuid" => $anvil->data->{sys}{node2_host_uuid},
+		"sys::dr1_host_uuid"   => $anvil->data->{sys}{dr1_host_uuid},
 	}});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0075,!!machine!".$anvil->data->{sys}{machine}."!!,!!manifest_uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
 	
@@ -867,6 +906,9 @@ sub update_progress
 		's1:progress' => $progress,
 		's2:message'  => $message, 
 	}});
+	
+	# Disabled for the moment
+	return(0);
 
 	$progress = 95 if $progress > 100;
 	if (not $anvil->data->{switches}{'job-uuid'})

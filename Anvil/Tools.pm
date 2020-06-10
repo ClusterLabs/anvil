@@ -882,7 +882,7 @@ sub _set_defaults
 			#       grep 'CREATE TABLE' share/anvil.sql | grep -v history. | awk '{print $3}'
 			core_tables			=>	[
 									"hosts",		# Always has to be first.
-									"host_keys",
+									"ssh_keys",
 									"users", 
 									"host_variable", 
 									"sessions", 		# Has to come after users and hosts
@@ -908,6 +908,7 @@ sub _set_defaults
 									"states",
 									"manifests", 
 									"fences", 
+									"upses",
 								],
 			failed_connection_log_level	=>	1,
 			local_lock_active		=>	0,
@@ -1065,7 +1066,7 @@ sub _set_paths
 				pxe_default			=>	"/var/lib/tftpboot/pxelinux.cfg/default",
 				pxe_uefi			=>	"/var/lib/tftpboot/pxelinux.cfg/uefi",
 				ssh_config			=>	"/etc/ssh/ssh_config",
-				'type.dashboard'		=>	"/etc/anvil/type.dashboard",
+				'type.striker'			=>	"/etc/anvil/type.striker",
 				'type.dr'			=>	"/etc/anvil/type.dr",
 				'type.node'			=>	"/etc/anvil/type.node",
 			},

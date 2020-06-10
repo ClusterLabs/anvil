@@ -947,7 +947,7 @@ sub validate_bridges
 	my ($anvil) = @_;
 	
 	# Get my bridge list
-	$anvil->System->get_bridges({debug => 3});
+	$anvil->Get->bridges({debug => 3});
 	
 	# Find the Optical drives and DRBD devices.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
@@ -1190,7 +1190,7 @@ sub validate_ram
 	# How mcuh RAM does the server need and how much do we have free?
 	my $server           = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $server_ram_bytes = $anvil->data->{server}{'local'}{$server}{from_disk}{memory};
-	my $available        = $anvil->System->get_free_memory({debug => 3});
+	my $available        = $anvil->Get->free_memory({debug => 3});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server_ram_bytes => $anvil->Convert->add_commas({number => $server_ram_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}).")", 
 		available        => $anvil->Convert->add_commas({number => $available})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available}).")", 

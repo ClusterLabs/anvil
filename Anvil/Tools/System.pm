@@ -11,6 +11,7 @@ use Time::HiRes qw(gettimeofday tv_interval);
 use Proc::Simple;
 use NetAddr::IP;
 use JSON;
+use Text::Diff;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
@@ -26,13 +27,9 @@ my $THIS_FILE = "System.pm";
 # disable_daemon
 # enable_daemon
 # find_matching_ip
-# get_bridges
-# get_free_memory
-# get_host_type
-# get_uptime
-# get_os_type
 # host_name
 # maintenance_mode
+# manage_authorized_keys
 # manage_firewall
 # read_ssh_config
 # reload_daemon
@@ -614,6 +611,373 @@ sub check_memory
 	
 	return($used_ram);
 }
+
+
+=head2 check_ssh_keys
+
+This method does several things;
+
+1. This makes sure the users on this system have SSH keys, and creates the keys if needed.
+2. It records the user's keys in the C<< ssh_keys >> table.
+3. For the dashboard machines it uses, it adds their host machine public key (SSH fingerprint) to C<< ~/.ssh/known_hosts >>. 
+4. If this machine is a node or DR host, it sets up passwordless SSH between the other machines in the same Anvil! system.
+
+This works on the C<< admin >> and C<< root >> users. If the host is a node, it will also work on the c<< hacluster >> user.
+
+B<< Note >>: If a machine's fingerprint changes, this method will NOT update C<< ~/.ssh/known_hosts >>! You will see an alert on the Striker dashboard prompting you to clear the bad keys (or, if that wasn't expected, find the "man in the middle" attacker).
+
+This method takes no parameters.
+
+=cut
+sub check_ssh_keys
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_memory()" }});
+	
+	# We do a couple things here. First we make sure our user's keys are up to date and stored in the 
+	# 'ssh_keys' table. Then we look through the 'trusts' table for any other users@hosts we're supposed
+	# to trust. For each, we make sure that they're in the appropriate local user's authorized_keys file.
+	my $users = $anvil->Get->host_type eq "node" ? ["root", "admin", "hacluster"] : ["root", "admin"];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users => \@{$users} }});
+	
+	# Get a list of machine host keys and user public keys from other machines.
+	#get_other_keys($anvil);
+	
+	# Users to check:
+	foreach my $user (@{$users})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
+		
+		my $user_home = $anvil->Get->users_home({user => $user});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_home => $user_home }});
+		
+		# If the user doesn't exist, their home directory won't either, so skip.
+		next if not $user_home;
+		next if not -d $user_home;
+		
+		# If the user's ~/.ssh directory doesn't exist, we need to create it.
+		my $ssh_directory =  $user_home."/.ssh";
+		   $ssh_directory =~ s/\/\//\//g;
+		if (not -e $ssh_directory)
+		{
+			# Create it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0272", variables => { user => $user, directory => $ssh_directory }});
+			$anvil->Storage->make_directory({
+				debug     => $debug,
+				directory => $ssh_directory, 
+				user      => $user,
+				group     => $user, 
+				mode      => "0700",
+			});
+			if (not -e $ssh_directory)
+			{
+				# Failed ?
+				next;
+			}
+		}
+		
+		my $ssh_private_key_file = $user_home."/.ssh/id_rsa";
+		my $ssh_public_key_file  = $user_home."/.ssh/id_rsa.pub";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ssh_public_key_file  => $ssh_public_key_file,
+			ssh_private_key_file => $ssh_private_key_file, 
+		}});
+		if (not -e $ssh_public_key_file)
+		{
+			# Generate the SSH keys.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0270", variables => { user => $user }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
+			if (-e $ssh_public_key_file)
+			{
+				# Success!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0271", variables => { user => $user, output => $output }});
+			}
+			else
+			{
+				# Failed?
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0057", variables => { user => $user, output => $output }});
+				next;
+			}
+		}
+	
+		# Now read in the key.
+		my $users_public_key = $anvil->Storage->read_file({
+			debug => $debug,
+			file  => $ssh_public_key_file,
+		});
+		$users_public_key =~ s/\n$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_public_key => $users_public_key }});
+		
+		# Now store the key in the 'ssh_key' table, if needed.
+		my $ssh_key_uuid = $anvil->Database->insert_or_update_ssh_keys({
+			debug              => $debug,
+			ssh_key_host_uuid  => $anvil->Get->host_uuid, 
+			ssh_key_public_key => $users_public_key, 
+			ssh_key_user_name  => $user, 
+		});
+		
+		# Read in the existing 'known_hosts' file, if it exists. The 'old' and 'new' variables will 
+		# be used when looking for needed changes.
+		my $known_hosts_file_body = "";
+		my $known_hosts_old_body  = "";
+		my $known_hosts_new_body  = "";
+		my $known_hosts_file      = $ssh_directory."/known_hosts";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts_file => $known_hosts_file }});
+		if (-e $known_hosts_file)
+		{
+			$known_hosts_file_body = $anvil->Storage->read_file({
+				debug => $debug,
+				file  => $known_hosts_file,
+			});
+			$known_hosts_old_body  = $known_hosts_file_body;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts_file_body => $known_hosts_file_body }});
+		}
+		
+		# Read in the existing 'authorized_keys' file, if it exists.
+		my $authorized_keys_file_body = "";
+		my $authorized_keys_old_body  = "";
+		my $authorized_keys_new_body  = "";
+		my $authorized_keys_file      = $ssh_directory."/authorized_keys";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file => $authorized_keys_file }});
+		if (-e $authorized_keys_file)
+		{
+			$authorized_keys_file_body = $anvil->Storage->read_file({
+				debug => $debug,
+				file  => $authorized_keys_file,
+			});
+			$authorized_keys_old_body  = $authorized_keys_file_body;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
+		}
+		
+		### Walk through each host we now know of. As we we do, loop through the old file body to see
+		### if it exists. If it does, and the key has changed, update the line with the new key. If
+		### it isn't found, add it. Once we check the old body for this entry, change the "old" body
+		### to the new one, then repeat the process.
+		
+		# Look at all the hosts I know about (other than myself) and see if any of the machine or 
+		# user keys either don't exist or have changed.
+		my $update_known_hosts        = 0;
+		my $update_authorized_keys    = 0;
+		my $known_hosts_new_lines     = "";
+		my $authorized_keys_new_lines = "";
+		
+		# Check for changes to known_hosts
+		foreach my $host_uuid (keys %{$anvil->data->{peers}{ssh_keys}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+			foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{peers}{ssh_keys}{$host_uuid}{host}})
+			{
+				my $key = $anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$host_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:host_name' => $host_name,
+					's2:key'       => $key,
+				}});
+				
+				# Is this in the file and, if so, has it changed?
+				my $found     = 0;
+				my $test_line = $host_name." ".$key;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_line => $test_line }});
+				foreach my $line (split/\n/, $known_hosts_old_body)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+					if ($line eq $test_line)
+					{
+						# No change needed, key is the same.
+						$found = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+					}
+					elsif ($line =~ /^$host_name /)
+					{
+						# Key has changed, update.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0274", variables => { 
+							machine => $host_name, 
+							old_key => $line, 
+							new_key => $test_line,
+							
+						}});
+						$found              = 1;
+						$line               = $test_line;
+						$update_known_hosts = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							found              => $found,
+							line               => $line, 
+							update_known_hosts => $update_known_hosts, 
+						}});
+					}
+					$known_hosts_new_body .= $line."\n";
+				}
+				# If we didn't find the key, add it.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+				if (not $found)
+				{
+					$update_known_hosts    =  1;
+					$known_hosts_new_lines .= $test_line."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update_known_hosts'    => $update_known_hosts, 
+						's2:known_hosts_new_lines' => $known_hosts_new_lines, 
+					}});
+				}
+				
+				# Move the new body over to the old body (even though it may not have 
+				# changed) and then clear the new body to prepare for the next pass.
+				$known_hosts_old_body = $known_hosts_new_body;
+				$known_hosts_new_body = "";
+			}
+		}
+		
+		# Lastly, copy the last version of the old body to the new body,
+		$known_hosts_new_body = $known_hosts_old_body.$known_hosts_new_lines;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:update_known_hosts'    => $update_known_hosts, 
+			's2:known_hosts_file_body' => $known_hosts_file_body, 
+			's3:known_hosts_new_body'  => $known_hosts_new_body, 
+			's4:difference'            => diff \$known_hosts_file_body, \$known_hosts_new_body, { STYLE => 'Unified' },
+		}});
+		
+		
+		### TODO: Change this to not use all hosts, but on dashboards we use, plus if we're in an Anvil!, those machines.
+		
+=cut
+		# Check for changes to authorized_keys
+		foreach my $host_uuid (keys %{$anvil->data->{peers}{ssh_keys}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+			foreach my $ssh_key_user_name (sort {$a cmp $b} keys %{$anvil->data->{peers}{ssh_keys}{$host_uuid}{user}})
+			{
+				my $ssh_key_public_key = $anvil->data->{peers}{ssh_keys}{$host_uuid}{user}{$ssh_key_user_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:ssh_key_user_name'  => $ssh_key_user_name,
+					's2:ssh_key_public_key' => $ssh_key_public_key,
+				}});
+				
+				# The key in the file might have a different trailing suffix (user@host_name)
+				# and doesn't really matter. So we search by the key type and public key to 
+				# see if it exists already.
+				my $found     = 0;
+				my $test_line = ($ssh_key_public_key =~ /^(ssh-.*? .*?) /)[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_line => $test_line }});
+				foreach my $line (split/\n/, $authorized_keys_old_body)
+				{
+					# NOTE: Use '\Q...\E' so that the '+' characters in the key aren't 
+					#       evaluated as part of the regex.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+					if ($line =~ /^\Q$test_line\E/)
+					{
+						# No change needed, key is the same.
+						$found = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+					}
+					# We don't look for changes (yet). Might be worth looking for stale 
+					# keys by ckecking of the host at the end matches an entry in the 
+					# database and then verifying the keys haven't changed, but that's 
+					# for another day.
+					$authorized_keys_new_body .= $line."\n";
+				}
+				# If we didn't find the key, add it.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+				if (not $found)
+				{
+					$update_authorized_keys    =  1;
+					$authorized_keys_new_lines .= $ssh_key_public_key."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update_authorized_keys'    => $update_authorized_keys, 
+						's2:authorized_keys_new_lines' => $authorized_keys_new_lines, 
+					}});
+				}
+				
+				# Move the new body over to the old body (even though it may not have 
+				# changed) and then clear the new body to prepare for the next pass.
+				$authorized_keys_old_body = $authorized_keys_new_body;
+				$authorized_keys_new_body = "";
+			}
+		}
+		
+		# Lastly, copy the last version of the old body to the new body,
+		$authorized_keys_new_body = $authorized_keys_old_body.$authorized_keys_new_lines;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:update_authorized_keys'    => $update_authorized_keys, 
+			's2:authorized_keys_file_body' => $authorized_keys_file_body, 
+			's3:authorized_keys_new_body'  => $authorized_keys_new_body, 
+			's4:difference'                => diff \$authorized_keys_file_body, \$authorized_keys_new_body, { STYLE => 'Unified' },
+		}});
+=cut
+		
+		# Update the known_hosts files, if needed.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_known_hosts => $update_known_hosts }});
+		if ($update_known_hosts)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0273", variables => { user => $user, file => $known_hosts_file }});
+			if (-e $known_hosts_file)
+			{
+				my $backup_file = $anvil->Storage->backup({
+					debug => $debug,
+					fatal => 1, 
+					file  => $known_hosts_file, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+				if (-e $backup_file)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0154", variables => { source_file => $known_hosts_file, target_file => $backup_file }});
+				}
+				else
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0058", variables => { file => $known_hosts_file }});
+				}
+			}
+			my $failed = $anvil->Storage->write_file({
+				debug     => $debug,
+				overwrite => 1, 
+				file      => $known_hosts_file, 
+				body      => $known_hosts_new_body, 
+				user      => $user, 
+				group     => $user, 
+				mode      => "0644", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		}
+		
+		# Update the authorized_keys files, if needed.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_authorized_keys => $update_authorized_keys }});
+		if ($update_authorized_keys)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0273", variables => { user => $user, file => $authorized_keys_file }});
+			if (-e $authorized_keys_file)
+			{
+				my $backup_file = $anvil->Storage->backup({
+					debug => $debug,
+					fatal => 1, 
+					file  => $authorized_keys_file, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
+				if (-e $backup_file)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0154", variables => { source_file => $authorized_keys_file, target_file => $backup_file }});
+				}
+				else
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0058", variables => { file => $authorized_keys_file }});
+				}
+			}
+			my $failed = $anvil->Storage->write_file({
+				debug     => $debug,
+				overwrite => 1, 
+				file      => $authorized_keys_file, 
+				body      => $authorized_keys_new_body, 
+				user      => $user, 
+				group     => $user, 
+				mode      => "0644", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 check_storage
 
@@ -1240,139 +1604,6 @@ sub generate_state_json
 	return(0);
 }
 
-=head2 get_bridges
-
-This finds a list of bridges on the host. Bridges that are found are stored is '
-
-=cut
-sub get_bridges
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_bridges()" }});
-	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{bridge}." -json -details link show"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
-	
-	# Delete any previously known data
-	if (exists $anvil->data->{'local'}{network}{bridges})
-	{
-		delete $anvil->data->{'local'}{network}{bridges};
-	};
-	
-	my $json        = JSON->new->allow_nonref;
-	my $bridge_data = $json->decode($output);
-	#print Dumper $bridge_data;
-	foreach my $hash_ref (@{$bridge_data})
-	{
-		# If the ifname and master are the same, it's a bridge.
-		my $type           = "interface";
-		my $interface = $hash_ref->{ifname};
-		my $master_bridge  = $hash_ref->{master};
-		if ($interface eq $master_bridge)
-		{
-			$type = "bridge";
-			$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
-			}});
-		}
-		else
-		{
-			# Store this interface under the bridge.
-			$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
-			}});
-		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			interface     => $interface,
-			master_bridge => $master_bridge, 
-			type          => $type, 
-		}});
-		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
-		{
-			if (ref($hash_ref->{$key}) eq "ARRAY")
-			{
-				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = [];
-				foreach my $value (sort {$a cmp $b} @{$hash_ref->{$key}})
-				{
-					push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}, $value;
-				}
-				for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}; $i++)
-				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"local::network::bridges::${type}::${interface}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}->[$i], 
-					}});
-				}
-			}
-			else
-			{
-				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = $hash_ref->{$key};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"local::network::bridges::${type}::${interface}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}, 
-				}});
-			}
-		}
-	}
-	
-	# Summary of found bridges.
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
-		}});
-	}
-	
-	return(0);
-}
-
-=head2 get_free_memory
-
-This returns, in bytes, host much free memory is available on the local system.
-
-=cut
-### TODO: Make this work on remote systems.
-sub get_free_memory
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_free_memory()" }});
-	
-	my $available               = 0;
-	my ($free_output, $free_rc) = $anvil->System->call({shell_call =>  $anvil->data->{path}{exe}{free}." --bytes"});
-	foreach my $line (split/\n/, $free_output)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
-		if ($line =~ /Mem:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
-		{
-			my $total     = $1;
-			my $used      = $2;
-			my $free      = $3;
-			my $shared    = $4;
-			my $cache     = $5;
-			   $available = $6;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				total     => $total." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $total})."})", 
-				used      => $used." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $used})."})",
-				free      => $free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free})."})", 
-				shared    => $shared." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $shared})."})", 
-				cache     => $cache." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $cache})."})", 
-				available => $available." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available})."})", 
-			}});
-		}
-	}
-	
-	return($available);
-}
-
 =head2 enable_daemon
 
 This method enables a daemon (so that it starts when the OS boots). The return code from the start request will be returned.
@@ -1490,175 +1721,6 @@ sub find_matching_ip
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_ip => $local_ip }});
 	return($local_ip);
-}
-
-=head2 get_host_type
-
-This method tries to determine the host type and returns a value suitable for use is the C<< hosts >> table.
-
- my $type = $anvil->System->get_host_type();
-
-First, it looks to see if C<< sys::host_type >> is set and, if so, uses that string as it is. 
-
-If that isn't set, it then looks to see if the file C<< /etc/anvil/type.X >> exists, where C<< X >> is C<< node >>, C<< dashboard >> or C<< dr >>. If found, the appropriate type is returned.
-
-If that file doesn't exist, then it looks at the short host name. The following rules are used, in order;
-
-1. If the host name ends in C<< n<digits> >> or C<< node<digits> >>, C<< node >> is returned.
-2. If the host name ends in C<< striker<digits> >> or C<< dashboard<digits> >>, C<< dashboard >> is returned.
-3. If the host name ends in C<< dr<digits> >>, C<< dr >> is returned.
-
-=cut
-sub get_host_type
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_host_type()" }});
-	
-	my $host_type = "";
-	my $host_name = $anvil->_short_host_name;
-	   $host_type = "unknown";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		host_type        => $host_type,
-		host_name        => $host_name,
-		"sys::host_type" => $anvil->data->{sys}{host_type},
-	}});
-	if ($anvil->data->{sys}{host_type})
-	{
-		$host_type = $anvil->data->{sys}{host_type};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-	}
-	else
-	{
-		# Can I determine it by seeing a file?
-		if (-e $anvil->data->{path}{configs}{'type.node'})
-		{
-			$host_type = "node";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (-e $anvil->data->{path}{configs}{'type.dashboard'})
-		{
-			$host_type = "dashboard";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (-e $anvil->data->{path}{configs}{'type.dr'})
-		{
-			$host_type = "dr";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (($host_name =~ /n\d+$/) or ($host_name =~ /node\d+$/) or ($host_name =~ /new-node+$/))
-		{
-			$host_type = "node";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (($host_name =~ /striker\d+$/) or ($host_name =~ /dashboard\d+$/))
-		{
-			$host_type = "dashboard";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-		elsif (($host_name =~ /dr\d+$/) or ($host_name =~ /new-dr$/))
-		{
-			$host_type = "dr";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		}
-	}
-	
-	return($host_type);
-}
-
-=head2 get_uptime
-
-This returns, in seconds, how long the host has been up and running for. 
-
-This method takes no parameters.
-
-=cut
-sub get_uptime
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_uptime()" }});
-	
-	my $uptime = $anvil->Storage->read_file({
-		force_read => 1,
-		cache      => 0,
-		file       => $anvil->data->{path}{proc}{uptime},
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
-	
-	# Clean it up. We'll have gotten two numbers, the uptime in seconds (to two decimal places) and the 
-	# total idle time. We only care about the int number.
-	$uptime =~ s/^(\d+)\..*$/$1/;
-	$uptime =~ s/\n//gs;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uptime => $uptime }});
-	
-	return($uptime);
-}
-
-=head2 get_os_type
-
-This returns the operating system type and the system architecture as two separate string variables.
-
- # Run on RHEL 8, on a 64-bit system
- my ($os_type, $os_arch) = $anvil->System->get_os_type();
- 
- # '$os_type' holds 'rhel8'  ('rhel' or 'centos' + release version) 
- # '$os_arch' holds 'x86_64' (specifically, 'uname --hardware-platform')
-
-If either can not be determined, C<< unknown >> will be returned.
-
-This method takes no parameters.
-
-=cut
-sub get_os_type
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->get_os_type()" }});
-	
-	my $os_type = "unknown";
-	my $os_arch = "unknown";
-	
-	### NOTE: Examples;
-	# Red Hat Enterprise Linux release 8.0 Beta (Ootpa)
-	# Red Hat Enterprise Linux Server release 7.5 (Maipo)
-	# CentOS Linux release 7.5.1804 (Core) 
-
-	# Read in the /etc/redhat-release file
-	my $release = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'redhat-release'}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { release => $release }});
-	if ($release =~ /Red Hat Enterprise Linux .* (\d+)\./)
-	{
-		# RHEL, with the major version number appended
-		$os_type = "rhel".$1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
-	}
-	elsif ($release =~ /CentOS .*? (\d+)\./)
-	{
-		# CentOS, with the major version number appended
-		$os_type = "centos".$1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
-	}
-	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{uname}." --hardware-platform"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
-	if ($output)
-	{
-		$os_arch = $output;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_arch => $os_arch }});
-	}
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		os_type => $os_type, 
-		os_arch => $os_arch,
-	}});
-	return($os_type, $os_arch);
 }
 
 =head2 host_name
@@ -1967,7 +2029,7 @@ sub check_firewall
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->manage_firewall()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_firewall()" }});
 	
 	# Show live or permanent rules? Permanent is default 
 	my $permanent = defined $parameter->{permanent} ? $parameter->{permanent} : 1;
@@ -2082,6 +2144,70 @@ sub check_firewall
 			}});
 		}
 	}
+	
+	return(0);
+}
+
+=head2 manage_authorized_keys
+
+This takes a host's UUID and will adds or removes their ssh public key to the target host user (or users). On success, C<< 0 >> is returned. Otherwise, C<< 1 >> is returned.
+
+Parameters;
+
+=head3 host_uuid (required)
+
+This is the C<< hosts >> -> C<< host_uuid >> whose key we're adding or removing. When adding, the C<< 
+
+=head3 password (optional)
+
+This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
+
+=head3 port (optional)
+
+This is the TCP port to use when connecting to a remote machine. If not set, but C<< target >> is, C<< 22 >> will be used.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this will be the user we connect to the remote machine as.
+
+=head3 target (optional, default 'local')
+
+This is the IP or host name of the machine to manage keys on. If not passed, the keys on the local machine will be managed.
+
+=head3 users (optional)
+
+This is a comma separated list of users whose keys are being managed. If not set, the default on Striker and DR Hosts is C<< root,admin >> and on nodes it is C<< root,admin,hacluster >>.
+
+=cut
+sub manage_authorized_keys
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->manage_authorized_keys()" }});
+	
+	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : "";
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $users       = defined $parameter->{users}       ? $parameter->{users}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		target      => $target, 
+		port        => $port, 
+		remote_user => $remote_user, 
+		password    => $anvil->Log->is_secure($password), 
+		users       => $users, 
+	}});
+	
+	if (not $users)
+	{
+		$users = $anvil->Striker->get_host_type eq "node" ? "root,admin,hacluster" : "root,admin";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users => $users }});
+	}
+	
+	
 	
 	return(0);
 }

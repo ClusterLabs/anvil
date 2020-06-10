@@ -341,7 +341,7 @@ sub check_initial_setup
 	}
 	
 	# NOTE: We may want to do machine-specific stuff down the road.
-	my $type = $anvil->System->get_host_type();
+	my $type = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
 	
 	return(0);

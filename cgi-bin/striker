@@ -1572,7 +1572,7 @@ sub run_manifest
 	$anvil->data->{cgi}{password}{value} = "" if not defined $anvil->data->{cgi}{password}{value};
 	$anvil->data->{cgi}{password}{alert} = 0  if not defined $anvil->data->{cgi}{password}{alert};
 	
-	$anvil->Database->get_hosts();
+	$anvil->Database->get_hosts({debug => 2});
 	my $manifest_uuid = $anvil->data->{cgi}{manifest_uuid}{value};
 	my $problem       = $anvil->Striker->load_manifest({
 		debug         => 2,
@@ -1671,15 +1671,15 @@ sub run_manifest
 		}
 		
 		# Check that the machines selected didn't get added to another anvil while looking.
-		my $node1_host_name = $anvil->data->{cgi}{node1_host}{value};
-		my $node1_host_uuid = $anvil->data->{sys}{hosts}{by_name}{$node1_host_name};
+		my $node1_host_uuid = $anvil->data->{cgi}{node1_host}{value};
+		my $node1_host_name = $anvil->data->{sys}{hosts}{by_uuid}{$node1_host_uuid};
 		my $node1_anvil     = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{anvil_name};
-		my $node2_host_name = $anvil->data->{cgi}{node2_host}{value};
-		my $node2_host_uuid = $anvil->data->{sys}{hosts}{by_name}{$node2_host_name};
+		my $node2_host_uuid = $anvil->data->{cgi}{node2_host}{value};
+		my $node2_host_name = $anvil->data->{sys}{hosts}{by_uuid}{$node2_host_uuid};
 		my $node2_anvil     = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{anvil_name};
-		my $dr1_host_name   = $anvil->data->{cgi}{dr1_host}{value};
-		my $dr1_host_uuid   = $dr1_host_name ? $anvil->data->{sys}{hosts}{by_name}{$dr1_host_name}          : "";
-		my $dr1_anvil       = $dr1_host_name ? $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{anvil_name} : "";
+		my $dr1_host_uuid   = $anvil->data->{cgi}{dr1_host}{value};
+		my $dr1_host_name   = $dr1_host_uuid ? $anvil->data->{sys}{hosts}{by_uuid}{$dr1_host_uuid}          : "";
+		my $dr1_anvil       = $dr1_host_uuid ? $anvil->data->{hosts}{host_uuid}{$dr1_host_uuid}{anvil_name} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			node1_host_name => $node1_host_name,
 			node1_host_uuid => $node1_host_uuid, 
@@ -1753,7 +1753,7 @@ sub run_manifest
 				line            => __LINE__,
 				job_host_uuid   => $node1_host_uuid, 
 				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
-				job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid, 
+				job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid.",node1_host_uuid=".$node1_host_uuid.",node2_host_uuid=".$node2_host_uuid.",dr1_host_uuid=".$dr1_host_uuid, 
 				job_name        => "join_anvil::node1", 
 				job_title       => "job_0072", 
 				job_description => "job_0073", 
@@ -1767,7 +1767,7 @@ sub run_manifest
 				line            => __LINE__,
 				job_host_uuid   => $node2_host_uuid, 
 				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
-				job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid, 
+				job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid.",node1_host_uuid=".$node1_host_uuid.",node2_host_uuid=".$node2_host_uuid.",dr1_host_uuid=".$dr1_host_uuid, 
 				job_name        => "join_anvil::node2", 
 				job_title       => "job_0072", 
 				job_description => "job_0073", 
@@ -1783,7 +1783,7 @@ sub run_manifest
 					line            => __LINE__,
 					job_host_uuid   => $dr1_host_uuid, 
 					job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
-					job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid, 
+					job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid.",node1_host_uuid=".$node1_host_uuid.",node2_host_uuid=".$node2_host_uuid.",dr1_host_uuid=".$dr1_host_uuid, 
 					job_name        => "join_anvil::dr1", 
 					job_title       => "job_0072", 
 					job_description => "job_0073", 
@@ -1800,7 +1800,7 @@ sub run_manifest
 			return(0);
 		}
 	}
-
+	
 	# Ask the user to choose the targets and confirm the manifest settings.
 	my $nodes    = [];
 	my $dr_hosts = [];
@@ -1829,27 +1829,27 @@ sub run_manifest
 		
 		if ($host_type eq "node")
 		{
-			push @{$nodes}, $host_name;
+			push @{$nodes}, $host_uuid."#!#".$host_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
 
 			if ((not defined $anvil->data->{cgi}{node1_host}{value}) && ($host_name eq $node1_name))
 			{
-				$anvil->data->{cgi}{node1_host}{value} = $host_name;
+				$anvil->data->{cgi}{node1_host}{value} = $host_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node1_host::value" => $anvil->data->{cgi}{node1_host}{value} }});
 			}
 			elsif ((not defined $anvil->data->{cgi}{node2_host}{value}) && ($host_name eq $node2_name))
 			{
-				$anvil->data->{cgi}{node2_host}{value} = $host_name;
+				$anvil->data->{cgi}{node2_host}{value} = $host_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node2_host::value" => $anvil->data->{cgi}{node2_host}{value} }});
 			}
 		}
 		elsif ($host_type eq "dr")
 		{
-			push @{$dr_hosts}, $host_name;
+			push @{$dr_hosts}, $host_uuid."#!#".$host_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
 			if ((not defined $anvil->data->{cgi}{dr1_host}{value}) && ($host_name eq $dr1_name))
 			{
-				$anvil->data->{cgi}{dr1_host}{value} = $host_name;
+				$anvil->data->{cgi}{dr1_host}{value} = $host_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::dr1_host::value" => $anvil->data->{cgi}{dr1_host}{value} }});
 			}
 		}
@@ -1857,7 +1857,9 @@ sub run_manifest
 	
 	# We're going to need three selects; one for each node and one for DR. The DR is allowed to 
 	# be unselected so it has an empty entry.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node1_host::value" => $anvil->data->{cgi}{node1_host}{value} }});
 	my $select_node1 = $anvil->Template->select_form({
+		debug    => 2,
 		name     => "node1_host",
 		options  => $nodes,
 		blank    => 0,
@@ -1866,8 +1868,11 @@ sub run_manifest
 		class    => $anvil->data->{cgi}{node1_host}{alert} ? "input_alert" : "input_clear",
 		style    => "",
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { select_node1 => $select_node1 }});
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::node2_host::value" => $anvil->data->{cgi}{node2_host}{value} }});
 	my $select_node2 = $anvil->Template->select_form({
+		debug    => 2,
 		name     => "node2_host",
 		options  => $nodes,
 		blank    => 0,
@@ -1876,8 +1881,11 @@ sub run_manifest
 		class    => $anvil->data->{cgi}{node2_host}{alert} ? "input_alert" : "input_clear",
 		style    => "",
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { select_node2 => $select_node2 }});
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::dr1_host::value" => $anvil->data->{cgi}{dr1_host}{value} }});
 	my $select_dr1 = $anvil->Template->select_form({
+		debug    => 2,
 		name     => "dr1_host",
 		options  => $dr_hosts,
 		blank    => 1,
@@ -1886,6 +1894,7 @@ sub run_manifest
 		class    => $anvil->data->{cgi}{dr1_host}{alert} ? "input_alert" : "input_clear",
 		style    => "",
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { select_dr1 => $select_dr1 }});
 	
 	# Show the networks.
 	my $networks     = "";
@@ -2274,17 +2283,17 @@ sub handle_manifest
 				
 				if (not $anvil->data->{cgi}{ifn_count}{value})
 				{
-					$anvil->data->{cgi}{ifn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ifn_count};
+					$anvil->data->{cgi}{ifn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{ifn};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value} }});
 				}
 				if (not $anvil->data->{cgi}{sn_count}{value})
 				{
-					$anvil->data->{cgi}{sn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{sn_count};
+					$anvil->data->{cgi}{sn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{sn};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::sn_count::value" => $anvil->data->{cgi}{sn_count}{value} }});
 				}
 				if (not $anvil->data->{cgi}{bcn_count}{value})
 				{
-					$anvil->data->{cgi}{bcn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{bcn_count};
+					$anvil->data->{cgi}{bcn_count}{value} = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{bcn};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::bcn_count::value" => $anvil->data->{cgi}{bcn_count}{value} }});
 				}
 			}
@@ -6570,9 +6579,21 @@ sub configure_striker
 	{
 		# Sanity check step1.
 		my $sane = sanity_check_step1($anvil);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
 		if ($sane)
 		{
+			# We're mapping, so tell anvil-daemon to 
+			$anvil->Database->insert_or_update_variables({
+				debug                 => 2,
+				variable_name         => "config::map_network", 
+				variable_value        => 1, 
+				variable_default      => 0, 
+				variable_description  => "striker_0202", 
+				variable_section      => "config", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+			});
+			
 			# Step 1 was sane, show step 2.
 			$anvil->data->{form}{body} = config_step2($anvil);
 		}
@@ -6586,9 +6607,21 @@ sub configure_striker
 	{
 		# Sanity check step1.
 		my $sane = sanity_check_step2($anvil);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { sane => $sane }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sane => $sane }});
 		if ($sane)
 		{
+			# Also, we're done mapping
+			$anvil->Database->insert_or_update_variables({
+				debug                 => 2,
+				variable_name         => "config::map_network", 
+				variable_value        => 0, 
+				variable_default      => 0, 
+				variable_description  => "striker_0202", 
+				variable_section      => "config", 
+				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_table => "hosts", 
+			});
+			
 			# Step 2 was sane, show step 3.
 			$anvil->data->{form}{body} = config_step3($anvil);
 		}

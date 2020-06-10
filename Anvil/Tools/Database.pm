@@ -40,7 +40,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_fences
 # insert_or_update_file_locations
 # insert_or_update_files
-# insert_or_update_host_keys
+# insert_or_update_ssh_keys
 # insert_or_update_hosts
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
@@ -164,9 +164,9 @@ sub archive_database
 	}
 	
 	# If this isn't a dashboard, exit. 
-	my $host_type = $anvil->System->get_host_type();
+	my $host_type = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-	if ($host_type ne "dashboard")
+	if ($host_type ne "striker")
 	{
 		# Not a dashboard, don't archive
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0452"});
@@ -4584,9 +4584,9 @@ WHERE
 }
 
 
-=head2 insert_or_update_host_keys
+=head2 insert_or_update_ssh_keys
 
-This updates (or inserts) a record in the 'host_keys' table. The C<< host_key_uuid >> UUID will be returned.
+This updates (or inserts) a record in the 'ssh_keys' table. The C<< ssh_key_uuid >> UUID will be returned.
 
 If there is an error, an empty string is returned.
 
@@ -4604,73 +4604,73 @@ If set, this is the file name logged as the source of any INSERTs or UPDATEs.
 
 If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
 
-=head3 host_key_host_uuid (optional, default is Get->host_uuid)
+=head3 ssh_key_host_uuid (optional, default is Get->host_uuid)
 
 This is the host that the corresponding user and key belong to.
 
-=head3 host_key_public_key (required)
+=head3 ssh_key_public_key (required)
 
 This is the B<<PUBLIC>> key for the user, the full line stored in the user's C<< ~/.ssh/id_rsa.pub >> file.
 
-=head3 host_key_user_name (required)
+=head3 ssh_key_user_name (required)
 
 This is the name of the user that the public key belongs to.
 
-=head3 host_key_uuid (optional)
+=head3 ssh_key_uuid (optional)
 
 This is the specific record to update. If not provides, a search will be made to find a matching entry. If found, the record will be updated if one of the values has changed. If not, a new record will be inserted.
 
 =cut
-sub insert_or_update_host_keys
+sub insert_or_update_ssh_keys
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_host_keys()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_ssh_keys()" }});
 	
 	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
 	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
 	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
-	my $host_key_host_uuid  = defined $parameter->{host_key_host_uuid}  ? $parameter->{host_key_host_uuid}  : $anvil->Get->host_uuid;
-	my $host_key_public_key = defined $parameter->{host_key_public_key} ? $parameter->{host_key_public_key} : "";
-	my $host_key_user_name  = defined $parameter->{host_key_user_name}  ? $parameter->{host_key_user_name}  : "";
-	my $host_key_uuid       = defined $parameter->{host_key_uuid}       ? $parameter->{host_key_uuid}       : "";
+	my $ssh_key_host_uuid  = defined $parameter->{ssh_key_host_uuid}  ? $parameter->{ssh_key_host_uuid}  : $anvil->Get->host_uuid;
+	my $ssh_key_public_key = defined $parameter->{ssh_key_public_key} ? $parameter->{ssh_key_public_key} : "";
+	my $ssh_key_user_name  = defined $parameter->{ssh_key_user_name}  ? $parameter->{ssh_key_user_name}  : "";
+	my $ssh_key_uuid       = defined $parameter->{ssh_key_uuid}       ? $parameter->{ssh_key_uuid}       : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                => $uuid, 
 		file                => $file, 
 		line                => $line, 
-		host_key_host_uuid  => $host_key_host_uuid, 
-		host_key_public_key => $host_key_public_key, 
-		host_key_user_name  => $host_key_user_name, 
-		host_key_uuid       => $host_key_uuid, 
+		ssh_key_host_uuid  => $ssh_key_host_uuid, 
+		ssh_key_public_key => $ssh_key_public_key, 
+		ssh_key_user_name  => $ssh_key_user_name, 
+		ssh_key_uuid       => $ssh_key_uuid, 
 	}});
 	
-	if (not $host_key_public_key)
+	if (not $ssh_key_public_key)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_host_keys()", parameter => "host_key_public_key" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ssh_keys()", parameter => "ssh_key_public_key" }});
 		return("");
 	}
-	if (not $host_key_user_name)
+	if (not $ssh_key_user_name)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_host_keys()", parameter => "host_key_user_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ssh_keys()", parameter => "ssh_key_user_name" }});
 		return("");
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given user and host.
-	if (not $host_key_uuid)
+	if (not $ssh_key_uuid)
 	{
 		my $query = "
 SELECT 
-    host_key_uuid 
+    ssh_key_uuid 
 FROM 
-    host_keys 
+    ssh_keys 
 WHERE 
-    host_key_user_name = ".$anvil->Database->quote($host_key_user_name)." 
+    ssh_key_user_name = ".$anvil->Database->quote($ssh_key_user_name)." 
 AND 
-    host_key_host_uuid = ".$anvil->Database->quote($host_key_host_uuid)." 
+    ssh_key_host_uuid = ".$anvil->Database->quote($ssh_key_host_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -4682,33 +4682,33 @@ AND
 		}});
 		if ($count)
 		{
-			$host_key_uuid = $results->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
+			$ssh_key_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
 		}
 	}
 	
-	# If I still don't have an host_key_uuid, we're INSERT'ing .
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
-	if (not $host_key_uuid)
+	# If I still don't have an ssh_key_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+	if (not $ssh_key_uuid)
 	{
 		# INSERT
-		$host_key_uuid = $anvil->Get->uuid();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
+		$ssh_key_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
 		
 		my $query = "
 INSERT INTO 
-    host_keys 
+    ssh_keys 
 (
-    host_key_uuid, 
-    host_key_host_uuid, 
-    host_key_public_key, 
-    host_key_user_name, 
+    ssh_key_uuid, 
+    ssh_key_host_uuid, 
+    ssh_key_public_key, 
+    ssh_key_user_name, 
     modified_date 
 ) VALUES (
-    ".$anvil->Database->quote($host_key_uuid).", 
-    ".$anvil->Database->quote($host_key_host_uuid).", 
-    ".$anvil->Database->quote($host_key_public_key).", 
-    ".$anvil->Database->quote($host_key_user_name).", 
+    ".$anvil->Database->quote($ssh_key_uuid).", 
+    ".$anvil->Database->quote($ssh_key_host_uuid).", 
+    ".$anvil->Database->quote($ssh_key_public_key).", 
+    ".$anvil->Database->quote($ssh_key_user_name).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -4720,13 +4720,13 @@ INSERT INTO
 		# Query the rest of the values and see if anything changed.
 		my $query = "
 SELECT 
-    host_key_host_uuid, 
-    host_key_public_key, 
-    host_key_user_name 
+    ssh_key_host_uuid, 
+    ssh_key_public_key, 
+    ssh_key_user_name 
 FROM 
-    host_keys 
+    ssh_keys 
 WHERE 
-    host_key_uuid = ".$anvil->Database->quote($host_key_uuid)." 
+    ssh_key_uuid = ".$anvil->Database->quote($ssh_key_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -4738,37 +4738,37 @@ WHERE
 		}});
 		if (not $count)
 		{
-			# I have a host_key_uuid but no matching record. Probably an error.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "host_key_uuid", uuid => $host_key_uuid }});
+			# I have a ssh_key_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "ssh_key_uuid", uuid => $ssh_key_uuid }});
 			return("");
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_host_key_host_uuid  = $row->[0];
-			my $old_host_key_public_key = $row->[1];
-			my $old_host_key_user_name  = $row->[2];
+			my $old_ssh_key_host_uuid  = $row->[0];
+			my $old_ssh_key_public_key = $row->[1];
+			my $old_ssh_key_user_name  = $row->[2];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				old_host_key_host_uuid  => $old_host_key_host_uuid, 
-				old_host_key_public_key => $old_host_key_public_key, 
-				old_host_key_user_name  => $old_host_key_user_name, 
+				old_ssh_key_host_uuid  => $old_ssh_key_host_uuid, 
+				old_ssh_key_public_key => $old_ssh_key_public_key, 
+				old_ssh_key_user_name  => $old_ssh_key_user_name, 
 			}});
 			
 			# Anything change?
-			if (($old_host_key_host_uuid  ne $host_key_host_uuid)  or 
-			    ($old_host_key_public_key ne $host_key_public_key) or 
-			    ($old_host_key_user_name  ne $host_key_user_name))
+			if (($old_ssh_key_host_uuid  ne $ssh_key_host_uuid)  or 
+			    ($old_ssh_key_public_key ne $ssh_key_public_key) or 
+			    ($old_ssh_key_user_name  ne $ssh_key_user_name))
 			{
 				# Something changed, save.
 				my $query = "
 UPDATE 
-    host_keys 
+    ssh_keys 
 SET 
-    host_key_host_uuid  = ".$anvil->Database->quote($host_key_host_uuid).",  
-    host_key_public_key = ".$anvil->Database->quote($host_key_public_key).", 
-    host_key_user_name  = ".$anvil->Database->quote($host_key_user_name).", 
+    ssh_key_host_uuid  = ".$anvil->Database->quote($ssh_key_host_uuid).",  
+    ssh_key_public_key = ".$anvil->Database->quote($ssh_key_public_key).", 
+    ssh_key_user_name  = ".$anvil->Database->quote($ssh_key_user_name).", 
     modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    host_key_uuid       = ".$anvil->Database->quote($host_key_uuid)." 
+    ssh_key_uuid       = ".$anvil->Database->quote($ssh_key_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -4776,8 +4776,8 @@ WHERE
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key_uuid => $host_key_uuid }});
-	return($host_key_uuid);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+	return($ssh_key_uuid);
 }
 
 
@@ -4832,7 +4832,7 @@ This default value is the local host name.
 
 =head3 host_type (required)
 
-This default value is the value returned by C<< System->get_host_type >>.
+This default value is the value returned by C<< Get->host_type >>.
 
 =head3 host_uuid (required)
 
@@ -4853,7 +4853,7 @@ sub insert_or_update_hosts
 	my $host_ipmi = defined $parameter->{host_ipmi} ? $parameter->{host_ipmi} : "";
 	my $host_key  = defined $parameter->{host_key}  ? $parameter->{host_key}  : "";
 	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_host_name;
-	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->System->get_host_type;
+	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->Get->host_type;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid      => $uuid, 
@@ -6269,11 +6269,9 @@ sub insert_or_update_manifests
 		return("");
 	}
 	
-	# If we don't have a network interface UUID, try to look one up using the MAC address
+	# If we don't have an install manifest UUID, try to look one up using the manifest name.
 	if (not $manifest_uuid)
 	{
-		# See if I know this NIC by referencing it's MAC and name. The name is needed because virtual
-		# devices can share the MAC with the real interface.
 		my $query = "
 SELECT 
     manifest_uuid, 
@@ -6397,6 +6395,13 @@ WHERE
 				old_manifest_xml      => $old_manifest_xml,
 				old_manifest_note     => $old_manifest_note, 
 			}});
+			
+			# If we're here and 'manifest_last_ran' is am empty string, use the old value.
+			if ($manifest_last_ran eq "")
+			{
+				$manifest_last_ran = $old_manifest_last_ran;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_last_ran => $manifest_last_ran }});
+			}
 			
 			# Anything to update? This is a little extra complicated because if a variable was
 			# not passed in, we want to not compare it.
@@ -8817,7 +8822,7 @@ sub insert_or_update_variables
 	my $variable_default      = defined $parameter->{variable_default}      ? $parameter->{variable_default}      : "";
 	my $variable_description  = defined $parameter->{variable_description}  ? $parameter->{variable_description}  : "";
 	my $variable_section      = defined $parameter->{variable_section}      ? $parameter->{variable_section}      : "";
-	my $variable_source_uuid  = defined $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "";
+	my $variable_source_uuid  = defined $parameter->{variable_source_uuid}  ? $parameter->{variable_source_uuid}  : "NULL";
 	my $variable_source_table = defined $parameter->{variable_source_table} ? $parameter->{variable_source_table} : "";
 	my $update_value_only     = defined $parameter->{update_value_only}     ? $parameter->{update_value_only}     : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -8870,7 +8875,7 @@ FROM
     variables 
 WHERE 
     variable_name = ".$anvil->Database->quote($variable_name);
-		if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
+		if (($variable_source_uuid ne "NULL") && ($variable_source_table ne ""))
 		{
 			$query .= "
 AND 
@@ -8880,6 +8885,7 @@ AND
 ";
 		}
 		$query .= ";";
+		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -8949,6 +8955,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
+		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -8965,7 +8972,7 @@ FROM
     variables 
 WHERE 
     variable_uuid = ".$anvil->Database->quote($variable_uuid);
-			if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
+			if (($variable_source_uuid ne "NULL") && ($variable_source_table ne ""))
 			{
 				$query .= "
 AND 
@@ -8975,6 +8982,7 @@ AND
 ";
 			}
 			$query .= ";";
+			$query =~ s/'NULL'/NULL/g;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -9010,7 +9018,7 @@ SET
     modified_date  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     variable_uuid  = ".$anvil->Database->quote($variable_uuid);
-					if (($variable_source_uuid ne "") && ($variable_source_table ne ""))
+					if (($variable_source_uuid ne "NULL") && ($variable_source_table ne ""))
 					{
 						$query .= "
 AND 
@@ -9020,6 +9028,7 @@ AND
 ";
 					}
 					$query .= ";";
+					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -9035,12 +9044,15 @@ SELECT
     variable_value, 
     variable_default, 
     variable_description, 
-    variable_section 
+    variable_section, 
+    variable_source_table, 
+    variable_source_uuid 
 FROM 
     variables 
 WHERE 
     variable_uuid = ".$anvil->Database->quote($variable_uuid)." 
 ;";
+			$query =~ s/'NULL'/NULL/g;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -9057,40 +9069,49 @@ WHERE
 			}
 			foreach my $row (@{$results})
 			{
-				my $old_variable_name        = $row->[0];
-				my $old_variable_value       = $row->[1];
-				my $old_variable_default     = $row->[2];
-				my $old_variable_description = $row->[3];
-				my $old_variable_section     = $row->[4];
+				my $old_variable_name         =         $row->[0];
+				my $old_variable_value        =         $row->[1];
+				my $old_variable_default      =         $row->[2];
+				my $old_variable_description  =         $row->[3];
+				my $old_variable_section      =         $row->[4];
+				my $old_variable_source_table =         $row->[5];
+				my $old_variable_source_uuid  = defined $row->[6] ? $row->[6] : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					old_variable_name        => $old_variable_name, 
-					old_variable_value       => $old_variable_value, 
-					old_variable_default     => $old_variable_default, 
-					old_variable_description => $old_variable_description, 
-					old_variable_section     => $old_variable_section, 
+					old_variable_name         => $old_variable_name, 
+					old_variable_value        => $old_variable_value, 
+					old_variable_default      => $old_variable_default, 
+					old_variable_description  => $old_variable_description, 
+					old_variable_section      => $old_variable_section, 
+					old_variable_source_table => $old_variable_source_table, 
+					old_variable_source_uuid  => $old_variable_source_uuid, 
 				}});
 				
 				# Anything change?
-				if (($old_variable_name        ne $variable_name)        or 
-				    ($old_variable_value       ne $variable_value)       or 
-				    ($old_variable_default     ne $variable_default)     or 
-				    ($old_variable_description ne $variable_description) or 
-				    ($old_variable_section     ne $variable_section))
+				if (($old_variable_name         ne $variable_name)         or 
+				    ($old_variable_value        ne $variable_value)        or 
+				    ($old_variable_default      ne $variable_default)      or 
+				    ($old_variable_description  ne $variable_description)  or 
+				    ($old_variable_section      ne $variable_section)      or 
+				    ($old_variable_source_table ne $variable_source_table) or 
+				    ($old_variable_source_uuid  ne $variable_source_uuid))
 				{
 					# Something changed, save.
 					my $query = "
 UPDATE 
     variables 
 SET 
-    variable_name        = ".$anvil->Database->quote($variable_name).", 
-    variable_value       = ".$anvil->Database->quote($variable_value).", 
-    variable_default     = ".$anvil->Database->quote($variable_default).", 
-    variable_description = ".$anvil->Database->quote($variable_description).", 
-    variable_section     = ".$anvil->Database->quote($variable_section).", 
-    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    variable_name         = ".$anvil->Database->quote($variable_name).", 
+    variable_value        = ".$anvil->Database->quote($variable_value).", 
+    variable_default      = ".$anvil->Database->quote($variable_default).", 
+    variable_description  = ".$anvil->Database->quote($variable_description).", 
+    variable_section      = ".$anvil->Database->quote($variable_section).", 
+    variable_source_table = ".$anvil->Database->quote($variable_source_table).", 
+    variable_source_uuid  = ".$anvil->Database->quote($variable_source_uuid).", 
+    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    variable_uuid        = ".$anvil->Database->quote($variable_uuid)." 
+    variable_uuid         = ".$anvil->Database->quote($variable_uuid)." 
 ";
+					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 					
 					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -10111,7 +10132,7 @@ sub read
 
 This reads a variable from the C<< variables >> table. Be sure to only use the reply from here to override what might have been set in a config file. This method always returns the data from the database itself.
 
-The method returns an array reference containing, in order, the variable's value, database UUID and last modified date stamp.
+The method returns an array reference containing, in order, the variable's value, database UUID and last modified date stamp in unix time (since epoch) and last as a normal time stamp.
 
 If anything goes wrong, C<< !!error!! >> is returned. If the variable didn't exist in the database, an empty string will be returned for the UUID, value and modified date.
 
@@ -10167,7 +10188,8 @@ sub read_variable
 SELECT 
     variable_value, 
     variable_uuid, 
-    round(extract(epoch from modified_date)) AS mtime
+    round(extract(epoch from modified_date)) AS mtime, 
+    modified_date
 FROM 
     variables 
 WHERE ";
@@ -10194,6 +10216,7 @@ AND
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
 	
 	my $variable_value = "";
+	my $mtime          = "";
 	my $modified_date  = "";
 	my $results        = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count          = @{$results};
@@ -10205,10 +10228,12 @@ AND
 	{
 		$variable_value = $row->[0];
 		$variable_uuid  = $row->[1];
-		$modified_date  = $row->[2];
+		$mtime          = $row->[2];
+		$modified_date  = $row->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			variable_value => $variable_value, 
 			variable_uuid  => $variable_uuid, 
+			mtime          => $mtime, 
 			modified_date  => $modified_date, 
 		}});
 	}
@@ -10216,9 +10241,10 @@ AND
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		variable_value => $variable_value, 
 		variable_uuid  => $variable_uuid, 
+		mtime          => $mtime, 
 		modified_date  => $modified_date, 
 	}});
-	return($variable_value, $variable_uuid, $modified_date);
+	return($variable_value, $variable_uuid, $mtime, $modified_date);
 }
 
 

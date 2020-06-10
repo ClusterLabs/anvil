@@ -92,7 +92,7 @@ sub process_interface_cache
 					network_interface_operational => $operational, 
 					network_interface_speed       => $speed, 
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_uuid => $network_interface_uuid }});
 				if (not $network_interface_uuid)
 				{
 					# Failed to update, could be that we cached data for an interface not yet 
@@ -146,7 +146,7 @@ sub update_network
 		next if $file eq ".";
 		next if $file eq "..";
 		next if $file eq "lo"; 
-		my $full_path = "$directory/$file";
+		my $full_path = $directory."/".$file;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
@@ -226,7 +226,7 @@ sub update_network
 			{
 				### Set some fake values.
 				# Speed is "as fast as possible", so we'll record 100 Gbps, but that is really kind of arbitrary.
-				$speed  = 100000 if ((not $speed) or ($speed eq "-1"));
+				$speed  = 1000   if ((not $speed) or ($speed eq "-1"));
 				$duplex = "full" if not $duplex;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					speed  => $speed, 
@@ -991,7 +991,7 @@ WHERE
 	
 	# Write the JSON file, if we're a dashboard. Nodes and DR hosts don't have a WebUI, so they're not 
 	# needed.
-	if ($anvil->System->get_host_type eq "dashboard")
+	if ($anvil->Get->host_type eq "striker")
 	{
 		my $output_json = $anvil->data->{path}{directories}{html}."/status/network.json";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output_xml => $output_json }});
