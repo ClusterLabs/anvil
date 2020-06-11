@@ -952,7 +952,7 @@ If either can not be determined, C<< unknown >> will be returned.
 This method takes no parameters.
 
 =cut
-sub get_os_type
+sub os_type
 {
 	my $self      = shift;
 	my $parameter = shift;
