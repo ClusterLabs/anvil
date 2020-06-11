@@ -108,14 +108,13 @@ sub clear
 		return(1);
 	}
 	
-	$job_uuid = $anvil->Database->insert_or_update_jobs({
-		file                 => $THIS_FILE, 
-		line                 => __LINE__, 
-		debug                => $debug,
-		update_progress_only => 1,
-		job_uuid             => $job_uuid,
-		job_picked_up_by     => 0, 
-		job_progress         => 0, 
+	$job_uuid = $anvil->Job->update_progress({
+		debug    => $debug,
+		file     => $THIS_FILE, 
+		line     => __LINE__, 
+		progress => 0, 
+		message  => "clear",
+		job_uuid => $job_uuid,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 	

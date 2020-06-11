@@ -66,6 +66,9 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# Clear the job in case a previous call failed.
+$anvil->Job->clear({debug => 2, job_uuid => $anvil->data->{switches}{'job-uuid'}}) if $anvil->data->{switches}{'job-uuid'};
+
 # Are we being asked to reboot or power off?
 if ($anvil->data->{switches}{'reboot'})
 {
@@ -231,7 +234,6 @@ sub do_poweroff
 	
 	if ($job_uuid)
 	{
-		$anvil->Job->clear({job_uuid => $job_uuid});
 		$anvil->Job->update_progress({
 			debug    => 2, 
 			progress => $percent, 
@@ -242,7 +244,7 @@ sub do_poweroff
 	
 	# Make sure the 'reboot needed' flag is set. When 'anvil-daemon' starts, it will use this to confirm
 	# that it is starting post-reboot and clear it.
-	$reboot_needed = $anvil->System->reboot_needed({set => 1});
+	$reboot_needed = $anvil->System->reboot_needed({debug => 2, set => 1});
 	
 	# Now do the deed.
 	my $shell_call = $anvil->data->{path}{exe}{systemctl}." ".$task;

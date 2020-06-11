@@ -1222,7 +1222,7 @@ sub generate_state_json
 	foreach my $host_uuid (keys %{$anvil->data->{machine}{host_uuid}})
 	{
 		my $host_name       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_name};
-		my $short_host_name = ($host_name =~ /^(.*?)\./)[0];
+		my $short_host_name = $host_name =~ /\./ ? ($host_name =~ /^(.*?)\./)[0] : $host_name;
 		my $host_type       = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_type};
 		my $host_key        = $anvil->data->{machine}{host_uuid}{$host_uuid}{hosts}{host_key};
 		my $configured      = defined $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} ? $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{'system::configured'} : 0;
@@ -2766,7 +2766,9 @@ sub reboot_needed
 		{
 			# Set
 			$anvil->Database->insert_or_update_variables({
-				debug                 => 2,
+				debug                 => $debug,
+				file                  => $THIS_FILE,
+				line                  => __LINE__,
 				variable_name         => "reboot::needed", 
 				variable_value        => "1", 
 				variable_default      => "0", 
@@ -2774,14 +2776,15 @@ sub reboot_needed
 				variable_section      => "system", 
 				variable_source_uuid  => $anvil->Get->host_uuid, 
 				variable_source_table => "hosts", 
-				update_value_only     => 1, 
 			});
 		}
 		elsif ($set eq "0")
 		{
 			# Clear
 			$anvil->Database->insert_or_update_variables({
-				debug                 => 2,
+				debug                 => $debug,
+				file                  => $THIS_FILE,
+				line                  => __LINE__,
 				variable_name         => "reboot::needed", 
 				variable_value        => "0", 
 				variable_default      => "0", 
@@ -2789,7 +2792,6 @@ sub reboot_needed
 				variable_section      => "system", 
 				variable_source_uuid  => $anvil->Get->host_uuid, 
 				variable_source_table => "hosts", 
-				update_value_only     => 1, 
 			});
 		}
 		else
@@ -2802,6 +2804,8 @@ sub reboot_needed
 	
 	my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
 		debug                 => $debug, 
+		file                  => $THIS_FILE,
+		line                  => __LINE__,
 		variable_name         => "reboot::needed",
 		variable_source_table => "hosts",
 		variable_source_uuid  => $anvil->Get->host_uuid,
