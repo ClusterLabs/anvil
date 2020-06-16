@@ -32,6 +32,7 @@ my $THIS_FILE = "Database.pm";
 # get_manifests
 # get_notifications
 # get_recipients
+# get_ssh_keys
 # get_upses
 # initialize
 # insert_or_update_anvils
@@ -293,6 +294,8 @@ sub archive_database
 
 This checks to see if 'sys::database::local_lock_active' is set. If it is, its age is checked and if the age is >50% of sys::database::locking_reap_age, it will renew the lock.
 
+This method takes no parameters.
+
 =cut
 sub check_lock_age
 {
@@ -356,6 +359,8 @@ This configures the local database server. Specifically, it checks to make sure 
 If the system is already configured, this method will do nothing, so it is safe to call it at any time.
 
 If the method completes, C<< 0 >> is returned. If this method is called without C<< root >> access, it returns C<< 1 >> without doing anything. If there is a problem, C<< !!error!! >> is returned.
+
+This method takes no parameters.
 
 =cut
 sub configure_pgsql
@@ -1332,7 +1337,7 @@ sub connect
 	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Sync the database, if needed.
-	$anvil->Database->resync_databases({debug => 3});
+	$anvil->Database->resync_databases({debug => $debug});
 	
 	# Add ourselves to the database, if needed.
 	$anvil->Database->insert_or_update_hosts({debug => $debug});
@@ -1345,6 +1350,8 @@ sub connect
 =head2
 
 This cleanly closes any open file handles to all connected databases and clears some internal database related variables.
+
+This method takes no parameters.
 
 =cut
 sub disconnect
@@ -1393,6 +1400,8 @@ sub disconnect
 
 This returns a list of users listening to alerts for a given host, along with their alert level.
 
+This method takes no parameters.
+
 =cut
 sub get_recipients
 {
@@ -1401,11 +1410,6 @@ sub get_recipients
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_recipients()" }});
-	
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		host_uuid => $host_uuid, 
-	}});
 	
 	### TODO: Read in 'notifications' 
 	my $query        = "
@@ -1814,12 +1818,16 @@ Each anonymous hash is structured as:
  host_uuid     => $host_uuid, 
  host_name     => $host_name, 
  host_type     => $host_type, 
+ host_key      => $host_key, 
+ host_ipmi     => $host_ipmi, 
  modified_date => $modified_date, 
 
 It also sets the variables;
 
  hosts::host_uuid::<host_uuid>::host_name  = <host_name>;
  hosts::host_uuid::<host_uuid>::host_type  = <host_type; node, dr or dashboard>
+ hosts::host_uuid::<host_uuid>::host_key   = <Machine's public key / fingerprint>
+ hosts::host_uuid::<host_uuid>::host_ipmi  = <If equiped, this is how to log into the host's IPMI BMC>
  hosts::host_uuid::<host_uuid>::anvil_name = <anvil_name if associated with an anvil>
 
 And to simplify look-ups by UUID or name;
@@ -1828,6 +1836,8 @@ And to simplify look-ups by UUID or name;
  sys::hosts::by_name::<host_name> = <host_uuid>
 
 To prevent some cases of recursion, C<< hosts::loaded >> is set on successful load, and if this is set, this method immediately returns with C<< 0 >>. 
+
+This method takes no parameters.
 
 =cut
 sub get_hosts
@@ -1838,6 +1848,11 @@ sub get_hosts
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts()" }});
 	
+	# Delete any data from past scans.
+	delete $anvil->data->{hosts}{host_uuid};
+	delete $anvil->data->{sys}{hosts}{by_uuid};
+	delete $anvil->data->{sys}{hosts}{by_name};
+	
 	# Load anvils. If a host is registered with an Anvil!, we'll note it.
 	$anvil->Database->get_anvils({debug => $debug});
 	
@@ -1846,6 +1861,8 @@ SELECT
     host_uuid, 
     host_name, 
     host_type, 
+    host_key, 
+    host_ipmi, 
     modified_date 
 FROM 
     hosts
@@ -1861,14 +1878,18 @@ FROM
 	}});
 	foreach my $row (@{$results})
 	{
-		my $host_uuid     = $row->[0];
-		my $host_name     = $row->[1];
-		my $host_type     = $row->[2];
-		my $modified_date = $row->[3];
+		my $host_uuid     =         $row->[0];
+		my $host_name     =         $row->[1];
+		my $host_type     = defined $row->[2] ? $row->[2] : "";
+		my $host_key      = defined $row->[3] ? $row->[3] : "";
+		my $host_ipmi     =         $row->[4];
+		my $modified_date =         $row->[5];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host_uuid     => $host_uuid, 
 			host_name     => $host_name, 
 			host_type     => $host_type, 
+			host_key      => $host_key, 
+			host_ipmi     => $host_ipmi, 
 			modified_date => $modified_date, 
 		}});
 		
@@ -1883,16 +1904,22 @@ FROM
 			host_uuid     => $host_uuid,
 			host_name     => $host_name, 
 			host_type     => $host_type, 
+			host_key      => $host_key, 
+			host_ipmi     => $host_ipmi, 
 			modified_date => $modified_date, 
 		};
 		
 		# Record the data in the hash, too.
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}  = $host_name;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}  = $host_type;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}   = $host_key;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}  = $host_ipmi;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} = $anvil_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"hosts::host_uuid::${host_uuid}::host_name"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
 			"hosts::host_uuid::${host_uuid}::host_type"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+			"hosts::host_uuid::${host_uuid}::host_key"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+			"hosts::host_uuid::${host_uuid}::host_ipmi"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
 			"hosts::host_uuid::${host_uuid}::anvil_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
 		}});
 		
@@ -1914,6 +1941,8 @@ FROM
 =head2 get_hosts_info
 
 This gathers up all the known information about all known hosts.
+
+This method takes no parameters.
 
 =cut
 sub get_hosts_info
@@ -2009,6 +2038,8 @@ Parameters;
 =head3 job_uuid (default switches::job-uuid)
 
 This is the C<< job_uuid >> of the job being retrieved. 
+
+This method takes no parameters.
 
 =cut
 sub get_job_details
@@ -2131,6 +2162,8 @@ Jobs that reached 100% within this number of seconds ago will be included. If th
 =head3 job_host_uuid (default $anvil->Get->host_uuid)
 
 This is the host that we're getting a list of jobs from.
+
+This method takes no parameters.
 
 =cut
 sub get_jobs
@@ -2270,6 +2303,8 @@ NOTE: This returns nothing if the local machine is not found as a configured dat
  # Get the local UUID
  my $local_uuid = $anvil->Database->get_local_uuid;
 
+This method takes no parameters.
+
 =cut
 sub get_local_uuid
 {
@@ -2339,6 +2374,8 @@ sub get_local_uuid
 =head2 get_mail_servers
 
 This gets the list of configured mail servers.
+
+This method takes no parameters.
 
 =cut
 sub get_mail_servers
@@ -2625,6 +2662,94 @@ FROM
 			"notifications::notification_uuid::${notification_uuid}::notification_recipient_uuid" => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid}, 
 			"notifications::notification_uuid::${notification_uuid}::notification_host_uuid"      => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid}, 
 			"notifications::notification_uuid::${notification_uuid}::notification_alert_level"    => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level}, 
+		}});
+	}
+	
+	return(0);
+}
+
+
+=head2 get_ssh_keys
+
+This loads all known user's SSH public keys and all known machine's public keys into the data hash. On success, this method returns C<< 0 >>. If any problems occur, C<< 1 >> is returned.
+
+ ssh_keys::ssh_key_uuid::<ssh_key_uuid>::ssh_key_host_uuid  = <Host UUID the user is from>
+ ssh_keys::ssh_key_uuid::<ssh_key_uuid>::ssh_key_user_name  = <The user's name>
+ ssh_keys::ssh_key_uuid::<ssh_key_uuid>::ssh_key_public_key = <The SSH public key>
+ 
+And:
+
+ ssh_keys::ssh_key_host_uuid::<ssh_key_host_uuid>::ssh_key_uuid       = <UUID of ssh_keys column>
+ ssh_keys::ssh_key_host_uuid::<ssh_key_host_uuid>::ssh_key_user_name  = <The user's name>
+ ssh_keys::ssh_key_host_uuid::<ssh_key_host_uuid>::ssh_key_public_key = <The SSH public key>
+
+
+This method takes no parameters.
+
+=cut
+sub get_ssh_keys
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	
+	# Delete any data from past scans.
+	delete $anvil->data->{ssh_keys}{ssh_key_uuid};
+	delete $anvil->data->{sys}{ssh_keys}{by_uuid};
+	delete $anvil->data->{sys}{ssh_keys}{by_name};
+	
+	my $query = "
+SELECT 
+    ssh_key_uuid, 
+    ssh_key_host_uuid, 
+    ssh_key_user_name, 
+    ssh_key_public_key, 
+    modified_date 
+FROM 
+    ssh_keys
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $ssh_key_uuid       = $row->[0];
+		my $ssh_key_host_uuid  = $row->[1];
+		my $ssh_key_user_name  = $row->[2];
+		my $ssh_key_public_key = $row->[3];
+		my $modified_date      = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ssh_key_uuid       => $ssh_key_uuid, 
+			ssh_key_host_uuid  => $ssh_key_host_uuid, 
+			ssh_key_user_name  => $ssh_key_user_name, 
+			ssh_key_public_key => $ssh_key_public_key, 
+			modified_date      => $modified_date, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{ssh_keys}{ssh_key_uuid}{$ssh_key_uuid}{ssh_key_host_uuid}  = $ssh_key_host_uuid;
+		$anvil->data->{ssh_keys}{ssh_key_uuid}{$ssh_key_uuid}{ssh_key_user_name}  = $ssh_key_user_name;
+		$anvil->data->{ssh_keys}{ssh_key_uuid}{$ssh_key_uuid}{ssh_key_public_key} = $ssh_key_public_key;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"ssh_keys::ssh_key_uuid::${ssh_key_uuid}::ssh_key_host_uuid"  => $anvil->data->{ssh_keys}{ssh_key_uuid}{$ssh_key_uuid}{ssh_key_host_uuid}, 
+			"ssh_keys::ssh_key_uuid::${ssh_key_uuid}::ssh_key_user_name"  => $anvil->data->{ssh_keys}{ssh_key_uuid}{$ssh_key_uuid}{ssh_key_user_name}, 
+			"ssh_keys::ssh_key_uuid::${ssh_key_uuid}::ssh_key_public_key" => $anvil->data->{ssh_keys}{ssh_key_uuid}{$ssh_key_uuid}{ssh_key_public_key}, 
+		}});
+		
+		$anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_uuid}       = $ssh_key_uuid;
+		$anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}  = $ssh_key_user_name;
+		$anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_public_key} = $ssh_key_public_key;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"ssh_keys::ssh_key_host_uuid::${ssh_key_host_uuid}::ssh_key_uuid"       => $anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_uuid}, 
+			"ssh_keys::ssh_key_host_uuid::${ssh_key_host_uuid}::ssh_key_user_name"  => $anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}, 
+			"ssh_keys::ssh_key_host_uuid::${ssh_key_host_uuid}::ssh_key_public_key" => $anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_public_key}, 
 		}});
 	}
 	

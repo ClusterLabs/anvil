@@ -22,6 +22,7 @@ my $THIS_FILE = "System.pm";
 # change_shell_user_password
 # check_daemon
 # check_if_configured
+# check_ssh_keys
 # check_memory
 # check_storage
 # disable_daemon
@@ -643,8 +644,9 @@ sub check_ssh_keys
 	my $users = $anvil->Get->host_type eq "node" ? ["root", "admin", "hacluster"] : ["root", "admin"];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users => \@{$users} }});
 	
-	# Get a list of machine host keys and user public keys from other machines.
-	#get_other_keys($anvil);
+	# Load the host keys and the SSH keys
+	$anvil->Database->get_hosts({debug => $debug});
+	$anvil->Database->get_ssh_keys({debug => $debug});
 	
 	# Users to check:
 	foreach my $user (@{$users})
@@ -672,11 +674,6 @@ sub check_ssh_keys
 				group     => $user, 
 				mode      => "0700",
 			});
-			if (not -e $ssh_directory)
-			{
-				# Failed ?
-				next;
-			}
 		}
 		
 		my $ssh_private_key_file = $user_home."/.ssh/id_rsa";
@@ -753,10 +750,33 @@ sub check_ssh_keys
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
 		}
 		
-		### Walk through each host we now know of. As we we do, loop through the old file body to see
-		### if it exists. If it does, and the key has changed, update the line with the new key. If
-		### it isn't found, add it. Once we check the old body for this entry, change the "old" body
-		### to the new one, then repeat the process.
+		# Walk through the Striker dashboards we use. If we're a Node or DR host, walk through our 
+		# peers as well. As we we do, loop through the old file body to see if it exists. If it does,
+		# and the key has changed, update the line with the new key. If it isn't found, add it. Once
+		# we check the old body for this entry, change the "old" body to the new one, then repeat the
+		# process.
+		my $trusted_host_uuids = [];
+		
+		if ($anvil->Get->host_type eq "striker")
+		{
+			# Add all known machines
+		}
+		else
+		{
+			# Add dashboard (using postgres connection info), the UUID is the host UUID.
+			foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+			{
+				# Periodically, autovivication causes and empty key to appear.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+				next if ((not $uuid) or (not $anvil->Validate->is_uuid({uuid => $uuid})));
+				
+				push @{$trusted_host_uuids}, $uuid;
+			}
+			
+			# Now add our peers.
+		}
+		
+		my $peers = [];
 		
 		# Look at all the hosts I know about (other than myself) and see if any of the machine or 
 		# user keys either don't exist or have changed.

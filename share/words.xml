@@ -33,6 +33,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		<key name="brand_0007">Node</key>
 		<key name="brand_0008">DR Host</key>
+		<key name="brand_0009">Unknown Type</key>
 		
 		<!-- Errors -->
 		<key name="error_0001">There are not enough network interfaces on this machine. You have: [#!variable!interface_count!#] interface(s), and you need at least: [#!variable!required_interfaces_for_single!#] interfaces to connect to the requested networks (one for Back-Channel and one for each Internet-Facing network).</key>
@@ -188,6 +189,8 @@ The error was:
 		<key name="error_0127">I was asked to delete and entry from: [#!variable!table!#] but neither the name or UUID was passed.</key>
 		<key name="error_0128">The host UUID: [#!variable!uuid!#] was set as the value for: [#!variable!column!#], but that host doesn't appear to exist.</key>
 		<key name="error_0129">Unable to connect to any database, unable to read the job details.</key>
+		<key name="error_0130">The answer: [#!variable!answer!#] is invalid. Please try again.</key>
+		<key name="error_0131">The host UUID: [#!variable!host_uuid!#] was not found. Has it already been purged?</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1126,6 +1129,14 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0166">An isolated, VLAN'ed network used for all inter-machine communication in the #!string!brand_0006!#, as well as communication for foundation pack devices.</key>
 		<key name="message_0167">An isolated, VLAN'ed network Used for storage replication traffic only.</key>
 		<key name="message_0168">Connecting to the main site intranet. This is the network (or networks) that guest virtual servers will use to connect to all devices outside the #!string!brand_0006!# system.</key>
+		<key name="message_0169">Please select the host you want to purge from the database:</key>
+		<key name="message_0170">#!variable!key!#) #!variable!host_name!# - #!variable!type!# - #!variable!host_uuid!#)</key>
+		<key name="message_0171">Which machine do you want to purge from the database(s)? </key>
+		<key name="message_0172">Note: Be sure all databases are online! Otherwise, the purged records could return during the next resync!</key>
+		<key name="message_0173">Are you sure you want to purge: [#!variable!host_name!# (#!variable!host_uuid!#)]?</key>	<!-- Translation note: If you want to accept other characters as confirmation, update 'striker-purge-host', 'sub confirm' in the 'normalize -y' section. -->
+		<key name="message_0174">Confirmed by switch, proceeding with purge of: [#!variable!host_name!#].</key>
+		<key name="message_0175">Thank you, proceeding.</key>
+		<key name="message_0176">The host: [#!variable!host_name!#] has been purged.</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

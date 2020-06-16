@@ -25,4 +25,4 @@ $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 print "DB Connections: [".$anvil->data->{sys}{database}{connections}."]\n";
 
-$anvil->System->check_ssh_keys({debug => 2});
+#$anvil->System->check_ssh_keys({debug => 2});
