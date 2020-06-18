@@ -214,8 +214,8 @@ if ($anvil->data->{switches}{enable})
 {
 	my $exit_code   = 0;
 	my $job_message = "message_0127";
-	my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{dhcpd}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	my $return_code = $anvil->System->start_daemon({debug => 2, daemon => $anvil->data->{sys}{daemon}{dhcpd}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	if ($return_code)
 	{
 		# non-0 means something went wrong.

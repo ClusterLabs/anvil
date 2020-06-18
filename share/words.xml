@@ -1278,8 +1278,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="striker_0108">Disable 'Install Target'</key>
 		<key name="striker_0109"><![CDATA[<span class="disabled">'Install Target' Not Available</span>]]></key>
 		<key name="striker_0110">The 'Install Target' feature is used to do base (stage 1) installs on new or rebuilt Striker dashboards, #!string!brand_0006!# nodes or Disaster Recivery hosts. Specifically, it allows machines to boot off their BCN network interface and install the base operating system.</key>
-		<key name="striker_0111">The 'Install Target' disable job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been enabled.</key>
-		<key name="striker_0112">The 'Install Target' enabled job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been disabled.</key>
+		<key name="striker_0111">The 'Install Target' disable job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been disabled.</key>
+		<key name="striker_0112">The 'Install Target' enabled job has been requested. It should be completed in a few moments. You may need to reload the next page in a minute to see that it has been enabled.</key>
 		<key name="striker_0113">#!string!brand_0006!# Configuration and Management.</key>
 		<key name="striker_0114">Create a new #!string!brand_0006!# system.</key>
 		<key name="striker_0115">Any running jobs, or jobs that have ended recently, are displayed below.</key>
