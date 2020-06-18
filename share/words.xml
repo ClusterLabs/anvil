@@ -879,6 +879,14 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0473">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] will be refreshed on user request (--refresh passed).</key>
 		<key name="log_0474">The unified fences metadata file: [#!data!path::data::fences_unified_metadata!#] old and will now be refreshed.</key>
 		<key name="log_0475">This is a CentOS machine, moving the directory: [#!variable!source!#] to: [#!variable!target!#].</key>
+		<key name="log_0476">The database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) has been forced to resync via '--resync-db'.</key>
+		<key name="log_0477">
+It looks like you connected to the same database twice! The conflicting databases are: 
+- [#!variable!db1!#] 
+- [#!variable!db2!#]. 
+The databases both report the same identifier (as reported by: #!variable!query!#). 
+If the targets are unique, did you copy the full database directory? A unique identifier is generated when 'initdb' is run, and exists on disk. Exiting.
+		</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

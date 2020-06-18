@@ -923,7 +923,6 @@ sub connect
 		}});
 		
 		### TODO: Can we do a telnet port ping with a short timeout instead of a shell ping call?
-		
 		# Assemble my connection string
 		my $db_connect_string = "$driver:dbname=$name;host=$host;port=$port";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1095,7 +1094,10 @@ sub connect
 			$anvil->data->{sys}{database}{connections}++;
 			push @{$successful_connections}, $uuid;
 			$anvil->data->{cache}{database_handle}{$uuid} = $dbh;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				dbh                               => $dbh,
+				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
+			}});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0071", variables => { 
 				host => $host,
@@ -1104,10 +1106,35 @@ sub connect
 				uuid => $uuid,
 			}});
 			
+			# Set this database handle as the one to use for reading, if no handle is yet set.
 			if (not $anvil->Database->read)
 			{
 				$anvil->Database->read({set => $dbh});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'anvil->Database->read' => $anvil->Database->read }});
+			}
+			
+			# Read the DB identifier and then check that we've not already connected to this DB.
+			my $query      = "SELECT system_identifier FROM pg_control_system();";
+			my $identifier = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				query      => $query,
+				identifier => $identifier,
+			}});
+			if (not exists $anvil->data->{sys}{database}{identifier}{$identifier})
+			{
+				$anvil->data->{sys}{database}{identifier}{$identifier} = $db_connect_string;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::identifier::${identifier}" => $anvil->data->{sys}{database}{identifier}{$identifier} }});
+			}
+			else
+			{
+				# Fail out.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0477", variables => { 
+					db1   => $anvil->data->{sys}{database}{identifier}{$identifier}, 
+					db2   => $db_connect_string, 
+					query => $query,
+				}});
+				$anvil->nice_exit({code => 1});
+				die;
 			}
 			
 			# If the '$test_table' isn't the same as 'sys::database::test_table', see if the core schema needs loading first.
@@ -1129,7 +1156,7 @@ sub connect
 			}
 			
 			# Now that I have connected, see if my 'hosts' table exists.
-			my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($test_table)." AND schemaname='public';";
+			$query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($test_table)." AND schemaname='public';";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $count = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
@@ -1337,6 +1364,7 @@ sub connect
 	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Sync the database, if needed.
+	#$anvil->Database->resync_databases({debug => $debug});
 	$anvil->Database->resync_databases({debug => $debug});
 	
 	# Add ourselves to the database, if needed.
@@ -2977,11 +3005,11 @@ sub initialize
 	});
 	
 	$anvil->data->{sys}{db_initialized}{$uuid} = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::db_initialized::${uuid}" => $anvil->data->{sys}{db_initialized}{$uuid} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::db_initialized::${uuid}" => $anvil->data->{sys}{db_initialized}{$uuid} }});
 	
 	# Mark that we need to update the DB.
 	$anvil->data->{sys}{database}{resync_needed} = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 	return($success);
@@ -7174,7 +7202,7 @@ SET
 WHERE 
     notification_uuid        = ".$anvil->Database->quote($notification_uuid)." 
 ";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		}
 	}
@@ -7201,7 +7229,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
@@ -7389,7 +7417,7 @@ SET
 WHERE 
     mac_to_ip_uuid        = ".$anvil->Database->quote($mac_to_ip_uuid)." 
 ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
 		}
@@ -7418,7 +7446,7 @@ INSERT INTO
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
@@ -7580,7 +7608,7 @@ SET
 WHERE 
     oui_uuid            = ".$anvil->Database->quote($oui_uuid)." 
 ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
 		}
@@ -7609,7 +7637,7 @@ INSERT INTO
 );
 ";
 		$query =~ s/'NULL'/NULL/g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
@@ -9722,7 +9750,7 @@ sub manage_anvil_conf
 		if ($line eq "### end db list ###")
 		{
 			# If I've not seen this DB, enter it.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 0, level => $debug, list => { 
 				host_seen => $host_seen,
 				remove    => $remove,
 			}});
@@ -9730,7 +9758,7 @@ sub manage_anvil_conf
 			{
 				$new_body .= $insert."\n";
 				$rewrite  =  1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => $debug, list => { 
 					new_body => $new_body,
 					rewrite  => $rewrite,
 				}});
@@ -9750,7 +9778,7 @@ sub manage_anvil_conf
 			my $left_space  = $2;
 			my $right_space = $3; 
 			my $value       = $4;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:variable"    => $variable,
 				"s2:value"       => $value, 
 				"s3:left_space"  => $left_space, 
@@ -9762,7 +9790,7 @@ sub manage_anvil_conf
 			{
 				# Yup. Are we removing it, or do we need to edit it?
 				$host_seen = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"s1:value"     => $value,
 					"s2:db_host"   => $db_host, 
 					"s3:host_seen" => $host_seen, 
@@ -9773,7 +9801,7 @@ sub manage_anvil_conf
 					$delete_reported = 1;
 					$just_deleted    = 1;
 					$rewrite         = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						just_deleted    => $just_deleted, 
 						rewrite         => $rewrite,
 						delete_reported => $delete_reported, 
@@ -9784,14 +9812,14 @@ sub manage_anvil_conf
 				{
 					# No change.
 					$host_different = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_different => $host_different }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_different => $host_different }});
 				}
 				else
 				{
 					# Needs to be updated.
 					$line    = $variable.$left_space."=".$right_space.$db_host;
 					$rewrite = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						line    => $line,
 						rewrite => $rewrite, 
 					}});
@@ -9801,7 +9829,7 @@ sub manage_anvil_conf
 			{
 				# Port line
 				$host_seen = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"s1:value"     => $value,
 					"s2:port"      => $port, 
 					"s3:host_seen" => $host_seen, 
@@ -9812,7 +9840,7 @@ sub manage_anvil_conf
 					$delete_reported = 1;
 					$just_deleted    = 1;
 					$rewrite         = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						delete_reported => $delete_reported, 
 						just_deleted    => $just_deleted, 
 						rewrite         => $rewrite,
@@ -9823,7 +9851,7 @@ sub manage_anvil_conf
 				{
 					# No change.
 					$port_different = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port_different => $port_different }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port_different => $port_different }});
 				}
 				else
 				{
@@ -9831,7 +9859,7 @@ sub manage_anvil_conf
 					$update_reported = 1;
 					$line            = $variable.$left_space."=".$right_space.$port;
 					$rewrite         = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						update_reported => $update_reported, 
 						line            => $line,
 						rewrite         => $rewrite, 
@@ -9842,7 +9870,7 @@ sub manage_anvil_conf
 			{
 				# Password
 				$host_seen = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					"s1:value"     => $value,
 					"s2:password"  => $anvil->Log->is_secure($password), 
 					"s3:host_seen" => $host_seen, 
@@ -9853,7 +9881,7 @@ sub manage_anvil_conf
 					$delete_reported = 1;
 					$just_deleted    = 1;
 					$rewrite         = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						delete_reported => $delete_reported, 
 						just_deleted    => $just_deleted, 
 						rewrite         => $rewrite,
@@ -9864,7 +9892,7 @@ sub manage_anvil_conf
 				{
 					# No change.
 					$password_different = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { password_different => $password_different }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { password_different => $password_different }});
 				}
 				else
 				{
@@ -9872,7 +9900,7 @@ sub manage_anvil_conf
 					$update_reported = 1;
 					$line            = $variable.$left_space."=".$right_space.$password;
 					$rewrite         = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						update_reported => $update_reported, 
 						line            => $anvil->Log->is_secure($line),
 						rewrite         => $rewrite, 
@@ -9883,7 +9911,7 @@ sub manage_anvil_conf
 			{
 				# Ping?
 				$host_seen = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"s1:value"     => $value,
 					"s2:db_ping"   => $db_ping, 
 					"s3:host_seen" => $host_seen, 
@@ -9894,7 +9922,7 @@ sub manage_anvil_conf
 					$delete_reported = 1;
 					$just_deleted    = 1;
 					$rewrite         = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						delete_reported => $delete_reported, 
 						just_deleted    => $just_deleted, 
 						rewrite         => $rewrite,
@@ -9905,7 +9933,7 @@ sub manage_anvil_conf
 				{
 					# No change.
 					$ping_different = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ping_different => $ping_different }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ping_different => $ping_different }});
 				}
 				else
 				{
@@ -9913,7 +9941,7 @@ sub manage_anvil_conf
 					$update_reported = 1;
 					$line            = $variable.$left_space."=".$right_space.$db_ping;
 					$rewrite         = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						update_reported => $update_reported, 
 						line            => $line,
 						rewrite         => $rewrite, 
@@ -9926,7 +9954,7 @@ sub manage_anvil_conf
 	}
 
 	# If there was a change, write the file out.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		's1:new_body' => $new_body, 
 		's2:rewrite'  => $rewrite,
 	}});
@@ -9943,7 +9971,7 @@ sub manage_anvil_conf
 			remote_user => $remote_user, 
 			target      => $target,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_file => $backup_file }});
 		
 		# Now update!
 		my ($failed) = $anvil->Storage->write_file({
@@ -9959,7 +9987,7 @@ sub manage_anvil_conf
 			remote_user => $remote_user, 
 			target      => $target,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 		if ($failed)
 		{
 			# Simething went weong.
@@ -9978,7 +10006,7 @@ sub manage_anvil_conf
 			
 			# Reconnect
 			$anvil->Database->connect();
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
 		}
 	}
 	
@@ -11433,7 +11461,7 @@ sub _find_behind_databases
 			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
 			"database::${uuid}::name"     => $database_name,
 			"database::${uuid}::user"     => $database_user, 
-			"database::${uuid}::password" => $anvil->Log->secure ? $anvil->data->{database}{$uuid}{password} : $anvil->Words->string({key => "log_0186"}), 
+			"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
 		}});
 		
 		# Loop through the tables in this DB. For each table, we'll record the most recent time 
@@ -11448,7 +11476,7 @@ sub _find_behind_databases
 			my $query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'public' AND table_name = ".$anvil->Database->quote($table).";";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
-			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 			
 			if ($count == 1)
@@ -11460,7 +11488,7 @@ sub _find_behind_databases
 				# See if there is a column that ends in '_host_uuid'. If there is, we'll use 
 				# it later to restrict resync activity to these columns with the local 
 				# 'sys::host_uuid'.
-				my $host_column = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $host_column = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				   $host_column = "" if not defined $host_column;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_column => $host_column }});
 				
@@ -11468,7 +11496,7 @@ sub _find_behind_databases
 				$query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema = 'history' AND table_name = ".$anvil->Database->quote($table).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				my $count = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 				
 				my $schema = $count ? "history" : "public";
@@ -11493,7 +11521,7 @@ ORDER BY
 				}});
 				
 				# Get the count of columns as well as the most recent one.
-				my $results   = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+				my $results   = $anvil->Database->query({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 				my $row_count = @{$results};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					results   => $results, 
@@ -11508,8 +11536,8 @@ ORDER BY
 				# up later if we do need a resync.
 				$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated} = $last_updated;
 				$anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}    = $row_count;
-				$anvil->data->{sys}{database}{table}{$table}{schema}                  = $schema;
-				$anvil->data->{sys}{database}{table}{$table}{host_column}             = $host_column;
+				$anvil->data->{sys}{database}{table}{$table}{schema}                    = $schema;
+				$anvil->data->{sys}{database}{table}{$table}{host_column}               = $host_column;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"sys::database::table::${table}::uuid::${uuid}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{last_updated}, 
 					"sys::database::table::${table}::uuid::${uuid}::row_count"    => $anvil->data->{sys}{database}{table}{$table}{uuid}{$uuid}{row_count}, 
@@ -11534,6 +11562,32 @@ ORDER BY
 					}});
 				}
 			}
+			else
+			{
+				### TODO: Find the table in a .sql file and load it.
+			}
+		}
+	}
+	
+	# Are being asked to trigger a resync?
+	$anvil->data->{switches}{'resync-db'} = "" if not defined $anvil->data->{switches}{'resync-db'};
+	foreach my $uuid (keys %{$anvil->data->{database}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::resync-db" => $anvil->data->{switches}{'resync-db'},
+			uuid                  => $uuid, 
+		}});
+		if ($anvil->data->{switches}{'resync-db'} eq $uuid)
+		{
+			# We've been asked to resync this DB.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0476", variables => { 
+				uuid => $uuid,
+				host => $anvil->Get->host_name({host_uuid => $uuid}),
+			}});
+			
+			# Mark it as behind.
+			$anvil->Database->_mark_database_as_behind({debug => $debug, uuid => $uuid});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
 		}
 	}
 	
@@ -11595,8 +11649,8 @@ ORDER BY
 		}
 		last if $anvil->data->{sys}{database}{resync_needed};
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::resync_needed" => $anvil->data->{sys}{database}{resync_needed} }});
 	return(0);
 }
 
