@@ -53,6 +53,7 @@ Requires:       perl-IO-Tty
 Requires:       perl-JSON 
 Requires:       perl-Log-Journald 
 Requires:       perl-Mail-RFC822-Address
+Requires:       perl-Net-Domain-TLD
 Requires:       perl-Net-SSH2 
 Requires:       perl-Net-Netmask
 Requires:       perl-Net-OpenSSH

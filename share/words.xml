@@ -1007,7 +1007,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0086">^2. Install an #!string!brand_0006!# Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0086">^2. Install an #!string!brand_0002!# Node (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
 		<key name="message_0087">
@@ -1020,7 +1020,7 @@ NOTE: Please be patient!
 	                         *** THERE WILL BE NO FURTHER PROMPT! PROCEED CAREFULLY! ***
 		</key>
 <!--    \===========================================================================================================/ -->
-		<key name="message_0088">^3. Install an #!string!brand_0006!# Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
+		<key name="message_0088">^3. Install an #!string!brand_0002!# Disaster Recover Host (#!data!host_os::os_name!# #!data!host_os::os_arch!#)</key>
 		<key name="message_0089">
 <!--    Keep help text wrapped within the area shown directly below for the 'help' section of PXE 'default' meny entry. -->
 <!--    /===========================================================================================================\ -->
