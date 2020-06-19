@@ -1439,6 +1439,10 @@ This method checks the local system for interfaces and stores them in:
 * C<< network::<target>::interface::<iface_name>::gateway >>         = If the default gateway, this is the gateway IP address.
 * C<< network::<target>::interface::<iface_name>::dns >>             = If the default gateway, this is the comma-separated list of active DNS servers.
 
+To make it convenient to translate a MAC address into interface names, this hash is also stored;
+
+* C<< network::<target>::mac_address::<mac_address>::interface = Interface name.
+
 When called without a C<< target >>, C<< local >> is used.
 
 To aid in look-up by MAC address, C<< network::mac_address::<mac_address>::iface >> is also set. Note that this is not target-dependent.
@@ -1567,6 +1571,21 @@ sub get_ips
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"s1:network::${host}::interface::${in_iface}::ip"          => $anvil->data->{network}{$host}{interface}{$in_iface}{ip},
 				"s2:network::${host}::interface::${in_iface}::subnet_mask" => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask},
+			}});
+		}
+		if ($line =~ /ether (.*?) /i)
+		{
+			my $mac_address                                                      = $1;
+			   $anvil->data->{network}{$host}{interface}{$in_iface}{mac_address} = $mac_address;
+			   
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::interface::${in_iface}::mtu" => $anvil->data->{network}{$host}{interface}{$in_iface}{mtu},
+			}});
+			
+			# Make it easy to look up an interface name based on a given MAC address.
+			$anvil->data->{network}{$host}{mac_address}{$mac_address}{interface} = $in_iface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::${host}::mac_address::${mac_address}::interface" => $anvil->data->{network}{$host}{mac_address}{$mac_address}{interface},
 			}});
 		}
 		if ($line =~ /mtu (\d+) /i)
