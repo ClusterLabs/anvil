@@ -1133,7 +1133,7 @@ sub connect
 					db2   => $db_connect_string, 
 					query => $query,
 				}});
-				$anvil->nice_exit({code => 1});
+				$anvil->nice_exit({exit_code => 1});
 				die;
 			}
 			
@@ -3081,7 +3081,7 @@ sub insert_or_update_anvils
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_anvils()" }});
 	
 	my $uuid                  = defined $parameter->{uuid}                  ? $parameter->{uuid}                  : "";
 	my $file                  = defined $parameter->{file}                  ? $parameter->{file}                  : "";
@@ -3138,7 +3138,7 @@ SELECT
 FROM 
     anvils 
 WHERE 
-    anvil_name      = ".$anvil->Database->quote($anvil_name)." 
+    anvil_name = ".$anvil->Database->quote($anvil_name)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -10632,7 +10632,7 @@ sub resync_databases
 					if (not $modified_date)
 					{
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0114", variables => { query => $query }});
-						$anvil->nice_exit({code => 1});
+						$anvil->nice_exit({exit_code => 1});
 						die;
 					}
 					
@@ -10643,7 +10643,7 @@ sub resync_databases
 							uuid_column => $uuid_column, 
 							query       => $query,
 						}});
-						$anvil->nice_exit({code => 1});
+						$anvil->nice_exit({exit_code => 1});
 						die;
 					}
 					
@@ -11842,7 +11842,7 @@ sub _test_access
 		{
 			# No connections are left, die.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0196"});
-			$anvil->nice_exit({code => 1});
+			$anvil->nice_exit({exit_code => 1});
 			
 			# In case we're still alive, die.
 			die $THIS_FILE." ".__LINE__."; exiting on DB connection error.\n";

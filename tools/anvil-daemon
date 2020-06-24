@@ -209,7 +209,7 @@ while(1)
 	if ($anvil->data->{switches}{'run-once'})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "message_0055"});
-		$anvil->nice_exit({code => 0});
+		$anvil->nice_exit({exit_code => 0});
 	}
 	
 	# Disconnect from the database(s) and sleep now.
@@ -217,7 +217,7 @@ while(1)
 	sleep(2);
 }
 
-$anvil->nice_exit({code => 0});
+$anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
@@ -284,7 +284,7 @@ sub check_if_mapping
 				foreach my $ssh_fh_key (keys %{$anvil->data->{cache}{ssh_fh}})
 				{
 					my $ssh_fh = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						ssh_fh_key => $ssh_fh_key,
 						ssh_fh     => $ssh_fh, 
 					}});
@@ -368,7 +368,7 @@ sub handle_periodic_tasks
 		{
 			# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "message_0014"});
-			$anvil->nice_exit({code => 0});
+			$anvil->nice_exit({exit_code => 0});
 		}
 		
 		# Mark that we want to check the database config next time.
@@ -677,7 +677,7 @@ sub run_once
 	
 	if ($anvil->data->{switches}{'startup-only'})
 	{
-		$anvil->nice_exit({code => 0});
+		$anvil->nice_exit({exit_code => 0});
 	}
 	
 	return(0);
@@ -1172,8 +1172,16 @@ sub update_state_file
 {
 	my ($anvil) = @_;
 	
-	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}, source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	# Bunch of things happen here, so this allows a single variable to change for logging.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0480"});
+	my $log_level = 3;
+	my $v         = "-";
+	for (1..$log_level)
+	{
+		$v .= "v";
+	}
+	my ($states_output, $return_code) = $anvil->System->call({debug => $log_level, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}." ".$v, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 		states_output => $states_output,
 		return_code   => $return_code, 
 	}});

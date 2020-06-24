@@ -700,7 +700,7 @@ sub check_ssh_keys
 				next;
 			}
 		}
-	
+		
 		# Now read in the key.
 		my $users_public_key = $anvil->Storage->read_file({
 			debug => $debug,
@@ -756,7 +756,6 @@ sub check_ssh_keys
 		# we check the old body for this entry, change the "old" body to the new one, then repeat the
 		# process.
 		my $trusted_host_uuids = [];
-		
 		if ($anvil->Get->host_type eq "striker")
 		{
 			# Add all known machines
@@ -1977,7 +1976,7 @@ sub maintenance_mode
 	
 	if (($set) or ($set eq "0"))
 	{
-		### TODO: stop other systems from using this database.
+		### TODO: stop other systems from using this database if this is a Striker dashboard.
 		# Am I enabling or disabling?
 		if ($set eq "1")
 		{
@@ -1991,7 +1990,6 @@ sub maintenance_mode
 				variable_section      => "system", 
 				variable_source_uuid  => $anvil->Get->host_uuid, 
 				variable_source_table => "hosts", 
-				update_value_only     => 1, 
 			});
 		}
 		elsif ($set eq "0")
@@ -2006,7 +2004,6 @@ sub maintenance_mode
 				variable_section      => "system", 
 				variable_source_uuid  => $anvil->Get->host_uuid, 
 				variable_source_table => "hosts", 
-				update_value_only     => 1, 
 			});
 		}
 		else

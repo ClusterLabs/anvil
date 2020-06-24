@@ -81,7 +81,7 @@ while(1)
 	if ($anvil->data->{switches}{'run-once'})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0055"});
-		$anvil->nice_exit({code => 0});
+		$anvil->nice_exit({exit_code => 0});
 	}
 	
 	# Clean up
@@ -100,7 +100,7 @@ while(1)
 	exit_if_sums_changed($anvil);
 }
 
-$anvil->nice_exit({code => 0});
+$anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
@@ -215,7 +215,7 @@ sub exit_if_sums_changed
 	{
 		# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "message_0014"});
-		$anvil->nice_exit({code => 0});
+		$anvil->nice_exit({exit_code => 0});
 	}
 	
 	return(0);

@@ -95,7 +95,7 @@ print "host_os=".$host_os."\n";
 print "os_registered=".$os_registered."\n";
 print "internet=".$internet."\n";
 
-$anvil->nice_exit({code => 0});
+$anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################

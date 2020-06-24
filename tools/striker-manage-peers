@@ -59,7 +59,7 @@ if (($< != 0) && ($> != 0))
 {
 	# Not root
 	print $anvil->Words->string({key => "error_0005"})."\n";
-	$anvil->nice_exit({code => 1});
+	$anvil->nice_exit({exit_code => 1});
 }
 
 # We'll try to connect in case we're adding additional peers.
@@ -107,7 +107,7 @@ foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{sorted}{db}})
 
 # We're done!
 update_progress($anvil, 100, "message_0025");
-$anvil->nice_exit({code => 0});
+$anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
@@ -191,7 +191,7 @@ sub process_entry
 		print $anvil->Words->string({key => "error_0031", variables => { host_uuid => $host_uuid }})."\n";
 		update_progress($anvil, 100, "error_0031,!!host_uuid!".$host_uuid."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0031", variables => { host_uuid => $host_uuid }});
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	if ((not $host) && (not $anvil->data->{switches}{remove}))
 	{
@@ -199,7 +199,7 @@ sub process_entry
 		print $anvil->Words->string({key => "error_0032", variables => { switch => "host" }})."\n";
 		update_progress($anvil, 100, "error_0032,!!switch!host!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0032", variables => { switch => "host" }});
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	if (($port =~ /\D/) or ($port < 1) or ($port > 65535))
 	{
@@ -207,7 +207,7 @@ sub process_entry
 		print $anvil->Words->string({key => "error_0038", variables => { port => $port }})."\n";
 		update_progress($anvil, 100, "error_0038,!!port!".$port."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0038", variables => { port => $port }});
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	
 	# The password might be in 'job_data' or a password file.
@@ -263,7 +263,7 @@ sub process_entry
 		print $anvil->Words->string({key => "error_0039"})."\n";
 		update_progress($anvil, 100, "error_0039");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "error_0039"});
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	update_progress($anvil, 25, "message_0068");
 	

@@ -92,13 +92,13 @@ if ($anvil->data->{switches}{'job-uuid'})
 	{
 		# It's not a UUID.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	if ($return == 2)
 	{
 		# This job is being handled by another process that is still alive.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	
 	# If there's a progress, clear it.

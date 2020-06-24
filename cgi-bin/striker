@@ -1569,8 +1569,10 @@ sub run_manifest
 {
 	my ($anvil) = @_;
 	
-	$anvil->data->{cgi}{password}{value} = "" if not defined $anvil->data->{cgi}{password}{value};
-	$anvil->data->{cgi}{password}{alert} = 0  if not defined $anvil->data->{cgi}{password}{alert};
+	$anvil->data->{cgi}{description}{value} = "" if not defined $anvil->data->{cgi}{description}{value};
+	$anvil->data->{cgi}{description}{alert} = 0  if not defined $anvil->data->{cgi}{description}{alert};
+	$anvil->data->{cgi}{password}{value}    = "" if not defined $anvil->data->{cgi}{password}{value};
+	$anvil->data->{cgi}{password}{alert}    = 0  if not defined $anvil->data->{cgi}{password}{alert};
 	
 	$anvil->Database->get_hosts({debug => 2});
 	my $manifest_uuid = $anvil->data->{cgi}{manifest_uuid}{value};
@@ -1746,6 +1748,18 @@ sub run_manifest
 		
 		if (not $problem)
 		{
+			# Record and entry in the 'anvils' table.
+			my ($anvil_uuid) = $anvil->Database->insert_or_update_anvils({
+				debug                 => 2,
+				anvil_description     => $anvil->data->{cgi}{description}{value}, 
+				anvil_name            => $anvil_name, 
+				anvil_password        => $anvil->data->{cgi}{password1}{value}, 
+				anvil_node1_host_uuid => $node1_host_uuid, 
+				anvil_node2_host_uuid => $node2_host_uuid, 
+				anvil_dr1_host_uuid   => $dr1_host_uuid, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+			
 			# Save the jobs!
 			my ($node1_job_uuid) = $anvil->Database->insert_or_update_jobs({
 				debug           => 2,
@@ -1753,7 +1767,7 @@ sub run_manifest
 				line            => __LINE__,
 				job_host_uuid   => $node1_host_uuid, 
 				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
-				job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid.",node1_host_uuid=".$node1_host_uuid.",node2_host_uuid=".$node2_host_uuid.",dr1_host_uuid=".$dr1_host_uuid, 
+				job_data        => "as_machine=node1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 				job_name        => "join_anvil::node1", 
 				job_title       => "job_0072", 
 				job_description => "job_0073", 
@@ -1767,7 +1781,7 @@ sub run_manifest
 				line            => __LINE__,
 				job_host_uuid   => $node2_host_uuid, 
 				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
-				job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid.",node1_host_uuid=".$node1_host_uuid.",node2_host_uuid=".$node2_host_uuid.",dr1_host_uuid=".$dr1_host_uuid, 
+				job_data        => "as_machine=node2,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 				job_name        => "join_anvil::node2", 
 				job_title       => "job_0072", 
 				job_description => "job_0073", 
@@ -1783,7 +1797,7 @@ sub run_manifest
 					line            => __LINE__,
 					job_host_uuid   => $dr1_host_uuid, 
 					job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}, 
-					job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid.",node1_host_uuid=".$node1_host_uuid.",node2_host_uuid=".$node2_host_uuid.",dr1_host_uuid=".$dr1_host_uuid, 
+					job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
 					job_name        => "join_anvil::dr1", 
 					job_title       => "job_0072", 
 					job_description => "job_0073", 
@@ -2036,23 +2050,25 @@ sub run_manifest
 	$anvil->data->{form}{back_link}    = "?anvil=true&task=create";
 	$anvil->data->{form}{refresh_link} = "?anvil=true&task=manifests&run=true&manifest_uuid=".$anvil->data->{cgi}{manifest_uuid}{value};
 	$anvil->data->{form}{body}         = $anvil->Template->get({file => "anvil.html", name => "run-manifest", variables => {
-		debug          => 2,
-		title          => $anvil->Words->string({key => "striker_0270", variables => { name => $anvil_name }}), 
-		password       => $anvil->data->{cgi}{password}{value},
-		password_class => $anvil->data->{cgi}{password}{alert} ? "input_alert" : "",
-		fences         => $fences,
-		upses          => $upses,
-		networks       => $networks, 
-		dns            => $dns ? $dns : "8.8.8.8,8.8.4.4",
-		ntp            => $ntp ? $ntp : "--",
-		mtu            => $mtu ? $mtu : "1500",
-		select_node1   => $select_node1,
-		select_node2   => $select_node2, 
-		select_dr1     => $select_dr1,
-		hostname_node1 => $node1_name,
-		hostname_node2 => $node2_name,
-		hostname_dr1   => $dr1_name,
-		machine_ips    => $machine_ips,
+		debug             => 2,
+		title             => $anvil->Words->string({key => "striker_0270", variables => { name => $anvil_name }}), 
+		description       => $anvil->data->{cgi}{description}{value},
+		description_class => $anvil->data->{cgi}{description}{alert} ? "input_alert" : "",
+		password          => $anvil->data->{cgi}{password}{value},
+		password_class    => $anvil->data->{cgi}{password}{alert} ? "input_alert" : "",
+		fences            => $fences,
+		upses             => $upses,
+		networks          => $networks, 
+		dns               => $dns ? $dns : "8.8.8.8,8.8.4.4",
+		ntp               => $ntp ? $ntp : "--",
+		mtu               => $mtu ? $mtu : "1500",
+		select_node1      => $select_node1,
+		select_node2      => $select_node2, 
+		select_dr1        => $select_dr1,
+		hostname_node1    => $node1_name,
+		hostname_node2    => $node2_name,
+		hostname_dr1      => $dr1_name,
+		machine_ips       => $machine_ips,
 	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'form::body' => $anvil->data->{form}{body} }});
 	

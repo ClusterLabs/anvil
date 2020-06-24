@@ -42,7 +42,7 @@ if (($< != 0) && ($> != 0))
 {
 	# Not root
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0005"});
-	$anvil->nice_exit({code => 1});
+	$anvil->nice_exit({exit_code => 1});
 }
 
 # Connect
@@ -84,10 +84,16 @@ $anvil->Job->update_progress({
 
 # Clear maintenance mode.
 $anvil->System->maintenance_mode({set => 0});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0467"});
 
-# Done
-$anvil->nice_exit({code => 0});
+### TODO: As of now, the network doesn't come up reliably, so reboot.
+my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+
+# Unlikely we're still alive, but 'poweroff' and 'reboot' do return once enqueued, so...
+$anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
@@ -124,7 +130,7 @@ sub update_passwords
 		{
 			# Couldn't write the temp file.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "message_0030", variables => { file => $temp_file }});
-			$anvil->nice_exit({code => 5});
+			$anvil->nice_exit({exit_code => 5});
 		}
 		else
 		{
@@ -241,7 +247,7 @@ sub reconfigure_network
 				host_name     => $new_host_name,
 				bad_host_name => $host_name,
 			}});
-			$anvil->nice_exit({code => 4});
+			$anvil->nice_exit({exit_code => 4});
 		}
 	}
 	
@@ -316,7 +322,7 @@ sub reconfigure_network
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	}
 	
-	my $new_interfaces  = [];
+	my $new_interfaces = [];
 	foreach my $network_type ("bcn", "sn", "ifn")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_type => $network_type }});
@@ -864,7 +870,7 @@ sub reconfigure_network
 			{
 				# Failed to reconnect, exit. 
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0107"});
-				$anvil->nice_exit({code => 2});
+				$anvil->nice_exit({exit_code => 2});
 			}
 			
 			# No databases, sleep and then try again.
@@ -882,37 +888,78 @@ sub reconfigure_network
 	my $start                   = 0;
 	(my $bridges, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-list"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges, return_code => $return_code }});
-	foreach my $line (split/\n/, $bridges)
+	if ($return_code)
 	{
-		$line = $anvil->Words->clean_spaces({string => $line});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-		if ($line =~ /^----------/)
+		### NOTE: We're doing a bunch of deletes, so to be safe we statically define the directory 
+		###       here.
+		# Libvirtd isn't running, check the directory directly.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0478"});
+		my $directory = "/etc/libvirt/qemu/networks/autostart";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+		
+		if (-d $directory)
 		{
-			$start = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start => $start }});
-			next;
+			# Delete all files.
+			local(*DIRECTORY);
+			opendir(DIRECTORY, $directory);
+			while(my $file = readdir(DIRECTORY))
+			{
+				next if $file eq ".";
+				next if $file eq "..";
+				my $full_path = $directory."/".$file;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					file      => $file,
+					full_path => $full_path,
+				}});
+				if (-l $full_path)
+				{
+					# It's a symlink, remove it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0479", variables => { 'symlink' => $full_path }});
+					unlink $full_path;
+					if (-l $full_path)
+					{
+						# It didn't work...
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 0, priority => "err", key => "error_0132", variables => { 'symlink' => $full_path }});;
+					}
+				}
+			}
+			closedir(DIRECTORY);
 		}
-		next if not $start;
-		my $bridge = ($line =~ /(.*?)\s/)[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge => $bridge }});
-		
-		$anvil->data->{virsh}{bridge}{$bridge} = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "virsh::bridge::$bridge" => $anvil->data->{virsh}{bridge}{$bridge} }});
 	}
-	
-	foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{virsh}{bridge}})
+	else
 	{
-		# Destroy (stop) it.
-		my ($destroy, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { destroy => $destroy, return_code => $return_code }});
+		foreach my $line (split/\n/, $bridges)
+		{
+			$line = $anvil->Words->clean_spaces({string => $line});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /^----------/)
+			{
+				$start = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start => $start }});
+				next;
+			}
+			next if not $start;
+			my $bridge = ($line =~ /(.*?)\s/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge => $bridge }});
+			
+			$anvil->data->{virsh}{bridge}{$bridge} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "virsh::bridge::$bridge" => $anvil->data->{virsh}{bridge}{$bridge} }});
+		}
 		
-		# Disable it from auto-start.
-		(my $disable, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disable => $disable, return_code => $return_code }});
-		
-		# Undefine (delete)
-		(my $undefine, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { undefine => $undefine, return_code => $return_code }});
+		foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{virsh}{bridge}})
+		{
+			# Destroy (stop) it.
+			my ($destroy, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy ".$bridge});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { destroy => $destroy, return_code => $return_code }});
+			
+			# Disable it from auto-start.
+			(my $disable, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-autostart ".$bridge." --disable"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disable => $disable, return_code => $return_code }});
+			
+			# Undefine (delete)
+			(my $undefine, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine ".$bridge});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { undefine => $undefine, return_code => $return_code }});
+		}
 	}
 	
 	$anvil->Job->update_progress({
@@ -1010,12 +1057,12 @@ sub pickup_job_details
 	if ($return == 1)
 	{
 		# It's not a valid UUID.
-		$anvil->nice_exit({code => 6});
+		$anvil->nice_exit({exit_code => 6});
 	}
 	if ($return == 2)
 	{
 		# This job is being handled by another process that is still alive.
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	
 	# Still alive? Good.

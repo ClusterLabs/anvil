@@ -1338,7 +1338,7 @@ sub catch_sig
 			$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{terminal}{stty}});
 		}
 	}
-	$anvil->nice_exit({code => 255});
+	$anvil->nice_exit({exit_code => 255});
 }
 
 

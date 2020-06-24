@@ -71,7 +71,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 	{
 		# It's not a UUID.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'return' => $return }});
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 }
 
@@ -303,7 +303,7 @@ sub run_os_update
 		update_progress($anvil, 0, "message_0036");
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0035", variables => { output => $output } });
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	
 	return(0);

@@ -58,7 +58,7 @@ add_repos($anvil);
 add_databases($anvil);
 update_progress($anvil, 100, "job_0047");
 
-$anvil->nice_exit({code => 0});
+$anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
@@ -659,7 +659,7 @@ EOF
 		# Failed...
 		update_progress($anvil, 100, "job_0044");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0044"});
-		$anvil->nice_exit({code => 6});
+		$anvil->nice_exit({exit_code => 6});
 	}
 	else
 	{
@@ -731,7 +731,7 @@ sub wait_for_access
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0026"});
 		update_progress($anvil, 100, "job_0026");
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	
 	return(0);
@@ -770,7 +770,7 @@ sub get_job_details
 	{
 		# No job UUID.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0073"});
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	
 	my $return = $anvil->Database->get_job_details({debug => 3, job_uuid => $anvil->data->{switches}{'job-uuid'}});
@@ -778,7 +778,7 @@ sub get_job_details
 	{
 		# No job details
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0034", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	
 	$anvil->data->{jobs}{job_uuid}    = $anvil->data->{switches}{'job-uuid'};

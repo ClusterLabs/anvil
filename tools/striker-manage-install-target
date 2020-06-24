@@ -96,7 +96,7 @@ if (($< != 0) && ($> != 0))
 {
 	# Not root
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0005"});
-	$anvil->nice_exit({code => 5});
+	$anvil->nice_exit({exit_code => 5});
 }
 
 # If the user just wants a status, check and exit.
@@ -110,7 +110,7 @@ if ($anvil->data->{switches}{status})
 		print "status=1\n";
 		if (not $anvil->data->{switches}{check})
 		{
-			$anvil->nice_exit({code => 0});
+			$anvil->nice_exit({exit_code => 0});
 		}
 	}
 	else
@@ -119,7 +119,7 @@ if ($anvil->data->{switches}{status})
 		print "status=0\n";
 		if (not $anvil->data->{switches}{check})
 		{
-			$anvil->nice_exit({code => 0});
+			$anvil->nice_exit({exit_code => 0});
 		}
 	}
 }
@@ -196,7 +196,7 @@ if ($anvil->Get->host_type ne "striker")
 {
 	print $anvil->Words->string({key => "error_0044"})."\n";
 	update_progress($anvil, 100, "error_0044");
-	$anvil->nice_exit({code => 4});
+	$anvil->nice_exit({exit_code => 4});
 }
 
 # Calling with 'refresh' takes time, so we only do it when asked.
@@ -475,7 +475,7 @@ sub setup_boot_environment
 		# Can't set this up yet.
 		print $anvil->Words->string({key => "error_0042"})."\n";
 		update_progress($anvil, 100, "error_0042");
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	
 	my $bcn_ip          = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{ip};
@@ -537,7 +537,7 @@ sub setup_boot_environment
 		# Failed.
 		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{'dhcpd.conf'} }})."\n";
 		update_progress($anvil, 100, "error_0043");
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	elsif ($dhcpd_conf_success eq "1")
 	{
@@ -572,7 +572,7 @@ sub setup_boot_environment
 		# Failed.
 		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_default} }})."\n";
 		update_progress($anvil, 100, "error_0043,!!file!".$anvil->data->{path}{configs}{pxe_default}."!!");
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	elsif ($dhcpd_conf_success eq "1")
 	{
@@ -601,7 +601,7 @@ sub setup_boot_environment
 		# Failed.
 		print $anvil->Words->string({key => "error_0043", variables => { file => $anvil->data->{path}{configs}{pxe_uefi} }})."\n";
 		update_progress($anvil, 100, "error_0043,!!file!".$anvil->data->{path}{configs}{pxe_uefi}."!!");
-		$anvil->nice_exit({code => 3});
+		$anvil->nice_exit({exit_code => 3});
 	}
 	elsif ($dhcpd_conf_success eq "1")
 	{
@@ -684,7 +684,7 @@ sub setup_boot_environment
 			# Failed.
 			print $anvil->Words->string({key => "error_0043", variables => { file => $kickstart_file }})."\n";
 			update_progress($anvil, 100, "error_0043,!!file!".$kickstart_file."!!");
-			$anvil->nice_exit({code => 3});
+			$anvil->nice_exit({exit_code => 3});
 		}
 		elsif ($kickstart_success eq "1")
 		{
@@ -775,7 +775,7 @@ sub setup_boot_environment
 			print $anvil->Words->string({key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'}, 'return' => $return }})."\n";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'autoindex.conf'}, 'return' => $return }});
 			update_progress($anvil, "100", "log_0233,!!file!".$anvil->data->{path}{configs}{'autoindex.conf'}."!!,!!return!".$return."!!");
-			$anvil->nice_exit({code => 3});
+			$anvil->nice_exit({exit_code => 3});
 		}
 		
 		print $anvil->Words->string({key => "message_0095", variables => { daemon => "httpd", file => $anvil->data->{path}{configs}{'autoindex.conf'} }})."\n";
@@ -843,7 +843,7 @@ sub setup_boot_environment
 			print $anvil->Words->string({key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }})."\n";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0233", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'}, 'return' => $return }});
 			update_progress($anvil, 100, "log_0233,!!file!".$anvil->data->{path}{configs}{'dnf.conf'}."!!,!!return!".$return."!!");
-			$anvil->nice_exit({code => 3});
+			$anvil->nice_exit({exit_code => 3});
 		}
 		print $anvil->Words->string({key => "message_0097", variables => { file => $anvil->data->{path}{configs}{'dnf.conf'} }})."\n";
 		update_progress($anvil, $progress, "message_0097,!!file!".$anvil->data->{path}{configs}{'dnf.conf'}."!!");
@@ -964,7 +964,7 @@ sub check_alteeve_repo
 		# Die
 		print $anvil->Words->string({key => "error_0041"})."\n";
 		update_progress($anvil, 100, "error_0041");
-		$anvil->nice_exit({code => 1});
+		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	return(0);
@@ -1159,7 +1159,7 @@ sub update_install_source
 				# Something went wrong, exit.
 				print $anvil->Words->string({key => "error_0045", variables => { error => $error_out }})."\n";
 				update_progress($anvil, 100, "error_0045,!!error!".$error_out."!!");
-				$anvil->nice_exit({code => 7});
+				$anvil->nice_exit({exit_code => 7});
 			}
 			# Progress is '82' leaving this loop
 		}
@@ -1178,7 +1178,7 @@ sub update_install_source
 		# guest OS install.
 		print $anvil->Words->string({key => "message_0119", variables => { comps_xml => $comps_xml }})."\n";
 		update_progress($anvil, 100, "message_0119,!!comps_xml!".$comps_xml."!!");
-		$anvil->nice_exit({code => 6});
+		$anvil->nice_exit({exit_code => 6});
 	}
 	$anvil->Storage->copy_file({
 		debug       => 2, 
@@ -1191,7 +1191,7 @@ sub update_install_source
 		# Something appears to have happened and it failed to copy.
 		print $anvil->Words->string({key => "message_0129", variables => { comps_xml => $comps_xml, target_comps => $target_comps }})."\n";
 		update_progress($anvil, 100, "message_0129,!!comps_xml!".$comps_xml."!!,!!target_comps!".$target_comps."!!");
-		$anvil->nice_exit({code => 6});
+		$anvil->nice_exit({exit_code => 6});
 	}
 	update_progress($anvil, 85, "");
 	
@@ -2495,7 +2495,7 @@ sub load_packages
 						source => $source,
 						target => $target,
 					}});
-					$anvil->nice_exit({code => 12});
+					$anvil->nice_exit({exit_code => 12});
 				}
 			}
 		}

@@ -40,7 +40,7 @@ if (($< != 0) && ($> != 0))
 {
 	# Not root
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0005"});
-	$anvil->nice_exit({code => 5});
+	$anvil->nice_exit({exit_code => 5});
 }
 
 $anvil->Database->connect;

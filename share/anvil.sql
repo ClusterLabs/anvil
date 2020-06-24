@@ -378,6 +378,9 @@ BEGIN
          history_anvils.anvil_name, 
          history_anvils.anvil_description, 
          history_anvils.anvil_password, 
+         history_anvils.anvil_node1_host_uuid,
+         history_anvils.anvil_node2_host_uuid,
+         history_anvils.anvil_dr1_host_uuid,
          history_anvils.modified_date);
     RETURN NULL;
 END;

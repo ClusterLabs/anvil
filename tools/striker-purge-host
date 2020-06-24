@@ -49,7 +49,7 @@ confirm($anvil);
 # If we're alive, purge.
 purge($anvil);
 
-$anvil->nice_exit({code => 0});
+$anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
@@ -185,7 +185,7 @@ AND
 		elsif ($loop > $loops)
 		{
 			print "Run-away loop detected, aborting!\n";
-			$anvil->nice_exit({code => 4});
+			$anvil->nice_exit({exit_code => 4});
 		}
 	}
 	
@@ -220,7 +220,7 @@ sub confirm
 	if (not exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name})
 	{
 		print $anvil->Words->string({key => "error_0131", variables => { host_uuid => $host_uuid }})."\n\n";
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	else
 	{
@@ -248,7 +248,7 @@ sub confirm
 		{
 			# Abort.
 			print $anvil->Words->string({key => "message_0022"})."\n";
-			$anvil->nice_exit({code => 3});
+			$anvil->nice_exit({exit_code => 3});
 		}
 	}
 	
@@ -312,7 +312,7 @@ sub pick_host
 	if (not exists $select->{$answer}{host_name})
 	{
 		print "\n".$anvil->Words->string({key => "error_0130", variables => { answer => $answer }})."\n\n";
-		$anvil->nice_exit({code => 1});
+		$anvil->nice_exit({exit_code => 1});
 	}
 	else
 	{

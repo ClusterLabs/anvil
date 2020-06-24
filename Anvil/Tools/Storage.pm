@@ -162,13 +162,13 @@ sub backup
 	{
 		# No file passed in
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->backup()", parameter => "target" }});
-		if ($fatal) { $anvil->nice_exit({code => 1}); }
+		if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 	}
 	elsif ($source_file !~ /^\//)
 	{
 		# Isn't a full path
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0150", variables => { source_file => $source_file }});
-		if ($fatal) { $anvil->nice_exit({code => 1}); }
+		if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 	}
 	
 	if ($anvil->Network->is_local({host => $target}))
@@ -178,19 +178,19 @@ sub backup
 		{
 			# File doesn't exist.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0151", variables => { source_file => $source_file }});
-			if ($fatal) { $anvil->nice_exit({code => 1}); }
+			if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 		}
 		elsif (not -f $source_file)
 		{
 			# Not a file
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0153", variables => { source_file => $source_file }});
-			if ($fatal) { $anvil->nice_exit({code => 1}); }
+			if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 		}
 		elsif (not -r $source_file)
 		{
 			# Can't read the file.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0152", variables => { source_file => $source_file }});
-			if ($fatal) { $anvil->nice_exit({code => 1}); }
+			if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 		}
 		else
 		{
@@ -239,19 +239,19 @@ fi";
 			{
 				# File doesn't exist.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0151", variables => { source_file => $source_file }});
-				if ($fatal) { $anvil->nice_exit({code => 1}); }
+				if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 			}
 			elsif ($output eq "not a file")
 			{
 				# Not a file
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0153", variables => { source_file => $source_file }});
-				if ($fatal) { $anvil->nice_exit({code => 1}); }
+				if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 			}
 			elsif ($output eq "not readable")
 			{
 				# Can't read the file.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0152", variables => { source_file => $source_file }});
-				if ($fatal) { $anvil->nice_exit({code => 1}); }
+				if ($fatal) { $anvil->nice_exit({exit_code => 1}); }
 			}
 			else
 			{
@@ -269,7 +269,7 @@ fi";
 			}});
 			if ($fatal)
 			{
-				$anvil->nice_exit({code => 1});
+				$anvil->nice_exit({exit_code => 1});
 			}
 		}
 	}

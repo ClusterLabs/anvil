@@ -191,6 +191,7 @@ The error was:
 		<key name="error_0129">Unable to connect to any database, unable to read the job details.</key>
 		<key name="error_0130">The answer: [#!variable!answer!#] is invalid. Please try again.</key>
 		<key name="error_0131">The host UUID: [#!variable!host_uuid!#] was not found. Has it already been purged?</key>
+		<key name="error_0132">Failed to remove the symlink: [#!variable!symlink!#]!</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -232,6 +233,7 @@ The error was:
 		<key name="header_0037">SN link #!variable!number!#</key>
 		<key name="header_0038">IFN link #!variable!number!#</key>
 		<key name="header_0039">New Hostname</key>
+		<key name="header_0040">#!string!brand_0006!# Description</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -887,6 +889,9 @@ It looks like you connected to the same database twice! The conflicting database
 The databases both report the same identifier (as reported by: #!variable!query!#). 
 If the targets are unique, did you copy the full database directory? A unique identifier is generated when 'initdb' is run, and exists on disk. Exiting.
 		</key>
+		<key name="log_0478">The libvirtd' daemon isn't running. Will check for and remove virsh networks set to start on boot.</key>
+		<key name="log_0479">Removing the symlink: [#!variable!symlink!#].</key>
+		<key name="log_0480">Updating the cache state file.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1448,6 +1453,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0272"><![CDATA[A node that is found to be running a server will <b>NOT</b> be changed, except to configure passwordless SSH to the peer node and/or DR host. As such, it is safe to run this manifest when adding a rebuilt node or adding a DR host to a live #!string!brand_0006!# system.]]></key>
 		<key name="striker_0273">Adding a disaster recovery (DR) host is optional. You can add one later if you don't have one now.</key>
 		<key name="striker_0274">If there are no servers on either node (as it a new #!string!brand_0006!# build), the OSes will be updated. Otherwise, they won't be updated. If the kernel is updated, or the network reconfigured, the node will be rebooted.</key>
+		<key name="striker_0275">Free-form description of this system.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

@@ -66,9 +66,10 @@ sub process_interface_cache
 	# Does the file exist? If so, read it in.
 	if (-e $anvil->data->{path}{data}{network_cache})
 	{
-		my $body = $anvil->Storage->read_file({cache => 0, force_read => 1, file => $anvil->data->{path}{data}{network_cache}});
+		my $body = $anvil->Storage->read_file({debug => 3, cache => 0, force_read => 1, file => $anvil->data->{path}{data}{network_cache}});
 		foreach my $line (split/\n/, $body)
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 			next if $line =~ /^#/;
 			my ($interface, $timestamp, $mac_address, $speed, $link_state, $operational) = (split/,/, $line);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -415,6 +416,10 @@ sub update_network
 				"network::local::interface::${interface}::subnet_mask"          => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask},
 				"network::local::interface::${interface}::type"                 => $anvil->data->{network}{'local'}{interface}{$interface}{type},
 				"network::local::interface::${interface}::up_delay"             => $anvil->data->{network}{'local'}{interface}{$interface}{up_delay},
+			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"network::local::interface::${interface}::link_state"  => $anvil->data->{network}{'local'}{interface}{$interface}{link_state}, 
+				"network::local::interface::${interface}::operational" => $anvil->data->{network}{'local'}{interface}{$interface}{operational},
 			}});
 			
 			# If this is a link and there's no database connections, cache the data.

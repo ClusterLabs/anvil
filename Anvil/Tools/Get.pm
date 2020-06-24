@@ -154,6 +154,7 @@ sub anvil_version
 	}
 	else
 	{
+		### TODO: Remote calls are fragile. Move the version of dashboards into a variable to read from the database.
 		# Remote call. If we're running as the apache user, we need to read the cached version for 
 		# the peer. otherwise, after we read the version, will write the cached version.
 		my $user       = getpwuid($<);

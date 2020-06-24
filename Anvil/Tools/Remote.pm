@@ -307,6 +307,7 @@ sub call
 		start_time => $start_time, 
 		port       => $port, 
 		target     => $target,
+		ssh_fh_key => $ssh_fh_key, 
 	}});
 	
 	# In case 'target' is 'local', change it to ''.
@@ -736,7 +737,7 @@ sub test_access
 	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
 	my $user     = defined $parameter->{user}     ? $parameter->{user}     : getpwuid($<); 
 	my $access   = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
 		password => $anvil->Log->is_secure($password), 
 		port     => $port, 
 		target   => $target,
@@ -762,7 +763,7 @@ sub test_access
 		$access = 1;
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
 	return($access);
 }
 

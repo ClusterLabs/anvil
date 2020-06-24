@@ -246,7 +246,7 @@ WHERE
 	if ($count < 1)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0034", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });
-		$anvil->nice_exit({code => 2});
+		$anvil->nice_exit({exit_code => 2});
 	}
 	
 	# If we're here, we're good. Load the details
