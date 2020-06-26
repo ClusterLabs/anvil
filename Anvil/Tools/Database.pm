@@ -2704,13 +2704,11 @@ This loads all known user's SSH public keys and all known machine's public keys 
  ssh_keys::ssh_key_uuid::<ssh_key_uuid>::ssh_key_host_uuid  = <Host UUID the user is from>
  ssh_keys::ssh_key_uuid::<ssh_key_uuid>::ssh_key_user_name  = <The user's name>
  ssh_keys::ssh_key_uuid::<ssh_key_uuid>::ssh_key_public_key = <The SSH public key>
- 
+
 And:
 
- ssh_keys::ssh_key_host_uuid::<ssh_key_host_uuid>::ssh_key_uuid       = <UUID of ssh_keys column>
- ssh_keys::ssh_key_host_uuid::<ssh_key_host_uuid>::ssh_key_user_name  = <The user's name>
- ssh_keys::ssh_key_host_uuid::<ssh_key_host_uuid>::ssh_key_public_key = <The SSH public key>
-
+ ssh_keys::host_uuid::<ssh_key_host_uuid>::ssh_key_user_name::<ssh_key_user_name>::ssh_key_uuid       = <ssh_key_uuid entry value>
+ ssh_keys::host_uuid::<ssh_key_host_uuid>::ssh_key_user_name::<ssh_key_user_name>::ssh_key_public_key = <The SSH public key>
 
 This method takes no parameters.
 
@@ -2771,13 +2769,11 @@ FROM
 			"ssh_keys::ssh_key_uuid::${ssh_key_uuid}::ssh_key_public_key" => $anvil->data->{ssh_keys}{ssh_key_uuid}{$ssh_key_uuid}{ssh_key_public_key}, 
 		}});
 		
-		$anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_uuid}       = $ssh_key_uuid;
-		$anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}  = $ssh_key_user_name;
-		$anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_public_key} = $ssh_key_public_key;
+		$anvil->data->{ssh_keys}{host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}{$ssh_key_user_name}{ssh_key_uuid}       = $ssh_key_uuid;
+		$anvil->data->{ssh_keys}{host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}{$ssh_key_user_name}{ssh_key_public_key} = $ssh_key_public_key;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"ssh_keys::ssh_key_host_uuid::${ssh_key_host_uuid}::ssh_key_uuid"       => $anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_uuid}, 
-			"ssh_keys::ssh_key_host_uuid::${ssh_key_host_uuid}::ssh_key_user_name"  => $anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}, 
-			"ssh_keys::ssh_key_host_uuid::${ssh_key_host_uuid}::ssh_key_public_key" => $anvil->data->{ssh_keys}{ssh_key_host_uuid}{$ssh_key_host_uuid}{ssh_key_public_key}, 
+			"ssh_keys::host_uuid::${ssh_key_host_uuid}::ssh_key_user_name::${ssh_key_user_name}::ssh_key_uuid"       => $anvil->data->{ssh_keys}{host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}{$ssh_key_user_name}{ssh_key_uuid}, 
+			"ssh_keys::host_uuid::${ssh_key_host_uuid}::ssh_key_user_name::${ssh_key_user_name}::ssh_key_public_key" => $anvil->data->{ssh_keys}{host_uuid}{$ssh_key_host_uuid}{ssh_key_user_name}{$ssh_key_user_name}{ssh_key_public_key}, 
 		}});
 	}
 	
