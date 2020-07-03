@@ -72,27 +72,232 @@ sub configure_pacemaker
 	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
 	
 	### TODO: Move these to variables in the 'sys' hash
-	my $anvil_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
-	my $anvil_uuid = $anvil->data->{sys}{anvil_uuid};
-	my $host_name  = $anvil->data->{sys}{host_name};
+	my $anvil_name   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
+	my $anvil_uuid   = $anvil->data->{sys}{anvil_uuid};
+	my $host_name    = $anvil->data->{sys}{host_name};
+	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:machine'       => $machine, 
 		's1:anvil_name'    => $anvil_name, 
 		's3:host_name'     => $host_name, 
 		's4:manifest_uuid' => $manifest_uuid,
 		's5:anvil_uuid'    => $anvil_uuid, 
+		's6:new_password'  => $anvil->Log->is_secure($new_password), 
 	}});
 	
-	print Dumper $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
-	print "=============================================\n";
-	print Dumper $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid};
-	print "=============================================\n";
+	# If this is a DR box, we don't use pacemaker.
+	if ($machine =~ /dr\d+/)
+	{
+		update_progress($anvil, ($anvil->data->{job}{progress} += 10), "job_0096");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0096"});
+		return(0);
+	}
+	
+	### Run on both nodes.
+	# Set the 'hacluster' user password.
+	my ($return_code) = $anvil->System->change_shell_user_password({
+		debug        => 3,
+		user         => "hacluster",
+		new_password => $new_password,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$return_code = undef;
+	
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0093,!!user!hacluster!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0093", variables => { user => "hascluster" }});
+	
+	# Enable pcsd and start the pcsd daemons.
+	($return_code) = $anvil->System->enable_daemon({daemon => "pcsd"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$return_code = undef;
+	($return_code) = $anvil->System->start_daemon({daemon => "pcsd"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$return_code = undef;
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!pcsd!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0094", variables => { daemon => "pcsd" }});
+	
+	# Disabled and stop the libvirtd daemons.
+	($return_code) = $anvil->System->disable_daemon({daemon => "libvirtd"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$return_code = undef;
+	($return_code) = $anvil->System->stop_daemon({daemon => "libvirtd"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$return_code = undef;
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!libvirtd!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0095", variables => { daemon => "libvirtd" }});
+	
+	### Run on node 1 only.
+	if ($machine eq "node2")
+	{
+		# We loop until the peer finishes.
+	}
+	else
+	{
+		# Proceed with cluster setup.
+	}
 =cut
-echo Initial1 | passwd hacluster --stdin 
-systemctl start pcsd.service
-systemctl enable pcsd.service
-systemctl disable libvirtd.service
-systemctl stop libvirtd.service
+$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
+$VAR1 = {
+          'fences' => {
+                        'pulsar' => 'c2be8d2e-045e-45d0-80e7-7443f2314fb1',
+                        'el8-pdu02' => '2681049b-1ae7-444a-890b-39aca262e79e',
+                        'el8-pdu01' => 'bad1fc5c-5342-4385-8d0d-a87a342dd87d',
+                        'an-nas02' => '4117a862-f58f-4676-991a-9ca257a3c612'
+                      },
+          'domain' => 'digimer.ca',
+          'networks' => {
+                          'count' => {
+                                       'ifn' => 1,
+                                       'bcn' => 1,
+                                       'sn' => 1
+                                     },
+                          'dns' => '8.8.8.8,8.8.4.4',
+                          'mtu' => '1500',
+                          'ntp' => '10.201.14.1,10.201.14.2',
+                          'name' => {
+                                      'ifn1' => {
+                                                  'subnet' => '255.255.255.0',
+                                                  'gateway' => '192.168.122.1',
+                                                  'network' => '192.168.122.0'
+                                                },
+                                      'bcn1' => {
+                                                  'network' => '10.201.0.0',
+                                                  'gateway' => '',
+                                                  'subnet' => '255.255.0.0'
+                                                },
+                                      'sn1' => {
+                                                 'gateway' => '',
+                                                 'network' => '10.101.0.0',
+                                                 'subnet' => '255.255.0.0'
+                                               }
+                                    }
+                        },
+          'upses' => {
+                       'el8-ups01' => {
+                                        'uuid' => '7ebecdda-782d-4624-841d-98d912ed3d50'
+                                      },
+                       'el8-ups02' => {
+                                        'uuid' => '7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f'
+                                      }
+                     },
+          'machine' => {
+                         'node2' => {
+                                      'network' => {
+                                                     'bcn1' => {
+                                                                 'ip' => '10.201.10.2'
+                                                               },
+                                                     'sn1' => {
+                                                                'ip' => '10.101.10.2'
+                                                              },
+                                                     'ifn1' => {
+                                                                 'ip' => '192.168.122.12'
+                                                               }
+                                                   },
+                                      'ups' => {
+                                                 'el8-ups01' => {
+                                                                  'used' => '0'
+                                                                },
+                                                 'el8-ups02' => {
+                                                                  'used' => '0'
+                                                                }
+                                               },
+                                      'fence' => {
+                                                   'pulsar' => {
+                                                                 'port' => ''
+                                                               },
+                                                   'el8-pdu02' => {
+                                                                    'port' => ''
+                                                                  },
+                                                   'el8-pdu01' => {
+                                                                    'port' => ''
+                                                                  },
+                                                   'an-nas02' => {
+                                                                   'port' => 'el8-a01n02'
+                                                                 }
+                                                 },
+                                      'name' => 'el8-a01n02',
+                                      'ipmi_ip' => ''
+                                    },
+                         'node1' => {
+                                      'ipmi_ip' => '',
+                                      'name' => 'el8-a01n01',
+                                      'ups' => {
+                                                 'el8-ups02' => {
+                                                                  'used' => '0'
+                                                                },
+                                                 'el8-ups01' => {
+                                                                  'used' => '0'
+                                                                }
+                                               },
+                                      'network' => {
+                                                     'ifn1' => {
+                                                                 'ip' => '192.168.122.11'
+                                                               },
+                                                     'bcn1' => {
+                                                                 'ip' => '10.201.10.1'
+                                                               },
+                                                     'sn1' => {
+                                                                'ip' => '10.101.10.1'
+                                                              }
+                                                   },
+                                      'fence' => {
+                                                   'el8-pdu02' => {
+                                                                    'port' => ''
+                                                                  },
+                                                   'pulsar' => {
+                                                                 'port' => ''
+                                                               },
+                                                   'an-nas02' => {
+                                                                   'port' => 'el8-a01n01'
+                                                                 },
+                                                   'el8-pdu01' => {
+                                                                    'port' => ''
+                                                                  }
+                                                 }
+                                    },
+                         'dr1' => {
+                                    'fence' => {
+                                                 'pulsar' => {
+                                                               'port' => ''
+                                                             },
+                                                 'el8-pdu02' => {
+                                                                  'port' => ''
+                                                                },
+                                                 'el8-pdu01' => {
+                                                                  'port' => ''
+                                                                },
+                                                 'an-nas02' => {
+                                                                 'port' => ''
+                                                               }
+                                               },
+                                    'network' => {
+                                                   'bcn1' => {
+                                                               'ip' => '10.201.10.3'
+                                                             },
+                                                   'sn1' => {
+                                                              'ip' => '10.101.10.3'
+                                                            },
+                                                   'ifn1' => {
+                                                               'ip' => '192.168.122.13'
+                                                             }
+                                                 },
+                                    'ups' => {
+                                               'el8-ups02' => {
+                                                                'used' => '0'
+                                                              },
+                                               'el8-ups01' => {
+                                                                'used' => '0'
+                                                              }
+                                             },
+                                    'name' => 'el8-a01dr01',
+                                    'ipmi_ip' => ''
+                                  }
+                       },
+          'sequence' => '01',
+          'name' => 'el8-anvil-01',
+          'prefix' => 'el8'
+        };
+
 	
 909; xxx::upses::el8-ups01::uuid: [7ebecdda-782d-4624-841d-98d912ed3d50]
 909; xxx::upses::el8-ups02::uuid: [7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f]
@@ -591,7 +796,7 @@ sub check_local_network
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0083", variables => { file => $filename }});
 				$anvil->Storage->write_file({
-					debug     => 2,
+					debug     => 3,
 					file      => $filename, 
 					body      => $new_config, 
 					user      => "root", 
@@ -826,6 +1031,9 @@ sub check_local_network
 			})
 		}
 	}
+	
+	# Make sure the IPs of the dashboard(s) and our peers are in the hosts file.
+	
 	
 	### TODO: Do we really need passwordless SSH anymore?
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts

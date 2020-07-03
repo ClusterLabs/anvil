@@ -969,7 +969,7 @@ WHERE
 			$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name}    = $parsed_xml->{machines}{$machine}{name};
 			$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip} = defined $parsed_xml->{machines}{$machine}{ipmi_ip} ? $parsed_xml->{machines}{$machine}{ipmi_ip} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::type"    => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{type}, 
+				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::name"    => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name}, 
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ipmi_ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip}, 
 			}});
 			

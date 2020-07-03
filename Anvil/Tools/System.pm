@@ -39,6 +39,7 @@ my $THIS_FILE = "System.pm";
 # start_daemon
 # stop_daemon
 # stty_echo
+# update_hosts
 # _load_firewalld_zones
 # _load_specific_firewalld_zone
 # _match_port_to_service
@@ -340,15 +341,32 @@ sub call
 					if ($line =~ /^return_code:(\d+)$/)
 					{
 						$return_code = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { return_code => $return_code }});
+					}
+					elsif ($line =~ /return_code:(\d+)$/)
+					{
+						# If the output of the shell call doesn't end in a newline, 
+						# the return_code:X could be appended. This catches those 
+						# cases and removes it.
+						$return_code =  $1;
+						$line        =~ s/return_code:\d+$//;
+						$output      .= $line."\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+							line        => $line, 
+							output      => $output, 
+							return_code => $return_code, 
+						}});
 					}
 					else
 					{
 						$output .= $line."\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { output => $output }});
 					}
 				}
 				close $file_handle;
 				chomp($output);
 				$output =~ s/\n$//s;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { output => $output }});
 			}
 		}
 	}
@@ -446,7 +464,7 @@ sub change_shell_user_password
 	}
 	
 	# Generate a salt and then use it to create a hash.
-	(my $salt, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{openssl}." rand 1000 | ".$anvil->data->{path}{exe}{strings}." | ".$anvil->data->{path}{exe}{'grep'}." -io [0-9A-Za-z\.\/] | ".$anvil->data->{path}{exe}{head}." -n 16 | ".$anvil->data->{path}{exe}{'tr'}." -d '\n'" });
+	(my $salt, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{openssl}." rand 1000 | ".$anvil->data->{path}{exe}{strings}." | ".$anvil->data->{path}{exe}{'grep'}." -io [0-9A-Za-z\.\/] | ".$anvil->data->{path}{exe}{head}." -n 16 | ".$anvil->data->{path}{exe}{'tr'}." -d '\\n'" });
 	my $new_hash             = crypt($new_password,"\$6\$".$salt."\$");
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		salt        => $salt, 
@@ -479,7 +497,7 @@ sub change_shell_user_password
 	else
 	{
 		# Local call
-		($output, $return_code, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 	}
 	foreach my $line (split/\n/, $output)
@@ -755,33 +773,7 @@ sub check_ssh_keys
 		# and the key has changed, update the line with the new key. If it isn't found, add it. Once
 		# we check the old body for this entry, change the "old" body to the new one, then repeat the
 		# process.
-		my $local_host_uuid    = $anvil->Get->host_type;
-		my $in_anvil           = $anvil->data->{hosts}{host_uuid}{$local_host_uuid}{anvil_name};
-		my $trusted_host_uuids = [];
-		foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
-		{
-			# Skip ourselves.
-			next if $host_uuid eq $anvil->Get->host_uuid;
-			
-			my $host_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
-			my $host_type  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-			my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				host_name  => $host_name, 
-				host_type  => $host_type, 
-				anvil_name => $anvil_name, 
-			}});
-			if ($anvil->Get->host_type eq "striker")
-			{
-				# Add all known machines
-				push @{$trusted_host_uuids}, $host_uuid;
-			}
-			elsif ((($in_anvil) && ($anvil_name eq $in_anvil)) or (exists $anvil->data->{database}{$host_uuid}))
-			{
-				# Add dashboards we use and peers
-				push @{$trusted_host_uuids}, $host_uuid;
-			}
-		}
+		my $trusted_host_uuids = $anvil->Get->trusted_hosts();
 		
 		# Look at all the hosts I know about (other than myself) and see if any of the machine or 
 		# user keys either don't exist or have changed.
@@ -2971,6 +2963,76 @@ sub stty_echo
 	{
 		$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{terminal}{stty}});
 	}
+	
+	return(0);
+}
+
+=head2 update_hosts
+
+This uses the host list from C<< Get->trusted_hosts >>, along with data from C<< ip_addresses >>, to create a list of host name to IP addresses that should be in C<< /etc/hosts >>. Existing hosts where the IP has changed will be updated. Missing entries will be added. All other existing entries are left unchanged.
+
+This method takes no parameters.
+
+=cut
+sub update_hosts
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->stty_echo()" }});
+	
+	# Get the list of hosts we trust.
+	my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});
+	$anvil->Database->get_ip_addresses({debug => $debug});
+	
+	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+	{
+		my $host_name       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+		my $short_host_name = $host_name;
+		   $short_host_name =~ s/\..*$//;
+		my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+			's1:host_name'       => $host_name,
+			's2:short_host_name' => $short_host_name, 
+			's3:host_type'       => $host_type, 
+		}});
+		
+		# We store this in a way that lets us later sort by type -> host_name
+		$anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_name} = $host_name;
+		$anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_uuid} = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+			"trusted_host::${host_type}::${short_host_name}::host_name" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_name},
+			"trusted_host::${host_type}::${short_host_name}::host_uuid" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_uuid},
+		}});
+		
+		foreach my $on_network (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}})
+		{
+			# Break the network sequence off the name for later sorting
+			my ($network_type, $sequence) = ($on_network =~ /^(.*?)(\d+)$/);
+			my $ip_address                = $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:on_network"   => $on_network, 
+				"s2:network_type" => $network_type, 
+				"s3:sequence"     => $sequence, 
+				"s4:ip_address"   => $ip_address,
+			}});
+			
+			$anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address} = $ip_address;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+				"trusted_host::${host_type}::${short_host_name}::network::${network_type}::${sequence}::ip_address" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address},
+			}});
+		}
+	}
+	die;
+	
+	# Read in the existing hosts file
+	my $old_body = $anvil->Storage->read_file({
+		debug => $debug,
+		file  => $anvil->data->{path}{configs}{hosts},
+	});
+	
+	# Parse the existing 
 	
 	return(0);
 }

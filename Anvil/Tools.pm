@@ -1059,6 +1059,7 @@ sub _set_paths
 				'dhcpd.conf'			=>	"/etc/dhcp/dhcpd.conf",
 				'dnf.conf'			=>	"/etc/dnf/dnf.conf",
 				'firewalld.conf'		=>	"/etc/firewalld/firewalld.conf",
+				hosts				=>	"/etc/hosts", 
 				'httpd.conf'			=>	"/etc/httpd/conf/httpd.conf", 
 				'journald_anvil'		=>	"/etc/systemd/journald.conf.d/anvil.conf",
 				'pg_hba.conf'			=>	"/var/lib/pgsql/data/pg_hba.conf",

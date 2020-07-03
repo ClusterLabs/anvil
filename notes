@@ -253,7 +253,7 @@ systemctl enable pcsd.service
 systemctl disable libvirtd.service
 systemctl stop libvirtd.service
 ==== One node
-pcs cluster auth m3-a01n01 m3-a01n02
+pcs cluster auth el8-a01n01 el8-a01n02
 # Username: hacluster
 # Password: 
 

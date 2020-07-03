@@ -332,6 +332,10 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0090">Adding the NTP server: [#!variable!server!#].</key>
 		<key name="job_0091">Restarting the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0092"><![CDATA[[ Error ] - The Job: [#!variabe!job-uuid!#] appears to have passed malformed data. The raw data was: [#!variable!raw!#]. Expected 'as_machine=<host_type>,manifest_uuid=<manifest_uuid>,anvil_uuid=<anvil_uuid>'. Either the parse failed, or the data was somehow invalid.]]></key>
+		<key name="job_0093">Updated the password for the: [#!variable!user!#] user.</key>
+		<key name="job_0094">Enabled and started the daemon: [#!variable!daemon!#].</key>
+		<key name="job_0095">Disable and stop the daemon: [#!variable!daemon!#].</key>
+		<key name="job_0096">This is a DR host, skipping pacemaker configuration.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

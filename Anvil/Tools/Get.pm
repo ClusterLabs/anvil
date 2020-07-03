@@ -25,6 +25,7 @@ my $THIS_FILE = "Get.pm";
 # md5sum
 # os_type
 # switches
+# trusted_hosts
 # uptime
 # users_home
 # uuid
@@ -1078,6 +1079,53 @@ sub switches
 	$anvil->Log->_adjust_log_level();
 	
 	return(0);
+}
+
+=head2 trusted_hosts
+
+This returns an array reference containing host UUIDs of hosts this machine should trust. Specifically, any Striker dashboards this host uses, and if this host is in an Anvil!, the peers. The array will include this host's UUID as well.
+
+This method takes no parameters
+
+=cut
+sub trusted_hosts
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->uptime()" }});
+	
+	my $local_host_uuid    = $anvil->Get->host_uuid;
+	my $in_anvil           = $anvil->data->{hosts}{host_uuid}{$local_host_uuid}{anvil_name};
+	my $trusted_host_uuids = [$local_host_uuid];
+	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+	{
+		# Skip ourselves.
+		next if $host_uuid eq $anvil->Get->host_uuid;
+		
+		my $host_name  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+		my $host_type  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+		my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:host_uuid'  => $host_uuid, 
+			's2:host_name'  => $host_name, 
+			's3:host_type'  => $host_type, 
+			's4:anvil_name' => $anvil_name, 
+		}});
+		if ($anvil->Get->host_type eq "striker")
+		{
+			# Add all known machines
+			push @{$trusted_host_uuids}, $host_uuid;
+		}
+		elsif ((($in_anvil) && ($anvil_name eq $in_anvil)) or (exists $anvil->data->{database}{$host_uuid}))
+		{
+			# Add dashboards we use and peers
+			push @{$trusted_host_uuids}, $host_uuid;
+		}
+	}
+	
+	return($trusted_host_uuids)
 }
 
 =head2 uptime

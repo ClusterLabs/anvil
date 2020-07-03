@@ -25,6 +25,7 @@ my $THIS_FILE = "Database.pm";
 # get_host_from_uuid
 # get_hosts
 # get_hosts_info
+# get_ip_addresses
 # get_job_details
 # get_jobs
 # get_local_uuid
@@ -2050,6 +2051,229 @@ AND
 		}
 		
 		# Read in the IP addresses and network information.
+		
+	}
+	
+	return(0);
+}
+
+
+=head2 get_ip_addresses
+
+This loads all know IP addresses from the C<< ip_addresses >> table and stores them in a hash that simplifies knowing what host and network an IP belongs to.
+
+The data will be stored in two hashes, one referenced by the network the IPs are on and the other referenced by the IP address.
+
+ hosts::host_uuid::<host_uuid>::network::<on_network>::ip_address   = <ip_address>
+ hosts::host_uuid::<host_uuid>::network::<on_network>::subnet_mask  = <subnet mask>
+ hosts::host_uuid::<host_uuid>::network::<on_network>::on_interface = <interface name>
+
+ hosts::host_uuid::<host_uuid>::ip_address::<ip_address>::subnet_mask  = <subnet mask>
+ hosts::host_uuid::<host_uuid>::ip_address::<ip_address>::on_interface = <interface name>
+ hosts::host_uuid::<host_uuid>::ip_address::<ip_address>::on_network   = <on_network>
+
+This method takes no parameters.
+
+=cut
+sub get_ip_addresses
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Make sure we've loaded host data.
+	$anvil->Database->get_hosts({debug => $debug});
+	
+	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+		
+		# Load any bridges.
+		my $query = "
+SELECT 
+    bridge_uuid, 
+    bridge_name 
+FROM 
+    bridges 
+WHERE 
+    bridge_host_uuid = ".$anvil->Database->quote($host_uuid)."
+AND 
+    bridge_id != 'DELETED'
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $bridge_uuid = $row->[0];
+			my $bridge_name = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				bridge_uuid => $bridge_uuid, 
+				bridge_name => $bridge_name,
+			}});
+			
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{bridges}{bridge_uuid}{$bridge_uuid}{bridge_name} = $bridge_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::host_uuid::${host_uuid}::bridges::bridge_uuid::${bridge_uuid}::bridge_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{bridges}{bridge_uuid}{$bridge_uuid}{bridge_name},
+			}});
+		}
+		undef $results;
+		undef $count;
+		
+		# Read in bonds.
+		$query = "
+SELECT 
+    bond_uuid, 
+    bond_name 
+FROM 
+    bonds 
+WHERE 
+    bond_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+AND 
+    bond_operational != 'DELETED'
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		$count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $bond_uuid = $row->[0];
+			my $bond_name = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				bond_uuid => $bond_uuid, 
+				bond_name => $bond_name,
+			}});
+			
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{bonds}{bond_uuid}{$bond_uuid}{bond_name} = $bond_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::host_uuid::${host_uuid}::bonds::bond_uuid::${bond_uuid}::bond_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{bonds}{bond_uuid}{$bond_uuid}{bond_name},
+			}});
+		}
+		undef $results;
+		undef $count;
+		
+		# Now load interfaces.
+		$query = "
+SELECT 
+    network_interface_uuid, 
+    network_interface_name 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+AND 
+    network_interface_operational != 'DELETED'
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		$count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $network_interface_uuid = $row->[0];
+			my $network_interface_name = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				network_interface_uuid => $network_interface_uuid, 
+				network_interface_name => $network_interface_name,
+			}});
+			
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_name} = $network_interface_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::host_uuid::${host_uuid}::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_name},
+			}});
+		}
+		undef $results;
+		undef $count;
+		
+		# Finally, load IP addresses.
+		$query = "
+SELECT 
+    ip_address_on_type, 
+    ip_address_on_uuid, 
+    ip_address_address, 
+    ip_address_subnet_mask 
+FROM 
+    ip_addresses 
+WHERE 
+    ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+AND 
+    ip_address_note != 'DELETED';
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		$count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $ip_address_on_type     = $row->[0];
+			my $ip_address_on_uuid     = $row->[1];
+			my $ip_address_address     = $row->[2];
+			my $ip_address_subnet_mask = $row->[3];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				ip_address_on_type     => $ip_address_on_type, 
+				ip_address_on_uuid     => $ip_address_on_uuid,
+				ip_address_address     => $ip_address_address, 
+				ip_address_subnet_mask => $ip_address_subnet_mask, 
+			}});
+			
+			# Which device is it on?
+			my $on_interface = "";
+			if ($ip_address_on_type eq "bridge")
+			{
+				$on_interface = $anvil->data->{hosts}{host_uuid}{$host_uuid}{bridges}{bridge_uuid}{$ip_address_on_uuid}{bridge_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});
+			}
+			elsif ($ip_address_on_type eq "bond")
+			{
+				$on_interface = $anvil->data->{hosts}{host_uuid}{$host_uuid}{bonds}{bond_uuid}{$ip_address_on_uuid}{bond_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});
+			}
+			elsif ($ip_address_on_type eq "interface")
+			{
+				$on_interface = $anvil->data->{hosts}{host_uuid}{$host_uuid}{network_interfaces}{network_interface_uuid}{$ip_address_on_uuid}{network_interface_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});
+			}
+			my $on_network = ($on_interface =~ /^(.*?)_/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_network => $on_network }});
+			
+			# Store it.
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}   = $ip_address_address;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}  = $ip_address_subnet_mask;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface} = $on_interface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::ip_address" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}, 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::subnet_mask" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}, 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::on_interface" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface}, 
+			}});
+			
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{subnet_mask}  = $ip_address_subnet_mask;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_interface} = $on_interface;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_network}   = $on_network;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::subnet_mask"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{subnet_mask}, 
+				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_interface" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_interface}, 
+				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_network"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_network}, 
+			}});
+		}
 		
 	}
 	
