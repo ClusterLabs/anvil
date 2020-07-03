@@ -1547,9 +1547,9 @@ sub get_anvils
 		include_deleted => $include_deleted, 
 	}});
 	
-	if (exists $anvil->data->{manifests})
+	if (exists $anvil->data->{anvils})
 	{
-		delete $anvil->data->{manifests};
+		delete $anvil->data->{anvils};
 	}
 	
 	my $query = "

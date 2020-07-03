@@ -8,6 +8,7 @@
 # 2 = Failed to load/parse the manifest.
 # 3 = Failed to change the host name.
 # 4 = Failed to reconnect to any database after the network was reconfigured
+# 5 = Problem parsing job data or loading manifest or anvil data using job data.
 # 
 # TODO: 
 #
@@ -15,6 +16,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Data::Dumper;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -42,15 +44,12 @@ if (not $anvil->data->{sys}{database}{connections})
 	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
 	# again after we exit.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0129"});
-	sleep 10;
+	sleep 2;
 	$anvil->nice_exit({exit_code => 1});
 }
 
 # Get the job details
 load_job($anvil);
-
-# Load in the manifest 
-load_manifest($anvil);
 
 # Check if we need to change any IPs or our hostname.
 check_local_network($anvil);
@@ -74,14 +73,27 @@ sub configure_pacemaker
 	
 	### TODO: Move these to variables in the 'sys' hash
 	my $anvil_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
+	my $anvil_uuid = $anvil->data->{sys}{anvil_uuid};
 	my $host_name  = $anvil->data->{sys}{host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:machine'    => $machine, 
-		's1:anvil_name' => $anvil_name, 
-		's3:host_name'  => $host_name, 
+		's1:machine'       => $machine, 
+		's1:anvil_name'    => $anvil_name, 
+		's3:host_name'     => $host_name, 
+		's4:manifest_uuid' => $manifest_uuid,
+		's5:anvil_uuid'    => $anvil_uuid, 
 	}});
 	
+	print Dumper $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
+	print "=============================================\n";
+	print Dumper $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid};
+	print "=============================================\n";
 =cut
+echo Initial1 | passwd hacluster --stdin 
+systemctl start pcsd.service
+systemctl enable pcsd.service
+systemctl disable libvirtd.service
+systemctl stop libvirtd.service
+	
 909; xxx::upses::el8-ups01::uuid: [7ebecdda-782d-4624-841d-98d912ed3d50]
 909; xxx::upses::el8-ups02::uuid: [7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f]
 918; xxx::fences::an-nas02::uuid: [4117a862-f58f-4676-991a-9ca257a3c612]
@@ -155,7 +167,7 @@ sub check_local_network
 				current_host_name => $now_host_name, 
 			}});
 			update_progress($anvil, 0, "job_0063,!!host_name!".$new_host_name."!!,!!current_host_name!".$now_host_name."!!");
-			sleep 10;
+			sleep 2;
 			$anvil->nice_exit({exit_code => 3});
 		}
 	}
@@ -270,8 +282,8 @@ sub check_local_network
 			if (($current_ip ne $ip) or ($current_subnet ne $subnet))
 			{
 				# IP / subnet changed.
-				print "IP: .... [".$current_ip."] -> [".$ip."]\n";
-				print "Subnet:  [".$current_subnet."] -> [".$subnet."]\n";
+				#print "IP: .... [".$current_ip."] -> [".$ip."]\n";
+				#print "Subnet:  [".$current_subnet."] -> [".$subnet."]\n";
 				$change = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 			}
@@ -279,7 +291,7 @@ sub check_local_network
 			# gateway?
 			if ($current_gateway ne $gateway)
 			{
-				print "Gateway: [".$current_gateway."] -> [".$gateway."]\n";
+				#print "Gateway: [".$current_gateway."] -> [".$gateway."]\n";
 				$change = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 			}
@@ -289,14 +301,14 @@ sub check_local_network
 			{
 				if ($cleaned_dns ne $cleaned_current_dns)
 				{
-					print "DNS: ... [".$cleaned_current_dns."] -> [".$cleaned_dns."]\n";
+					#print "DNS: ... [".$cleaned_current_dns."] -> [".$cleaned_dns."]\n";
 					$change = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 				}
 				elsif (($in_iface eq $default_gateway_interface) && (not $anvil->data->{network}{'local'}{interface}{$in_iface}{default_gateway}))
 				{
 					# This isn't the default gateway yet, but we'll make it so.
-					print "Will set as default gateway\n";
+					#print "Will set as default gateway\n";
 					$change = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 				}
@@ -819,7 +831,6 @@ sub check_local_network
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
 	$anvil->System->check_ssh_keys({debug => 2});
 	
-	
 	# Setup IPMI, if needed.
 	### TODO: Do this when on real hardware
 	
@@ -845,23 +856,54 @@ sub load_job
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0074,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0074", variables => { 'job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 	
-	my ($machine, $manifest_uuid, $node1_host_uuid, $node2_host_uuid, $dr1_host_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),node1_host_uuid=(.*?),node2_host_uuid=(.*?),dr1_host_uuid=(.*?)$/);
+	my ($machine, $manifest_uuid, $anvil_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
+	$machine       = "" if not defined $machine;
+	$manifest_uuid = "" if not defined $manifest_uuid;
+	$anvil_uuid    = "" if not defined $anvil_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		machine         => $machine,
-		manifest_uuid   => $manifest_uuid, 
-		node1_host_uuid => $node1_host_uuid, 
-		node2_host_uuid => $node2_host_uuid, 
-		dr1_host_uuid   => $dr1_host_uuid, 
+		machine       => $machine,
+		manifest_uuid => $manifest_uuid, 
+		anvil_uuid    => $anvil_uuid, 
 	}});
 	
-	$anvil->data->{sys}{machine}         = $machine;
-	$anvil->data->{sys}{manifest_uuid}   = $manifest_uuid;
-	$anvil->data->{sys}{node1_host_uuid} = $node1_host_uuid;
-	$anvil->data->{sys}{node2_host_uuid} = $node2_host_uuid;
-	$anvil->data->{sys}{node1_host_uuid} = $node1_host_uuid;
+	if ((not $machine)       or 
+	    (not $manifest_uuid) or 
+	    (not $anvil_uuid))
+	{
+		# Terminate the job entirely, it's likely an unrecoverable problem.
+		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
+		sleep 2;
+		$anvil->nice_exit({exit_code => 5});
+	}
+	
+	$anvil->data->{sys}{machine}       = $machine;
+	$anvil->data->{sys}{manifest_uuid} = $manifest_uuid;
+	$anvil->data->{sys}{anvil_uuid}    = $anvil_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"sys::machine"         => $anvil->data->{sys}{machine},
 		"sys::manifest_uuid"   => $anvil->data->{sys}{manifest_uuid},
+		"sys::anvil_uuid"      => $anvil->data->{sys}{anvil_uuid},
+	}});
+	
+	# Load in the manifest 
+	load_manifest($anvil);
+	
+	$anvil->Database->get_anvils();
+	
+	# Load the manifest and anvil data.
+	if ((not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}) or (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}))
+	{
+		# Terminate the job entirely, it's likely an unrecoverable problem.
+		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
+		sleep 2;
+		$anvil->nice_exit({exit_code => 5});
+	}
+	
+	# Load the anvil
+	$anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	$anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	$anvil->data->{sys}{dr1_host_uuid}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"sys::node1_host_uuid" => $anvil->data->{sys}{node1_host_uuid},
 		"sys::node2_host_uuid" => $anvil->data->{sys}{node2_host_uuid},
 		"sys::dr1_host_uuid"   => $anvil->data->{sys}{dr1_host_uuid},
@@ -888,10 +930,10 @@ sub load_manifest
 	
 	if ($problem)
 	{
-		# Report a problem and send the user back to the manifests page.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "warning_0046"});
+		# Something went wrong
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "warning_0046", variables => { uuid => $anvil->data->{sys}{manifest_uuid} }});
 		update_progress($anvil, 0, "job_0076");
-		sleep 10;
+		sleep 2;
 		$anvil->nice_exit({exit_code => 2});
 	}
 	

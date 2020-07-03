@@ -331,6 +331,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0089">Adding NTP (network time protocol) servers, if needed.</key>
 		<key name="job_0090">Adding the NTP server: [#!variable!server!#].</key>
 		<key name="job_0091">Restarting the daemon: [#!variable!daemon!#].</key>
+		<key name="job_0092"><![CDATA[[ Error ] - The Job: [#!variabe!job-uuid!#] appears to have passed malformed data. The raw data was: [#!variable!raw!#]. Expected 'as_machine=<host_type>,manifest_uuid=<manifest_uuid>,anvil_uuid=<anvil_uuid>'. Either the parse failed, or the data was somehow invalid.]]></key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
