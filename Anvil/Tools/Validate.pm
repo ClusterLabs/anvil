@@ -7,6 +7,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use Data::Validate::Domain qw(is_domain);
+use Data::Validate::IP;
 use Scalar::Util qw(weaken isweak);
 use Mail::RFC822::Address qw(valid validlist);
 
@@ -14,17 +15,19 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Validate.pm";
 
 ### Methods;
+# alphanumeric
+# domain_name
+# email
 # form_field
-# is_alphanumeric
-# is_domain_name
-# is_email
-# is_hex
-# is_host_name
-# is_ipv4
-# is_mac
-# is_positive_integer
-# is_subnet_mask
-# is_uuid
+# hex
+# host_name
+# ip
+# ipv4
+# ipv6
+# mac
+# positive_integer
+# subnet_mask
+# uuid
 
 =pod
 
@@ -45,8 +48,8 @@ Provides all methods related to data validation.
  
  # Access to methods using '$anvil->Validate->X'. 
  # 
- # Example using 'is_uuid()';
- if ($anvil->Validate->is_uuid({uuid => $string}))
+ # Example using 'uuid()';
+ if ($anvil->Validate->uuid({uuid => $string}))
  {
  	print "The UUID: [$string] is valid!\n";
  }
@@ -88,6 +91,108 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 alphanumeric
+
+This verifies that the passed-in string contains only alpha-numeric characters. This is strict and will return invalid if spaces, hyphens or other characters are found.
+
+NOTE: An empty string is considered invalid.
+
+ $string = "4words";
+ if ($anvil->Validate->alphanumeric({string => $string}))
+ {
+ 	print "The string: [$string] is valid!\n";
+ }
+
+Parameters;
+
+=head3 string (required)
+
+This is the string name to validate.
+
+=cut
+sub alphanumeric
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $valid  = 1;
+	my $string = defined $parameter->{string} ? $parameter->{string} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
+	
+	if (not $string)
+	{
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	if ($string !~ /^[a-zA-Z0-9]+$/)
+	{
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
+=head2 domain_name
+
+Checks if the passed-in string is a valid domain name. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+ $name = "alteeve.com";
+ if ($anvil->Validate->domain_name({name => $name}))
+ {
+ 	print "The domain name: [$name] is valid!\n";
+ }
+
+Parameters;
+
+=head3 name (required)
+
+This is the domain name to validate.
+
+=cut
+sub domain_name
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $valid = 1;
+	my $name  = $parameter->{name} ? $parameter->{name} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
+	
+	if (not $name)
+	{
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	else
+	{
+		# Underscores are allowd in domain names, but not host names. We disable TLD checks as we
+		# frequently use '.remote', '.bcn', etc. 
+		### TODO: Add a 'strict' parameter to control this) and/or support domain_private_tld
+		my %options = (domain_allow_underscore => 1, domain_disable_tld_validation => 1);
+		my $dvd     = Data::Validate::Domain->new(%options);
+		my $test    = $dvd->domain($name);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test => $test }});
+		if (not $test)
+		{
+			# Doesn't appear to be valid.
+			$valid = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+		}
+	}
+	
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
 
 =head2 form_field
 
@@ -173,49 +278,49 @@ sub form_field
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 				}
 			}
-			elsif (($type eq "alphanumeric") && (not $anvil->Validate->is_alphanumeric({string => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "alphanumeric") && (not $anvil->Validate->alphanumeric({string => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "domain_name") && (not $anvil->Validate->is_domain_name({name => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "domain_name") && (not $anvil->Validate->domain_name({name => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "email") && (not $anvil->Validate->is_email({email => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "email") && (not $anvil->Validate->email({email => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "ipv4") && (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "ipv4") && (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "mac") && (not $anvil->Validate->is_mac({mac => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "mac") && (not $anvil->Validate->mac({mac => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "positive_integer") && (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{$name}{value}, zero => $zero})))
+			elsif (($type eq "positive_integer") && (not $anvil->Validate->positive_integer({number => $anvil->data->{cgi}{$name}{value}, zero => $zero})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "subnet_mask") && (not $anvil->Validate->is_subnet_mask({subnet_mask => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "subnet_mask") && (not $anvil->Validate->subnet_mask({subnet_mask => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { valid => $valid, "cgi::${name}::alert" => $anvil->data->{cgi}{$name}{alert} }});
 			}
-			elsif (($type eq "uuid") && (not $anvil->Validate->is_uuid({uuid => $anvil->data->{cgi}{$name}{value}})))
+			elsif (($type eq "uuid") && (not $anvil->Validate->uuid({uuid => $anvil->data->{cgi}{$name}{value}})))
 			{
 				$valid                            = 0;
 				$anvil->data->{cgi}{$name}{alert} = 1;
@@ -228,109 +333,8 @@ sub form_field
 	return($valid);
 }
 
-=head2 is_alphanumeric
 
-This verifies that the passed-in string contains only alpha-numeric characters. This is strict and will return invalid if spaces, hyphens or other characters are found.
-
-NOTE: An empty string is considered invalid.
-
- $string = "4words";
- if ($anvil->Validate->is_alphanumeric({string => $string}))
- {
- 	print "The string: [$string] is valid!\n";
- }
-
-Parameters;
-
-=head3 string (required)
-
-This is the string name to validate.
-
-=cut
-sub is_alphanumeric
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	
-	my $valid  = 1;
-	my $string = defined $parameter->{string} ? $parameter->{string} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { string => $string }});
-	
-	if (not $string)
-	{
-		$valid = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
-	}
-	
-	if ($string !~ /^[a-zA-Z0-9]+$/)
-	{
-		$valid = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
-	}
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
-	return($valid);
-}
-
-=head2 is_domain_name
-
-Checks if the passed-in string is a valid domain name. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
-
- $name = "alteeve.com";
- if ($anvil->Validate->is_domain_name({name => $name}))
- {
- 	print "The domain name: [$name] is valid!\n";
- }
-
-Parameters;
-
-=head3 name (required)
-
-This is the domain name to validate.
-
-=cut
-sub is_domain_name
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	
-	my $valid = 1;
-	my $name  = $parameter->{name} ? $parameter->{name} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { name => $name }});
-	
-	if (not $name)
-	{
-		$valid = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
-	}
-	else
-	{
-		# Underscores are allowd in domain names, but not host names. We disable TLD checks as we
-		# frequently use '.remote', '.bcn', etc. 
-		### TODO: Add a 'strict' parameter to control this) and/or support domain_private_tld
-		my %options = (domain_allow_underscore => 1, domain_disable_tld_validation => 1);
-		my $dvd     = Data::Validate::Domain->new(%options);
-		my $test    = $dvd->is_domain($name);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test => $test }});
-		if (not $test)
-		{
-			# Doesn't appear to be valid.
-			$valid = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
-		}
-	}
-	
-
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
-	return($valid);
-}
-
-
-=head2 is_hex
+=head2 hex
 
 Checks if the passed-in string contains only hexidecimal characters. A prefix of C<< 0x >> is allowed.
 
@@ -345,7 +349,7 @@ If set to C<< 1 >>, the string will be allowed to contain C<< : >> and C<< - >> 
 This is the string to validate
 
 =cut
-sub is_hex
+sub hex
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -380,14 +384,14 @@ sub is_hex
 }
 
 
-=head2 is_host_name
+=head2 host_name
 
 Checks if the passed-in string is a valid host name. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
 
-B<NOTE>: If this method receives a full domain name, the host name is checked in this method and the domain (anything after the first C<< . >>) is tested using C<< Validate->is_domain_name >>. If either fails, C<< 0 >> is returned.
+B<NOTE>: If this method receives a full domain name, the host name is checked in this method and the domain (anything after the first C<< . >>) is tested using C<< Validate->domain_name >>. If either fails, C<< 0 >> is returned.
 
  $name = "an-a05n01";
- if ($anvil->Validate->is_host_name({name => $name}))
+ if ($anvil->Validate->host_name({name => $name}))
  {
  	print "The host name: [$name] is valid!\n";
  }
@@ -399,7 +403,7 @@ Parameters;
 This is the host name to validate.
 
 =cut
-sub is_host_name
+sub host_name
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -422,7 +426,7 @@ sub is_host_name
 	
 	if ($domain)
 	{
-		$valid = $anvil->Validate->is_domain_name({
+		$valid = $anvil->Validate->domain_name({
 			name  => $domain, 
 			debug => $debug,
 		});
@@ -439,7 +443,7 @@ sub is_host_name
 		# Underscores are allowd in domain names, but not host names.
 		my %options = (domain_allow_underscore => 1);
 		my $dvd     = Data::Validate::Domain->new(%options);
-		my $test    = $dvd->is_hostname($name);
+		my $test    = $dvd->hostname($name);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test => $test }});
 		if (not $test)
 		{
@@ -454,12 +458,12 @@ sub is_host_name
 }
 
 
-=head2 is_email
+=head2 email
 
 Checks if the passed-in string is a valid address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
 
  $email = "test@example.com";
- if ($anvil->Validate->is_email({email => $email}))
+ if ($anvil->Validate->email({email => $email}))
  {
  	print "The email address: [$email] is valid!\n";
  }
@@ -471,7 +475,7 @@ Parameters;
 This is the email address to verify.
 
 =cut
-sub is_email
+sub email
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -493,12 +497,53 @@ sub is_email
 	return($valid);
 }
 
-=head2 is_ipv4
+=head2 ip
+
+This is a meta method. It takes the IP and tests it against both C<< ipv4 >> and C<< ipv6 >>. If either return as valid, this method returns as valid.
+
+Said more simply; This tests an IP to see if it is IPv4 OR IPv6. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+Parameters;
+
+=head3 ip (required)
+
+This is the IP address to validate.
+
+=cut
+sub ip
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+	
+
+	my $ipv4 =                $anvil->Validate->ipv4({ip => $ip, debug => $debug});
+	my $ipv6 = not $ipv4 ? $anvil->Validate->ipv6({ip => $ip, debug => $debug}) : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipv4 => $ipv4,
+		ipv6 => $ipv6,
+	}});
+	
+	my $valid = 1;
+	if ((not $ipv4) && (not $ipv6))
+	{
+		$valid = 0;
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
+=head2 ipv4
 
 Checks if the passed-in string is an IPv4 address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
 
  $ip = "111.222.33.44";
- if ($anvil->Validate->is_ipv4({ip => $ip}))
+ if ($anvil->Validate->ipv4({ip => $ip}))
  {
  	print "The IP address: [$ip] is valid!\n";
  }
@@ -510,7 +555,7 @@ Parameters;
 This is the IP address to verify.
 
 =cut
-sub is_ipv4
+sub ipv4
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -521,33 +566,8 @@ sub is_ipv4
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 	
 	my $valid = 1;
-	if ($ip =~ /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+	if (not is_ipv4($ip))
 	{
-		# It is in the right format.
-		my $first_octet  = $1;
-		my $second_octet = $2;
-		my $third_octet  = $3;
-		my $fourth_octet = $4;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			first_octet  => $first_octet, 
-			second_octet => $second_octet, 
-			third_octet  => $third_octet, 
-			fourth_octet => $fourth_octet, 
-		}});
-		
-		if (($first_octet  < 0) or ($first_octet  > 255) or
-		    ($second_octet < 0) or ($second_octet > 255) or
-		    ($third_octet  < 0) or ($third_octet  > 255) or
-		    ($fourth_octet < 0) or ($fourth_octet > 255))
-		{
-			# One of the octets is out of range.
-			$valid = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
-		}
-	}
-	else
-	{
-		# Not in the right format.
 		$valid = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
 	}
@@ -556,7 +576,45 @@ sub is_ipv4
 	return($valid);
 }
 
-=head2 is_mac
+=head2 ipv6
+
+Checks if the passed-in string is an IPv6 address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
+
+ $ip = "::1";
+ if ($anvil->Validate->ipv6({ip => $ip}))
+ {
+ 	print "The IP address: [$ip] is valid!\n";
+ }
+
+Parameters;
+
+=head3 ip (required)
+
+This is the IPv6 address to verify.
+
+=cut
+sub ipv6
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+	
+	my $valid = 1;
+	if (not is_ipv6($ip))
+	{
+		$valid = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { valid => $valid }});
+	return($valid);
+}
+
+=head2 mac
 
 Checks if the passed-in string is a valid network MAC address. Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
 
@@ -567,7 +625,7 @@ Parameters;
 This is the network MAC address to verify.
 
 =cut
-sub is_mac
+sub mac
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -589,7 +647,7 @@ sub is_mac
 	return($valid);
 }
 
-=head2 is_port
+=head2 port
 
 This tests to see if the value passed is a valid TCP/UDP port (1 ~ 65536). Returns 'C<< 1 >>' if OK, 'C<< 0 >>' if not.
 
@@ -602,7 +660,7 @@ Parameters;
 This is the port being tested.
 
 =cut
-sub is_port
+sub port
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -630,14 +688,14 @@ sub is_port
 	return($valid);
 }
 
-=head2 is_positive_integer
+=head2 positive_integer
 
 This method verifies that the passed in value is a positive integer. 
 
 NOTE: This method is strict and will only validate numbers without decimal places and that have no sign or a positive sign only (ie: C<< +3 >>, or C<< 3 >> are valid, but C<< -3 >> or C<< 3.0 >> are not).
 
  my $number = 3;
- if ($anvil->Validate->is_positive_integer({number => $number}))
+ if ($anvil->Validate->positive_integer({number => $number}))
  {
  	print "The number: [$number] is valid!\n";
  }
@@ -653,7 +711,7 @@ This is the number to verify.
 If set, the number C<< 0 >> will be considered valid. By default, c<< 0 >> is not considered "positive".
 
 =cut
-sub is_positive_integer
+sub positive_integer
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -688,7 +746,7 @@ sub is_positive_integer
 	return($valid);
 }
 
-=head2 is_subnet_mask
+=head2 subnet_mask
 
 This method takes a subnet mask string and checks to see if it is a valid IPv4 address or CIDR notation. It returns 'C<< 1 >>' if it is a valid address. Otherwise it returns 'C<< 0 >>'.
 
@@ -699,7 +757,7 @@ Parameters;
 This is the address to verify.
 
 =cut
-sub is_subnet_mask
+sub subnet_mask
 {
 	my $self      = shift;
 	my $parameter = shift;
@@ -715,7 +773,7 @@ sub is_subnet_mask
 	if ($subnet_mask)
 	{
 		# We have something. Is it an IPv4 address?
-		if ($anvil->Validate->is_ipv4({ip => $subnet_mask}))
+		if ($anvil->Validate->ipv4({ip => $subnet_mask}))
 		{
 			# It is. Try converting it to a CIDR notation. If we get an empty string back, it isn't valid.
 			my $cidr = $anvil->Convert->cidr({subnet_mask => $subnet_mask});
@@ -745,13 +803,13 @@ sub is_subnet_mask
 	return($valid);
 }
 
-=head2 is_uuid
+=head2 uuid
 
 This method takes a UUID string and returns 'C<< 1 >>' if it is a valid UUID string. Otherwise it returns 'C<< 0 >>'.
 
 NOTE: This method is strict and will only validate UUIDs that are lower case!
 
- if ($anvil->Validate->is_uuid({uuid => $string}))
+ if ($anvil->Validate->uuid({uuid => $string}))
  {
  	print "The UUID: [$string] is valid!\n";
  }
@@ -763,7 +821,7 @@ Parameters;
 This is the UUID to verify.
 
 =cut
-sub is_uuid
+sub uuid
 {
 	my $self      = shift;
 	my $parameter = shift;

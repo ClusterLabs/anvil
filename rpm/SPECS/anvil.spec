@@ -42,6 +42,7 @@ Requires:       mlocate
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
 Requires:       perl-Data-Validate-Domain
+Requires:       perl-Data-Validate-IP
 Requires:       perl-DBD-Pg 
 Requires:       perl-DBI
 Requires:       perl-Data-Validate-Domain

@@ -398,7 +398,7 @@ sub reconfigure_network
 			}
 			if (($anvil->data->{variables}{form}{config_step2}{$ip_key}{value})           && 
 			    ($anvil->data->{variables}{form}{config_step2}{$ip_key}{value} ne "dhcp") && 
-			    (not $anvil->Validate->is_ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
+			    (not $anvil->Validate->ipv4({ip => $anvil->data->{variables}{form}{config_step2}{$ip_key}{value}})))
 			{
 				# Something was set, but it isn't valid.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0148", variables => { 
@@ -417,7 +417,7 @@ sub reconfigure_network
 			}});
 			
 			# Are we building bonded interfaces?
-			if ($anvil->Validate->is_mac({mac => $link2_mac}))
+			if ($anvil->Validate->mac({mac => $link2_mac}))
 			{
 				# Yup!
 				my $say_network      = "";
@@ -733,7 +733,7 @@ sub reconfigure_network
 					rename_interface($anvil, $anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface}, $new_link2_iface);
 				}
 			}
-			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->is_mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
+			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
 			{
 				### NOTE: This only applies when configuring Striker dashboards. They can't 
 				###       be 'dhcp', either, so no checks are made for those cases. Likewise,
@@ -1024,7 +1024,7 @@ sub get_uuid_from_interface_file
 			{
 				my $test_uuid = $1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { test_uuid => $test_uuid }});
-				if ($anvil->Validate->is_uuid({uuid => $test_uuid}))
+				if ($anvil->Validate->uuid({uuid => $test_uuid}))
 				{
 					$uuid = $test_uuid;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { uuid => $uuid }});

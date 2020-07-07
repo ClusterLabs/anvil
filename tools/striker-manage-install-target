@@ -462,7 +462,7 @@ sub setup_boot_environment
 		next if $interface !~ /^bcn/;
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::local::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
-		if ($anvil->Validate->is_ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }))
+		if ($anvil->Validate->ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }))
 		{
 			$bcn_interface = $interface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bcn_interface => $bcn_interface }});

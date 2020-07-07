@@ -300,8 +300,8 @@ sub check_internet
 		# Is the domain valid?
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { domain => $domain }});
 		
-		if ((not $anvil->Validate->is_domain_name({debug => $debug, name => $domain})) and 
-		    (not $anvil->Validate->is_ipv4({debug => $debug, ip => $domain})))
+		if ((not $anvil->Validate->domain_name({debug => $debug, name => $domain})) and 
+		    (not $anvil->Validate->ipv4({debug => $debug, ip => $domain})))
 		{
 			# Not valid, skip
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0442", variables => { name => $domain }});
@@ -1394,7 +1394,7 @@ sub get_company_from_mac
 		return($anvil->data->{cache}{mac_to_oui}{$mac});
 	}
 	
-	my $valid_mac = $anvil->Validate->is_mac({mac => $mac});
+	my $valid_mac = $anvil->Validate->mac({mac => $mac});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac => $mac }});
 	if ($valid_mac)
 	{
@@ -1893,7 +1893,7 @@ sub get_network
 	my $base  = $block->base();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { base => $base }});
 	
-	if ($anvil->Validate->is_ipv4({ip => $base}))
+	if ($anvil->Validate->ipv4({ip => $base}))
 	{
 		$network = $base;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network => $network }});
@@ -2006,7 +2006,7 @@ sub is_ip_in_network
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->is_ip_in_network()", parameter => "network" }});
 		return(0);
 	}
-	elsif (not $anvil->Validate->is_ipv4({ip => $network}))
+	elsif (not $anvil->Validate->ipv4({ip => $network}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0019", variables => { parameter => "network", network => $network }});
 		return(0);
@@ -2016,7 +2016,7 @@ sub is_ip_in_network
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->is_ip_in_network()", parameter => "ip" }});
 		return(0);
 	}
-	elsif (not $anvil->Validate->is_ipv4({ip => $ip}))
+	elsif (not $anvil->Validate->ipv4({ip => $ip}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0019", variables => { parameter => "ip", network => $ip }});
 		return(0);
@@ -2026,7 +2026,7 @@ sub is_ip_in_network
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->is_ip_in_network()", parameter => "subnet_mask" }});
 		return(0);
 	}
-	elsif (not $anvil->Validate->is_subnet_mask({subnet_mask => $subnet_mask}))
+	elsif (not $anvil->Validate->subnet_mask({subnet_mask => $subnet_mask}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0020", variables => { parameter => "subnet_mask", subnet_mask => $subnet_mask }});
 		return(0);

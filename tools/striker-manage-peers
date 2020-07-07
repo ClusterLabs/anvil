@@ -185,7 +185,7 @@ sub process_entry
 	$anvil->data->{config}{rewrite} = 0;
 	
 	# Is anything missing?
-	if ((not $host_uuid) or (not $anvil->Validate->is_uuid({uuid => $host_uuid})))
+	if ((not $host_uuid) or (not $anvil->Validate->uuid({uuid => $host_uuid})))
 	{
 		# Invalid UUID.
 		print $anvil->Words->string({key => "error_0031", variables => { host_uuid => $host_uuid }})."\n";

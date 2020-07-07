@@ -670,7 +670,7 @@ sub get_peer_data
 	$anvil->Database->write({uuid => $anvil->data->{sys}{host_uuid}, debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 	
 	# Verify that the host UUID is actually valid.
-	if (not $anvil->Validate->is_uuid({uuid => $data->{host_uuid}}))
+	if (not $anvil->Validate->uuid({uuid => $data->{host_uuid}}))
 	{
 		$data->{host_uuid} = "";
 	}
@@ -817,7 +817,7 @@ sub load_manifest
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Striker->load_manifest()", parameter => "manifest_uuid" }});
 		return(1);
 	}
-	elsif (not $anvil->Validate->is_uuid({uuid => $manifest_uuid}))
+	elsif (not $anvil->Validate->uuid({uuid => $manifest_uuid}))
 	{
 		# UUID isn't valid
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Striker->load_manifest()", parameter => "manifest_uuid", uuid => $manifest_uuid}});

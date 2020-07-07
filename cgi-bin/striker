@@ -551,7 +551,7 @@ WHERE
 		}
 		
 		# Verify that the mail server and ports are sane.
-		if (not $anvil->Validate->is_email({email => $recipient_email}))
+		if (not $anvil->Validate->email({email => $recipient_email}))
 		{
 			# Bad domain
 			my $error_message                              = $anvil->Words->string({key => "warning_0026"});
@@ -946,8 +946,8 @@ WHERE
 		}
 		
 		# Verify that the mail server and ports are sane.
-		if ((not $anvil->Validate->is_ipv4({ip => $test_outgoing_mail_server})) and 
-		    (not $anvil->Validate->is_domain_name({name => $test_outgoing_mail_server})))
+		if ((not $anvil->Validate->ipv4({ip => $test_outgoing_mail_server})) and 
+		    (not $anvil->Validate->domain_name({name => $test_outgoing_mail_server})))
 		{
 			# Bad domain
 			my $error_message                                   = $anvil->Words->string({key => "warning_0023"});
@@ -963,7 +963,7 @@ WHERE
 				confirm                            => $confirm,
 			}});
 		}
-		if (not $anvil->Validate->is_port({port => $port}))
+		if (not $anvil->Validate->port({port => $port}))
 		{
 			# Bad port
 			my $error_message                                   = $anvil->Words->string({key => "warning_0024"});
@@ -1552,7 +1552,7 @@ sub process_manifests
 	}});
 	
 	# Are we running a manifest, or creating/editing one?
-	if (($anvil->data->{cgi}{run}{value}) && ($anvil->Validate->is_uuid({uuid => $anvil->data->{cgi}{manifest_uuid}{value}})))
+	if (($anvil->data->{cgi}{run}{value}) && ($anvil->Validate->uuid({uuid => $anvil->data->{cgi}{manifest_uuid}{value}})))
 	{
 		run_manifest($anvil);
 	}
@@ -2947,7 +2947,7 @@ sub sanity_check_manifest_step3
 		if ($anvil->data->{cgi}{$key}{value})
 		{
 			# Is it a valid IPv4 address?
-			if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$key}{value}}))
+			if (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$key}{value}}))
 			{
 				# Bad subnet
 				my $say_network = "#!string!striker_0255!#";
@@ -3042,7 +3042,7 @@ sub sanity_check_manifest_step3
 				}});
 				
 				# Is the IP valid?
-				if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$machine_ip_key}{value}, debug => 2}))
+				if (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$machine_ip_key}{value}, debug => 2}))
 				{
 					# Bad subnet
 					my $say_network = "#!string!striker_0255!#";
@@ -3181,7 +3181,7 @@ sub sanity_check_manifest_step2
 			$ip =~ s/\s+$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip => $ip }});
 			
-			if (not $anvil->Validate->is_ipv4({ip => $ip}))
+			if (not $anvil->Validate->ipv4({ip => $ip}))
 			{
 				# Bad network
 				my $message                            = $anvil->Words->string({key => "error_0015"});
@@ -3208,7 +3208,7 @@ sub sanity_check_manifest_step2
 			$ip =~ s/\s+$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip => $ip }});
 			
-			if (not $anvil->Validate->is_ipv4({ip => $ip}))
+			if (not $anvil->Validate->ipv4({ip => $ip}))
 			{
 				# Bad network
 				my $message                            = $anvil->Words->string({key => "error_0122"});
@@ -3226,7 +3226,7 @@ sub sanity_check_manifest_step2
 	}
 	
 	# Make sure the MTU is sane
-	if (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{mtu}{value}}))
+	if (not $anvil->Validate->positive_integer({number => $anvil->data->{cgi}{mtu}{value}}))
 	{
 		my $message = $anvil->Words->string({key => "error_0123"});
 		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
@@ -3249,7 +3249,7 @@ sub check_network
 	
 	# Make sure the network and subnet are valid
 	my $local_sane = 1;
-	if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$network_key}{value}}))
+	if (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$network_key}{value}}))
 	{
 		# Bad network
 		my $message                                  = $anvil->Words->string({key => "error_0020", variables => { field => $say_network." - #!string!striker_0149!#" }});
@@ -3264,7 +3264,7 @@ sub check_network
 			"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value},
 		}});
 	}
-	if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$subnet_key}{value}}))
+	if (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$subnet_key}{value}}))
 	{
 		# Bad subnet
 		my $message                                 = $anvil->Words->string({key => "error_0020", variables => { field => $say_network." - #!string!striker_0025!#" }});
@@ -3281,7 +3281,7 @@ sub check_network
 	}
 	
 	# The gateway can be blank
-	if (($anvil->data->{cgi}{$gateway_key}{value}) && (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$gateway_key}{value}})))
+	if (($anvil->data->{cgi}{$gateway_key}{value}) && (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$gateway_key}{value}})))
 	{
 		# It's not a valid IP.
 		my $message                                 = $anvil->Words->string({key => "error_0118", variables => { ip => $anvil->data->{cgi}{$gateway_key}{value} }});
@@ -3376,7 +3376,7 @@ sub sanity_check_manifest_step1
 	my ($anvil) = @_;
 	
 	my $sane = 1;
-	if ((not $anvil->Validate->is_alphanumeric({string => $anvil->data->{cgi}{prefix}{value}})) or (length($anvil->data->{cgi}{prefix}{value}) > 5))
+	if ((not $anvil->Validate->alphanumeric({string => $anvil->data->{cgi}{prefix}{value}})) or (length($anvil->data->{cgi}{prefix}{value}) > 5))
 	{
 		my $message = $anvil->Words->string({key => "error_0020", variables => { field => "#!string!striker_0228!#" }});
 		if ($anvil->data->{cgi}{prefix}{value})
@@ -3394,7 +3394,7 @@ sub sanity_check_manifest_step1
 	}
 	
 	# We can use Validate to check the domain.
-	if (not $anvil->Validate->is_domain_name({name => $anvil->data->{cgi}{domain}{value}, debug => 2}))
+	if (not $anvil->Validate->domain_name({name => $anvil->data->{cgi}{domain}{value}, debug => 2}))
 	{
 		my $message = $anvil->Words->string({key => "error_0020", variables => { field => "#!string!striker_0007!#" }});
 		if ($anvil->data->{cgi}{domain}{value})
@@ -3412,7 +3412,7 @@ sub sanity_check_manifest_step1
 	}
 	
 	# The sequence and IFN count need to be integers.
-	if (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{sequence}{value}}))
+	if (not $anvil->Validate->positive_integer({number => $anvil->data->{cgi}{sequence}{value}}))
 	{
 		my $message = $anvil->Words->string({key => "error_0020", variables => { field => "#!string!striker_0009!#" }});
 		if ($anvil->data->{cgi}{sequence}{value})
@@ -3428,7 +3428,7 @@ sub sanity_check_manifest_step1
 			 "cgi::sequence::value" => $anvil->data->{cgi}{sequence}{value},
 		}});
 	}
-	if (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{ifn_count}{value}}))
+	if (not $anvil->Validate->positive_integer({number => $anvil->data->{cgi}{ifn_count}{value}}))
 	{
 		my $message = $anvil->Words->string({key => "error_0020", variables => { field => "#!string!striker_0230!#" }});
 		if ($anvil->data->{cgi}{ifn_count}{value})
@@ -3736,7 +3736,7 @@ sub process_upses
 				}});
 				
 				# Are any values insane?
-				if (not $anvil->Validate->is_host_name({name => $anvil->data->{cgi}{$ups_name_key}{value}, debug => 2}))
+				if (not $anvil->Validate->host_name({name => $anvil->data->{cgi}{$ups_name_key}{value}, debug => 2}))
 				{
 					# Bad host name
 					$sane                                     = 0;
@@ -3746,7 +3746,7 @@ sub process_upses
 						sane                          => $sane, 
 					}});
 				}
-				if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$ups_ip_address_key}{value}}))
+				if (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$ups_ip_address_key}{value}}))
 				{
 					# Bad IP address.
 					$sane                                     = 0;
@@ -4998,7 +4998,7 @@ sub process_prep_network
 		if ($anvil->data->{cgi}{host_name}{value})
 		{
 			# Is the host name sane?
-			if (not $anvil->Validate->is_domain_name({name => $anvil->data->{cgi}{host_name}{value}}))
+			if (not $anvil->Validate->domain_name({name => $anvil->data->{cgi}{host_name}{value}}))
 			{
 				# Nope
 				my $error_message                        = $anvil->Words->string({key => "error_0012", variables => { host_name => $anvil->data->{cgi}{host_name}{value} }});
@@ -5022,7 +5022,7 @@ sub process_prep_network
 		if ($anvil->data->{cgi}{gateway}{value})
 		{
 			# Is if valid?
-			if (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{gateway}{value}}))
+			if (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{gateway}{value}}))
 			{
 				# Bad IP
 				my $error_message                      = $anvil->Words->string({key => "warning_0010", variables => { ip_address => $anvil->data->{cgi}{gateway}{value} }});
@@ -5050,7 +5050,7 @@ sub process_prep_network
 			{
 				$dns =~ s/^\s+//;
 				$dns =~ s/\s+$//;
-				if (not $anvil->Validate->is_ipv4({ip => $dns}))
+				if (not $anvil->Validate->ipv4({ip => $dns}))
 				{
 					# Bad IP
 					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0010", variables => { ip_address => $anvil->data->{cgi}{dns}{value} }}) }});
@@ -5136,7 +5136,7 @@ sub process_prep_network
 				}
 				my $say_ip_address = "#!string!striker_0152!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { say_ip_address => $say_ip_address }});
-				if (($anvil->data->{cgi}{$ip_key}{value}) && (not $anvil->Validate->is_ipv4({ip => $anvil->data->{cgi}{$ip_key}{value}})))
+				if (($anvil->data->{cgi}{$ip_key}{value}) && (not $anvil->Validate->ipv4({ip => $anvil->data->{cgi}{$ip_key}{value}})))
 				{
 					# Bad IP
 					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0010", variables => { ip_address => $anvil->data->{cgi}{$ip_key}{value} }}) }});
@@ -5146,7 +5146,7 @@ sub process_prep_network
 						"cgi::${ip_key}::alert" => $anvil->data->{cgi}{$ip_key}{alert}, 
 					}});
 				}
-				elsif (($anvil->data->{cgi}{$subnet_key}{value}) && (not $anvil->Validate->is_subnet_mask({subnet_mask => $anvil->data->{cgi}{$subnet_key}{value}})))
+				elsif (($anvil->data->{cgi}{$subnet_key}{value}) && (not $anvil->Validate->subnet_mask({subnet_mask => $anvil->data->{cgi}{$subnet_key}{value}})))
 				{
 					# Bad subnet
 					$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0017"}) }});
@@ -5706,7 +5706,7 @@ sub process_prep_host_page
 	}
 	elsif ($connect)
 	{
-		if (not $anvil->Validate->is_ipv4({ip => $host_ip_address}))
+		if (not $anvil->Validate->ipv4({ip => $host_ip_address}))
 		{
 			# Bad IP
 			$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "warning_0010", variables => { ip_address => $host_ip_address }}) }});
@@ -6162,8 +6162,8 @@ sub process_sync_page
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 	{
 		next if (($interface !~ /^bcn/) && ($interface !~ /^ifn/));
-		next if not $anvil->Validate->is_ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip}});
-		next if not $anvil->Validate->is_subnet_mask({subnet_mask => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}});
+		next if not $anvil->Validate->ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip}});
+		next if not $anvil->Validate->subnet_mask({subnet_mask => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}});
 		my ($network_type, $network_number) = ($interface =~ /^(.*?)(\d+)_/);
 		
 		my $database_user = $anvil->data->{database}{$host_uuid}{user} ? $anvil->data->{database}{$host_uuid}{user} : $anvil->data->{sys}{database}{user};
@@ -6197,7 +6197,7 @@ sub process_sync_page
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
 		
-		next if not $anvil->Validate->is_uuid({uuid => $uuid});
+		next if not $anvil->Validate->uuid({uuid => $uuid});
 		next if $uuid eq $host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
 		
@@ -6402,8 +6402,8 @@ sub add_sync_peer
 	
 	# Is the host a domain or IP?
 	# If so, and 'bi-directional' is set, verify we can ssh into the peer.
-	my $is_domain = $anvil->Validate->is_domain_name({name => $host});
-	my $is_ipv4   = $anvil->Validate->is_ipv4({ip => $host});
+	my $is_domain = $anvil->Validate->domain_name({name => $host});
+	my $is_ipv4   = $anvil->Validate->ipv4({ip => $host});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		is_domain  => $is_domain,
 		is_ipv4    => $is_ipv4,
@@ -7375,7 +7375,7 @@ sub sanity_check_step2
 			$ip =~ s/^\s+//;
 			$ip =~ s/\s+$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip => $ip }});
-			if (not $anvil->Validate->is_ipv4({ip => $ip}))
+			if (not $anvil->Validate->ipv4({ip => $ip}))
 			{
 				$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0015"}) }});
 				$anvil->data->{cgi}{dns}{alert}     = 1;
@@ -7701,7 +7701,7 @@ sub sanity_check_step1
 	}
 	
 	# The prefix needs to be alphanumeric and be between 1 ~ 5 chatacters.
-	if ((not $anvil->Validate->is_alphanumeric({string => $anvil->data->{cgi}{prefix}{value}})) or (length($anvil->data->{cgi}{prefix}{value}) > 5))
+	if ((not $anvil->Validate->alphanumeric({string => $anvil->data->{cgi}{prefix}{value}})) or (length($anvil->data->{cgi}{prefix}{value}) > 5))
 	{
 		$anvil->data->{form}{error_massage} = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0021"}) }});
 		$anvil->data->{cgi}{prefix}{alert}  = 1;
@@ -7747,7 +7747,7 @@ sub sanity_check_step1
 	}
 	
 	# The sequence and IFN count need to be integers.
-	if (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{sequence}{value}}))
+	if (not $anvil->Validate->positive_integer({number => $anvil->data->{cgi}{sequence}{value}}))
 	{
 		$anvil->data->{form}{error_massage}  = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0022", variables => { field => "striker_0009" }}) }});
 		$anvil->data->{cgi}{sequence}{alert} = 1;
@@ -7769,7 +7769,7 @@ sub sanity_check_step1
 		});
 	}
 	
-	if (not $anvil->Validate->is_positive_integer({number => $anvil->data->{cgi}{ifn_count}{value}}))
+	if (not $anvil->Validate->positive_integer({number => $anvil->data->{cgi}{ifn_count}{value}}))
 	{
 		$anvil->data->{form}{error_massage}   = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $anvil->Words->string({key => "error_0022", variables => { field => "striker_0011" }}) }});
 		$anvil->data->{cgi}{ifn_count}{alert} = 1;
@@ -8237,7 +8237,7 @@ sub generate_ip
 		default_subnet_mask => $default_subnet_mask, 
 	}});
 	
-	if (($anvil->Validate->is_ipv4({ip => $default_ip})) && ($anvil->Validate->is_ipv4({ip => $default_subnet_mask})))
+	if (($anvil->Validate->ipv4({ip => $default_ip})) && ($anvil->Validate->ipv4({ip => $default_subnet_mask})))
 	{
 		# Valid values.
 		my ($ip_octet1, $ip_octet2, $ip_octet3, $ip_octet4) = (split/\./, $default_ip);
