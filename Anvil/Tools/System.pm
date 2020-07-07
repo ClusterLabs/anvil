@@ -2998,14 +2998,6 @@ sub update_hosts
 			's3:host_type'       => $host_type, 
 		}});
 		
-		# We store this in a way that lets us later sort by type -> host_name
-		$anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_name} = $host_name;
-		$anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_uuid} = $host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"trusted_host::${host_type}::${short_host_name}::host_name" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_name},
-			"trusted_host::${host_type}::${short_host_name}::host_uuid" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_uuid},
-		}});
-		
 		foreach my $on_network (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}})
 		{
 			# Break the network sequence off the name for later sorting
@@ -3016,11 +3008,6 @@ sub update_hosts
 				"s2:network_type" => $network_type, 
 				"s3:sequence"     => $sequence, 
 				"s4:ip_address"   => $ip_address,
-			}});
-			
-			$anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address} = $ip_address;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"trusted_host::${host_type}::${short_host_name}::network::${network_type}::${sequence}::ip_address" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address},
 			}});
 			
 			# Store the hostname in an easy to lookup format, too.
@@ -3058,6 +3045,11 @@ sub update_hosts
 	foreach my $line (split/\n/, $old_body)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /##] anvil-daemon \[##/)
+		{
+			$add_header = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { add_header => $add_header }});
+		}
 		
 		# Delete everything follow a hash, then clear spaces.
 		my $line_comment = "";
@@ -3065,15 +3057,22 @@ sub update_hosts
 		if ($line =~ /^#/)
 		{
 			$new_body .= $line."\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
 			next;
 		}
 		if ($line =~ /#(.*)$/)
 		{
 			$line_comment = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line_comment => $line_comment }});
 		}
 		$line =~ s/^\s+//;
 		$line =~ s/\s+$//;
-		next if not $line;
+		if (not $line)
+		{
+			$new_body .= "\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+			next;
+		}
 		
 		# Now pull apart the line and store the entries.
 		my ($ip_address, $names) = ($line =~ /^(.*?)\s+(.*)$/);
@@ -3084,6 +3083,7 @@ sub update_hosts
 		
 		# Make sure the IP is valid.
 		my $is_ip = $anvil->Validate->ip({ip => $ip_address, debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_ip => $is_ip }});
 		if (not $is_ip)
 		{
 			# Log and skip.
@@ -3096,12 +3096,6 @@ sub update_hosts
 		
 		foreach my $name (split/\s+/, $names)
 		{
-			if ($line =~ /##] anvil-daemon \[##/)
-			{
-				$add_header = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { add_header => $add_header }});
-			}
-			
 			# Is this name one we manage? If so, has the IP changed?
 			if ((exists $anvil->data->{hosts}{needed}{$name}) && ($anvil->data->{hosts}{needed}{$name}{ip_address}))
 			{
@@ -3128,17 +3122,20 @@ sub update_hosts
 					next;
 				}
 			}
-			else
-			{
-				$line_hosts .= $name." ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line_hosts => $line_hosts }});
-			}
+			
+			$line_hosts .= $name." ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line_hosts => $line_hosts }});
 		}
 		
 		# If we have any names for this IP, store it.
 		if ($line_hosts)
 		{
-			my $new_line .= $ip_address." ".$line_hosts;
+			my $tab = "\t";
+			if (length($ip_address) < 8)
+			{
+				$tab = "\t\t";
+			}
+			my $new_line .= $ip_address.$tab.$line_hosts;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line => $new_line }});
 			if ($line_comment)
 			{
@@ -3160,9 +3157,10 @@ sub update_hosts
 	if ($add_header)
 	{
 		# Prepend the header.
-		my $header   = $anvil->Words->string({key => "message_0177"});
-		   $new_body = $header.$new_body;
-		   $changes  = 1;
+		my $header   =  $anvil->Words->string({key => "message_0177"});
+		   $header   =~ s/^\n//;
+		   $new_body =  $header.$new_body;
+		   $changes  =  1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:changes'  => $changes,
 			's2:header'   => $header,
@@ -3173,57 +3171,38 @@ sub update_hosts
 	# Now add any hosts we still need.
 	my $ip_order = [];
 	my $lines    = {};
-	foreach my $host_type ("node", "dr", "striker")
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{hosts}{needed}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
-		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{trusted_host}{$host_type}})
+		my $ip_address = $anvil->data->{hosts}{needed}{$host_name}{ip_address};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address => $ip_address }});
+		
+		if (not exists $lines->{$ip_address})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
-			foreach my $network_type ("bcn", "sn", "ifn")
+			my $tab = "\t";
+			if (length($ip_address) < 8)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
-				foreach my $sequence (sort {$a cmp $b} keys %{$anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}})
-				{
-					my $ip_address = $anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address => $ip_address }});
-					
-					# Make sure this host is in the 'hosts::needed::xxx::ip_address' 
-					# hash. If we saw it already and it was OK, it was deleted from 
-					# there.
-					if (not exists $anvil->data->{hosts}{needed}{$short_host_name})
-					{
-						### NOTE: We're possibly missing short and full hostnames if 
-						###       this is BCN1, but they should all change at once. 
-						###       Maybe need to rethink this later.
-						# Already seen. 
-						next;
-					}
-					
-					# Start the line for this IP.
-					if (not exists $lines->{$ip_address})
-					{
-						$lines->{$ip_address} = $ip_address."\t";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "lines->${ip_address}" => $lines->{$ip_address} }});
-						
-						# Push the IP into the array so that we print them in the 
-						# order be first saw them.
-						push @{$ip_order}, $ip_address;
-					}
-					$lines->{$ip_address} .= $short_host_name.".".$network_type.$sequence." ";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"lines->${ip_address}" => $lines->{$ip_address},
-					}});
-				}
+				$tab = "\t\t";
 			}
+
+			$lines->{$ip_address} = $ip_address.$tab;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "lines->${ip_address}" => $lines->{$ip_address} }});
+			
+			# Push the IP into the array so that we print them in the order be first saw them.
+			push @{$ip_order}, $ip_address;
 		}
+		$lines->{$ip_address} .= $host_name." ";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lines->${ip_address}" => $lines->{$ip_address},
+		}});
 	}
 	
-	my $new_line_count = \@{$ip_order};
+	my $new_line_count = @{$ip_order};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line_count => $new_line_count }});
 	if ($new_line_count)
 	{
 		$changes = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		$new_body .= "\n# ".$anvil->Words->string({key => "message_0178", variables => { date => $anvil->Get->date_and_time({debug => $debug}) }})."\n";
 		
 		foreach my $ip_address (@{$ip_order})
 		{
@@ -3236,7 +3215,16 @@ sub update_hosts
 	{
 		# Write the new file.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
-		die;
+		my $failed = $anvil->Storage->write_file({
+			debug     => $debug,
+			overwrite => 1, 
+			file      => $anvil->data->{path}{configs}{hosts}, 
+			body      => $new_body, 
+			user      => "root", 
+			group     => "root", 
+			mode      => "0644", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 	}
 	
 	return(0);

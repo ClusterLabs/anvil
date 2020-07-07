@@ -1165,7 +1165,8 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 #       running on each host). If / when an IP address changes, the host files on all associated hosts      #
 #       should update within a minute.                                                                      #
 #############################################################################################################
-		</key>	<!-- Translation note: System->update_hosts() looks for '##] anvil-daemon [##' to know if this alert was added to /etc/hosts. As such, please retain that exact string in your translation.
+		</key>	<!-- Translation note: System->update_hosts() looks for '##] anvil-daemon [##' to know if this alert was added to /etc/hosts. As such, please retain that exact string in your translation. -->
+		<key name="message_0178">Hosts added or updated by the #!string!brand_0002!# on: [#!variable!date!#]:</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

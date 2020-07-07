@@ -24,4 +24,4 @@ print "Connecting to the database(s);\n";
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 
-$anvil->System->update_hosts({debug => 2});
+$anvil->System->update_hosts({debug => 3});
