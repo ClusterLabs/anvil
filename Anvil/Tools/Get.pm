@@ -859,7 +859,7 @@ sub host_uuid
 			return("#!error!#");
 		}
 		
-		if ($anvil->Validate->is_uuid({uuid => $uuid}))
+		if ($anvil->Validate->uuid({uuid => $uuid}))
 		{
 			$anvil->{HOST}{UUID} = $uuid;
 			if (not -e $anvil->data->{path}{data}{host_uuid})

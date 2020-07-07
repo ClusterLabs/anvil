@@ -127,7 +127,7 @@ sub activate_lv
 	
 	my $path      = defined $parameter->{path} ? $parameter->{path} : "";
 	my $activated = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		path => $path, 
 	}});
 	
@@ -144,7 +144,7 @@ sub activate_lv
 	}
 	
 	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{lvchange}." --activate y ".$path});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code, 
 	}});
@@ -154,7 +154,7 @@ sub activate_lv
 	
 	# Check if it worked.
 	$activated = $anvil->data->{lvm}{'local'}{lv}{$path}{active};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { activated => $activated }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { activated => $activated }});
 	
 	return($activated);
 }
@@ -341,7 +341,7 @@ sub call
 					if ($line =~ /^return_code:(\d+)$/)
 					{
 						$return_code = $1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { return_code => $return_code }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 					}
 					elsif ($line =~ /return_code:(\d+)$/)
 					{
@@ -351,7 +351,7 @@ sub call
 						$return_code =  $1;
 						$line        =~ s/return_code:\d+$//;
 						$output      .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							line        => $line, 
 							output      => $output, 
 							return_code => $return_code, 
@@ -360,13 +360,13 @@ sub call
 					else
 					{
 						$output .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { output => $output }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 					}
 				}
 				close $file_handle;
 				chomp($output);
 				$output =~ s/\n$//s;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { output => $output }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
 			}
 		}
 	}
@@ -429,7 +429,7 @@ sub change_shell_user_password
 	my $target       = defined $parameter->{target}       ? $parameter->{target}       : "";
 	my $user         = defined $parameter->{user}         ? $parameter->{user}         : "";
 	my $return_code  = 255;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		user         => $user, 
 		target       => $target, 
 		port         => $port, 
@@ -466,7 +466,7 @@ sub change_shell_user_password
 	# Generate a salt and then use it to create a hash.
 	(my $salt, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{openssl}." rand 1000 | ".$anvil->data->{path}{exe}{strings}." | ".$anvil->data->{path}{exe}{'grep'}." -io [0-9A-Za-z\.\/] | ".$anvil->data->{path}{exe}{head}." -n 16 | ".$anvil->data->{path}{exe}{'tr'}." -d '\\n'" });
 	my $new_hash             = crypt($new_password,"\$6\$".$salt."\$");
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		salt        => $salt, 
 		new_hash    => $new_hash, 
 		return_code => $return_code, 
@@ -1689,7 +1689,7 @@ sub find_matching_ip
 	}
 	
 	# Translate the host name to an IP address, if it isn't already an IP address.
-	if (not $anvil->Validate->is_ipv4({ip => $host}))
+	if (not $anvil->Validate->ipv4({ip => $host}))
 	{
 		# This will be '0' if it failed, and pre-validated if it returns an IP.
 		$host = $anvil->Convert->host_name_to_ip({host_name => $host});
@@ -2956,7 +2956,7 @@ sub stty_echo
 	if ($set eq "off")
 	{
 		($anvil->data->{sys}{terminal}{stty}, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." --save"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 'sys::terminal::stty' => $anvil->data->{sys}{terminal}{stty}, return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::terminal::stty' => $anvil->data->{sys}{terminal}{stty}, return_code => $return_code }});
 		$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." -echo"});
 	}
 	elsif (($set eq "on") && ($anvil->data->{sys}{terminal}{stty}))
@@ -2992,7 +2992,7 @@ sub update_hosts
 		my $short_host_name = $host_name;
 		   $short_host_name =~ s/\..*$//;
 		my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:host_name'       => $host_name,
 			's2:short_host_name' => $short_host_name, 
 			's3:host_type'       => $host_type, 
@@ -3001,7 +3001,7 @@ sub update_hosts
 		# We store this in a way that lets us later sort by type -> host_name
 		$anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_name} = $host_name;
 		$anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_uuid} = $host_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"trusted_host::${host_type}::${short_host_name}::host_name" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_name},
 			"trusted_host::${host_type}::${short_host_name}::host_uuid" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{host_uuid},
 		}});
@@ -3019,20 +3019,225 @@ sub update_hosts
 			}});
 			
 			$anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address} = $ip_address;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"trusted_host::${host_type}::${short_host_name}::network::${network_type}::${sequence}::ip_address" => $anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address},
 			}});
+			
+			# Store the hostname in an easy to lookup format, too.
+			my $store_host_name                                            = $short_host_name.".".$on_network;
+			   $anvil->data->{hosts}{needed}{$store_host_name}{ip_address} = $ip_address;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::needed::${store_host_name}::ip_address" => $anvil->data->{hosts}{needed}{$store_host_name}{ip_address},
+			}});
+			
+			# If this is BCN 1, store the full and short host names as well.
+			if ($on_network eq "bcn1")
+			{
+				# If the host name and short host name, this will be duplicate. No harm...
+				$anvil->data->{hosts}{needed}{$host_name}{ip_address}       = $ip_address;
+				$anvil->data->{hosts}{needed}{$short_host_name}{ip_address} = $ip_address;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"hosts::needed::${host_name}::ip_address"       => $anvil->data->{hosts}{needed}{$host_name}{ip_address},
+					"hosts::needed::${short_host_name}::ip_address" => $anvil->data->{hosts}{needed}{$short_host_name}{ip_address},
+				}});
+			}
 		}
 	}
-	die;
 	
 	# Read in the existing hosts file
-	my $old_body = $anvil->Storage->read_file({
+	my $add_header = 1;
+	my $changes    = 0;
+	my $new_body   = "";
+	my $old_body   = $anvil->Storage->read_file({
 		debug => $debug,
 		file  => $anvil->data->{path}{configs}{hosts},
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
 	
 	# Parse the existing 
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		# Delete everything follow a hash, then clear spaces.
+		my $line_comment = "";
+		my $line_hosts   = "";
+		if ($line =~ /^#/)
+		{
+			$new_body .= $line."\n";
+			next;
+		}
+		if ($line =~ /#(.*)$/)
+		{
+			$line_comment = $1;
+		}
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		next if not $line;
+		
+		# Now pull apart the line and store the entries.
+		my ($ip_address, $names) = ($line =~ /^(.*?)\s+(.*)$/);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:ip_address' => $ip_address,
+			's2:names'      => $names,
+		}});
+		
+		# Make sure the IP is valid.
+		my $is_ip = $anvil->Validate->ip({ip => $ip_address, debug => $debug});
+		if (not $is_ip)
+		{
+			# Log and skip.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "warning_0051", variables => { 
+				ip    => $ip_address,
+				names => $names,
+			}});
+			next;
+		}
+		
+		foreach my $name (split/\s+/, $names)
+		{
+			if ($line =~ /##] anvil-daemon \[##/)
+			{
+				$add_header = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { add_header => $add_header }});
+			}
+			
+			# Is this name one we manage? If so, has the IP changed?
+			if ((exists $anvil->data->{hosts}{needed}{$name}) && ($anvil->data->{hosts}{needed}{$name}{ip_address}))
+			{
+				my $current_ip = $anvil->data->{hosts}{needed}{$name}{ip_address};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					ip_address => $ip_address,
+					current_ip => $current_ip,
+				}});
+				if ($current_ip eq $ip_address)
+				{
+					# Matches, we don't need to deal with this name.
+					delete $anvil->data->{hosts}{needed}{$name};
+				}
+				else
+				{
+					# The IP has changed. Skip this name (which removes it from the list).
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0481", variables => { 
+						old_ip => $current_ip,
+						new_ip => $ip_address, 
+						name   => $name,
+					}});
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+					next;
+				}
+			}
+			else
+			{
+				$line_hosts .= $name." ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line_hosts => $line_hosts }});
+			}
+		}
+		
+		# If we have any names for this IP, store it.
+		if ($line_hosts)
+		{
+			my $new_line .= $ip_address." ".$line_hosts;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line => $new_line }});
+			if ($line_comment)
+			{
+				$new_line .= "\t# ".$line_comment."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line => $new_line }});
+			}
+			else
+			{
+				$new_line =~ s/\s+$//;
+				$new_line .= "\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line => $new_line }});
+			}
+			$new_body .= $new_line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+		}
+	}
+	
+	# Do we need to pre-pend the header?
+	if ($add_header)
+	{
+		# Prepend the header.
+		my $header   = $anvil->Words->string({key => "message_0177"});
+		   $new_body = $header.$new_body;
+		   $changes  = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:changes'  => $changes,
+			's2:header'   => $header,
+			's3:new_body' => $new_body,
+		}});
+	}
+	
+	# Now add any hosts we still need.
+	my $ip_order = [];
+	my $lines    = {};
+	foreach my $host_type ("node", "dr", "striker")
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{trusted_host}{$host_type}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
+			foreach my $network_type ("bcn", "sn", "ifn")
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
+				foreach my $sequence (sort {$a cmp $b} keys %{$anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}})
+				{
+					my $ip_address = $anvil->data->{trusted_host}{$host_type}{$short_host_name}{network}{$network_type}{$sequence}{ip_address};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_address => $ip_address }});
+					
+					# Make sure this host is in the 'hosts::needed::xxx::ip_address' 
+					# hash. If we saw it already and it was OK, it was deleted from 
+					# there.
+					if (not exists $anvil->data->{hosts}{needed}{$short_host_name})
+					{
+						### NOTE: We're possibly missing short and full hostnames if 
+						###       this is BCN1, but they should all change at once. 
+						###       Maybe need to rethink this later.
+						# Already seen. 
+						next;
+					}
+					
+					# Start the line for this IP.
+					if (not exists $lines->{$ip_address})
+					{
+						$lines->{$ip_address} = $ip_address."\t";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "lines->${ip_address}" => $lines->{$ip_address} }});
+						
+						# Push the IP into the array so that we print them in the 
+						# order be first saw them.
+						push @{$ip_order}, $ip_address;
+					}
+					$lines->{$ip_address} .= $short_host_name.".".$network_type.$sequence." ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"lines->${ip_address}" => $lines->{$ip_address},
+					}});
+				}
+			}
+		}
+	}
+	
+	my $new_line_count = \@{$ip_order};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line_count => $new_line_count }});
+	if ($new_line_count)
+	{
+		$changes = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		
+		foreach my $ip_address (@{$ip_order})
+		{
+			$new_body .= $lines->{$ip_address}."\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+		}
+	}
+	
+	if ($changes)
+	{
+		# Write the new file.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+		die;
+	}
 	
 	return(0);
 }

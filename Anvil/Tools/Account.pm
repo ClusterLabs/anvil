@@ -649,7 +649,7 @@ sub read_details
 	my $user_uuid = defined $parameter->{user_uuid} ? $parameter->{user_uuid} : $anvil->data->{cookie}{anvil_user_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
 	
-	if (not $anvil->Validate->is_uuid({uuid => $user_uuid}))
+	if (not $anvil->Validate->uuid({uuid => $user_uuid}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0025", variables => { uuid => $user_uuid }});
 		return(0);
@@ -937,7 +937,7 @@ sub _build_cookie_hash
 		uuid       => $uuid, 
 	}});
 	
-	if (not $anvil->Validate->is_uuid({uuid => $uuid}))
+	if (not $anvil->Validate->uuid({uuid => $uuid}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Account->_build_cookie_hash()", parameter => "uuid" }});
 		return(0, 0);

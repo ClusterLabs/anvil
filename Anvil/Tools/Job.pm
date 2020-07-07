@@ -209,7 +209,7 @@ AND
 		}
 	}
 	
-	if (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))
+	if (not $anvil->Validate->uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))
 	{
 		# It's not a UUID.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0033", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });

@@ -263,7 +263,7 @@ fi;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_body => $file_body }});
 	
 	my $host_uuid = "";
-	if ((not $file_body) or (not $anvil->Validate->is_uuid({uuid => $file_body})))
+	if ((not $file_body) or (not $anvil->Validate->uuid({uuid => $file_body})))
 	{
 		# No good, Try dmidecode.
 		my ($output, $error, $return_code) = $anvil->Remote->call({
@@ -279,7 +279,7 @@ fi;
 			error       => $error, 
 			return_code => $return_code, 
 		}});
-		if ($anvil->Validate->is_uuid({uuid => $output}))
+		if ($anvil->Validate->uuid({uuid => $output}))
 		{
 			# Got it.
 			$host_uuid = $output;
@@ -334,7 +334,7 @@ sub get_password
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0083"});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	elsif (not $anvil->Validate->is_uuid({uuid => $anvil->data->{switches}{'state-uuid'}}))
+	elsif (not $anvil->Validate->uuid({uuid => $anvil->data->{switches}{'state-uuid'}}))
 	{
 		print "connected=0\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0082", variables => {state_uuid => $anvil->data->{switches}{'state-uuid'} }});

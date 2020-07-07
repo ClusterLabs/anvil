@@ -857,7 +857,7 @@ sub connect
 	{
 		# Periodically, autovivication causes and empty key to appear.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
-		next if ((not $uuid) or (not $anvil->Validate->is_uuid({uuid => $uuid})));
+		next if ((not $uuid) or (not $anvil->Validate->uuid({uuid => $uuid})));
 		
 		if (($db_uuid) && ($db_uuid ne $uuid))
 		{
@@ -5881,7 +5881,7 @@ sub insert_or_update_jobs
 	}
 	
 	# Make sure I have the either a valid job UUID or a name
-	if ((not $anvil->Validate->is_uuid({uuid => $job_uuid})) && (not $job_name))
+	if ((not $anvil->Validate->uuid({uuid => $job_uuid})) && (not $job_name))
 	{
 		$anvil->Log->entry({source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__, level => 0, priority => "err", key => "log_0136", variables => { 
 			method   => "Database->insert_or_update_jobs()", 
@@ -6982,13 +6982,13 @@ sub insert_or_update_network_interfaces
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_name" }});
 			return("");
 		}
-		if (($network_interface_bond_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bond_uuid})))
+		if (($network_interface_bond_uuid ne 'NULL') && (not $anvil->Validate->uuid({uuid => $network_interface_bond_uuid})))
 		{
 			# Bad UUID.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bond_uuid", uuid => $network_interface_bond_uuid }});
 			return("");
 		}
-		if (($network_interface_bridge_uuid ne 'NULL') && (not $anvil->Validate->is_uuid({uuid => $network_interface_bridge_uuid})))
+		if (($network_interface_bridge_uuid ne 'NULL') && (not $anvil->Validate->uuid({uuid => $network_interface_bridge_uuid})))
 		{
 			# Bad UUID.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_network_interfaces()", parameter => "network_interface_bridge_uuid", uuid => $network_interface_bridge_uuid }});
@@ -7531,7 +7531,7 @@ sub insert_or_update_mac_to_ip
 	}
 	
 	# If the MAC isn't 12 or 17 bytes long (18 being xx:xx:xx:xx:xx:xx), or isn't a valid hex string, abort.
-	if (((length($mac_to_ip_mac_address) != 12) && (length($mac_to_ip_mac_address) != 17)) or (not $anvil->Validate->is_hex({debug => $debug, string => $mac_to_ip_mac_address, sloppy => 1})))
+	if (((length($mac_to_ip_mac_address) != 12) && (length($mac_to_ip_mac_address) != 17)) or (not $anvil->Validate->hex({debug => $debug, string => $mac_to_ip_mac_address, sloppy => 1})))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0096", variables => { mac_to_ip_mac_address => $mac_to_ip_mac_address }});
 		return("");
@@ -7740,7 +7740,7 @@ sub insert_or_update_oui
 	}
 	
 	# If the MAC isn't 6 or 8 bytes long (8 being xx:xx:xx), or isn't a valid hex string, abort.
-	if (((length($oui_mac_prefix) != 6) && (length($oui_mac_prefix) != 8)) or (not $anvil->Validate->is_hex({debug => $debug, string => $oui_mac_prefix, sloppy => 1})))
+	if (((length($oui_mac_prefix) != 6) && (length($oui_mac_prefix) != 8)) or (not $anvil->Validate->hex({debug => $debug, string => $oui_mac_prefix, sloppy => 1})))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0096", variables => { oui_mac_prefix => $oui_mac_prefix }});
 		return("");
@@ -9223,7 +9223,7 @@ sub insert_or_update_variables
 	
 	# If we have a variable UUID but not a name, read the variable name. If we don't have a UUID, see if
 	# we can find one for the given variable name.
-	if (($anvil->Validate->is_uuid({uuid => $variable_uuid})) && (not $variable_name))
+	if (($anvil->Validate->uuid({uuid => $variable_uuid})) && (not $variable_name))
 	{
 		my $query = "
 SELECT 
@@ -9880,7 +9880,7 @@ sub manage_anvil_conf
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->manage_anvil_conf()", parameter => "db_host_uuid" }});
 		return(1);
 	}
-	elsif (not $anvil->Validate->is_uuid({uuid => $db_host_uuid}))
+	elsif (not $anvil->Validate->uuid({uuid => $db_host_uuid}))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0031", variables => { db_host_uuid => $db_host_uuid }});
 		return(1);

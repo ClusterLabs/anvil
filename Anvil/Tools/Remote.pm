@@ -396,7 +396,7 @@ sub call
 	}
 	
 	# If the target is a host name, convert it to an IP.
-	if (not $anvil->Validate->is_ipv4({ip => $target}))
+	if (not $anvil->Validate->ipv4({ip => $target}))
 	{
 		my $new_target = $anvil->Convert->host_name_to_ip({host_name => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_target => $new_target }});
@@ -667,6 +667,21 @@ sub call
 			if ($line =~ /^return_code:(\d+)$/)
 			{
 				$return_code = $1;
+			}
+			elsif ($line =~ /return_code:(\d+)$/)
+			{
+				### NOTE: This should never happen given we have a newline before the echo, 
+				###       but it's here just in case.
+				# If the output of the shell call doesn't end in a newline, the return_code:X
+				# could be appended. This catches those cases and removes it.
+				$return_code =  $1;
+				$line        =~ s/return_code:\d+$//;
+				$output      .= $line."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+					line        => $line, 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
 			}
 			else
 			{

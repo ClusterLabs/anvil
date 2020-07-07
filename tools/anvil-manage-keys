@@ -369,7 +369,7 @@ sub load_job_data
 	foreach my $state_uuid (split/,/, $job_data)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
-		if ($anvil->Validate->is_uuid({uuid => $state_uuid}))
+		if ($anvil->Validate->uuid({uuid => $state_uuid}))
 		{
 			push @{$anvil->data->{state_uuids}}, $state_uuid;
 		}

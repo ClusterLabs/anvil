@@ -112,7 +112,7 @@ sub get_job_details
 	{
 		my $job_uuid = $anvil->Job->get_job_uuid({debug => 2, program => $THIS_FILE});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-		if ($anvil->Validate->is_uuid({uuid => $job_uuid}))
+		if ($anvil->Validate->uuid({uuid => $job_uuid}))
 		{
 			# Got one!
 			$anvil->data->{switches}{'job-uuid'} = $job_uuid;

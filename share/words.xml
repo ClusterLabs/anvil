@@ -897,6 +897,7 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0478">The libvirtd' daemon isn't running. Will check for and remove virsh networks set to start on boot.</key>
 		<key name="log_0479">Removing the symlink: [#!variable!symlink!#].</key>
 		<key name="log_0480">Updating the cache state file.</key>
+		<key name="log_0481">[ Note ] - The host: [#!variable!host!#] entry in /etc/hosts has changed IP from: [#!variable!old_ip!#] to: [#!variable!new_ip!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1155,6 +1156,16 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0174">Confirmed by switch, proceeding with purge of: [#!variable!host_name!#].</key>
 		<key name="message_0175">Thank you, proceeding.</key>
 		<key name="message_0176">The host: [#!variable!host_name!#] has been purged.</key>
+		<key name="message_0177">
+##] anvil-daemon [###########################################################################################
+# NOTE: The /etc/hosts file is managed by the Anvil! system. Manual additions will be retained, but         #
+#       conflicts with hosts managed by the Anvil! system will be overwritten. Specifically, all hosts      #
+#       related to Striker dashboards and, for hosts in an Anvil!, peer nodes and DR hosts will be set to   #
+#       use the IPs recorded in the Anvil! database (which themselves are recorded by the anvil-daemon      #
+#       running on each host). If / when an IP address changes, the host files on all associated hosts      #
+#       should update within a minute.                                                                      #
+#############################################################################################################
+		</key>	<!-- Translation note: System->update_hosts() looks for '##] anvil-daemon [##' to know if this alert was added to /etc/hosts. As such, please retain that exact string in your translation.
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
@@ -1632,6 +1643,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0048">[ Warning ] - The password verification was not set.</key>
 		<key name="warning_0049">[ Warning ] - The passwords do not match.</key>
 		<key name="warning_0050">[ Warning ] - The host: [#!variable!host!#] now belongs to the #!string!brand_0006!#, it can't be used here anymore.</key>
+		<key name="warning_0051">[ Warning ] - The IP address: [#!variable!ip!#] is not valid. Ignoring associated hosts: [#!variable!hosts!#].</key>
 		
 	</language>
 	<!-- 日本語 -->

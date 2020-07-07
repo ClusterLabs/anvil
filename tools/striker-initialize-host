@@ -82,7 +82,7 @@ sub set_host_name
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0061", variables => { host_name => $anvil->data->{data}{host_name} }});
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0061,!!host_name!".$anvil->data->{data}{host_name}."!!");
 	
-	if (not $anvil->Validate->is_domain_name({name => $anvil->data->{data}{host_name}}))
+	if (not $anvil->Validate->domain_name({name => $anvil->data->{data}{host_name}}))
 	{
 		# Bad host_name.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0062", variables => { host_name => $anvil->data->{data}{host_name} }});
@@ -163,7 +163,7 @@ sub add_databases
 			interface => $interface, 
 			local_ip  => $local_ip,
 		}});
-		if (($local_ip) && ($anvil->Validate->is_ipv4({ip => $local_ip})))
+		if (($local_ip) && ($anvil->Validate->ipv4({ip => $local_ip})))
 		{
 			$db_host     = $local_ip;
 			$db_port     = $anvil->data->{database}{$host_uuid}{port};

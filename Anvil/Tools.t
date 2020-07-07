@@ -517,20 +517,20 @@ unlink $test_template_file;
 
 ### Anvil::Tools::Validate tests
 # is_ipv4
-is($anvil->Validate->is_ipv4({ip => "0.0.0.0"}), "1", "Verifying that 'Validate->is_ipv4' recognizes '0.0.0.0' as a valid IP address.");
-is($anvil->Validate->is_ipv4({ip => "255.255.255.255"}), "1", "Verifying that 'Validate->is_ipv4' recognizes '255.255.255.255' as a valid IP address.");
-is($anvil->Validate->is_ipv4({ip => "256.255.255.255"}), "0", "Verifying that 'Validate->is_ipv4' recognizes '256.255.255.255' as an invalid IP address.");
-is($anvil->Validate->is_ipv4({ip => "alteeve.com"}), "0", "Verifying that 'Validate->is_ipv4' recognizes 'alteeve.com' as an invalid IP address.");
-is($anvil->Validate->is_ipv4({ip => "::1"}), "0", "Verifying that 'Validate->is_ipv4' recognizes '::1' as an invalid IP address.");
+is($anvil->Validate->ipv4({ip => "0.0.0.0"}), "1", "Verifying that 'Validate->ipv4' recognizes '0.0.0.0' as a valid IP address.");
+is($anvil->Validate->ipv4({ip => "255.255.255.255"}), "1", "Verifying that 'Validate->ipv4' recognizes '255.255.255.255' as a valid IP address.");
+is($anvil->Validate->ipv4({ip => "256.255.255.255"}), "0", "Verifying that 'Validate->ipv4' recognizes '256.255.255.255' as an invalid IP address.");
+is($anvil->Validate->ipv4({ip => "alteeve.com"}), "0", "Verifying that 'Validate->ipv4' recognizes 'alteeve.com' as an invalid IP address.");
+is($anvil->Validate->ipv4({ip => "::1"}), "0", "Verifying that 'Validate->ipv4' recognizes '::1' as an invalid IP address.");
 my $test_uuid = $anvil->Get->uuid;
-is($anvil->Validate->is_uuid({uuid => $test_uuid}), "1", "Verifying that 'Validate->is_uuid' recognized: [".$test_uuid."] as a valid UUID.");
+is($anvil->Validate->uuid({uuid => $test_uuid}), "1", "Verifying that 'Validate->uuid' recognized: [".$test_uuid."] as a valid UUID.");
 my $bad_uuid_1 =  $test_uuid;
    $bad_uuid_1 =~ s/-//g;
-is($anvil->Validate->is_uuid({uuid => $bad_uuid_1}), "0", "Verifying that 'Validate->is_uuid' recognized: [".$bad_uuid_1."] as an invalid UUID.");
+is($anvil->Validate->uuid({uuid => $bad_uuid_1}), "0", "Verifying that 'Validate->uuid' recognized: [".$bad_uuid_1."] as an invalid UUID.");
 my $bad_uuid_2 = uc($test_uuid);
-is($anvil->Validate->is_uuid({uuid => $bad_uuid_2}), "0", "Verifying that 'Validate->is_uuid' recognized: [".$bad_uuid_2."] as an invalid UUID.");
+is($anvil->Validate->uuid({uuid => $bad_uuid_2}), "0", "Verifying that 'Validate->uuid' recognized: [".$bad_uuid_2."] as an invalid UUID.");
 my $bad_uuid_3 = $test_uuid."toolong";
-is($anvil->Validate->is_uuid({uuid => $bad_uuid_3}), "0", "Verifying that 'Validate->is_uuid' recognized: [".$bad_uuid_3."] as an invalid UUID.");
+is($anvil->Validate->uuid({uuid => $bad_uuid_3}), "0", "Verifying that 'Validate->uuid' recognized: [".$bad_uuid_3."] as an invalid UUID.");
 
 ### Anvil::Tools::Words tests
 # clean_spaces

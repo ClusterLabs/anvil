@@ -565,7 +565,7 @@ sub cidr
 		elsif ($cidr eq "31") { $output = "255.255.255.254"; }
 		elsif ($cidr eq "32") { $output = "255.255.255.255"; }
 	}
-	elsif ($anvil->Validate->is_ipv4({ip => $subnet_mask}))
+	elsif ($anvil->Validate->ipv4({ip => $subnet_mask}))
 	{
 		if    ($subnet_mask eq "0.0.0.0" )         { $output = "0"; }
 		elsif ($subnet_mask eq "128.0.0.0" )       { $output = "1"; }
@@ -642,7 +642,7 @@ sub host_name_to_ip
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($anvil->Validate->is_ipv4({ip => $line}))
+		if ($anvil->Validate->ipv4({ip => $line}))
 		{
 			$ip = $line;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
