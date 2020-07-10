@@ -41,6 +41,7 @@ binmode(STDOUT, ':encoding(utf-8)');
 # methods via their containing module's name. (A La: C<< $anvil->Module->method >> rather than C<< $anvil->method >>).
 use Anvil::Tools::Account;
 use Anvil::Tools::Alert;
+use Anvil::Tools::Cluster;
 use Anvil::Tools::Convert;
 use Anvil::Tools::Database;
 use Anvil::Tools::DRBD;
@@ -123,6 +124,7 @@ sub new
 		HANDLE				=>	{
 			ACCOUNT				=>	Anvil::Tools::Account->new(),
 			ALERT				=>	Anvil::Tools::Alert->new(),
+			CLUSTER				=>	Anvil::Tools::Cluster->new(),
 			CONVERT				=>	Anvil::Tools::Convert->new(),
 			DATABASE			=>	Anvil::Tools::Database->new(),
 			DRBD				=>	Anvil::Tools::DRBD->new(),
@@ -165,6 +167,7 @@ sub new
 	# Get a handle on the various submodules
 	$anvil->Account->parent($anvil);
 	$anvil->Alert->parent($anvil);
+	$anvil->Cluster->parent($anvil);
 	$anvil->Convert->parent($anvil);
 	$anvil->Database->parent($anvil);
 	$anvil->DRBD->parent($anvil);
@@ -467,6 +470,18 @@ sub Alert
 	my $self = shift;
 	
 	return ($self->{HANDLE}{ALERT});
+}
+
+=head2 Cluster
+
+Access the C<Cluster.pm> methods via 'C<< $anvil->Cluster->method >>'.
+
+=cut
+sub Cluster
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{CLUSTER});
 }
 
 =head2 Convert
@@ -1056,6 +1071,7 @@ sub _set_paths
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
+				'corosync.conf'			=>	"/etc/corosync/corosync.conf",
 				'dhcpd.conf'			=>	"/etc/dhcp/dhcpd.conf",
 				'dnf.conf'			=>	"/etc/dnf/dnf.conf",
 				'firewalld.conf'		=>	"/etc/firewalld/firewalld.conf",
@@ -1175,6 +1191,7 @@ sub _set_paths
 				nmcli				=>	"/bin/nmcli",
 				openssl				=>	"/usr/bin/openssl", 
 				passwd				=>	"/usr/bin/passwd",
+				pcs				=>	"/usr/sbin/pcs",
 				ping				=>	"/usr/bin/ping",
 				pgrep				=>	"/usr/bin/pgrep",
 				ps				=>	"/usr/bin/ps",

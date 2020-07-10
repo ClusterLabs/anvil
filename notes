@@ -253,11 +253,9 @@ systemctl enable pcsd.service
 systemctl disable libvirtd.service
 systemctl stop libvirtd.service
 ==== One node
-pcs cluster auth el8-a01n01 el8-a01n02
-# Username: hacluster
-# Password: 
+pcs host auth el8-a01n01 el8-a01n02 -u hacluster -p "secret"
 
-pcs cluster setup --name m3-anvil-01 m3-a01n01 m3-a01n02
+pcs cluster setup m3-anvil-01 m3-a01n01 m3-a01n02
 pcs cluster start --all
 pcs stonith create virsh_node1 fence_virsh pcmk_host_list="m3-a01n01" ipaddr="192.168.122.1" passwd="secret" login="root" delay="15" port="m3-a01n01" op monitor interval="60"
 pcs stonith create virsh_node2 fence_virsh pcmk_host_list="m3-a01n02" ipaddr="192.168.122.1" passwd="secret" login="root" port="m3-a01n02" op monitor interval="60"

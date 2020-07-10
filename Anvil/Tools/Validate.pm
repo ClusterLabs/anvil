@@ -178,7 +178,7 @@ sub domain_name
 		### TODO: Add a 'strict' parameter to control this) and/or support domain_private_tld
 		my %options = (domain_allow_underscore => 1, domain_disable_tld_validation => 1);
 		my $dvd     = Data::Validate::Domain->new(%options);
-		my $test    = $dvd->domain($name);
+		my $test    = $dvd->is_domain($name);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test => $test }});
 		if (not $test)
 		{

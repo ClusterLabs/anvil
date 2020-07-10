@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use String::ShellQuote;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -24,4 +25,4 @@ print "Connecting to the database(s);\n";
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 
-$anvil->System->update_hosts({debug => 3});
+$anvil->System->parse_corosync_conf({debug => 2});

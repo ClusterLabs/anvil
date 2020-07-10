@@ -11,12 +11,14 @@
 # 5 = Problem parsing job data or loading manifest or anvil data using job data.
 # 
 # TODO: 
-#
+# - 
+# 
 
 use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use String::ShellQuote;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -72,17 +74,37 @@ sub configure_pacemaker
 	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
 	
 	### TODO: Move these to variables in the 'sys' hash
-	my $anvil_name   = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
-	my $anvil_uuid   = $anvil->data->{sys}{anvil_uuid};
-	my $host_name    = $anvil->data->{sys}{host_name};
-	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $anvil_name       =  $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
+	my $anvil_uuid       =  $anvil->data->{sys}{anvil_uuid};
+	my $host_name        =  $anvil->data->{sys}{host_name};
+	my $new_password     =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $node1_host_uuid  =  $anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node1_host_name  =  $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
+	   $node1_host_name  =~ s/\..*$//;
+	my $node2_host_uuid  =  $anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $node2_host_name  =  $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+	   $node2_host_name  =~ s/\..*$//;
+	my $peer_host_name   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_name : $node1_host_name;
+	my $peer_host_uuid   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	my $escaped_password =  shell_quote($new_password);
+	my $auth_shell_call  =  $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:machine'       => $machine, 
-		's1:anvil_name'    => $anvil_name, 
-		's3:host_name'     => $host_name, 
-		's4:manifest_uuid' => $manifest_uuid,
-		's5:anvil_uuid'    => $anvil_uuid, 
-		's6:new_password'  => $anvil->Log->is_secure($new_password), 
+	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		machine          => $machine, 
+		anvil_uuid       => $anvil_uuid, 
+		anvil_name       => $anvil_name, 
+		host_name        => $host_name, 
+		manifest_uuid    => $manifest_uuid,
+		node1_host_uuid  => $node1_host_uuid, 
+		node1_host_name  => $node1_host_name, 
+		node2_host_uuid  => $node2_host_uuid, 
+		node2_host_name  => $node2_host_name, 
+		peer_host_name   => $peer_host_name, 
+		peer_host_uuid   => $peer_host_uuid, 
+		new_password     => $anvil->Log->is_secure($new_password), 
+		escaped_password => $anvil->Log->is_secure($escaped_password),
+		auth_shell_call  => $anvil->Log->is_secure($auth_shell_call),
 	}});
 	
 	# If this is a DR box, we don't use pacemaker.
@@ -126,14 +148,134 @@ sub configure_pacemaker
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!libvirtd!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0095", variables => { daemon => "libvirtd" }});
 	
+	# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, we'll initialize the
+	# cluster shortly.
+	if (not -e $anvil->data->{path}{configs}{'corosync.conf'})
+	{
+		my $cluster_conf = $anvil->Storeage->read_file({
+			file   => $anvil->data->{path}{configs}{'corosync.conf'},
+			target => $peer_host_name,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_conf => $cluster_conf }});
+		if ($cluster_conf ne "!!error!!")
+		{
+			# Write the file out.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0100"});
+			$anvil->Storage->write_file({
+				body  => $cluster_conf,
+				file  => $anvil->data->{path}{configs}{'corosync.conf'}, 
+				user  => "root",
+				group => "root",
+				mode  => "0644",
+			});
+		}
+	}
+	
 	### Run on node 1 only.
 	if ($machine eq "node2")
 	{
-		# We loop until the peer finishes.
+		# We loop until the peer finishes or the peer's job hit's 100.
 	}
 	else
 	{
 		# Proceed with cluster setup.
+		
+		my $waiting         = 1;
+		my $warning_printed = 0;
+		while($waiting)
+		{
+			my ($output, $return_code) = $anvil->System->call({debug => 3, secure => 1, shell_call => $auth_shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			if ($return_code)
+			{
+				# Something went wrong. 
+				if (not $warning_printed)
+				{
+					# Update the job
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0097");
+					$warning_printed = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { warning_printed => $warning_printed }});
+				}
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0097"});
+				sleep 5;
+			}
+			else
+			{
+				# We're good.
+				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0098");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0098"});
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
+		}
+		
+		# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, initialize 
+		# the cluster.
+		if (not -e $anvil->data->{path}{configs}{'corosync.conf'})
+		{
+			# There's no cluster yet, initialize it.
+			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0099,!!anvil_name!".$anvil_name."!!");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0099", variables => { anvil_name => $anvil_name }});
+			
+			my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster setup ".$anvil_name." ".$node1_host_name." ".$node2_host_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			if ($return_code)
+			{
+				# Something went wrong
+				update_progress($anvil, 100, "job_0101,!!error!".$output."!!");
+				sleep 2;
+				$anvil->nice_exit({exit_code => 5});
+			}
+		}
+		
+		# Now, if we can read the CIB, see where the setup is. If not, start by setting up the 
+		# cluster.
+		my $cib_data        = "";
+		my $cluster_started = 0;
+		until ($cib_data)
+		{
+			my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { shell_call => $shell_call }});
+			
+			($cib_data, my $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+				cib_data    => $cib_data,
+				return_code => $return_code, 
+			}});
+			if ($return_code)
+			{
+				if (not $cluster_started)
+				{
+					# Start the cluster.
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0102");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0102"});
+					
+					   $cluster_started = 1;
+					my $shell_call      = $anvil->data->{path}{exe}{pcs}." cluster start --all";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+						cluster_started => $cluster_started, 
+						shell_call      => $shell_call,
+					}});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
+			}
+			die;
+		}
+		die;
 	}
 =cut
 $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
@@ -896,7 +1038,7 @@ sub check_local_network
 		{
 			# It's fine
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0087,!!interface!".$in_iface."!!,!!mtu!".$mtu."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0087", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0087", variables => { 
 				interface => $in_iface,
 				mtu       => $mtu,
 			}});
@@ -1037,7 +1179,10 @@ sub check_local_network
 	
 	### TODO: Do we really need passwordless SSH anymore?
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
-	$anvil->System->check_ssh_keys({debug => 2});
+	$anvil->System->check_ssh_keys({debug => 3});
+	
+	# Update the hosts file.
+	$anvil->System->update_hosts({debug => 3});
 	
 	# Setup IPMI, if needed.
 	### TODO: Do this when on real hardware

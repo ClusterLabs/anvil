@@ -336,6 +336,12 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0094">Enabled and started the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0095">Disable and stop the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0096">This is a DR host, skipping pacemaker configuration.</key>
+		<key name="job_0097"><![CDATA[[ Error ] - Authorizing against 'pcsd' failed. Will try again in a moment in case we're waiting for the peer node to set its 'hacluster' shell user password.]]></key>
+		<key name="job_0098">Successfully authorized using 'pcsd' on both nodes.</key>
+		<key name="job_0099">No existing cluster found, will run initial setup.</key>
+		<key name="job_0100">The corosync.conf file does not exist locally, but it does exist on the peer. Copying the file to here.</key>
+		<key name="job_0101"><![CDATA[[ Error ] - Something went wrong while trying to initialize the cluster. The error, if any, was: [#!variable!error!#].]]></key>
+		<key name="job_0102">Starting the cluster now...</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

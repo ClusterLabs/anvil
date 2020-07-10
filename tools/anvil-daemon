@@ -362,6 +362,8 @@ sub handle_periodic_tasks
 		# Check that the users we care about have ssh public keys and they're recorded in ssh_keys.
 		$anvil->System->check_ssh_keys({debug => 3});
 		
+		$anvil->System->update_hosts({debug => 3});
+		
 		# Check if the files on disk have changed. Even if it is time to check, don't if a job is 
 		# running.
 		if ((not $anvil->data->{timing}{jobs_running}) && ($anvil->Storage->check_md5sums))
@@ -480,122 +482,6 @@ sub handle_periodic_tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"s1:timing::daily_checks"     => $anvil->data->{timing}{daily_checks},
 			"s2:timing::next_daily_check" => $anvil->data->{timing}{next_daily_check}, 
-		}});
-	}
-	
-	return(0);
-}
-
-# Get a list of machine host keys and user public keys from other machines.
-sub get_other_keys
-{
-	my ($anvil) = @_;
-	
-	delete $anvil->data->{peers}{ssh_keys};
-	
-	# Get the machine keys for other hosts.
-	my $query = "
-SELECT 
-   host_uuid, 
-   host_name, 
-   host_key 
-FROM 
-   hosts 
-WHERE 
-   host_uuid != ".$anvil->Database->quote($anvil->Get->host_uuid)."
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	
-	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	my $count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	foreach my $row (@{$results})
-	{
-		my $host_uuid = $row->[0];
-		my $host_name = $row->[1];
-		my $host_key  = $row->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			host_uuid => $host_uuid,
-			host_name => $host_name, 
-			host_key  => $host_key, 
-		}});
-		
-		$anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$host_name} = $host_key;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			"peers::ssh_keys::${host_uuid}::host::${host_name}" => $anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$host_name}, 
-		}});
-		
-		# If the host name is the long host name, create another entry with the short name.
-		if ($host_name =~ /^(.*?)\./)
-		{
-			my $short_host_name = $1;
-			$anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$short_host_name} = $host_key;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"peers::ssh_keys::${host_uuid}::host::${short_host_name}" => $anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$short_host_name}, 
-			}});
-		}
-		
-		# Find any IP addresses for this host.
-		my $query = "SELECT ip_address_address FROM ip_addresses WHERE ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)." AND ip_address_note != 'DELETED';";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			results => $results, 
-			count   => $count, 
-		}});
-		foreach my $row (@{$results})
-		{
-			my $ip_address_address = $row->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				ip_address_address => $ip_address_address,
-			}});
-			
-			$anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$ip_address_address} = $host_key;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"peers::ssh_keys::${host_uuid}::host::${ip_address_address}" => $anvil->data->{peers}{ssh_keys}{$host_uuid}{host}{$ip_address_address}, 
-			}});
-		}
-		
-	}
-	
-	# Now read in the public key for other users on other machines.
-	$query = "
-SELECT 
-    ssh_key_host_uuid, 
-    ssh_key_user_name, 
-    ssh_key_public_key 
-FROM 
-    ssh_keys 
-WHERE 
-    ssh_key_host_uuid != ".$anvil->Database->quote($anvil->Get->host_uuid)."
-;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
-	
-	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-	$count   = @{$results};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		results => $results, 
-		count   => $count, 
-	}});
-	foreach my $row (@{$results})
-	{
-		my $ssh_key_host_uuid  = $row->[0];
-		my $ssh_key_user_name  = $row->[1];
-		my $ssh_key_public_key = $row->[2];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			ssh_key_host_uuid  => $ssh_key_host_uuid,
-			ssh_key_user_name  => $ssh_key_user_name, 
-			ssh_key_public_key => $ssh_key_public_key, 
-		}});
-		
-		$anvil->data->{peers}{ssh_keys}{$ssh_key_host_uuid}{user}{$ssh_key_user_name} = $ssh_key_public_key;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			"peers::ssh_keys::${ssh_key_host_uuid}::user::${ssh_key_user_name}" => $anvil->data->{peers}{ssh_keys}{$ssh_key_host_uuid}{user}{$ssh_key_user_name}, 
 		}});
 	}
 	
