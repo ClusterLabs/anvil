@@ -122,41 +122,82 @@ sub parse_cib
 			# Successful parse!
 			$problem = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+			foreach my $clone ($dom->findnodes('/cib/configuration/resources/clone'))
+			{
+				my $clone_id = $clone->{id};
+				foreach my $primitive ($clone->findnodes('./primitive'))
+				{
+					my $primitive_id = $primitive->{id};
+					$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{class} = $primitive->{class};
+					$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{type}  = $primitive->{type};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						"cib::parsed::cib::resources::clone::${clone_id}::primitive::${primitive_id}::class" => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{class}, 
+						"cib::parsed::cib::resources::clone::${clone_id}::primitive::${primitive_id}::type"  => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{primitive}{$primitive_id}{type}, 
+					}});
+					foreach my $op ($primitive->findnodes('./operations/op'))
+					{
+						my $op_id = $op->{id};
+						foreach my $variable (sort {$a cmp $b} keys %{$op})
+						{
+							next if $variable eq "id";
+							$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{operations}{$op_id}{$variable} = $op->{$variable};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+								"cib::parsed::cib::resources::clone::${clone_id}::operations::${op_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{operations}{$op_id}{$variable}, 
+							}});
+						}
+					}
+				}
+				foreach my $meta_attributes ($clone->findnodes('./meta_attributes'))
+				{
+					my $meta_attributes_id = $meta_attributes->{id};
+					foreach my $nvpair ($meta_attributes->findnodes('./nvpair'))
+					{
+						my $id = $nvpair->{id};
+						foreach my $variable (sort {$a cmp $b} keys %{$nvpair})
+						{
+							next if $variable eq "id";
+							$anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{meta_attributes}{$id}{$variable} = $nvpair->{$variable};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+								"cib::parsed::cib::resources::clone::${clone_id}::meta_attributes::${id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{clone}{$clone_id}{meta_attributes}{$id}{$variable}, 
+							}});
+						}
+					}
+				}
+			}
 			foreach my $primitive ($dom->findnodes('/cib/configuration/resources/primitive'))
 			{
-				my $class                                                                    = $primitive->{class};
-				my $id                                                                       = $primitive->{id};
-				my $type                                                                     = $primitive->{type};
-				   $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$class}{$id}{type} = $type;
+				my $id                                                                = $primitive->{id};
+				   $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}  = $primitive->{type};
+				   $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class} = $primitive->{class};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-					"cib::parsed::cib::resources::primitive:${class}::${id}::type" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$class}{$id}{type}, 
+					"cib::parsed::cib::resources::primitive:${id}::type"  => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}, 
+					"cib::parsed::cib::resources::primitive:${id}::class" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class}, 
 				}});
 				foreach my $nvpair ($primitive->findnodes('./instance_attributes/nvpair'))
 				{
-					my $name = $nvpair->{name};
+					my $nvpair_id = $nvpair->{id};
 					foreach my $variable (sort {$a cmp $b} keys %{$nvpair})
 					{
-						next if $variable eq "name";
-						$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$class}{$id}{instance_attributes}{$name}{$variable} = $nvpair->{$variable};;
+						next if $variable eq "id";
+						$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{instance_attributes}{$nvpair_id}{$variable} = $nvpair->{$variable};;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-							"cib::parsed::cib::resources::primitive::${class}::${id}::instance_attributes::${name}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$class}{$id}{instance_attributes}{$name}{$variable}, 
+							"cib::parsed::cib::resources::primitive::${id}::instance_attributes::${nvpair_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{instance_attributes}{$nvpair_id}{$variable}, 
 						}});
 					}
 				}
 				foreach my $nvpair ($primitive->findnodes('./operations/op'))
 				{
-					my $id = $nvpair->{id};
+					my $nvpair_id = $nvpair->{id};
 					foreach my $variable (sort {$a cmp $b} keys %{$nvpair})
 					{
 						next if $variable eq "id";
-						$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$class}{$id}{operations}{op}{$id}{$variable} = $nvpair->{$variable};;
+						$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{operations}{op}{$nvpair_id}{$variable} = $nvpair->{$variable};;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-							"cib::parsed::cib::resources::primitive::${class}::${id}::operations::op::${id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$class}{$id}{operations}{op}{$id}{$variable}, 
+							"cib::parsed::cib::resources::primitive::${id}::operations::op::${nvpair_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{operations}{op}{$nvpair_id}{$variable}, 
 						}});
 					}
 				}
 			}
-			die;
 			foreach my $attribute ($dom->findnodes('/cib'))
 			{
 				foreach my $variable (sort {$a cmp $b} keys %{$attribute})
@@ -169,35 +210,41 @@ sub parse_cib
 			}
 			foreach my $nvpair ($dom->findnodes('/cib/configuration/crm_config/cluster_property_set/nvpair'))
 			{
-				my $name                                                                                              = $nvpair->{name};
-				   $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$name}{id}    = $nvpair->{id};
-				   $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$name}{value} = $nvpair->{value};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-					"cib::parsed::configuration::crm_config::cluster_property_set::nvpair::${name}::id"    => $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$name}{id}, 
-					"cib::parsed::configuration::crm_config::cluster_property_set::nvpair::${name}::value" => $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$name}{value}, 
-				}});
-			}
-			foreach my $node ($dom->findnodes('/cib/configuration/nodes/node'))
-			{
-				my $uname                                                        = $node->{uname};
-				   $anvil->data->{cib}{parsed}{configuration}{nodes}{$uname}{id} = $node->{id};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-					"cib::parsed::configuration::nodes::${uname}::id" => $anvil->data->{cib}{parsed}{configuration}{nodes}{$uname}{id}, 
-				}});
-			}
-			# Status isn't available until the cluster has been up for a bit.
-			foreach my $node_state ($dom->findnodes('/cib/status/node_state'))
-			{
-				my $uname = $node_state->{uname};
-				foreach my $variable (sort {$a cmp $b} keys %{$node_state})
+				my $nvpair_id = $nvpair->{id};
+				foreach my $variable (sort {$a cmp $b} keys %{$nvpair})
 				{
-					next if $variable eq "uname";
-					$anvil->data->{cib}{parsed}{cib}{node_state}{$uname}{$variable} = $node_state->{$variable};;
+					next if $variable eq "id";
+					$anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{$variable} = $nvpair->{$variable};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-						"cib::parsed::cib::node_state::${uname}::${variable}" => $anvil->data->{cib}{parsed}{cib}{node_state}{$uname}{$variable}, 
+						"cib::parsed::configuration::crm_config::cluster_property_set::nvpair::${nvpair_id}::${variable}" => $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{$variable}, 
 					}});
 				}
 			}
+			foreach my $node ($dom->findnodes('/cib/configuration/nodes/node'))
+			{
+				my $node_id = $node->{id};
+				foreach my $variable (sort {$a cmp $b} keys %{$node})
+				{
+					next if $variable eq "id";
+					$anvil->data->{cib}{parsed}{configuration}{nodes}{$node_id}{$variable} = $node->{$variable};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						"cib::parsed::configuration::nodes::${node_id}::${variable}" => $anvil->data->{cib}{parsed}{configuration}{nodes}{$node_id}{$variable}, 
+					}});
+				}
+			}
+			foreach my $node_state ($dom->findnodes('/cib/status/node_state'))
+			{
+				my $id = $node_state->{id};
+				foreach my $variable (sort {$a cmp $b} keys %{$node_state})
+				{
+					next if $variable eq "id";
+					$anvil->data->{cib}{parsed}{cib}{node_state}{$id}{$variable} = $node_state->{$variable};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						"cib::parsed::cib::node_state::${id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{node_state}{$id}{$variable}, 
+					}});
+				}
+			}
+			die;
 		}
 	}
 	
