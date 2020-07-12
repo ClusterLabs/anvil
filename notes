@@ -255,10 +255,10 @@ systemctl stop libvirtd.service
 ==== One node
 pcs host auth el8-a01n01 el8-a01n02 -u hacluster -p "secret"
 
-pcs cluster setup m3-anvil-01 m3-a01n01 m3-a01n02
+pcs cluster setup m3-anvil-01 el8-a01n01 el8-a01n02
 pcs cluster start --all
-pcs stonith create virsh_node1 fence_virsh pcmk_host_list="m3-a01n01" ipaddr="192.168.122.1" passwd="secret" login="root" delay="15" port="m3-a01n01" op monitor interval="60"
-pcs stonith create virsh_node2 fence_virsh pcmk_host_list="m3-a01n02" ipaddr="192.168.122.1" passwd="secret" login="root" port="m3-a01n02" op monitor interval="60"
+pcs stonith create virsh_node1 fence_virsh pcmk_host_list="el8-a01n01" ipaddr="192.168.122.1" passwd="secret" login="root" delay="15" port="el8-a01n01" op monitor interval="60"
+pcs stonith create virsh_node2 fence_virsh pcmk_host_list="el8-a01n02" ipaddr="192.168.122.1" passwd="secret" login="root" port="el8-a01n02" op monitor interval="60"
 pcs property set stonith-enabled=true
 
 pcs resource create hypervisor systemd:libvirtd op monitor interval=60
@@ -271,7 +271,7 @@ pcs resource create test_server ocf:alteeve:server name="test_server" meta allow
 pcs resource update test_server ocf:alteeve:server name="test_server" meta allow-migrate="true" op monitor interval="60"
 
 # Test
-stonith_admin --fence m3-a01n02 --verbose; crm_error $?
+stonith_admin --fence el8-a01n02 --verbose; crm_error $?
 
 
 ==== DRBD notes
@@ -302,16 +302,16 @@ firewall-cmd --reload
 * Provision the server via virt-install
 * push the new XML to striker such that the peer's anvil daemon picks it up and writes it out.
 
-[root@m3-a01n01 drbd.d]# drbdsetup status r0 --verbose --statistics
+[root@el8-a01n01 drbd.d]# drbdsetup status r0 --verbose --statistics
 r0 node-id:1 role:Primary suspended:no
     write-ordering:flush
   volume:0 minor:0 disk:UpToDate quorum:yes
       size:10485404 read:9682852 written:0 al-writes:0 bm-writes:0 upper-pending:0 lower-pending:0 al-suspended:no blocked:no
-  m3-a01n02.alteeve.com node-id:0 connection:Connected role:Secondary congested:no
+  el8-a01n02.alteeve.com node-id:0 connection:Connected role:Secondary congested:no
     volume:0 replication:SyncSource peer-disk:Inconsistent done:92.29 resync-suspended:no
         received:0 sent:9679140 out-of-sync:808144 pending:6 unacked:3
 
-[root@m3-a01n02 ~]# cat /sys/kernel/debug/drbd/resources/r0/connections/m3-a01n01.alteeve.com/0/proc_drbd 
+[root@el8-a01n02 ~]# cat /sys/kernel/debug/drbd/resources/r0/connections/el8-a01n01.alteeve.com/0/proc_drbd 
  0: cs:SyncSource ro:Primary/Secondary ds:UpToDate/Inconsistent C r-----
     ns:24360 nr:10485404 dw:10485404 dr:25420 al:0 bm:0 lo:0 pe:[0;0] ua:0 ap:[0;0] ep:1 wo:2 oos:10461044
 	[>....................] sync'ed:  0.3% (10212/10236)M
@@ -321,12 +321,12 @@ r0 node-id:1 role:Primary suspended:no
 	act_log: used:0/1237 hits:0 misses:0 starving:0 locked:0 changed:0
 	blocked on activity log: 0
 
-[root@m3-a01n02 ~]# drbdadm primary r0
+[root@el8-a01n02 ~]# drbdadm primary r0
 r0: State change failed: (-1) Multiple primaries not allowed by config
 Command 'drbdsetup primary r0' terminated with exit code 11
 
-[root@m3-a01n02 ~]# drbdadm net-options --allow-two-primaries=yes r0
-[root@m3-a01n02 ~]# drbdadm net-options --allow-two-primaries=no r0
+[root@el8-a01n02 ~]# drbdadm net-options --allow-two-primaries=yes r0
+[root@el8-a01n02 ~]# drbdadm net-options --allow-two-primaries=no r0
 
 drbdsetup show all
 drbdsetup show all --show-defaults

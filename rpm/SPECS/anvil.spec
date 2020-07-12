@@ -64,6 +64,7 @@ Requires:       perl-Sys-Syslog
 Requires:       perl-Text-Diff
 Requires:       perl-Time-HiRes
 Requires:       perl-UUID-Tiny
+Requires:       perl-XML-LibXML 
 Requires:       perl-XML-Simple 
 Requires:       postfix
 Requires:       postgresql-contrib 

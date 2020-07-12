@@ -5,7 +5,7 @@
 # 1 == Host UUID not available yet.
 # 
 # TODO: 
-# * Switch out XML::Simple to XML::Twig or libXML
+# * Switch out XML::Simple to XML::Twig or libXML - Started in Cluster->parse_cib();
 #   - 15:05 < perlbot> XML::Simple commits the fatal flaw of trying to massage complicated and often 
 #                      irregular XML into the simple and highly regular world of perl data structures. 
 #                      Irregularities cause "not a hashref" sort of errors in your program. Use a real 

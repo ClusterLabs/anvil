@@ -1008,7 +1008,7 @@ NOTE: Please be patient!
 		<key name="message_0078">Output: [#!variable!line!#].</key>
 		<key name="message_0079">Error:  [#!variable!line!#].</key>
 		<!-- The strings below are used in the 'default' PXE menu. Entries used as option labels use '^' to indicate the hotkey, and must be unique in a given menu. -->
-		<key name="message_0080">#!string!brand_0006!# - Install Target Menu</key>
+		<key name="message_0080">#!string!brand_0002!# - Install Target Menu</key>
 		<key name="message_0081">Will boot the next device as configured in your BIOS in # second{,s}.</key>
 		<key name="message_0082"><![CDATA[Press the <tab> key to edit the boot parameters of the highlighted option.]]></key>
 		<key name="message_0083">Editing of this option is disabled.</key>
@@ -1651,6 +1651,18 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0049">[ Warning ] - The passwords do not match.</key>
 		<key name="warning_0050">[ Warning ] - The host: [#!variable!host!#] now belongs to the #!string!brand_0006!#, it can't be used here anymore.</key>
 		<key name="warning_0051">[ Warning ] - The IP address: [#!variable!ip!#] is not valid. Ignoring associated hosts: [#!variable!hosts!#].</key>
+		<key name="warning_0052">[ Warning ] - Failed to read the CIB. Is 'pcsd' running and is the cluster started?</key>
+		<key name="warning_0053">[ Warning ] - Failed to parse the CIB. The CIB read was:
+========
+#!variable!cib!#
+========
+
+The error was:
+
+========
+#!variable!error!#
+========
+		</key>
 		
 	</language>
 	<!-- 日本語 -->
