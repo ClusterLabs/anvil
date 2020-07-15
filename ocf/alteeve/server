@@ -35,7 +35,7 @@
 #   - Pacemaker interprets this exit code as a soft error. 
 #     
 # 2 - OCF_ERR_ARGS
-#   - The resource’s configuration is not valid on this machine. This can happen if the serve fails to boot
+#   - The resource’s configuration is not valid on this machine. This can happen if the server fails to boot
 #     because of a missing bridge, for example.
 #    
 # 3 - OCF_ERR_UNIMPLEMENTED
@@ -268,6 +268,285 @@ $anvil->nice_exit({exit_code => 255});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This will either verify that 'libvirtd' and 'drbd' are running (and start them if not) is called with
+# "start". If called with "stop", a check is made on both nodes. If all VMs are gone, "libvirtd" and "drbd"
+# are stopped.
+sub check_services
+{
+	my ($anvil, $task) = @_;
+	
+	my $problem = $anvil->Cluster->parse_cib();
+	if ($problem)
+	{
+		# Pacemaker isn't running, or some other problem. Someone must have called this script 
+		# directly or something.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0133"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Is the peer running? We'll use this to know whether to try and start daemons on the peer.
+	my $peer_name  = $anvil->Cluster->get_peers();
+	my $peer_ready = $anvil->data->{cib}{parsed}{peer}{ready};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		peer_name  => $peer_name,
+		peer_ready => $peer_ready, 
+	}});
+
+	if ($task eq "start")
+	{
+		foreach my $daemon ("libvirtd.service", "drbd.service")
+		{
+			my $running_local = 0;
+			my $running_peer  = 0;
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+			if ($return_code eq "3")
+			{
+				# It is stopped, start it..
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0482", variables => { daemon => $daemon }});
+				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
+				
+				my $loops   = 0;
+				my $running = 0;
+				until ($running)
+				{
+					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+					if ($return_code eq "0")
+					{
+						# It's running
+						$running = 1;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0483", variables => { daemon => $daemon }});
+					}
+					else
+					{
+						$loops++;
+						if ($loops > 5)
+						{
+							# Give up
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0134", variables => { daemon => $daemon }});
+							$anvil->nice_exit({exit_code => 1});
+						}
+						else
+						{
+							# Wait for a second.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0484", variables => { daemon => $daemon }});
+							sleep 1;
+						}
+					}
+				}
+			}
+			elsif ($return_code eq "0")
+			{
+				# Running, nothing to do.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0485", variables => { daemon => $daemon }});
+			}
+			
+			### TODO: Left off here.
+			if ($peer_ready)
+			{
+				my ($output, $error, $return_code) = $anvil->Remote->call({
+					target     => $peer_name,
+					shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					error       => $error, 
+					return_code => $return_code,
+				}});
+				if ($return_code eq "3")
+				{
+					# Stopped, start it..
+					print "Starting: [".$daemon."] on: [".$peer_name."]\n";
+					my ($output, $error, $return_code) = $anvil->Remote->call({
+						target     => $peer_name, 
+						shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						error       => $error, 
+						return_code => $return_code,
+					}});
+					
+					my $loops   = 0;
+					my $running = 0;
+					until ($running)
+					{
+						my ($output, $error, $return_code) = $anvil->Remote->call({
+							target     => $peer_name,
+							shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output, 
+							error       => $error, 
+							return_code => $return_code,
+						}});
+						if ($return_code eq "0")
+						{
+							$running = 1;
+							print "Verified start of: [".$daemon."] on: [".$peer_name."]\n";
+						}
+						else
+						{
+							$loops++;
+							if ($loops > 3)
+							{
+								# Give up
+								print "[ Error ] - Start of: [".$daemon."] on: [".$peer_name."] appears to have failed!\n";
+								die;
+							}
+							else
+							{
+								# Wait for a second.
+								sleep 1;
+								print "Waiting for: [".$daemon."] to start on: [".$peer_name."]...\n";
+							}
+						}
+					}
+				}
+				elsif ($return_code eq "0")
+				{
+					# Running, nothing to do.
+					print "The daemon: [".$daemon."] is already running on: [".$peer_name."].\n";
+				}
+			}
+		}
+	}
+	if ($task eq "stop")
+	{
+		my $stop = 0;
+		
+		# Check both nodes if a server is running on either node.
+		my $local_vm_count  = 0;
+		my $remote_vm_count = 0;
+		
+		# Call virsh list --all
+		my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			local_output      => $local_output, 
+			local_return_code => $local_return_code,
+		}});
+		if (not $local_return_code)
+		{
+			# Parse output
+			foreach my $line (split/\n/, $local_output)
+			{
+				$line = $anvil->Words->clean_spaces({ string => $line });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				
+				if ($line =~ /(\d+)\s+(.*?)\s+running/)
+				{
+					$local_vm_count++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_vm_count => $local_vm_count }});
+				}
+			}
+		}
+		
+		my ($remote_output, $remote_error, $remote_return_code) = $anvil->Remote->call({
+			target     => $peer_name,
+			shell_call => $anvil->data->{path}{exe}{virsh}." list --all",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			remote_output      => $remote_output, 
+			remote_error       => $remote_error, 
+			remote_return_code => $remote_return_code,
+		}});
+		if (not $remote_return_code)
+		{
+			# Parse output
+			foreach my $line (split/\n/, $remote_output)
+			{
+				$line = $anvil->Words->clean_spaces({ string => $line });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				
+				if ($line =~ /(\d+)\s+(.*?)\s+running/)
+				{
+					$remote_vm_count++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { remote_vm_count => $remote_vm_count }});
+				}
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			local_vm_count  => $local_vm_count, 
+			remote_vm_count => $remote_vm_count,
+		}});
+		if ((not $local_vm_count) && (not $remote_vm_count))
+		{
+			print "No servers running on either node, stopping daemons.\n";
+			foreach my $daemon ("libvirtd.service", "drbd.service")
+			{
+				my $running_local = 0;
+				my $running_peer  = 0;
+				
+				my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					local_output      => $local_output, 
+					local_return_code => $local_return_code,
+				}});
+				if ($local_return_code eq "3")
+				{
+					# Already stopped.
+					print "The daemon: [".$daemon."] is already stopped locally.\n";
+				}
+				elsif ($local_return_code eq "0")
+				{
+					# Running, stop it.
+					print "Stopping: [".$daemon."] locally\n";
+					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+				}
+				
+				my ($remote_output, $remote_error, $remote_return_code) = $anvil->Remote->call({
+					target     => $peer_name,
+					shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					remote_output      => $remote_output, 
+					remote_error       => $remote_error, 
+					remote_return_code => $remote_return_code,
+				}});
+				if ($remote_return_code eq "3")
+				{
+					# Already stopped.
+					print "The daemon: [".$daemon."] is already stopped on: [".$peer_name."].\n";
+				}
+				elsif ($remote_return_code eq "0")
+				{
+					# Running, stop it.
+					print "Stopping: [".$daemon."] on: [".$peer_name."]\n";
+					my ($output, $error, $return_code) = $anvil->Remote->call({
+						target     => $peer_name, 
+						shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						error       => $error, 
+						return_code => $return_code,
+					}});
+				}
+			}
+		}
+	}
+	
+	
+	return(0);
+}
+
 =cut
 
 STATES
@@ -296,6 +575,9 @@ sub start_server
 {
 	my ($anvil) = @_;
 	
+	# Before we do anything, make sure that 'libvirtd' and 'drbd' services are running.
+	check_services($anvil, "start");
+	
 	# Start procedure;
 	# 1. Read the XML definition file and find the backing storage and bridges. Soft error if read fails.
 	# 2. Make sure the name matches.
@@ -310,7 +592,6 @@ sub start_server
 	# 6.4. Make sure the backing device is 'Connected' or 'Connecting'. Call a connect if not.
 	# 7. Make sure all bridges exist and soft error if not.
 	# 8. Start the server.
-	
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0303", variables => { server => $server }});
 	

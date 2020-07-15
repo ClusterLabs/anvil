@@ -33,14 +33,14 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
 $anvil->Get->switches;
 
 $anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
@@ -87,9 +87,6 @@ sub configure_pacemaker
 	my $peer_host_name   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_name : $node1_host_name;
 	my $peer_host_uuid   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
 	my $escaped_password =  shell_quote($new_password);
-	my $auth_shell_call  =  $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		machine          => $machine, 
 		anvil_uuid       => $anvil_uuid, 
@@ -104,7 +101,6 @@ sub configure_pacemaker
 		peer_host_uuid   => $peer_host_uuid, 
 		new_password     => $anvil->Log->is_secure($new_password), 
 		escaped_password => $anvil->Log->is_secure($escaped_password),
-		auth_shell_call  => $anvil->Log->is_secure($auth_shell_call),
 	}});
 	
 	# If this is a DR box, we don't use pacemaker.
@@ -171,21 +167,96 @@ sub configure_pacemaker
 		}
 	}
 	
-	### Run on node 1 only.
+	# Node 1 initializes, node 2 waits.
 	if ($machine eq "node2")
 	{
+		my $start_time = 0;
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0103");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0103"});
+		
 		# We loop until the peer finishes or the peer's job hit's 100.
+		my $tried_starting = 0;
+		my $both_online    = 0;
+		until($both_online)
+		{
+			if (-e $anvil->data->{path}{configs}{'corosync.conf'})
+			{
+				if (not $start_time)
+				{
+					# Corosync is configured, we'll wait up to two minutes and then try
+					# joining the cluster ourselves.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0108"});
+					$start_time = time + 120;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_time => $start_time }});
+				}
+				elsif ((time > $start_time) && (not $tried_starting))
+				{
+					# We've waited a minute, time to try starting the cluster.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0106"});
+					my $cluster_started = $anvil->Cluster->start_cluster({debug => 2, all => 1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
+					
+					# Mark that weve tried to start.
+					$tried_starting = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tried_starting => $tried_starting }});
+				}
+				
+				my $problem = $anvil->Cluster->parse_cib({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				if (not $problem)
+				{
+					# See if both nodes are online.
+					my $node1_ready = $anvil->Cluster->check_node_status({node_name => $node1_host_name});
+					my $node2_ready = $anvil->Cluster->check_node_status({node_name => $node2_host_name});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						node1_ready => $node1_ready,
+						node2_ready => $node2_ready, 
+					}});
+					if (($node1_ready) && ($node2_ready))
+					{
+						$both_online = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
+						
+						update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0104"});
+					}
+					else
+					{
+						# Not online yet, wait a bit.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0105", variables => {
+							node1_name   => $node1_host_name,
+							node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
+							node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
+							node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
+							node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
+							node2_name   => $node2_host_name,
+							node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
+							node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
+							node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
+							node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
+						}});
+					}
+				}
+			}
+			else
+			{
+				# corosync.conf doesn't exist yet.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0107"});
+			}
+			sleep 5 if not $both_online;
+		}
 	}
 	else
 	{
-		# Proceed with cluster setup.
-		
+		# We're node 1, proceed with cluster setup.
 		my $waiting         = 1;
 		my $warning_printed = 0;
 		while($waiting)
 		{
+			# Try to authenticate against the peer.
+			my $auth_shell_call        = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
 			my ($output, $return_code) = $anvil->System->call({debug => 3, secure => 1, shell_call => $auth_shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
@@ -221,10 +292,10 @@ sub configure_pacemaker
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0099", variables => { anvil_name => $anvil_name }});
 			
 			my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster setup ".$anvil_name." ".$node1_host_name." ".$node2_host_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
@@ -237,46 +308,64 @@ sub configure_pacemaker
 			}
 		}
 		
-		# Now, if we can read the CIB, see where the setup is. If not, start by setting up the 
-		# cluster.
-		my $cib_data        = "";
-		my $cluster_started = 0;
-		until ($cib_data)
+		# If we can parse the CIB, then pcsd is running. 
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
 		{
-			my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { shell_call => $shell_call }});
+			# Start the cluster.
+			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0102");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0102"});
 			
-			($cib_data, my $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
-				cib_data    => $cib_data,
-				return_code => $return_code, 
-			}});
-			if ($return_code)
+			my $cluster_started = $anvil->Cluster->start_cluster({debug => 2, all => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
+		}
+		
+		# Now wait for both nodes to come online.
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0109");
+		my $both_online = 0;
+		until ($both_online)
+		{
+			my $problem = $anvil->Cluster->parse_cib({debug => 2});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			if (not $problem)
 			{
-				if (not $cluster_started)
+				# See if both nodes are online.
+				my $node1_ready = $anvil->Cluster->check_node_status({node_name => $node1_host_name});
+				my $node2_ready = $anvil->Cluster->check_node_status({node_name => $node2_host_name});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					node1_ready => $node1_ready,
+					node2_ready => $node2_ready, 
+				}});
+				if (($node1_ready) && ($node2_ready))
 				{
-					# Start the cluster.
-					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0102");
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0102"});
+					$both_online = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
 					
-					   $cluster_started = 1;
-					my $shell_call      = $anvil->data->{path}{exe}{pcs}." cluster start --all";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
-						cluster_started => $cluster_started, 
-						shell_call      => $shell_call,
-					}});
-					
-					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
-						output      => $output,
-						return_code => $return_code, 
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0104"});
+				}
+				else
+				{
+					# Not online yet, wait a bit.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0105", variables => {
+						node1_name   => $node1_host_name,
+						node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
+						node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
+						node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
+						node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
+						node2_name   => $node2_host_name,
+						node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
+						node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
+						node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
+						node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
 					}});
 				}
 			}
-			die;
+			sleep 5 if not $both_online;
 		}
-		die;
 	}
+	die;
 =cut
 $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
 $VAR1 = {
@@ -957,14 +1046,14 @@ sub check_local_network
 	if ($restart_interface_count)
 	{
 		# Disconnect from the database, as we're about to tear down our connection.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, secure => 0, key => "job_0079"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0079"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0079");
 		$anvil->Database->disconnect();
 		
 		# Tell nmcli to re-read the config files.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
 		my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code, 
 		}});
@@ -984,7 +1073,7 @@ sub check_local_network
 		{
 			$anvil->refresh();
 			$anvil->Database->connect();
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, secure => 0, key => "log_0132"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0132"});
 			if (not $anvil->data->{sys}{database}{connections})
 			{
 				if (time > $wait_until)
@@ -999,7 +1088,7 @@ sub check_local_network
 			}
 		}
 		
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, secure => 0, key => "job_0084"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0084"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0084");
 	}
 	
@@ -1007,13 +1096,13 @@ sub check_local_network
 	if (exists $anvil->data->{network}{'local'}{interface}{virbr0})
 	{
 		# Remove the NAT'ed bridge
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, secure => 0, key => "job_0085"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0085"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0085");
 		
 		$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy default"});
 		$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine default "});
 		
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, secure => 0, key => "job_0034"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0034"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0034");
 	}
 	
@@ -1021,7 +1110,7 @@ sub check_local_network
 	$anvil->Network->read_nmcli({debug => 2});
 	$anvil->Network->get_ips({debug => 3});
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, secure => 0, key => "job_0086"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0086"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0086");
 	
 	# Update MTUs (running interface and config) if needed.
@@ -1102,7 +1191,7 @@ sub check_local_network
 				overwrite => 1,
 			});
 			
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, secure => 0, key => "job_0034"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0034"});
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0034");
 		}
 	}
@@ -1126,7 +1215,7 @@ sub check_local_network
 		my $old_config = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'chrony.conf'}});
 		foreach my $line (split/\n/, $old_config)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 			$new_config .= $line."\n";
 			if ($line =~ /^Server (.*)$/)
 			{

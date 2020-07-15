@@ -664,9 +664,11 @@ sub call
 		my $clean_output = "";
 		foreach my $line (split/\n/, $output)
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { line => $line }});
 			if ($line =~ /^return_code:(\d+)$/)
 			{
 				$return_code = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { return_code => $return_code }});
 			}
 			elsif ($line =~ /return_code:(\d+)$/)
 			{
@@ -677,7 +679,7 @@ sub call
 				$return_code =  $1;
 				$line        =~ s/return_code:\d+$//;
 				$output      .= $line."\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					line        => $line, 
 					output      => $output, 
 					return_code => $return_code, 

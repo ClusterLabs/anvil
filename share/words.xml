@@ -192,6 +192,8 @@ The error was:
 		<key name="error_0130">The answer: [#!variable!answer!#] is invalid. Please try again.</key>
 		<key name="error_0131">The host UUID: [#!variable!host_uuid!#] was not found. Has it already been purged?</key>
 		<key name="error_0132">Failed to remove the symlink: [#!variable!symlink!#]!</key>
+		<key name="error_0133">Failed to read or parse the CIB! Is pacemaker running?</key>
+		<key name="error_0134">Failed to start the daemon: [#!variable!daemon!#] on the local system, unable to boot the server.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -341,7 +343,14 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0099">No existing cluster found, will run initial setup.</key>
 		<key name="job_0100">The corosync.conf file does not exist locally, but it does exist on the peer. Copying the file to here.</key>
 		<key name="job_0101"><![CDATA[[ Error ] - Something went wrong while trying to initialize the cluster. The error, if any, was: [#!variable!error!#].]]></key>
-		<key name="job_0102">Starting the cluster now...</key>
+		<key name="job_0102">Starting the cluster (on both nodes) now.</key>
+		<key name="job_0103">We're node 2, so we will wait until the peer starts the cluster.</key>
+		<key name="job_0104">Both nodes are up!</key>
+		<key name="job_0105">Still waiting. Node 1: [#!variable!node1_name!#] ready: [#!variable!node1_ready!#] (in_ccm/crmd/join: [#!variable!node1_in_ccm!#/#!variable!node1_crmd!#/#!variable!node1_join!#]), Node 2: [#!variable!node2_name!#] ready: [#!variable!node1_ready!#] (in_ccm/crmd/join: [#!variable!node2_in_ccm!#/#!variable!node2_crmd!#/#!variable!node2_join!#])</key>
+		<key name="job_0106">Cluster hasn't started, calling local start.</key>
+		<key name="job_0107">Corosync is not yet configured, waiting. It will be created when node 1 initializes the cluster.</key>
+		<key name="job_0108">Corosync is configured. Will wait for the cluster to start. If it hasn't started in two minutes, we'll try to join it.</key>
+		<key name="job_0109">We will now wait for the cluster to start.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -904,6 +913,10 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0479">Removing the symlink: [#!variable!symlink!#].</key>
 		<key name="log_0480">Updating the cache state file.</key>
 		<key name="log_0481">[ Note ] - The host: [#!variable!host!#] entry in /etc/hosts has changed IP from: [#!variable!old_ip!#] to: [#!variable!new_ip!#].</key>
+		<key name="log_0482">Starting the daemon: [#!variable!daemon!#] locally.</key>
+		<key name="log_0483">Verifying that the daemon: [#!variable!daemon!#] has started.</key>
+		<key name="log_0484">Waiting for the daemon: [#!variable!daemon!#] to start...</key>
+		<key name="log_0485">The daemon: [#!variable!daemon!#] was already running locally, no need to start.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
