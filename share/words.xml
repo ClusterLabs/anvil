@@ -194,6 +194,7 @@ The error was:
 		<key name="error_0132">Failed to remove the symlink: [#!variable!symlink!#]!</key>
 		<key name="error_0133">Failed to read or parse the CIB! Is pacemaker running?</key>
 		<key name="error_0134">Failed to start the daemon: [#!variable!daemon!#] on the local system, unable to boot the server.</key>
+		<key name="error_0135">Failed to start the daemon: [#!variable!daemon!#] on [#!variable!host!#], unable to boot the server.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -712,7 +713,7 @@ We will keep looking.</key>
 		<key name="log_0299">We were asked to promote: [#!variable!server!#], which makes no sense and is not supported. Ignoreing.</key>
 		<key name="log_0300">We were asked to demote: [#!variable!server!#], which makes no sense and is not supported. Ignoreing.</key>
 		<key name="log_0301">We were asked to notify, but this is not a promotable (we're stateless) agent. Ignoring.</key>
-		<key name="log_0302">We were invoked with an unexpected (or no) command. Environment variables and arguments below.</key>
+		<key name="log_0302">We were invoked with an unexpected (or no) command. Environment variables and arguments have been logged.</key>
 		<key name="log_0303">We've been asked to start the server: [#!variable!server!#].</key>
 		<key name="log_0304">It appears that the list the currently running servers returned a non-zero return code: [#!variable!return_code!#]. We will proceed as we may be able to fix this. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0305">Sanity checks passed, ready to start: [#!variable!server!#].</key>
@@ -917,6 +918,17 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0483">Verifying that the daemon: [#!variable!daemon!#] has started.</key>
 		<key name="log_0484">Waiting for the daemon: [#!variable!daemon!#] to start...</key>
 		<key name="log_0485">The daemon: [#!variable!daemon!#] was already running locally, no need to start.</key>
+		<key name="log_0486">Starting the daemon: [#!variable!daemon!#] on: [#!variable!host!#].</key>
+		<key name="log_0487">Verifying that the daemon: [#!variable!daemon!#] has started on: [#!variable!host!#].</key>
+		<key name="log_0488">Waiting for the daemon: [#!variable!daemon!#] to start on: [#!variable!host!#]...</key>
+		<key name="log_0489">The daemon: [#!variable!daemon!#] was already running  on: [#!variable!host!#], no need to start.</key>
+		<key name="log_0490">There are no servers running on either node, stopping daemons.</key>
+		<key name="log_0491">There are no servers running on locally and the peer is not in the cluster, stopping daemons.</key>
+		<key name="log_0492">The daemon: [#!variable!daemon!#] is already stopped locally, nothing to do.</key>
+		<key name="log_0493">Stopping the daemon: [#!variable!daemon!#] locally.</key>
+		<key name="log_0494">The daemon: [#!variable!daemon!#] is already stopped on: [#!variable!host!#], nothing to do.</key>
+		<key name="log_0495">Stopping the daemon: [#!variable!daemon!#] on: [#!variable!host!#].</key>
+		<key name="log_0496">One or more servers are still running on the Anvil!, not stopping daemons.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

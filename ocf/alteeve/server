@@ -271,7 +271,7 @@ $anvil->nice_exit({exit_code => 255});
 # This will either verify that 'libvirtd' and 'drbd' are running (and start them if not) is called with
 # "start". If called with "stop", a check is made on both nodes. If all VMs are gone, "libvirtd" and "drbd"
 # are stopped.
-sub check_services
+sub check_daemons
 {
 	my ($anvil, $task) = @_;
 	
@@ -368,7 +368,10 @@ sub check_services
 				if ($return_code eq "3")
 				{
 					# Stopped, start it..
-					print "Starting: [".$daemon."] on: [".$peer_name."]\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0486", variables => { 
+						daemon => $daemon,
+						host   => $peer_name,
+					}});
 					my ($output, $error, $return_code) = $anvil->Remote->call({
 						target     => $peer_name, 
 						shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon,
@@ -395,22 +398,34 @@ sub check_services
 						if ($return_code eq "0")
 						{
 							$running = 1;
-							print "Verified start of: [".$daemon."] on: [".$peer_name."]\n";
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0487", variables => { 
+								daemon => $daemon,
+								host   => $peer_name,
+							}});
 						}
 						else
 						{
 							$loops++;
-							if ($loops > 3)
+							if ($loops > 5)
 							{
+								### TODO: We may want to NOT die here, if 
+								###       we're booting a server (though we 
+								###       will if we're migrating).
 								# Give up
-								print "[ Error ] - Start of: [".$daemon."] on: [".$peer_name."] appears to have failed!\n";
-								die;
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0135", variables => { 
+									daemon => $daemon,
+									host   => $peer_name,
+								}});
+								$anvil->nice_exit({exit_code => 1});
 							}
 							else
 							{
 								# Wait for a second.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0488", variables => { 
+									daemon => $daemon,
+									host   => $peer_name,
+								}});
 								sleep 1;
-								print "Waiting for: [".$daemon."] to start on: [".$peer_name."]...\n";
 							}
 						}
 					}
@@ -418,7 +433,10 @@ sub check_services
 				elsif ($return_code eq "0")
 				{
 					# Running, nothing to do.
-					print "The daemon: [".$daemon."] is already running on: [".$peer_name."].\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0485", variables => { 
+						daemon => $daemon,
+						host   => $peer_name,
+					}});
 				}
 			}
 		}
@@ -484,7 +502,16 @@ sub check_services
 		}});
 		if ((not $local_vm_count) && (not $remote_vm_count))
 		{
-			print "No servers running on either node, stopping daemons.\n";
+			if ($peer_ready)
+			{
+				# No servers running on either node.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0490"});
+			}
+			else
+			{
+				# No servers running here and the peer is not in the cluster.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0491"});
+			}
 			foreach my $daemon ("libvirtd.service", "drbd.service")
 			{
 				my $running_local = 0;
@@ -498,12 +525,12 @@ sub check_services
 				if ($local_return_code eq "3")
 				{
 					# Already stopped.
-					print "The daemon: [".$daemon."] is already stopped locally.\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0492", variables => { daemon => $daemon }});
 				}
 				elsif ($local_return_code eq "0")
 				{
 					# Running, stop it.
-					print "Stopping: [".$daemon."] locally\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0493", variables => { daemon => $daemon }});
 					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output, 
@@ -523,12 +550,18 @@ sub check_services
 				if ($remote_return_code eq "3")
 				{
 					# Already stopped.
-					print "The daemon: [".$daemon."] is already stopped on: [".$peer_name."].\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0494", variables => { 
+						daemon => $daemon,
+						host   => $peer_name,
+					}});
 				}
 				elsif ($remote_return_code eq "0")
 				{
 					# Running, stop it.
-					print "Stopping: [".$daemon."] on: [".$peer_name."]\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0495", variables => { 
+						daemon => $daemon,
+						host   => $peer_name,
+					}});
 					my ($output, $error, $return_code) = $anvil->Remote->call({
 						target     => $peer_name, 
 						shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon,
@@ -541,8 +574,12 @@ sub check_services
 				}
 			}
 		}
+		else
+		{
+			# Servers are still running, don't stop the daemons.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0496"});
+		}
 	}
-	
 	
 	return(0);
 }
@@ -576,7 +613,7 @@ sub start_server
 	my ($anvil) = @_;
 	
 	# Before we do anything, make sure that 'libvirtd' and 'drbd' services are running.
-	check_services($anvil, "start");
+	check_daemons($anvil, "start");
 	
 	# Start procedure;
 	# 1. Read the XML definition file and find the backing storage and bridges. Soft error if read fails.
@@ -903,6 +940,9 @@ sub stop_server
 		stop_drbd_resource($anvil);
 	}
 	
+	# If this was the last running server, stop the daemons.
+	check_daemons($anvil, "stop");
+	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0324", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 0});
 }
@@ -933,6 +973,9 @@ sub server_status
 sub migrate_server
 {
 	my ($anvil) = @_;
+	
+	# Before migrating, make sure the daemons are running on the peer.
+	check_daemons($anvil, "start");
 	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
