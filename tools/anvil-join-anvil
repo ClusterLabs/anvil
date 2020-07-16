@@ -134,21 +134,24 @@ sub configure_pacemaker
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!pcsd!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0094", variables => { daemon => "pcsd" }});
 	
-	# Disabled and stop the libvirtd daemons.
-	($return_code) = $anvil->System->disable_daemon({daemon => "libvirtd"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-	$return_code = undef;
-	($return_code) = $anvil->System->stop_daemon({daemon => "libvirtd"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-	$return_code = undef;
-	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!libvirtd!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0095", variables => { daemon => "libvirtd" }});
+	# Disabled and stop the libvirtd daemon.
+	foreach my $daemon ("libvirtd.service", "drbd.service")
+	{
+		my ($return_code) = $anvil->System->disable_daemon({daemon => $daemon});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		$return_code = undef;
+		($return_code) = $anvil->System->stop_daemon({daemon => $daemon});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		$return_code = undef;
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!".$daemon."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0095", variables => { daemon => $daemon }});
+	}
 	
 	# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, we'll initialize the
 	# cluster shortly.
 	if (not -e $anvil->data->{path}{configs}{'corosync.conf'})
 	{
-		my $cluster_conf = $anvil->Storeage->read_file({
+		my $cluster_conf = $anvil->Storage->read_file({
 			file   => $anvil->data->{path}{configs}{'corosync.conf'},
 			target => $peer_host_name,
 		});
@@ -365,6 +368,8 @@ sub configure_pacemaker
 			sleep 5 if not $both_online;
 		}
 	}
+	
+	
 	die;
 =cut
 $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};

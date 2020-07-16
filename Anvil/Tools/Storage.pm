@@ -2340,7 +2340,7 @@ sub rsync
 		}});
 	}
 	
-	# If local, call rsync directly. If remote, setup the rsync wrapper
+	# If local, call rsync directly. If remote, and if we've got a password, setup the rsync wrapper
 	my $wrapper_script = "";
 	my $shell_call     = $anvil->data->{path}{exe}{rsync}." ".$switches." ".$source." ".$destination;
 	if (not $anvil->Network->is_local({host => $target}))
@@ -2360,16 +2360,21 @@ sub rsync
 			user   => $<,
 		});
 		
-		# Remote target, wrapper needed.
-		$wrapper_script = $anvil->Storage->_create_rsync_wrapper({
-			debug    => $debug,
-			target   => $target,
-			password => $password, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { wrapper_script => $wrapper_script }});
-		
-		# And make the shell call
-		$shell_call = $wrapper_script." ".$switches." ".$source." ".$destination;
+		# Do we have a password? If so, create a wrapper.
+		if ($password)
+		{
+			# Remote target, wrapper needed.
+			$wrapper_script = $anvil->Storage->_create_rsync_wrapper({
+				debug    => $debug,
+				target   => $target,
+				password => $password, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { wrapper_script => $wrapper_script }});
+			
+			# And make the shell call
+			$shell_call = $wrapper_script." ".$switches." ".$source." ".$destination;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		}
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { shell_call => $shell_call }});
 	
@@ -2405,6 +2410,7 @@ sub rsync
 			if ($line_number)
 			{
 				$conflict = $anvil->data->{path}{exe}{cp}." ".$source." ".$destination." && ".$anvil->data->{path}{exe}{sed}." -ie '".$line_number."d' ".$source;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { conflict => $conflict }});
 			}
 		}
 	}

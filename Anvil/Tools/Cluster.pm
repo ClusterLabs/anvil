@@ -332,6 +332,16 @@ sub parse_cib
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 							"cib::parsed::data::node::${node}::id" => $anvil->data->{cib}{parsed}{data}{node}{$node}{id}, 
 						}});
+						
+						# Preload state values (in case they're not read in this CIB.
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm} = "false";
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}   = "offline";
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'} = "down";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+							"cib::parsed::cib::node_state::${node_id}::in_ccm" => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}, 
+							"cib::parsed::cib::node_state::${node_id}::crmd"   => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}, 
+							"cib::parsed::cib::node_state::${node_id}::join"   => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}, 
+						}});
 					}
 				}
 			}
