@@ -25,6 +25,7 @@ my $THIS_FILE = "System.pm";
 # check_ssh_keys
 # check_memory
 # check_storage
+# configure_ipmi
 # disable_daemon
 # enable_daemon
 # find_matching_ip
@@ -1176,6 +1177,32 @@ sub check_storage
 	}
 	
 	return(0);
+}
+
+=head2 configure_ipmi
+
+This uses the host information along with the Anvil! the host is in to find and configure the local IPMI BMC.
+
+If this host is not in an Anvil!, C<< 0 >> is returned. If the host is in an Anvil!, but no IPMI BMC was found, C<< 1 >> is returned. 
+
+If a BMC is found and configured, the C<< fence_ipmilan >> call used to check the status is stored in C<< hosts >> -> C<< host_ipmi >>, and the same string is returned.
+
+B<< NOTE >>: The password used to set the IPMI BMC access is included both in the database table and the returned string.
+
+This method takes no parameters.
+
+=cut
+sub configure_ipmi
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->generate_state_json()" }});
+	
+	my $host_ipmi = "";
+	
+	return($host_ipmi);
 }
 
 =head2 disable_daemon

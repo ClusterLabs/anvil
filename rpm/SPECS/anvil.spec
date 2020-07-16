@@ -364,7 +364,7 @@ fi
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-33
+* Thu Jul 16 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-33
 - Updated source.
 
 * Tue May 26 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-32
