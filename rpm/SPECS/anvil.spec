@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        33%{?dist}
+Release:        34%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -72,6 +72,7 @@ Requires:       postgresql-plperl
 Requires:       rsync 
 Requires:       syslinux
 Requires:       tmux
+Requires:       usbutils
 Requires:       vim 
 Requires:       wget
 # iptables-services conflicts with firewalld
@@ -364,6 +365,9 @@ fi
 
 
 %changelog
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-34
+- Updated source.
+
 * Thu Jul 16 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-33
 - Updated source.
 

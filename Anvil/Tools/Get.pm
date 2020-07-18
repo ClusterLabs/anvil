@@ -758,17 +758,28 @@ sub host_type
 		{
 			# Last gasp here is to use 'rpm' to see which RPMs are installed. If we find one, 
 			# we'll touch 'type.X' file
+			my $check_types = {
+				'striker' => 1,
+				'node'    => 1,
+				'dr'      => 1,
+			};
 			foreach my $rpm ("anvil-striker", "anvil-node", "anvil-dr")
 			{
-				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{rpm}." -q ".$rpm});
+				my ($output, $return_code) = $anvil->System->call({
+					debug      => $debug, 
+					shell_call => $anvil->data->{path}{exe}{rpm}." -q ".$rpm,
+				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 				if ($return_code eq "0")
 				{
 					# Found out what we are.
-					if ($rpm eq "anvil-striker")
+					if ($output =~ /anvil-(.*?)-/)
 					{
-						$host_type = "striker";
+						$host_type = $1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+						
+						$check_types->{$host_type} = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "check_types->{$host_type}" => $check_types->{$host_type} }});
 					}
 					
 					my $key  = "type.".$host_type;
@@ -778,14 +789,33 @@ sub host_type
 						file => $file, 
 					}});
 					# If we have a file and we're root, touch to the file.
-					if (($file) && (($< == 0) or ($> == 0)))
+					if (($< == 0) or ($> == 0))
 					{
-						my $error = $anvil->Storage->write_file({
-							debug => $debug,
-							body  => "",
-							file  => $file,
-						});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { error => $error }});
+						foreach my $test_type (sort {$a cmp $b} keys %{$check_types})
+						{
+							my $test_key  = "type.".$test_type;
+							my $test_file = $anvil->data->{path}{configs}{$test_key};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"check_types->{$test_type}" => $check_types->{$test_type},
+								test_file                   => $test_file,
+							}});
+							
+							if (($check_types->{$test_type}) && (-e $test_file))
+							{
+								# Remove the old type.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0497", variables => { file => $test_file }});
+								unlink $test_file;
+							}
+						}
+						if ($file)
+						{
+							my $error = $anvil->Storage->write_file({
+								debug => $debug,
+								body  => "",
+								file  => $file,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
+						}
 					}
 					last;
 				}

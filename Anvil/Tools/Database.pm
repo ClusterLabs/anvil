@@ -10051,7 +10051,7 @@ sub manage_anvil_conf
 				$host_seen = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"s1:value"     => $value,
-					"s2:port"      => $port, 
+					"s2:port"      => $db_port, 
 					"s3:host_seen" => $host_seen, 
 				}});
 				if ($remove)
@@ -10067,7 +10067,7 @@ sub manage_anvil_conf
 					}});
 					next;
 				}
-				elsif ($value eq $port)
+				elsif ($value eq $db_port)
 				{
 					# No change.
 					$port_different = 0;
@@ -10077,7 +10077,7 @@ sub manage_anvil_conf
 				{
 					# Needs to be updated.
 					$update_reported = 1;
-					$line            = $variable.$left_space."=".$right_space.$port;
+					$line            = $variable.$left_space."=".$right_space.$db_port;
 					$rewrite         = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						update_reported => $update_reported, 
@@ -10092,7 +10092,7 @@ sub manage_anvil_conf
 				$host_seen = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					"s1:value"     => $value,
-					"s2:password"  => $anvil->Log->is_secure($password), 
+					"s2:password"  => $anvil->Log->is_secure($db_password), 
 					"s3:host_seen" => $host_seen, 
 				}});
 				if ($remove)
@@ -10108,7 +10108,7 @@ sub manage_anvil_conf
 					}});
 					next;
 				}
-				elsif ($value eq $password)
+				elsif ($value eq $db_password)
 				{
 					# No change.
 					$password_different = 0;
@@ -10118,7 +10118,7 @@ sub manage_anvil_conf
 				{
 					# Changed, update it
 					$update_reported = 1;
-					$line            = $variable.$left_space."=".$right_space.$password;
+					$line            = $variable.$left_space."=".$right_space.$db_password;
 					$rewrite         = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						update_reported => $update_reported, 

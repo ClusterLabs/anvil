@@ -443,7 +443,7 @@ sub host_name
 		# Underscores are allowd in domain names, but not host names.
 		my %options = (domain_allow_underscore => 1);
 		my $dvd     = Data::Validate::Domain->new(%options);
-		my $test    = $dvd->hostname($name);
+		my $test    = $dvd->is_hostname($name);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test => $test }});
 		if (not $test)
 		{

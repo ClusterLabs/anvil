@@ -5,8 +5,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
-use String::ShellQuote;
-
+ 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 if (($running_directory =~ /^\./) && ($ENV{PWD}))
@@ -24,6 +23,7 @@ $anvil->Log->secure({set => 1});
 print "Connecting to the database(s);\n";
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
-
 $anvil->Get->switches;
+
+$anvil->System->configure_ipmi({debug => 2});
 

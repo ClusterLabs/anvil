@@ -168,7 +168,7 @@ sub add_databases
 			$db_host     = $local_ip;
 			$db_port     = $anvil->data->{database}{$host_uuid}{port};
 			$db_password = $anvil->data->{database}{$host_uuid}{password};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				db_host     => $db_host,
 				db_port     => $db_port, 
 				db_password => $anvil->Log->is_secure($db_password),
@@ -181,7 +181,7 @@ sub add_databases
 	if ($db_host)
 	{
 		my $failed = $anvil->Database->manage_anvil_conf({
-			debug        => 2, 
+			debug        => 3, 
 			target       => $target,
 			remote_user  => "root",
 			password     => $anvil->data->{data}{password}, 
@@ -208,7 +208,6 @@ sub add_databases
 	}
 	else
 	{
-		### TODO: Left off here; change the message to a proper one.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0084"});
 		update_progress($anvil, 100, "error_0084");
 		$anvil->nice_exit({exit_code => 6});
@@ -231,7 +230,7 @@ sub add_databases
 		update_progress($anvil, $anvil->data->{job}{progress}, "job_0068,!!host_name!".$target_host."!!");
 		
 		# This is a peer.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"database::${uuid}::host"     => $anvil->data->{database}{$uuid}{host},
 			"database::${uuid}::port"     => $anvil->data->{database}{$uuid}{port},
 			"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}),
@@ -276,7 +275,7 @@ sub add_databases
 				if ($peer_host)
 				{
 					my $failed = $anvil->Database->manage_anvil_conf({
-						debug        => 2, 
+						debug        => 3, 
 						target       => $target,
 						remote_user  => "root",
 						password     => $anvil->data->{data}{password}, 

@@ -929,6 +929,7 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0494">The daemon: [#!variable!daemon!#] is already stopped on: [#!variable!host!#], nothing to do.</key>
 		<key name="log_0495">Stopping the daemon: [#!variable!daemon!#] on: [#!variable!host!#].</key>
 		<key name="log_0496">One or more servers are still running on the Anvil!, not stopping daemons.</key>
+		<key name="log_0497">About to remove the old host type file: [#!variable!file!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
