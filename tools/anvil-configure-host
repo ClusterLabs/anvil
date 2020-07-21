@@ -712,12 +712,61 @@ sub reconfigure_network
 				# Are we writing a bridge config?
 				if ($bridge)
 				{
-					$anvil->Storage->write_file({file => $bridge_file, body => $bridge_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
+						output      => $bridge_file,
+						return_code => $bridge_config, 
+					}});
+					$anvil->Storage->write_file({
+						debug     => 3,
+						file      => $bridge_file, 
+						body      => $bridge_config, 
+						user      => "root", 
+						group     => "root", 
+						mode      => "0644", 
+						overwrite => 1
+					});
 				}
+				
 				# Bond, Link 1 and Link 2
-				$anvil->Storage->write_file({file => $bond_file,      body => $bond_config,   user => "root", group => "root", mode => "0644", overwrite => 1});
-				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
-				$anvil->Storage->write_file({file => $new_link2_file, body => $link2_config,  user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
+					output      => $bond_file,
+					return_code => $bond_config, 
+				}});
+				$anvil->Storage->write_file({
+					debug     => 3,
+					file      => $bond_file,
+					body      => $bond_config,   
+					user      => "root", 
+					group     => "root", 
+					mode      => "0644", 
+					overwrite => 1,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
+					output      => $new_link1_file,
+					return_code => $link1_config, 
+				}});
+				$anvil->Storage->write_file({
+					debug     => 3,
+					file      => $new_link1_file, 
+					body      => $link1_config, 
+					user      => "root", 
+					group     => "root", 
+					mode      => "0644", 
+					overwrite => 1,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
+					output      => $new_link2_file,
+					return_code => $link2_config, 
+				}});
+				$anvil->Storage->write_file({
+					debug     => 3,
+					file      => $new_link2_file,
+					body      => $link2_config, 
+					user      => "root", 
+					group     => "root", 
+					mode      => "0644", 
+					overwrite => 1,
+				});
 				
 				# If the NICs names have changed, rename them now.
 				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}) && 
@@ -820,7 +869,19 @@ sub reconfigure_network
 				}
 				
 				# Write out the link1 config file.
-				$anvil->Storage->write_file({file => $new_link1_file, body => $link1_config, user => "root", group => "root", mode => "0644", overwrite => 1});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, list => { 
+					output      => $new_link1_file,
+					return_code => $link1_config, 
+				}});
+				$anvil->Storage->write_file({
+					debug     => 3, 
+					file      => $new_link1_file, 
+					body      => $link1_config, 
+					user      => "root", 
+					group     => "root", 
+					mode      => "0644", 
+					overwrite => 1,
+				});
 				
 				# If the name differs from old, delete the old interface.
 				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}) && 

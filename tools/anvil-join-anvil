@@ -151,17 +151,17 @@ sub configure_pacemaker
 	# cluster shortly.
 	if (not -e $anvil->data->{path}{configs}{'corosync.conf'})
 	{
-		my $cluster_conf = $anvil->Storage->read_file({
+		my $corosync_conf = $anvil->Storage->read_file({
 			file   => $anvil->data->{path}{configs}{'corosync.conf'},
 			target => $peer_host_name,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_conf => $cluster_conf }});
-		if ($cluster_conf ne "!!error!!")
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { corosync_conf => $corosync_conf }});
+		if ($corosync_conf ne "!!error!!")
 		{
 			# Write the file out.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0100"});
 			$anvil->Storage->write_file({
-				body  => $cluster_conf,
+				body  => $corosync_conf,
 				file  => $anvil->data->{path}{configs}{'corosync.conf'}, 
 				user  => "root",
 				group => "root",
@@ -592,7 +592,6 @@ sub check_local_network
 		my ($now_host_name) = $anvil->System->host_name({
 			debug => 2,
 			set   => $new_host_name,
-			
 		});
 		if ($now_host_name eq $new_host_name)
 		{
@@ -680,6 +679,7 @@ sub check_local_network
 		}});
 		foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
+			### BUG: DNS gets replicated, but updated.
 			# Only one interface will start with the network name and have an IP address.
 			next if $in_iface !~ /^${network}_/;
 			next if not $anvil->data->{network}{'local'}{interface}{$in_iface}{ip};
@@ -1031,6 +1031,11 @@ sub check_local_network
 				# Write out the new file.
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0083", variables => { file => $filename }});
+# 				print "File about to write: [".$filename."]\n";
+# 				print "============================\n";
+# 				print $new_config."\n";
+# 				print "============================\n";
+# 				die "There's a bug here that is re-writting the config with duplicate DNS and something the wrong IP for this host.\n";
 				$anvil->Storage->write_file({
 					debug     => 3,
 					file      => $filename, 
@@ -1186,6 +1191,11 @@ sub check_local_network
 			# Write out the new file.
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0083", variables => { file => $filename }});
+# 			print "File about to write: [".$filename."]\n";
+# 			print "============================\n";
+# 			print $new_config."\n";
+# 			print "============================\n";
+# 			die "There's a bug here that is re-writting the config with duplicate DNS and something the wrong IP for this host.\n";
 			$anvil->Storage->write_file({
 				debug     => 2,
 				file      => $filename, 

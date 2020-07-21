@@ -1639,22 +1639,28 @@ WHERE
 		if ($anvil_node1_host_uuid)
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_name} = $anvil_name;
+			$anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_uuid} = $anvil_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::host_uuid::${anvil_node1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_name}, 
+				"anvils::host_uuid::${anvil_node1_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_node1_host_uuid}{anvil_uuid}, 
 			}});
 		}
 		if ($anvil_node2_host_uuid)
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_name} = $anvil_name;
+			$anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_uuid} = $anvil_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::host_uuid::${anvil_node2_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_name}, 
+				"anvils::host_uuid::${anvil_node2_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_node2_host_uuid}{anvil_uuid}, 
 			}});
 		}
 		if ($anvil_dr1_host_uuid)
 		{
 			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name} = $anvil_name;
+			$anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_uuid} = $anvil_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_name" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_name}, 
+				"anvils::host_uuid::${anvil_dr1_host_uuid}::anvil_uuid" => $anvil->data->{anvils}{host_uuid}{$anvil_dr1_host_uuid}{anvil_uuid}, 
 			}});
 		}
 	}
@@ -1858,6 +1864,7 @@ It also sets the variables;
  hosts::host_uuid::<host_uuid>::host_key   = <Machine's public key / fingerprint>
  hosts::host_uuid::<host_uuid>::host_ipmi  = <If equiped, this is how to log into the host's IPMI BMC>
  hosts::host_uuid::<host_uuid>::anvil_name = <anvil_name if associated with an anvil>
+ hosts::host_uuid::<host_uuid>::anvil_uuid = <anvil_uuid if associated with an anvil>
 
 And to simplify look-ups by UUID or name;
 
@@ -1923,9 +1930,11 @@ FROM
 		}});
 		
 		my $anvil_name = "";
+		my $anvil_uuid = "";
 		if ((exists $anvil->data->{anvils}{host_uuid}{$host_uuid}) && ($anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_name}))
 		{
 			$anvil_name = $anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_name};
+			$anvil_uuid = $anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_uuid};
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 		
@@ -1944,12 +1953,14 @@ FROM
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}   = $host_key;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}  = $host_ipmi;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} = $anvil_name;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid} = $anvil_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"hosts::host_uuid::${host_uuid}::host_name"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
 			"hosts::host_uuid::${host_uuid}::host_type"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
 			"hosts::host_uuid::${host_uuid}::host_key"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
 			"hosts::host_uuid::${host_uuid}::host_ipmi"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
 			"hosts::host_uuid::${host_uuid}::anvil_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
+			"hosts::host_uuid::${host_uuid}::anvil_uuid" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}, 
 		}});
 		
 		# Record the host_uuid in a hash so that the name can be easily retrieved.

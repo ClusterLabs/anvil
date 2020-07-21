@@ -930,6 +930,9 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0495">Stopping the daemon: [#!variable!daemon!#] on: [#!variable!host!#].</key>
 		<key name="log_0496">One or more servers are still running on the Anvil!, not stopping daemons.</key>
 		<key name="log_0497">About to remove the old host type file: [#!variable!file!#].</key>
+		<key name="log_0498">This machine is not in an #!string!brand_0002!#, not configuring IPMI.</key>
+		<key name="log_0499">This machine does not appear to have an IPMI BMC (no BMC reported by 'dmidecode'). Not attempting to configure IPMI.</key>
+		<key name="log_0500">This machine appears to have an IPMI BMC, but the LAN channel (used to configure the BMC's network) wasn't found. Channels 0 to 9 were checked.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

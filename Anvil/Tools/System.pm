@@ -65,7 +65,7 @@ Provides all methods related to storage on a system.
  # Access to methods using '$anvil->System->X'. 
  # 
  # Example using 'system_call()';
- my ($host_name, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
+ my ($host_name, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
 
 =head1 METHODS
 
@@ -144,7 +144,7 @@ sub activate_lv
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0064", variables => { path => $path }});
 	}
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{lvchange}." --activate y ".$path});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{lvchange}." --activate y ".$path});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code, 
@@ -164,7 +164,7 @@ sub activate_lv
 
 This method makes a system call and returns the output (with the last new-line removed) and the return code. If there is a problem, 'C<< #!error!# >>' is returned and the error will be logged.
 
- my ($output, $return_code) = $anvil->System->call({shell_call => "host_name"});
+ my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => "host_name"});
 
 Parameters;
 
@@ -532,7 +532,7 @@ sub check_daemon
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 	foreach my $line (split/\n/, $output)
 	{
@@ -616,7 +616,7 @@ sub check_memory
 	
 	my $used_ram = 0;
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-check-memory'}." --program $program_name"});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'anvil-check-memory'}." --program $program_name"});
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -706,7 +706,7 @@ sub check_ssh_keys
 			# Generate the SSH keys.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0270", variables => { user => $user }});
 			
-			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
 			if (-e $ssh_public_key_file)
 			{
 				# Success!
@@ -1183,7 +1183,7 @@ sub check_storage
 
 This uses the host information along with the Anvil! the host is in to find and configure the local IPMI BMC.
 
-If this host is not in an Anvil!, C<< 0 >> is returned. If the host is in an Anvil!, but no IPMI BMC was found, C<< 1 >> is returned. 
+If this host is not in an Anvil!, or if the host is in an Anvil!, but no IPMI BMC was found, or any other issue arises, C<< 0 >> is returned. 
 
 If a BMC is found and configured, the C<< fence_ipmilan >> call used to check the status is stored in C<< hosts >> -> C<< host_ipmi >>, and the same string is returned.
 
@@ -1198,10 +1198,172 @@ sub configure_ipmi
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->generate_state_json()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->configure_ipmi()" }});
 	
-	my $host_ipmi = "";
+	# Is this host in an Anvil!?
+	$anvil->Database->get_hosts();
+	my $anvil_uuid = "";
+	my $host_uuid  = $anvil->Get->host_uuid;
+	if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}) && ($anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}))
+	{
+		# We're in an Anvil! 
+		$anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+	}
+	else
+	{
+		# Not in an Anvil!, return 0.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0498"});
+		return(0);
+	}
 	
+	# Call dmidecode to see if there even is an IPMI BMC on this host.
+	my $host_ipmi              = "";
+	my $has_ipmi               = 0;
+	my $manufacturer           = "";
+	my $lan_channel            = 99;
+	my $current_network_type   = "";
+	my $current_ip_address     = "";
+	my $current_subnet_mask    = "";
+	my $current_gateway        = "";
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --type 38"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /IPMI/i)
+		{
+			# Looks like 
+			$has_ipmi = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { has_ipmi => $has_ipmi }});
+			last;
+		}
+	}
+	$output      = "";
+	$return_code = "";
+	
+	if (not $has_ipmi)
+	{
+		# Return
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0499"});
+		return(0);
+	}
+
+	# Find the manufacturer 
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." mc info"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		# Examples;
+		# Manufacturer Name         : Fujitsu Siemens
+		# Manufacturer Name         : Hewlett-Packard
+		# Manufacturer Name         : DELL Inc
+		if ($line =~ /Manufacturer Name\s+:\s+(.*)$/i)
+		{
+			$manufacturer = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
+			
+			if ($manufacturer =~ /fujitsu/i)
+			{
+				$manufacturer = "Fujitsu";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
+			}
+			elsif ($manufacturer =~ /dekk/i)
+			{
+				$manufacturer = "Dell";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
+			}
+			elsif (($manufacturer =~ /^hp/i) or ($manufacturer =~ /hewlett/i))
+			{
+				$manufacturer = "HP";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
+			}
+		}
+	}
+	$output      = "";
+	$return_code = "";
+	
+	# Find LAN channel. Fujitsu and HP are on channel 2, Dell id on 1. Unsure yet what other OEMs
+	# use, but we'll scan 1..9 + 0.
+	foreach my $i (1..9, 0)
+	{
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan print ".$i});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if (not $return_code)
+		{
+			# Found it, but confirm.
+			$lan_channel = $i; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lan_channel => $lan_channel }});
+			
+			foreach my $line (split/\n/, $output)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				
+				# IP Address Source       : Static Address
+				# IP Address Source       : DHCP Address
+				if ($line =~ /IP Address Source\s+:\s+(.*)$/i)
+				{
+					$current_network_type = $1 =~ /DHCP/i ? "dhcp" : "static";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { current_network_type => $current_network_type }});
+				}
+				# IP Address              : 0.0.0.0
+				# IP Address              : 10.255.199.201
+				if ($line =~ /IP Address\s+:\s+(.*)$/i)
+				{
+					$current_ip_address = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { current_ip_address => $current_ip_address }});
+				}
+				# Subnet Mask             : 0.0.0.0
+				# Subnet Mask             : 255.255.0.0
+				if ($line =~ /Subnet Mask\s+:\s+(.*)$/i)
+				{
+					$current_subnet_mask = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { current_subnet_mask => $current_subnet_mask }});
+				}
+				# Default Gateway IP      : 0.0.0.0
+				# Default Gateway IP      : 10.255.255.254
+				if ($line =~ /Default Gateway IP\s+:\s+(.*)$/i)
+				{
+					$current_gateway = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { current_gateway => $current_gateway }});
+				}
+			}
+			last;
+		}
+	}
+	
+	# If we didn't find a LAN channel, we can't proceed.
+	if (not $lan_channel)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0499"});
+		return(0);
+	}
+	
+	### TODO: Left off here.
+	# What values do we want?
+=cut
+
+ipmitool lan print {1..x}
+ipmitool lan set 2 ipsrc static
+ipmitool lan set 2 ipaddr 10.20.51.1
+ipmitool lan set 2 netmask 255.255.0.0
+ipmitool lan set 2 defgw ipaddr 10.20.255.254
+
+ipmitool user list 2
+=cut
+
 	return($host_ipmi);
 }
 
@@ -1229,7 +1391,7 @@ sub disable_daemon
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." disable ".$daemon});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{systemctl}." disable ".$daemon});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -1673,7 +1835,7 @@ sub enable_daemon
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." enable ".$daemon." 2>&1"});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{systemctl}." enable ".$daemon." 2>&1"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -1841,7 +2003,7 @@ sub host_name
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local call
-			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				output      => $output, 
 				return_code => $return_code,
@@ -1878,7 +2040,7 @@ sub host_name
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local call
-			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				output      => $output, 
 				return_code => $return_code,
@@ -1913,7 +2075,7 @@ sub host_name
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local call
-		($host_name, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		($host_name, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host_name    => $host_name, 
 			return_code  => $return_code,
@@ -1945,7 +2107,7 @@ sub host_name
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local call
-		($descriptive, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		($descriptive, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			descriptive => $descriptive, 
 			return_code => $return_code,
@@ -2319,7 +2481,7 @@ sub manage_firewall
 	my $shell_call = $anvil->data->{path}{exe}{'iptables-save'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
-	my ($iptables, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	my ($iptables, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	foreach my $line (split/\n/, $iptables)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -2372,7 +2534,7 @@ sub manage_firewall
 		my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --get-active-zones";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 		foreach my $line (split/\n/, $output)
 		{
@@ -2470,7 +2632,7 @@ sub manage_firewall
 			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --add-service ".$service;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 			if ($output eq "success")
 			{
@@ -2489,7 +2651,7 @@ sub manage_firewall
 			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --add-port ".$port_number."/".$protocol;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 			if ($output eq "success")
 			{
@@ -2516,7 +2678,7 @@ sub manage_firewall
 			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-service ".$service;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 			if ($output eq "success")
 			{
@@ -2535,7 +2697,7 @@ sub manage_firewall
 			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --remove-port ".$port_number."/".$protocol;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output, return_code => $return_code }});
 			if ($output eq "success")
 			{
@@ -2602,7 +2764,7 @@ sub pids
 	my $pids       = [];
 	my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	foreach my $line (split/\n/, $output)
 	{
 		$line = $anvil->Words->clean_spaces({ string => $line });
@@ -2758,7 +2920,7 @@ sub reload_daemon
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." reload ".$daemon});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{systemctl}." reload ".$daemon});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -2947,7 +3109,7 @@ sub stop_daemon
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -2982,13 +3144,13 @@ sub stty_echo
 	
 	if ($set eq "off")
 	{
-		($anvil->data->{sys}{terminal}{stty}, my $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." --save"});
+		($anvil->data->{sys}{terminal}{stty}, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{stty}." --save"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::terminal::stty' => $anvil->data->{sys}{terminal}{stty}, return_code => $return_code }});
-		$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." -echo"});
+		$anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{stty}." -echo"});
 	}
 	elsif (($set eq "on") && ($anvil->data->{sys}{terminal}{stty}))
 	{
-		$anvil->System->call({shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{terminal}{stty}});
+		$anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{stty}." ".$anvil->data->{sys}{terminal}{stty}});
 	}
 	
 	return(0);

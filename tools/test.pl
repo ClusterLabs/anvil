@@ -26,4 +26,3 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level 
 $anvil->Get->switches;
 
 $anvil->System->configure_ipmi({debug => 2});
-
