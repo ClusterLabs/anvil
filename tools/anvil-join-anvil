@@ -1343,38 +1343,6 @@ sub load_job
 	}});
 	
 	# Load in the manifest 
-	load_manifest($anvil);
-	
-	$anvil->Database->get_anvils();
-	
-	# Load the manifest and anvil data.
-	if ((not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}) or (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}))
-	{
-		# Terminate the job entirely, it's likely an unrecoverable problem.
-		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
-		sleep 2;
-		$anvil->nice_exit({exit_code => 5});
-	}
-	
-	# Load the anvil
-	$anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-	$anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	$anvil->data->{sys}{dr1_host_uuid}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"sys::node1_host_uuid" => $anvil->data->{sys}{node1_host_uuid},
-		"sys::node2_host_uuid" => $anvil->data->{sys}{node2_host_uuid},
-		"sys::dr1_host_uuid"   => $anvil->data->{sys}{dr1_host_uuid},
-	}});
-	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0075,!!machine!".$anvil->data->{sys}{machine}."!!,!!manifest_uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
-	
-	return(0);
-}
-
-# Load in the manifest 
-sub load_manifest
-{
-	my ($anvil) = @_;
-	
 	$anvil->Database->get_hosts();
 	my $problem = $anvil->Striker->load_manifest({
 		debug         => 2,
@@ -1393,6 +1361,27 @@ sub load_manifest
 		sleep 2;
 		$anvil->nice_exit({exit_code => 2});
 	}
+	
+	# Load the manifest and anvil data.
+	$anvil->Database->get_anvils();
+	if ((not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}) or (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}))
+	{
+		# Terminate the job entirely, it's likely an unrecoverable problem.
+		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
+		sleep 2;
+		$anvil->nice_exit({exit_code => 5});
+	}
+	
+	# Load the anvil
+	$anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	$anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	$anvil->data->{sys}{dr1_host_uuid}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::node1_host_uuid" => $anvil->data->{sys}{node1_host_uuid},
+		"sys::node2_host_uuid" => $anvil->data->{sys}{node2_host_uuid},
+		"sys::dr1_host_uuid"   => $anvil->data->{sys}{dr1_host_uuid},
+	}});
+	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0075,!!machine!".$anvil->data->{sys}{machine}."!!,!!manifest_uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
 	
 	return(0);
 }

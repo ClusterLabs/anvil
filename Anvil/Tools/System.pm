@@ -1189,7 +1189,13 @@ If a BMC is found and configured, the C<< fence_ipmilan >> call used to check th
 
 B<< NOTE >>: The password used to set the IPMI BMC access is included both in the database table and the returned string.
 
-This method takes no parameters.
+Parameters;
+
+=head3 manifest_uuid (Optional, default sys::manifest_uuid)
+
+The C<< manifests >> -> C<< manifest_uuid >> used to pull out configuration data. This is required, but in most cases, it can be determined if not passed. 
+
+If not passed, C<< sys::manifest_uuid >> is checked. If this is set, it is used. If this isn't set either, the call will fail.
 
 =cut
 sub configure_ipmi
@@ -1200,8 +1206,27 @@ sub configure_ipmi
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->configure_ipmi()" }});
 	
+	my $manifest_uuid = defined $parameter->{manifest_uuid} ? $parameter->{manifest_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		manifest_uuid => $manifest_uuid,
+	}});
+	
+	if ((not $manifest_uuid) && (exists $anvil->data->{sys}{manifest_uuid}) && ($anvil->data->{sys}{manifest_uuid}))
+	{
+		$manifest_uuid = $anvil->data->{sys}{manifest_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+	}
+	if (not $manifest_uuid)
+	{
+		# Nothing more we can do.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->configure_ipmi()", parameter => "manifest_uuid" }});
+		return(0);
+	}
+	
 	# Is this host in an Anvil!?
 	$anvil->Database->get_hosts();
+	$anvil->Database->get_anvils();
+			
 	my $anvil_uuid = "";
 	my $host_uuid  = $anvil->Get->host_uuid;
 	if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}) && ($anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}))
@@ -1214,6 +1239,123 @@ sub configure_ipmi
 	{
 		# Not in an Anvil!, return 0.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0498"});
+		return(0);
+	}
+	
+	# Look for a job for 'anvil-join-anvil' for this host. With it, we'll figure out the password and 
+	# which machine we are.
+	my $query = "
+SELECT 
+    job_uuid, 
+    job_data
+FROM 
+    jobs 
+WHERE 
+    job_command LIKE '\%anvil-join-anvil' 
+AND 
+    job_host_uuid = ".$anvil->Database->quote($host_uuid)." 
+ORDER BY 
+    modified_date DESC 
+LIMIT 1
+;"
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	my $job_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+	my $job_data = defined $results->[0]->[1] ? $results->[0]->[1] : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		job_uuid => $job_uuid, 
+		job_data => $anvil->Log->is_secure($job_data), 
+	}});
+	if (not $job_uuid)
+	{
+		# Unable to proceed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0501"});
+		return(0);
+	}
+	
+	my ($machine, $manifest_uuid, $anvil_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
+	$machine       = "" if not defined $machine;
+	$manifest_uuid = "" if not defined $manifest_uuid;
+	$anvil_uuid    = "" if not defined $anvil_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		machine       => $machine,
+		manifest_uuid => $manifest_uuid, 
+		anvil_uuid    => $anvil_uuid, 
+	}});
+	
+	# Load the manifest.
+	my $problem = $anvil->Striker->load_manifest({
+		debug         => 2,
+		manifest_uuid => $manifest_uuid, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# The load_manifest method would log the details.
+		return(0);
+	}
+	
+	# Make sure the IPMI IP, subnet mask and password are available.
+	my $password    = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $ip_address  = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip};
+	my $subnet_mask = "";
+	my $gateway     = "";
+	my $in_network  = "";
+	
+	# Find the subnet the IPMI IP is in.
+	foreach my $network_type ("bcn", "ifn", "sn")
+	{
+		my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			network_type => $network_type,
+			count        => $count, 
+		}});
+		foreach my $i (1..$count)
+		{
+			my $network_name     = $network_type.$i;
+			my $network          = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{network};
+			my $this_subnet_mask = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{subnet};
+			my $this_gateway     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{gateway};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				network_name     => $network_name,
+				network          => $network, 
+				this_subnet_mask => $this_subnet_mask, 
+				this_gateway     => $this_gateway, 
+			}});
+			
+			my $match = $anvil->Network->is_ip_in_network({
+				network     => $network,
+				subnet_mask => $this_subnet_mask, 
+				ip          => $ip_address,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $match}});
+			if ($match)
+			{
+				$subnet_mask = $this_subnet_mask;
+				$gateway     = $this_gateway;
+				$in_network  = $network_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					subnet_mask => $subnet_mask, 
+					gateway     => $gateway, 
+					in_network  => $in_network, 
+				}});
+				last;
+			}
+		}
+	}
+	
+	# If we didn't find a network, we're done.
+	if (not $subnet_mask)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0502", variables => {
+			ip_address    => $ip_address,
+			manifest_uuid => $manifest_uuid,
+		}});
 		return(0);
 	}
 	
@@ -1345,21 +1487,64 @@ sub configure_ipmi
 	}
 	
 	# If we didn't find a LAN channel, we can't proceed.
-	if (not $lan_channel)
+	if ($lan_channel eq 99)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0499"});
 		return(0);
 	}
 	
-	### TODO: Left off here.
-	# What values do we want?
+	# Is the desired values different from the current network?
+	if ($current_network_type eq "dhcp")
+	{
+		# Change to static.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0503"});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." ipsrc static"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+	}
+	if ((($ip_address) && ($ip_address ne $current_ip_address))
+	{
+		# Update the IP
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0504", variables => {
+			old => $current_ip_address,
+			new => $ip_address,
+		}});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." ipaddr ".$ip_address});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+	}
+	if (($subnet_mask) && ($subnet_mask ne $current_subnet_mask))
+	{
+		# Update the subnet mask
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0505", variables => {
+			old => $current_ip_address,
+			new => $ip_address,
+		}});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." netmask ".$subnet_mask});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+	}
+	if (($gateway) && ($gateway ne $current_gateway))
+	{
+		# Update the gateway
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0506", variables => {
+			old => $current_ip_address,
+			new => $ip_address,
+		}});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." defgw ipaddr ".$gateway});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+	}
+	
 =cut
-
-ipmitool lan print {1..x}
-ipmitool lan set 2 ipsrc static
-ipmitool lan set 2 ipaddr 10.20.51.1
-ipmitool lan set 2 netmask 255.255.0.0
-ipmitool lan set 2 defgw ipaddr 10.20.255.254
 
 ipmitool user list 2
 =cut

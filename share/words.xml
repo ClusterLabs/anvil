@@ -933,6 +933,12 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0498">This machine is not in an #!string!brand_0002!#, not configuring IPMI.</key>
 		<key name="log_0499">This machine does not appear to have an IPMI BMC (no BMC reported by 'dmidecode'). Not attempting to configure IPMI.</key>
 		<key name="log_0500">This machine appears to have an IPMI BMC, but the LAN channel (used to configure the BMC's network) wasn't found. Channels 0 to 9 were checked.</key>
+		<key name="log_0501">Configuring the local IPMI is dependent on knowing what #!string!brand_0002!# this host is a member of. This involves looking for a 'job' for this host to be run by 'anvil-join-anvil' (used to determine the IPMI password to set and to know which machine we are in the #!string!brand_0002!#). No job was found, so unable to configure IPMI at this time.</key>
+		<key name="log_0502">The IPMI BMC is configured to be set to: [#!variable!ip_address!#], but this doesn't match any of the networks in the install manifest with the UUID: [#!variable!manifest_uuid!#].</key>
+		<key name="log_0503">The IPMI BMC was set to DHCP, changing to static.</key>
+		<key name="log_0504">The IPMI BMC currently has the IP address: [#!variable!old!#], changing it to: [#!variable!new!#].</key>
+		<key name="log_0505">The IPMI BMC currently has the subnet mask of: [#!variable!old!#], changing it to: [#!variable!new!#].</key>
+		<key name="log_0506">The IPMI BMC currently has the default gateway of: [#!variable!old!#], changing it to: [#!variable!new!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
