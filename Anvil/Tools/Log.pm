@@ -467,6 +467,7 @@ sub entry
 			open (my $file_handle, ">>", $shell_call) or die "Failed to open: [$shell_call] for writing. The error was: $!\n";
 			$file_handle->autoflush(1);
 			$anvil->data->{HANDLE}{'log'}{main} = $file_handle;
+			binmode($anvil->data->{HANDLE}{'log'}{main}, ':encoding(utf-8)');
 			print $THIS_FILE." ".__LINE__."; HANDLE::log::main: [".$anvil->data->{HANDLE}{'log'}{main}."]\n" if $test;
 			
 			# Make sure it can be written to by apache.

@@ -24,6 +24,7 @@ my $THIS_FILE = "Words.pm";
 # language_list
 # parse_banged_string
 # read
+# shorten_string
 # string
 # _wrap_string
 
@@ -564,6 +565,87 @@ sub read
 	}
 	
 	return($return_code);
+}
+
+=head2 shorten_string
+
+This takes a string and shortens it to a specific number of bytes (not characters). The returned string will be equal to or lass than the set byte limit. If the last character is a space, it will be removed as well.
+
+If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 length (required)
+
+This is a real number that the string will be truncated to. If necessary, the resulting string may be equal to, or less than this value.
+
+=head3 secure (optional, default '0')
+
+If this is set to C<< 1 >>, the string will be treated as a password in loggin.
+
+=head3 string (required)
+
+This is the string to truncate. 
+
+=cut
+sub shorten_string
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	# Setup default values
+	my $short_string = "";
+	my $test_string  = "";
+	my $length       = defined $parameter->{'length'} ? $parameter->{'length'} : "";
+	my $secure       = defined $parameter->{secure}   ? $parameter->{secure}   : 0;
+	my $string       = defined $parameter->{string}   ? $parameter->{string}   : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		string   => $secure ? $anvil->Log->is_secure($string) : $string,
+		'length' => $length, 
+		secure   => $secure, 
+	}});
+	
+	if (not $string)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Words->shorten_string()", parameter => "string" }});
+		return('!!error!!');
+	}
+	if (not $length)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Words->shorten_string()", parameter => "length" }});
+		return('!!error!!');
+	}
+	
+	foreach my $character (split//, $string)
+	{
+		   $test_string .= $character;
+		my $test_length =  length(Encode::encode('UTF-8', $test_string));
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			test_string => $secure ? $anvil->Log->is_secure($test_string) : $test_string,
+			test_length => $test_length, 
+		}});
+		if ($test_length <= $length)
+		{
+			# Within spec.
+			$short_string .= $character;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				short_string => $secure ? $anvil->Log->is_secure($short_string) : $short_string,
+			}});
+		}
+		else
+		{
+			# We've reach the length.
+			last;
+		}
+	}
+	$short_string =~ s/\s+$//;
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		short_string => $secure ? $anvil->Log->is_secure($short_string) : $short_string,
+	}});
+	return($short_string);
 }
 
 =head2 string

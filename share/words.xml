@@ -939,6 +939,15 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0504">The IPMI BMC currently has the IP address: [#!variable!old!#], changing it to: [#!variable!new!#].</key>
 		<key name="log_0505">The IPMI BMC currently has the subnet mask of: [#!variable!old!#], changing it to: [#!variable!new!#].</key>
 		<key name="log_0506">The IPMI BMC currently has the default gateway of: [#!variable!old!#], changing it to: [#!variable!new!#].</key>
+		<key name="log_0507">
+The IPMI BMC administrator (oem) user was not found. The output (if any) of the call: [#!variable!shell_call!#] was:
+====
+#!variable!output!#
+====
+		</key>
+		<key name="log_0508">This host's manufacturer is: [#!variable!manufacturer!#], changing it to: [#!variable!ip_address!#].</key>
+		<key name="log_0509">Successfully pinged: [#!variable!ip_address!#].</key>
+		<key name="log_0510">Timed out waiting to ping: [#!variable!ip_address!#]! Configuration will process in case we can't ping our own BMC, but the fence test may fail.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

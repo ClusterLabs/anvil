@@ -12,6 +12,8 @@ use Proc::Simple;
 use NetAddr::IP;
 use JSON;
 use Text::Diff;
+use String::ShellQuote;
+use Encode;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
@@ -1257,7 +1259,7 @@ AND
 ORDER BY 
     modified_date DESC 
 LIMIT 1
-;"
+;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
@@ -1278,11 +1280,11 @@ LIMIT 1
 		return(0);
 	}
 	
-	my ($machine, $manifest_uuid, $anvil_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
+	(my $machine, $manifest_uuid, $anvil_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
 	$machine       = "" if not defined $machine;
 	$manifest_uuid = "" if not defined $manifest_uuid;
 	$anvil_uuid    = "" if not defined $anvil_uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		machine       => $machine,
 		manifest_uuid => $manifest_uuid, 
 		anvil_uuid    => $anvil_uuid, 
@@ -1293,7 +1295,7 @@ LIMIT 1
 		debug         => 2,
 		manifest_uuid => $manifest_uuid, 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	if ($problem)
 	{
 		# The load_manifest method would log the details.
@@ -1301,8 +1303,26 @@ LIMIT 1
 	}
 	
 	# Make sure the IPMI IP, subnet mask and password are available.
-	my $password    = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	my $ip_address  = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip};
+	my $ipmi_ip_address       = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip};
+	my $ipmi_password         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $escaped_ipmi_password = shell_quote($ipmi_password);
+	my $password_length       = length(Encode::encode('UTF-8', $ipmi_password));
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmi_ip_address       => $ipmi_ip_address,
+		ipmi_password         => $anvil->Log->is_secure($ipmi_password), 
+		escaped_ipmi_password => $anvil->Log->is_secure($escaped_ipmi_password), 
+		password_length       => $password_length,
+	}});
+	
+	# Most (all?) IPMI BMCs don't support passwords over 20 bytes long. If the passed password is longer, reduce it.
+	my $short_ipmi_password         = "";
+	my $short_escaped_ipmi_password = "";
+	if (length($ipmi_password) > 20)
+	{
+		
+	}
+	
+	
 	my $subnet_mask = "";
 	my $gateway     = "";
 	my $in_network  = "";
@@ -1311,7 +1331,7 @@ LIMIT 1
 	foreach my $network_type ("bcn", "ifn", "sn")
 	{
 		my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network_type};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			network_type => $network_type,
 			count        => $count, 
 		}});
@@ -1321,7 +1341,7 @@ LIMIT 1
 			my $network          = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{network};
 			my $this_subnet_mask = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{subnet};
 			my $this_gateway     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{gateway};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				network_name     => $network_name,
 				network          => $network, 
 				this_subnet_mask => $this_subnet_mask, 
@@ -1331,15 +1351,15 @@ LIMIT 1
 			my $match = $anvil->Network->is_ip_in_network({
 				network     => $network,
 				subnet_mask => $this_subnet_mask, 
-				ip          => $ip_address,
+				ip          => $ipmi_ip_address,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $match}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_name => $match}});
 			if ($match)
 			{
 				$subnet_mask = $this_subnet_mask;
 				$gateway     = $this_gateway;
 				$in_network  = $network_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					subnet_mask => $subnet_mask, 
 					gateway     => $gateway, 
 					in_network  => $in_network, 
@@ -1353,7 +1373,7 @@ LIMIT 1
 	if (not $subnet_mask)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0502", variables => {
-			ip_address    => $ip_address,
+			ip_address    => $ipmi_ip_address,
 			manifest_uuid => $manifest_uuid,
 		}});
 		return(0);
@@ -1494,25 +1514,30 @@ LIMIT 1
 	}
 	
 	# Is the desired values different from the current network?
+	my $changes = 0;
 	if ($current_network_type eq "dhcp")
 	{
 		# Change to static.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0503"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0503"});
+		   $changes                = 1;
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." ipsrc static"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			changes     => $changes,
 			output      => $output, 
 			return_code => $return_code,
 		}});
 	}
-	if ((($ip_address) && ($ip_address ne $current_ip_address))
+	if (($ipmi_ip_address) && ($ipmi_ip_address ne $current_ip_address))
 	{
 		# Update the IP
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0504", variables => {
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0504", variables => {
 			old => $current_ip_address,
-			new => $ip_address,
+			new => $ipmi_ip_address,
 		}});
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." ipaddr ".$ip_address});
+		   $changes                = 1;
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." ipaddr ".$ipmi_ip_address});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			changes     => $changes,
 			output      => $output, 
 			return_code => $return_code,
 		}});
@@ -1520,12 +1545,14 @@ LIMIT 1
 	if (($subnet_mask) && ($subnet_mask ne $current_subnet_mask))
 	{
 		# Update the subnet mask
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0505", variables => {
-			old => $current_ip_address,
-			new => $ip_address,
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0505", variables => {
+			old => $current_subnet_mask,
+			new => $subnet_mask,
 		}});
+		   $changes                = 1;
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." netmask ".$subnet_mask});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			changes     => $changes,
 			output      => $output, 
 			return_code => $return_code,
 		}});
@@ -1533,21 +1560,133 @@ LIMIT 1
 	if (($gateway) && ($gateway ne $current_gateway))
 	{
 		# Update the gateway
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0506", variables => {
-			old => $current_ip_address,
-			new => $ip_address,
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0506", variables => {
+			old => $current_gateway,
+			new => $gateway,
 		}});
+		   $changes                = 1;
 		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan set ".$lan_channel." defgw ipaddr ".$gateway});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			changes     => $changes,
 			output      => $output, 
 			return_code => $return_code,
 		}});
 	}
 	
-=cut
+	# HPs require a warm restart
+	if (($changes) && ($manufacturer eq "HP"))
+	{
+		# Do a warm reset. This should take about 30 seconds for pings to respond. We'll wait that 
+		# long anyway in casr the IP itself didn't change, then wait for the pings to respond.
+		my $wait_until = time + 120;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0508", variables => {
+			manufacturer => $manufacturer,
+			ip_address   => $ipmi_ip_address,
+		}});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." mc restart warm"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		
+		sleep 30;
+		my $done = 0;
+		until($done)
+		{
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ping}." -c 1 ".$ipmi_ip_address});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+			if (not $return_code)
+			{
+				# Pinged!
+				$done = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0509", variables => { ip_address => $ipmi_ip_address }});
+			}
+			elsif (time > $wait_until)
+			{
+				# Timed out.
+				$done = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0510"});
+			}
+		}
+	}
+	
+	my $user_name   = "";
+	my $user_number = "";
+	($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		next if $line =~ /Empty User/i;
+		next if $line =~ /NO ACCESS/i;
+		next if $line =~ /Unknown/i;
+		if ($line =~ /^(\d+)\s+(.*?)\s+(\w+)\s+(\w+)\s+(\w+)\s+(.*)$/)
+		{
+			my $this_user_number = $1;
+			my $this_user_name   = $2;
+			my $callin           = $3;
+			my $link_auth        = $4;
+			my $ipmi_message     = $5;
+			my $channel_priv     = lc($6);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				this_user_number => $this_user_number,
+				this_user_name   => $this_user_name, 
+				callin           => $callin, 
+				link_auth        => $link_auth, 
+				ipmi_message     => $ipmi_message,
+				channel_priv     => $channel_priv, 
+			}});
+			if (($channel_priv eq "oem") or ($channel_priv eq "administrator"))
+			{
+				# Found the user.
+				$user_name   = $this_user_name;
+				$user_number = $this_user_number;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					user_name   => $user_name,
+					user_number => $user_number, 
+				}});
+				last;
+			}
+		}
+	}
+	if (not $user_name)
+	{
+		# Failed to find a user.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "log_0507", variables => {
+			shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel,
+			output     => $output,
+		}});
+		return(0);
+	}
+	$output      = "";
+	$return_code = "";
+	
+	# Now ask the Striker running the database we're using to try to call the IPMI BMC.
+	my $striker_host_uuid = $anvil->data->{sys}{database}{read_uuid};
+	my $striker_host      = $anvil->data->{database}{$striker_host_uuid}{host};
+	my $striker_password  = $anvil->data->{database}{$striker_host_uuid}{password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		striker_host_uuid => $striker_host_uuid, 
+		striker_host      => $striker_host,
+		striker_password  => $anvil->Log->is_secure($striker_password), 
+	}});
 
-ipmitool user list 2
-=cut
+	my $shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan --ip ".$ipmi_ip_address." --username ".$user_name." --password ".$escaped_ipmi_password." --action status";
+	if (($manufacturer eq "HP") or ($manufacturer eq "Dell"))
+	{
+		# These need LAN Plus
+		$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan --lanplus --ip ".$ipmi_ip_address." --username ".$user_name." --password ".$escaped_ipmi_password." --action status";
+	}
+	
+	# If the password doesn't work, we'll try again with a shorter password. 
 
 	return($host_ipmi);
 }
