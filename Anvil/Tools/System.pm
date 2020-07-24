@@ -1185,7 +1185,7 @@ sub check_storage
 
 This uses the host information along with the Anvil! the host is in to find and configure the local IPMI BMC.
 
-If this host is not in an Anvil!, or if the host is in an Anvil!, but no IPMI BMC was found, or any other issue arises, C<< 0 >> is returned. 
+If this host is not in an Anvil!, or if the host is in an Anvil!, but no IPMI BMC was found, or any other issue arises, C<< 0 >> is returned. If there is any problem, C<< !!errer!! >> will be returned.
 
 If a BMC is found and configured, the C<< fence_ipmilan >> call used to check the status is stored in C<< hosts >> -> C<< host_ipmi >>, and the same string is returned.
 
@@ -1280,7 +1280,7 @@ LIMIT 1
 		return(0);
 	}
 	
-	(my $machine, $manifest_uuid, $anvil_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
+	(my $machine, $manifest_uuid, $anvil_uuid) = ($job_data =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
 	$machine       = "" if not defined $machine;
 	$manifest_uuid = "" if not defined $manifest_uuid;
 	$anvil_uuid    = "" if not defined $anvil_uuid;
@@ -1303,25 +1303,14 @@ LIMIT 1
 	}
 	
 	# Make sure the IPMI IP, subnet mask and password are available.
-	my $ipmi_ip_address       = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip};
-	my $ipmi_password         = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	my $escaped_ipmi_password = shell_quote($ipmi_password);
-	my $password_length       = length(Encode::encode('UTF-8', $ipmi_password));
+	my $ipmi_ip_address = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip};
+	my $ipmi_password   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $password_length = length(Encode::encode('UTF-8', $ipmi_password));
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		ipmi_ip_address       => $ipmi_ip_address,
-		ipmi_password         => $anvil->Log->is_secure($ipmi_password), 
-		escaped_ipmi_password => $anvil->Log->is_secure($escaped_ipmi_password), 
-		password_length       => $password_length,
+		ipmi_ip_address => $ipmi_ip_address,
+		ipmi_password   => $anvil->Log->is_secure($ipmi_password), 
+		password_length => $password_length,
 	}});
-	
-	# Most (all?) IPMI BMCs don't support passwords over 20 bytes long. If the passed password is longer, reduce it.
-	my $short_ipmi_password         = "";
-	my $short_escaped_ipmi_password = "";
-	if (length($ipmi_password) > 20)
-	{
-		
-	}
-	
 	
 	my $subnet_mask = "";
 	my $gateway     = "";
@@ -1338,9 +1327,9 @@ LIMIT 1
 		foreach my $i (1..$count)
 		{
 			my $network_name     = $network_type.$i;
-			my $network          = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{network};
-			my $this_subnet_mask = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{subnet};
-			my $this_gateway     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{$network_name}{gateway};
+			my $network          = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{network};
+			my $this_subnet_mask = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{subnet};
+			my $this_gateway     = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{gateway};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				network_name     => $network_name,
 				network          => $network, 
@@ -1574,23 +1563,30 @@ LIMIT 1
 	}
 	
 	# HPs require a warm restart
-	if (($changes) && ($manufacturer eq "HP"))
+	if (($changes) && (($manufacturer eq "HP") or ($manufacturer eq "Dell")))
 	{
-		# Do a warm reset. This should take about 30 seconds for pings to respond. We'll wait that 
-		# long anyway in casr the IP itself didn't change, then wait for the pings to respond.
-		my $wait_until = time + 120;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0508", variables => {
-			manufacturer => $manufacturer,
-			ip_address   => $ipmi_ip_address,
+		# HPs can get away with a warm reset. Dells need a cold reset.
+		my $reset_type  = $manufacturer eq "HP" ? "warm" : "cold";
+		my $reset_delay = $reset_type eq "cold" ? 60 : 30;
+		my $wait_until  = time + 120;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			manufacturer => $manufacturer, 
+			reset_type   => $reset_type,
+			reset_delay  => $reset_delay, 
+			wait_until   => $wait_until, 
 		}});
 		
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." mc restart warm"});
+		# Do the reset. This should take about 30 ~ 60 seconds for pings to respond. We'll wait that 
+		# long anyway in case the IP itself didn't change, then wait for the pings to respond.
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." mc reset ".$reset_type});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
 			return_code => $return_code,
 		}});
 		
-		sleep 30;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0516", variables => { reset_delay => $reset_delay}});
+		sleep $reset_delay;
+		
 		my $done = 0;
 		until($done)
 		{
@@ -1678,16 +1674,181 @@ LIMIT 1
 		striker_host      => $striker_host,
 		striker_password  => $anvil->Log->is_secure($striker_password), 
 	}});
-
-	my $shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan --ip ".$ipmi_ip_address." --username ".$user_name." --password ".$escaped_ipmi_password." --action status";
+	
+	# See if the current password works.
+	my $lanplus = "no-yes";
 	if (($manufacturer eq "HP") or ($manufacturer eq "Dell"))
 	{
 		# These need LAN Plus
-		$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan --lanplus --ip ".$ipmi_ip_address." --username ".$user_name." --password ".$escaped_ipmi_password." --action status";
+		$lanplus = "yes-no"
+	}
+	my $try_again = 1;
+	$host_ipmi = $anvil->System->test_ipmi({
+		debug         => 2,
+		ipmi_user     => $user_name,
+		ipmi_password => $ipmi_password,
+		ipmi_target   => $ipmi_ip_address, 
+		lanplus       => $lanplus,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
+	if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
+	{
+		# We're good! 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
+
+		$try_again = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { try_again => $try_again }});
+	}
+	else
+	{
+		# Try it again from the dashboard, we may just not be able to talk to our own BMC (can happen
+		# on shared interfaces)
+		$host_ipmi = $anvil->System->test_ipmi({
+			debug         => 2,
+			ipmi_user     => $user_name,
+			ipmi_password => $ipmi_password,
+			ipmi_target   => $ipmi_ip_address, 
+			lanplus       => $lanplus,
+			target        => $striker_host, 
+			password      => $striker_password, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
+		if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
+		{
+			# We're good! 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0512"});
+			
+			$try_again = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { try_again => $try_again }});
+		}
+		else
+		{
+			# Change the password and then try again.
+			my $escaped_ipmi_password = shell_quote($ipmi_password);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { escaped_ipmi_password => $escaped_ipmi_password }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, secure => 1, shell_call => $anvil->data->{path}{exe}{ipmitool}." user set password ".$user_number." ".$escaped_ipmi_password});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+			if (($return_code) or ($output =~ /Password is too long/))
+			{
+				# Try again with the 20-byte password.
+				my $twenty_byte_ipmi_password = $anvil->Words->shorten_string({
+					debug    => 3,
+					secure   => 1,
+					string   => $ipmi_password, 
+					'length' => 20,
+				});
+				my $twenty_byte_escaped_ipmi_password = shell_quote($twenty_byte_ipmi_password);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+					twenty_byte_ipmi_password         => $twenty_byte_ipmi_password, 
+					twenty_byte_escaped_ipmi_password => $twenty_byte_escaped_ipmi_password,
+				}});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => $debug, secure => 1, shell_call => $anvil->data->{path}{exe}{ipmitool}." user set password ".$user_number." ".$twenty_byte_escaped_ipmi_password});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
+				if ($return_code)
+				{
+					# Try once more with the 16-byte password.
+					my $sixteen_byte_ipmi_password = $anvil->Words->shorten_string({
+						debug    => 3,
+						secure   => 1,
+						string   => $ipmi_password, 
+						'length' => 16,
+					});
+					my $sixteen_byte_escaped_ipmi_password = shell_quote($sixteen_byte_ipmi_password);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+						sixteen_byte_ipmi_password         => $sixteen_byte_ipmi_password, 
+						sixteen_byte_escaped_ipmi_password => $sixteen_byte_escaped_ipmi_password,
+					}});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => $debug, secure => 1, shell_call => $anvil->data->{path}{exe}{ipmitool}." user set password ".$user_number." ".$sixteen_byte_escaped_ipmi_password});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+					if ($return_code)
+					{
+						# Nothing more to do.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0137", variables => {
+							user_name   => $user_name, 
+							user_number => $user_number, 
+							output      => $output,
+							return_code => $return_code,
+						}});
+						return('!!error!!');
+					}
+					else
+					{
+						# Looks like the 16-byte version worked.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0515"});
+					}
+				}
+				else
+				{
+					# Looks like the 20-byte version worked.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0514"});
+				}
+			}
+			else
+			{
+				# Looks like the password took.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0513"});
+			}
+		}
 	}
 	
-	# If the password doesn't work, we'll try again with a shorter password. 
-
+	if ($try_again)
+	{
+		$host_ipmi = $anvil->System->test_ipmi({
+			debug         => 2,
+			ipmi_user     => $user_name,
+			ipmi_password => $ipmi_password,
+			ipmi_target   => $ipmi_ip_address, 
+			lanplus       => $lanplus,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
+		if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
+		{
+			# We're good, password was changed! 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
+		}
+		else
+		{
+			# Try it again from the dashboard, we may just not be able to talk to our own BMC (
+			# can happen on shared interfaces)
+			my $host_ipmi = $anvil->System->test_ipmi({
+				debug         => 2,
+				ipmi_user     => $user_name,
+				ipmi_password => $ipmi_password,
+				ipmi_target   => $ipmi_ip_address, 
+				lanplus       => $lanplus,
+				target        => $striker_host, 
+				password      => $striker_password, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
+			if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
+			{
+				# We're good! 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
+			}
+			else
+			{
+				# Nothing worked. :(
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0138", variables => {
+					user_name   => $user_name, 
+					user_number => $user_number, 
+				}});
+				return('!!error!!');
+			}
+		}
+	}
+	
 	return($host_ipmi);
 }
 
@@ -3480,6 +3641,315 @@ sub stty_echo
 	return(0);
 }
 
+=head2 test_ipmi
+
+This tests access to an IPMI interface, either locally or from a remote client. This method will automatically shorten the passed-in IPMI password to 20 bytes if the existing password is longer and fails. If the 20 byte password also fails, it will try a third time with a 16 byte password. 
+
+If a working connection is found, the C<< fence_ipmilan >> command that worked will be returned (including the password that worked). 
+
+B<< Note >>: This test uses the C<< fence_ipmilan >> fence agent. This must installed and available on the remote machine (if testing remotely).
+
+Parameters;
+
+=head3 ipmi_password (required)
+
+This is the IPMI user password to use for the IPMI user. It will be shortened to 20 bytes and 16 bytes if necessary.
+
+B<< Note >>: The password will be escaped for the shell inside this method. Do NOT escape it before sending it in!
+
+=head3 ipmi_target (required)
+
+This is the IP or (resolvable) host name of the IPMI BCM to be called.
+
+=head3 ipmi_user (required)
+
+This is the IPMI user to use when trying to log into the IPMI BMC.
+
+=head3 lanplus (optional, default "no-yes")
+
+This determines if LAN Plus is tried when connecting to the IPMI BMC. This is often vendor-specific (some vendors _usually_ use it, others _usually_ don't). If you know for sure which your BMC needs, you can set it. If you aren't sure, but think you know, you can have it try both, either using or not using LAN Plus initially.
+
+This can be set to;
+
+* C<< yes >> - use LAN Plus
+* C<< no >> - don't use LAN Plus
+* C<< yes-no >> - Try both, using LAN Plus, then trying without.
+* C<< no-yes >> - Try both, trying without LAN Plus first, then trying with it.
+
+B<< Note >>: If there is an existing entry in C<< hosts >> -> C<< host_ipmi >>, that will possibly change this value. If C<< --lanplus >> is found, and this is set to C<< no >> or C<< no-yes >>, it will be changed to C<< yes-no >>. Reversed, if C<< --lanplus >> is NOT found, and this was set to C<< yes >> or C<< yes-no >>, it will be changed to C<< no-yes >>. As such, you may want to verify the returned shell command to see if LAN Plus is needed or not, regardless of how this is set.
+
+=head3 password (optional)
+
+If you are testing IPMI from a remote machine, this is the password used to connect to that machine. If not passed, an attempt to connect with passwordless SSH will be made (but this won't be the case in most instances). Ignored if C<< target >> is not given.
+
+=head3 port (optional, default 22)
+
+This is the TCP port number to use if connecting to a remote machine over SSH. Ignored if C<< target >> is not given.
+
+=head3 remote_user (optional, default root)
+
+If C<< target >> is set, this is the user we will use when logging in to the target machine.
+
+=head3 target (optional)
+
+This is the IP address or (resolvable) host name of the target machine to test the IPMI connection from.
+
+=cut
+sub test_ipmi
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->test_ipmi()" }});
+	
+	my $ipmi_password = defined $parameter->{ipmi_password} ? $parameter->{ipmi_password} : "";
+	my $ipmi_target   = defined $parameter->{ipmi_target}   ? $parameter->{ipmi_target}   : "";
+	my $ipmi_user     = defined $parameter->{ipmi_user}     ? $parameter->{ipmi_user}     : "";
+	my $lanplus       = defined $parameter->{lanplus}       ? $parameter->{lanplus}       : "no-yes";
+	my $password      = defined $parameter->{password}      ? $parameter->{password}      : "";
+	my $port          = defined $parameter->{port}          ? $parameter->{port}          : "";
+	my $remote_user   = defined $parameter->{remote_user}   ? $parameter->{remote_user}   : "";
+	my $target        = defined $parameter->{target}        ? $parameter->{target}        : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmi_password => $anvil->Log->is_secure($ipmi_password), 
+		ipmi_user     => $ipmi_user,
+		lanplus       => $lanplus, 
+		password      => $anvil->Log->is_secure($password),
+		port          => $port, 
+		remote_user   => $remote_user, 
+	}});
+	
+	if (not $ipmi_user)
+	{
+		# Nothing more we can do.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->test_ipmi()", parameter => "ipmi_user" }});
+		return("!!error!!");
+	}
+	if (not $ipmi_target)
+	{
+		# Nothing more we can do.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->test_ipmi()", parameter => "ipmi_target" }});
+		return("!!error!!");
+	}
+	if (not $ipmi_password)
+	{
+		# Nothing more we can do.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->test_ipmi()", parameter => "ipmi_password" }});
+		return("!!error!!");
+	}
+	if (($lanplus ne "yes") && ($lanplus ne "no") && ($lanplus ne "yes-no") && ($lanplus ne "no-yes"))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0136", variables => { lanplus => $lanplus }});
+		return("!!error!!");
+	}
+	
+	my $escaped_ipmi_password = shell_quote($ipmi_password);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { escaped_ipmi_password => $escaped_ipmi_password }});
+
+	my $twenty_byte_ipmi_password         = "";
+	my $twenty_byte_escaped_ipmi_password = "";
+	if (length($ipmi_password) > 20)
+	{
+		$twenty_byte_ipmi_password = $anvil->Words->shorten_string({
+			debug    => 3,
+			string   => $ipmi_password, 
+			'length' => 20,
+			secure   => 1,
+		});
+		$twenty_byte_escaped_ipmi_password = shell_quote($twenty_byte_ipmi_password);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+			twenty_byte_ipmi_password         => $twenty_byte_ipmi_password, 
+			twenty_byte_escaped_ipmi_password => $twenty_byte_escaped_ipmi_password,
+		}});
+	}
+	my $sixteen_byte_ipmi_password         = "";
+	my $sixteen_byte_escaped_ipmi_password = "";
+	if (length($ipmi_password) > 16)
+	{
+		$sixteen_byte_ipmi_password = $anvil->Words->shorten_string({
+			debug    => 3,
+			string   => $ipmi_password, 
+			'length' => 16,
+			secure   => 1,
+		});
+		$sixteen_byte_escaped_ipmi_password = shell_quote($sixteen_byte_ipmi_password);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+			sixteen_byte_ipmi_password         => $sixteen_byte_ipmi_password, 
+			sixteen_byte_escaped_ipmi_password => $sixteen_byte_escaped_ipmi_password,
+		}});
+	}
+	
+	# Read in the 'host_ipmi' (if it exists) to see if there's an old entry. If there is, and if the 
+	# password matches one of the shorter ones, we'll try that first.
+	my $query = "SELECT host_ipmi FROM hosts WHERE host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	my $host_ipmi = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi }});
+	
+	my @password_array = ($escaped_ipmi_password, $twenty_byte_escaped_ipmi_password, $sixteen_byte_escaped_ipmi_password);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+		'password_array[0]' => $password_array[0],
+		'password_array[1]' => $password_array[1],
+		'password_array[2]' => $password_array[2],
+	}});
+	
+	my $old_password = "";
+	my $old_lanplus  = "";
+	if ($host_ipmi)
+	{
+		if ($host_ipmi =~ /--lanplus/) 
+		{
+			# If we were given 'lanplus' of 'no' or 'no-yes', change it to 'yes-no'.
+			if (($lanplus eq "no") or ($lanplus eq "no-yes"))
+			{
+				$lanplus = "yes-no";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lanplus => $lanplus }});
+			}
+		}
+		else
+		{
+			# If we were given 'lanplus' of 'yes' or 'yes-no', change it to 'no-yes'.
+			if (($lanplus eq "yes") or ($lanplus eq "yes-no"))
+			{
+				$lanplus = "no-yes";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lanplus => $lanplus }});
+			}
+		}
+		
+		# If there was an old password, we ONLY use it if it matches the passed in password or one
+		# of the shorter variants. The caller may be checking if the password needs to be updated or
+		# has been updated successfully.
+		if ($host_ipmi =~ /--password (.*) --action/) 
+		{
+			$old_password = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { old_password => $old_password }});
+			
+			if (($twenty_byte_escaped_ipmi_password) && ($twenty_byte_escaped_ipmi_password eq $old_password))
+			{
+				# It matches the 20-byte password, try it first.
+				@password_array = ($twenty_byte_escaped_ipmi_password, $escaped_ipmi_password, $sixteen_byte_escaped_ipmi_password);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+					'password_array[0]' => $password_array[0],
+					'password_array[1]' => $password_array[1],
+					'password_array[2]' => $password_array[2],
+				}});
+			}
+			elsif (($sixteen_byte_escaped_ipmi_password) && ($sixteen_byte_escaped_ipmi_password eq $old_password))
+			{
+				# It matches the 16-byte password, try it first.
+				@password_array = ($sixteen_byte_escaped_ipmi_password, $escaped_ipmi_password, $twenty_byte_escaped_ipmi_password);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+					'password_array[0]' => $password_array[0],
+					'password_array[1]' => $password_array[1],
+					'password_array[2]' => $password_array[2],
+				}});
+			}
+		}
+	}
+	
+	my @lanplus_array;
+	if ($lanplus eq "no-yes")
+	{
+		@lanplus_array = ("", "--lanplus");
+	}
+	elsif ($lanplus eq "yes-no")
+	{
+		@lanplus_array = ("--lanplus", "");
+	}
+	elsif ($lanplus eq "yes")
+	{
+		@lanplus_array = ("--lanplus");
+	}
+	elsif ($lanplus eq "no")
+	{
+		@lanplus_array = ("");
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'lanplus_array[0]' => $lanplus_array[0],
+		'lanplus_array[1]' => defined $lanplus_array[1] ? defined $lanplus_array[1] : "--",
+	}});
+	
+	my $shell_call = "";
+	my $found_it   = 0;
+	foreach my $lanplus_switch (@lanplus_array)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lanplus_switch => $lanplus_switch }});
+		foreach my $test_password (@password_array)
+		{
+			# If the password is blank, it's because the previous password wasn't too long, so 
+			# no sense trying again.
+			next if $test_password eq "";
+			
+			# Build the shell call.
+			$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan ".$lanplus_switch." --ip ".$ipmi_target." --username ".$ipmi_user." --password ".$test_password." --action status";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { shell_call => $shell_call }});
+	
+			my $output      = "";
+			my $return_code = "";
+			if ($target)
+			{
+				### Remote call
+				# HPs can take over 10 seconds to respond, so we set the timeout higher to account for this.
+				($output, my $error, $return_code) = $anvil->Remote->call({
+					debug       => $debug, 
+					secure      => 1,
+					timeout     => 30,
+					shell_call  => $shell_call, 
+					target      => $target,
+					password    => $password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					error       => $error,
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+			else
+			{
+				### Local call
+				($output, $return_code) = $anvil->System->call({
+					debug       => $debug, 
+					secure      => 1,
+					shell_call  => $shell_call, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+			if (not $return_code)
+			{
+				# Got it!
+				$found_it = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found_it => $found_it }});
+			}
+			else
+			{
+				$shell_call = "";
+			}
+			last if $found_it;
+		}
+		last if $found_it;
+	}
+	
+	# If we have a valid shell call, and it doesn't match the one we read in earlier, update it.
+	if (($shell_call) && ($host_ipmi ne $shell_call))
+	{
+		# Update it.
+		my $query = "UPDATE hosts SET host_ipmi = ".$anvil->Database->quote($shell_call)."  WHERE host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return($shell_call);
+}
+
 =head2 update_hosts
 
 This uses the host list from C<< Get->trusted_hosts >>, along with data from C<< ip_addresses >>, to create a list of host name to IP addresses that should be in C<< /etc/hosts >>. Existing hosts where the IP has changed will be updated. Missing entries will be added. All other existing entries are left unchanged.
@@ -3497,7 +3967,7 @@ sub update_hosts
 	
 	# Get the list of hosts we trust.
 	my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});
-	$anvil->Database->get_ip_addresses({debug => $debug});
+	$anvil->Database->get_ip_addresses({debug => 2});
 	
 	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
 	{

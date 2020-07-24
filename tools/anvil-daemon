@@ -256,7 +256,8 @@ sub check_if_mapping
 		if ($map_network_value)
 		{
 			# How long ago was it set?
-			if ($map_network_age >= $expire_age)
+			$anvil->data->{switches}{'clear-mapping'} = "" if not defined $anvil->data->{switches}{'clear-mapping'};
+			if (($map_network_age >= $expire_age) or ($anvil->data->{switches}{'clear-mapping'}))
 			{
 				# Clear it.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0470"});

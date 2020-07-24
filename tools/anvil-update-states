@@ -292,6 +292,7 @@ sub update_network
 				$bridge_stp_enabled =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/stp_state"});
 				$bridge_id          =~ s/\n$//;
 				$bridge_stp_enabled =~ s/\n$//;
+				$speed              = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					bridge_id          => $bridge_id, 
 					bridge_stp_enabled => $bridge_stp_enabled, 
@@ -548,6 +549,7 @@ sub update_network
 							ip_address_dns             => $dns, 
 							ip_address_note            => "",
 						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip_address_uuid => $ip_address_uuid }});
 					}
 				}
 			}
@@ -604,6 +606,7 @@ sub update_network
 							ip_address_dns             => $dns, 
 							ip_address_note            => "",
 						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip_address_uuid => $ip_address_uuid }});
 					}
 				}
 			}

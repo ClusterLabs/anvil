@@ -1862,7 +1862,7 @@ It also sets the variables;
  hosts::host_uuid::<host_uuid>::host_name  = <host_name>;
  hosts::host_uuid::<host_uuid>::host_type  = <host_type; node, dr or dashboard>
  hosts::host_uuid::<host_uuid>::host_key   = <Machine's public key / fingerprint>
- hosts::host_uuid::<host_uuid>::host_ipmi  = <If equiped, this is how to log into the host's IPMI BMC>
+ hosts::host_uuid::<host_uuid>::host_ipmi  = <If equiped, this is how to log into the host's IPMI BMC, including the password!>
  hosts::host_uuid::<host_uuid>::anvil_name = <anvil_name if associated with an anvil>
  hosts::host_uuid::<host_uuid>::anvil_uuid = <anvil_uuid if associated with an anvil>
 
@@ -1925,7 +1925,7 @@ FROM
 			host_name     => $host_name, 
 			host_type     => $host_type, 
 			host_key      => $host_key, 
-			host_ipmi     => $host_ipmi, 
+			host_ipmi     => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi, 
 			modified_date => $modified_date, 
 		}});
 		
@@ -1943,7 +1943,7 @@ FROM
 			host_name     => $host_name, 
 			host_type     => $host_type, 
 			host_key      => $host_key, 
-			host_ipmi     => $host_ipmi, 
+			host_ipmi     => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi, 
 			modified_date => $modified_date, 
 		};
 		
@@ -1951,14 +1951,14 @@ FROM
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}  = $host_name;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}  = $host_type;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}   = $host_key;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}  = $host_ipmi;
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}  = $anvil->Log->is_secure($host_ipmi);
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} = $anvil_name;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid} = $anvil_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"hosts::host_uuid::${host_uuid}::host_name"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
 			"hosts::host_uuid::${host_uuid}::host_type"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
 			"hosts::host_uuid::${host_uuid}::host_key"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
-			"hosts::host_uuid::${host_uuid}::host_ipmi"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+			"hosts::host_uuid::${host_uuid}::host_ipmi"  => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}) : $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
 			"hosts::host_uuid::${host_uuid}::anvil_name" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name}, 
 			"hosts::host_uuid::${host_uuid}::anvil_uuid" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid}, 
 		}});
@@ -2214,6 +2214,7 @@ AND
 		# Finally, load IP addresses.
 		$query = "
 SELECT 
+    ip_address_uuid, 
     ip_address_on_type, 
     ip_address_on_uuid, 
     ip_address_address, 
@@ -2235,10 +2236,11 @@ AND
 		}});
 		foreach my $row (@{$results})
 		{
-			my $ip_address_on_type     = $row->[0];
-			my $ip_address_on_uuid     = $row->[1];
-			my $ip_address_address     = $row->[2];
-			my $ip_address_subnet_mask = $row->[3];
+			my $ip_address_uuid        = $row->[0];
+			my $ip_address_on_type     = $row->[1];
+			my $ip_address_on_uuid     = $row->[2];
+			my $ip_address_address     = $row->[3];
+			my $ip_address_subnet_mask = $row->[4];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ip_address_on_type     => $ip_address_on_type, 
 				ip_address_on_uuid     => $ip_address_on_uuid,
@@ -2264,6 +2266,15 @@ AND
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});
 			}
 			my $on_network = ($on_interface =~ /^(.*?)_/)[0];
+			if (not defined $on_network)
+			{
+				# This isn't a network we should know about (ie: it might be a stray 'virbrX'
+				# birdge), delete this IP.
+				my $query = "UPDATE ip_addresses SET ip_address_note = 'DELETED' WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				next;
+			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_network => $on_network }});
 			
 			# Store it.
@@ -5302,8 +5313,8 @@ WHERE
 		$old_host_type = $row->[2];
 		$old_host_key  = $row->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-			old_host_ipmi => $old_host_ipmi,
-			old_host_name => $old_host_name =~ /passw/ ? $anvil->Log->is_secure($old_host_name) : $old_host_name, 
+			old_host_ipmi => $old_host_ipmi =~ /passw/ ? $anvil->Log->is_secure($old_host_ipmi) : $old_host_ipmi,
+			old_host_name => $old_host_name, 
 			old_host_type => $old_host_type, 
 			old_host_key  => $old_host_key, 
 		}});

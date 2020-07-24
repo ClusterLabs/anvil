@@ -195,6 +195,8 @@ The error was:
 		<key name="error_0133">Failed to read or parse the CIB! Is pacemaker running?</key>
 		<key name="error_0134">Failed to start the daemon: [#!variable!daemon!#] on the local system, unable to boot the server.</key>
 		<key name="error_0135">Failed to start the daemon: [#!variable!daemon!#] on [#!variable!host!#], unable to boot the server.</key>
+		<key name="error_0136">System->test_ipmi() was called with an invalid 'lanplus' parameter. It must be 'yes', 'no', 'yes-no' or 'no-yes'. Received: [#!variable!lanplus!#].</key>
+		<key name="error_0137">All attempts to change the IPMI user: [#!variable!user_name!#] (number: [#!variable!user_number!#] failed. The last try's output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -945,9 +947,15 @@ The IPMI BMC administrator (oem) user was not found. The output (if any) of the 
 #!variable!output!#
 ====
 		</key>
-		<key name="log_0508">This host's manufacturer is: [#!variable!manufacturer!#], changing it to: [#!variable!ip_address!#].</key>
+		<key name="log_0508">This host's manufacturer is: [#!variable!manufacturer!#], for the changes to take effect, the BMC will be reset now.</key>
 		<key name="log_0509">Successfully pinged: [#!variable!ip_address!#].</key>
 		<key name="log_0510">Timed out waiting to ping: [#!variable!ip_address!#]! Configuration will process in case we can't ping our own BMC, but the fence test may fail.</key>
+		<key name="log_0511">The password for the IPMI BMC works, no need to update it.</key>
+		<key name="log_0512">The password for the IPMI BMC works, no need to update it. Note that we had to use another machine to confirm, it looks like we can't talk to our own BMC using the IP address.</key>
+		<key name="log_0513">The password for the IPMI BMC appears to have been successfully updated. Will test to confirm.</key>
+		<key name="log_0514">The password for the IPMI BMC appears to have been successfully updated, though we had to reduce it to 20-bytes long. Will test to confirm.</key>
+		<key name="log_0515">The password for the IPMI BMC appears to have been successfully updated, though we had to reduce it to 16-bytes long. Will test to confirm.</key>
+		<key name="log_0516">Waiting: [#!variable!reset_delay!#] seconds to give the BMC time to reset...</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

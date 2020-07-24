@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use String::ShellQuote;
 use utf8;
 binmode(STDERR, ':encoding(utf-8)');
 binmode(STDOUT, ':encoding(utf-8)');
@@ -22,16 +23,6 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
-
-my $string = "スパ シコレ パソーワアド";
-my $short  = $anvil->Words->shorten_string({
-	debug    => 2, 
-	string   => $string,
-	'length' => 16,
-});
-print "String: [".$string."]\n";
-print "Short:  [".$short."]\n";
-die;
 
 print "Connecting to the database(s);\n";
 $anvil->Database->connect();

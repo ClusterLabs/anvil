@@ -1175,6 +1175,7 @@ sub _set_paths
 				ifdown				=>	"/sbin/ifdown",
 				ifup				=>	"/sbin/ifup",
 				ip				=>	"/usr/sbin/ip",
+				ipmitool			=>	"/usr/bin/ipmitool",
 				'iptables-save'			=>	"/usr/sbin/iptables-save",
 				journalctl			=>	"/usr/bin/journalctl",
 				logger				=>	"/usr/bin/logger",
