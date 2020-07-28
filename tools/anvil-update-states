@@ -21,6 +21,7 @@ my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 0});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Get->switches;
 
 # If there's no DB (or cached data isn't recorded to the database yet), this will store those records.
 $anvil->data->{cache}{new_file} = "# interface,timestamp,mac_address,speed,link_state,operational\n";
@@ -121,7 +122,7 @@ sub update_network
 	my ($anvil) = @_;
 	
 	# Run 'ip addr' to see what IPs are in use.
-	$anvil->Network->get_ips({debug => 3});
+	$anvil->Network->get_ips();
 	
 	# We'll read through '/sys/class/net' looking for network interfaces.
 	# * 'network::local::interface::<iface_name>::ip'          - If an IP address is set
@@ -457,7 +458,7 @@ sub update_network
 	# recording interfaces.
 	foreach my $processing ("bridge", "bond", "interface")
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { processing => $processing }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { processing => $processing }});
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
 			# Skip if this isn't the device type we're working on.
@@ -492,7 +493,7 @@ sub update_network
 			my $default_gateway      = $anvil->data->{network}{'local'}{interface}{$interface}{default_gateway};
 			my $gateway              = $anvil->data->{network}{'local'}{interface}{$interface}{gateway};
 			my $dns                  = $anvil->data->{network}{'local'}{interface}{$interface}{dns};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				active_interface     => $active_interface, 
 				bond_mode            => $bond_mode, 
 				bond_master          => $bond_master, 

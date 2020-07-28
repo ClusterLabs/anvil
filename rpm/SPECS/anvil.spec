@@ -24,6 +24,7 @@ WARNING: This is an alpha-stage project. Many features are missing and this
 %package core
 Summary:        Alteeve's Anvil! Core package
 Requires:       bash-completion 
+Requires:       binutils
 Requires:       chrony
 Requires:       bind-utils 
 Requires:       dmidecode

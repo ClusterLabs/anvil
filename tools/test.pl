@@ -29,7 +29,4 @@ $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 $anvil->Get->switches;
 
-$anvil->System->configure_ipmi({
-	debug         => 2,
-	manifest_uuid => "6115d040-bdc4-4c76-9514-15870d88fb43",
-});
+$anvil->System->check_ssh_keys({debug => 2});

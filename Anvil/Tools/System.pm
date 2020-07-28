@@ -641,7 +641,7 @@ This method does several things;
 
 1. This makes sure the users on this system have SSH keys, and creates the keys if needed.
 2. It records the user's keys in the C<< ssh_keys >> table.
-3. For the dashboard machines it uses, it adds their host machine public key (SSH fingerprint) to C<< ~/.ssh/known_hosts >>. 
+3. For the dashboard machines whose databases this host uses, it adds their host machine public key (SSH fingerprint) to C<< ~/.ssh/known_hosts >>. 
 4. If this machine is a node or DR host, it sets up passwordless SSH between the other machines in the same Anvil! system.
 
 This works on the C<< admin >> and C<< root >> users. If the host is a node, it will also work on the c<< hacluster >> user.
@@ -660,16 +660,16 @@ sub check_ssh_keys
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_memory()" }});
 	
 	# We do a couple things here. First we make sure our user's keys are up to date and stored in the 
-	# 'ssh_keys' table. Then we look through the 'trusts' table for any other users@hosts we're supposed
-	# to trust. For each, we make sure that they're in the appropriate local user's authorized_keys file.
-	my $users = $anvil->Get->host_type eq "node" ? ["root", "admin", "hacluster"] : ["root", "admin"];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users => \@{$users} }});
+	# 'ssh_keys' table. Then we look through the 'Get->trusted_hosts' array any other users@hosts we're
+	# supposed to trust. For each, we make sure that they're in the appropriate local user's 
+	# authorized_keys file.
 	
 	# Load the host keys and the SSH keys
 	$anvil->Database->get_hosts({debug => $debug});
 	$anvil->Database->get_ssh_keys({debug => $debug});
 	
 	# Users to check:
+	my $users = ["root", "admin"];
 	foreach my $user (@{$users})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
@@ -3967,7 +3967,7 @@ sub update_hosts
 	
 	# Get the list of hosts we trust.
 	my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});
-	$anvil->Database->get_ip_addresses({debug => 2});
+	$anvil->Database->get_ip_addresses({debug => $debug});
 	
 	foreach my $host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
 	{

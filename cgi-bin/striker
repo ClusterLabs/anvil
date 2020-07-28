@@ -1694,6 +1694,53 @@ sub run_manifest
 			dr1_anvil       => $dr1_anvil,
 		}});
 		
+		# Make sure the three options are unique.
+		if ($node1_host_uuid eq $node2_host_uuid)
+		{
+			my $message                               = $anvil->Words->string({key => "warning_0054"});
+			   $problem                               = 1;
+			   $anvil->data->{cgi}{node1_host}{alert} = 1;
+			   $anvil->data->{cgi}{node2_host}{alert} = 1;
+			   $anvil->data->{form}{error_massage}    = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				problem                  => $problem,
+				"cgi::node1_host::alert" => $anvil->data->{cgi}{node1_host}{alert},
+				"cgi::node2_host::alert" => $anvil->data->{cgi}{node2_host}{alert},
+				"form::error_massage"    => $anvil->data->{form}{error_massage},
+			}});
+		}
+		if ($dr1_host_uuid)
+		{
+			if ($dr1_host_uuid eq $node1_host_uuid)
+			{
+				my $message                               = $anvil->Words->string({key => "warning_0055"});
+				   $problem                               = 1;
+				   $anvil->data->{cgi}{dr1_host}{alert}   = 1;
+				   $anvil->data->{cgi}{node1_host}{alert} = 1;
+				   $anvil->data->{form}{error_massage}    = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					problem                  => $problem,
+					"cgi::dr1_host::alert"   => $anvil->data->{cgi}{dr1_host}{alert},
+					"cgi::node1_host::alert" => $anvil->data->{cgi}{node1_host}{alert},
+					"form::error_massage"    => $anvil->data->{form}{error_massage},
+				}});
+			}
+			elsif ($dr1_host_uuid eq $node2_host_uuid)
+			{
+				my $message                               = $anvil->Words->string({key => "warning_0056"});
+				   $problem                               = 1;
+				   $anvil->data->{cgi}{dr1_host}{alert}   = 1;
+				   $anvil->data->{cgi}{node2_host}{alert} = 1;
+				   $anvil->data->{form}{error_massage}    = $anvil->Template->get({file => "main.html", name => "error_message", variables => { error_message => $message }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					problem                  => $problem,
+					"cgi::dr1_host::alert"   => $anvil->data->{cgi}{dr1_host}{alert},
+					"cgi::node2_host::alert" => $anvil->data->{cgi}{node2_host}{alert},
+					"form::error_massage"    => $anvil->data->{form}{error_massage},
+				}});
+			}
+		}
+		
 		if (($node1_anvil) && ($node1_anvil ne $anvil_name))
 		{
 			# The server belongs to another Anvil! system.
@@ -2540,15 +2587,12 @@ sub handle_manifest
 				"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
 			}});
 			
-			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry-gateway", variables => {
+			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry", variables => {
 				network       => $say_bcn,
 				network_name  => $network_key, 
 				network_class => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
 				network_value => $anvil->data->{cgi}{$network_key}{value}, 
 				subnet        => '255.255.0.0 <input type="hidden" name="'.$subnet_key.'" id="'.$subnet_key.'" value="'.$anvil->data->{cgi}{$subnet_key}{value}.'" />',
-				gateway_name  => $gateway_key, 
-				gateway_class => $anvil->data->{cgi}{$gateway_key}{alert} ? "input_alert" : "",
-				gateway_value => $anvil->data->{cgi}{$gateway_key}{value}, 
 			}});
 		}
 		

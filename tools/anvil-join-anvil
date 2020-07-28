@@ -258,6 +258,7 @@ sub configure_pacemaker
 		{
 			# Try to authenticate against the peer.
 			my $auth_shell_call        = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth_shell_call => $auth_shell_call }});
 			my ($output, $return_code) = $anvil->System->call({debug => 3, secure => 1, shell_call => $auth_shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
@@ -369,171 +370,9 @@ sub configure_pacemaker
 		}
 	}
 	
-	
-	die;
+	# Setup fencing!
 =cut
 $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
-$VAR1 = {
-          'fences' => {
-                        'pulsar' => 'c2be8d2e-045e-45d0-80e7-7443f2314fb1',
-                        'el8-pdu02' => '2681049b-1ae7-444a-890b-39aca262e79e',
-                        'el8-pdu01' => 'bad1fc5c-5342-4385-8d0d-a87a342dd87d',
-                        'an-nas02' => '4117a862-f58f-4676-991a-9ca257a3c612'
-                      },
-          'domain' => 'digimer.ca',
-          'networks' => {
-                          'count' => {
-                                       'ifn' => 1,
-                                       'bcn' => 1,
-                                       'sn' => 1
-                                     },
-                          'dns' => '8.8.8.8,8.8.4.4',
-                          'mtu' => '1500',
-                          'ntp' => '10.201.14.1,10.201.14.2',
-                          'name' => {
-                                      'ifn1' => {
-                                                  'subnet' => '255.255.255.0',
-                                                  'gateway' => '192.168.122.1',
-                                                  'network' => '192.168.122.0'
-                                                },
-                                      'bcn1' => {
-                                                  'network' => '10.201.0.0',
-                                                  'gateway' => '',
-                                                  'subnet' => '255.255.0.0'
-                                                },
-                                      'sn1' => {
-                                                 'gateway' => '',
-                                                 'network' => '10.101.0.0',
-                                                 'subnet' => '255.255.0.0'
-                                               }
-                                    }
-                        },
-          'upses' => {
-                       'el8-ups01' => {
-                                        'uuid' => '7ebecdda-782d-4624-841d-98d912ed3d50'
-                                      },
-                       'el8-ups02' => {
-                                        'uuid' => '7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f'
-                                      }
-                     },
-          'machine' => {
-                         'node2' => {
-                                      'network' => {
-                                                     'bcn1' => {
-                                                                 'ip' => '10.201.10.2'
-                                                               },
-                                                     'sn1' => {
-                                                                'ip' => '10.101.10.2'
-                                                              },
-                                                     'ifn1' => {
-                                                                 'ip' => '192.168.122.12'
-                                                               }
-                                                   },
-                                      'ups' => {
-                                                 'el8-ups01' => {
-                                                                  'used' => '0'
-                                                                },
-                                                 'el8-ups02' => {
-                                                                  'used' => '0'
-                                                                }
-                                               },
-                                      'fence' => {
-                                                   'pulsar' => {
-                                                                 'port' => ''
-                                                               },
-                                                   'el8-pdu02' => {
-                                                                    'port' => ''
-                                                                  },
-                                                   'el8-pdu01' => {
-                                                                    'port' => ''
-                                                                  },
-                                                   'an-nas02' => {
-                                                                   'port' => 'el8-a01n02'
-                                                                 }
-                                                 },
-                                      'name' => 'el8-a01n02',
-                                      'ipmi_ip' => ''
-                                    },
-                         'node1' => {
-                                      'ipmi_ip' => '',
-                                      'name' => 'el8-a01n01',
-                                      'ups' => {
-                                                 'el8-ups02' => {
-                                                                  'used' => '0'
-                                                                },
-                                                 'el8-ups01' => {
-                                                                  'used' => '0'
-                                                                }
-                                               },
-                                      'network' => {
-                                                     'ifn1' => {
-                                                                 'ip' => '192.168.122.11'
-                                                               },
-                                                     'bcn1' => {
-                                                                 'ip' => '10.201.10.1'
-                                                               },
-                                                     'sn1' => {
-                                                                'ip' => '10.101.10.1'
-                                                              }
-                                                   },
-                                      'fence' => {
-                                                   'el8-pdu02' => {
-                                                                    'port' => ''
-                                                                  },
-                                                   'pulsar' => {
-                                                                 'port' => ''
-                                                               },
-                                                   'an-nas02' => {
-                                                                   'port' => 'el8-a01n01'
-                                                                 },
-                                                   'el8-pdu01' => {
-                                                                    'port' => ''
-                                                                  }
-                                                 }
-                                    },
-                         'dr1' => {
-                                    'fence' => {
-                                                 'pulsar' => {
-                                                               'port' => ''
-                                                             },
-                                                 'el8-pdu02' => {
-                                                                  'port' => ''
-                                                                },
-                                                 'el8-pdu01' => {
-                                                                  'port' => ''
-                                                                },
-                                                 'an-nas02' => {
-                                                                 'port' => ''
-                                                               }
-                                               },
-                                    'network' => {
-                                                   'bcn1' => {
-                                                               'ip' => '10.201.10.3'
-                                                             },
-                                                   'sn1' => {
-                                                              'ip' => '10.101.10.3'
-                                                            },
-                                                   'ifn1' => {
-                                                               'ip' => '192.168.122.13'
-                                                             }
-                                                 },
-                                    'ups' => {
-                                               'el8-ups02' => {
-                                                                'used' => '0'
-                                                              },
-                                               'el8-ups01' => {
-                                                                'used' => '0'
-                                                              }
-                                             },
-                                    'name' => 'el8-a01dr01',
-                                    'ipmi_ip' => ''
-                                  }
-                       },
-          'sequence' => '01',
-          'name' => 'el8-anvil-01',
-          'prefix' => 'el8'
-        };
-
 	
 909; xxx::upses::el8-ups01::uuid: [7ebecdda-782d-4624-841d-98d912ed3d50]
 909; xxx::upses::el8-ups02::uuid: [7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f]
@@ -679,7 +518,6 @@ sub check_local_network
 		}});
 		foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
 		{
-			### BUG: DNS gets replicated, but updated.
 			# Only one interface will start with the network name and have an IP address.
 			next if $in_iface !~ /^${network}_/;
 			next if not $anvil->data->{network}{'local'}{interface}{$in_iface}{ip};
@@ -709,6 +547,7 @@ sub check_local_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_gateway_interface => $default_gateway_interface }});
 			}
 			
+			my $change = 0;
 			my $cleaned_current_dns = "";
 			my @current_dns_array   = split/,/, $current_dns;
 			foreach my $this_current_dns (sort {$a cmp $b} @current_dns_array)
@@ -719,7 +558,6 @@ sub check_local_network
 			$cleaned_current_dns =~ s/,$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cleaned_current_dns => $cleaned_current_dns }});
 			
-			my $change = 0;
 			if (($current_ip ne $ip) or ($current_subnet ne $subnet))
 			{
 				# IP / subnet changed.
@@ -737,22 +575,30 @@ sub check_local_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 			}
 			
-			# Check DNS only if gateway is set.
-			if ($gateway)
+			# Check DNS only if this is the default gateway interface.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				in_iface                  => $in_iface,
+				default_gateway_interface => $default_gateway_interface, 
+				cleaned_current_dns       => $cleaned_current_dns, 
+			}});
+			if ($in_iface eq $default_gateway_interface)
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					cleaned_current_dns => $cleaned_current_dns,
+					cleaned_dns         => $cleaned_dns, 
+				}});
 				if ($cleaned_dns ne $cleaned_current_dns)
 				{
 					#print "DNS: ... [".$cleaned_current_dns."] -> [".$cleaned_dns."]\n";
 					$change = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 				}
-				elsif (($in_iface eq $default_gateway_interface) && (not $anvil->data->{network}{'local'}{interface}{$in_iface}{default_gateway}))
-				{
-					# This isn't the default gateway yet, but we'll make it so.
-					#print "Will set as default gateway\n";
-					$change = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
-				}
+			}
+			elsif ($cleaned_current_dns)
+			{
+				# Remove the old DNS entries.
+				$change = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 			}
 			
 			if (not $change)
@@ -907,6 +753,15 @@ sub check_local_network
 					elsif ($line =~ /^GATEWAY=".*"/)
 					{
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_seen => $gateway_seen }});
+						if ($in_iface ne $default_gateway_interface)
+						{
+							# This interface shouldn't have DNS.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0111", variables => { 
+								interface    => $in_iface,
+								gateway_line => $line,
+							}});
+							next;
+						}
 						if (not $gateway_seen)
 						{
 							$gateway_seen =  1;
@@ -918,13 +773,23 @@ sub check_local_network
 						}
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_seen => $gateway_seen }});
 					}
-					elsif ($line =~ /^DNS=".*"/)
+					elsif ($line =~ /^DNS\d+=".*"/)
 					{
 						# The first time we see a DNS entry, we inject the DNS we've 
 						# got and then ignore the rest.
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns_seen => $dns_seen }});
+						if ($in_iface ne $default_gateway_interface)
+						{
+							# This interface shouldn't have DNS.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0110", variables => { 
+								interface => $in_iface,
+								dns_line  => $line,
+							}});
+							next;
+						}
 						if (not $dns_seen)
 						{
+							
 							# If there's no DNS, this will do nothing.
 							my $i = 1;
 							foreach my $this_dns (split/,/, $cleaned_dns)
@@ -932,7 +797,6 @@ sub check_local_network
 								$new_config .= "DNS".$i."=\"".$this_dns."\"\n";
 								$i++;
 							}
-
 							$dns_seen = 1;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 								's1:dns_seen'   => $dns_seen, 
@@ -1001,21 +865,24 @@ sub check_local_network
 					}
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
 				}
-				if (not $gateway_seen)
+				if ($in_iface eq $default_gateway_interface)
 				{
-					$new_config .= "GATEWAY=\"".$gateway."\"\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
-				}
-				if (not $dns_seen)
-				{
-					# If there's no DNS, this will do nothing.
-					my $i = 1;
-					foreach my $this_dns (split/,/, $cleaned_dns)
+					if (not $gateway_seen)
 					{
-						$new_config .= "DNS".$i."=\"".$this_dns."\"\n";
-						$i++;
+						$new_config .= "GATEWAY=\"".$gateway."\"\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
 					}
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+					if (not $dns_seen)
+					{
+						# If there's no DNS, this will do nothing.
+						my $i = 1;
+						foreach my $this_dns (split/,/, $cleaned_dns)
+						{
+							$new_config .= "DNS".$i."=\"".$this_dns."\"\n";
+							$i++;
+						}
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+					}
 				}
 				if (not $mtu_seen)
 				{
@@ -1031,11 +898,6 @@ sub check_local_network
 				# Write out the new file.
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0083", variables => { file => $filename }});
-# 				print "File about to write: [".$filename."]\n";
-# 				print "============================\n";
-# 				print $new_config."\n";
-# 				print "============================\n";
-# 				die "There's a bug here that is re-writting the config with duplicate DNS and something the wrong IP for this host.\n";
 				$anvil->Storage->write_file({
 					debug     => 3,
 					file      => $filename, 
@@ -1062,7 +924,7 @@ sub check_local_network
 		
 		# Tell nmcli to re-read the config files.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
-		my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code, 
@@ -1071,10 +933,10 @@ sub check_local_network
 		foreach my $interface_name (sort {$a cmp $b} @{$restart_interfaces})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $interface_name }});
-			$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down \"".$interface_name."\""});
+			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down \"".$interface_name."\""});
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0464", variables => { interface => $interface_name }});
-			$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection up \"".$interface_name."\""});
+			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection up \"".$interface_name."\""});
 		}
 	
 		# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
@@ -1109,8 +971,8 @@ sub check_local_network
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0085"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0085");
 		
-		$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy default"});
-		$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine default "});
+		$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{virsh}." net-destroy default"});
+		$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{virsh}." net-undefine default "});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0034"});
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0034");
@@ -1153,7 +1015,7 @@ sub check_local_network
 			}});
 			
 			# Change the live MTU.
-			$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$in_iface." mtu ".$mtu});
+			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$in_iface." mtu ".$mtu});
 			
 			# Now update the config file.
 			my $interface_uuid = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$in_iface};
@@ -1191,11 +1053,6 @@ sub check_local_network
 			# Write out the new file.
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0083", variables => { file => $filename }});
-# 			print "File about to write: [".$filename."]\n";
-# 			print "============================\n";
-# 			print $new_config."\n";
-# 			print "============================\n";
-# 			die "There's a bug here that is re-writting the config with duplicate DNS and something the wrong IP for this host.\n";
 			$anvil->Storage->write_file({
 				debug     => 2,
 				file      => $filename, 
@@ -1272,24 +1129,26 @@ sub check_local_network
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0091,!!daemon!".$daemon."!!");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0091", variables => { daemon => $daemon }});
 			$anvil->System->restart_daemon({
-				debug  => 2,
+				debug  => 3,
 				daemon => $daemon,
 			})
 		}
 	}
 	
-	# Make sure the IPs of the dashboard(s) and our peers are in the hosts file.
-	
-	
-	### TODO: Do we really need passwordless SSH anymore?
-	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
-	$anvil->System->check_ssh_keys({debug => 3});
-	
 	# Update the hosts file.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0112"});
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0112");
 	$anvil->System->update_hosts({debug => 3});
 	
+	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0113"});
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0113");
+	$anvil->System->check_ssh_keys({debug => 3});
+	
 	# Setup IPMI, if needed.
-	### TODO: Do this when on real hardware
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0114"});
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0114");
+	$anvil->System->configure_ipmi({debug => 3, manifest_uuid => $manifest_uuid});
 	
 	return(0);
 }

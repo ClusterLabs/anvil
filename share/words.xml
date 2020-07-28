@@ -341,7 +341,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0094">Enabled and started the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0095">Disable and stop the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0096">This is a DR host, skipping pacemaker configuration.</key>
-		<key name="job_0097"><![CDATA[[ Error ] - Authorizing against 'pcsd' failed. Will try again in a moment in case we're waiting for the peer node to set its 'hacluster' shell user password.]]></key>
+		<key name="job_0097"><![CDATA[[ Error ] - Authorizing against 'pcsd' failed. Has the peer configured it's 'hacluster' user yet?. Will try again in a moment.]]></key>
 		<key name="job_0098">Successfully authorized using 'pcsd' on both nodes.</key>
 		<key name="job_0099">No existing cluster found, will run initial setup.</key>
 		<key name="job_0100">The corosync.conf file does not exist locally, but it does exist on the peer. Copying the file to here.</key>
@@ -354,6 +354,11 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0107">Corosync is not yet configured, waiting. It will be created when node 1 initializes the cluster.</key>
 		<key name="job_0108">Corosync is configured. Will wait for the cluster to start. If it hasn't started in two minutes, we'll try to join it.</key>
 		<key name="job_0109">We will now wait for the cluster to start.</key>
+		<key name="job_0110">The interface: [#!variable!interface!#] has a DNS entry: [#!variable!dns_line!#], but it is not the default gateway. Removing the line.</key>
+		<key name="job_0111">The interface: [#!variable!interface!#] has a GATEWAY entry: [#!variable!gateway_line!#], but it is not the default gateway. Removing the line.</key>
+		<key name="job_0112">Updating the '/etc/hosts' file.</key>
+		<key name="job_0113">Checking the SSH configuration.</key>
+		<key name="job_0114">Configuring the IPMI BMC. Please be patient, this could take a minute.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1715,6 +1720,9 @@ The error was:
 #!variable!error!#
 ========
 		</key>
+		<key name="warning_0054">[ Warning ] - Node 1 and Node 2 are set to the same machine.</key>
+		<key name="warning_0055">[ Warning ] - The DR Host is set to the same machine as Node 1.</key>
+		<key name="warning_0056">[ Warning ] - The DR Host is set to the same machine as Node 2.</key>
 		
 	</language>
 	<!-- 日本語 -->

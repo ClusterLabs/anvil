@@ -920,15 +920,6 @@ WHERE
 			}});
 		}
 		
-		foreach my $hash_ref (@{$parsed_xml->{fences}{fence}})
-		{
-			my $fence_name                                                                           = $hash_ref->{name};
-			   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$fence_name} = $hash_ref->{uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"manifests::manifest_uuid::${manifest_uuid}::parsed::fences::${fence_name}" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$fence_name}, 
-			}});
-		}
-		
 		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{dns} = $parsed_xml->{networks}{dns};
 		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp} = $parsed_xml->{networks}{ntp};
 		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{mtu} = $parsed_xml->{networks}{mtu};
