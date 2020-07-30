@@ -1046,6 +1046,8 @@ The switches 'C<< -v >>', 'C<< -vv >>', 'C<< -vvv >>' and 'C<< -vvvv >>' will ca
 Anything after 'C<< -- >>' is treated as a raw string and is not processed. 
 
 =cut
+### TODO: This doesn't handle quoted values, System->parse_arguments() does. Switch to using it. Note that 
+###       we'll still need to process '--raw' here (or make it work there)
 sub switches
 {
 	my $self      = shift;
@@ -1066,7 +1068,7 @@ sub switches
 			# If the argument is just '--', appeand everything after it to 'raw'.
 			if ($argument eq "--")
 			{
-				$last_argument         = "raw";
+				$last_argument                = "raw";
 				$anvil->data->{switches}{raw} = "";
 			}
 			else
@@ -1089,7 +1091,7 @@ sub switches
 			if ($last_argument)
 			{
 				$anvil->data->{switches}{$last_argument} = $argument;
-				$last_argument                        = "";
+				$last_argument                           = "";
 			}
 			else
 			{

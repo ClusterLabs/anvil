@@ -1849,6 +1849,9 @@ LIMIT 1
 		}
 	}
 	
+	# Re-read the hosts so that it's updated.
+	$anvil->Database->get_hosts();
+	
 	return($host_ipmi);
 }
 
@@ -3339,6 +3342,144 @@ sub pids
 	return($pids);
 }
 
+
+=head2 parse_arguments 
+
+This takes command-line switches, similar to how C<< Get->switches >> does, and breaks them up and stores them in a hash reference which is returned. The difference being that this processes any argument-like string instead of specific C<< @ARGV >>. 
+
+Switches without associated values are set to C<< #!SET!# >>. If there is a problem, and empty string is returned. On success, a hash reference is returned in the format C<< <switch> = <value> >>.
+
+Parameters;
+
+=head3 arguments (required)
+
+This is a plain string of arguments to be broken up.
+
+=cut
+sub parse_arguments
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->parse_arguments()" }});
+	
+	my $arguments = defined $parameter->{arguments} ? $parameter->{arguments} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		arguments => $arguments, 
+	}});
+	
+	my $hash   = {};
+	my $quoted = "";
+	my $switch = "";
+	my $value  = "";
+	foreach my $arg (split/ /, $arguments)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { arg => $arg }});
+		if (($arg =~ /^'/) or ($arg =~ /^"/))
+		{
+			# Store a quoted value.
+			$quoted .= $arg." ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { quoted => $quoted }});
+		}
+		elsif ($quoted)
+		{
+			if (($arg =~ /'$/) or ($arg =~ /"$/))
+			{
+				# Done
+				$quoted .= $arg;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { quoted => $quoted }});
+				if ($quoted =~ /^'(.*)'$/)
+				{
+					$value = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+				}
+				elsif ($quoted =~ /^"(.*)"$/)
+				{
+					$value = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+				}
+				$hash->{$switch} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+				
+				$quoted = "";
+				$switch = "";
+				$value  = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					quoted => $quoted,
+					switch => $switch, 
+					value  => $value,
+				}});
+			}
+			else
+			{
+				$quoted .= $arg." ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { quoted => $quoted }});
+			}
+		}
+		elsif ($arg =~ /^-/)
+		{
+			if ($switch)
+			{
+				$value = "#!SET!#";
+				$hash->{$switch} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+				
+				$switch = "";
+				$value  = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					switch => $switch, 
+					value  => $value,
+				}});
+			}
+			
+			$quoted =  "";
+			if ($arg =~ /^(.*?)=(.*)$/)
+			{
+				$switch =  $1;
+				$value  =  $2;
+				$switch =~ s/^-{1,2}//g;
+				
+				if (($value =~ /^'/) or ($value =~ /^"/))
+				{
+					$quoted .= $value." ";
+				}
+				else
+				{
+					$hash->{$switch} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+					
+					$switch = "";
+					$value  = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						switch => $switch, 
+						value  => $value,
+					}});
+				}
+			}
+			else
+			{
+				$switch =  $arg;
+				$switch =~ s/^-{1,2}//g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { switch => $switch }});
+			}
+		}
+		else
+		{
+			$hash->{$switch} = $arg;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "hash->{$switch}" => $hash->{$switch} }});
+			
+			$switch = "";
+			$value  = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				switch => $switch, 
+				value  => $value,
+			}});
+		}
+	}
+	
+	return($hash);
+}
 
 =head2 read_ssh_config
 

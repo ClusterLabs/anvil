@@ -1,6 +1,6 @@
 package Anvil::Tools::Words;
 # 
-# This module contains methods used to handle storage related tasks
+# This module contains methods used to handle message processing related to support of multi-lingual use.
 # 
 
 use strict;

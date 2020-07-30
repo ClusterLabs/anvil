@@ -255,12 +255,39 @@ systemctl stop libvirtd.service
 ==== One node
 pcs host auth el8-a01n01 el8-a01n02 -u hacluster -p "secret"
 
+### VMs
 pcs cluster setup m3-anvil-01 el8-a01n01 el8-a01n02
 pcs cluster start --all
 pcs stonith create virsh_node1 fence_virsh pcmk_host_list="el8-a01n01" ipaddr="192.168.122.1" passwd="secret" login="root" delay="15" port="el8-a01n01" op monitor interval="60"
 pcs stonith create virsh_node2 fence_virsh pcmk_host_list="el8-a01n02" ipaddr="192.168.122.1" passwd="secret" login="root" port="el8-a01n02" op monitor interval="60"
+
+### Real iron.
+pcs stonith create ipmilan_node1 fence_ipmilan pcmk_host_list="mk-a02n01" ipaddr="10.201.13.1" password="another secret p" username="admin" delay="15"  op monitor interval="60"
+pcs stonith create ipmilan_node2 fence_ipmilan pcmk_host_list="mk-a02n02" ipaddr="10.201.13.2" password="another secret p" username="admin" op monitor interval="60"
+
+pcs stonith level add 1 mk-a02n01 ipmilan_node1
+pcs stonith level add 1 mk-a02n02 ipmilan_node2
+
+pcs stonith create apc_snmp_node1_psu1 fence_apc_snmp pcmk_host_list="mk-a02n01" pcmk_off_action="reboot" ip="10.201.2.3" port="3" power_wait="5" op monitor interval="60"
+pcs stonith create apc_snmp_node1_psu2 fence_apc_snmp pcmk_host_list="mk-a02n01" pcmk_off_action="reboot" ip="10.201.2.4" port="3" power_wait="5" op monitor interval="60"
+pcs stonith create apc_snmp_node2_psu1 fence_apc_snmp pcmk_host_list="mk-a02n02" pcmk_off_action="reboot" ip="10.201.2.3" port="4" power_wait="5" op monitor interval="60"
+pcs stonith create apc_snmp_node2_psu2 fence_apc_snmp pcmk_host_list="mk-a02n02" pcmk_off_action="reboot" ip="10.201.2.4" port="4" power_wait="5" op monitor interval="60"
+
+pcs stonith level add 2 mk-a02n01 apc_snmp_node1_psu1,apc_snmp_node1_psu2
+pcs stonith level add 2 mk-a02n02 apc_snmp_node2_psu1,apc_snmp_node2_psu2
+
+pcs stonith create delay_node1 fence_delay pcmk_host_list="mk-a02n01" wait="60" op monitor interval="60"
+pcs stonith create delay_node2 fence_delay pcmk_host_list="mk-a02n02" wait="60" op monitor interval="60"
+
+pcs stonith level add 3 mk-a02n01 delay_node1
+pcs stonith level add 3 mk-a02n02 delay_node2
+
+# Either case
+pcs property set stonith-max-attempts=INFINITY
 pcs property set stonith-enabled=true
 
+
+### No longer used.
 pcs resource create hypervisor systemd:libvirtd op monitor interval=60
 pcs resource clone hypervisor clone-max=2 notify="false" 
 pcs resource create drbd systemd:drbd op monitor interval=60
@@ -273,6 +300,9 @@ pcs resource update test_server ocf:alteeve:server name="test_server" meta allow
 # Test
 stonith_admin --fence el8-a01n02 --verbose; crm_error $?
 
+
+stonith-max-attempts=INFINITY
+cluster-recheck-interval puts an upper bound on the "i give up" time
 
 ==== DRBD notes
 

@@ -1951,7 +1951,7 @@ FROM
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}  = $host_name;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}  = $host_type;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}   = $host_key;
-		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}  = $anvil->Log->is_secure($host_ipmi);
+		$anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}  = $host_ipmi;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name} = $anvil_name;
 		$anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid} = $anvil_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

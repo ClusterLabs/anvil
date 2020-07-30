@@ -340,6 +340,28 @@ sub get_fence_data
 				"fence_data::${fence_agent}::parameters::${name}::content_type" => $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{content_type},
 			}});
 			
+			# Make it easier to tranlate a switch to a parameter name.
+			if ($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{switches})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					fence_agent => $fence_agent,
+					name        => $name, 
+				}});
+				foreach my $switch (split/,/, $anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{switches})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { '>> switch' => $switch }});
+					$switch =~ s/=.*$//;
+					$switch =~ s/\s//g;
+					$switch =~ s/^-{1,2}//;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { '<< switch' => $switch }});
+					
+					$anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name} = $name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"fence_data::${fence_agent}::switch::${switch}::name" => $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name},
+					}});
+				}
+			}
+			
 			# 'action' is a string, but it has a set list of allowed values, so we manually switch it to a 'select' for the web interface
 			if ($name eq "action")
 			{
@@ -871,6 +893,9 @@ WHERE
 			"manifests::${manifest_uuid}::manifest_note"     => $anvil->data->{manifests}{$manifest_uuid}{manifest_note}, 
 			"manifests::name_to_uuid::${manifest_name}"      => $anvil->data->{manifests}{name_to_uuid}{$manifest_name}, 
 		}});
+		
+		# Whoever is calling us will want the fence data, so load it as well.
+		$anvil->Database->get_fences({debug => $debug});
 		
 		# Parse the XML.
 		my $parsed_xml = "";

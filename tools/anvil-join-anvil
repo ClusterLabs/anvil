@@ -368,20 +368,113 @@ sub configure_pacemaker
 			}
 			sleep 5 if not $both_online;
 		}
+		
+		### Setup fencing! 
+		my $delay_set = 0;
+		
+		# IPMI first, if applicable.
+		foreach my $node ("node1", "node2")
+		{
+			my $host_name = $node eq "node1" ? $node1_host_name : $node2_host_name;
+			my $host_uuid = $node eq "node1" ? $node1_host_uuid : $node2_host_uuid;
+			my $host_ipmi = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				host_name => $host_name, 
+				host_uuid => $host_uuid, 
+				host_ipmi => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
+			}});
+			next if not $host_ipmi;
+			
+			# If we're here, break up the command and turn it into the pcs call.
+			my ($fence_agent, $arguments) = ($host_ipmi =~ /^\/.*\/(.*?)\s+(.*)$/);
+			my $stonith_name              = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				fence_agent  => $fence_agent,
+				arguments    => $arguments =~ /passw/ ? $anvil->Log->is_secure($arguments) : $arguments,
+				stonith_name => $stonith_name, 
+			}});
+			
+			my $pcs_line = "pcs stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$host_name."\" ";
+			my $switches = $anvil->System->parse_arguments({arguments => $arguments});
+			foreach my $switch (sort {$a cmp $b} keys %{$switches})
+			{
+				# Find the variable=value version.
+				my $variable = $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name};
+				my $value    = $switches->{$switch};
+				   $value    =~ s/"/\"/g;
+				   $pcs_line .= $variable."=\"".$value."\" ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					variable => $variable,
+					value    => $variable =~ /passw/ ? $anvil->Log->is_secure($value)    : $value,
+					pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line,
+				}});
+			}
+			if (not $delay_set)
+			{
+				$delay_set =  1;
+				$pcs_line .= "delay=\"15\" ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					delay_set => $delay_set, 
+					pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+				}});
+			}
+			$pcs_line .= "op monitor interval=\"60\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line,
+			}});
+			$stonith_name = "";
+			$fence_agent  = "";
+			
+			foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}})
+			{
+				my $fence_uuid      = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$device}{uuid};
+				my $fence_arguments = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments};
+				my $fence_agent     = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
+				my $stonith_name    = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node; 
+				my $port            = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}{$device}{port};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					device          => $device, 
+					fence_uuid      => $fence_uuid, 
+					fence_arguments => $fence_arguments =~ /passw/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments,
+					stonith_name    => $stonith_name, 
+					port            => $port, 
+				}});
+				
+				my $pcs_line = "pcs stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$host_name."\" ".$fence_arguments." ";
+				if (not $delay_set)
+				{
+					$delay_set =  1;
+					$pcs_line .= "delay=\"15\" ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						delay_set => $delay_set, 
+						pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+					}});
+				}
+				if ($port)
+				{
+					$port     =~ s/"/\"/g;
+					$pcs_line .= "port=\"".$port."\" ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+					}});
+				}
+				$pcs_line .= "op monitor interval=\"60\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+				}});
+			}
+		}
+		
+		# Now setup any other fence agents.
 	}
 	
-	# Setup fencing!
+	
 =cut
 $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
 	
 909; xxx::upses::el8-ups01::uuid: [7ebecdda-782d-4624-841d-98d912ed3d50]
 909; xxx::upses::el8-ups02::uuid: [7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f]
 918; xxx::fences::an-nas02::uuid: [4117a862-f58f-4676-991a-9ca257a3c612]
-
-949; xxx::networks::name::bcn1::gateway: [], xxx::networks::name::bcn1::network: [10.201.0.0], xxx::networks::name::bcn1::subnet: [255.255.0.0]
-949; xxx::networks::name::sn1::gateway: [], xxx::networks::name::sn1::network: [10.101.0.0], xxx::networks::name::sn1::subnet: [255.255.0.0]
-949; xxx::networks::name::ifn1::gateway: [10.255.255.254], xxx::networks::name::ifn1::network: [10.255.0.0], xxx::networks::name::ifn1::subnet: [255.255.0.0]
-961; xxx::networks::count::bcn: [1], xxx::networks::count::ifn: [1], xxx::networks::count::sn: [1]
 
 971; xxx::machine::node1::ipmi_ip: [], xxx::machine::node1::type: [!!undef!!]
 980; xxx::machine::node1::fence::an-nas02::port: [el8-a01n01]
@@ -1201,7 +1294,7 @@ sub load_job
 		"sys::anvil_uuid"      => $anvil->data->{sys}{anvil_uuid},
 	}});
 	
-	# Load in the manifest 
+	# Load in the host info and the manifest.
 	$anvil->Database->get_hosts();
 	my $problem = $anvil->Striker->load_manifest({
 		debug         => 2,

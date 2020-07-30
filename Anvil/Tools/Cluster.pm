@@ -251,6 +251,14 @@ sub get_peers
 
 This reads in the CIB XML and parses it. On success, it returns C<< 0 >>. On failure (ie: pcsd isn't running), returns C<< 1 >>.
 
+Parameters;
+
+=head3 cib (optional)
+
+B<< Note >>: Generally this should not be used.
+
+By default, the CIB is read by calling C<< pcs cluster cib >>. However, this parameter can be used to pass in a CIB instead. If this is set, the live CIB is B<< NOT >> read.
+
 =cut
 sub parse_cib
 {
@@ -259,6 +267,11 @@ sub parse_cib
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->parse_cib()" }});
+	
+	my $cib = defined $parameters->{cib} ? $parameters->{cib} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		cib => $cib,
+	}});
 	
 	# If we parsed before, delete it.
 	if (exists $anvil->data->{cib}{parsed})
@@ -271,15 +284,25 @@ sub parse_cib
 		delete $anvil->data->{cib}{data};
 	}
 	
-	my $problem    = 1;
-	my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { shell_call => $shell_call }});
-	
-	my ($cib_data, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-		cib_data    => $cib_data,
-		return_code => $return_code, 
-	}});
+	my $problem     = 1;
+	my $cib_data    = "";
+	my $return_code = 0;
+	if ($cib)
+	{
+		$cib_data = $cib;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { cib_data => $cib_data }});
+	}
+	else
+	{
+		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { shell_call => $shell_call }});
+		
+		($cib_data, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			cib_data    => $cib_data,
+			return_code => $return_code, 
+		}});
+	}
 	if ($return_code)
 	{
 		# Failed to read the CIB.
