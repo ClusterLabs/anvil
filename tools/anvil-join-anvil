@@ -401,7 +401,7 @@ sub configure_pacemaker
 				# Find the variable=value version.
 				my $variable = $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name};
 				my $value    = $switches->{$switch};
-				   $value    =~ s/"/\"/g;
+				   $value    =~ s/"/\\"/g;
 				   $pcs_line .= $variable."=\"".$value."\" ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					variable => $variable,
@@ -452,7 +452,7 @@ sub configure_pacemaker
 				}
 				if ($port)
 				{
-					$port     =~ s/"/\"/g;
+					$port     =~ s/"/\\"/g;
 					$pcs_line .= "port=\"".$port."\" ";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 

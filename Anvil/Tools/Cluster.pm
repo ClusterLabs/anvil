@@ -268,7 +268,7 @@ sub parse_cib
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->parse_cib()" }});
 	
-	my $cib = defined $parameters->{cib} ? $parameters->{cib} : "";
+	my $cib = defined $parameter->{cib} ? $parameter->{cib} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 		cib => $cib,
 	}});
@@ -410,6 +410,18 @@ sub parse_cib
 					}
 				}
 			}
+			foreach my $fencing_level ($dom->findnodes('/cib/configuration/fencing-topology/fencing-level'))
+			{
+				my $id = $fencing_level->{id};
+				foreach my $variable (sort {$a cmp $b} keys %{$fencing_level})
+				{
+					next if $variable eq "id";
+					$anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{$variable} = $fencing_level->{$variable};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						"cib::parsed::configuration::fencing-topology::fencing-level::${id}::${variable}" => $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{$variable}, 
+					}});
+				}
+			}
 			### TODO: /cib/configuration/constraints
 			foreach my $node_state ($dom->findnodes('/cib/status/node_state'))
 			{
@@ -467,8 +479,8 @@ sub parse_cib
 				   $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}  = $primitive->{type};
 				   $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class} = $primitive->{class};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-					"cib::parsed::cib::resources::primitive:${id}::type"  => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}, 
-					"cib::parsed::cib::resources::primitive:${id}::class" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class}, 
+					"cib::parsed::cib::resources::primitive::${id}::type"  => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{type}, 
+					"cib::parsed::cib::resources::primitive::${id}::class" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$id}{class}, 
 				}});
 				foreach my $nvpair ($primitive->findnodes('./instance_attributes/nvpair'))
 				{
@@ -551,6 +563,110 @@ sub parse_cib
 			}});
 		}
 	}
+		
+	foreach my $nvpair_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}})
+	{
+		my $variable = $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{name};
+		my $value    = $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{value};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			's1:nvpair_id' => $nvpair_id,
+			's2:variable'  => $variable, 
+			's3:value'     => $value,
+		}});
+		
+		if ($variable eq "stonith-max-attempts")
+		{
+			$anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'} = $value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+				"cib::parsed::data::stonith::max-attempts" => $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'}, 
+			}});
+		}
+		if ($variable eq "stonith-enabled")
+		{
+			$anvil->data->{cib}{parsed}{data}{stonith}{enabled} = $value eq "true" ? 1 : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+				"cib::parsed::data::stonith::enabled" => $anvil->data->{cib}{parsed}{data}{stonith}{enabled}, 
+			}});
+		}
+		if ($variable eq "cluster-name")
+		{
+			$anvil->data->{cib}{parsed}{data}{cluster}{name} = $value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				"cib::parsed::data::cluster::name" => $anvil->data->{cib}{parsed}{data}{cluster}{name}, 
+			}});
+		}
+	}
+	
+	# Fencing devices and levels.
+	foreach my $primitive_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{resources}{primitive}})
+	{
+		next if not $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{class};
+		if ($anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{class} eq "stonith")
+		{
+			my $variables = {};
+			my $node_name = "";
+			foreach my $fence_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{instance_attributes}})
+			{
+				my $name  = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{instance_attributes}{$fence_id}{name};
+				my $value = $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{instance_attributes}{$fence_id}{value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					name  => $name, 
+					value => $value, 
+				}});
+				
+				if ($name eq "pcmk_host_list")
+				{
+					$node_name = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_name => $node_name }});
+				}
+				else
+				{
+					$variables->{$name} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { "variables->{$name}" => $variables->{$name} }});
+				}
+			}
+			if ($node_name)
+			{
+				my $argument_string = "";
+				foreach my $name (sort {$a cmp $b} keys %{$variables})
+				{
+					$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{argument}{$name}{value} = $variables->{$name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+						"cib::parsed::data::node::${node_name}::fencing::device::${primitive_id}::argument::${name}::value" => $variables->{$name},
+					}});
+					
+					my $value           =  $variables->{$name};
+					   $value           =~ s/"/\\"/g;
+					   $argument_string .= $name."=\"".$value."\" ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						argument_string => $argument_string,
+					}});
+				}
+				$argument_string =~ s/ $//;
+				$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{arguments} = $argument_string;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+					"cib::parsed::data::node::${node_name}::fencing::device::${primitive_id}::arguments" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{arguments},
+				}});
+			}
+		}
+	}
+	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}})
+	{
+		my $node_name = $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{target};
+		my $devices   = $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{devices};
+		my $index     = $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{'index'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			node_name => $node_name, 
+			devices   => $devices, 
+			'index'   => $index,
+		}});
+		
+		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$index}{devices} = $devices;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+			"cib::parsed::data::node::${node_name}::fencing::order::${index}::devices" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$index}{devices},
+		}});
+	}
+
 	
 	return($problem);
 }

@@ -220,6 +220,6 @@ my $xml = '<cib crm_feature_set="3.3.0" validate-with="pacemaker-3.2" epoch="28"
 ';
 
 $anvil->Cluster->parse_cib({
-	debug => 2,
+	debug => 3,
 	cib   => $xml,
 });
