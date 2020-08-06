@@ -112,7 +112,7 @@ my $conf = {
 find_executables($conf);
 
 # Something for the logs
-to_log($conf, {message => "Attempting to fence the peer via pacemaker's stonith...", 'line' => __LINE__});
+to_log($conf, {message => "DRBD pacemaker's stonith handler invoked.", 'line' => __LINE__});
 
 # These are the full host names of the nodes given their IDs.
 foreach my $i (0..31)
@@ -121,25 +121,28 @@ foreach my $i (0..31)
 	if ((exists $ENV{$key}) && (defined $ENV{$key}))
 	{
 		$conf->{environment}{$key} = $ENV{$key};
-		to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => 2});
+		my $level = $conf->{environment}{$key} eq "" ? 3 : 2;
+		to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
 	}
 }
 
 # Record the environment variables
 foreach my $key (sort {$a cmp $b} keys %{$conf->{environment}})
 {
-	to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => 2});
+	my $level = $conf->{environment}{$key} eq "" ? 3 : 2;
+	to_log($conf, {message => "DRBD Environment variable: [$key] -> [".$conf->{environment}{$key}."]", 'line' => __LINE__, level => $level});
 }
 foreach my $key (sort {$a cmp $b} keys %ENV)
 {
 	next if exists $conf->{environment}{$key};
+	my $level = $ENV{$key} eq "" ? 3 : 2;
 	to_log($conf, {message => "System Environment variable: [$key] -> [".$ENV{$key}."]", 'line' => __LINE__, level => 3});
 }
 
 # Make sure we at least have the target's IP.
 if (not $conf->{environment}{DRBD_PEER_ADDRESS})
 {
-	to_log($conf, {message => "Target's IP not set via the DRBD_PEER_ADDRESS environment variable. Unable to proceed.", 'line' => __LINE__, level => 0, priority => "err"});
+	to_log($conf, {message => "Called without target's IP. Nothing to do, exiting. Were we called by 'pcs stonith list'?", 'line' => __LINE__, level => 1, priority => "alert"});
 	exit(1);
 }
 

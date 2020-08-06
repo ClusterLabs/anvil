@@ -1,8 +1,11 @@
 #!/usr/bin/perl
 # 
-# This walks through all installed fence agents, parses their man page, and records their description and STDIN parameters.
+# This walks through all installed fence agents, parses their man page, and records their description and 
+# STDIN parameters.
 # 
 # TODO: 
+# - Look at the mtime of the fence agents and record them as variables. Only process if an agenti is new or 
+#   the mtime has changed.
 # 
 
 use strict;
@@ -34,7 +37,6 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list
 refresh_unified_metadata($anvil);
 
 $anvil->nice_exit({exit_code => 0});
-
 
 
 #############################################################################################################

@@ -53,17 +53,69 @@ if (not $anvil->data->{sys}{database}{connections})
 # Get the job details
 load_job($anvil);
 
+# Update the user passwords
+update_passwords($anvil);
+
 # Check if we need to change any IPs or our hostname.
 check_local_network($anvil);
 
 # (wait for out peer and) Configure pacemaker
 configure_pacemaker($anvil);
 
+# Configure DRBD
+configure_drbd($anvil);
+
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Configure DRBD
+sub configure_drbd
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}
+
+# Update the passwords for user accounts.
+sub update_passwords
+{
+	my ($anvil) = @_;
+	
+	my $machine       = $anvil->data->{sys}{machine};
+	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
+	my $anvil_name    = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{name};
+	my $anvil_uuid    = $anvil->data->{sys}{anvil_uuid};
+	my $new_password  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $users         = $machine =~ /dr\d+/ ? ["root", "admin"] : ["root", "admin", "hacluster"];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		machine          => $machine, 
+		manifest_uuid    => $manifest_uuid,
+		anvil_name       => $anvil_name, 
+		anvil_uuid       => $anvil_uuid, 
+		new_password     => $anvil->Log->is_secure($new_password), 
+	}});
+	
+	foreach my $user (@{$users})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
+		
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0093,!!user!".$user."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0093", variables => { user => $user }});
+		my ($return_code) = $anvil->System->change_shell_user_password({
+			debug        => 3,
+			user         => $user,
+			new_password => $new_password,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	}
+	
+	return(0);
+}
 
 # (wait for out peer and) Configure pacemaker. If this is a DR host, this is skipped.
 sub configure_pacemaker
@@ -112,20 +164,8 @@ sub configure_pacemaker
 	}
 	
 	### Run on both nodes.
-	# Set the 'hacluster' user password.
-	my ($return_code) = $anvil->System->change_shell_user_password({
-		debug        => 3,
-		user         => "hacluster",
-		new_password => $new_password,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-	$return_code = undef;
-	
-	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0093,!!user!hacluster!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0093", variables => { user => "hascluster" }});
-	
 	# Enable pcsd and start the pcsd daemons.
-	($return_code) = $anvil->System->enable_daemon({daemon => "pcsd"});
+	my ($return_code) = $anvil->System->enable_daemon({daemon => "pcsd"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	($return_code) = $anvil->System->start_daemon({daemon => "pcsd"});
@@ -138,13 +178,13 @@ sub configure_pacemaker
 	foreach my $daemon ("libvirtd.service", "drbd.service")
 	{
 		my ($return_code) = $anvil->System->disable_daemon({daemon => $daemon});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 		$return_code = undef;
 		($return_code) = $anvil->System->stop_daemon({daemon => $daemon});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 		$return_code = undef;
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!".$daemon."!!");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0095", variables => { daemon => $daemon }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => $daemon }});
 	}
 	
 	# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, we'll initialize the
@@ -204,7 +244,7 @@ sub configure_pacemaker
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tried_starting => $tried_starting }});
 				}
 				
-				my $problem = $anvil->Cluster->parse_cib({debug => 2});
+				my $problem = $anvil->Cluster->parse_cib({debug => 3});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				if (not $problem)
 				{
@@ -257,10 +297,11 @@ sub configure_pacemaker
 		while($waiting)
 		{
 			# Try to authenticate against the peer.
-			my $auth_shell_call        = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth_shell_call => $auth_shell_call }});
+			my $auth_shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { auth_shell_call => $auth_shell_call }});
+			
 			my ($output, $return_code) = $anvil->System->call({debug => 3, secure => 1, shell_call => $auth_shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
@@ -283,7 +324,7 @@ sub configure_pacemaker
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0098");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0098"});
 				$waiting = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { waiting => $waiting }});
 			}
 		}
 		
@@ -313,7 +354,7 @@ sub configure_pacemaker
 		}
 		
 		# If we can parse the CIB, then pcsd is running. 
-		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		my $problem = $anvil->Cluster->parse_cib({debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if ($problem)
 		{
@@ -321,8 +362,8 @@ sub configure_pacemaker
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0102");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0102"});
 			
-			my $cluster_started = $anvil->Cluster->start_cluster({debug => 2, all => 1});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
+			my $cluster_started = $anvil->Cluster->start_cluster({debug => 3, all => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cluster_started => $cluster_started }});
 		}
 		
 		# Now wait for both nodes to come online.
@@ -330,7 +371,7 @@ sub configure_pacemaker
 		my $both_online = 0;
 		until ($both_online)
 		{
-			my $problem = $anvil->Cluster->parse_cib({debug => 2});
+			my $problem = $anvil->Cluster->parse_cib({debug => 3});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 			if (not $problem)
 			{
@@ -370,124 +411,503 @@ sub configure_pacemaker
 		}
 		
 		### Setup fencing! 
-		my $delay_set = 0;
+		$anvil->Striker->get_fence_data();
 		
 		# IPMI first, if applicable.
+		my $something_changed = {};
+		my $fence_order       = {};
+		my $node1_use_delay   = 0;
+		my $node2_use_delay   = 0;
+		my $fence_devices     = {};
 		foreach my $node ("node1", "node2")
 		{
-			my $host_name = $node eq "node1" ? $node1_host_name : $node2_host_name;
-			my $host_uuid = $node eq "node1" ? $node1_host_uuid : $node2_host_uuid;
-			my $host_ipmi = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi};
+			my $node_name         = $node eq "node1" ? $node1_host_name : $node2_host_name;
+			my $host_uuid         = $node eq "node1" ? $node1_host_uuid : $node2_host_uuid;
+			my $host_ipmi         = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi};
+			my $ipmi_stonith_name = "ipmilan_".$node; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				host_name => $host_name, 
-				host_uuid => $host_uuid, 
-				host_ipmi => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
-			}});
-			next if not $host_ipmi;
-			
-			# If we're here, break up the command and turn it into the pcs call.
-			my ($fence_agent, $arguments) = ($host_ipmi =~ /^\/.*\/(.*?)\s+(.*)$/);
-			my $stonith_name              = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node; 
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				fence_agent  => $fence_agent,
-				arguments    => $arguments =~ /passw/ ? $anvil->Log->is_secure($arguments) : $arguments,
-				stonith_name => $stonith_name, 
+				node_name         => $node_name, 
+				host_uuid         => $host_uuid, 
+				host_ipmi         => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
+				ipmi_stonith_name => $ipmi_stonith_name, 
 			}});
 			
-			my $pcs_line = "pcs stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$host_name."\" ";
-			my $switches = $anvil->System->parse_arguments({arguments => $arguments});
-			foreach my $switch (sort {$a cmp $b} keys %{$switches})
+			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0115,!!node!".$node_name."!!");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0115", variables => { node => $node_name }});
+			
+			# This will store the fence level order. If something changes
+			$fence_order->{$node_name} = [];
+			
+			# Does this stonith method already exist?
+			my $create_entry    = 0;
+			my $delete_old      = 0;
+			my $pcs_add_command = "";
+			if ($host_ipmi)
 			{
-				# Find the variable=value version.
-				my $variable = $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name};
-				my $value    = $switches->{$switch};
-				   $value    =~ s/"/\\"/g;
-				   $pcs_line .= $variable."=\"".$value."\" ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-					variable => $variable,
-					value    => $variable =~ /passw/ ? $anvil->Log->is_secure($value)    : $value,
-					pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line,
-				}});
-			}
-			if (not $delay_set)
-			{
-				$delay_set =  1;
-				$pcs_line .= "delay=\"15\" ";
+				push @{$fence_order->{$node_name}}, "fence_ipmilan";
+				
+				# We have IPMI, so we also want fence_delay for this node.
+				if ($node eq "node1")
+				{
+					$node1_use_delay = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_use_delay => $node1_use_delay }});
+				}
+				else
+				{
+					$node2_use_delay = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_use_delay => $node2_use_delay }});
+				}
+				
+				# If we're here, break up the command and turn it into the pcs call.
+				my $old_switches              = {};
+				my ($fence_agent, $arguments) = ($host_ipmi =~ /^\/.*\/(.*?)\s+(.*)$/);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					delay_set => $delay_set, 
-					pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+					fence_agent  => $fence_agent,
+					arguments    => $arguments =~ /passw/ ? $anvil->Log->is_secure($arguments) : $arguments,
 				}});
-			}
-			$pcs_line .= "op monitor interval=\"60\"";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line,
-			}});
-			$stonith_name = "";
-			$fence_agent  = "";
+				
+				   $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$ipmi_stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ";
+				my $switches = $anvil->System->parse_arguments({debug => 2, arguments => $arguments});
+				foreach my $switch (sort {$a cmp $b} keys %{$switches})
+				{
+					# Ignore 'delay', we handle that in Cluster->set_delay();
+					my $value =  $switches->{$switch};
+					   $value =~ s/"/\\"/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						switch => $switch,
+						value  => $value,
+					}});
+					if (not defined $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name})
+					{
+						die "In agent: [".$fence_agent."], no variable for switch: [".$switch."] found.\n";
+					}
+					next if $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name} eq "delay";
+					
+					# Find the argument=value version.
+					my $argument        =  $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name};
+					   $pcs_add_command .= $argument."=\"".$value."\" ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						argument        => $argument,
+						value           => $argument =~ /passw/ ? $anvil->Log->is_secure($value)    : $value,
+						pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
+					}});
+					
+					# Store this to see if it's different from what's already in the CIB.
+					$old_switches->{$argument} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"old_switches->{$argument}" => $old_switches->{$argument},
+					}});
+				}
+				$pcs_add_command .= "op monitor interval=\"60\"";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
+				}});
+				
+				# If there's an entry in the CIB, so if it's different somehow
+				if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name})
+				{
+					foreach my $argument (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}})
+					{
+						next if $argument eq "delay";
+						my $old_entry = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}{$argument}{value};
+						my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:argument'  => $argument, 
+							's2:old_entry' => $old_entry,
+							's3:new_entry' => $new_entry,
+						}});
+						
+						if ($old_entry ne $new_entry)
+						{
+							# Changed, delete and recreate.
+							$delete_old   = 1;
+							$create_entry = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								delete_old   => $delete_old,
+								create_entry => $create_entry,
+							}});
+							
+							update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0117");
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0117"});
+							last;
+						}
+						
+						# Delete the old switch.
+						delete $old_switches->{$argument};
+					}
+					
+					# Are there any old switches left?
+					my $old_switch_count = keys %{$old_switches};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_switch_count => $old_switch_count }});
+					if ((not $delete_old) && ($old_switch_count))
+					{
+						# Delete and recreate. 
+						$delete_old   = 1;
+						$create_entry = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							delete_old   => $delete_old,
+							create_entry => $create_entry,
+						}});
+						
+						update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0117");
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0117"});
+					}
+				}
+				else
+				{
+					# No existing entry, add a new one.
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0116");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0116"});
 			
+					$create_entry = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_entry => $create_entry }});
+				}
+			}
+			elsif (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name})
+			{
+				# There was an existing fence config, but there's no entry in 'host_ipmi'. 
+				# Remove the stonith entry.
+				$delete_old = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { delete_old => $delete_old }});
+				
+				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0118");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0118"});
+			}
+			
+			# Process the IPMI entry.
+			if ($delete_old)
+			{
+				# Delete
+				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0119,!!device!".$ipmi_stonith_name."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0119", variables => { device => $ipmi_stonith_name }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith delete ".$ipmi_stonith_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				
+				$something_changed->{$node_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+			}
+			if ($create_entry)
+			{
+				# Create.
+				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0120,!!device!".$ipmi_stonith_name."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0120", variables => { device => $ipmi_stonith_name }});
+				
+				my $shell_call = $pcs_add_command;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				
+				$something_changed = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+			}
+			
+			
+			### Now any other fence devices.
 			foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}})
 			{
+				my $delete_old      = 0;
+				my $create_entry    = 0;
+				my $old_switches    = {};
 				my $fence_uuid      = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$device}{uuid};
+				my $fence_name      = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_name};
 				my $fence_arguments = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments};
 				my $fence_agent     = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
-				my $stonith_name    = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node; 
+				my $stonith_name    = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node."_".$fence_name; 
 				my $port            = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}{$device}{port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					device          => $device, 
 					fence_uuid      => $fence_uuid, 
+					fence_name      => $fence_name, 
 					fence_arguments => $fence_arguments =~ /passw/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments,
 					stonith_name    => $stonith_name, 
 					port            => $port, 
 				}});
 				
-				my $pcs_line = "pcs stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$host_name."\" ".$fence_arguments." ";
-				if (not $delay_set)
+				# We use this to tell if there are two or more entries per agent. If there
+				# are, we link them later when setting up the fence levels.
+				if (not exists $fence_devices->{$node_name}{$fence_agent})
 				{
-					$delay_set =  1;
-					$pcs_line .= "delay=\"15\" ";
+					push @{$fence_order->{$node_name}}, $fence_agent;
+					$fence_devices->{$node_name}{$fence_agent} = [];
+				}
+				push @{$fence_devices->{$node_name}{$fence_agent}}, $stonith_name;
+				
+				# Build the pcs command
+				my $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ".$fence_arguments." ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
+				}});
+				foreach my $pair (split/ /, $fence_arguments)
+				{
+					# Ignore 'delay', we handle that in Cluster->set_delay();
+					my ($argument, $value) = ($pair =~ /^(.*)="(.*?)"$/);
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						delay_set => $delay_set, 
-						pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+						pair     => $pair =~ /passw/ ? $anvil->Log->is_secure($pair) : $pair,
+						argument => $argument,
+						value    => $argument =~ /passw/ ? $anvil->Log->is_secure($value) : $value,
+					}});
+					next if $anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay";
+					
+					# Store this to see if it's different from what's already in the CIB.
+					$old_switches->{$argument} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"old_switches->{$argument}" => $old_switches->{$argument},
 					}});
 				}
 				if ($port)
 				{
-					$port     =~ s/"/\\"/g;
-					$pcs_line .= "port=\"".$port."\" ";
+					$port                 =~ s/"/\\"/g;
+					$pcs_add_command      .= "port=\"".$port."\" ";
+					$old_switches->{port} =  $port;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+						pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
+						"old_switches->{port}" => $old_switches->{port},
 					}});
 				}
-				$pcs_line .= "op monitor interval=\"60\"";
+				$pcs_add_command .= "op monitor interval=\"60\"";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					pcs_line => $pcs_line =~ /passw/ ? $anvil->Log->is_secure($pcs_line) : $pcs_line, 
+					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
 				}});
+				
+				# Does this device exist already?
+				if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
+				{
+					foreach my $argument (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name}{argument}})
+					{
+						next if $argument eq "delay";
+						my $old_entry = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name}{argument}{$argument}{value};
+						my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:argument'  => $argument, 
+							's2:old_entry' => $old_entry,
+							's3:new_entry' => $new_entry,
+						}});
+						
+						if ($old_entry ne $new_entry)
+						{
+							# Changed, delete and recreate.
+							$delete_old   = 1;
+							$create_entry = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								delete_old   => $delete_old,
+								create_entry => $create_entry,
+							}});
+							
+							update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0121,!!device!".$stonith_name."!!");
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0121", variables => { device => $stonith_name }});
+							last;
+						}
+						
+						# Delete the old switch.
+						delete $old_switches->{$argument};
+					}
+					
+					# Are there any old switches left?
+					my $old_switch_count = keys %{$old_switches};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_switch_count => $old_switch_count }});
+					if ((not $delete_old) && ($old_switch_count))
+					{
+						# Delete and recreate. 
+						$delete_old   = 1;
+						$create_entry = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							delete_old   => $delete_old,
+							create_entry => $create_entry,
+						}});
+						
+						update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0121,!!device!".$stonith_name."!!");
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0121", variables => { device => $stonith_name }});
+					}
+				}
+				else
+				{
+					# No existing entry, add a new one.
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0122,!!device!".$stonith_name."!!");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0122", variables => { device => $stonith_name }});
+					
+					$create_entry = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_entry => $create_entry }});
+				}
+				
+				if ($delete_old)
+				{
+					# Delete
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0119,!!device!".$stonith_name."!!");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0119", variables => { device => $stonith_name }});
+					
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith delete ".$stonith_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					$something_changed->{$node_name} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+				}
+				if ($create_entry)
+				{
+					# Create.
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0120,!!device!".$stonith_name."!!");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0120", variables => { device => $stonith_name }});
+					
+					my $shell_call = $pcs_add_command;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					$something_changed = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+				}
+			}
+			
+			
+			### If we had a fence_ipmilan entry, add a 'fence_delay' entry, if needed.
+			if (($node eq "node1") && ($node1_use_delay))
+			{
+				push @{$fence_order->{$node_name}}, "fence_delay";
+				my $stonith_name = "fence_delay_".$node; 
+				
+				# Add the fence delay if it doesn't exist yet.
+				if (not exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
+				{
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith create delay_".$node." fence_delay pcmk_host_list=\"".$node_name."\" wait=\"60\" op monitor interval=\"60\"";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
+			}
+			if (($node eq "node2") && ($node2_use_delay))
+			{
+				push @{$fence_order->{$node_name}}, "fence_delay";
+				my $stonith_name = "fence_delay_".$node; 
+				
+				# Add the fence delay if it doesn't exist yet.
+				if (not exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
+				{
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0123");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0123"});
+					
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith create delay_".$node." fence_delay pcmk_host_list=\"".$node_name."\" wait=\"60\" op monitor interval=\"60\"";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
 			}
 		}
 		
-		# Now setup any other fence agents.
+		# Setup fence levels.
+		foreach my $node_name (sort {$a cmp $b} keys %{$fence_order})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+			if ($something_changed->{$node_name})
+			{
+				# Delete any existing fence levels
+				if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name})
+				{
+					foreach my $index (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}})
+					{
+						# pcs stonith level delete <index> <target>
+						my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith level delete ".$index." ".$node_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						
+						my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code, 
+						}});
+					}
+				}
+				
+				# Create the new fence levels
+				my $i = 1;
+				foreach my $fence_agent (sort {$a cmp $b} keys %{$fence_order->{$node_name}})
+				{
+					my $devices = "";
+					foreach my $device (sort {$a cmp $b} @{$fence_devices->{$node_name}{$fence_agent}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
+						$devices .= $device.",";
+					}
+					$devices =~ s/,$//;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { devices => $devices }});
+					
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith level add ".$i." ".$node_name." ".$devices;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					$i++;
+				}
+			}
+		}
 	}
 	
+	# Enable fencing and set the retry to INFINITY, if needed.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cib::parsed::data::stonith::max-attempts" => $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'}, 
+	}});
+	if ($anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'} ne "INFINITY")
+	{
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0124");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0124"});
+		
+		my $shell_call = $anvil->data->{path}{exe}{pcs}." property set stonith-max-attempts=INFINITY";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
 	
-=cut
-$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed};
-	
-909; xxx::upses::el8-ups01::uuid: [7ebecdda-782d-4624-841d-98d912ed3d50]
-909; xxx::upses::el8-ups02::uuid: [7ffb4dc2-8b96-4ca7-80bb-49e309fb2f5f]
-918; xxx::fences::an-nas02::uuid: [4117a862-f58f-4676-991a-9ca257a3c612]
-
-971; xxx::machine::node1::ipmi_ip: [], xxx::machine::node1::type: [!!undef!!]
-980; xxx::machine::node1::fence::an-nas02::port: [el8-a01n01]
-980; xxx::machine::node1::fence::el8-pdu01::port: []
-980; xxx::machine::node1::fence::el8-pdu02::port: []
-980; xxx::machine::node1::fence::pulsar::port: []
-989; xxx::machine::node1::ups::el8-ups01::used: [0]
-989; xxx::machine::node1::ups::el8-ups02::used: [0]
-998; xxx::machine::node1::network::bcn1::ip: [10.201.10.1]
-998; xxx::machine::node1::network::ifn1::ip: [10.255.10.1]
-998; xxx::machine::node1::network::sn1::ip: [10.101.10.1]
-=cut
-	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"cib::parsed::data::stonith::enabled" => $anvil->data->{cib}{parsed}{data}{stonith}{enabled}, 
+	}});
+	if (not $anvil->data->{cib}{parsed}{data}{stonith}{enabled})
+	{
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0125");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0125"});
+		
+		my $shell_call = $anvil->data->{path}{exe}{pcs}." property set stonith-enabled=true";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
 	
 	return(0);
 }
@@ -508,7 +928,7 @@ sub check_local_network
 	{
 		$new_host_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name}.".".$domain;
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		's2:domain'        => $domain, 
 		's3:old_host_name' => $old_host_name, 
 		's4:new_host_name' => $new_host_name, 
@@ -520,7 +940,7 @@ sub check_local_network
 	if ($old_host_name ne $new_host_name)
 	{
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0061,!!host_name!".$new_host_name."!!");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0061", variables => { host_name => $new_host_name }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0061", variables => { host_name => $new_host_name }});
 		my ($now_host_name) = $anvil->System->host_name({
 			debug => 2,
 			set   => $new_host_name,
@@ -529,7 +949,7 @@ sub check_local_network
 		{
 			# Success!
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0045");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0045"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0045"});
 		}
 		else
 		{
@@ -590,7 +1010,7 @@ sub check_local_network
 		$cleaned_dns .= $this_dns.",";
 	}
 	$cleaned_dns =~ s/,$//;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cleaned_dns => $cleaned_dns }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cleaned_dns => $cleaned_dns }});
 	
 	# If any network interface is changed, we'll write out the config file then, when done, disconnect 
 	# from the database, restart networking and then reconnect before moving on.
@@ -602,7 +1022,7 @@ sub check_local_network
 		my $subnet  = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network}{subnet};
 		my $cidr    = $anvil->Convert->cidr({subnet_mask => $subnet});
 		my $gateway = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network}{gateway};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			's1:network' => $network, 
 			's2:ip'      => $ip,
 			's3:subnet'  => $subnet, 
@@ -620,7 +1040,7 @@ sub check_local_network
 			my $current_dns     = $anvil->data->{network}{'local'}{interface}{$in_iface}{dns};
 			my $current_mtu     = $anvil->data->{network}{'local'}{interface}{$in_iface}{mtu};
 			my $mac_address     = $anvil->data->{network}{'local'}{interface}{$in_iface}{mac_address};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:in_iface'        => $in_iface,
 				's2:current_ip'      => $current_ip,
 				's4:current_subnet'  => $current_subnet, 
@@ -630,14 +1050,14 @@ sub check_local_network
 			}});
 			
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0081,!!name!".$in_iface."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0081", variables => { name => $in_iface }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0081", variables => { name => $in_iface }});
 			
 			if ((not $default_gateway_interface) && ($in_iface =~ /^ifn/) && ($gateway))
 			{
 				# No existing default gateway, but this is the first IFN we've seen with a 
 				# gateway defined, so we'll use this one.
 				$default_gateway_interface = $in_iface;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_gateway_interface => $default_gateway_interface }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { default_gateway_interface => $default_gateway_interface }});
 			}
 			
 			my $change = 0;
@@ -649,7 +1069,7 @@ sub check_local_network
 				$cleaned_current_dns .= $this_current_dns.",";
 			}
 			$cleaned_current_dns =~ s/,$//;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cleaned_current_dns => $cleaned_current_dns }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cleaned_current_dns => $cleaned_current_dns }});
 			
 			if (($current_ip ne $ip) or ($current_subnet ne $subnet))
 			{
@@ -657,7 +1077,7 @@ sub check_local_network
 				#print "IP: .... [".$current_ip."] -> [".$ip."]\n";
 				#print "Subnet:  [".$current_subnet."] -> [".$subnet."]\n";
 				$change = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { change => $change }});
 			}
 			
 			# gateway?
@@ -665,18 +1085,18 @@ sub check_local_network
 			{
 				#print "Gateway: [".$current_gateway."] -> [".$gateway."]\n";
 				$change = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { change => $change }});
 			}
 			
 			# Check DNS only if this is the default gateway interface.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				in_iface                  => $in_iface,
 				default_gateway_interface => $default_gateway_interface, 
 				cleaned_current_dns       => $cleaned_current_dns, 
 			}});
 			if ($in_iface eq $default_gateway_interface)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					cleaned_current_dns => $cleaned_current_dns,
 					cleaned_dns         => $cleaned_dns, 
 				}});
@@ -684,32 +1104,32 @@ sub check_local_network
 				{
 					#print "DNS: ... [".$cleaned_current_dns."] -> [".$cleaned_dns."]\n";
 					$change = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { change => $change }});
 				}
 			}
 			elsif ($cleaned_current_dns)
 			{
 				# Remove the old DNS entries.
 				$change = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { change => $change }});
 			}
 			
 			if (not $change)
 			{
 				# No change
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0082");
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0082"});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0082"});
 			}
 			else
 			{
 				# Update the config. 
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0078,!!interface!".$in_iface."!!");
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0078", variables => { interface => $in_iface }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0078", variables => { interface => $in_iface }});
 				
 				my $interface_uuid = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$in_iface};
 				my $filename       = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{filename};
 				my $interface_name = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{name};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					's1:in_iface'       => $in_iface, 
 					's2:interface_name' => $interface_name, 
 					's3:filename'       => $filename, 
@@ -733,13 +1153,13 @@ sub check_local_network
 				my $old_config      = $anvil->Storage->read_file({file => $filename});
 				foreach my $line (split/\n/, $old_config)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 					if ($line =~ /^BOOTPROTO="(.*?)"/)
 					{
 						my $boot_protocol   =  $1;
 						   $boot_proto_seen =  1;
 						   $new_config      .= "BOOTPROTO=\"none\"\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 							's1:boot_proto_seen' => $boot_proto_seen, 
 							's2:boot_protocol'   => $boot_protocol,
 							's3:new_config'      => $new_config,
@@ -751,7 +1171,7 @@ sub check_local_network
 							{
 								$ip_seen    =  1;
 								$new_config .= "IPADDR=\"".$ip."\"\n";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 									's1:ip_seen'    => $boot_proto_seen, 
 									's2:new_config' => $new_config,
 								}});
@@ -767,7 +1187,7 @@ sub check_local_network
 									$new_config .= "NETMASK=\"".$subnet."\"\n";
 								}
 								$subnet_seen = 1;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 									's1:subnet_seen' => $subnet_seen, 
 									's2:new_config'  => $new_config,
 								}});
@@ -776,7 +1196,7 @@ sub check_local_network
 							{
 								$gateway_seen =  1;
 								$new_config   .= "GATEWAY=\"".$gateway."\"\n";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 									's1:gateway_seen' => $gateway_seen, 
 									's2:new_config'   => $new_config,
 								}});
@@ -785,7 +1205,7 @@ sub check_local_network
 							{
 								$defroute_seen =  1;
 								$new_config    .= "DEFROUTE=\"".$say_default."\"\n";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 									's1:defroute_seen' => $defroute_seen, 
 									's2:new_config'    => $new_config,
 								}});
@@ -802,7 +1222,7 @@ sub check_local_network
 									}
 
 									$dns_seen = 1;
-									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 										's1:dns_seen'   => $dns_seen, 
 										's2:new_config' => $new_config,
 									}});
@@ -812,12 +1232,12 @@ sub check_local_network
 					}
 					elsif ($line =~ /^IPADDR=".*?"/)
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_seen => $ip_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip_seen => $ip_seen }});
 						if (not $ip_seen)
 						{
 							$ip_seen    =  1;
 							$new_config .= "IPADDR=\"".$ip."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:ip_seen'    => $boot_proto_seen, 
 								's2:new_config' => $new_config,
 							}});
@@ -825,7 +1245,7 @@ sub check_local_network
 					}
 					elsif (($line =~ /^PREFIX=".*?"/) or ($line =~ /^NETMASK=".*?"/))
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subnet_seen => $subnet_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { subnet_seen => $subnet_seen }});
 						if (not $subnet_seen)
 						{
 							$subnet_seen = 1;
@@ -837,7 +1257,7 @@ sub check_local_network
 							{
 								$new_config .= "NETMASK=\"".$subnet."\"\n";
 							}
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:subnet_seen' => $subnet_seen, 
 								's2:new_config'  => $new_config,
 							}});
@@ -845,7 +1265,7 @@ sub check_local_network
 					}
 					elsif ($line =~ /^GATEWAY=".*"/)
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_seen => $gateway_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { gateway_seen => $gateway_seen }});
 						if ($in_iface ne $default_gateway_interface)
 						{
 							# This interface shouldn't have DNS.
@@ -859,18 +1279,18 @@ sub check_local_network
 						{
 							$gateway_seen =  1;
 							$new_config   .= "GATEWAY=\"".$gateway."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:gateway_seen' => $gateway_seen, 
 								's2:new_config'   => $new_config,
 							}});
 						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_seen => $gateway_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { gateway_seen => $gateway_seen }});
 					}
 					elsif ($line =~ /^DNS\d+=".*"/)
 					{
 						# The first time we see a DNS entry, we inject the DNS we've 
 						# got and then ignore the rest.
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns_seen => $dns_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { dns_seen => $dns_seen }});
 						if ($in_iface ne $default_gateway_interface)
 						{
 							# This interface shouldn't have DNS.
@@ -891,7 +1311,7 @@ sub check_local_network
 								$i++;
 							}
 							$dns_seen = 1;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:dns_seen'   => $dns_seen, 
 								's2:new_config' => $new_config,
 							}});
@@ -899,41 +1319,41 @@ sub check_local_network
 					}
 					elsif ($line =~ /^MTU=".*"/)
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu_seen => $mtu_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mtu_seen => $mtu_seen }});
 						if (not $mtu_seen)
 						{
 							$mtu_seen =  1;
 							$new_config   .= "MTU=\"".$mtu."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:mtu_seen'   => $mtu_seen, 
 								's2:new_config' => $new_config,
 							}});
 						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu_seen => $mtu_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { mtu_seen => $mtu_seen }});
 					}
 					elsif ($line =~ /^DEFROUTE=".*"/)
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { defroute_seen => $defroute_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { defroute_seen => $defroute_seen }});
 						if (not $defroute_seen)
 						{
 							$defroute_seen =  1;
 							$new_config   .= "DEFROUTE=\"".$say_default."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 								's1:defroute_seen' => $defroute_seen, 
 								's2:new_config'    => $new_config,
 							}});
 						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { defroute_seen => $defroute_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { defroute_seen => $defroute_seen }});
 					}
 					else
 					{
 						$new_config .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { defroute_seen => $defroute_seen }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { defroute_seen => $defroute_seen }});
 					}
 				}
 				
 				# Add any values I've not yet seen.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					ip_seen       => $ip_seen, 
 					subnet_seen   => $subnet_seen, 
 					gateway_seen  => $gateway_seen, 
@@ -944,7 +1364,7 @@ sub check_local_network
 				if (not $ip_seen)
 				{
 					$new_config .= "IPADDR=\"".$ip."\"\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
 				}
 				if (not $subnet_seen)
 				{
@@ -956,14 +1376,14 @@ sub check_local_network
 					{
 						$new_config .= "NETMASK=\"".$subnet."\"\n";
 					}
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
 				}
 				if ($in_iface eq $default_gateway_interface)
 				{
 					if (not $gateway_seen)
 					{
 						$new_config .= "GATEWAY=\"".$gateway."\"\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
 					}
 					if (not $dns_seen)
 					{
@@ -974,23 +1394,23 @@ sub check_local_network
 							$new_config .= "DNS".$i."=\"".$this_dns."\"\n";
 							$i++;
 						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
 					}
 				}
 				if (not $mtu_seen)
 				{
 					$new_config .= "MTU=\"".$mtu."\"\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
 				}
 				if (not $defroute_seen)
 				{
 					$new_config .= "DEFROUTE=\"".$say_default."\"\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
 				}
 				
 				# Write out the new file.
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0083", variables => { file => $filename }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0083", variables => { file => $filename }});
 				$anvil->Storage->write_file({
 					debug     => 3,
 					file      => $filename, 
@@ -1007,7 +1427,7 @@ sub check_local_network
 	
 	# If there are any entries in '$restart_interfaces', restart
 	my $restart_interface_count = @{$restart_interfaces};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { restart_interface_count => $restart_interface_count }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { restart_interface_count => $restart_interface_count }});
 	if ($restart_interface_count)
 	{
 		# Disconnect from the database, as we're about to tear down our connection.
@@ -1018,7 +1438,7 @@ sub check_local_network
 		# Tell nmcli to re-read the config files.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
 		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			output      => $output,
 			return_code => $return_code, 
 		}});
@@ -1038,7 +1458,7 @@ sub check_local_network
 		{
 			$anvil->refresh();
 			$anvil->Database->connect();
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0132"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0132"});
 			if (not $anvil->data->{sys}{database}{connections})
 			{
 				if (time > $wait_until)
@@ -1072,7 +1492,7 @@ sub check_local_network
 	}
 	
 	# Update network view
-	$anvil->Network->read_nmcli({debug => 2});
+	$anvil->Network->read_nmcli({debug => 3});
 	$anvil->Network->get_ips({debug => 3});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0086"});
@@ -1083,7 +1503,7 @@ sub check_local_network
 	{
 		# Only one interface will start with the network name and have an IP address.
 		my $current_mtu = $anvil->data->{network}{'local'}{interface}{$in_iface}{mtu};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			's1:in_iface'    => $in_iface, 
 			's2:current_mtu' => $current_mtu,
 		}});
@@ -1101,7 +1521,7 @@ sub check_local_network
 		{
 			# Change the MTU both on the running interface and in the config file.
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0088,!!interface!".$in_iface."!!,!!old_mtu!".$current_mtu."!!,!!mtu!".$mtu."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0088", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0088", variables => { 
 				interface => $in_iface, 
 				old_mtu   => $current_mtu, 
 				mtu       => $mtu, 
@@ -1114,7 +1534,7 @@ sub check_local_network
 			my $interface_uuid = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$in_iface};
 			my $filename       = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{filename};
 			my $interface_name = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:interface_name' => $interface_name, 
 				's2:filename'       => $filename, 
 				's3:interface_uuid' => $interface_uuid, 
@@ -1125,7 +1545,7 @@ sub check_local_network
 			my $old_config = $anvil->Storage->read_file({file => $filename});
 			foreach my $line (split/\n/, $old_config)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 				if ($line =~ /^MTU=".*?"/)
 				{
 					$mtu_seen   =  1;
@@ -1134,7 +1554,7 @@ sub check_local_network
 				else
 				{
 					$new_config .= $line."\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
 				}
 			}
 			if (not $mtu_seen)
@@ -1145,7 +1565,7 @@ sub check_local_network
 			
 			# Write out the new file.
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0083", variables => { file => $filename }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0083", variables => { file => $filename }});
 			$anvil->Storage->write_file({
 				debug     => 2,
 				file      => $filename, 
@@ -1166,7 +1586,7 @@ sub check_local_network
 	{
 		# Break up the NTP servers into a list, we'll set to '1' the ones we find.
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0089");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0089"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0089"});
 		my $new_ntp = {};
 		foreach my $ntp_server (split/,/, $ntp)
 		{
@@ -1180,7 +1600,7 @@ sub check_local_network
 		my $old_config = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'chrony.conf'}});
 		foreach my $line (split/\n/, $old_config)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 			$new_config .= $line."\n";
 			if ($line =~ /^Server (.*)$/)
 			{
@@ -1196,7 +1616,7 @@ sub check_local_network
 			if (not $new_ntp->{$source})
 			{
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0090,!!server!".$source."!!");
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0090", variables => { server => $source }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0090", variables => { server => $source }});
 				$change = 1;
 				$new_config .= "Server ".$source."\n";
 			}
@@ -1206,7 +1626,7 @@ sub check_local_network
 		{
 			# Write out the updated file.
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0055,!!file!".$anvil->data->{path}{data}{'chrony.conf'}."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0055", variables => { file => $anvil->data->{path}{data}{'chrony.conf'} }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0055", variables => { file => $anvil->data->{path}{data}{'chrony.conf'} }});
 			$anvil->Storage->write_file({
 				debug     => 2,
 				file      => $anvil->data->{path}{data}{'chrony.conf'}, 
@@ -1220,7 +1640,7 @@ sub check_local_network
 			# Restart the daemon.
 			my $daemon = "chronyd";
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0091,!!daemon!".$daemon."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0091", variables => { daemon => $daemon }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0091", variables => { daemon => $daemon }});
 			$anvil->System->restart_daemon({
 				debug  => 3,
 				daemon => $daemon,
@@ -1229,17 +1649,17 @@ sub check_local_network
 	}
 	
 	# Update the hosts file.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0112"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0112"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0112");
 	$anvil->System->update_hosts({debug => 3});
 	
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0113"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0113"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0113");
 	$anvil->System->check_ssh_keys({debug => 3});
 	
 	# Setup IPMI, if needed.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0114"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0114"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0114");
 	$anvil->System->configure_ipmi({debug => 3, manifest_uuid => $manifest_uuid});
 	
@@ -1255,7 +1675,7 @@ sub load_job
 	$anvil->data->{switches}{'job-uuid'} = "" if not exists $anvil->data->{switches}{'job-uuid'};
 	$anvil->data->{jobs}{job_uuid}       = "" if not exists $anvil->data->{jobs}{job_uuid};
 	
-	$anvil->Job->get_job_details({debug => 2});
+	$anvil->Job->get_job_details({debug => 3});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid},
 	}});
@@ -1281,6 +1701,10 @@ sub load_job
 	{
 		# Terminate the job entirely, it's likely an unrecoverable problem.
 		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0092", variables => { 
+			'job-uuid' => $anvil->data->{switches}{'job-uuid'},
+			raw        => $anvil->data->{jobs}{job_data},
+		}});	
 		sleep 2;
 		$anvil->nice_exit({exit_code => 5});
 	}
@@ -1296,11 +1720,8 @@ sub load_job
 	
 	# Load in the host info and the manifest.
 	$anvil->Database->get_hosts();
-	my $problem = $anvil->Striker->load_manifest({
-		debug         => 2,
-		manifest_uuid => $anvil->data->{sys}{manifest_uuid}, 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	my $problem = $anvil->Striker->load_manifest({manifest_uuid => $anvil->data->{sys}{manifest_uuid}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		manifest_uuid => $anvil->data->{sys}{manifest_uuid},
 		problem       => $problem, 
 	}});
@@ -1320,6 +1741,10 @@ sub load_job
 	{
 		# Terminate the job entirely, it's likely an unrecoverable problem.
 		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0092", variables => { 
+			'job-uuid' => $anvil->data->{switches}{'job-uuid'},
+			raw        => $anvil->data->{jobs}{job_data},
+		}});	
 		sleep 2;
 		$anvil->nice_exit({exit_code => 5});
 	}
@@ -1328,12 +1753,16 @@ sub load_job
 	$anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	$anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	$anvil->data->{sys}{dr1_host_uuid}   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		"sys::node1_host_uuid" => $anvil->data->{sys}{node1_host_uuid},
 		"sys::node2_host_uuid" => $anvil->data->{sys}{node2_host_uuid},
 		"sys::dr1_host_uuid"   => $anvil->data->{sys}{dr1_host_uuid},
 	}});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0075,!!machine!".$anvil->data->{sys}{machine}."!!,!!manifest_uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0075", variables => { 
+		machine       => $anvil->data->{sys}{machine},
+		manifest_uuid => $anvil->data->{sys}{manifest_uuid},
+	}});	
 	
 	return(0);
 }

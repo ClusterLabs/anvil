@@ -359,6 +359,17 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0112">Updating the '/etc/hosts' file.</key>
 		<key name="job_0113">Checking the SSH configuration.</key>
 		<key name="job_0114">Configuring the IPMI BMC. Please be patient, this could take a minute.</key>
+		<key name="job_0115">Checking the fence configuration for the node: [#!variable!node!#].</key>
+		<key name="job_0116">IPMI exists on this node, but it is not yet setup as a fence device, adding it.</key>
+		<key name="job_0117">The IPMI information in the existing fence configuration is different from the details stored in the database. Will reconfigure.</key>
+		<key name="job_0118">There is an IPMI fence device configured, but there is no host IPMI information in the database. Removing it.</key>
+		<key name="job_0119">Deleting the old fence device: [#!variable!device!#].</key>
+		<key name="job_0120">Creating the new fence device: [#!variable!device!#].</key>
+		<key name="job_0121">The fence device: [#!variable!device!#] information in the existing fence configuration is different from the details stored in the database. Will reconfigure.</key>
+		<key name="job_0122">The fence device: [#!variable!device!#] does not exist as a fence device, adding it.</key>
+		<key name="job_0123">Adding a fence delay agent to provide time for the IPMI BMC to boot before trying it again.</key>
+		<key name="job_0124">Configuring the cluster to loop fence attempts indefinitely.</key>
+		<key name="job_0125">Enabling fencing!</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

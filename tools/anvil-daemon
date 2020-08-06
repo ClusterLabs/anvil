@@ -384,13 +384,9 @@ sub handle_periodic_tasks
 			"s2:timing::next_minute_check" => $anvil->data->{timing}{next_minute_check}, 
 		}});
 		
-		# If we're a dashboard, see if the fence information needs to be gathered.
-		if ($type eq "striker")
-		{
-			# Even when this runs, it should finish in under ten seconds so we don't need to background it.
-			my ($parse_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'striker-parse-fence-agents'}, source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { parse_output => $parse_output }});
-		}
+		# Even when this runs, it should finish in under ten seconds so we don't need to background it.
+		my ($parse_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-parse-fence-agents'}, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { parse_output => $parse_output }});
 		
 		# Scan the local network.
 		update_state_file($anvil);

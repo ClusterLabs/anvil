@@ -577,14 +577,14 @@ sub parse_cib
 		if ($variable eq "stonith-max-attempts")
 		{
 			$anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'} = $value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 				"cib::parsed::data::stonith::max-attempts" => $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'}, 
 			}});
 		}
 		if ($variable eq "stonith-enabled")
 		{
 			$anvil->data->{cib}{parsed}{data}{stonith}{enabled} = $value eq "true" ? 1 : 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 				"cib::parsed::data::stonith::enabled" => $anvil->data->{cib}{parsed}{data}{stonith}{enabled}, 
 			}});
 		}
@@ -598,6 +598,7 @@ sub parse_cib
 	}
 	
 	# Fencing devices and levels.
+	my $delay_set = 0;
 	foreach my $primitive_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{resources}{primitive}})
 	{
 		next if not $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$primitive_id}{class};
@@ -631,9 +632,15 @@ sub parse_cib
 				foreach my $name (sort {$a cmp $b} keys %{$variables})
 				{
 					$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{argument}{$name}{value} = $variables->{$name};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 						"cib::parsed::data::node::${node_name}::fencing::device::${primitive_id}::argument::${name}::value" => $variables->{$name},
 					}});
+					
+					if ($name eq "delay")
+					{
+						$delay_set = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { delay_set => $delay_set }});
+					}
 					
 					my $value           =  $variables->{$name};
 					   $value           =~ s/"/\\"/g;
@@ -644,12 +651,17 @@ sub parse_cib
 				}
 				$argument_string =~ s/ $//;
 				$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{arguments} = $argument_string;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 					"cib::parsed::data::node::${node_name}::fencing::device::${primitive_id}::arguments" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$primitive_id}{arguments},
 				}});
 			}
 		}
 	}
+	$anvil->data->{cib}{parsed}{data}{stonith}{delay_set} = $delay_set;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		"cib::parsed::data::stonith::delay_set" => $anvil->data->{cib}{parsed}{data}{stonith}{delay_set}, 
+	}});
+	
 	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}})
 	{
 		my $node_name = $anvil->data->{cib}{parsed}{configuration}{'fencing-topology'}{'fencing-level'}{$id}{target};
@@ -662,11 +674,10 @@ sub parse_cib
 		}});
 		
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$index}{devices} = $devices;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 			"cib::parsed::data::node::${node_name}::fencing::order::${index}::devices" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$index}{devices},
 		}});
 	}
-
 	
 	return($problem);
 }
@@ -688,7 +699,7 @@ sub start_cluster
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->parse_cib()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->start_cluster()" }});
 	
 	my $all = defined $parameter->{all} ? $parameter->{all} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 

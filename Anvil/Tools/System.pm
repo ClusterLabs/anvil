@@ -1291,10 +1291,7 @@ LIMIT 1
 	}});
 	
 	# Load the manifest.
-	my $problem = $anvil->Striker->load_manifest({
-		debug         => 2,
-		manifest_uuid => $manifest_uuid, 
-	});
+	my $problem = $anvil->Striker->load_manifest({debug => $debug, manifest_uuid => $manifest_uuid});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	if ($problem)
 	{
@@ -1684,7 +1681,7 @@ LIMIT 1
 	}
 	my $try_again = 1;
 	$host_ipmi = $anvil->System->test_ipmi({
-		debug         => 2,
+		debug         => $debug,
 		ipmi_user     => $user_name,
 		ipmi_password => $ipmi_password,
 		ipmi_target   => $ipmi_ip_address, 
@@ -1704,7 +1701,7 @@ LIMIT 1
 		# Try it again from the dashboard, we may just not be able to talk to our own BMC (can happen
 		# on shared interfaces)
 		$host_ipmi = $anvil->System->test_ipmi({
-			debug         => 2,
+			debug         => $debug,
 			ipmi_user     => $user_name,
 			ipmi_password => $ipmi_password,
 			ipmi_target   => $ipmi_ip_address, 
@@ -1736,7 +1733,7 @@ LIMIT 1
 			{
 				# Try again with the 20-byte password.
 				my $twenty_byte_ipmi_password = $anvil->Words->shorten_string({
-					debug    => 3,
+					debug    => $debug,
 					secure   => 1,
 					string   => $ipmi_password, 
 					'length' => 20,
@@ -1756,7 +1753,7 @@ LIMIT 1
 				{
 					# Try once more with the 16-byte password.
 					my $sixteen_byte_ipmi_password = $anvil->Words->shorten_string({
-						debug    => 3,
+						debug    => $debug,
 						secure   => 1,
 						string   => $ipmi_password, 
 						'length' => 16,
@@ -1806,7 +1803,7 @@ LIMIT 1
 	if ($try_again)
 	{
 		$host_ipmi = $anvil->System->test_ipmi({
-			debug         => 2,
+			debug         => $debug,
 			ipmi_user     => $user_name,
 			ipmi_password => $ipmi_password,
 			ipmi_target   => $ipmi_ip_address, 
@@ -1823,7 +1820,7 @@ LIMIT 1
 			# Try it again from the dashboard, we may just not be able to talk to our own BMC (
 			# can happen on shared interfaces)
 			my $host_ipmi = $anvil->System->test_ipmi({
-				debug         => 2,
+				debug         => $debug,
 				ipmi_user     => $user_name,
 				ipmi_password => $ipmi_password,
 				ipmi_target   => $ipmi_ip_address, 
