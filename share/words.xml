@@ -197,6 +197,7 @@ The error was:
 		<key name="error_0135">Failed to start the daemon: [#!variable!daemon!#] on [#!variable!host!#], unable to boot the server.</key>
 		<key name="error_0136">System->test_ipmi() was called with an invalid 'lanplus' parameter. It must be 'yes', 'no', 'yes-no' or 'no-yes'. Received: [#!variable!lanplus!#].</key>
 		<key name="error_0137">All attempts to change the IPMI user: [#!variable!user_name!#] (number: [#!variable!user_number!#] failed. The last try's output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
+		<key name="error_0138">The system call: [#!variable!shell_call!#] failed. The output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>

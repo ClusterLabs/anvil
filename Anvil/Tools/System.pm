@@ -4080,6 +4080,10 @@ sub test_ipmi
 	# If we have a valid shell call, and it doesn't match the one we read in earlier, update it.
 	if (($shell_call) && ($host_ipmi ne $shell_call))
 	{
+		# Take the '--action status' off.
+		$shell_call =~ s/ --action status//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, secure => 1, level => $debug, list => { shell_call => $shell_call }});
+		
 		# Update it.
 		my $query = "UPDATE hosts SET host_ipmi = ".$anvil->Database->quote($shell_call)."  WHERE host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
 		$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});

@@ -9,6 +9,7 @@
 # 3 = Failed to change the host name.
 # 4 = Failed to reconnect to any database after the network was reconfigured
 # 5 = Problem parsing job data or loading manifest or anvil data using job data.
+# 6 = A pcs call failed.
 # 
 # TODO: 
 # - 
@@ -166,10 +167,10 @@ sub configure_pacemaker
 	### Run on both nodes.
 	# Enable pcsd and start the pcsd daemons.
 	my ($return_code) = $anvil->System->enable_daemon({daemon => "pcsd"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
 	($return_code) = $anvil->System->start_daemon({daemon => "pcsd"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!pcsd!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0094", variables => { daemon => "pcsd" }});
@@ -298,7 +299,7 @@ sub configure_pacemaker
 		{
 			# Try to authenticate against the peer.
 			my $auth_shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { auth_shell_call => $auth_shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 1, list => { auth_shell_call => $auth_shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => 3, secure => 1, shell_call => $auth_shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -355,7 +356,7 @@ sub configure_pacemaker
 		
 		# If we can parse the CIB, then pcsd is running. 
 		my $problem = $anvil->Cluster->parse_cib({debug => 3});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
 		if ($problem)
 		{
 			# Start the cluster.
@@ -372,20 +373,20 @@ sub configure_pacemaker
 		until ($both_online)
 		{
 			my $problem = $anvil->Cluster->parse_cib({debug => 3});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
 			if (not $problem)
 			{
 				# See if both nodes are online.
 				my $node1_ready = $anvil->Cluster->check_node_status({node_name => $node1_host_name});
 				my $node2_ready = $anvil->Cluster->check_node_status({node_name => $node2_host_name});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					node1_ready => $node1_ready,
 					node2_ready => $node2_ready, 
 				}});
 				if (($node1_ready) && ($node2_ready))
 				{
 					$both_online = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { both_online => $both_online }});
 					
 					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0104"});
@@ -445,17 +446,25 @@ sub configure_pacemaker
 			if ($host_ipmi)
 			{
 				push @{$fence_order->{$node_name}}, "fence_ipmilan";
+				$fence_devices->{$node_name}{fence_ipmilan} = [$ipmi_stonith_name];
+				
+				# The --action switch needs to be 'pcmk_off_action' in pcs, so we convert it here.
+				$host_ipmi =~ s/--action status//;
+				$host_ipmi =~ s/--action/--pcmk_off_action/;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					host_ipmi => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
+				}});
 				
 				# We have IPMI, so we also want fence_delay for this node.
 				if ($node eq "node1")
 				{
 					$node1_use_delay = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_use_delay => $node1_use_delay }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { node1_use_delay => $node1_use_delay }});
 				}
 				else
 				{
 					$node2_use_delay = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_use_delay => $node2_use_delay }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { node2_use_delay => $node2_use_delay }});
 				}
 				
 				# If we're here, break up the command and turn it into the pcs call.
@@ -467,28 +476,25 @@ sub configure_pacemaker
 				}});
 				
 				   $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$ipmi_stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ";
-				my $switches = $anvil->System->parse_arguments({debug => 2, arguments => $arguments});
+				my $switches = $anvil->System->parse_arguments({debug => 3, arguments => $arguments});
 				foreach my $switch (sort {$a cmp $b} keys %{$switches})
 				{
 					# Ignore 'delay', we handle that in Cluster->set_delay();
 					my $value =  $switches->{$switch};
 					   $value =~ s/"/\\"/g;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						switch => $switch,
 						value  => $value,
 					}});
-					if (not defined $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name})
-					{
-						die "In agent: [".$fence_agent."], no variable for switch: [".$switch."] found.\n";
-					}
 					next if $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name} eq "delay";
+					next if $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name} eq "action";
 					
 					# Find the argument=value version.
 					my $argument        =  $anvil->data->{fence_data}{$fence_agent}{switch}{$switch}{name};
 					   $pcs_add_command .= $argument."=\"".$value."\" ";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						argument        => $argument,
-						value           => $argument =~ /passw/ ? $anvil->Log->is_secure($value)    : $value,
+						value           => $argument        =~ /passw/ ? $anvil->Log->is_secure($value)           : $value,
 						pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
 					}});
 					
@@ -499,7 +505,7 @@ sub configure_pacemaker
 					}});
 				}
 				$pcs_add_command .= "op monitor interval=\"60\"";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
 				}});
 				
@@ -509,6 +515,7 @@ sub configure_pacemaker
 					foreach my $argument (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}})
 					{
 						next if $argument eq "delay";
+						next if $argument eq "action";
 						my $old_entry = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}{$argument}{value};
 						my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -538,13 +545,16 @@ sub configure_pacemaker
 					
 					# Are there any old switches left?
 					my $old_switch_count = keys %{$old_switches};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_switch_count => $old_switch_count }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						delete_old       => $delete_old, 
+						old_switch_count => $old_switch_count,
+					}});
 					if ((not $delete_old) && ($old_switch_count))
 					{
 						# Delete and recreate. 
 						$delete_old   = 1;
 						$create_entry = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 							delete_old   => $delete_old,
 							create_entry => $create_entry,
 						}});
@@ -575,6 +585,10 @@ sub configure_pacemaker
 			}
 			
 			# Process the IPMI entry.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				delete_old   => $delete_old,
+				create_entry => $create_entry, 
+			}});
 			if ($delete_old)
 			{
 				# Delete
@@ -589,6 +603,18 @@ sub configure_pacemaker
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				if ($return_code)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+						shell_call  => $shell_call, 
+						output      => $output, 
+						return_code => $return_code, 
+					}});
+					update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+					sleep 2;
+					$anvil->nice_exit({exit_code => 6});
+				}
 				
 				$something_changed->{$node_name} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
@@ -607,8 +633,20 @@ sub configure_pacemaker
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				if ($return_code)
+				{
+					# Something went wrong.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+						shell_call  => $shell_call, 
+						output      => $output, 
+						return_code => $return_code, 
+					}});
+					update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+					sleep 2;
+					$anvil->nice_exit({exit_code => 6});
+				}
 				
-				$something_changed = 1;
+				$something_changed->{$node_name} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 			}
 			
@@ -643,6 +681,12 @@ sub configure_pacemaker
 				}
 				push @{$fence_devices->{$node_name}{$fence_agent}}, $stonith_name;
 				
+				# Fence arguments use 'action', but pcs deprecated it in favour of 'pcmk_off_action', so rename it.
+				$fence_arguments =~ s/action=/pcmk_off_action=/;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					fence_arguments => $fence_arguments =~ /passw/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
+				}});
+				
 				# Build the pcs command
 				my $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ".$fence_arguments." ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -657,7 +701,10 @@ sub configure_pacemaker
 						argument => $argument,
 						value    => $argument =~ /passw/ ? $anvil->Log->is_secure($value) : $value,
 					}});
-					next if $anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay";
+					if (($argument ne "pcmk_off_action") && ($anvil->data->{fence_data}{$fence_agent}{switch}{$argument}{name} eq "delay"))
+					{
+						next;
+					}
 					
 					# Store this to see if it's different from what's already in the CIB.
 					$old_switches->{$argument} = $value;
@@ -754,6 +801,18 @@ sub configure_pacemaker
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					if ($return_code)
+					{
+						# Something went wrong.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+							shell_call  => $shell_call, 
+							output      => $output, 
+							return_code => $return_code, 
+						}});
+						update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+						sleep 2;
+						$anvil->nice_exit({exit_code => 6});
+					}
 					
 					$something_changed->{$node_name} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
@@ -772,23 +831,37 @@ sub configure_pacemaker
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					if ($return_code)
+					{
+						# Something went wrong.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+							shell_call  => $shell_call, 
+							output      => $output, 
+							return_code => $return_code, 
+						}});
+						update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+						sleep 2;
+						$anvil->nice_exit({exit_code => 6});
+					}
 					
-					$something_changed = 1;
+					$something_changed->{$node_name} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 				}
 			}
 			
 			
 			### If we had a fence_ipmilan entry, add a 'fence_delay' entry, if needed.
-			if (($node eq "node1") && ($node1_use_delay))
+			if ((($node eq "node1") && ($node1_use_delay)) or 
+			    (($node eq "node2") && ($node2_use_delay)))
 			{
+				my $stonith_name = "delay_".$node; 
 				push @{$fence_order->{$node_name}}, "fence_delay";
-				my $stonith_name = "fence_delay_".$node; 
+				$fence_devices->{$node_name}{fence_delay} = [$stonith_name];
 				
 				# Add the fence delay if it doesn't exist yet.
 				if (not exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
 				{
-					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith create delay_".$node." fence_delay pcmk_host_list=\"".$node_name."\" wait=\"60\" op monitor interval=\"60\"";
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith create ".$stonith_name." fence_delay pcmk_host_list=\"".$node_name."\" wait=\"60\" op monitor interval=\"60\"";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 					
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
@@ -796,27 +869,18 @@ sub configure_pacemaker
 						output      => $output,
 						return_code => $return_code, 
 					}});
-				}
-			}
-			if (($node eq "node2") && ($node2_use_delay))
-			{
-				push @{$fence_order->{$node_name}}, "fence_delay";
-				my $stonith_name = "fence_delay_".$node; 
-				
-				# Add the fence delay if it doesn't exist yet.
-				if (not exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
-				{
-					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0123");
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0123"});
-					
-					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith create delay_".$node." fence_delay pcmk_host_list=\"".$node_name."\" wait=\"60\" op monitor interval=\"60\"";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-					
-					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						output      => $output,
-						return_code => $return_code, 
-					}});
+					if ($return_code)
+					{
+						# Something went wrong.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+							shell_call  => $shell_call, 
+							output      => $output, 
+							return_code => $return_code, 
+						}});
+						update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+						sleep 2;
+						$anvil->nice_exit({exit_code => 6});
+					}
 				}
 			}
 		}
@@ -841,12 +905,24 @@ sub configure_pacemaker
 							output      => $output,
 							return_code => $return_code, 
 						}});
+						if ($return_code)
+						{
+							# Something went wrong.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+								shell_call  => $shell_call, 
+								output      => $output, 
+								return_code => $return_code, 
+							}});
+							update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+							sleep 2;
+							$anvil->nice_exit({exit_code => 6});
+						}
 					}
 				}
 				
 				# Create the new fence levels
 				my $i = 1;
-				foreach my $fence_agent (sort {$a cmp $b} keys %{$fence_order->{$node_name}})
+				foreach my $fence_agent (@{$fence_order->{$node_name}})
 				{
 					my $devices = "";
 					foreach my $device (sort {$a cmp $b} @{$fence_devices->{$node_name}{$fence_agent}})
@@ -865,6 +941,18 @@ sub configure_pacemaker
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					if ($return_code)
+					{
+						# Something went wrong.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+							shell_call  => $shell_call, 
+							output      => $output, 
+							return_code => $return_code, 
+						}});
+						update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+						sleep 2;
+						$anvil->nice_exit({exit_code => 6});
+					}
 					
 					$i++;
 				}
@@ -889,6 +977,18 @@ sub configure_pacemaker
 			output      => $output,
 			return_code => $return_code, 
 		}});
+		if ($return_code)
+		{
+			# Something went wrong.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+				shell_call  => $shell_call, 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+			sleep 2;
+			$anvil->nice_exit({exit_code => 6});
+		}
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -907,6 +1007,18 @@ sub configure_pacemaker
 			output      => $output,
 			return_code => $return_code, 
 		}});
+		if ($return_code)
+		{
+			# Something went wrong.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+				shell_call  => $shell_call, 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+			sleep 2;
+			$anvil->nice_exit({exit_code => 6});
+		}
 	}
 	
 	return(0);
@@ -985,7 +1097,7 @@ sub check_local_network
 		if ($anvil->data->{network}{'local'}{interface}{$in_iface}{default_gateway})
 		{
 			$default_gateway_interface = $in_iface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_gateway_interface => $default_gateway_interface }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { default_gateway_interface => $default_gateway_interface }});
 			last;
 		}
 	}
@@ -993,7 +1105,7 @@ sub check_local_network
 	my $dns = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{dns};
 	my $mtu = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{mtu};
 	my $ntp = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		dns => $dns,
 		mtu => $mtu,
 		ntp => $ntp,
@@ -1495,7 +1607,7 @@ sub check_local_network
 	$anvil->Network->read_nmcli({debug => 3});
 	$anvil->Network->get_ips({debug => 3});
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0086"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0086"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0086");
 	
 	# Update MTUs (running interface and config) if needed.
