@@ -17,6 +17,8 @@ my $THIS_FILE = "DRBD.pm";
 # get_status
 # manage_resource
 # reload_defaults
+# update_global_common
+# 
 
 =pod
 
@@ -943,6 +945,584 @@ sub reload_defaults
 	}
 	
 	return($return_code);
+}
+
+=head2 update_global_common
+
+This configures C<< global_common.conf >> on the local host. Returns C<< !!error!! >> if there is a problem, C<< 0 >> if no update was needed and C<< 1 >> if a change was made.
+
+Parameters;
+
+=head3 usage_count (optional, default '1')
+
+By default, DRBD will call a LINBIT server and add itself to a counter, and then reports back what install number this machine is. This helps LINBIT understand how DRBD is used, and no personal identifiable information is passed to them. If you would like to disable this, set this to C<< 0 >>.
+
+=head3 use_flushes (optional, default '1')
+
+Normally, when a write is done, a flush is called to ensure the data has been written from cache to disk. This is usually desired as it is safe, but does impose a performance penalty.
+
+When there is a hardware RAID controller with protected write cache, explicit flushes can safely be turned off, gaining performance.
+
+If ScanCore can detect a hardware RAID controller, this method will disable disk flushes automatically. This parameter can be used to force flushes on (C<< 1 >>) or off (C<< 0 >>).
+
+B<< Note >>: ScanCore can not yet do this.
+
+=cut
+sub update_global_common
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+	my $usage_count = defined $parameter->{usage_count} ? $parameter->{usage_count} : 1;
+	my $use_flushes = defined $parameter->{use_flushes} ? $parameter->{use_flushes} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		usage_count => $usage_count, 
+		use_flushes => $use_flushes,
+	}});
+	
+	if (not -f $anvil->data->{path}{configs}{'global-common.conf'})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0139"});
+		return('!!error!!');
+	}
+	
+	# These values will be used to track where we are in processing the config file and what values are needed.
+	my $update                   = 0;
+	my $usage_count_seen         = 0;
+	my $udev_always_use_vnr_seen = 0;
+	my $fence_peer_seen          = 0;
+	my $auto_promote_seen        = 0;
+	my $disk_flushes_seen        = 0;
+	my $md_flushes_seen          = 0;
+	my $allow_two_primaries_seen = 0;
+	my $after_sb_0pri_seen       = 0;
+	my $after_sb_1pri_seen       = 0;
+	my $after_sb_2pri_seen       = 0;
+	
+	my $in_global   = 0;
+	my $in_common   = 0;
+	my $in_handlers = 0;
+	my $in_startup  = 0;
+	my $in_options  = 0;
+	my $in_disk     = 0;
+	my $in_net      = 0;
+	
+	### NOTE: See 'man drbd.conf-9.0' for details on options.
+	# These values will be used to track where we are in processing the config file and what values are needed.
+	my $say_usage_count         = $usage_count ? "yes" : "no";
+	my $say_fence_peer          = $anvil->data->{path}{exe}{fence_pacemaker};
+	my $say_auto_promote        = "yes";
+	my $say_flushes             = $use_flushes ? "yes" : "no";
+	my $say_allow_two_primaries = "no";
+	my $say_after_sb_0pri       = "discard-zero-changes";
+	my $say_after_sb_1pri       = "discard-secondary";
+	my $say_after_sb_2pri       = "disconnect";
+	
+	# Read in the existing config.
+	my $new_global_common = "";
+	my $old_global_common = $anvil->Storage->read_file({file => $sql_file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_global_common => $old_global_common }});
+	foreach my $line (split/\n/, $old_global_common)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^#/)
+		{
+			$new_global_common .= $line."\n";
+			next;
+		}
+		
+		if ($line =~ /(#.*)$/)
+		{
+			$comment =  $1;
+			$line    =~ s/$comment//;
+		}
+		
+		if ($line =~ /\}/)
+		{
+			if ($in_global)
+			{
+				$in_global = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_global => $in_global }});
+				
+				if (not $usage_count_seen)
+				{
+					$update   = 1;
+					$new_line = "\tusage-count ".$say_usage_count.";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					$new_global_common .= $new_line."\n";
+				}
+				if (not $udev_always_use_vnr_seen)
+				{
+					$update   = 1;
+					$new_line = "\tudev-always-use-vnr;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					$new_global_common .= $new_line."\n";
+				}
+			}
+			elsif ($in_common)
+			{
+				if ($in_handlers)
+				{
+					$in_handlers = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_handlers => $in_handlers }});
+					
+					if (not $fence_peer_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tfence-peer ".$say_fence_peer.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+				}
+				elsif ($in_startup)
+				{
+					$in_startup = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_startup => $in_startup }});
+					
+					# We don't do anything here yet.
+				}
+				elsif ($in_options)
+				{
+					$in_options = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_options => $in_options }});
+					
+					if (not $auto_promote_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tauto-promote ".$say_auto_promote.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+				}
+				elsif ($in_disk)
+				{
+					$in_disk = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_disk => $in_disk }});
+					
+					if (not $disk_flushes_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tdisk-flushes ".$say_disk_flushes.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+					if (not $md_flushes_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tmd-flushes ".$say_md_flushes.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+				}
+				elsif ($in_net)
+				{
+					$in_net = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_net => $in_net }});
+					
+					if (not $allow_two_primaries_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tallow-two-primaries".$say_allow_two_primaries.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+					
+					if (not $after_sb_0pri_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tafter-sb-0pri".$say_after_sb_0pri.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+					
+					if (not $after_sb_1pri_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tafter-sb-1pri".$say_after_sb_1pri.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+					
+					if (not $after_sb_2pri_seen)
+					{
+						$update   = 1;
+						$new_line = "\t\tafter-sb-2pri".$say_after_sb_2pri.";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:update'   => $update,
+							's2:new_line' => $new_line, 
+						}});
+						$new_global_common .= $new_line."\n";
+					}
+				}
+				else
+				{
+					$in_common = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_common => $in_common }});
+				}
+			}
+			
+			$new_global_common .= $line.$comment."\n";
+			next;
+		}
+		
+		if ($line =~ /global \{/)
+		{
+			$in_global = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_global => $in_global }});
+			
+			$new_global_common .= $line.$comment."\n";
+			next;
+		}
+		if ($in_global)
+		{
+			if ($line =~ /(\s*)usage-count(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space       = $1;
+				my $middle_space     = $2;
+				my $value            = $3;
+				my $right_side       = $4;
+				   $usage_count_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'       => $left_space,
+					's2:middle_space'     => $middle_space, 
+					's3:value'            => $value, 
+					's4:right_side'       => $right_side,
+					's5:usage_count_seen' => $usage_count_seen, 
+				}});
+				   
+				if ($value ne $say_usage_count)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."usage-count".$middle_space.$say_usage_count.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+			if ($line =~ /\s*udev-always-use-vnr;$/)
+			{
+				$udev_always_use_vnr_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					udev_always_use_vnr_seen => $usage_count_seen, 
+				}});
+
+				# No change needed
+				$new_global_common .= $line.$comment."\n";
+			}
+		}
+		if ($in_handlers)
+		{
+			if ($line =~ /(\s*)fence-peer(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space       = $1;
+				my $middle_space     = $2;
+				my $value            = $3;
+				my $right_side       = $4;
+				   $fence_peer_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'      => $left_space,
+					's2:middle_space'    => $middle_space, 
+					's3:value'           => $value, 
+					's4:right_side'      => $right_side,
+					's5:fence_peer_seen' => $fence_peer_seen, 
+				}});
+				   
+				if ($value ne $say_fence_peer)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."fence-peer".$middle_space.$say_fence_peer.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+		}
+		if ($in_startup)
+		{
+			# Not doing anything here yet.
+		}
+		if ($in_options)
+		{
+			if ($line =~ /(\s*)auto-promote(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space        = $1;
+				my $middle_space      = $2;
+				my $value             = $3;
+				my $right_side        = $4;
+				   $auto_promote_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'        => $left_space,
+					's2:middle_space'      => $middle_space, 
+					's3:value'             => $value, 
+					's4:right_side'        => $right_side,
+					's5:auto_promote_seen' => $auto_promote_seen, 
+				}});
+				   
+				if ($value ne $say_auto_promote)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."auto-promote".$middle_space.$say_auto_promote.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+		}
+		if ($in_disk)
+		{
+			if ($line =~ /(\s*)disk-flushes(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space        = $1;
+				my $middle_space      = $2;
+				my $value             = $3;
+				my $right_side        = $4;
+				   $disk_flushes_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'        => $left_space,
+					's2:middle_space'      => $middle_space, 
+					's3:value'             => $value, 
+					's4:right_side'        => $right_side,
+					's5:disk_flushes_seen' => $disk_flushes_seen, 
+				}});
+				   
+				if ($value ne $say_flushes)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."disk-flushes".$middle_space.$say_flushes.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+			if ($line =~ /(\s*)md-flushes(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space      = $1;
+				my $middle_space    = $2;
+				my $value           = $3;
+				my $right_side      = $4;
+				   $md_flushes_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'      => $left_space,
+					's2:middle_space'    => $middle_space, 
+					's3:value'           => $value, 
+					's4:right_side'      => $right_side,
+					's5:md_flushes_seen' => $md_flushes_seen, 
+				}});
+				   
+				if ($value ne $say_flushes)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."md-flushes".$middle_space.$say_flushes.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+		}
+		if ($in_net)
+		{
+			if ($line =~ /(\s*)allow-two-primaries(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space        = $1;
+				my $middle_space      = $2;
+				my $value             = $3;
+				my $right_side        = $4;
+				   $allow_two_primaries_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'               => $left_space,
+					's2:middle_space'             => $middle_space, 
+					's3:value'                    => $value, 
+					's4:right_side'               => $right_side,
+					's5:allow_two_primaries_seen' => $allow_two_primaries_seen, 
+				}});
+				   
+				if ($value ne $say_allow_two_primaries)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."allow-two-primaries".$middle_space.$say_allow_two_primaries.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+			if ($line =~ /(\s*)after-sb-0pri(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space        = $1;
+				my $middle_space      = $2;
+				my $value             = $3;
+				my $right_side        = $4;
+				   $after_sb_0pri_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'         => $left_space,
+					's2:middle_space'       => $middle_space, 
+					's3:value'              => $value, 
+					's4:right_side'         => $right_side,
+					's5:after_sb_0pri_seen' => $after_sb_0pri_seen, 
+				}});
+				
+				if ($value ne $say_after_sb_0pri)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."after-sb-0pri".$middle_space.$say_after_sb_0pri.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+			if ($line =~ /(\s*)after-sb-1pr(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space        = $1;
+				my $middle_space      = $2;
+				my $value             = $3;
+				my $right_side        = $4;
+				   $after_sb_1pri_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'         => $left_space,
+					's2:middle_space'       => $middle_space, 
+					's3:value'              => $value, 
+					's4:right_side'         => $right_side,
+					's5:after_sb_1pri_seen' => $after_sb_1pri_seen, 
+				}});
+				
+				if ($value ne $say_after_sb_1pri)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."after-sb-1pri".$middle_space.$say_after_sb_1pri.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+			if ($line =~ /(\s*)after-sb-2pri(\s+)(.*?)(;.*)$/)
+			{
+				my $left_space        = $1;
+				my $middle_space      = $2;
+				my $value             = $3;
+				my $right_side        = $4;
+				   $after_sb_2pri_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:left_space'         => $left_space,
+					's2:middle_space'       => $middle_space, 
+					's3:value'              => $value, 
+					's4:right_side'         => $right_side,
+					's5:after_sb_2pri_seen' => $after_sb_2pri_seen, 
+				}});
+				
+				if ($value ne $say_after_sb_2pri)
+				{
+					   $update   = 1;
+					my $new_line = $left_space."after-sb-2pri".$middle_space.$say_after_sb_2pri.$right_side;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:update'   => $update,
+						's2:new_line' => $new_line, 
+					}});
+					
+					$new_global_common .= $new_line.$comment."\n";
+				}
+				else
+				{
+					# No change needed
+					$new_global_common .= $line.$comment."\n";
+				}
+			}
+		}
+	}
+	
+	return($update);
 }
 
 # =head3
