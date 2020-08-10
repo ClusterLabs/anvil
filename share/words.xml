@@ -786,7 +786,7 @@ Output of: [#!variable!command!#] was;
 		<key name="log_0347">The migration of the server: [#!variable!server!#] to here was successful!</key>
 		<key name="log_0348">It looks like we were called to verify that the: [#!variable!server!#] migrated here, but it isn't here yet. We'll proceed with an attempt to pull the server over.</key>
 		<key name="log_0349">We're pulling the: [#!variable!server!#] from: [#!variable!target!#].</key>
-		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#].</key>
+		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		<key name="log_0351">The attempt to enable dual-primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0352">The migration of: [#!variable!server!#] to the node: [#!variable!target!#] will now begin.</key>
 		<key name="log_0353">The attempt to migrate the server: [#!variable!server!#] to the node: [#!variable!target!#] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
@@ -974,6 +974,13 @@ The IPMI BMC administrator (oem) user was not found. The output (if any) of the 
 		<key name="log_0514">The password for the IPMI BMC appears to have been successfully updated, though we had to reduce it to 20-bytes long. Will test to confirm.</key>
 		<key name="log_0515">The password for the IPMI BMC appears to have been successfully updated, though we had to reduce it to 16-bytes long. Will test to confirm.</key>
 		<key name="log_0516">Waiting: [#!variable!reset_delay!#] seconds to give the BMC time to reset...</key>
+		<key name="log_0517">
+The file: [#!variable!file!#] needs to be updated. The difference is:
+====
+#!variable!diff!#
+====
+		</key>
+		<key name="log_0518">Appending the file: [#!variable!file!#] with the line: [#!variable!line!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

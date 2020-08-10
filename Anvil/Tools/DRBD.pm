@@ -5,8 +5,9 @@ package Anvil::Tools::DRBD;
 
 use strict;
 use warnings;
-use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
+use Scalar::Util qw(weaken isweak);
+use Text::Diff;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "DRBD.pm";
@@ -1022,22 +1023,28 @@ sub update_global_common
 	
 	# Read in the existing config.
 	my $new_global_common = "";
-	my $old_global_common = $anvil->Storage->read_file({file => $sql_file});
+	my $old_global_common = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'global-common.conf'}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_global_common => $old_global_common }});
 	foreach my $line (split/\n/, $old_global_common)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		
+		my $comment = "";
 		if ($line =~ /^#/)
 		{
 			$new_global_common .= $line."\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 			next;
 		}
 		
 		if ($line =~ /(#.*)$/)
 		{
 			$comment =  $1;
-			$line    =~ s/$comment//;
+			$line    =~ s/\Q$comment\E//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				comment => $comment, 
+				line    => $line,
+			}});
 		}
 		
 		if ($line =~ /\}/)
@@ -1049,23 +1056,25 @@ sub update_global_common
 				
 				if (not $usage_count_seen)
 				{
-					$update   = 1;
-					$new_line = "\tusage-count ".$say_usage_count.";";
+					   $update   = 1;
+					my $new_line = "\tusage-count ".$say_usage_count.";";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						's1:update'   => $update,
 						's2:new_line' => $new_line, 
 					}});
 					$new_global_common .= $new_line."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 				}
 				if (not $udev_always_use_vnr_seen)
 				{
-					$update   = 1;
-					$new_line = "\tudev-always-use-vnr;";
+					   $update   = 1;
+					my $new_line = "\tudev-always-use-vnr;";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						's1:update'   => $update,
 						's2:new_line' => $new_line, 
 					}});
 					$new_global_common .= $new_line."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 				}
 			}
 			elsif ($in_common)
@@ -1077,13 +1086,14 @@ sub update_global_common
 					
 					if (not $fence_peer_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tfence-peer ".$say_fence_peer.";";
+						   $update   = 1;
+						my $new_line = "\t\tfence-peer ".$say_fence_peer.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 				}
 				elsif ($in_startup)
@@ -1100,13 +1110,14 @@ sub update_global_common
 					
 					if (not $auto_promote_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tauto-promote ".$say_auto_promote.";";
+						   $update   = 1;
+						my $new_line = "\t\tauto-promote ".$say_auto_promote.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 				}
 				elsif ($in_disk)
@@ -1116,23 +1127,25 @@ sub update_global_common
 					
 					if (not $disk_flushes_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tdisk-flushes ".$say_disk_flushes.";";
+						   $update   = 1;
+						my $new_line = "\t\tdisk-flushes ".$say_flushes.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 					if (not $md_flushes_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tmd-flushes ".$say_md_flushes.";";
+						   $update   = 1;
+						my $new_line = "\t\tmd-flushes ".$say_flushes.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 				}
 				elsif ($in_net)
@@ -1142,46 +1155,50 @@ sub update_global_common
 					
 					if (not $allow_two_primaries_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tallow-two-primaries".$say_allow_two_primaries.";";
+						   $update   = 1;
+						my $new_line = "\t\tallow-two-primaries ".$say_allow_two_primaries.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 					
 					if (not $after_sb_0pri_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tafter-sb-0pri".$say_after_sb_0pri.";";
+						   $update   = 1;
+						my $new_line = "\t\tafter-sb-0pri ".$say_after_sb_0pri.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 					
 					if (not $after_sb_1pri_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tafter-sb-1pri".$say_after_sb_1pri.";";
+						   $update   = 1;
+						my $new_line = "\t\tafter-sb-1pri ".$say_after_sb_1pri.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 					
 					if (not $after_sb_2pri_seen)
 					{
-						$update   = 1;
-						$new_line = "\t\tafter-sb-2pri".$say_after_sb_2pri.";";
+						   $update   = 1;
+						my $new_line = "\t\tafter-sb-2pri ".$say_after_sb_2pri.";";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:update'   => $update,
 							's2:new_line' => $new_line, 
 						}});
 						$new_global_common .= $new_line."\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
 					}
 				}
 				else
@@ -1190,18 +1207,44 @@ sub update_global_common
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_common => $in_common }});
 				}
 			}
-			
-			$new_global_common .= $line.$comment."\n";
-			next;
 		}
-		
-		if ($line =~ /global \{/)
+		if ($line =~ /global\s*\{/)
 		{
 			$in_global = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_global => $in_global }});
-			
-			$new_global_common .= $line.$comment."\n";
-			next;
+		}
+		if ($in_common)
+		{
+			if ($line =~ /handlers\s*\{/)
+			{
+				$in_handlers = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_handlers => $in_handlers }});
+			}
+			if ($line =~ /startup\s*\{/)
+			{
+				$in_startup = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_startup => $in_startup }});
+			}
+			if ($line =~ /options\s*\{/)
+			{
+				$in_options = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_options => $in_options }});
+			}
+			if ($line =~ /disk\s*\{/)
+			{
+				$in_disk = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_disk => $in_disk }});
+			}
+			if ($line =~ /net\s*\{/)
+			{
+				$in_net = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_net => $in_net }});
+			}
+		}
+		if ($line =~ /common\s*\{/)
+		{
+			$in_common = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_common => $in_common }});
 		}
 		if ($in_global)
 		{
@@ -1230,22 +1273,16 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
-			if ($line =~ /\s*udev-always-use-vnr;$/)
+			if ($line =~ /\s*udev-always-use-vnr;/)
 			{
 				$udev_always_use_vnr_seen = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					udev_always_use_vnr_seen => $usage_count_seen, 
 				}});
-
-				# No change needed
-				$new_global_common .= $line.$comment."\n";
 			}
 		}
 		if ($in_handlers)
@@ -1275,11 +1312,8 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
 		}
@@ -1314,11 +1348,8 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
 		}
@@ -1349,11 +1380,8 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
 			if ($line =~ /(\s*)md-flushes(\s+)(.*?)(;.*)$/)
@@ -1381,11 +1409,8 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
 		}
@@ -1416,11 +1441,8 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
 			if ($line =~ /(\s*)after-sb-0pri(\s+)(.*?)(;.*)$/)
@@ -1448,14 +1470,11 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
-			if ($line =~ /(\s*)after-sb-1pr(\s+)(.*?)(;.*)$/)
+			if ($line =~ /(\s*)after-sb-1pri(\s+)(.*?)(;.*)$/)
 			{
 				my $left_space        = $1;
 				my $middle_space      = $2;
@@ -1480,11 +1499,8 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
 			if ($line =~ /(\s*)after-sb-2pri(\s+)(.*?)(;.*)$/)
@@ -1512,13 +1528,43 @@ sub update_global_common
 					}});
 					
 					$new_global_common .= $new_line.$comment."\n";
-				}
-				else
-				{
-					# No change needed
-					$new_global_common .= $line.$comment."\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+					next;
 				}
 			}
+		}
+		
+		# Add this line (will have 'next'ed if the line was modified before getting here).
+		$new_global_common .= $line.$comment."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0518", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'}, line => $line }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:update'            => $update,
+		's2:new_global_common' => $new_global_common, 
+	}});
+	if ($update)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0517", variables => { 
+			file => $anvil->data->{path}{configs}{'global-common.conf'},
+			diff => diff \$old_global_common, \$new_global_common, { STYLE => 'Unified' },, 
+		}});
+
+		my $failed = $anvil->Storage->write_file({
+			debug     => $debug,
+			overwrite => 1, 
+			backup    => 1, 
+			file      => $anvil->data->{path}{configs}{'global-common.conf'}, 
+			body      => $new_global_common, 
+			user      => "root", 
+			group     => "root", 
+			mode      => "0644", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		if ($failed)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0043", variables => { file => $anvil->data->{path}{configs}{'global-common.conf'} }});
+			return('!!error!!');
 		}
 	}
 	
