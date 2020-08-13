@@ -145,9 +145,8 @@ sub call_agents
 		}
 		
 		# Now call the agent.
-		my $start_time  = time;
-		my $return_code = 9999;
-		my $timeout     = $default_timeout;
+		my $start_time = time;
+		my $timeout    = $default_timeout;
 		if ((exists $anvil->data->{scancore}{agent}{$agent_name}{agent_runtime}) && ($anvil->data->{scancore}{agent}{$agent_name}{agent_runtime} =~ /^\d+$/))
 		{
 			$timeout = $anvil->data->{scancore}{agent}{$agent_name}{agent_runtime};
@@ -155,7 +154,7 @@ sub call_agents
 		my $shell_call = $anvil->data->{path}{exe}{timeout}." ".$timeout." ".$agent_path;
 		if ($anvil->data->{sys}{'log'}{level})
 		{
-			$shell_call .= ." ".$anvil->data->{sys}{'log'}{level};
+			$shell_call .= " ".$anvil->data->{sys}{'log'}{level};
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		

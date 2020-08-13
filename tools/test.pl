@@ -29,7 +29,9 @@ $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 $anvil->Get->switches;
 
-my $updated = $anvil->DRBD->update_global_common({
-	debug       => 2,
+#$anvil->DRBD->get_devices({ debug => 2 }); die;
+$anvil->Server->get_status({
+	debug  => 2,
+	server => "srv01-sql",
 });
-print "DRBD global common updated? [".$updated."]\n";
+

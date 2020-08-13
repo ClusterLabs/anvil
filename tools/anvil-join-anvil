@@ -66,6 +66,8 @@ configure_pacemaker($anvil);
 # Configure DRBD
 configure_drbd($anvil);
 
+update_progress($anvil, 100, "job_0128");
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0128"});
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
@@ -78,7 +80,22 @@ sub configure_drbd
 	my ($anvil) = @_;
 	
 	### TODO: See if there is a hardware RAID controller and, if so, auto-enable 
-	# Read in the global_common.conf 
+	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0126");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0126"});
+	my $updated = $anvil->DRBD->update_global_common({
+		usage_count => $anvil->data->{sys}{privacy}{strong} ? 0 : 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { updated => $updated }});
+	if ($updated)
+	{
+		update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0127");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0127"});
+	}
+	else
+	{
+		update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0128");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0128"});
+	}
 	
 	return(0);
 }
@@ -166,28 +183,35 @@ sub configure_pacemaker
 	}
 	
 	### Run on both nodes.
-	# Enable pcsd and start the pcsd daemons.
-	my ($return_code) = $anvil->System->enable_daemon({daemon => "pcsd"});
+	# Enable pcsd and start the pcsd daemon.
+	my ($return_code) = $anvil->System->enable_daemon({daemon => "pcsd.service"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
-	($return_code) = $anvil->System->start_daemon({daemon => "pcsd"});
+	($return_code) = $anvil->System->start_daemon({daemon => "pcsd.service"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 	$return_code = undef;
-	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!pcsd!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "pcsd" }});
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!pcsd.service!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "pcsd.service" }});
+	
+	# Enable libvirtd and start the libvirtd daemon.
+	($return_code) = $anvil->System->enable_daemon({daemon => "libvirtd.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$return_code = undef;
+	($return_code) = $anvil->System->start_daemon({daemon => "libvirtd.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$return_code = undef;
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!libvirtd.service!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "libvirtd.service" }});
 	
 	# Disabled and stop the libvirtd daemon.
-	foreach my $daemon ("libvirtd.service", "drbd.service")
-	{
-		my ($return_code) = $anvil->System->disable_daemon({daemon => $daemon});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
-		$return_code = undef;
-		($return_code) = $anvil->System->stop_daemon({daemon => $daemon});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
-		$return_code = undef;
-		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!".$daemon."!!");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => $daemon }});
-	}
+	($return_code) = $anvil->System->disable_daemon({daemon => "drbd.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$return_code = undef;
+	($return_code) = $anvil->System->stop_daemon({daemon => "drbd.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$return_code = undef;
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!drbd.service!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "drbd.service" }});
 	
 	# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, we'll initialize the
 	# cluster shortly.
@@ -1900,11 +1924,8 @@ sub update_progress
 		's1:progress' => $progress,
 		's2:message'  => $message, 
 	}});
-	
-	# Disabled for the moment
-	return(0);
 
-	$progress = 95 if $progress > 100;
+	$progress = 98 if $progress > 100;
 	if (not $anvil->data->{switches}{'job-uuid'})
 	{
 		return(0);

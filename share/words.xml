@@ -199,6 +199,16 @@ The error was:
 		<key name="error_0137">All attempts to change the IPMI user: [#!variable!user_name!#] (number: [#!variable!user_number!#] failed. The last try's output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
 		<key name="error_0138">The system call: [#!variable!shell_call!#] failed. The output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
 		<key name="error_0139">The DRBD global common config file: [#!data!path::configs::global-common.conf!#] doesn't exist, unable to update it.</key>
+		<key name="error_0140">
+Failed to parse the JSON string:
+===========================================================
+#!variable!json!#
+===========================================================
+The error was:
+===========================================================
+#!variable!error!#
+===========================================================
+		</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -372,6 +382,10 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0123">Adding a fence delay agent to provide time for the IPMI BMC to boot before trying it again.</key>
 		<key name="job_0124">Configuring the cluster to loop fence attempts indefinitely.</key>
 		<key name="job_0125">Enabling fencing!</key>
+		<key name="job_0126">Checking to see if: [#!data!path::configs::global-common.conf!#] needs to be configured or updated.</key>
+		<key name="job_0127">Update completed successfully.</key>
+		<key name="job_0128">Update not required, nothing changed.</key>
+		<key name="job_0129">Completed joining the #!string!brand_0002!#.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -981,6 +995,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 ====
 		</key>
 		<key name="log_0518">Appending the file: [#!variable!file!#] with the line: [#!variable!line!#].</key>
+		<key name="log_0519">Attempting to parse bridge information using standard output after failing to parse JSON status information.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

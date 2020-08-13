@@ -559,6 +559,37 @@ sub map_network
 	return(0);
 }
 
+=head2 provision
+
+This method creates a new (virtual) server on an Anvil! system.
+
+Parameters;
+
+=cut
+sub provision
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	
+=cut
+Provision order:
+
+1. Create LVs and register the storage. 
+  - NOTE: If the LV is already in the DB (from a past install) and the peer is not available and the local 
+          DRBD resource doesn't show Consistent, abort. If the peer is alive but we can't contact it, it's 
+          possible the peer is UpToDate.
+2. Create the DRBD resource. If "Inconsistent" on both nodes, force up to date
+3. Wait for install media/image to be ready
+4. Provision VM and add to Pacemaker.
+
+=cut
+	
+	
+	return(0);
+}
+
 =head2 migrate
 
 This will migrate (push or pull) a server from one node to another. If the migration was successful, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned with a (hopefully) useful error being logged.
@@ -1319,6 +1350,20 @@ sub _parse_definition
 			
 			my $on_lv    = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       : "";
 			my $resource = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{resource} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				on_lv    => $on_lv,
+				resource => $resource, 
+			}});
+			if ((not $resource) && ($anvil->data->{drbd}{config}{$host}{'by-res'}{$device_path}{resource}))
+			{
+				$resource = $anvil->data->{drbd}{config}{$host}{'by-res'}{$device_path}{resource};
+				$on_lv    = $anvil->data->{drbd}{config}{$host}{'by-res'}{$device_path}{backing_lv};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					on_lv    => $on_lv,
+					resource => $resource, 
+				}});
+			}
+			
 			$anvil->data->{server}{$target}{$server}{device}{$device_path}{on_lv}    = $on_lv;
 			$anvil->data->{server}{$target}{$server}{device}{$device_path}{resource} = $resource;
 			$anvil->data->{server}{$target}{$server}{device}{$device_path}{target}   = $device_target;
@@ -1332,7 +1377,7 @@ sub _parse_definition
 			}});
 			
 			# Keep a list of DRBD resources used by this server.
-			my $drbd_resource                                                  = $anvil->data->{server}{$target}{$server}{device}{$device_path}{resource};
+			my $drbd_resource                                                           = $anvil->data->{server}{$target}{$server}{device}{$device_path}{resource};
 			   $anvil->data->{server}{$target}{$server}{drbd}{resource}{$drbd_resource} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"server::${target}::${server}::drbd::resource::${drbd_resource}" => $anvil->data->{server}{$target}{$server}{drbd}{resource}{$drbd_resource},

@@ -100,9 +100,9 @@ $anvil->Log->secure({set => 1});
 
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
-$anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-c7 
+$anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-sql
 # This is our node name
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : ""; # el8-a01n01.digimer.ca
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : ""; # mk-a02n01.digimer.ca
 # This says "UUID", but it's the node ID.
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node_uuid}   = defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : ""; # 1
 # This is the timeout for the called action in millisecond.
@@ -119,8 +119,8 @@ $anvil->data->{environment}{OCF_RESOURCE_PROVIDER}              = defined $ENV{O
 $anvil->data->{environment}{OCF_RESOURCE_TYPE}                  = defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : ""; # server
 $anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : ""; # /usr/lib/ocf
 # These are set during a migration
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : ""; # el8-a01n01.digimer.ca
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : ""; # el8-a01n02.digimer.ca
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : ""; # mk-a02n01.digimer.ca
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : ""; # mk-a02n02.digimer.ca
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_record_pending} = defined $ENV{OCF_RESKEY_CRM_meta_record_pending} ? $ENV{OCF_RESKEY_CRM_meta_record_pending} : ""; # true
 
 # If pacemaker is in debug, so are we,
@@ -149,27 +149,27 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level 
 ### TEST: to be removed later
 if ($anvil->data->{switches}{test1})
 {
-	$anvil->data->{environment}{OCF_RESKEY_name}                    = "test_server";
+	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv01-sql";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = 20000;
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n01.digimer.ca";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n01.digimer.ca";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n02.digimer.ca";
-	#print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "mk-a02n01.digimer.ca";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "mk-a02n01.digimer.ca";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "mk-a02n02.digimer.ca";
+	print "Running test 1; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test2})
 {
-	$anvil->data->{environment}{OCF_RESKEY_name}                    = "test_server";
+	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv01-sql";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = 20000;
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "el8-a01n02.digimer.ca";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "el8-a01n02.digimer.ca";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "el8-a01n01.digimer.ca";
-	#print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "mk-a02n02.digimer.ca";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "mk-a02n02.digimer.ca";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = "mk-a02n01.digimer.ca";
+	print "Running test 2; Migrate: [".$anvil->data->{environment}{OCF_RESKEY_name}."] from: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source}."] to: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}."]\n";
 }
 if ($anvil->data->{switches}{test3})
 {
-	$anvil->data->{environment}{OCF_RESKEY_name}             = "test_server";
-	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "el8-a01n01.digimer.ca";
-	#print "Running test 3; Boot or shutdown of: [".$anvil->data->{environment}{OCF_RESKEY_name}."].\n";
+	$anvil->data->{environment}{OCF_RESKEY_name}             = "srv01-sql";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "mk-a02n01.digimer.ca";
+	print "Running test 3; Boot or shutdown of: [".$anvil->data->{environment}{OCF_RESKEY_name}."].\n";
 }
 
 # This is for debugging.
@@ -275,6 +275,7 @@ sub check_daemons
 {
 	my ($anvil, $task) = @_;
 	
+	print "Parsing CIB\n";
 	my $problem = $anvil->Cluster->parse_cib();
 	if ($problem)
 	{
@@ -285,7 +286,7 @@ sub check_daemons
 	}
 	
 	# Is the peer running? We'll use this to know whether to try and start daemons on the peer.
-	my $peer_name  = $anvil->Cluster->get_peers();
+	my $peer_name  = $anvil->data->{cib}{parsed}{peer}{name};
 	my $peer_ready = $anvil->data->{cib}{parsed}{peer}{ready};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		peer_name  => $peer_name,
@@ -294,7 +295,8 @@ sub check_daemons
 
 	if ($task eq "start")
 	{
-		foreach my $daemon ("libvirtd.service", "drbd.service")
+		#foreach my $daemon ("libvirtd.service", "drbd.service")
+		foreach my $daemon ("libvirtd.service")
 		{
 			my $running_local = 0;
 			my $running_peer  = 0;
@@ -353,7 +355,6 @@ sub check_daemons
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0485", variables => { daemon => $daemon }});
 			}
 			
-			### TODO: Left off here.
 			if ($peer_ready)
 			{
 				my ($output, $error, $return_code) = $anvil->Remote->call({
@@ -441,8 +442,10 @@ sub check_daemons
 			}
 		}
 	}
+=cut	# It's simpler (and thus safer) to not stop daemons.
 	if ($task eq "stop")
 	{
+		print "Stopping daemons\n";
 		my $stop = 0;
 		
 		# Check both nodes if a server is running on either node.
@@ -580,6 +583,7 @@ sub check_daemons
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0496"});
 		}
 	}
+=cut
 	
 	return(0);
 }
@@ -1313,7 +1317,7 @@ sub validate_storage
 {
 	my ($anvil) = @_;
 	
-	### TODO: When checking on a running server, use 'from_memory'.
+	# When checking on a running server, use 'from_memory'.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source = "from_disk";
 	if ($anvil->data->{server}{'local'}{$server}{from_memory}{host})
@@ -1380,7 +1384,7 @@ sub validate_storage_drbd
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{device}})
 	{
 		next if not $device_path;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"server::local::${server}::device::${device_path}::resource" => $anvil->data->{server}{'local'}{$server}{device}{$device_path}{resource},
 		}});
 		if (not $anvil->data->{server}{'local'}{$server}{device}{$device_path}{resource})
@@ -1392,15 +1396,25 @@ sub validate_storage_drbd
 	
 	foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{$source}{device}{disk}{target}})
 	{
-		my $drbd_device   = $anvil->data->{server}{'local'}{$server}{$source}{device}{disk}{target}{$device_target}{path};
-		my $drbd_resource = $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource};
-		my $on_lv         = $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		my $drbd_device   =         $anvil->data->{server}{'local'}{$server}{$source}{device}{disk}{target}{$device_target}{path};
+		my $drbd_resource = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource} : "";
+		my $on_lv         = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on}       : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host          => $host, 
 			drbd_device   => $drbd_device,
 			drbd_resource => $drbd_resource, 
 			on_lv         => $on_lv, 
 		}});
+		if (not $drbd_resource)
+		{
+			# See if we can find the resource in the 'by-res' hash.
+			$drbd_resource = defined $anvil->data->{drbd}{config}{$host}{'by-res'}{$drbd_device}{resource}   ? $anvil->data->{drbd}{config}{$host}{'by-res'}{$drbd_device}{resource}   : "";
+			$on_lv         = defined $anvil->data->{drbd}{config}{$host}{'by-res'}{$drbd_device}{backing_lv} ? $anvil->data->{drbd}{config}{$host}{'by-res'}{$drbd_device}{backing_lv} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				drbd_resource => $drbd_resource, 
+				on_lv         => $on_lv, 
+			}});
+		}
 		
 		# If the logical volume here here and active?
 		if ((not $on_lv) or (not exists $anvil->data->{lvm}{'local'}{lv}{$on_lv}))

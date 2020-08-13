@@ -1243,6 +1243,15 @@ fi";
 	return(0);
 }
 
+=head2 create_lv
+
+This creates a logical volume on the local host.
+
+=cut
+sub create_lv
+{
+}
+
 =head2 find
 
 This searches for the given file on the system. It will search in the directories returned by C<< $anvil->Storage->search_directories() >>.

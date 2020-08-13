@@ -243,7 +243,7 @@ sub new
 	# I need to read the initial words early.
 	$anvil->Words->read({debug => $debug});
 	
-	# If the local './tools.conf' file exists, read it in.
+	# If the local './anvil.conf' file exists, read it in.
 	if (-r $anvil->data->{path}{configs}{'anvil.conf'})
 	{
 		$anvil->Storage->read_config({debug => 3, file => $anvil->data->{path}{configs}{'anvil.conf'}});
@@ -954,6 +954,9 @@ sub _set_defaults
 			algorithm			=>	"sha512",
 			hash_count			=>	500000,
 			salt_length			=>	16,
+		},
+		privacy				=>	{
+			strong				=>	0,
 		},
 		# On actual RHEL systems, this will be used to ensure that given repos are enabled on given 
 		# machines types. Obviously, this requires that the host has been subscribed.

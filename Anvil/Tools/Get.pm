@@ -271,58 +271,166 @@ sub bridges
 		delete $anvil->data->{'local'}{network}{bridges};
 	};
 	
+	my $bridge_data = "";
 	my $json        = JSON->new->allow_nonref;
-	my $bridge_data = $json->decode($output);
-	#print Dumper $bridge_data;
-	foreach my $hash_ref (@{$bridge_data})
+	eval { $bridge_data = $json->decode($output); };
+	if ($@)
 	{
-		# If the ifname and master are the same, it's a bridge.
-		my $type           = "interface";
-		my $interface = $hash_ref->{ifname};
-		my $master_bridge  = $hash_ref->{master};
-		if ($interface eq $master_bridge)
-		{
-			$type = "bridge";
-			$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
-			}});
-		}
-		else
-		{
-			# Store this interface under the bridge.
-			$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
-			}});
-		}
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			interface     => $interface,
-			master_bridge => $master_bridge, 
-			type          => $type, 
+		# JSON parse failed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0140", variables => { 
+			json  => $output,
+			error => $@,
 		}});
-		foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0519"});
+		
+		# NOTE: This is not design to be normally used. It was created as a stop-gap while waiting 
+		#       for resolution on: https://bugzilla.redhat.com/show_bug.cgi?id=1868467
+		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{bridge}." -details link show"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		my $interface = "";
+		my $type      = "";
+		foreach my $line (split/\n/, $output)
 		{
-			if (ref($hash_ref->{$key}) eq "ARRAY")
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /^\d+:\s+(.*?):/)
 			{
-				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = [];
-				foreach my $value (sort {$a cmp $b} @{$hash_ref->{$key}})
+				$interface = $1;
+				$type      = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					interface => $interface,
+					type      => $type, 
+				}});
+				
+				$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
+				}});
+			}
+			if ($interface)
+			{
+				if (($line =~ /master (.*?) /) or ($line =~ /master (.*?)$/))
 				{
-					push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}, $value;
+					my $master_bridge = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { master_bridge => $master_bridge }});
+					
+					if ($master_bridge eq $interface)
+					{
+						# This is the bridge
+						$type = "bridge";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+					}
+					else
+					{
+						# It's an interface, store it under the bridge.
+						$type                                                                                              = "interface";
+						$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							type                                                                                   => $type,
+							"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
+						}});
+					}
 				}
-				for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}; $i++)
+			}
+			
+			if (($interface) && ($type))
+			{
+				if ($line =~ /<(.*?)>/)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"local::network::bridges::${type}::${interface}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}->[$i], 
-					}});
+					my $flags = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { flags => $flags }});
+					
+					my $i = 0;
+					foreach my $flag (split/,/, $flags)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { flag => $flag }});
+						push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{flags}}, $flag;
+					}
 				}
+			}
+			if ($line =~ /^\s+(.*?)$interface/)
+			{
+				# Break out settings.
+				my $values = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'values' => $values }});
+				
+				my $variable = "";
+				foreach my $word (split/ /, $values)
+				{
+					if (($variable) && (($word eq "on") or ($word eq "off")))
+					{
+						my $value = $word;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+						
+						$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$variable} = $value eq "on" ? "true" : "false";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"local::network::bridges::${type}::${interface}::${variable}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$variable}, 
+						}});
+						$variable = "";
+					}
+					else
+					{
+						$variable = $word;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable => $variable }});
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		foreach my $hash_ref (@{$bridge_data})
+		{
+			# If the ifname and master are the same, it's a bridge.
+			my $type          = "interface";
+			my $interface     = $hash_ref->{ifname};
+			my $master_bridge = $hash_ref->{master};
+			if ($interface eq $master_bridge)
+			{
+				$type = "bridge";
+				$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
+				}});
 			}
 			else
 			{
-				$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = $hash_ref->{$key};
+				# Store this interface under the bridge.
+				$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"local::network::bridges::${type}::${interface}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}, 
+					"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
 				}});
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				interface     => $interface,
+				master_bridge => $master_bridge, 
+				type          => $type, 
+			}});
+			foreach my $key (sort {$a cmp $b} keys %{$hash_ref})
+			{
+				if (ref($hash_ref->{$key}) eq "ARRAY")
+				{
+					$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = [];
+					foreach my $value (sort {$a cmp $b} @{$hash_ref->{$key}})
+					{
+						push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}, $value;
+					}
+					for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}; $i++)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"local::network::bridges::${type}::${interface}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}->[$i], 
+						}});
+					}
+				}
+				else
+				{
+					$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = $hash_ref->{$key};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"local::network::bridges::${type}::${interface}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}, 
+					}});
+				}
 			}
 		}
 	}
