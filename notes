@@ -323,7 +323,8 @@ cluster-recheck-interval puts an upper bound on the "i give up" time
 ** Shrinking online is ONLY possible if the metadata is external. Worth creating *_md LVs? Offline requires backing up and restoring the MD
 
 Provisioning a server will need to:
-* Open up a DRBD port (or more, if multiple resources are created).
+* Create the LVs
+* Open up the DRBD ports
 * Create the DRBD resource(s); Find the lowest free rX.res, create it locally and on the peer (if up), 
 
 firewall-cmd --zone=public --permanent --add-port=7788-7790/tcp

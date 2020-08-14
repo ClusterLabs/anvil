@@ -100,7 +100,7 @@ $anvil->Log->secure({set => 1});
 
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
-$anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv01-sql
+$anvil->data->{environment}{OCF_RESKEY_name}                    = defined $ENV{OCF_RESKEY_name}                    ? $ENV{OCF_RESKEY_name}                    : ""; # srv07-el6
 # This is our node name
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{OCF_RESKEY_CRM_meta_on_node}        ? $ENV{OCF_RESKEY_CRM_meta_on_node}        : ""; # mk-a02n01.digimer.ca
 # This says "UUID", but it's the node ID.
@@ -133,7 +133,7 @@ if ($anvil->data->{environment}{PCMK_debug})
 # to show this prone to higher risk of fencing if something goes wrong. As such, we're changing the default
 # behaviour to leave DRBD resources up. Set this to '1' (here or by switch) to revert back to the old 
 # behaviour.
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 0;
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_stop_drbd_resources} = 1;
 
 # Get any command line switches.
 $anvil->Get->switches;
@@ -149,7 +149,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level 
 ### TEST: to be removed later
 if ($anvil->data->{switches}{test1})
 {
-	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv01-sql";
+	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv07-el6";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = 20000;
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "mk-a02n01.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "mk-a02n01.digimer.ca";
@@ -158,7 +158,7 @@ if ($anvil->data->{switches}{test1})
 }
 if ($anvil->data->{switches}{test2})
 {
-	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv01-sql";
+	$anvil->data->{environment}{OCF_RESKEY_name}                    = "srv07-el6";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = 20000;
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = "mk-a02n02.digimer.ca";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = "mk-a02n02.digimer.ca";
@@ -167,9 +167,15 @@ if ($anvil->data->{switches}{test2})
 }
 if ($anvil->data->{switches}{test3})
 {
-	$anvil->data->{environment}{OCF_RESKEY_name}             = "srv01-sql";
+	$anvil->data->{environment}{OCF_RESKEY_name}             = "srv07-el6";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "mk-a02n01.digimer.ca";
 	print "Running test 3; Boot or shutdown of: [".$anvil->data->{environment}{OCF_RESKEY_name}."].\n";
+}
+if ($anvil->data->{switches}{test4})
+{
+	$anvil->data->{environment}{OCF_RESKEY_name}             = "srv07-el6";
+	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "mk-a02n01.digimer.ca";
+	print "Status check of: [".$anvil->data->{environment}{OCF_RESKEY_name}."] on: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}."].\n";
 }
 
 # This is for debugging.
@@ -295,6 +301,7 @@ sub check_daemons
 
 	if ($task eq "start")
 	{
+		### It doesn't look like we need to start drbd. Up'ing the first resource works without it.
 		#foreach my $daemon ("libvirtd.service", "drbd.service")
 		foreach my $daemon ("libvirtd.service")
 		{
@@ -434,7 +441,7 @@ sub check_daemons
 				elsif ($return_code eq "0")
 				{
 					# Running, nothing to do.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0485", variables => { 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0489", variables => { 
 						daemon => $daemon,
 						host   => $peer_name,
 					}});
@@ -682,7 +689,7 @@ sub stop_drbd_resource
 		peer    => $peer,
 	}});
 	
-	# Start DRBD locally.
+	# Start DRBD locally. 
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{resource}})
 	{
 		my $peer_ip = $anvil->data->{drbd}{config}{$host}{resource}{$resource}{connection}{$peer}{ip_address};
@@ -695,6 +702,7 @@ sub stop_drbd_resource
 	
 		# Bring the peer's resource down.
 		$anvil->DRBD->manage_resource({
+			debug    => 2,
 			resource => $resource, 
 			task     => "down",
 			target   => $peer_ip, 
@@ -702,6 +710,7 @@ sub stop_drbd_resource
 		
 		# Bring the local resource down
 		$anvil->DRBD->manage_resource({
+			debug    => 2,
 			resource => $resource, 
 			task     => "down",
 		});
@@ -726,12 +735,15 @@ sub start_drbd_resource
 	
 	# Do we need startup?
 	my $startup_needed = 0;
-	$anvil->DRBD->get_status({debug => 3});
+	$anvil->DRBD->get_status({debug => 2});
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{resource}})
 	{
-		# Is the current resource up locally already? If it is, we're done.
-		my $role = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { role => $role }});
+		# Is the current resource up locally already? If it is, we're done. 
+		my $role = defined $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} ? $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			resource => $resource, 
+			role     => $role,
+		}});
 		
 		if ((lc($role) ne "secondary") && (lc($role) ne "primary"))
 		{
@@ -783,7 +795,7 @@ sub start_drbd_resource
 		my $waiting = 1;
 		while($waiting)
 		{
-			$anvil->DRBD->get_status({debug => 3});
+			$anvil->DRBD->get_status({debug => 2});
 			
 			my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer}{'connection-state'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -944,8 +956,9 @@ sub stop_server
 		stop_drbd_resource($anvil);
 	}
 	
+	### Disabled, we'll leave daemons running.
 	# If this was the last running server, stop the daemons.
-	check_daemons($anvil, "stop");
+	#check_daemons($anvil, "stop");
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0324", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 0});
@@ -969,6 +982,8 @@ sub server_status
 		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
+	
+	### TODO
 	
 	$anvil->nice_exit({exit_code => 0});
 }
