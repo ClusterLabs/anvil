@@ -135,6 +135,7 @@ Requires:       pcs
 Requires:       qemu-kvm 
 Requires:       qemu-kvm-core 
 Requires:       virt-install
+Requires:       virt-top
 # A node is allowed to host servers and be a live migration target. It is not 
 # allowed to host a database or be a DR host.
 Conflicts:      anvil-striker
@@ -162,6 +163,7 @@ Requires:       libvirt-docs
 Requires:       qemu-kvm 
 Requires:       qemu-kvm-core 
 Requires:       virt-install
+Requires:       virt-top
 # A DR host is not allowed to be a live-migration target or host a database.
 Conflicts:	anvil-striker
 Conflicts:	anvil-node
@@ -367,6 +369,7 @@ fi
 
 %changelog
 * tbd Madison Kelly <mkelly@alteeve.ca> 3.0-34
+- Added 'virt-top' as a requirement on nodes and dr hosts.
 - Updated source.
 
 * Thu Jul 16 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-33

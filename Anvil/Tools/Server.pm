@@ -827,6 +827,7 @@ sub shutdown
 		# Shut it down.
 		if ($shutdown)
 		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0520", variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({
 				debug      => $debug, 
 				shell_call => $anvil->data->{path}{exe}{virsh}." ".$task." ".$server,

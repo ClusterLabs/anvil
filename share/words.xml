@@ -758,7 +758,7 @@ We will keep looking.</key>
 		<key name="log_0310">The server: [#!variable!server!#] should have been started, but it's state is: [#!variable!state!#]. Human intervention is required!</key>
 		<key name="log_0311">The server: [#!variable!server!#] should have been started, but it wasn't found in the list of running servers.</key>
 		<key name="log_0312">The attempt to list the running servers returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
-		<key name="log_0313">The server: [#!variable!server!#] is running. We will ask it to shut down now.</key>
+		<key name="log_0313">The server: [#!variable!server!#] has been asked to shut down. If it is actually running, we will ask it to shut down now.</key>
 		<key name="log_0314">The server: [#!variable!server!#] is paused. Resuming it now so that it can react to the shutdown request.</key>
 		<key name="log_0315">The attempt to resume the server: [#!variable!server!#] returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0316">Pausing for a moment to give the server time to resume.</key>
@@ -996,6 +996,14 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		</key>
 		<key name="log_0518">Appending the file: [#!variable!file!#] with the line: [#!variable!line!#].</key>
 		<key name="log_0519">Attempting to parse bridge information using standard output after failing to parse JSON status information.</key>
+		<key name="log_0520">The server: [#!variable!server!#] is indeed running. It will be shut down now.</key>
+		<key name="log_0521">Checking the status of the server: [#!variable!server!#].</key>
+		<key name="log_0522">The 'libvirtd' daemon is not running. It may be starting up, will wait: [#!variable!wait_time!#] seconds...</key>
+		<key name="log_0523">Found the server to be running using it's PID. The state of the server can't be determined, however. Please start the 'libvirtd' daemon!</key>
+		<key name="log_0524">No PID for the server was found. It is not running on this host.</key>
+		<key name="log_0525">The server is shutting down. Will wait for it to finish...</key>
+		<key name="log_0526">The server is off.</key>
+		<key name="log_0527">The server is running (state is: [#!variable!state!#]).</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1758,6 +1766,8 @@ The error was:
 		<key name="warning_0054">[ Warning ] - Node 1 and Node 2 are set to the same machine.</key>
 		<key name="warning_0055">[ Warning ] - The DR Host is set to the same machine as Node 1.</key>
 		<key name="warning_0056">[ Warning ] - The DR Host is set to the same machine as Node 2.</key>
+		<key name="warning_0057">[ Warning ] - The 'libvirtd' daemon is not running. Checking to see if the server is running by looking for its PID (server state won't be available). Please start 'libvirtd'!</key>
+		<key name="warning_0058">[ Warning ] - The server: [#!variable!server!#] is in a crashed state!</key>
 		
 	</language>
 	<!-- 日本語 -->
