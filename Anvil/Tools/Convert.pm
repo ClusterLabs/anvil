@@ -637,8 +637,14 @@ sub host_name_to_ip
 	### TODO: Check local cached information later.
 	
 	# Try to resolve it using 'gethostip'.
-	my $output = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{gethostip}." -d $host_name"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	my $shell_call = $anvil->data->{path}{exe}{gethostip}." -d ".$host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});

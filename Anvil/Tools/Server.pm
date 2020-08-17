@@ -636,8 +636,36 @@ sub migrate
 		return($success);
 	}
 	
+	### TODO: Left off here, this is not allowing two primaries. I think the problem is 'source' is being
+	###       mixed up in hashed between 'local' and the local machine's short host name. Switch 
+	###       everything away from 'local' to the short host name throughout the program.
+	if (not $anvil->data->{server}{$source}{$server})
+	{
+		# The 'target' below is where I'm reading the server's definition from, which is the 
+		# migration source.
+		$anvil->Server->get_status({
+			debug  => $debug,
+			server => $server, 
+			target => $source, 
+		});
+	}
+	
+	foreach my $source (sort {$a cmp $b} keys %{$anvil->data->{server}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
+		foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{server}{$source}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server => $server }});
+			foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$source}{$server}{resource}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+			}
+		}
+	}
+	die;
+	
 	# Enable dual-primary for any resources we know about for this server.
-	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server}{resource}})
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$source}{$server}{resource}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
 		my ($return_code) = $anvil->DRBD->allow_two_primaries({
@@ -646,9 +674,32 @@ sub migrate
 		});
 	}
 
+	# The virsh command switches host names to IPs and needs to have both the source and target IPs in 
+	# the known_hosts file to work.
+	my $target_ip = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
+	foreach my $host ($target, $target_ip)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+		$anvil->Remote->add_target_to_known_hosts({
+			debug  => $debug,
+			target => $host,
+		});
+	}
 	my $migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
 	if ($source)
 	{
+		my $source_ip = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $source});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source_ip => $source_ip }});
+		foreach my $host ($source, $source_ip)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+			$anvil->Remote->add_target_to_known_hosts({
+				debug  => $debug,
+				target => $host,
+			});
+		}
+		
 		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { migration_command => $migration_command }});

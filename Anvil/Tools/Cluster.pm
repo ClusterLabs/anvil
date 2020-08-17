@@ -563,7 +563,9 @@ sub parse_cib
 			}});
 		}
 	}
-		
+	
+	# Set some cluster value defaults.
+	$anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} = "false";
 	foreach my $nvpair_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}})
 	{
 		my $variable = $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{$nvpair_id}{name};
@@ -591,6 +593,13 @@ sub parse_cib
 		if ($variable eq "cluster-name")
 		{
 			$anvil->data->{cib}{parsed}{data}{cluster}{name} = $value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				"cib::parsed::data::cluster::name" => $anvil->data->{cib}{parsed}{data}{cluster}{name}, 
+			}});
+		}
+		if ($variable eq "maintenance-mode")
+		{
+			$anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} = $value;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 				"cib::parsed::data::cluster::name" => $anvil->data->{cib}{parsed}{data}{cluster}{name}, 
 			}});

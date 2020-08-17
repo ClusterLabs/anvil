@@ -179,7 +179,7 @@ if ($anvil->data->{switches}{test3})
 {
 	$anvil->data->{environment}{OCF_RESKEY_name}             = "srv07-el6";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "mk-a02n01";
-	#print "Running test 3; Boot or shutdown of: [".$anvil->data->{environment}{OCF_RESKEY_name}."].\n";
+	print "Running test 3; Boot or shutdown of: [".$anvil->data->{environment}{OCF_RESKEY_name}."].\n";
 }
 if ($anvil->data->{switches}{test4})
 {
@@ -189,13 +189,13 @@ if ($anvil->data->{switches}{test4})
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = "20000";
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node} = "mk-a02n01";
 	$anvil->data->{environment}{OCF_RESKEY_name}             = "srv07-el6";
-	#print "Status check of: [".$anvil->data->{environment}{OCF_RESKEY_name}."] on: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}."].\n";
+	print "Status check of: [".$anvil->data->{environment}{OCF_RESKEY_name}."] on: [".$anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}."].\n";
 }
 
 # This is for debugging.
 if (not $anvil->data->{switches}{monitor})
 {
-	show_environment($anvil, 1);
+	show_environment($anvil, 3);
 }
 
 ### What are we being asked to do?
@@ -211,7 +211,12 @@ if (not $anvil->data->{switches}{monitor})
 # help         - (usage maps here) Displays a usage message when the resource agent is invoked from the command line, rather than by the cluster manager.
 # notify       - Inform resource about changes in state of other clones.
 
-if ($anvil->data->{switches}{start})
+if (($anvil->data->{switches}{migrate_to}) or ($anvil->data->{switches}{migrate_from}))
+{
+	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
+	migrate_server($anvil);
+}
+elsif ($anvil->data->{switches}{start})
 {
 	# Start the server
 	start_server($anvil);
@@ -241,11 +246,6 @@ elsif ($anvil->data->{switches}{demote})
 	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0300", variables => { server => $anvil->data->{environment}{OCF_RESKEY_name} }});
 	$anvil->nice_exit({exit_code => 3});
-}
-elsif (($anvil->data->{switches}{migrate_to}) or ($anvil->data->{switches}{migrate_from}))
-{
-	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
-	migrate_server($anvil);
 }
 elsif ($anvil->data->{switches}{'validate-all'})
 {
@@ -288,7 +288,6 @@ sub check_daemons
 {
 	my ($anvil, $task) = @_;
 	
-	print "Parsing CIB\n";
 	my $problem = $anvil->Cluster->parse_cib();
 	if ($problem)
 	{
@@ -301,7 +300,7 @@ sub check_daemons
 	# Is the peer running? We'll use this to know whether to try and start daemons on the peer.
 	my $peer_name  = $anvil->data->{cib}{parsed}{peer}{name};
 	my $peer_ready = $anvil->data->{cib}{parsed}{peer}{ready};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		peer_name  => $peer_name,
 		peer_ready => $peer_ready, 
 	}});
@@ -316,7 +315,7 @@ sub check_daemons
 			my $running_peer  = 0;
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				output      => $output, 
 				return_code => $return_code,
 			}});
@@ -325,7 +324,7 @@ sub check_daemons
 				# It is stopped, start it..
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0482", variables => { daemon => $daemon }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					output      => $output, 
 					return_code => $return_code,
 				}});
@@ -335,7 +334,7 @@ sub check_daemons
 				until ($running)
 				{
 					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						output      => $output, 
 						return_code => $return_code,
 					}});
@@ -375,7 +374,7 @@ sub check_daemons
 					target     => $peer_name,
 					shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					output      => $output, 
 					error       => $error, 
 					return_code => $return_code,
@@ -391,7 +390,7 @@ sub check_daemons
 						target     => $peer_name, 
 						shell_call => $anvil->data->{path}{exe}{systemctl}." start ".$daemon,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						output      => $output, 
 						error       => $error, 
 						return_code => $return_code,
@@ -405,7 +404,7 @@ sub check_daemons
 							target     => $peer_name,
 							shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
 						});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 							output      => $output, 
 							error       => $error, 
 							return_code => $return_code,
@@ -468,7 +467,7 @@ sub check_daemons
 		
 		# Call virsh list --all
 		my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			local_output      => $local_output, 
 			local_return_code => $local_return_code,
 		}});
@@ -478,12 +477,12 @@ sub check_daemons
 			foreach my $line (split/\n/, $local_output)
 			{
 				$line = $anvil->Words->clean_spaces({ string => $line });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 				
 				if ($line =~ /(\d+)\s+(.*?)\s+running/)
 				{
 					$local_vm_count++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_vm_count => $local_vm_count }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { local_vm_count => $local_vm_count }});
 				}
 			}
 		}
@@ -492,7 +491,7 @@ sub check_daemons
 			target     => $peer_name,
 			shell_call => $anvil->data->{path}{exe}{virsh}." list --all",
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			remote_output      => $remote_output, 
 			remote_error       => $remote_error, 
 			remote_return_code => $remote_return_code,
@@ -503,17 +502,17 @@ sub check_daemons
 			foreach my $line (split/\n/, $remote_output)
 			{
 				$line = $anvil->Words->clean_spaces({ string => $line });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 				
 				if ($line =~ /(\d+)\s+(.*?)\s+running/)
 				{
 					$remote_vm_count++;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { remote_vm_count => $remote_vm_count }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { remote_vm_count => $remote_vm_count }});
 				}
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			local_vm_count  => $local_vm_count, 
 			remote_vm_count => $remote_vm_count,
 		}});
@@ -535,7 +534,7 @@ sub check_daemons
 				my $running_peer  = 0;
 				
 				my ($local_output, $local_return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					local_output      => $local_output, 
 					local_return_code => $local_return_code,
 				}});
@@ -549,7 +548,7 @@ sub check_daemons
 					# Running, stop it.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0493", variables => { daemon => $daemon }});
 					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						output      => $output, 
 						return_code => $return_code,
 					}});
@@ -559,7 +558,7 @@ sub check_daemons
 					target     => $peer_name,
 					shell_call => $anvil->data->{path}{exe}{systemctl}." status ".$daemon,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					remote_output      => $remote_output, 
 					remote_error       => $remote_error, 
 					remote_return_code => $remote_return_code,
@@ -583,7 +582,7 @@ sub check_daemons
 						target     => $peer_name, 
 						shell_call => $anvil->data->{path}{exe}{systemctl}." stop ".$daemon,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						output      => $output, 
 						error       => $error, 
 						return_code => $return_code,
@@ -941,10 +940,11 @@ sub stop_server
 	# Stopping the server is simply a question of "is the server running?" and, if so, stop it. Once 
 	# stopped, we stop the DRBD resource on both nodes.
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server => $server }});
 	
 	# Read in an parse the server's XML.
 	$anvil->System->check_storage({debug => 3});
-	$anvil->Server->get_status({debug => 3, server => $server});
+	$anvil->Server->get_status({debug => 2, server => $server});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0313", variables => { server => $server }});
 	my $success = $anvil->Server->shutdown({debug => 3, server => $server});
@@ -1160,6 +1160,14 @@ sub migrate_server
 	# Before migrating, make sure the daemons are running on the peer.
 	check_daemons($anvil, "start");
 	
+	# Make sure switches are at least defined.
+	$anvil->data->{switches}{migrate_to}   = "" if not defined $anvil->data->{switches}{migrate_to};
+	$anvil->data->{switches}{migrate_from} = "" if not defined $anvil->data->{switches}{migrate_from};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::migrate_to'   => $anvil->data->{switches}{migrate_to}, 
+		'switches::migrate_from' => $anvil->data->{switches}{migrate_from}, 
+	}});
+	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
 	###       ASAP is high). Maybe we'll enforce this and require a '--force' switch later?
@@ -1173,12 +1181,10 @@ sub migrate_server
 	my $target       = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
 	my $meta_on_node = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server                   => $server, 
-		source                   => $source, 
-		target                   => $target,
-		meta_on_node             => $meta_on_node,
-		'switches::migrate_to'   => $anvil->data->{switches}{migrate_to}, 
-		'switches::migrate_from' => $anvil->data->{switches}{migrate_from}, 
+		server       => $server, 
+		source       => $source, 
+		target       => $target,
+		meta_on_node => $meta_on_node,
 	}});
 	
 	# The actual migration command will involve enabling dual primary, then beginning the migration. The
@@ -1186,7 +1192,7 @@ sub migrate_server
 	# success or failure, dual primary will be disabled again.
 	my $migration_command = "";
 	my $migrated          = 0;
-	if ($anvil->data->{switches}{migrate_to})
+	if ($target)
 	{
 		# Can I even connect to the target?
 		my ($access) = $anvil->Remote->test_access({debug => 3, target => $target});
@@ -1340,11 +1346,12 @@ sub migrate_server
 		($migrated) = $anvil->Server->migrate({
 			debug  => 2, 
 			server => $server, 
+			source => $source, 
 			target => $target 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { migrated => $migrated }});
 	}
-	elsif ($anvil->data->{switches}{migrate_from})
+	elsif ($source)
 	{
 		# Pull the server here. Start by verifying it's on the 'meta_on_node' host.
 		# Scan locally and on our peer
@@ -1353,7 +1360,7 @@ sub migrate_server
 		
 		my $host       = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
 		my $short_host = ($host =~ /^(.*?)\..*$/)[0];
-		my $status      = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
+		my $status     = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host       => $host, 
 			short_host => $short_host, 
@@ -1362,7 +1369,6 @@ sub migrate_server
 		}});
 		
 		# Convert the host to a short name, in case the node's name is the short version.
-		
 		my $server_host   = defined $anvil->data->{server}{location}{$server}{host}   ? $anvil->data->{server}{location}{$server}{host}   : "";
 		my $server_status = defined $anvil->data->{server}{location}{$server}{status} ? $anvil->data->{server}{location}{$server}{status} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1421,10 +1427,18 @@ sub validate_all
 	
 	### TODO: When we have actual Anvil! systems, connect to the peers (nodes / DR) for this host and see
 	###       if the server is running elsewhere.
+	my $server =         $anvil->data->{environment}{OCF_RESKEY_name};
+	my $source = defined $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} ? $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} : "";
+	my $target = defined $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} ? $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server => $server, 
+		source => $source, 
+		target => $target,
+	}});
 	
 	# Read in an parse the server's XML.
-	$anvil->System->check_storage({debug => 3});
-	$anvil->Server->get_status({debug => 3, server => $anvil->data->{environment}{OCF_RESKEY_name}});
+	$anvil->System->check_storage({debug => 2});
+	$anvil->Server->get_status({debug => 2, server => $server});
 	
 	# Is the name in the definition file what we expect (and did we read the XML data at all)?
 	validate_name($anvil);
@@ -1433,7 +1447,7 @@ sub validate_all
 	validate_emulator($anvil);
 	
 	# These tests are only needed if we're about to boot the server
-	if (($anvil->data->{switches}{start}) or ($anvil->data->{switches}{migrate_from}))
+	if (($anvil->data->{switches}{start}) or ($source))
 	{
 		# Check that we have enough RAM.
 		validate_ram($anvil);
@@ -1497,28 +1511,33 @@ sub validate_storage
 	my ($anvil) = @_;
 	
 	# When checking on a running server, use 'from_memory'.
-	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $source = "from_disk";
+	my $server =         $anvil->data->{environment}{OCF_RESKEY_name};
+	my $target = defined $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} ? $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server => $server, 
+		target => $target,
+	}});
+	my $xml_source = "from_disk";
 	if ($anvil->data->{server}{'local'}{$server}{from_memory}{host})
 	{
-		$source = "from_memory";
+		$xml_source = "from_memory";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		server => $server,
-		source => $source, 
+		server     => $server,
+		xml_source => $xml_source, 
 	}});
 	
 	### TODO: If we're called with a status and find an ISO file missing and eject it instead of failing.
 	###       For now, we just fault out.
 	# Do the optical discs in the drive exist? If not, we'll eject it if we're about to boot and fail if
 	# we're about to migrate. We skip this check if we're migrating off or shutting down the server.
-	if ((exists $anvil->data->{server}{'local'}{$server}{$source}{device}{cdrom}) && (not $anvil->data->{switches}{migrate_to}) && (not $anvil->data->{switches}{stop}))
+	if ((exists $anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}) && (not $target) && (not $anvil->data->{switches}{stop}))
 	{
-		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{$source}{device}{cdrom}{target}})
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}{target}})
 		{
-			if ($anvil->data->{server}{'local'}{$server}{$source}{device}{cdrom}{target}{$device_target}{path})
+			if ($anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}{target}{$device_target}{path})
 			{
-				my $file = $anvil->data->{server}{'local'}{$server}{$source}{device}{cdrom}{target}{$device_target}{path};
+				my $file = $anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}{target}{$device_target}{path};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
 				if (not -e $file)
 				{
@@ -1555,9 +1574,9 @@ sub validate_storage_drbd
 	my ($anvil) = @_;
 	
 	# Now check storage.
-	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $source = "from_disk";
-	my $host   = $anvil->_short_host_name;
+	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $xml_source = "from_disk";
+	my $host       = $anvil->_short_host_name;
 	
 	# Did I find a resource for each disk?
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{device}})
@@ -1573,9 +1592,9 @@ sub validate_storage_drbd
 		}
 	}
 	
-	foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{$source}{device}{disk}{target}})
+	foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{$xml_source}{device}{disk}{target}})
 	{
-		my $drbd_device   =         $anvil->data->{server}{'local'}{$server}{$source}{device}{disk}{target}{$device_target}{path};
+		my $drbd_device   =         $anvil->data->{server}{'local'}{$server}{$xml_source}{device}{disk}{target}{$device_target}{path};
 		my $drbd_resource = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource} : "";
 		my $on_lv         = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on}       : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

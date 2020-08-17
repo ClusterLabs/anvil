@@ -955,7 +955,7 @@ If the targets are unique, did you copy the full database directory? A unique id
 		<key name="log_0486">Starting the daemon: [#!variable!daemon!#] on: [#!variable!host!#].</key>
 		<key name="log_0487">Verifying that the daemon: [#!variable!daemon!#] has started on: [#!variable!host!#].</key>
 		<key name="log_0488">Waiting for the daemon: [#!variable!daemon!#] to start on: [#!variable!host!#]...</key>
-		<key name="log_0489">The daemon: [#!variable!daemon!#] was already running  on: [#!variable!host!#], no need to start.</key>
+		<key name="log_0489">The daemon: [#!variable!daemon!#] was already running on: [#!variable!host!#], no need to start.</key>
 		<key name="log_0490">There are no servers running on either node, stopping daemons.</key>
 		<key name="log_0491">There are no servers running on locally and the peer is not in the cluster, stopping daemons.</key>
 		<key name="log_0492">The daemon: [#!variable!daemon!#] is already stopped locally, nothing to do.</key>
