@@ -456,13 +456,14 @@ sub setup_boot_environment
 	# Get my BCN IP and active OS.
 	$anvil->Network->get_ips();
 	my $bcn_interface = "";
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	my $local_host    = $anvil->_short_host_name();
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface => $interface }});
 		next if $interface !~ /^bcn/;
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::local::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
-		if ($anvil->Validate->ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }))
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "network::local::${interface}::ip" => $anvil->data->{network}{$local_host}{interface}{$interface}{ip} }});
+		if ($anvil->Validate->ipv4({ip => $anvil->data->{network}{$local_host}{interface}{$interface}{ip} }))
 		{
 			$bcn_interface = $interface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bcn_interface => $bcn_interface }});
@@ -478,10 +479,10 @@ sub setup_boot_environment
 		$anvil->nice_exit({exit_code => 2});
 	}
 	
-	my $bcn_ip          = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{ip};
-	my $bcn_subnet_mask = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{subnet_mask};
+	my $bcn_ip          = $anvil->data->{network}{$local_host}{interface}{$bcn_interface}{ip};
+	my $bcn_subnet_mask = $anvil->data->{network}{$local_host}{interface}{$bcn_interface}{subnet_mask};
 	my $bcn_network     = $anvil->Network->get_network({ip => $bcn_ip, subnet_mask => $bcn_subnet_mask});
-	my $dns             = $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} ? $anvil->data->{network}{'local'}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
+	my $dns             = $anvil->data->{network}{$local_host}{interface}{$bcn_interface}{dns} ? $anvil->data->{network}{$local_host}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
 	my $domain          = "localdomain";
 	my $base_url        = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
 	if ($anvil->_host_name =~ /\./)
@@ -622,9 +623,9 @@ sub setup_boot_environment
 	# Add the IPs.
 	$anvil->Network->get_ips({});
 	my $first_line = 1;
-	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
-		my $ip = $anvil->data->{network}{'local'}{interface}{$in_iface}{ip};
+		my $ip = $anvil->data->{network}{$local_host}{interface}{$in_iface}{ip};
 		if ($ip)
 		{
 			my $prefix     =  $first_line ? "baseurl=" : "        ";

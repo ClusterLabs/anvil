@@ -519,19 +519,20 @@ sub get_local_repo
 	# What are my IPs?
 	$anvil->Network->get_ips();
 	my $base_url = "";
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	my $host     = $anvil->_short_host_name();
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
-		if ($anvil->data->{network}{'local'}{interface}{$interface}{ip})
+		if ($anvil->data->{network}{$host}{interface}{$interface}{ip})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{$host}{interface}{$interface}{ip} }});
 			if (not $base_url)
 			{
-				$base_url = "baseurl=http://".$anvil->data->{network}{'local'}{interface}{$interface}{ip}.$directory;
+				$base_url = "baseurl=http://".$anvil->data->{network}{$host}{interface}{$interface}{ip}.$directory;
 			}
 			else
 			{
-				$base_url .= "\n        http://".$anvil->data->{network}{'local'}{interface}{$interface}{ip}.$directory;
+				$base_url .= "\n        http://".$anvil->data->{network}{$host}{interface}{$interface}{ip}.$directory;
 			}
 		}
 	}
@@ -1070,7 +1071,7 @@ sub parse_all_status_json
 	# We're going to look for matches as we go, so look 
 	$anvil->Network->load_ips({
 		debug     => $debug,
-		host      => 'local',
+		host      => $anvil->_short_host_name(),
 		host_uuid => $anvil->data->{sys}{host_uuid},
 	});
 	
@@ -1109,7 +1110,7 @@ sub parse_all_status_json
 			});
 			my ($match) = $anvil->Network->find_matches({
 				debug  => 3,
-				first  => 'local',
+				first  => $anvil->_short_host_name(),
 				second => $short_name, 
 			});
 			if ($match)

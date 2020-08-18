@@ -156,7 +156,8 @@ sub activate_lv
 	$anvil->System->check_storage({debug => $debug, scan => 2});
 	
 	# Check if it worked.
-	$activated = $anvil->data->{lvm}{'local'}{lv}{$path}{active};
+	my $host = $anvil->_short_host_name();
+	$activated = $anvil->data->{lvm}{$host}{lv}{$path}{active};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { activated => $activated }});
 	
 	return($activated);
@@ -1054,6 +1055,7 @@ sub check_storage
 	###       DRBD devices being "wrong medium type" when Secondary. We check for and ignore these 
 	###       warnings.
 	# Gather PV data.
+	my $host = $anvil->_short_host_name();
 	my ($pvs_output, $pvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvs}." --units b --noheadings --separator \\\#\\\!\\\# -o pv_name,vg_name,pv_fmt,pv_attr,pv_size,pv_free,pv_used,pv_uuid 2>/dev/null"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		pvs_output      => $pvs_output,
@@ -1071,19 +1073,19 @@ sub check_storage
 		$free_size  =~ s/B$//;
 		$used_size  =~ s/B$//;
 		
-		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_by_vg} = $used_by_vg;
-		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{attributes} = $attributes;
-		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{total_size} = $total_size;
-		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{free_size}  = $free_size;
-		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_size}  = $used_size;
-		$anvil->data->{lvm}{'local'}{pv}{$this_pv}{uuid}       = $uuid;
+		$anvil->data->{lvm}{$host}{pv}{$this_pv}{used_by_vg} = $used_by_vg;
+		$anvil->data->{lvm}{$host}{pv}{$this_pv}{attributes} = $attributes;
+		$anvil->data->{lvm}{$host}{pv}{$this_pv}{total_size} = $total_size;
+		$anvil->data->{lvm}{$host}{pv}{$this_pv}{free_size}  = $free_size;
+		$anvil->data->{lvm}{$host}{pv}{$this_pv}{used_size}  = $used_size;
+		$anvil->data->{lvm}{$host}{pv}{$this_pv}{uuid}       = $uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"lvm::local::pv::${this_pv}::used_by_vg" => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_by_vg},
-			"lvm::local::pv::${this_pv}::attributes" => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{attributes},
-			"lvm::local::pv::${this_pv}::total_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{total_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{total_size}}).")",
-			"lvm::local::pv::${this_pv}::free_size"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{free_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{free_size}}).")",
-			"lvm::local::pv::${this_pv}::used_size"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{used_size}}).")",
-			"lvm::local::pv::${this_pv}::uuid"       => $anvil->data->{lvm}{'local'}{pv}{$this_pv}{uuid},
+			"lvm::${host}::pv::${this_pv}::used_by_vg" => $anvil->data->{lvm}{$host}{pv}{$this_pv}{used_by_vg},
+			"lvm::${host}::pv::${this_pv}::attributes" => $anvil->data->{lvm}{$host}{pv}{$this_pv}{attributes},
+			"lvm::${host}::pv::${this_pv}::total_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{pv}{$this_pv}{total_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{pv}{$this_pv}{total_size}}).")",
+			"lvm::${host}::pv::${this_pv}::free_size"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{pv}{$this_pv}{free_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{pv}{$this_pv}{free_size}}).")",
+			"lvm::${host}::pv::${this_pv}::used_size"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{pv}{$this_pv}{used_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{pv}{$this_pv}{used_size}}).")",
+			"lvm::${host}::pv::${this_pv}::uuid"       => $anvil->data->{lvm}{$host}{pv}{$this_pv}{uuid},
 		}});
 	}
 	
@@ -1120,25 +1122,25 @@ sub check_storage
 		{
 			$used_space = $vg_size - $vg_free;
 		}
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{pe_size}    = $pe_size;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{total_pe}   = $total_pe;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{uuid}       = $uuid;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{size}       = $vg_size;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_pe}    = $used_pe;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_space} = $used_space;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_pe}    = $free_pe;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_space} = $vg_free;
-		$anvil->data->{lvm}{'local'}{vg}{$this_vg}{pv_name}    = $pv_name;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{pe_size}    = $pe_size;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{total_pe}   = $total_pe;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{uuid}       = $uuid;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{size}       = $vg_size;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{used_pe}    = $used_pe;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{used_space} = $used_space;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{free_pe}    = $free_pe;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{free_space} = $vg_free;
+		$anvil->data->{lvm}{$host}{vg}{$this_vg}{pv_name}    = $pv_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"lvm::local::vg::${this_vg}::pe_size"    => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{pe_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{pe_size}}).")",
-			"lvm::local::vg::${this_vg}::total_pe"   => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{total_pe},
-			"lvm::local::vg::${this_vg}::uuid"       => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{uuid},
-			"lvm::local::vg::${this_vg}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{size}}).")",
-			"lvm::local::vg::${this_vg}::used_pe"    => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_pe},
-			"lvm::local::vg::${this_vg}::used_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{used_space}}).")",
-			"lvm::local::vg::${this_vg}::free_pe"    => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_pe},
-			"lvm::local::vg::${this_vg}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{free_space}}).")",
-			"lvm::local::vg::${this_vg}::pv_name"    => $anvil->data->{lvm}{'local'}{vg}{$this_vg}{pv_name},
+			"lvm::${host}::vg::${this_vg}::pe_size"    => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{vg}{$this_vg}{pe_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{vg}{$this_vg}{pe_size}}).")",
+			"lvm::${host}::vg::${this_vg}::total_pe"   => $anvil->data->{lvm}{$host}{vg}{$this_vg}{total_pe},
+			"lvm::${host}::vg::${this_vg}::uuid"       => $anvil->data->{lvm}{$host}{vg}{$this_vg}{uuid},
+			"lvm::${host}::vg::${this_vg}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{vg}{$this_vg}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{vg}{$this_vg}{size}}).")",
+			"lvm::${host}::vg::${this_vg}::used_pe"    => $anvil->data->{lvm}{$host}{vg}{$this_vg}{used_pe},
+			"lvm::${host}::vg::${this_vg}::used_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{vg}{$this_vg}{used_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{vg}{$this_vg}{used_space}}).")",
+			"lvm::${host}::vg::${this_vg}::free_pe"    => $anvil->data->{lvm}{$host}{vg}{$this_vg}{free_pe},
+			"lvm::${host}::vg::${this_vg}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{vg}{$this_vg}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{vg}{$this_vg}{free_space}}).")",
+			"lvm::${host}::vg::${this_vg}::pv_name"    => $anvil->data->{lvm}{$host}{vg}{$this_vg}{pv_name},
 		}});
 	}
 	
@@ -1160,21 +1162,21 @@ sub check_storage
 		$total_size =~ s/B$//;
 		$devices    =~ s/\(\d+\)//g;	# Strip the starting PE number
 
-		$anvil->data->{lvm}{'local'}{lv}{$path}{name}       = $lv_name;
-		$anvil->data->{lvm}{'local'}{lv}{$path}{on_vg}      = $on_vg;
-		$anvil->data->{lvm}{'local'}{lv}{$path}{active}     = ($attributes =~ /.{4}(.{1})/)[0] eq "a" ? 1 : 0;
-		$anvil->data->{lvm}{'local'}{lv}{$path}{attributes} = $attributes;
-		$anvil->data->{lvm}{'local'}{lv}{$path}{total_size} = $total_size;
-		$anvil->data->{lvm}{'local'}{lv}{$path}{uuid}       = $uuid;
-		$anvil->data->{lvm}{'local'}{lv}{$path}{on_devices} = $devices;
+		$anvil->data->{lvm}{$host}{lv}{$path}{name}       = $lv_name;
+		$anvil->data->{lvm}{$host}{lv}{$path}{on_vg}      = $on_vg;
+		$anvil->data->{lvm}{$host}{lv}{$path}{active}     = ($attributes =~ /.{4}(.{1})/)[0] eq "a" ? 1 : 0;
+		$anvil->data->{lvm}{$host}{lv}{$path}{attributes} = $attributes;
+		$anvil->data->{lvm}{$host}{lv}{$path}{total_size} = $total_size;
+		$anvil->data->{lvm}{$host}{lv}{$path}{uuid}       = $uuid;
+		$anvil->data->{lvm}{$host}{lv}{$path}{on_devices} = $devices;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"lvm::local::lv::${path}::name"       => $anvil->data->{lvm}{'local'}{lv}{$path}{name},
-			"lvm::local::lv::${path}::on_vg"      => $anvil->data->{lvm}{'local'}{lv}{$path}{on_vg},
-			"lvm::local::lv::${path}::active"     => $anvil->data->{lvm}{'local'}{lv}{$path}{active},
-			"lvm::local::lv::${path}::attributes" => $anvil->data->{lvm}{'local'}{lv}{$path}{attributes},
-			"lvm::local::lv::${path}::total_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{'local'}{lv}{$path}{total_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{'local'}{lv}{$path}{total_size}}).")",
-			"lvm::local::lv::${path}::uuid"       => $anvil->data->{lvm}{'local'}{lv}{$path}{uuid},
-			"lvm::local::lv::${path}::on_devices" => $anvil->data->{lvm}{'local'}{lv}{$path}{on_devices},
+			"lvm::${host}::lv::${path}::name"       => $anvil->data->{lvm}{$host}{lv}{$path}{name},
+			"lvm::${host}::lv::${path}::on_vg"      => $anvil->data->{lvm}{$host}{lv}{$path}{on_vg},
+			"lvm::${host}::lv::${path}::active"     => $anvil->data->{lvm}{$host}{lv}{$path}{active},
+			"lvm::${host}::lv::${path}::attributes" => $anvil->data->{lvm}{$host}{lv}{$path}{attributes},
+			"lvm::${host}::lv::${path}::total_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{$host}{lv}{$path}{total_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{$host}{lv}{$path}{total_size}}).")",
+			"lvm::${host}::lv::${path}::uuid"       => $anvil->data->{lvm}{$host}{lv}{$path}{uuid},
+			"lvm::${host}::lv::${path}::on_devices" => $anvil->data->{lvm}{$host}{lv}{$path}{on_devices},
 		}});
 	}
 	
@@ -1905,7 +1907,7 @@ sub generate_state_json
 	# We're going to look for matches as we go, so look 
 	$anvil->Network->load_ips({
 		debug     => $debug,
-		host      => 'local',
+		host      => $anvil->_short_host_name(),
 		host_uuid => $anvil->data->{sys}{host_uuid},
 	});
 	
@@ -1943,7 +1945,7 @@ sub generate_state_json
 			# Don't need to call 'local_ips', it was called by load_interfaces above.
 			my ($match) = $anvil->Network->find_matches({
 				debug  => $debug,
-				first  => 'local',
+				first  => $anvil->_short_host_name(),
 				second => $short_host_name, 
 			});
 			
@@ -2381,12 +2383,13 @@ sub find_matching_ip
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 	
 	# Look through our IPs. First match wins.
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	my $local_host = $anvil->_short_host_name();
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
-		next if not $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-		my $this_ip          = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-		my $this_subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
+		next if not $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
+		my $this_ip          = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
+		my $this_subnet_mask = $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"s1:this_ip"          => $this_ip,
 			"s2:this_subnet_mask" => $this_subnet_mask, 
@@ -2857,7 +2860,7 @@ This is the TCP port to use when connecting to a remote machine. If not set, but
 
 If C<< target >> is set, this will be the user we connect to the remote machine as.
 
-=head3 target (optional, default 'local')
+=head3 target (optional, default local shost host name)
 
 This is the IP or host name of the machine to manage keys on. If not passed, the keys on the local machine will be managed.
 

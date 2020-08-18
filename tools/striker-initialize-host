@@ -144,9 +144,10 @@ sub add_databases
 		password    => $anvil->data->{data}{password}, 
 		port        => $anvil->data->{data}{ssh_port}, 
 	});
-	my ($match) = $anvil->Network->find_matches({
+	my $local_host = $anvil->_short_host_name();
+	my ($match)    = $anvil->Network->find_matches({
 		debug  => 3,
-		first  => 'local',
+		first  => $local_host,
 		second => $target, 
 	});
 	
@@ -156,9 +157,9 @@ sub add_databases
 	my $db_ping     = 1,
 	my $db_port     = "";
 	my $db_password = "";
-	foreach my $interface (sort {$a cmp $b} keys %{$match->{'local'}})
+	foreach my $interface (sort {$a cmp $b} keys %{$match->{$local_host}})
 	{
-		my $local_ip = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+		my $local_ip = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			interface => $interface, 
 			local_ip  => $local_ip,

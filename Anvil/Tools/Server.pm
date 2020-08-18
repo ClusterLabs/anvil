@@ -337,7 +337,7 @@ sub get_status
 	}});
 	
 	# This is used in the hash reference when storing the data.
-	my $host = $target ? $target : "local";
+	my $host = $target ? $target : $anvil->_short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	
 	if (not $server)
@@ -541,7 +541,7 @@ sub map_network
 			});
 			
 			# This is used in the hash reference when storing the data.
-			my $host = $target ? $target : "local";
+			my $host = $target ? $target : $anvil->_short_host_name();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 			foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}})
 			{
@@ -972,7 +972,7 @@ sub _parse_definition
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
 	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->_short_host_name;
-	my $target     = "local";
+	my $target     = $anvil->_short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server     => $server,
 		source     => $source, 

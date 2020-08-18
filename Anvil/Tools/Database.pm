@@ -2614,13 +2614,14 @@ sub get_local_uuid
 	$anvil->Network->get_ips({debug => $debug});
 	
 	# Look for matches
+	my $host = $anvil->_short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 	if (not $local_uuid)
 	{
-		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
 		{
-			my $ip_address  = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-			my $subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
+			my $ip_address  = $anvil->data->{network}{$host}{interface}{$interface}{ip};
+			my $subnet_mask = $anvil->data->{network}{$host}{interface}{$interface}{subnet_mask};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ip_address  => $ip_address,
 				subnet_mask => $subnet_mask,

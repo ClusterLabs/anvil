@@ -686,9 +686,10 @@ sub stop_drbd_resource
 {
 	my ($anvil) = @_;
 	
-	my $server  = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host    = $anvil->_short_host_name;
-	my $peer    = $anvil->data->{drbd}{config}{$host}{peer};
+	my $local_host = $anvil->_short_host_name();
+	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $host       = $anvil->_short_host_name;
+	my $peer       = $anvil->data->{drbd}{config}{$host}{peer};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server  => $server,
 		host    => $host, 
@@ -696,7 +697,7 @@ sub stop_drbd_resource
 	}});
 	
 	# Start DRBD locally. 
-	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{resource}})
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
 		my $peer_ip = $anvil->data->{drbd}{config}{$host}{resource}{$resource}{connection}{$peer}{ip_address};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0408", variables => { 
@@ -742,7 +743,7 @@ sub start_drbd_resource
 	# Do we need startup?
 	my $startup_needed = 0;
 	$anvil->DRBD->get_status({debug => 3});
-	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{resource}})
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
 		# Is the current resource up locally already? If it is, we're done. 
 		my $role = defined $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} ? $anvil->data->{drbd}{status}{$host}{resource}{$resource}{role} : "";
@@ -774,7 +775,7 @@ sub start_drbd_resource
 	}
 	
 	# Start DRBD locally.
-	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{resource}})
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
 		my $peer_ip = $anvil->data->{drbd}{config}{$host}{resource}{$resource}{connection}{$peer}{ip_address};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0419", variables => { 
@@ -844,7 +845,7 @@ sub start_drbd_resource
 	# If auto-promote isn't set, promote the resource.
 	if (not $anvil->data->{drbd}{config}{$host}{'auto-promote'})
 	{
-		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{resource}})
+		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0420", variables => { 
 				server   => $server,
@@ -1260,7 +1261,7 @@ sub migrate_server
 			host      => $host, 
 			peer_name => $peer_name, 
 		}});
-		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{resource}})
+		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 		{
 			my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
 			my $peer_node_id     = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'};
@@ -1471,17 +1472,18 @@ sub validate_bridges
 	$anvil->Get->bridges({debug => 3});
 	
 	# Find the Optical drives and DRBD devices.
-	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{from_disk}{device}{interface}})
+	my $local_host = $anvil->_short_host_name();
+	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
+	foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{from_disk}{device}{interface}})
 	{
 		# See if we have this bridge
 		my $found  = 0;
-		my $bridge = $anvil->data->{server}{'local'}{$server}{from_disk}{device}{interface}{$mac}{bridge};
+		my $bridge = $anvil->data->{server}{$local_host}{$server}{from_disk}{device}{interface}{$mac}{bridge};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge => $bridge }});
-		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{$local_host}{network}{bridges}{bridge}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface_name => $interface_name }});
-			if ((exists $anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}) && ($anvil->data->{'local'}{network}{bridges}{bridge}{$interface_name}{found}))
+			if ((exists $anvil->data->{$local_host}{network}{bridges}{bridge}{$interface_name}) && ($anvil->data->{$local_host}{network}{bridges}{bridge}{$interface_name}{found}))
 			{
 				$found = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
@@ -1517,8 +1519,9 @@ sub validate_storage
 		server => $server, 
 		target => $target,
 	}});
+	my $local_host = $anvil->_short_host_name();
 	my $xml_source = "from_disk";
-	if ($anvil->data->{server}{'local'}{$server}{from_memory}{host})
+	if ($anvil->data->{server}{$local_host}{$server}{from_memory}{host})
 	{
 		$xml_source = "from_memory";
 	}
@@ -1531,13 +1534,13 @@ sub validate_storage
 	###       For now, we just fault out.
 	# Do the optical discs in the drive exist? If not, we'll eject it if we're about to boot and fail if
 	# we're about to migrate. We skip this check if we're migrating off or shutting down the server.
-	if ((exists $anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}) && (not $target) && (not $anvil->data->{switches}{stop}))
+	if ((exists $anvil->data->{server}{$local_host}{$server}{$xml_source}{device}{cdrom}) && (not $target) && (not $anvil->data->{switches}{stop}))
 	{
-		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}{target}})
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{$xml_source}{device}{cdrom}{target}})
 		{
-			if ($anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}{target}{$device_target}{path})
+			if ($anvil->data->{server}{$local_host}{$server}{$xml_source}{device}{cdrom}{target}{$device_target}{path})
 			{
-				my $file = $anvil->data->{server}{'local'}{$server}{$xml_source}{device}{cdrom}{target}{$device_target}{path};
+				my $file = $anvil->data->{server}{$local_host}{$server}{$xml_source}{device}{cdrom}{target}{$device_target}{path};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
 				if (not -e $file)
 				{
@@ -1577,24 +1580,25 @@ sub validate_storage_drbd
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $xml_source = "from_disk";
 	my $host       = $anvil->_short_host_name;
+	my $local_host = $anvil->_short_host_name();
 	
 	# Did I find a resource for each disk?
-	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{device}})
+	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{device}})
 	{
 		next if not $device_path;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"server::local::${server}::device::${device_path}::resource" => $anvil->data->{server}{'local'}{$server}{device}{$device_path}{resource},
+			"server::${local_host}::${server}::device::${device_path}::resource" => $anvil->data->{server}{$local_host}{$server}{device}{$device_path}{resource},
 		}});
-		if (not $anvil->data->{server}{'local'}{$server}{device}{$device_path}{resource})
+		if (not $anvil->data->{server}{$local_host}{$server}{device}{$device_path}{resource})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 0, priority => "err", key => "log_0414", variables => { drbd_device => $device_path }});
 			$anvil->nice_exit({exit_code => 5});
 		}
 	}
 	
-	foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{'local'}{$server}{$xml_source}{device}{disk}{target}})
+	foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{$xml_source}{device}{disk}{target}})
 	{
-		my $drbd_device   =         $anvil->data->{server}{'local'}{$server}{$xml_source}{device}{disk}{target}{$device_target}{path};
+		my $drbd_device   =         $anvil->data->{server}{$local_host}{$server}{$xml_source}{device}{disk}{target}{$device_target}{path};
 		my $drbd_resource = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource} ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{resource} : "";
 		my $on_lv         = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$drbd_device}{on}       : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1615,13 +1619,13 @@ sub validate_storage_drbd
 		}
 		
 		# If the logical volume here here and active?
-		if ((not $on_lv) or (not exists $anvil->data->{lvm}{'local'}{lv}{$on_lv}))
+		if ((not $on_lv) or (not exists $anvil->data->{lvm}{$local_host}{lv}{$on_lv}))
 		{
 			# LV not found
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 0, priority => "err", key => "log_0374", variables => { drbd_device => $drbd_device, lv_path => $on_lv }});
 			$anvil->nice_exit({exit_code => 5});
 		}
-		elsif (not $anvil->data->{lvm}{'local'}{lv}{$on_lv}{active})
+		elsif (not $anvil->data->{lvm}{$local_host}{lv}{$on_lv}{active})
 		{
 			# LV not active. If we're starting the server or we're the migration target, try to 
 			# activate it.
@@ -1657,11 +1661,12 @@ sub validate_emulator
 	my ($anvil) = @_;
 	
 	# What emulator is this using?
-	my $server   = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $emulator = $anvil->data->{server}{'local'}{$server}{from_disk}{info}{emulator};
+	my $local_host = $anvil->_short_host_name();
+	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $emulator   = $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{emulator};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		emulator                                              => $emulator,
-		"server::local::${server}::from_disk::info::emulator" => $anvil->data->{server}{'local'}{$server}{from_disk}{info}{emulator}
+		"server::${local_host}::${server}::from_disk::info::emulator" => $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{emulator}
 	}});
 	if (not -e $emulator)
 	{
@@ -1688,14 +1693,16 @@ sub validate_name
 {
 	my ($anvil) = @_;
 	
-	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->_short_host_name();
+	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server                                            => $server,
-		"server::local::${server}::from_disk::info::name" => $anvil->data->{server}{'local'}{$server}{from_disk}{info}{name}, 
+		"server::${local_host}::${server}::from_disk::info::name" => $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{name}, 
 	}});
 	
 	# If we failed to read the XML, the server probably doesn't exist.
-	if (not $anvil->data->{server}{'local'}{$server}{from_disk}{xml})
+	if (not $anvil->data->{server}{$local_host}{$server}{from_disk}{xml})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0403", variables => { 
 			server => $server,
@@ -1705,11 +1712,11 @@ sub validate_name
 	}
 	
 	# Is the name in the definition file what we expect?
-	if ($server ne $anvil->data->{server}{'local'}{$server}{from_disk}{info}{name})
+	if ($server ne $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{name})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0403", variables => { 
 			server => $server,
-			name   => $anvil->data->{server}{'local'}{$server}{from_disk}{info}{name}, 
+			name   => $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{name}, 
 		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -1724,8 +1731,9 @@ sub validate_ram
 	my ($anvil) = @_;
 	
 	# How mcuh RAM does the server need and how much do we have free?
+	my $local_host       = $anvil->_short_host_name();
 	my $server           = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $server_ram_bytes = $anvil->data->{server}{'local'}{$server}{from_disk}{memory};
+	my $server_ram_bytes = $anvil->data->{server}{$local_host}{$server}{from_disk}{memory};
 	my $available        = $anvil->Get->free_memory({debug => 3});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server_ram_bytes => $anvil->Convert->add_commas({number => $server_ram_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}).")", 

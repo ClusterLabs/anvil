@@ -266,9 +266,10 @@ sub bridges
 	}});
 	
 	# Delete any previously known data
-	if (exists $anvil->data->{'local'}{network}{bridges})
+	my $host = $anvil->_short_host_name();
+	if (exists $anvil->data->{$host}{network}{bridges})
 	{
-		delete $anvil->data->{'local'}{network}{bridges};
+		delete $anvil->data->{$host}{network}{bridges};
 	};
 	
 	my $bridge_data = "";
@@ -304,9 +305,9 @@ sub bridges
 					type      => $type, 
 				}});
 				
-				$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
+				$anvil->data->{$host}{network}{bridges}{bridge}{$interface}{found} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
+					"${host}::network::bridges::bridge::${interface}::found" => $anvil->data->{$host}{network}{bridges}{bridge}{$interface}{found}, 
 				}});
 			}
 			if ($interface)
@@ -325,11 +326,11 @@ sub bridges
 					else
 					{
 						# It's an interface, store it under the bridge.
-						$type                                                                                              = "interface";
-						$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
+						$type                                                                                            = "interface";
+						$anvil->data->{$host}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							type                                                                                   => $type,
-							"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
+							type                                                                                     => $type,
+							"${host}::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{$host}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
 						}});
 					}
 				}
@@ -346,7 +347,7 @@ sub bridges
 					foreach my $flag (split/,/, $flags)
 					{
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { flag => $flag }});
-						push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{flags}}, $flag;
+						push @{$anvil->data->{$host}{network}{bridges}{$type}{$interface}{flags}}, $flag;
 					}
 				}
 			}
@@ -364,9 +365,9 @@ sub bridges
 						my $value = $word;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
 						
-						$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$variable} = $value eq "on" ? "true" : "false";
+						$anvil->data->{$host}{network}{bridges}{$type}{$interface}{$variable} = $value eq "on" ? "true" : "false";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"local::network::bridges::${type}::${interface}::${variable}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$variable}, 
+							"${host}::network::bridges::${type}::${interface}::${variable}" => $anvil->data->{$host}{network}{bridges}{$type}{$interface}{$variable}, 
 						}});
 						$variable = "";
 					}
@@ -390,17 +391,17 @@ sub bridges
 			if ($interface eq $master_bridge)
 			{
 				$type = "bridge";
-				$anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found} = 1;
+				$anvil->data->{$host}{network}{bridges}{bridge}{$interface}{found} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
+					"${host}::network::bridges::bridge::${interface}::found" => $anvil->data->{$host}{network}{bridges}{bridge}{$interface}{found}, 
 				}});
 			}
 			else
 			{
 				# Store this interface under the bridge.
-				$anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
+				$anvil->data->{$host}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"local::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{'local'}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
+					"${host}::network::bridges::bridge::${master_bridge}::connected_interface::${interface}" => $anvil->data->{$host}{network}{bridges}{bridge}{$master_bridge}{connected_interface}{$interface}, 
 				}});
 			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -412,23 +413,23 @@ sub bridges
 			{
 				if (ref($hash_ref->{$key}) eq "ARRAY")
 				{
-					$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = [];
+					$anvil->data->{$host}{network}{bridges}{$type}{$interface}{$key} = [];
 					foreach my $value (sort {$a cmp $b} @{$hash_ref->{$key}})
 					{
-						push @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}, $value;
+						push @{$anvil->data->{$host}{network}{bridges}{$type}{$interface}{$key}}, $value;
 					}
-					for (my $i = 0; $i < @{$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}}; $i++)
+					for (my $i = 0; $i < @{$anvil->data->{$host}{network}{bridges}{$type}{$interface}{$key}}; $i++)
 					{
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"local::network::bridges::${type}::${interface}::${key}->[$i]" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}->[$i], 
+							"${host}::network::bridges::${type}::${interface}::${key}->[$i]" => $anvil->data->{$host}{network}{bridges}{$type}{$interface}{$key}->[$i], 
 						}});
 					}
 				}
 				else
 				{
-					$anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key} = $hash_ref->{$key};
+					$anvil->data->{$host}{network}{bridges}{$type}{$interface}{$key} = $hash_ref->{$key};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"local::network::bridges::${type}::${interface}::${key}" => $anvil->data->{'local'}{network}{bridges}{$type}{$interface}{$key}, 
+						"${host}::network::bridges::${type}::${interface}::${key}" => $anvil->data->{$host}{network}{bridges}{$type}{$interface}{$key}, 
 					}});
 				}
 			}
@@ -436,10 +437,10 @@ sub bridges
 	}
 	
 	# Summary of found bridges.
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{'local'}{network}{bridges}{bridge}})
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{$host}{network}{bridges}{bridge}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"local::network::bridges::bridge::${interface}::found" => $anvil->data->{'local'}{network}{bridges}{bridge}{$interface}{found}, 
+			"${host}::network::bridges::bridge::${interface}::found" => $anvil->data->{$host}{network}{bridges}{bridge}{$interface}{found}, 
 		}});
 	}
 	

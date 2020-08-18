@@ -243,13 +243,14 @@ sub find_file
 	my $found = 0;
 	
 	# What are my IPs?
+	my $local_host = $anvil->_short_host_name();
 	$anvil->Network->get_ips();
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
-		next if not $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-		next if not $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
-		my $ip          = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-		my $subnet_mask = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
+		next if not $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
+		next if not $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask};
+		my $ip          = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
+		my $subnet_mask = $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask};
 		my $network     = $anvil->Network->get_network({ip => $ip, subnet_mask => $subnet_mask});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			's1:interface'   => $interface, 

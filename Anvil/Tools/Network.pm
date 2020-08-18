@@ -186,7 +186,7 @@ sub bridge_info
 	{
 		my $bridge    = $hash_ref->{master};
 		my $interface = $hash_ref->{ifname};
-		my $host      = $target ? $target : "local";
+		my $host      = $target ? $target : $anvil->_short_host_name();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:bridge'    => $bridge,
 			's2:interface' => $interface, 
@@ -1490,7 +1490,7 @@ sub get_ips
 	}});
 	
 	# This is used in the hash reference when storing the data.
-	my $host = $target ? $target : "local";
+	my $host = $target ? $target : $anvil->_short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	
 	if (exists $anvil->data->{network}{$host})
@@ -1946,14 +1946,15 @@ sub is_local
 	else
 	{
 		# Get the list of current IPs and see if they match.
-		if (not exists $anvil->data->{network}{'local'}{interface})
+		my $local_host = $anvil->_short_host_name();
+		if (not exists $anvil->data->{network}{$local_host}{interface})
 		{
 			$anvil->Network->get_ips({debug => 9999});
 		}
-		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 		{
-			#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{'local'}{interface}{$interface}{ip} }});
-			if ($host eq $anvil->data->{network}{'local'}{interface}{$interface}{ip})
+			#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "network::local::interface::${interface}::ip" => $anvil->data->{network}{$local_host}{interface}{$interface}{ip} }});
+			if ($host eq $anvil->data->{network}{$local_host}{interface}{$interface}{ip})
 			{
 				$anvil->data->{cache}{is_local}{$host} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::is_local::${host}" => $anvil->data->{cache}{is_local}{$host} }});
@@ -2198,7 +2199,7 @@ sub ping
 		my $output = "";
 		my $error  = "";
 		
-		# If the 'target' is set, we'll call over SSH unless 'target' is 'local' or our host name.
+		# If the 'target' is set, we'll call over SSH unless 'target' is our host name.
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			### Local calls
@@ -2297,7 +2298,7 @@ Where C<< name >> is the value in the interface set by the C<< NAME= >> variable
 
 Parameters;
 
-=head3 host (optional, default 'target' or 'local')
+=head3 host (optional, default 'target' or local short host name)
 
 This is the hash key under which the parsed C<< nmcli >> data is stored. By default, this is C<< local >> when called locally, or it will be C<< target >> if C<< target >> is passed.
 
@@ -2342,7 +2343,7 @@ sub read_nmcli
 	
 	if (not $host)
 	{
-		$host = $target ? $target : "local";
+		$host = $target ? $target : $anvil->_short_host_name();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	}
 	

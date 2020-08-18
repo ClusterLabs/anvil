@@ -6203,11 +6203,12 @@ sub process_sync_page
 	
 	# We'll want to show the user way to access the local machine. For that, we'll loop through our own IPs.
 	my $inbound_table = "";
-	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	my $local_host    = $anvil->_short_host_name();
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		next if (($interface !~ /^bcn/) && ($interface !~ /^ifn/));
-		next if not $anvil->Validate->ipv4({ip => $anvil->data->{network}{'local'}{interface}{$interface}{ip}});
-		next if not $anvil->Validate->subnet_mask({subnet_mask => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}});
+		next if not $anvil->Validate->ipv4({ip => $anvil->data->{network}{$local_host}{interface}{$interface}{ip}});
+		next if not $anvil->Validate->subnet_mask({subnet_mask => $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask}});
 		my ($network_type, $network_number) = ($interface =~ /^(.*?)(\d+)_/);
 		
 		my $database_user = $anvil->data->{database}{$host_uuid}{user} ? $anvil->data->{database}{$host_uuid}{user} : $anvil->data->{sys}{database}{user};
@@ -6216,18 +6217,18 @@ sub process_sync_page
 		my $say_network   = $anvil->Words->string({key => $network_key, variables => { number => $network_number }});
 		
 		# The user 'admin' and the port 5432 are default, so only show them if they're non-standard.
-		my $access_string = $database_user."\@".$anvil->data->{network}{'local'}{interface}{$interface}{ip}.":".$database_port;
+		my $access_string = $database_user."\@".$anvil->data->{network}{$local_host}{interface}{$interface}{ip}.":".$database_port;
 		if (($database_port eq "5432") && ($database_user eq "admin"))
 		{
-			$access_string = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
+			$access_string = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
 		}
 		elsif ($database_port eq "5432")
 		{
-			$access_string = $database_user."\@".$anvil->data->{network}{'local'}{interface}{$interface}{ip};
+			$access_string = $database_user."\@".$anvil->data->{network}{$local_host}{interface}{$interface}{ip};
 		}
 		elsif ($database_user eq "admin")
 		{
-			$access_string = $anvil->data->{network}{'local'}{interface}{$interface}{ip}.":".$database_port;
+			$access_string = $anvil->data->{network}{$local_host}{interface}{$interface}{ip}.":".$database_port;
 		}
 		$inbound_table .= $anvil->Template->get({file => "striker.html", name => "striker-sync-inbound", variables => {
 			access => $access_string,

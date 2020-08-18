@@ -165,6 +165,7 @@ sub reconfigure_network
 {
 	my ($anvil) = @_;
 	
+	my $local_host       = $anvil->_short_host_name();
 	my $reboot_needed    = 0;
 	my $prefix           = exists $anvil->data->{variables}{form}{config_step1}{prefix}{value}       ? $anvil->data->{variables}{form}{config_step1}{prefix}{value}       : "";
 	my $sequence         = exists $anvil->data->{variables}{form}{config_step1}{sequence}{value}     ? $anvil->data->{variables}{form}{config_step1}{sequence}{value}     : "";
@@ -345,8 +346,8 @@ sub reconfigure_network
 			my $link1_mac       =         $anvil->data->{variables}{form}{config_step2}{$link1_key}{value};
 			my $is_gateway      =         $this_network eq $gateway_interface                                  ? 1                                                                    : 0;
 			my $link2_mac       = defined $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}     ? $anvil->data->{variables}{form}{config_step2}{$link2_key}{value}     : "";
-			my $old_link1_iface =         $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface} ? $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface} : "";
-			my $old_link2_iface = defined $anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface} ? $anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface} : "";
+			my $old_link1_iface =         $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} ? $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} : "";
+			my $old_link2_iface = defined $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} ? $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} : "";
 			my $bridge          = defined $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}    ? $anvil->data->{variables}{form}{config_step2}{$bridge_key}{value}    : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_key          => $ip_key, 
@@ -367,9 +368,9 @@ sub reconfigure_network
 			# 'old_link1_iface' is the name reported by 'ip', the 'DEVICE=xxx' value in the ifcfg-xxx file.
 			my $old_link1_nm_name = $old_link1_iface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_nm_name => $old_link1_nm_name }});
-			if ((exists $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link1_iface}) && ($anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link1_iface}))
+			if ((exists $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link1_iface}) && ($anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link1_iface}))
 			{
-				$old_link1_nm_name = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link1_iface};
+				$old_link1_nm_name = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link1_iface};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link1_nm_name => $old_link1_nm_name }});
 			}
 			
@@ -379,9 +380,9 @@ sub reconfigure_network
 			{
 				$old_link2_nm_name = $old_link2_iface;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_nm_name => $old_link2_nm_name }});
-				if ((exists $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link2_iface}) && ($anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link2_iface}))
+				if ((exists $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link2_iface}) && ($anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link2_iface}))
 				{
-					$old_link2_nm_name = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$old_link2_iface};
+					$old_link2_nm_name = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$old_link2_iface};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_link2_nm_name => $old_link2_nm_name }});
 				}
 			}
@@ -458,13 +459,13 @@ sub reconfigure_network
 				my $boot_proto       = $ip_address eq "dhcp" ? "dhcp" : "none";
 				my $link1_uuid       = get_uuid_from_interface_file($anvil, $old_link1_file);
 				my $link2_uuid       = get_uuid_from_interface_file($anvil, $old_link2_file);
-				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}) && ($anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}))
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}))
 				{
-					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface};
+					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface};
 				}
-				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface}) && ($anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface}))
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}) && ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}))
 				{
-					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface};
+					$old_link2_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface};
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					bond_file        => $bond_file, 
@@ -769,17 +770,17 @@ sub reconfigure_network
 				});
 				
 				# If the NICs names have changed, rename them now.
-				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}) && 
-				    ($anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface})        && 
-				    ($anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface} ne $new_link1_iface))
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface})        && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} ne $new_link1_iface))
 				{
-					rename_interface($anvil, $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}, $new_link1_iface);
+					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}, $new_link1_iface);
 				}
-				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface}) && 
-				    ($anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface})        && 
-				    ($anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface} ne $new_link2_iface))
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}) && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface})        && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface} ne $new_link2_iface))
 				{
-					rename_interface($anvil, $anvil->data->{network}{'local'}{mac_address}{$link2_mac}{interface}, $new_link2_iface);
+					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link2_mac}{interface}, $new_link2_iface);
 				}
 			}
 			elsif ((exists $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}) && ($anvil->Validate->mac({mac => $anvil->data->{variables}{form}{config_step2}{$link1_key}{value}})))
@@ -817,9 +818,9 @@ sub reconfigure_network
 				my $new_link1_file  = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$interface_prefix."_".$network_count."_-_Link_1";
 				my $old_link1_file  = $new_link1_file;
 				my $new_link1_iface = $say_interface."_link1";
-				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}) && ($anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}))
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}))
 				{
-					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface};
+					$old_link1_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface};
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					cidr            => $cidr, 
@@ -884,15 +885,15 @@ sub reconfigure_network
 				});
 				
 				# If the name differs from old, delete the old interface.
-				if ((exists $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}) && 
-				    ($anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface})        && 
-				    ($anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface} ne $new_link1_iface))
+				if ((exists $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}) && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface})        && 
+				    ($anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface} ne $new_link1_iface))
 				{
 					# Delete the old interface
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "log_0461", variables => { interface => $old_link1_nm_name }});
 					$anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{nmcli}." connection delete ".$old_link1_nm_name});
 					
-					rename_interface($anvil, $anvil->data->{network}{'local'}{mac_address}{$link1_mac}{interface}, $new_link1_iface);
+					rename_interface($anvil, $anvil->data->{network}{$local_host}{mac_address}{$link1_mac}{interface}, $new_link1_iface);
 				}
 				else
 				{

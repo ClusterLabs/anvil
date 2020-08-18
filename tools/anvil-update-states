@@ -125,9 +125,10 @@ sub update_network
 	$anvil->Network->get_ips();
 	
 	# We'll read through '/sys/class/net' looking for network interfaces.
-	# * 'network::local::interface::<iface_name>::ip'          - If an IP address is set
-	# * 'network::local::interface::<iface_name>::subnet_mask' - If an IP is set
-	my $directory = "/sys/class/net";
+	# * 'network::${local_host}::interface::<iface_name>::ip'          - If an IP address is set
+	# * 'network::${local_host}::interface::<iface_name>::subnet_mask' - If an IP is set
+	my $local_host = $anvil->_short_host_name();
+	my $directory  = "/sys/class/net";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
 	
 	# We'll need to know what interfaces to remove, if any. This will store the interfaces we've seen and
@@ -199,11 +200,11 @@ sub update_network
 			my $bridge_stp_enabled = "";
 			
 			# Explicitly check for the existing of the hash so that we don't auto-vivivate the interface.
-			if (exists $anvil->data->{network}{'local'}{interface}{$interface})
+			if (exists $anvil->data->{network}{$local_host}{interface}{$interface})
 			{
-				$ip_address  = defined $anvil->data->{network}{'local'}{interface}{$interface}{ip}          ? $anvil->data->{network}{'local'}{interface}{$interface}{ip}          : "";
-				$subnet_mask = defined $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask} ? $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask} : "";
-				$type        = defined $anvil->data->{network}{'local'}{interface}{$interface}{type}        ? $anvil->data->{network}{'local'}{interface}{$interface}{type}        : "interface";
+				$ip_address  = defined $anvil->data->{network}{$local_host}{interface}{$interface}{ip}          ? $anvil->data->{network}{$local_host}{interface}{$interface}{ip}          : "";
+				$subnet_mask = defined $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask} ? $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask} : "";
+				$type        = defined $anvil->data->{network}{$local_host}{interface}{$interface}{type}        ? $anvil->data->{network}{$local_host}{interface}{$interface}{type}        : "interface";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					ip_address  => $ip_address, 
 					subnet_mask => $subnet_mask,
@@ -377,51 +378,51 @@ sub update_network
 			}
 			
 			# Store new information we found.
-			$anvil->data->{network}{'local'}{interface}{$interface}{active_interface}     = $active_interface; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{bond_mode}            = $bond_mode; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{bond_master}          = $bond_master; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{bridge_id}            = $bridge_id; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{bridge_stp_enabled}   = $bridge_stp_enabled; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{down_delay}           = $down_delay; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{duplex}               = $duplex;
-			$anvil->data->{network}{'local'}{interface}{$interface}{ip}                   = $ip_address; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{link_state}           = $link_state; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{mac_address}          = $mac_address; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{media}                = $media; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{mii_polling_interval} = $mii_polling_interval; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{mtu}                  = $mtu; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{operational}          = $operational;
-			$anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect}     = $primary_reselect; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{primary_interface}    = $primary_interface; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{speed}                = $speed;
-			$anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask}          = $subnet_mask; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{type}                 = $type; 
-			$anvil->data->{network}{'local'}{interface}{$interface}{up_delay}             = $up_delay; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{active_interface}     = $active_interface; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode}            = $bond_mode; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_master}          = $bond_master; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id}            = $bridge_id; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{bridge_stp_enabled}   = $bridge_stp_enabled; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{down_delay}           = $down_delay; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{duplex}               = $duplex;
+			$anvil->data->{network}{$local_host}{interface}{$interface}{ip}                   = $ip_address; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{link_state}           = $link_state; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{mac_address}          = $mac_address; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{media}                = $media; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{mii_polling_interval} = $mii_polling_interval; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{mtu}                  = $mtu; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{operational}          = $operational;
+			$anvil->data->{network}{$local_host}{interface}{$interface}{primary_reselect}     = $primary_reselect; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{primary_interface}    = $primary_interface; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{speed}                = $speed;
+			$anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask}          = $subnet_mask; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{type}                 = $type; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{up_delay}             = $up_delay; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"network::local::interface::${interface}::active_interface"     => $anvil->data->{network}{'local'}{interface}{$interface}{active_interface},
-				"network::local::interface::${interface}::bond_mode"            => $anvil->data->{network}{'local'}{interface}{$interface}{bond_mode},
-				"network::local::interface::${interface}::bond_master"          => $anvil->data->{network}{'local'}{interface}{$interface}{bond_master},
-				"network::local::interface::${interface}::bridge_id"            => $anvil->data->{network}{'local'}{interface}{$interface}{bridge_id}, 
-				"network::local::interface::${interface}::bridge_stp_enabled"   => $anvil->data->{network}{'local'}{interface}{$interface}{bridge_stp_enabled}, 
-				"network::local::interface::${interface}::down_delay"           => $anvil->data->{network}{'local'}{interface}{$interface}{down_delay},
-				"network::local::interface::${interface}::duplex"               => $anvil->data->{network}{'local'}{interface}{$interface}{duplex},
-				"network::local::interface::${interface}::ip"                   => $anvil->data->{network}{'local'}{interface}{$interface}{ip},
-				"network::local::interface::${interface}::link_state"           => $anvil->data->{network}{'local'}{interface}{$interface}{link_state}, 
-				"network::local::interface::${interface}::mac_address"          => $anvil->data->{network}{'local'}{interface}{$interface}{mac_address}, 
-				"network::local::interface::${interface}::media"                => $anvil->data->{network}{'local'}{interface}{$interface}{media}, 
-				"network::local::interface::${interface}::mii_polling_interval" => $anvil->data->{network}{'local'}{interface}{$interface}{mii_polling_interval},
-				"network::local::interface::${interface}::mtu"                  => $anvil->data->{network}{'local'}{interface}{$interface}{mtu}, 
-				"network::local::interface::${interface}::operational"          => $anvil->data->{network}{'local'}{interface}{$interface}{operational},
-				"network::local::interface::${interface}::primary_reselect"     => $anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect},
-				"network::local::interface::${interface}::primary_interface"    => $anvil->data->{network}{'local'}{interface}{$interface}{primary_interface},
-				"network::local::interface::${interface}::speed"                => $anvil->data->{network}{'local'}{interface}{$interface}{speed},
-				"network::local::interface::${interface}::subnet_mask"          => $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask},
-				"network::local::interface::${interface}::type"                 => $anvil->data->{network}{'local'}{interface}{$interface}{type},
-				"network::local::interface::${interface}::up_delay"             => $anvil->data->{network}{'local'}{interface}{$interface}{up_delay},
+				"network::${local_host}::interface::${interface}::active_interface"     => $anvil->data->{network}{$local_host}{interface}{$interface}{active_interface},
+				"network::${local_host}::interface::${interface}::bond_mode"            => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode},
+				"network::${local_host}::interface::${interface}::bond_master"          => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master},
+				"network::${local_host}::interface::${interface}::bridge_id"            => $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id}, 
+				"network::${local_host}::interface::${interface}::bridge_stp_enabled"   => $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_stp_enabled}, 
+				"network::${local_host}::interface::${interface}::down_delay"           => $anvil->data->{network}{$local_host}{interface}{$interface}{down_delay},
+				"network::${local_host}::interface::${interface}::duplex"               => $anvil->data->{network}{$local_host}{interface}{$interface}{duplex},
+				"network::${local_host}::interface::${interface}::ip"                   => $anvil->data->{network}{$local_host}{interface}{$interface}{ip},
+				"network::${local_host}::interface::${interface}::link_state"           => $anvil->data->{network}{$local_host}{interface}{$interface}{link_state}, 
+				"network::${local_host}::interface::${interface}::mac_address"          => $anvil->data->{network}{$local_host}{interface}{$interface}{mac_address}, 
+				"network::${local_host}::interface::${interface}::media"                => $anvil->data->{network}{$local_host}{interface}{$interface}{media}, 
+				"network::${local_host}::interface::${interface}::mii_polling_interval" => $anvil->data->{network}{$local_host}{interface}{$interface}{mii_polling_interval},
+				"network::${local_host}::interface::${interface}::mtu"                  => $anvil->data->{network}{$local_host}{interface}{$interface}{mtu}, 
+				"network::${local_host}::interface::${interface}::operational"          => $anvil->data->{network}{$local_host}{interface}{$interface}{operational},
+				"network::${local_host}::interface::${interface}::primary_reselect"     => $anvil->data->{network}{$local_host}{interface}{$interface}{primary_reselect},
+				"network::${local_host}::interface::${interface}::primary_interface"    => $anvil->data->{network}{$local_host}{interface}{$interface}{primary_interface},
+				"network::${local_host}::interface::${interface}::speed"                => $anvil->data->{network}{$local_host}{interface}{$interface}{speed},
+				"network::${local_host}::interface::${interface}::subnet_mask"          => $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask},
+				"network::${local_host}::interface::${interface}::type"                 => $anvil->data->{network}{$local_host}{interface}{$interface}{type},
+				"network::${local_host}::interface::${interface}::up_delay"             => $anvil->data->{network}{$local_host}{interface}{$interface}{up_delay},
 			}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				"network::local::interface::${interface}::link_state"  => $anvil->data->{network}{'local'}{interface}{$interface}{link_state}, 
-				"network::local::interface::${interface}::operational" => $anvil->data->{network}{'local'}{interface}{$interface}{operational},
+				"network::${local_host}::interface::${interface}::link_state"  => $anvil->data->{network}{$local_host}{interface}{$interface}{link_state}, 
+				"network::${local_host}::interface::${interface}::operational" => $anvil->data->{network}{$local_host}{interface}{$interface}{operational},
 			}});
 			
 			# If this is a link and there's no database connections, cache the data.
@@ -439,10 +440,10 @@ sub update_network
 	# Find what interfaces are connected to which bridges
 	$anvil->Network->bridge_info({debug => 3});
 	delete $anvil->data->{interface_to_bridge} if exists $anvil->data->{interface_to_bridge};
-	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{'local'}})
+	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridge}{$local_host}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { bridge_name => $bridge_name }});
-		foreach my $interface_name (sort {$a cmp $b} @{$anvil->data->{bridge}{'local'}{$bridge_name}{interfaces}})
+		foreach my $interface_name (sort {$a cmp $b} @{$anvil->data->{bridge}{$local_host}{$bridge_name}{interfaces}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface_name => $interface_name }});
 			
@@ -459,40 +460,40 @@ sub update_network
 	foreach my $processing ("bridge", "bond", "interface")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { processing => $processing }});
-		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 		{
 			# Skip if this isn't the device type we're working on.
-			next if not defined  $anvil->data->{network}{'local'}{interface}{$interface}{type};
-			my $type = $anvil->data->{network}{'local'}{interface}{$interface}{type};
+			next if not defined  $anvil->data->{network}{$local_host}{interface}{$interface}{type};
+			my $type = $anvil->data->{network}{$local_host}{interface}{$interface}{type};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:interface'  => $interface, 
 				's2:type'       => $type, 
 				's3:processing' => $processing, 
 			}});
-			next if $processing ne $anvil->data->{network}{'local'}{interface}{$interface}{type};
+			next if $processing ne $anvil->data->{network}{$local_host}{interface}{$interface}{type};
 			
-			my $active_interface     = $anvil->data->{network}{'local'}{interface}{$interface}{active_interface};
-			my $bond_mode            = $anvil->data->{network}{'local'}{interface}{$interface}{bond_mode};
-			my $bond_master          = $anvil->data->{network}{'local'}{interface}{$interface}{bond_master};
-			my $bridge_id            = $anvil->data->{network}{'local'}{interface}{$interface}{bridge_id};
-			my $bridge_stp_enabled   = $anvil->data->{network}{'local'}{interface}{$interface}{bridge_stp_enabled};
-			my $down_delay           = $anvil->data->{network}{'local'}{interface}{$interface}{down_delay};
-			my $duplex               = $anvil->data->{network}{'local'}{interface}{$interface}{duplex};
-			my $ip_address           = $anvil->data->{network}{'local'}{interface}{$interface}{ip};
-			my $link_state           = $anvil->data->{network}{'local'}{interface}{$interface}{link_state};
-			my $mac_address          = $anvil->data->{network}{'local'}{interface}{$interface}{mac_address};
-			my $media                = $anvil->data->{network}{'local'}{interface}{$interface}{media};
-			my $mii_polling_interval = $anvil->data->{network}{'local'}{interface}{$interface}{mii_polling_interval};
-			my $mtu                  = $anvil->data->{network}{'local'}{interface}{$interface}{mtu};
-			my $operational          = $anvil->data->{network}{'local'}{interface}{$interface}{operational};
-			my $primary_reselect     = $anvil->data->{network}{'local'}{interface}{$interface}{primary_reselect};
-			my $primary_interface    = $anvil->data->{network}{'local'}{interface}{$interface}{primary_interface};
-			my $speed                = $anvil->data->{network}{'local'}{interface}{$interface}{speed};
-			my $subnet_mask          = $anvil->data->{network}{'local'}{interface}{$interface}{subnet_mask};
-			my $up_delay             = $anvil->data->{network}{'local'}{interface}{$interface}{up_delay};
-			my $default_gateway      = $anvil->data->{network}{'local'}{interface}{$interface}{default_gateway};
-			my $gateway              = $anvil->data->{network}{'local'}{interface}{$interface}{gateway};
-			my $dns                  = $anvil->data->{network}{'local'}{interface}{$interface}{dns};
+			my $active_interface     = $anvil->data->{network}{$local_host}{interface}{$interface}{active_interface};
+			my $bond_mode            = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode};
+			my $bond_master          = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master};
+			my $bridge_id            = $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id};
+			my $bridge_stp_enabled   = $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_stp_enabled};
+			my $down_delay           = $anvil->data->{network}{$local_host}{interface}{$interface}{down_delay};
+			my $duplex               = $anvil->data->{network}{$local_host}{interface}{$interface}{duplex};
+			my $ip_address           = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
+			my $link_state           = $anvil->data->{network}{$local_host}{interface}{$interface}{link_state};
+			my $mac_address          = $anvil->data->{network}{$local_host}{interface}{$interface}{mac_address};
+			my $media                = $anvil->data->{network}{$local_host}{interface}{$interface}{media};
+			my $mii_polling_interval = $anvil->data->{network}{$local_host}{interface}{$interface}{mii_polling_interval};
+			my $mtu                  = $anvil->data->{network}{$local_host}{interface}{$interface}{mtu};
+			my $operational          = $anvil->data->{network}{$local_host}{interface}{$interface}{operational};
+			my $primary_reselect     = $anvil->data->{network}{$local_host}{interface}{$interface}{primary_reselect};
+			my $primary_interface    = $anvil->data->{network}{$local_host}{interface}{$interface}{primary_interface};
+			my $speed                = $anvil->data->{network}{$local_host}{interface}{$interface}{speed};
+			my $subnet_mask          = $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask};
+			my $up_delay             = $anvil->data->{network}{$local_host}{interface}{$interface}{up_delay};
+			my $default_gateway      = $anvil->data->{network}{$local_host}{interface}{$interface}{default_gateway};
+			my $gateway              = $anvil->data->{network}{$local_host}{interface}{$interface}{gateway};
+			my $dns                  = $anvil->data->{network}{$local_host}{interface}{$interface}{dns};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				active_interface     => $active_interface, 
 				bond_mode            => $bond_mode, 
@@ -877,7 +878,7 @@ ORDER BY
 		}});
 		
 		# Make sure I've seen this interface in this scan and, if not, update this entry to remove it.
-		if (not exists $anvil->data->{network}{'local'}{interface}{$network_interface_name})
+		if (not exists $anvil->data->{network}{$local_host}{interface}{$network_interface_name})
 		{
 			# Mark it as deleted.
 			my $query = "UPDATE network_interfaces SET network_interface_operational = 'DELETED' WHERE network_interface_uuid = ".$anvil->Database->quote($network_interface_uuid).";";

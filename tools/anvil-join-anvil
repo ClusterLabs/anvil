@@ -1067,6 +1067,7 @@ sub check_local_network
 	my ($anvil) = @_;
 	
 	# What host name and IP(s) should I have?
+	my $local_host    = $anvil->_short_host_name();
 	my $machine       = $anvil->data->{sys}{machine};
 	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
 	
@@ -1129,9 +1130,9 @@ sub check_local_network
 	
 	# This will be set when the first IFN with a gateway is set.
 	my $default_gateway_interface = "";
-	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
-		if ($anvil->data->{network}{'local'}{interface}{$in_iface}{default_gateway})
+		if ($anvil->data->{network}{$local_host}{interface}{$in_iface}{default_gateway})
 		{
 			$default_gateway_interface = $in_iface;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { default_gateway_interface => $default_gateway_interface }});
@@ -1178,17 +1179,17 @@ sub check_local_network
 			's4:cidr'    => $cidr, 
 			's5:gateway' => $gateway, 
 		}});
-		foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+		foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 		{
 			# Only one interface will start with the network name and have an IP address.
 			next if $in_iface !~ /^${network}_/;
-			next if not $anvil->data->{network}{'local'}{interface}{$in_iface}{ip};
-			my $current_ip      = $anvil->data->{network}{'local'}{interface}{$in_iface}{ip};
-			my $current_subnet  = $anvil->data->{network}{'local'}{interface}{$in_iface}{subnet_mask};
-			my $current_gateway = $anvil->data->{network}{'local'}{interface}{$in_iface}{gateway};
-			my $current_dns     = $anvil->data->{network}{'local'}{interface}{$in_iface}{dns};
-			my $current_mtu     = $anvil->data->{network}{'local'}{interface}{$in_iface}{mtu};
-			my $mac_address     = $anvil->data->{network}{'local'}{interface}{$in_iface}{mac_address};
+			next if not $anvil->data->{network}{$local_host}{interface}{$in_iface}{ip};
+			my $current_ip      = $anvil->data->{network}{$local_host}{interface}{$in_iface}{ip};
+			my $current_subnet  = $anvil->data->{network}{$local_host}{interface}{$in_iface}{subnet_mask};
+			my $current_gateway = $anvil->data->{network}{$local_host}{interface}{$in_iface}{gateway};
+			my $current_dns     = $anvil->data->{network}{$local_host}{interface}{$in_iface}{dns};
+			my $current_mtu     = $anvil->data->{network}{$local_host}{interface}{$in_iface}{mtu};
+			my $mac_address     = $anvil->data->{network}{$local_host}{interface}{$in_iface}{mac_address};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:in_iface'        => $in_iface,
 				's2:current_ip'      => $current_ip,
@@ -1275,9 +1276,9 @@ sub check_local_network
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0078,!!interface!".$in_iface."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0078", variables => { interface => $in_iface }});
 				
-				my $interface_uuid = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$in_iface};
-				my $filename       = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{filename};
-				my $interface_name = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{name};
+				my $interface_uuid = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$in_iface};
+				my $filename       = $anvil->data->{nmcli}{$local_host}{uuid}{$interface_uuid}{filename};
+				my $interface_name = $anvil->data->{nmcli}{$local_host}{uuid}{$interface_uuid}{name};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					's1:in_iface'       => $in_iface, 
 					's2:interface_name' => $interface_name, 
@@ -1627,7 +1628,7 @@ sub check_local_network
 	}
 	
 	# Remove virbr0 if it exists.
-	if (exists $anvil->data->{network}{'local'}{interface}{virbr0})
+	if (exists $anvil->data->{network}{$local_host}{interface}{virbr0})
 	{
 		# Remove the NAT'ed bridge
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0085"});
@@ -1648,10 +1649,10 @@ sub check_local_network
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0086");
 	
 	# Update MTUs (running interface and config) if needed.
-	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{'local'}{interface}})
+	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		# Only one interface will start with the network name and have an IP address.
-		my $current_mtu = $anvil->data->{network}{'local'}{interface}{$in_iface}{mtu};
+		my $current_mtu = $anvil->data->{network}{$local_host}{interface}{$in_iface}{mtu};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			's1:in_iface'    => $in_iface, 
 			's2:current_mtu' => $current_mtu,
@@ -1680,9 +1681,9 @@ sub check_local_network
 			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{ip}." link set ".$in_iface." mtu ".$mtu});
 			
 			# Now update the config file.
-			my $interface_uuid = $anvil->data->{nmcli}{'local'}{device_to_uuid}{$in_iface};
-			my $filename       = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{filename};
-			my $interface_name = $anvil->data->{nmcli}{'local'}{uuid}{$interface_uuid}{name};
+			my $interface_uuid = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$in_iface};
+			my $filename       = $anvil->data->{nmcli}{$local_host}{uuid}{$interface_uuid}{filename};
+			my $interface_name = $anvil->data->{nmcli}{$local_host}{uuid}{$interface_uuid}{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				's1:interface_name' => $interface_name, 
 				's2:filename'       => $filename, 
