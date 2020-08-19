@@ -10,6 +10,7 @@ use Data::Dumper;
 use Encode;
 use UUID::Tiny qw(:std);
 use Net::Netmask;
+use JSON;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
@@ -272,10 +273,11 @@ sub bridges
 		delete $anvil->data->{$host}{network}{bridges};
 	};
 	
+	local $@;
 	my $bridge_data = "";
 	my $json        = JSON->new->allow_nonref;
-	eval { $bridge_data = $json->decode($output); };
-	if ($@)
+	my $test        = eval { $bridge_data = $json->decode($output); };
+	if (not $test)
 	{
 		# JSON parse failed.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "error_0140", variables => { 

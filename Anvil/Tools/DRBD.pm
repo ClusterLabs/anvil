@@ -8,6 +8,7 @@ use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
 use Text::Diff;
+use JSON;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "DRBD.pm";
@@ -311,10 +312,11 @@ sub get_devices
 		delete $anvil->data->{drbd}{config}{$host};
 	}
 	
+	local $@;
 	my $xml      = XML::Simple->new();
 	my $dump_xml = "";
-	eval { $dump_xml = $xml->XMLin($output, KeyAttr => {}, ForceArray => 1) };
-	if ($@)
+	my $test     = eval { $dump_xml = $xml->XMLin($output, KeyAttr => {}, ForceArray => 1) };
+	if (not $test)
 	{
 		chomp $@;
 		my $error =  "[ Error ] - The was a problem parsing: [$output]. The error was:\n";

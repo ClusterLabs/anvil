@@ -265,6 +265,10 @@ sub get_fence_data
 				xml_body   => $xml_body, 
 				eval_error => $@,
 			}});
+			
+			# Clear the error so it doesn't propogate out to a future 'die' and confuse things.
+			$@ = '';
+			
 			return(1);
 		}
 	}
@@ -899,10 +903,11 @@ WHERE
 		$anvil->Database->get_fences({debug => $debug});
 		
 		# Parse the XML.
+		local $@;
 		my $parsed_xml = "";
 		my $xml        = XML::Simple->new();
-		eval { $parsed_xml = $xml->XMLin($manifest_xml, KeyAttr => { key => 'name' }, ForceArray => []) };
-		if ($@)
+		my $test       = eval { $parsed_xml = $xml->XMLin($manifest_xml, KeyAttr => { key => 'name' }, ForceArray => []) };
+		if (not $test)
 		{
 			chomp $@;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0111", variables => { 

@@ -412,9 +412,10 @@ sub read_cib
 	if (($xml_opened) && ($xml_closed))
 	{
 		# We're good
-		my $xml = XML::Simple->new();
-		eval { $body = $xml->XMLin($cib, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'id' ]) };
-		if ($@)
+		local $@;
+		my $xml  = XML::Simple->new();
+		my $test = eval { $body = $xml->XMLin($cib, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'id' ]) };
+		if (not $test)
 		{
 			chomp $@;
 			my $error =  "[ Error ] - The was a problem parsing: [$cib]. The error was:\n";

@@ -650,6 +650,8 @@ sub migrate
 		});
 	}
 	
+	# This logs the path down to the resources under the servers, helps in the next step to enable dual 
+	# primary fails.
 	foreach my $source (sort {$a cmp $b} keys %{$anvil->data->{server}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source => $source }});
@@ -662,7 +664,6 @@ sub migrate
 			}
 		}
 	}
-	die;
 	
 	# Enable dual-primary for any resources we know about for this server.
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$source}{$server}{resource}})
@@ -996,10 +997,11 @@ sub _parse_definition
 		return(1);
 	}
 	
+	local $@;
 	my $xml        = XML::Simple->new();
 	my $server_xml = "";
-	eval { $server_xml = $xml->XMLin($definition, KeyAttr => {}, ForceArray => 1) };
-	if ($@)
+	my $test       = eval { $server_xml = $xml->XMLin($definition, KeyAttr => {}, ForceArray => 1) };
+	if (not $test)
 	{
 		chomp $@;
 		my $error =  "[ Error ] - The was a problem parsing: [$definition]. The error was:\n";

@@ -8073,11 +8073,12 @@ sub get_network_details
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
 	
 	# Parse...
+	local $@;
 	my $xml     = XML::Simple->new();
 	my $data    = "";
 	my $network = "";
-	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name', ip => 'address' }, ForceArray => [ 'interface', 'key' ] ) };
-	if ($@)
+	my $test    = eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name', ip => 'address' }, ForceArray => [ 'interface', 'key' ] ) };
+	if (not $test)
 	{
 		chomp $@;
 		my $error =  "[ Error ] - The was a problem reading: [$file]. The error was:\n";
@@ -8183,11 +8184,13 @@ sub get_network_details_form
 	
 	my $file    = $anvil->data->{path}{directories}{html}."/status/network.xml";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { file => $file }});
+	
+	local $@;
 	my $xml     = XML::Simple->new();
 	my $data    = "";
 	my $network = "";
-	eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name' }, ForceArray => [ 'interface', 'key' ]) };
-	if ($@)
+	my $test    = eval { $data = $xml->XMLin($file, KeyAttr => { interface => 'name', key => 'name' }, ForceArray => [ 'interface', 'key' ]) };
+	if (not $test)
 	{
 		chomp $@;
 		my $error =  "[ Error ] - The was a problem reading: [$file]. The error was:\n";

@@ -10,6 +10,7 @@
 # 4 = Failed to reconnect to any database after the network was reconfigured
 # 5 = Problem parsing job data or loading manifest or anvil data using job data.
 # 6 = A pcs call failed.
+# 7 = No job was found to run.
 # 
 # TODO: 
 # - 
@@ -1830,6 +1831,13 @@ sub load_job
 		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid},
 	}});
 	
+	if (not $anvil->data->{jobs}{job_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "job_0130"});
+		sleep 1;
+		$anvil->nice_exit({exit_code => 7});
+	}
+	
 	$anvil->data->{job}{progress} = 0;
 	update_progress($anvil, $anvil->data->{job}{progress}, "clear");
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0074,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
@@ -1851,7 +1859,7 @@ sub load_job
 	{
 		# Terminate the job entirely, it's likely an unrecoverable problem.
 		update_progress($anvil, 100, "job_0092,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0092", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "job_0092", variables => { 
 			'job-uuid' => $anvil->data->{switches}{'job-uuid'},
 			raw        => $anvil->data->{jobs}{job_data},
 		}});	

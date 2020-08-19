@@ -1027,12 +1027,13 @@ sub connect
 			db_connect_string => $db_connect_string, 
 			user              => $user, 
 		}});
-		eval { $dbh = DBI->connect($db_connect_string, $user, $password, {
+		local $@;
+		my $test = eval { $dbh = DBI->connect($db_connect_string, $user, $password, {
 			RaiseError     => 1,
 			AutoCommit     => 1,
 			pg_enable_utf8 => 1
 		}); };
-		if ($@)
+		if (not $test)
 		{
 			# Something went wrong...
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0064", variables => { 

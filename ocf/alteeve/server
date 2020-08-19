@@ -731,9 +731,10 @@ sub start_drbd_resource
 {
 	my ($anvil) = @_;
 	
-	my $server  = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host    = $anvil->_short_host_name;
-	my $peer    = $anvil->data->{drbd}{config}{$host}{peer};
+	my $local_host = $anvil->_short_host_name();
+	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $host       = $anvil->_short_host_name;
+	my $peer       = $anvil->data->{drbd}{config}{$host}{peer};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server  => $server,
 		host    => $host, 
@@ -1177,6 +1178,7 @@ sub migrate_server
 	# missing. 
 	# If we're given 'migrate_from', we're pulling the server towards us, so we can check both brdiges
 	# and storage.
+	my $local_host   = $anvil->_short_host_name();
 	my $server       = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source       = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source};
 	my $target       = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
@@ -1693,7 +1695,6 @@ sub validate_name
 {
 	my ($anvil) = @_;
 	
-	my $local_host = $anvil->_short_host_name();
 	my $local_host = $anvil->_short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 

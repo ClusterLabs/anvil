@@ -545,6 +545,7 @@ sub read
 		}
 			
 		# Read the file with XML::Simple
+		local $@;
 		my $xml = XML::Simple->new();
 		eval { $anvil->data->{words}{$file} = $xml->XMLin($file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'language', 'key' ]) };
 		if ($@)
@@ -555,8 +556,7 @@ sub read
 			   $error .= $@."\n";
 			   $error .= "===========================================================\n";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
-			$return_code = 4;
-			die;
+			$anvil->nice_exit({exit_code => 4});
 		}
 		else
 		{

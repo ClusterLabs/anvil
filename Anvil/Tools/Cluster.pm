@@ -310,6 +310,7 @@ sub parse_cib
 	}
 	else
 	{
+		local $@;
 		my $dom = eval { XML::LibXML->load_xml(string => $cib_data); };
 		if ($@)
 		{

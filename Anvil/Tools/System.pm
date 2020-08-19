@@ -3054,11 +3054,12 @@ sub manage_firewall
 	
 	# Read the XML to see what services are opened already and translate those into port numbers and 
 	# protocols.
+	local $@;
 	my $open_services = [];
 	my $xml           = XML::Simple->new();
 	my $body          = "";
-	eval { $body = $xml->XMLin($zone_file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'service' ]) };
-	if ($@)
+	my $test          = eval { $body = $xml->XMLin($zone_file, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'service' ]) };
+	if (not $test)
 	{
 		chomp $@;
 		my $error =  "[ Error ] - The was a problem reading: [$zone_file]. The error was:\n";
@@ -3066,6 +3067,9 @@ sub manage_firewall
 		   $error .= $@."\n";
 		   $error .= "===========================================================\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
+		
+		# Clear the error so it doesn't propogate out to a future 'die' and confuse things.
+		$@ = '';
 	}
 	else
 	{
@@ -4473,10 +4477,11 @@ sub _load_specific_firewalld_zone
 		return("!!error!!");
 	}
 	
+	local $@;
 	my $xml  = XML::Simple->new();
 	my $body = "";
-	eval { $body = $xml->XMLin($full_path, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'port' ]) };
-	if ($@)
+	my $test = eval { $body = $xml->XMLin($full_path, KeyAttr => { language => 'name', key => 'name' }, ForceArray => [ 'port' ]) };
+	if (not $test)
 	{
 		chomp $@;
 		my $error =  "[ Error ] - The was a problem reading: [$full_path]. The error was:\n";
@@ -4484,6 +4489,9 @@ sub _load_specific_firewalld_zone
 		   $error .= $@."\n";
 		   $error .= "===========================================================\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", raw => $error});
+		
+		# Clear the error so it doesn't propogate out to a future 'die' and confuse things.
+		$@ = '';
 	}
 	else
 	{
