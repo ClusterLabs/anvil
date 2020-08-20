@@ -421,7 +421,7 @@ sub get_status
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"server::${host}::${server}::from_disk::xml" => $anvil->data->{server}{$host}{$server}{from_disk}{xml},
 	}});
-	if (($anvil->data->{server}{$host}{$server}{from_disk}{xml} eq "!!errer!!") or (not $anvil->data->{server}{$host}{$server}{from_disk}{xml}))
+	if (($anvil->data->{server}{$host}{$server}{from_disk}{xml} eq "!!error!!") or (not $anvil->data->{server}{$host}{$server}{from_disk}{xml}))
 	{
 		# Failed to read it.
 		$anvil->data->{server}{$host}{$server}{from_disk}{xml} = "";
@@ -707,6 +707,10 @@ sub migrate
 	
 	# Call the migration now
 	my ($output, $return_code) = $anvil->System->call({shell_call => $migration_command});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	if ($return_code)
 	{
 		# Something went wrong.

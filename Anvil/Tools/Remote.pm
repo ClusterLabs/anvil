@@ -748,7 +748,7 @@ sub test_access
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $password = defined $parameter->{password} ? $parameter->{password} : $anvil->data->{sys}{root_password};
+	my $password = defined $parameter->{password} ? $parameter->{password} : "";
 	my $port     = defined $parameter->{port}     ? $parameter->{port}     : 22;
 	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
 	my $user     = defined $parameter->{user}     ? $parameter->{user}     : getpwuid($<); 

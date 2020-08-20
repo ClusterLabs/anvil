@@ -2307,6 +2307,13 @@ sub rsync
 		try_again   => $try_again, 
 	}});
 	
+	# Make sure the port is sane;
+	if ((not $port) or ($port =~ /\D/) or ($port < 0) or ($port > 65535))
+	{
+		$port = 22;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { port => $port }});
+	}
+	
 	# Add an argument for the port if set
 	if ($port ne "22")
 	{

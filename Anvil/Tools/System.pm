@@ -1187,7 +1187,7 @@ sub check_storage
 
 This uses the host information along with the Anvil! the host is in to find and configure the local IPMI BMC.
 
-If this host is not in an Anvil!, or if the host is in an Anvil!, but no IPMI BMC was found, or any other issue arises, C<< 0 >> is returned. If there is any problem, C<< !!errer!! >> will be returned.
+If this host is not in an Anvil!, or if the host is in an Anvil!, but no IPMI BMC was found, or any other issue arises, C<< 0 >> is returned. If there is any problem, C<< !!error!! >> will be returned.
 
 If a BMC is found and configured, the C<< fence_ipmilan >> call used to check the status is stored in C<< hosts >> -> C<< host_ipmi >>, and the same string is returned.
 

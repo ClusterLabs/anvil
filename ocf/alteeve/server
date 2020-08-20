@@ -211,10 +211,16 @@ if (not $anvil->data->{switches}{monitor})
 # help         - (usage maps here) Displays a usage message when the resource agent is invoked from the command line, rather than by the cluster manager.
 # notify       - Inform resource about changes in state of other clones.
 
-if (($anvil->data->{switches}{migrate_to}) or ($anvil->data->{switches}{migrate_from}))
+if ($anvil->data->{switches}{migrate_to})
 {
 	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
 	migrate_server($anvil);
+}
+elsif ($anvil->data->{switches}{migrate_from})
+{
+	# This is called after a migration is complete, so we're basically just doing a status check.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0529", variables => { server => $anvil->data->{environment}{OCF_RESKEY_name} }});
+	server_status($anvil);
 }
 elsif ($anvil->data->{switches}{start})
 {
@@ -659,7 +665,7 @@ sub start_server
 	start_drbd_resource($anvil);
 	
 	# Still alive? Boot!
-	my ($success) = $anvil->Server->boot({debug => 2, server => $server});
+	my ($success) = $anvil->Server->boot({debug => 3, server => $server});
 	if ($success)
 	{
 		# Success!
@@ -709,7 +715,7 @@ sub stop_drbd_resource
 	
 		# Bring the peer's resource down.
 		$anvil->DRBD->manage_resource({
-			debug    => 2,
+			debug    => 3,
 			resource => $resource, 
 			task     => "down",
 			target   => $peer_ip, 
@@ -717,7 +723,7 @@ sub stop_drbd_resource
 		
 		# Bring the local resource down
 		$anvil->DRBD->manage_resource({
-			debug    => 2,
+			debug    => 3,
 			resource => $resource, 
 			task     => "down",
 		});
@@ -946,7 +952,7 @@ sub stop_server
 	
 	# Read in an parse the server's XML.
 	$anvil->System->check_storage({debug => 3});
-	$anvil->Server->get_status({debug => 2, server => $server});
+	$anvil->Server->get_status({debug => 3, server => $server});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0313", variables => { server => $server }});
 	my $success = $anvil->Server->shutdown({debug => 3, server => $server});
@@ -1159,17 +1165,6 @@ sub migrate_server
 {
 	my ($anvil) = @_;
 	
-	# Before migrating, make sure the daemons are running on the peer.
-	check_daemons($anvil, "start");
-	
-	# Make sure switches are at least defined.
-	$anvil->data->{switches}{migrate_to}   = "" if not defined $anvil->data->{switches}{migrate_to};
-	$anvil->data->{switches}{migrate_from} = "" if not defined $anvil->data->{switches}{migrate_from};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		'switches::migrate_to'   => $anvil->data->{switches}{migrate_to}, 
-		'switches::migrate_from' => $anvil->data->{switches}{migrate_from}, 
-	}});
-	
 	### NOTE: For now, we're not going to block if the target is not UpToDate. There are times when a
 	###       user might want to do this (ie: sync will be done soon and the need to evacuate the node
 	###       ASAP is high). Maybe we'll enforce this and require a '--force' switch later?
@@ -1189,6 +1184,23 @@ sub migrate_server
 		target       => $target,
 		meta_on_node => $meta_on_node,
 	}});
+	
+	# Make sure switches are at least defined.
+	$anvil->data->{switches}{migrate_to}   = "" if not defined $anvil->data->{switches}{migrate_to};
+	$anvil->data->{switches}{migrate_from} = "" if not defined $anvil->data->{switches}{migrate_from};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::migrate_to'   => $anvil->data->{switches}{migrate_to}, 
+		'switches::migrate_from' => $anvil->data->{switches}{migrate_from}, 
+	}});
+	
+	# Log what we're doing.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0528", variables => { 
+		server      => $server,
+		target_host => $target, 
+	}});
+	
+	# Before migrating, make sure the daemons are running on the peer.
+	check_daemons($anvil, "start");
 	
 	# The actual migration command will involve enabling dual primary, then beginning the migration. The
 	# virsh call will depend on if we're pushing or pulling. Once the migration completes, regardless of
@@ -1347,7 +1359,7 @@ sub migrate_server
 		
 		# If we're still alive, we're ready to migrate.
 		($migrated) = $anvil->Server->migrate({
-			debug  => 2, 
+			debug  => 3, 
 			server => $server, 
 			source => $source, 
 			target => $target 
@@ -1356,6 +1368,7 @@ sub migrate_server
 	}
 	elsif ($source)
 	{
+		### NOTE: Pacemaker doesn't seem to ever pull servers. 
 		# Pull the server here. Start by verifying it's on the 'meta_on_node' host.
 		# Scan locally and on our peer
 		$anvil->Server->find({debug => 3});
@@ -1401,7 +1414,7 @@ sub migrate_server
 		
 		# Call the pull migation.
 		($migrated) = $anvil->Server->migrate({
-			debug  => 2, 
+			debug  => 3, 
 			server => $server, 
 			source => $source,
 			target => $target 
@@ -1440,8 +1453,8 @@ sub validate_all
 	}});
 	
 	# Read in an parse the server's XML.
-	$anvil->System->check_storage({debug => 2});
-	$anvil->Server->get_status({debug => 2, server => $server});
+	$anvil->System->check_storage({debug => 3});
+	$anvil->Server->get_status({debug => 3, server => $server});
 	
 	# Is the name in the definition file what we expect (and did we read the XML data at all)?
 	validate_name($anvil);

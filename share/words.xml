@@ -1005,6 +1005,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0525">The server is shutting down. Will wait for it to finish...</key>
 		<key name="log_0526">The server is off.</key>
 		<key name="log_0527">The server is running (state is: [#!variable!state!#]).</key>
+		<key name="log_0528">We've been asked to migrating the server: [#!variable!server!#] to: [#!variable!target_host!#].</key>
+		<key name="log_0529">Checking server state after: [#!variable!server!#] was migrated to this host.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

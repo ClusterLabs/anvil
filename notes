@@ -293,9 +293,9 @@ pcs resource clone hypervisor clone-max=2 notify="false"
 pcs resource create drbd systemd:drbd op monitor interval=60
 pcs resource clone drbd clone-max=2 notify="false" 
 
-pcs resource create srv01-sql ocf:alteeve:server name="srv01-sql" meta allow-migrate="true" op monitor interval="60" on-fail="block"
+pcs resource create srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" op monitor interval="60" on-fail="block"
 - or -
-pcs resource update srv01-sql ocf:alteeve:server name="srv01-sql" meta allow-migrate="true" op monitor interval="60" on-fail="block"
+pcs resource update srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" op monitor interval="60" on-fail="block"
 
 # Test
 stonith_admin --fence el8-a01n02 --verbose; crm_error $?
@@ -912,13 +912,13 @@ virt-install --connect qemu:///system \
 
   
 # Migration;
-pcs resource move srv01-sql 
+pcs resource move srv07-el6 mk-a02n02
 # (then remove the constraint);
 pcs constraint show --full
-pcs constraint remove cli-ban-srv01-sql-on-el8-a01n01
+pcs constraint remove cli-ban-srv07-el6-on-mk-a02n01
 
 
-pcs constraint remove $(pcs constraint show --full | grep ban-srv01-sql | perl -pe 's/^.*?id:(.*?)\)/$1/')
+pcs constraint remove $(pcs constraint show --full | grep ban-srv07-el6 | perl -pe 's/^.*?id:(.*?)\)/$1/')
 
 
 DRBD 9 - Check;
