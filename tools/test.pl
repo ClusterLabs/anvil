@@ -29,7 +29,7 @@ $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 $anvil->Get->switches;
 
-$anvil->Get->bridges({ debug => 2 });
-my $host = $anvil->_short_host_name();
+my $cib = '';
 
-die;
+$anvil->Cluster->parse_cib({cib => $cib, debug => 2});
+

@@ -4,7 +4,7 @@ Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/ScanCore
+ExecStart=/usr/sbin/scancore
 ExecStop=/bin/kill -WINCH ${MAINPID}
 Restart=always
 

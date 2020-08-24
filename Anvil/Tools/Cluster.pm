@@ -423,7 +423,18 @@ sub parse_cib
 					}});
 				}
 			}
-			### TODO: /cib/configuration/constraints
+			foreach my $constraint ($dom->findnodes('/cib/configuration/constraints/rsc_location'))
+			{
+				my $id = $constraint->{id};
+				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node}     = $constraint->{node};
+				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource} = $constraint->{rsc};
+				$anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}    = $constraint->{score};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+					"cib::parsed::configuration::constraints::location::${id}::node"     => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node}, 
+					"cib::parsed::configuration::constraints::location::${id}::resource" => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource}, 
+					"cib::parsed::configuration::constraints::location::${id}::score"    => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}, 
+				}});
+			}
 			foreach my $node_state ($dom->findnodes('/cib/status/node_state'))
 			{
 				my $id = $node_state->{id};

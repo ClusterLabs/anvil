@@ -10,7 +10,7 @@
 # 
 # TODO: 
 # - Decide if it's worth having a separate ScanCore.log file or just feed into anvil.log.
-# 
+# - Examine limits in: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#LimitCPU=
 
 use strict;
 use warnings;
@@ -44,6 +44,8 @@ wait_for_database($anvil);
 
 # If we're not configured, sleep.
 wait_until_configured($anvil);
+
+# Send a startup 
 
 # Disconnect. We'll reconnect inside the loop
 $anvil->Database->disconnect();

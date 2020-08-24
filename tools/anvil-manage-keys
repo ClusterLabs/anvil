@@ -37,7 +37,11 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->data->{switches}{'job-uuid'} = "";
 $anvil->Get->switches;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
+}});
 
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
@@ -51,13 +55,6 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Pick up the job details
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->Get->switches;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
-}});
-
-# Load data.
 load_job_data($anvil);
 
 # Process the bad keys

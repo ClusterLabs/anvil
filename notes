@@ -293,9 +293,13 @@ pcs resource clone hypervisor clone-max=2 notify="false"
 pcs resource create drbd systemd:drbd op monitor interval=60
 pcs resource clone drbd clone-max=2 notify="false" 
 
-pcs resource create srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" op monitor interval="60" on-fail="block"
+
+# Create a new server resource, stopped, create the location constraint (higher == preferred), then start.
+pcs resource create srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" migrate_to="INFINITY" target-role="stopped" start= stop="INFINITY" op monitor interval="60" on-fail="block"
+pcs constraint location srv07-el6 prefers mk-a02n01=200 mk-a02n02=100
+pcs resource enable srv07-el6
 - or -
-pcs resource update srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" op monitor interval="60" on-fail="block"
+pcs resource update srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" migrate_to="INFINITY" stop="INFINITY" op monitor interval="60" on-fail="block"
 
 # Test
 stonith_admin --fence el8-a01n02 --verbose; crm_error $?

@@ -988,7 +988,7 @@ sub server_status
 	# the server is failed, return OCF_ERR_GENERIC (1).
 	my $state  = "";
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0521", variables => { server => $server }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0521", variables => { server => $server }});
 	
 	if (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout})
 	{
@@ -1140,7 +1140,7 @@ sub server_status
 					else
 					{
 						# In some fashion or another, the server is running. Exit with OCF_SUCCESS (rc: 0)
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0527", variables => { 'state' => $state }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0527", variables => { 'state' => $state }});
 						$anvil->nice_exit({exit_code => 0});
 					}
 				}

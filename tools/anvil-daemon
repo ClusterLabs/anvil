@@ -15,6 +15,7 @@
 #   idea or not.
 # - Write the status of this and the scancore daemon to /etc/anvil/anvil.motd and symlink it to /etc/motd.d/
 # - Write a script that runs in crontab at UTC 17:00 that sends an email if Scancore or anvil-daemon are disabled.
+# - Examine limites in: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#LimitCPU=
 # 
 # NOTE:
 # - For later; 'reboot --force --force' immediately kills the OS, like disabling ACPI on EL6 and hitting the 
