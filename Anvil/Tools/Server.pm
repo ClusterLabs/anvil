@@ -636,9 +636,6 @@ sub migrate
 		return($success);
 	}
 	
-	### TODO: Left off here, this is not allowing two primaries. I think the problem is 'source' is being
-	###       mixed up in hashed between 'local' and the local machine's short host name. Switch 
-	###       everything away from 'local' to the short host name throughout the program.
 	if (not $anvil->data->{server}{$source}{$server})
 	{
 		# The 'target' below is where I'm reading the server's definition from, which is the 

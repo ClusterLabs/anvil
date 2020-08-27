@@ -558,7 +558,7 @@ sub configure_pgsql
 	my $created_pgpass = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
 		'path::secure::postgres_pgpass' => $anvil->data->{path}{secure}{postgres_pgpass},
-		"database::${uuid}::password"   => $anvil->data->{database}{$uuid}{password}, 
+		"database::${uuid}::password"   => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
 	}});
 	if ((not -e $anvil->data->{path}{secure}{postgres_pgpass}) && ($anvil->data->{database}{$uuid}{password}))
 	{
@@ -1441,8 +1441,8 @@ sub get_recipients
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_recipients()" }});
 	
-	### TODO: Read in 'notifications' 
-	my $query        = "
+	
+	my $query = "
 SELECT 
     recipient_uuid,
     recipient_name,
@@ -2662,6 +2662,11 @@ sub get_mail_servers
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
 	
+	if (exists $anvil->data->{mail_servers})
+	{
+		delete $anvil->data->{mail_servers};
+	}
+	
 	my $query = "
 SELECT 
     mail_server_uuid, 
@@ -2698,7 +2703,7 @@ FROM
 			mail_server_address        => $mail_server_address, 
 			mail_server_port           => $mail_server_port, 
 			mail_server_username       => $mail_server_username, 
-			mail_server_password       => $mail_server_password, 
+			mail_server_password       => $anvil->Log->is_secure($mail_server_password), 
 			mail_server_security       => $mail_server_security,  
 			mail_server_authentication => $mail_server_authentication, 
 			mail_server_helo_domain    => $mail_server_helo_domain,
@@ -2716,7 +2721,7 @@ FROM
 			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_address"        => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_address}, 
 			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_port"           => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port}, 
 			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_username"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username}, 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_password"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password}, 
+			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_password"       => $anvil->Log->is_secure($anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password}), 
 			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_security"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security}, 
 			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_authentication" => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication}, 
 			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_helo_domain"    => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain}, 
@@ -2727,39 +2732,40 @@ FROM
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"mail_servers::address_to_uuid::${mail_server_address}" => $anvil->data->{mail_servers}{address_to_uuid}{$mail_server_address}, 
 		}});
-		
-		### TODO;
-		# Look up variables for this server.
-=cut
-		my $query = "
+	}
+	
+	# Look up variables for this server.
+	$query = "
 SELECT 
     variable_name, 
     variable_value 
 FROM 
     variables 
 WHERE 
-    variable_source_uuid  = ".$anvil->Database->quote($host_uuid)." 
+    variable_name LIKE 'mail_server::last_used::%'
+AND
+    variable_source_uuid  = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 AND 
     variable_source_table = 'hosts'
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $local_host = $anvil->_short_host_name;
+	   $results    = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	   $count      = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results    => $results, 
+		count      => $count, 
+		local_host => $local_host, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $variable_name  = $row->[0];
+		my $variable_value = $row->[1];
+		$anvil->data->{mail_servers}{use_order}{$local_host}{variables}{$variable_name} = $variable_value;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			results => $results, 
-			count   => $count, 
+			"mail_servers::use_order::${local_host}::variables::${variable_name}"  => $anvil->data->{mail_servers}{use_order}{$local_host}{variables}{$variable_name}, 
 		}});
-		foreach my $row (@{$results})
-		{
-			my $variable_name  = $row->[0];
-			my $variable_value = $row->[1];
-			$anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{$variable_name} = $variable_value;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"machine::host_uuid::${host_uuid}::hosts::variables::${variable_name}"  => $anvil->data->{machine}{host_uuid}{$host_uuid}{variables}{$variable_name}, 
-			}});
-		}
-=cut
 	}
 	
 	return(0);
@@ -2888,6 +2894,8 @@ WHERE
 
 
 =head2 get_notifications
+
+By default, any machine generating an alert will go to recipients at their default level. Entries in this table allow for "overrides", either by Striker host or by Anvil! node / dr host set.
 
 This gets the list of configured mail servers.
 
@@ -3346,7 +3354,7 @@ sub insert_or_update_anvils
 		anvil_uuid            => $anvil_uuid, 
 		anvil_description     => $anvil_description, 
 		anvil_name            => $anvil_name, 
-		anvil_password        => $anvil_password, 
+		anvil_password        => $anvil->Log->is_secure($anvil_password), 
 		anvil_node1_host_uuid => $anvil_node1_host_uuid, 
 		anvil_node2_host_uuid => $anvil_node2_host_uuid, 
 		anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
@@ -3501,7 +3509,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	else
@@ -3545,7 +3553,7 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_anvil_name            => $old_anvil_name, 
 				old_anvil_description     => $old_anvil_description, 
-				old_anvil_password        => $old_anvil_password,
+				old_anvil_password        => $anvil->Log->is_secure($old_anvil_password),
 				old_anvil_node1_host_uuid => $old_anvil_node1_host_uuid, 
 				old_anvil_node2_host_uuid => $old_anvil_node2_host_uuid,  
 				old_anvil_dr1_host_uuid   => $old_anvil_dr1_host_uuid,  
@@ -3574,7 +3582,7 @@ SET
 WHERE 
     anvil_uuid            = ".$anvil->Database->quote($anvil_uuid)." 
 ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
 		}
@@ -6295,7 +6303,7 @@ If needed to authenticate, this is the password portion passed along with the C<
 
 =head3 mail_server_port (optional, default depends on 'mail_server_security')
 
-If set, this is the TCP port used when connecting to th mail server. If not set, the port is detemined based on the C<< mail_server_security >>. If it is C<< none >> or C<< starttls >>, the port is C<< 143 >>. if is it C<< ssl_tls >>, the port is C<< 993 >>. 
+If set, this is the TCP port used when connecting to th mail server. If not set, the port is detemined based on the C<< mail_server_security >>. If it is C<< none >> or C<< starttls >>, the port is C<< 587 >>. if is it C<< ssl_tls >>, the port is C<< 993 >>. 
 
 =head3 mail_server_security (optional)
 
@@ -6303,9 +6311,9 @@ This is the connection security used when establishing a connection to the mail 
 
 This can be set to anything you wish, but the expected values are;
 
-* C<< none >> (default port 143)
-* C<< starttls >> (default port 143)
-* C<< ssl_tls >> (default port 993)
+* C<< none >> (default port 587)
+* C<< starttls >> (default port 587)
+* C<< ssl_tls >> (default port 465)
 
 B<< NOTE >> - If any other string is passed and C<< mail_server_port >> is not set, port C<< 143 >> will be used.
 
@@ -6346,7 +6354,7 @@ sub insert_or_update_mail_servers
 		mail_server_address        => $mail_server_address, 
 		mail_server_authentication => $mail_server_authentication, 
 		mail_server_helo_domain    => $mail_server_helo_domain, 
-		mail_server_password       => $mail_server_password, 
+		mail_server_password       => $anvil->Log->is_secure($mail_server_password), 
 		mail_server_port           => $mail_server_port, 
 		mail_server_security       => $mail_server_security, 
 		mail_server_username       => $mail_server_username, 
@@ -6445,10 +6453,10 @@ WHERE
 	}
 	if (not $mail_server_port)
 	{
-		$mail_server_port = 143;
+		$mail_server_port = 587;
 		if ($mail_server_security eq "ssl_tls")
 		{
-			$mail_server_port = 993;
+			$mail_server_port = 465;
 		}
 	}
 	
@@ -6485,7 +6493,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	else
@@ -6532,7 +6540,7 @@ WHERE
 				old_mail_server_address        => $old_mail_server_address, 
 				old_mail_server_authentication => $old_mail_server_authentication,
 				old_mail_server_helo_domain    => $old_mail_server_helo_domain, 
-				old_mail_server_password       => $old_mail_server_password, 
+				old_mail_server_password       => $anvil->Log->is_secure($old_mail_server_password), 
 				old_mail_server_port           => $old_mail_server_port, 
 				old_mail_server_security       => $old_mail_server_security, 
 				old_mail_server_username       => $old_mail_server_username, 

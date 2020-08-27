@@ -287,15 +287,9 @@ pcs property set stonith-max-attempts=INFINITY
 pcs property set stonith-enabled=true
 
 
-### No longer used.
-pcs resource create hypervisor systemd:libvirtd op monitor interval=60
-pcs resource clone hypervisor clone-max=2 notify="false" 
-pcs resource create drbd systemd:drbd op monitor interval=60
-pcs resource clone drbd clone-max=2 notify="false" 
-
 
 # Create a new server resource, stopped, create the location constraint (higher == preferred), then start.
-pcs resource create srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" migrate_to="INFINITY" target-role="stopped" start= stop="INFINITY" op monitor interval="60" on-fail="block"
+pcs resource create srv07-el6 ocf:alteeve:server name="srv07-el6" meta allow-migrate="true" target-role="stopped" op monitor interval="60" on-fail="block" stop timeout="INFINITY" migrate_to timeout="INFINITY"
 pcs constraint location srv07-el6 prefers mk-a02n01=200 mk-a02n02=100
 pcs resource enable srv07-el6
 - or -
@@ -411,12 +405,6 @@ Set to 90% of BCN bandwidth
 # Provision servers
 mkdir /mnt/anvil/{provision,files,archive,definitions}
 
-pcs resource create srv01-c7 ocf:alteeve:server hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10" op stop timeout="60" on-fail="block" meta allow-migrate="true" failure-timeout="75"
-pcs resource create srv01-c7 ocf:alteeve:server hypervisor="qemu:///system" config="/mnt/anvil/definitions/srv01-c7.xml" meta allow-migrate="true" op monitor interval="10" op on-fail="block" meta allow-migrate="true" failure-timeout="75"
-pcs resource create srv01-c7 ocf:alteeve:server name="srv01-c7" meta allow-migrate="true" op monitor interval="10" op stop on-fail="block" meta allow-migrate="true" failure-timeout="75"
-
-pcs resource create srv01-c7 ocf:alteeve:server name="srv01-c7" meta allow-migrate="true" op monitor interval="60" op stop on-fail="block" op migrate_to on-fail="block" op migrate_from on-fail="block" meta allow-migrate="true" failure-timeout="75"
-
 
 == Resource Agent; https://github.com/ClusterLabs/resource-agents/blob/master/doc/dev-guides/ra-dev-guide.asc
 
@@ -457,11 +445,6 @@ Recover from a failed migration;
 reset location to prefer current host -> unmanage resource -> cleanup resource -> manage resource
 
 (running on node 2, so re-add location constraint - basically, make sure location constraint favours current host)
-
-pcs resource unmanage srv01-c7
-pcs constraint remove location-srv01-c7-m3-a02n02.alteeve.com-50
-crm_resource --reprobe
-pcs resource manage srv01-c7
 
 
 https://pykickstart.readthedocs.io/en/latest/kickstart-docs.html#chapter-1-introduction
@@ -916,10 +899,6 @@ virt-install --connect qemu:///system \
 
   
 # Migration;
-pcs resource move srv07-el6 mk-a02n02
-# (then remove the constraint);
-pcs constraint show --full
-pcs constraint remove cli-ban-srv07-el6-on-mk-a02n01
 
 
 pcs constraint remove $(pcs constraint show --full | grep ban-srv07-el6 | perl -pe 's/^.*?id:(.*?)\)/$1/')

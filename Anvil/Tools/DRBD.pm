@@ -1045,7 +1045,10 @@ sub update_global_common
 	
 	# Read in the existing config.
 	my $new_global_common = "";
-	my $old_global_common = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'global-common.conf'}});
+	my $old_global_common = $anvil->Storage->read_file({
+		debug => $debug,
+		file  => $anvil->data->{path}{configs}{'global-common.conf'},
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_global_common => $old_global_common }});
 	foreach my $line (split/\n/, $old_global_common)
 	{

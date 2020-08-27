@@ -209,6 +209,7 @@ The error was:
 #!variable!error!#
 ===========================================================
 		</key>
+		<key name="error_0141">There appears to be no mail server in the database with the UUID: [#!variable!uuid!#].</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1007,6 +1008,13 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0527">The server is running (state is: [#!variable!state!#]).</key>
 		<key name="log_0528">We've been asked to migrating the server: [#!variable!server!#] to: [#!variable!target_host!#].</key>
 		<key name="log_0529">Checking server state after: [#!variable!server!#] was migrated to this host.</key>
+		<key name="log_0530">Updating the postfix relay password file: [#!data!path::configs::postfix_relay_password!#].</key>
+		<key name="log_0531">Generating the binary hash of the postfix relay password file: [#!data!path::configs::postfix_relay_password!#].</key>
+		<key name="log_0532">It looks like the initial configuration of the postfix main configuration file, injecting the relay password file.</key>
+		<key name="log_0533">Injecting the configuration line: [#!variable!line!#].</key>
+		<key name="log_0534">Updating the configuration line from: [#!variable!old_line!#] to: [#!variable!new_line!#].</key>
+		<key name="log_0535">Starting and enabling the daemon: [#!variable!daemon!#].</key>
+		<key name="log_0536">Creating the Anvil! alert email spool directory: [#!data!path::directories::alert_emails!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1580,6 +1588,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0273">Adding a disaster recovery (DR) host is optional. You can add one later if you don't have one now.</key>
 		<key name="striker_0274">If there are no servers on either node (as it a new #!string!brand_0006!# build), the OSes will be updated. Otherwise, they won't be updated. If the kernel is updated, or the network reconfigured, the node will be rebooted.</key>
 		<key name="striker_0275">Free-form description of this system.</key>
+		<key name="striker_0276">This tracks the last time a given mail server was configured for use. It allows for a round-robin switching of mail servers when one mail server stops working and two or more mail servers have been configured.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

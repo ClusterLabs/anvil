@@ -755,7 +755,7 @@ WHERE
 	});
 	
 	# Show the menu.
-	$anvil->data->{form}{back_link}    = "?";
+	$anvil->data->{form}{back_link}    = "?email=true";
 	$anvil->data->{form}{refresh_link} = "?email=true&task=email_recipient";
 	$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "recipient-menu", variables => {
 		recipients      => $recipients_form,
@@ -913,11 +913,11 @@ WHERE
 	}
 	elsif (not $port)
 	{
-		# Port wasn't passed. Use '143' unless $connection_security is 'ssl_tls'
+		# Port wasn't passed. Use '587' unless $connection_security is 'ssl_tls'
 		$port = 143;
 		if ($connection_security eq "ssl_tls")
 		{
-			$port = 993;
+			$port = 465;
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { port => $port }});
 	}
@@ -1144,7 +1144,7 @@ WHERE
 	});
 	
 	# Show the menu.
-	$anvil->data->{form}{back_link}    = "?";
+	$anvil->data->{form}{back_link}    = "?email=true";
 	$anvil->data->{form}{refresh_link} = "?email=true&task=email_server";
 	$anvil->data->{form}{body}         = $anvil->Template->get({file => "email.html", name => "mail-server-menu", variables => {
 		mail_servers          => $mail_servers_form, 

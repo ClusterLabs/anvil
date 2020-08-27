@@ -46,6 +46,9 @@ wait_for_database($anvil);
 wait_until_configured($anvil);
 
 # Send a startup 
+$anvil->Mail->check_config;
+$anvil->Alert->register
+exit;
 
 # Disconnect. We'll reconnect inside the loop
 $anvil->Database->disconnect();
@@ -234,37 +237,8 @@ sub prepare_for_run
 	$anvil->Database->connect();
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0132"});
 	
-	# TODO: Check/configure the mail server.
-	check_email($anvil);
-	
-	return(0);
-}
-
-sub check_email
-{
-	my ($anvil) = @_;
-	
-	# We check to see if there are any emails in the queue. If we see queued emails for more than five 
-	# minutes, and a second mail server is configured, we'll automatically reconfigure for the next 
-	# known server.
-	
-	# Before we do anything, we want to make sure all recipients have been registered against all hosts.
-	$anvil->Email->check_alert_recipients();
-	
-	### TODO: 
-	# If not configured look in variables for 'mail_server::last_used::<mail_server_uuid>'. The first one
-	# that doesn't have an existing variable will be used. If all known mail servers have variables, the
-	# oldest is used. 
-	# 
-	# If configured/running, the number of messages in queue is checked. If '0', 
-	# 'mail_server::queue_empty' is updated with the current time. If 1 or more, the time since the queue
-	# was last 0 is checked. If > 300, the mail server is reconfigured to use the mail server with the
-	# oldest 'mail_server::last_used::<mail_server_uuid>' time.
-	# 
-	# In any case where the mail server is configured, the server that is used has their 
-	# 'mail_server::last_used::<mail_server_uuid>' variable set to the current time stamp.
-	
-	# Is the postfix daemon running?
+	# See if the mail server needs to be updated.
+	$anvil->Email->check_config;
 	
 	return(0);
 }
