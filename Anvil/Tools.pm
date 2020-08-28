@@ -1208,6 +1208,7 @@ sub _set_paths
 				psql				=>	"/usr/bin/psql",
 				'postgresql-setup'		=>	"/usr/bin/postgresql-setup",
 				postmap				=>	"/usr/sbin/postmap",
+				postqueue			=>	"/usr/sbin/postqueue",
 				pwd				=>	"/usr/bin/pwd",
 				pvs				=>	"/usr/sbin/pvs",
 				pvscan				=>	"/usr/sbin/pvscan",

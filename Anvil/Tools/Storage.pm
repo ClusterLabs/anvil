@@ -3266,6 +3266,12 @@ sub write_file
 			print $file_handle $body;
 			close $file_handle;
 			
+			# Delete the cache for this file, if it exists.
+			if (exists $anvil->data->{cache}{file}{$file})
+			{
+				delete $anvil->data->{cache}{file}{$file};
+			}
+			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mode => $mode }});
 			if ($mode)
 			{

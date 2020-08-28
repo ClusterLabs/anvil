@@ -2732,6 +2732,9 @@ FROM
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"mail_servers::address_to_uuid::${mail_server_address}" => $anvil->data->{mail_servers}{address_to_uuid}{$mail_server_address}, 
 		}});
+		
+		# Set a default 'last_used' of 0 for this host.
+		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{last_used} = 0;
 	}
 	
 	# Look up variables for this server.
@@ -2766,6 +2769,15 @@ AND
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"mail_servers::use_order::${local_host}::variables::${variable_name}"  => $anvil->data->{mail_servers}{use_order}{$local_host}{variables}{$variable_name}, 
 		}});
+		
+		if ($variable_name =~ /mail_server::last_used::(.*)$/)
+		{
+			my $mail_server_uuid = $1;
+			$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{last_used} = $variable_value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"mail_servers::mail_server::${mail_server_uuid}::last_used" => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{last_used}, 
+			}});
+		}
 	}
 	
 	return(0);

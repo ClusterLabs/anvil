@@ -29,5 +29,6 @@ $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 $anvil->Get->switches;
 
-$anvil->Email->check_config({debug => 3});
+my ($oldest_message) = $anvil->Email->check_queue({debug => 2});
+print "Oldest message: [".$oldest_message."]\n";
 

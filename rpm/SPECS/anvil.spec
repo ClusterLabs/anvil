@@ -26,6 +26,11 @@ Summary:        Alteeve's Anvil! Core package
 Requires:       bash-completion 
 Requires:       binutils
 Requires:       chrony
+Requires:       cyrus-sasl
+Requires:       cyrus-sasl-gssapi
+Requires:       cyrus-sasl-lib
+Requires:       cyrus-sasl-md5
+Requires:       cyrus-sasl-plain
 Requires:       bind-utils 
 Requires:       dmidecode
 Requires:       dnf-utils
