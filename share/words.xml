@@ -388,6 +388,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0128">Update not required, nothing changed.</key>
 		<key name="job_0129">Completed joining the #!string!brand_0002!#.</key>
 		<key name="job_0130">No job was found that needs to be run.</key>
+		<key name="job_0131">Reconnecting will start a synchonization of the database. This step might take a while to complete, please be patient.</key>
 		
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -1015,6 +1016,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0534">Updating the configuration line from: [#!variable!old_line!#] to: [#!variable!new_line!#].</key>
 		<key name="log_0535">Starting and enabling the daemon: [#!variable!daemon!#].</key>
 		<key name="log_0536">Creating the Anvil! alert email spool directory: [#!data!path::directories::alert_emails!#].</key>
+		<key name="log_0537">Connected to the database named: [#!variable!name!#] as: [#!variable!user!#@#!variable!host!#:#!variable!port!#].</key>
+		<key name="log_0538">This IS the database queries are read from.</key>
+		<key name="log_0539">This is NOT the database queries are read from.</key>
+		<key name="log_0540">This host UUID is: [#!variable!uuid!#] and the database identifier is: [#!variable!identifier!#].</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

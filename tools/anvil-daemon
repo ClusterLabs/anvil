@@ -1013,7 +1013,7 @@ sub run_jobs
 			my $command = $job_command." --job-uuid ".$job_uuid;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0210", variables => { command => $command }});
 			($anvil->data->{jobs}{handles}{$job_uuid}, my $return_code) = $anvil->System->call({
-				debug       => 2,
+				debug       => 3,
 				background  => 1, 
 				stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
 				stderr_file => "/tmp/anvil.job.".$job_uuid.".stderr", 
@@ -1058,13 +1058,16 @@ sub update_state_file
 	
 	# Bunch of things happen here, so this allows a single variable to change for logging.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0480"});
-	my $log_level = 3;
+	my $log_level = 2;
 	my $v         = "-";
 	for (1..$log_level)
 	{
 		$v .= "v";
 	}
-	my ($states_output, $return_code) = $anvil->System->call({debug => $log_level, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}." ".$v, source => $THIS_FILE, line => __LINE__});
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'}." ".$v;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+	
+	my ($states_output, $return_code) = $anvil->System->call({debug => $log_level, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
 		states_output => $states_output,
 		return_code   => $return_code, 

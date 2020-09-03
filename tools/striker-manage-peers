@@ -223,6 +223,7 @@ sub process_entry
 	if ((not $password) && ($job_uuid))
 	{
 		# Do we have a database connection?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections}}});
 		if ($anvil->data->{sys}{database}{connections})
 		{
 			# See if the password is in job_data.
@@ -337,7 +338,7 @@ sub process_entry
 			my $left_space  = $2;
 			my $right_space = $3; 
 			my $value       = $4;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:variable"    => $variable,
 				"s2:value"       => $value, 
 				"s3:left_space"  => $left_space, 
@@ -512,6 +513,7 @@ sub process_entry
 		
 		# Now update!
 		$anvil->Storage->write_file({
+			debug     => 3,
 			secure    => 1, 
 			file      => $anvil->data->{path}{configs}{'anvil.conf'}, 
 			body      => $new_body, 
@@ -521,13 +523,17 @@ sub process_entry
 			overwrite => 1,
 		});
 		update_progress($anvil, 80, "message_0073");
+		update_progress($anvil, 82, "job_0131");
 		
 		# Disconnect (if no connections exist, will still clear out known databases).
-		$anvil->Database->disconnect;
+		$anvil->Database->disconnect({debug => 2});
 		
 		# Re-read the config.
 		sleep 1;
-		$anvil->Storage->read_config({file => $anvil->data->{path}{configs}{'anvil.conf'}});
+		$anvil->Storage->read_config({debug => 3});
+		
+		# Reconnect
+		$anvil->Database->connect({debug => 3});
 	}
 	
 	# If I've been asked to have the peer add us, disconnect from the database, re-read the new config 
@@ -536,10 +542,6 @@ sub process_entry
 	if ($add_peer_command)
 	{
 		update_progress($anvil, 85, "message_0074");
-		
-		# Reconnect
-		$anvil->Database->connect;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 		
 		# Now loop until we see the peer's host_uuid show up and we have a connection to the peer's
 		# database.

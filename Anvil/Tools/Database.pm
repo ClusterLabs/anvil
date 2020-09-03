@@ -849,6 +849,12 @@ sub connect
 	# This will be set to '1' if either DB needs to be initialized or if the last_updated differs on any node.
 	$anvil->data->{sys}{database}{resync_needed} = 0;
 	
+	# In case this is called when connections already exist, clear the identifiers.
+	if (exists $anvil->data->{sys}{database}{identifier})
+	{
+		delete $anvil->data->{sys}{database}{identifier};
+	}
+	
 	# Now setup or however-many connections
 	my $seen_connections       = [];
 	my $failed_connections     = [];
@@ -865,12 +871,18 @@ sub connect
 			next;
 		}
 		
+		# Make sure values are set.
+		$anvil->data->{database}{$uuid}{port}     = 5432                                if not         $anvil->data->{database}{$uuid}{port};
+		$anvil->data->{database}{$uuid}{name}     = $anvil->data->{sys}{database}{name} if not         $anvil->data->{database}{$uuid}{name};
+		$anvil->data->{database}{$uuid}{user}     = $anvil->data->{sys}{database}{user} if not         $anvil->data->{database}{$uuid}{user};
+		$anvil->data->{database}{$uuid}{password} = ""                                  if not defined $anvil->data->{database}{$uuid}{password}; 
+		
 		my $driver   = "DBI:Pg";
-		my $host     = $anvil->data->{database}{$uuid}{host}     ? $anvil->data->{database}{$uuid}{host}     : ""; # This should fail
-		my $port     = $anvil->data->{database}{$uuid}{port}     ? $anvil->data->{database}{$uuid}{port}     : 5432;
-		my $name     = $anvil->data->{database}{$uuid}{name}     ? $anvil->data->{database}{$uuid}{name}     : $anvil->data->{sys}{database}{name};
-		my $user     = $anvil->data->{database}{$uuid}{user}     ? $anvil->data->{database}{$uuid}{user}     : $anvil->data->{sys}{database}{user};
-		my $password = $anvil->data->{database}{$uuid}{password} ? $anvil->data->{database}{$uuid}{password} : "";
+		my $host     = $anvil->data->{database}{$uuid}{host}; # This should fail
+		my $port     = $anvil->data->{database}{$uuid}{port};
+		my $name     = $anvil->data->{database}{$uuid}{name};
+		my $user     = $anvil->data->{database}{$uuid}{user};
+		my $password = $anvil->data->{database}{$uuid}{password};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host     => $host,
 			port     => $port,
@@ -1093,6 +1105,7 @@ sub connect
 		elsif ($dbh =~ /^DBI::db=HASH/)
 		{
 			# Woot!
+			
 			$anvil->data->{sys}{database}{connections}++;
 			push @{$successful_connections}, $uuid;
 			$anvil->data->{cache}{database_handle}{$uuid} = $dbh;
@@ -1366,7 +1379,6 @@ sub connect
 	$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Sync the database, if needed.
-	#$anvil->Database->resync_databases({debug => $debug});
 	$anvil->Database->resync_databases({debug => $debug});
 	
 	# Add ourselves to the database, if needed.
@@ -1413,6 +1425,7 @@ sub disconnect
 	# Delete the stored DB-related values.
 	delete $anvil->data->{sys}{database}{timestamp};
 	delete $anvil->data->{sys}{database}{read_uuid};
+	delete $anvil->data->{sys}{database}{identifier};
 	$anvil->Database->read({set => "delete"});
 	
 	# Delete any database information (reconnects should re-read anvil.conf anyway).
@@ -2272,7 +2285,7 @@ AND
 				# This isn't a network we should know about (ie: it might be a stray 'virbrX'
 				# birdge), delete this IP.
 				my $query = "UPDATE ip_addresses SET ip_address_note = 'DELETED' WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 				next;
 			}
@@ -9830,6 +9843,62 @@ sub locking
 }
 
 
+=head2 log_connections
+
+This method logs details about open connections to databases. It's generally only used as a debugging tool.
+
+This method takes no parameters.
+
+=cut
+sub log_connections
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->locking()" }});
+	
+	# Log how many connections there are.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
+
+	# Reading from
+	my $read_uuid = $anvil->data->{sys}{database}{read_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { read_uuid => $read_uuid }});
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $host = $anvil->data->{database}{$uuid}{host};
+		my $port = $anvil->data->{database}{$uuid}{port};
+		my $name = $anvil->data->{database}{$uuid}{name};
+		my $user = $anvil->data->{database}{$uuid}{user};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0537", variables => { 
+			name => $name,
+			user => $user, 
+			host => $host,
+			port => $port,
+		}});
+		
+		my $query      = "SELECT system_identifier FROM pg_control_system();";
+		my $identifier = $anvil->Database->query({uuid => $uuid, debug => ($debug + 1), query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => ($debug + 1), key => "log_0540", variables => { 
+			uuid       => $uuid,
+			identifier => $identifier, 
+		}});
+		
+		if ($uuid eq $read_uuid)
+		{
+			# Reading from this DB
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0538"});
+		}
+		else
+		{
+			# Not reading from this DB
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0539"});
+		}
+	}
+	
+	return(0);
+}
+
 =head2 manage_anvil_conf
 
 This adds, removes or updates a database entry in a machine's anvil.conf file. This returns C<< 0 >> on success, C<< 1 >> if there was a problem.
@@ -10711,6 +10780,8 @@ sub resync_databases
 		delete $anvil->data->{sys}{database}{table};
 		return(0);
 	}
+	
+	#$anvil->data->{sys}{database}{log_transactions} = 1;
 	
 	# Archive old data before resync'ing
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0451"});

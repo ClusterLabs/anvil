@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        34%{?dist}
+Release:        35%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -373,6 +373,9 @@ fi
 
 
 %changelog
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-35
+- Updated source.
+
 * Fri Aug 28 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-34
 - Added 'virt-top' as a requirement on nodes and dr hosts.
 - Added cyrus-sasl* as requirements to core.

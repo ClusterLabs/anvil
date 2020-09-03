@@ -179,8 +179,7 @@ Drop;
 su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil"
 
 Reload the DB;
-su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /anvil.out"
-su - postgres -c "psql anvil"
+su - postgres -c "dropdb anvil" && su - postgres -c "createdb --owner admin anvil" && su - postgres -c "psql anvil < /anvil.out" && su - postgres -c "psql anvil"
 
 
 

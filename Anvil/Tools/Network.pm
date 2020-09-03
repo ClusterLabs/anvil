@@ -1236,6 +1236,7 @@ AND
 				results => $results, 
 				count   => $count, 
 			}});
+			next if not $count;
 			
 			$interface_name = $results->[0]->[0];
 			$interface_mac  = $results->[0]->[1];
@@ -1281,6 +1282,7 @@ AND
 				results => $results, 
 				count   => $count, 
 			}});
+			next if not $count;
 			
 			$interface_name = $results->[0]->[0];
 			$interface_mac  = $results->[0]->[1];
@@ -1326,6 +1328,7 @@ AND
 				results => $results, 
 				count   => $count, 
 			}});
+			next if not $count;
 			
 			$interface_name = $results->[0]->[0];
 			$interface_mac  = $results->[0]->[1];
