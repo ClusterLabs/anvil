@@ -134,11 +134,14 @@ sub add_databases
 	# possible at this stage that the target doesn't have a BCN IP. So we need to figure out what IP it
 	# has and we have that are on the same subnet. 
 	# Scan our network and the target's network, then compare them.
-	$anvil->data->{job}{progress} += 5;
-	update_progress($anvil, $anvil->data->{job}{progress}, "job_0046");
+	update_progress($anvil, ($anvil->data->{job}{progress} += 5), "job_0046");
+	
 	my $target = $anvil->data->{data}{host_ip_address};
-	$anvil->Network->get_ips();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target => $target }});
+	
+	$anvil->Network->get_ips({debug => 3});
 	$anvil->Network->get_ips({
+		debug       => 3,
 		target      => $target,
 		remote_user => "root",
 		password    => $anvil->data->{data}{password}, 
@@ -150,6 +153,7 @@ sub add_databases
 		first  => $local_host,
 		second => $target, 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { match => $match }});
 	
 	# We'll sort in reverse order, so if there is a BCN address, we'll use it.
 	my $host_uuid   = $anvil->data->{sys}{host_uuid};
@@ -204,7 +208,7 @@ sub add_databases
 		else
 		{
 			# Success! We're done!
-			update_progress($anvil, 100, "job_0047");
+			update_progress($anvil, $anvil->data->{job}{progress} += 5, "job_0047");
 		}
 	}
 	else
@@ -227,8 +231,7 @@ sub add_databases
 		   $target_host = $target if not $target_host;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host => $target_host }});
 		
-		$anvil->data->{job}{progress} += 2;
-		update_progress($anvil, $anvil->data->{job}{progress}, "job_0068,!!host_name!".$target_host."!!");
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0068,!!host_name!".$target_host."!!");
 		
 		# This is a peer.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -259,6 +262,7 @@ sub add_databases
 			first  => $target,
 			second => $uuid,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
 		
 		# Did we find a match?
 		if ($match)

@@ -2587,12 +2587,22 @@ sub handle_manifest
 				"cgi::${gateway_key}::alert" => $anvil->data->{cgi}{$gateway_key}{alert},
 			}});
 			
+			my $select = $anvil->Template->select_form({
+				name     => $subnet_key,
+				options  => "subnet",
+				blank    => 0,
+				'sort'   => 0,
+				selected => $anvil->data->{cgi}{$subnet_key}{value},
+				class    => $anvil->data->{cgi}{$subnet_key}{alert} ? "input_alert" : "input_clear",
+				style    => "width: 15em;",
+			});
+			
 			$network_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step2-network-entry", variables => {
 				network       => $say_bcn,
 				network_name  => $network_key, 
 				network_class => $anvil->data->{cgi}{$network_key}{alert} ? "input_alert" : "",
 				network_value => $anvil->data->{cgi}{$network_key}{value}, 
-				subnet        => '255.255.0.0 <input type="hidden" name="'.$subnet_key.'" id="'.$subnet_key.'" value="'.$anvil->data->{cgi}{$subnet_key}{value}.'" />',
+				subnet        => $select,
 			}});
 		}
 		

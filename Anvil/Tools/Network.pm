@@ -648,7 +648,7 @@ sub find_matches
 	my $second = defined $parameter->{second} ? $parameter->{second} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		first  => $first, 
-		second => $second,
+		second => $second, 
 	}});
 	
 	if (not $first)

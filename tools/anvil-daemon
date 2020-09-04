@@ -1056,19 +1056,10 @@ sub update_state_file
 {
 	my ($anvil) = @_;
 	
-	# Bunch of things happen here, so this allows a single variable to change for logging.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0480"});
-	my $log_level = 2;
-	my $v         = "-";
-	for (1..$log_level)
-	{
-		$v .= "v";
-	}
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'}." ".$v;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	
-	my ($states_output, $return_code) = $anvil->System->call({debug => $log_level, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $log_level, list => { 
+	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-update-states'}." -v", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		states_output => $states_output,
 		return_code   => $return_code, 
 	}});

@@ -76,6 +76,7 @@ Requires:       postfix
 Requires:       postgresql-contrib 
 Requires:       postgresql-plperl 
 Requires:       rsync 
+Requires:       screen
 Requires:       syslinux
 Requires:       tmux
 Requires:       usbutils
@@ -373,7 +374,8 @@ fi
 
 
 %changelog
-* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-35
+* Thu Sep 03 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-35
+- Added screen as a core module dependency
 - Updated source.
 
 * Fri Aug 28 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-34
