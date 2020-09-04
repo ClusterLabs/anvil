@@ -933,22 +933,48 @@ WHERE
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::sequence" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{sequence}, 
 		}});
 		
-		foreach my $hash_ref (@{$parsed_xml->{upses}{ups}})
+		if (ref($parsed_xml->{upses}{ups}) eq "HASH")
 		{
-			my $ups_name                                                                                = $hash_ref->{name};
-			   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{upses}{$ups_name}{uuid} = $hash_ref->{uuid};
+			# Only a single ups device
+			my $ups_name                                                                                = $parsed_xml->{upses}{ups}{name};
+			   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{upses}{$ups_name}{uuid} = $parsed_xml->{upses}{ups}{uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::upses::${ups_name}::uuid" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{upses}{$ups_name}{uuid}, 
 			}});
 		}
-		
-		foreach my $hash_ref (@{$parsed_xml->{fences}{fence}})
+		elsif (ref($parsed_xml->{fences}{fence}) eq "ARRAY")
 		{
-			my $fence_name                                                                                 = $hash_ref->{name};
-			   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$fence_name}{uuid} = $hash_ref->{uuid};
+			# Two or more UPSes
+			foreach my $hash_ref (@{$parsed_xml->{upses}{ups}})
+			{
+				my $ups_name                                                                                = $hash_ref->{name};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{upses}{$ups_name}{uuid} = $hash_ref->{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::upses::${ups_name}::uuid" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{upses}{$ups_name}{uuid}, 
+				}});
+			}
+		}
+		
+		if (ref($parsed_xml->{fences}{fence}) eq "HASH")
+		{
+			# Only a single fence device
+			my $fence_name                                                                                 = $parsed_xml->{fences}{fence}{name};
+			   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$fence_name}{uuid} = $parsed_xml->{fences}{fence}{uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::fences::${fence_name}::uuid" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$fence_name}{uuid}, 
 			}});
+		}
+		elsif (ref($parsed_xml->{fences}{fence}) eq "ARRAY")
+		{
+			# Two or more fence devices.
+			foreach my $hash_ref (@{$parsed_xml->{fences}{fence}})
+			{
+				my $fence_name                                                                                 = $hash_ref->{name};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$fence_name}{uuid} = $hash_ref->{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::fences::${fence_name}::uuid" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{fences}{$fence_name}{uuid}, 
+				}});
+			}
 		}
 		
 		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{dns} = $parsed_xml->{networks}{dns};
@@ -995,22 +1021,50 @@ WHERE
 				"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ipmi_ip" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip}, 
 			}});
 			
-			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{fences}{fence}})
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"ref(parsed_xml->{machines}{$machine}{upses}{ups})" => ref($parsed_xml->{machines}{$machine}{upses}{ups}), 
+			}});
+			if (ref($parsed_xml->{machines}{$machine}{upses}{ups}) eq "HASH")
 			{
-				my $fence_name                                                                                                   = $hash_ref->{name};
-				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $hash_ref->{port};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				my $ups_name                                                                                                 = $parsed_xml->{machines}{$machine}{upses}{ups}{name};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used} = $parsed_xml->{machines}{$machine}{upses}{ups}{used};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used}, 
+				}});
+			}
+			elsif (ref($parsed_xml->{machines}{$machine}{upses}{ups}) eq "ARRAY")
+			{
+				foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{upses}{ups}})
+				{
+					my $ups_name                                                                                                 = $hash_ref->{name};
+					   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used} = $hash_ref->{used};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used}, 
+					}});
+				}
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"ref(parsed_xml->{machines}{$machine}{fences}{fence})" => ref($parsed_xml->{machines}{$machine}{fences}{fence}), 
+			}});
+			if (ref($parsed_xml->{machines}{$machine}{fences}{fence}) eq "HASH")
+			{
+				my $fence_name                                                                                                   = $parsed_xml->{machines}{$machine}{fences}{fence}{name};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $parsed_xml->{machines}{$machine}{fences}{fence}{port};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
 				}});
 			}
-			
-			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{upses}{ups}})
+			elsif (ref($parsed_xml->{machines}{$machine}{fences}{fence}) eq "ARRAY")
 			{
-				my $ups_name                                                                                                 = $hash_ref->{name};
-				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used} = $hash_ref->{used};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::ups::${ups_name}::used" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ups}{$ups_name}{used}, 
-				}});
+				foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{fences}{fence}})
+				{
+					my $fence_name                                                                                                   = $hash_ref->{name};
+					   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $hash_ref->{port};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
+					}});
+				}
 			}
 			
 			foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{networks}{network}})

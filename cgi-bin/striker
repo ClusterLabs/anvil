@@ -2910,6 +2910,13 @@ sub handle_manifest
 		
 		my $ups_form = "";
 		$anvil->Database->get_upses({});
+		my $ups_count = keys %{$anvil->data->{upses}{ups_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ups_count => $ups_count }});
+		if (not $ups_count)
+		{
+			# No UPSes, add a blank entry.
+			$ups_form .= $anvil->Template->get({file => "anvil.html", name => "manifest-step3-ups-null-entry"});
+		}
 		foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
 		{
 			### NOTE: For now, we don't care about DR UPSes. As such, the code to track it is 

@@ -1578,7 +1578,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0258">IPMI IP</key>
 		<key name="striker_0259"><![CDATA[<span class="notice">Note</span>: The password to use for an #!string!brand_0006!# will be asked when the manifest is actually run. The password is not stored in the manifest.]]></key>
 		<key name="striker_0260">IPMI Details</key>
-		<key name="striker_0261"><![CDATA[<span class="notice">Note</span>: The IPMI information is set when a node is initialized. The only thing set here is the IP address.]]></key>
+		<key name="striker_0261"><![CDATA[<span class="notice">Note</span>: The IPMI information is set when a node is initialized if an IPMI BMC is found. Only the IP address is needed.]]></key>
 		<key name="striker_0262">Fence Port</key>
 		<key name="striker_0263">This is the "port" (outlet, name or other ID) that the associated fence device uses to terminate the target node. This could be the outlet number on a PDU, VM name on a hypervisor host, etc.</key>
 		<key name="striker_0264">Powered By UPS</key>
@@ -1594,6 +1594,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0274">If there are no servers on either node (as it a new #!string!brand_0006!# build), the OSes will be updated. Otherwise, they won't be updated. If the kernel is updated, or the network reconfigured, the node will be rebooted.</key>
 		<key name="striker_0275">Free-form description of this system.</key>
 		<key name="striker_0276">This tracks the last time a given mail server was configured for use. It allows for a round-robin switching of mail servers when one mail server stops working and two or more mail servers have been configured.</key>
+		<key name="striker_0277">No UPSes</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
