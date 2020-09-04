@@ -692,7 +692,7 @@ sub configure_pacemaker
 				my $fence_agent     = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
 				my $stonith_name    = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node."_".$fence_name; 
 				my $port            = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}{$device}{port};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					device          => $device, 
 					fence_uuid      => $fence_uuid, 
 					fence_name      => $fence_name, 
@@ -712,20 +712,20 @@ sub configure_pacemaker
 				
 				# Fence arguments use 'action', but pcs deprecated it in favour of 'pcmk_off_action', so rename it.
 				$fence_arguments =~ s/action=/pcmk_off_action=/;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					fence_arguments => $fence_arguments =~ /passw/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments, 
 				}});
 				
 				# Build the pcs command
 				my $pcs_add_command = $anvil->data->{path}{exe}{pcs}." stonith create ".$stonith_name." ".$fence_agent." pcmk_host_list=\"".$node_name."\" ".$fence_arguments." ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
 				}});
 				foreach my $pair (split/ /, $fence_arguments)
 				{
 					# Ignore 'delay', we handle that in Cluster->set_delay();
 					my ($argument, $value) = ($pair =~ /^(.*)="(.*?)"$/);
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						pair     => $pair =~ /passw/ ? $anvil->Log->is_secure($pair) : $pair,
 						argument => $argument,
 						value    => $argument =~ /passw/ ? $anvil->Log->is_secure($value) : $value,
@@ -737,7 +737,7 @@ sub configure_pacemaker
 					
 					# Store this to see if it's different from what's already in the CIB.
 					$old_switches->{$argument} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"old_switches->{$argument}" => $old_switches->{$argument},
 					}});
 				}
@@ -746,13 +746,13 @@ sub configure_pacemaker
 					$port                 =~ s/"/\\"/g;
 					$pcs_add_command      .= "port=\"".$port."\" ";
 					$old_switches->{port} =  $port;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
 						"old_switches->{port}" => $old_switches->{port},
 					}});
 				}
 				$pcs_add_command .= "op monitor interval=\"60\"";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
 				}});
 				
@@ -764,7 +764,7 @@ sub configure_pacemaker
 						next if $argument eq "delay";
 						my $old_entry = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name}{argument}{$argument}{value};
 						my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							's1:argument'  => $argument, 
 							's2:old_entry' => $old_entry,
 							's3:new_entry' => $new_entry,
@@ -775,7 +775,7 @@ sub configure_pacemaker
 							# Changed, delete and recreate.
 							$delete_old   = 1;
 							$create_entry = 1;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 								delete_old   => $delete_old,
 								create_entry => $create_entry,
 							}});
@@ -791,13 +791,13 @@ sub configure_pacemaker
 					
 					# Are there any old switches left?
 					my $old_switch_count = keys %{$old_switches};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_switch_count => $old_switch_count }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_switch_count => $old_switch_count }});
 					if ((not $delete_old) && ($old_switch_count))
 					{
 						# Delete and recreate. 
 						$delete_old   = 1;
 						$create_entry = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							delete_old   => $delete_old,
 							create_entry => $create_entry,
 						}});
@@ -813,10 +813,10 @@ sub configure_pacemaker
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0122", variables => { device => $stonith_name }});
 					
 					$create_entry = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_entry => $create_entry }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_entry => $create_entry }});
 				}
 				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					delete_old   => $delete_old,
 					create_entry => $create_entry, 
 				}});
@@ -827,10 +827,10 @@ sub configure_pacemaker
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0119", variables => { device => $stonith_name }});
 					
 					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith delete ".$stonith_name;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 					
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
@@ -848,7 +848,7 @@ sub configure_pacemaker
 					}
 					
 					$something_changed->{$node_name} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 				}
 				if ($create_entry)
 				{
@@ -857,10 +857,10 @@ sub configure_pacemaker
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0120", variables => { device => $stonith_name }});
 					
 					my $shell_call = $pcs_add_command;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 					
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
@@ -878,13 +878,13 @@ sub configure_pacemaker
 					}
 					
 					$something_changed->{$node_name} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 				}
 			}
 			
 			
 			### If we had a fence_ipmilan entry, add a 'fence_delay' entry, if needed.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				node            => $node, 
 				node1_use_delay => $node1_use_delay,
 				node2_use_delay => $node2_use_delay, 
@@ -900,10 +900,10 @@ sub configure_pacemaker
 				if (not exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$stonith_name})
 				{
 					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith create ".$stonith_name." fence_delay pcmk_host_list=\"".$node_name."\" wait=\"60\" op monitor interval=\"60\"";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 					
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
@@ -926,7 +926,7 @@ sub configure_pacemaker
 		# Setup fence levels.
 		foreach my $node_name (sort {$a cmp $b} keys %{$fence_order})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 			if ($something_changed->{$node_name})
 			{
 				# Delete any existing fence levels
@@ -936,10 +936,10 @@ sub configure_pacemaker
 					{
 						# pcs stonith level delete <index> <target>
 						my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith level delete ".$index." ".$node_name;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 						
 						my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							output      => $output,
 							return_code => $return_code, 
 						}});
@@ -965,17 +965,17 @@ sub configure_pacemaker
 					my $devices = "";
 					foreach my $device (sort {$a cmp $b} @{$fence_devices->{$node_name}{$fence_agent}})
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { device => $device }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
 						$devices .= $device.",";
 					}
 					$devices =~ s/,$//;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { devices => $devices }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { devices => $devices }});
 					
 					my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith level add ".$i." ".$node_name." ".$devices;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 					
 					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
@@ -999,7 +999,7 @@ sub configure_pacemaker
 	}
 	
 	# Enable fencing and set the retry to INFINITY, if needed.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"cib::parsed::data::stonith::max-attempts" => $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'}, 
 	}});
 	if ($anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'} ne "INFINITY")
@@ -1008,10 +1008,10 @@ sub configure_pacemaker
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0124"});
 		
 		my $shell_call = $anvil->data->{path}{exe}{pcs}." property set stonith-max-attempts=INFINITY";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code, 
 		}});
@@ -1029,7 +1029,7 @@ sub configure_pacemaker
 		}
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"cib::parsed::data::stonith::enabled" => $anvil->data->{cib}{parsed}{data}{stonith}{enabled}, 
 	}});
 	if (not $anvil->data->{cib}{parsed}{data}{stonith}{enabled})
@@ -1038,10 +1038,10 @@ sub configure_pacemaker
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0125"});
 		
 		my $shell_call = $anvil->data->{path}{exe}{pcs}." property set stonith-enabled=true";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code, 
 		}});

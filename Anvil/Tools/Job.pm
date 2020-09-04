@@ -165,8 +165,14 @@ sub get_job_details
 		job_uuid => $job_uuid,
 	}});
 	
+	if ((not $job_uuid) && ($anvil->data->{switches}{'job-uuid'}))
+	{
+		$job_uuid = $anvil->data->{switches}{'job-uuid'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+	}
+	
 	# Were we passed a job uuid?
-	if ((not $job_uuid) && (not $anvil->data->{switches}{'job-uuid'}))
+	if (not $job_uuid)
 	{
 		# Try to find a job in the database.
 		my $command = $0."%";
@@ -194,12 +200,6 @@ AND
 		{
 			$job_uuid = $results->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
-			
-			if (($job_uuid) && (not $anvil->data->{switches}{'job-uuid'}))
-			{
-				$anvil->data->{switches}{'job-uuid'} = $job_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
-			}
 		}
 		
 		if (not $job_uuid)
@@ -209,11 +209,18 @@ AND
 		}
 	}
 	
-	if (not $anvil->Validate->uuid({uuid => $anvil->data->{switches}{'job-uuid'}}))
+	if (not $anvil->Validate->uuid({uuid => $job_uuid}))
 	{
 		# It's not a UUID.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0033", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0033", variables => { uuid => $job_uuid } });
 		return(1);
+	}
+	
+	if (not $anvil->data->{switches}{'job-uuid'})
+	{
+		# Set the switch variable.
+		$anvil->data->{switches}{'job-uuid'} = $job_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 	}
 	
 	# If I'm here, see if we can read the job details.
@@ -233,7 +240,7 @@ SELECT
 FROM 
     jobs 
 WHERE 
-    job_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'job-uuid'})." 
+    job_uuid = ".$anvil->Database->quote($job_uuid)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -245,7 +252,7 @@ WHERE
 	}});
 	if ($count < 1)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0034", variables => { uuid => $anvil->data->{switches}{'job-uuid'} } });
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0034", variables => { uuid => $job_uuid } });
 		$anvil->nice_exit({exit_code => 2});
 	}
 	
