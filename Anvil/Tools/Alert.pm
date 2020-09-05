@@ -77,7 +77,7 @@ sub parent
 
 =head2 check_alert_sent
 
-This is used by scan agents that need to track whether an alert was sent when a sensor dropped below/rose above a set alert threshold. For example, if a sensor alerts at 20°C and clears at 25°C, this will be called when either value is passed. When passing the warning threshold, the alert is registered and sent to the user. Once set, no further warning alerts are sent. When the value passes over the clear threshold, this is checked and if an alert was previously registered, it is removed and an "all clear" message is sent. In this way, multiple alerts will not go out if a sensor floats around the warning threshold and a "cleared" message won't be sent unless a "warning" message was previously sent.
+This is used by programs, usually scancore scan agents, that need to track whether an alert was sent when a sensor dropped below/rose above a set alert threshold. For example, if a sensor alerts at 20°C and clears at 25°C, this will be called when either value is passed. When passing the warning threshold, the alert is registered and sent to the user. Once set, no further warning alerts are sent. When the value passes over the clear threshold, this is checked and if an alert was previously registered, it is removed and an "all clear" message is sent. In this way, multiple alerts will not go out if a sensor floats around the warning threshold and a "cleared" message won't be sent unless a "warning" message was previously sent.
 
 If there is a problem, C<< !!error!! >> is returned.
 
@@ -284,17 +284,17 @@ WHERE
 
 =head2 register
 
-This registers an alert to be sent later.
+This registers an alert to be sent later by C<< Email->send_alerts >>. 
 
-The C<< alert_uuid >> is returned on success. If anything goes wrong, C<< !!error!! >> will be returned.
+The C<< alert_uuid >> is returned on success. If anything goes wrong, C<< !!error!! >> is returned. If there are no recipients who would receive the alert, it will not be recorded and an empty string is returned.
 
 Parameters;
 
 =head3 alert_level (required)
 
-This assigns an severity level to the alert. Any recipient listening to this level or higher will receive this alert.
+This assigns an severity level to the alert. Any recipient listening to this level or higher will receive this alert. This value can be set as a numeric value or as a string.
 
-=head4 1 (critical)
+=head4 1 / critical
 
 Alerts at this level will go to all recipients, except for those ignoring the source system entirely.
 
@@ -302,19 +302,19 @@ This is reserved for alerts that could lead to imminent service interruption or 
 
 Alerts at this level should trigger alarm systems for all administrators as well as management who may be impacted by service interruptions.
 
-=head4 2 (warning)
+=head4 2 / warning
 
 This is used for alerts that require attention from administrators. Examples include intentional loss of redundancy caused by load shedding, hardware in pre-failure, loss of input power, temperature anomalies, etc.
 
 Alerts at this level should trigger alarm systems for administrative staff.
 
-=head4 3 (notice)
+=head4 3 / notice
 
 This is used for alerts that are generally safe to ignore, but might provide early warnings of developing issues or insight into system behaviour. 
 
 Alerts at this level should not trigger alarm systems. Periodic review is sufficient.
 
-=head4 4 (info)
+=head4 4 / info
 
 This is used for alerts that are almost always safe to ignore, but may be useful in testing and debugging. 
 
@@ -353,7 +353,7 @@ NOTE: The timestamp is generally set for a given program or agent run (set when 
 
 =head3 title (optional)
 
-NOTE: This is required if C<< show_header >> is set! 
+NOTE: If not set and C<< show_header >> is set to C<< 1 >>, a generic title will be added based on the C<< alert_level >> and if C<< clear_alert >> is set or not.
 
 This is the title of the alert. It is expected to be in the format C<< <string_key> >>. If variables are to be injected into the C<< string_key >>, a comma-separated list in the format C<< !!variable_name1!value1!![,!!variable_nameN!valueN!!] >> is used.
 
@@ -385,6 +385,7 @@ sub register
 		title         => $title, 
 	}});
 	
+	# Missing parameters?
 	if (not $alert_level)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register()", parameter => "alert_level" }});
@@ -400,13 +401,44 @@ sub register
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->register()", parameter => "message" }});
 		return("!!error!!");
 	}
+	
+	# If the alert level was a string, convert it to the numerical version. Also check that we've got a 
+	# sane alert level at all.
+	if (lc($alert_level) eq "critical")
+	{
+		$alert_level = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_level => $alert_level }});
+	}
+	elsif (lc($alert_level) eq "warning")
+	{
+		$alert_level = 2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_level => $alert_level }});
+	}
+	elsif (lc($alert_level) eq "notice")
+	{
+		$alert_level = 3;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_level => $alert_level }});
+	}
+	elsif (lc($alert_level) eq "info")
+	{
+		$alert_level = 4;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_level => $alert_level }});
+	}
+	elsif (($alert_level =~ /\D/) or ($alert_level < 1) or ($alert_level > 4))
+	{
+		# Invalid
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0142", variables => { alert_level => $alert_level }});
+		return("!!error!!");
+	}
+	
+	# Do we need to generate a header?
 	if (($show_header) && (not $title))
 	{
 		# Set it based on the alert_level.
-		if    ($alert_level eq "1") { $title = $clear_alert ? "alert_title_0005" : "alert_title_0001"; } # Critical (or Critical Cleared)
-		elsif ($alert_level eq "2") { $title = $clear_alert ? "alert_title_0006" : "alert_title_0002"; } # Warning (or Warning Cleared)
-		elsif ($alert_level eq "3") { $title = $clear_alert ? "alert_title_0007" : "alert_title_0003"; } # Notice (or Notice Cleared)
-		elsif ($alert_level eq "4") { $title = $clear_alert ? "alert_title_0008" : "alert_title_0004"; } # Info (or Info Cleared)
+		if    ($alert_level == 1) { $title = $clear_alert ? "alert_title_0005" : "alert_title_0001"; } # Critical (or Critical Cleared)
+		elsif ($alert_level == 2) { $title = $clear_alert ? "alert_title_0006" : "alert_title_0002"; } # Warning (or Warning Cleared)
+		elsif ($alert_level == 3) { $title = $clear_alert ? "alert_title_0007" : "alert_title_0003"; } # Notice (or Notice Cleared)
+		elsif ($alert_level == 4) { $title = $clear_alert ? "alert_title_0008" : "alert_title_0004"; } # Info (or Info Cleared)
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { title => $title }});
 	}
 	
@@ -417,65 +449,35 @@ sub register
 	# Before we actually record the alert, see if there are any recipients listening. For example, very
 	# rarely is anyone listening to alert level 4 (info), so skipping recording it saves unnecessary 
 	# growth of the history.alerts table.
-	
-	
-	
-=cut
-	# In most cases, no one is listening to 'debug' or 'info' level alerts. If that is the case here, 
-	# don't record the alert because it can cause the history.alerts table to grow needlessly. So find
-	# the lowest level log level actually being listened to and simply skip anything lower than that.
-	# 5 == debug
-	# 1 == critical
-	my $lowest_log_level = 5;
-	foreach my $integer (sort {$a cmp $b} keys %{$anvil->data->{alerts}{recipient}})
+	my $proceed = 0;
+	$anvil->Database->get_recipients({debug => $debug});
+	foreach my $recipient_uuid (keys %{$anvil->data->{recipients}{recipient_uuid}})
 	{
-		# We want to know the alert level, regardless of whether the recipient is an email of file 
-		# target.
-		my $this_level;
-		if ($anvil->data->{alerts}{recipient}{$integer}{email})
-		{
-			# Email recipient
-			$this_level = ($anvil->data->{alerts}{recipient}{$integer}{email} =~ /level="(.*?)"/)[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_level => $this_level }});
-		}
-		elsif ($anvil->data->{alerts}{recipient}{$integer}{file})
-		{
-			# File target
-			$this_level = ($anvil->data->{alerts}{recipient}{$integer}{file} =~ /level="(.*?)"/)[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_level => $this_level }});
-		}
+		my $recipient_email = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email};
+		my $recipient_level = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:recipient_uuid'  => $recipient_uuid,
+			's2:recipient_level' => $recipient_level, 
+			's3:recipient_email' => $recipient_email,
+		}});
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_level => $this_level }});
-		if ($this_level)
+		if ($recipient_level >= $alert_level)
 		{
-			$this_level = $anvil->Alert->convert_level_name_to_number({level => $this_level});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				this_level       => $this_level,
-				lowest_log_level => $lowest_log_level,
-			}});
-			if ($this_level < $lowest_log_level)
-			{
-				$lowest_log_level = $this_level;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { lowest_log_level => $lowest_log_level }});
-			}
+			# Someone wants to hear about this.
+			$proceed = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proceed => $proceed }});
+			last;
 		}
 	}
 	
-	# Now get the numeric value of this alert and return if it is higher.
-	my $this_level = $anvil->Alert->convert_level_name_to_number({level => $level});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		alert_level      => $level,
-		this_level       => $this_level,
-		lowest_log_level => $lowest_log_level,
-	}});
-	if ($this_level > $lowest_log_level)
+	if (not $proceed)
 	{
-		# Return.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0102", variables => { message => $message }});
-		return(0);
+		# No one is listening, ignore.
+		return("");
 	}
 	
 	# Always INSERT. ScanCore removes them as they're acted on (copy is left in history.alerts).
+	my $alert_uuid = $anvil->Get->uuid();
 	my $query = "
 INSERT INTO 
     alerts
@@ -490,10 +492,10 @@ INSERT INTO
     alert_show_header, 
     modified_date
 ) VALUES (
-    ".$anvil->Database->quote($anvil->Get->uuid()).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{host_uuid}).", 
+    ".$anvil->Database->quote($alert_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid()).", 
     ".$anvil->Database->quote($set_by).", 
-    ".$anvil->Database->quote($level).", 
+    ".$anvil->Database->quote($alert_level).", 
     ".$anvil->Database->quote($title).", 
     ".$anvil->Database->quote($message).", 
     ".$anvil->Database->quote($sort_position).", 
@@ -503,9 +505,10 @@ INSERT INTO
 ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
-=cut
 	
-	return(0);
+	### TODO: Add an optional 'send_now' parameter to causes us to call 'Email->send_alerts'
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_uuid => $alert_uuid }});
+	return($alert_uuid);
 }
 
 ### TODO: Write this, maybe? Or remove it and ->warning()?

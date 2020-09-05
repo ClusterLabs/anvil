@@ -19,8 +19,11 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Email.pm";
 
 ### Methods;
-# check_queue
 # check_config
+# check_queue
+# get_current_server
+# get_next_server
+# send_alerts
 # 
 
 =pod
@@ -249,6 +252,53 @@ sub check_queue
 	return($oldest_message);
 }
 
+=head2 get_current_server
+
+This method returns of the C<< mail_server_uuid >> of the currently configured mail server. If no mail server is currently configured, an empty string is returned.
+
+This method takes no parameters.
+
+=cut
+sub get_current_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->get_current_server()" }});
+	
+	if (not exists $anvil->data->{mail_servers}{mail_server})
+	{
+		# Try loading the mail server data.
+		$anvil->Database->get_mail_servers({debug => $debug});
+	}
+	
+	my $newest_mail_server_time = 0;
+	my $newest_mail_server_uuid = "";
+	foreach my $mail_server_uuid (keys %{$anvil->data->{mail_servers}{mail_server}})
+	{
+		my $last_used = $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{last_used};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			mail_server_uuid => $mail_server_uuid,
+			last_used        => $last_used, 
+		}});
+		
+		if ($last_used > $newest_mail_server_time)
+		{
+			$newest_mail_server_time = $last_used;
+			$newest_mail_server_uuid = $mail_server_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				newest_mail_server_time => $newest_mail_server_time,
+				newest_mail_server_uuid => $newest_mail_server_uuid, 
+			}});
+		}
+	}
+	
+	# TODO: Verify that this mail server is actually configured.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { newest_mail_server_uuid => $newest_mail_server_uuid }});
+	return($newest_mail_server_uuid);
+}
+
 =head2 get_next_server
 
 When two or more mail servers are configured, this will return the C<< mail_server_uuid >> of the mail server used in the most distant past. If two or more mail servers have never been used before, a random unused server is returned.
@@ -264,8 +314,7 @@ sub get_next_server
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->check_queue()" }});
-	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->get_next_server()" }});
 	
 	# If configured/running, the number of messages in queue is checked. If '0', 
 	# 'mail_server::queue_empty' is updated with the current time. If 1 or more, the time since the queue
@@ -295,6 +344,230 @@ sub get_next_server
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { oldest_mail_server_uuid => $oldest_mail_server_uuid }});
 	return($oldest_mail_server_uuid);
 }
+
+=head2 send_alerts
+
+This method looks for registered alerts, creates an email for recipients, and sends the resulting emails into the mail server queue for dispatch. 
+
+This method takes no parameters.
+
+=cut
+sub send_alerts
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->send_alerts()" }});
+	
+	# Load the alerts
+	$anvil->Database->get_recipients({debug => 2});
+	$anvil->Database->get_alerts({debug => 2});
+	foreach my $alert_uuid (keys %{$anvil->data->{alerts}{alert_uuid}})
+	{
+		my $alert_host_uuid     = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_host_uuid};
+		my $alert_set_by        = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_set_by};
+		my $alert_level         = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_level};
+		my $alert_title         = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_title};
+		my $alert_message       = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_message};
+		my $alert_sort_position = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_sort_position};
+		my $alert_show_header   = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_show_header};
+		my $alert_processed     = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_processed};
+		my $unix_modified_date  = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{unix_modified_date};
+		my $modified_date       = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{modified_date};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			alert_host_uuid     => $alert_host_uuid, 
+			alert_set_by        => $alert_set_by, 
+			alert_level         => $alert_level, 
+			alert_title         => $alert_title, 
+			alert_message       => $alert_message, 
+			alert_sort_position => $alert_sort_position, 
+			alert_show_header   => $alert_show_header, 
+			alert_processed     => $alert_processed, 
+			unix_modified_date  => $unix_modified_date, 
+			modified_date       => $modified_date, 
+		}});
+		
+		# Walk through the recipients to see who wants to hear about this.
+		foreach my $recipient_uuid (keys %{$anvil->data->{recipients}{recipient_uuid}})
+		{
+			my $recipient_name     = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name};
+			my $recipient_email    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email};
+			my $recipient_language = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language};
+			my $recipient_level    = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				recipient_name     => $recipient_name,
+				recipient_email    => $recipient_email, 
+				recipient_language => $recipient_language, 
+				recipient_level    => $recipient_level, 
+			}});
+			
+			### NOTE: Levels;
+			# 1 - critical
+			# 2 - warning
+			# 3 - notice
+			# 4 - info
+			if ($recipient_level <= $alert_level)
+			{
+				# The user wants it. 
+				my $message = $anvil->Words->parse_banged_string({
+					language   => $recipient_language, 
+					key_string => $alert_message, 
+					
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message }});
+				if ($alert_title)
+				{
+					my $title = $anvil->Words->parse_banged_string({
+						language   => $recipient_language, 
+						key_string => $alert_title, 
+						
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { title => $title }});
+					
+					$message = $title."\n".$message."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { message => $message }});
+				}
+				
+				# Store it in a sortable hash.
+				$anvil->data->{alerts}{queue}{$recipient_uuid}{$alert_sort_position}{$alert_level}{$unix_modified_date}{$alert_uuid} = $message;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"alerts::queue::${recipient_uuid}::${alert_sort_position}::${alert_level}::${unix_modified_date}::${alert_uuid}" => $anvil->data->{alerts}{queue}{$recipient_uuid}{$alert_sort_position}{$alert_level}{$unix_modified_date}{$alert_uuid},
+				}});
+				
+				# This stores all recipients used in the 'Reply To' section. It also stores 
+				# the highest alert level for the email subject line.
+				if (not exists $anvil->data->{alerts}{reply_to}{$recipient_uuid})
+				{
+					$anvil->data->{alerts}{reply_to}{$recipient_uuid}{highest_alert_level} = $alert_level;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"alerts::reply_to::${recipient_uuid}::highest_alert_level" => $anvil->data->{alerts}{reply_to}{$recipient_uuid}{highest_alert_level},
+					}});
+				}
+				elsif ($alert_level < $anvil->data->{alerts}{reply_to}{$recipient_uuid})
+				{
+					$anvil->data->{alerts}{reply_to}{$recipient_uuid}{highest_alert_level} = $alert_level;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"alerts::reply_to::${recipient_uuid}::highest_alert_level" => $anvil->data->{alerts}{reply_to}{$recipient_uuid}{highest_alert_level},
+					}});
+				}
+			}
+		}
+	}
+	
+	# Build the emails now.
+	my $host_name = $anvil->_host_name;
+	foreach my $recipient_uuid (keys %{$anvil->data->{alerts}{queue}})
+	{
+		my $recipient_name      = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name};
+		my $recipient_email     = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email};
+		my $recipient_language  = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language};
+		my $highest_alert_level = $anvil->data->{alerts}{reply_to}{$recipient_uuid}{highest_alert_level};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			recipient_name      => $recipient_name,
+			recipient_email     => $recipient_email, 
+			recipient_language  => $recipient_language, 
+			highest_alert_level => $highest_alert_level, 
+		}});
+		
+		# Build the message subject (I know I could be clever and append the level to 'email_000' but
+		# that makes it harder to search the code to uses of keys).
+		my $subject_key = "email_0004";
+		if    ($highest_alert_level == 3) { $subject_key = "email_0003"; }
+		elsif ($highest_alert_level == 2) { $subject_key = "email_0002"; }
+		elsif ($highest_alert_level == 1) { $subject_key = "email_0001"; }
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subject_key => $subject_key }});
+		
+		my $subject = $anvil->Words->string({
+			language  => $recipient_language, 
+			key       => $subject_key, 
+			variables => {
+				host_name => $host_name,
+			},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subject => $subject }});
+		
+		my $footer = $anvil->Words->string({
+			language  => $recipient_language, 
+			key       => "email_0005",
+			variables => {
+				host_name => $host_name,
+			},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { footer => $footer }});
+		
+		### TODO: Determine if any of the sorts need to be reversed
+		# Build the message body now.
+		my $body = "";
+		foreach my $alert_sort_position (sort {$a cmp $b} keys %{$anvil->data->{alerts}{queue}{$recipient_uuid}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_sort_position => $alert_sort_position }});
+			foreach my $alert_level (sort {$a cmp $b} keys %{$anvil->data->{alerts}{queue}{$recipient_uuid}{$alert_sort_position}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { alert_level => $alert_level }});
+				foreach my $unix_modified_date (sort {$a cmp $b} keys %{$anvil->data->{alerts}{queue}{$recipient_uuid}{$alert_sort_position}{$alert_level}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { unix_modified_date => $unix_modified_date }});
+					foreach my $alert_uuid (keys %{$anvil->data->{alerts}{queue}{$recipient_uuid}{$alert_sort_position}{$alert_level}{$unix_modified_date}})
+					{
+						my $message = $anvil->data->{alerts}{queue}{$recipient_uuid}{$alert_sort_position}{$alert_level}{$unix_modified_date}{$alert_uuid};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:alert_uuid' => $alert_uuid,
+							's2:message'    => $message, 
+						}});
+						
+						$body .= $message."\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+					}
+				}
+			}
+		}
+		
+		# Not build the "Reply To" line.
+		my $reply_to = "";
+		foreach my $other_recipient_uuid (keys %{$anvil->data->{alerts}{queue}})
+		{
+			next if $recipient_uuid eq $other_recipient_uuid;
+			my $other_recipient_email = $anvil->data->{recipients}{recipient_uuid}{$other_recipient_uuid}{recipient_email};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				other_recipient_uuid  => $other_recipient_uuid,
+				other_recipient_email => $other_recipient_email, 
+			}});
+			
+			$reply_to .= $other_recipient_email.", ";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reply_to => $reply_to }});
+		}
+		$reply_to =~ s/, $//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reply_to => $reply_to }});
+		
+		# Who are we sending as?
+		my $mail_server_uuid = $anvil->Email->get_current_server({debug => 2});
+		my $from             = $mail_server_uuid ? $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username} : "root\@".$host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			mail_server_uuid => $mail_server_uuid,
+			from             => $from,
+		}});
+		
+		# Ready! 
+		my $email_body = "
+From:     ".$from."
+To:       ".$recipient_name." <".$recipient_email.">
+Subject:  ".$subject."
+Reply-To: ".$reply_to."
+
+".$body."
+".$footer."
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { email_body => $email_body }});
+		
+		# Write it to a file.
+		
+		# Call mailx to read it in
+	}
+	
+	return(0);
+}
+
 
 # =head3
 # 

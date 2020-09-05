@@ -28,7 +28,17 @@ $anvil->Get->switches;
 print "Connecting to the database(s);\n";
 $anvil->Database->connect({debug => 2});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
-# 
-# my ($oldest_message) = $anvil->Email->check_queue({debug => 2});
-# print "Oldest message: [".$oldest_message."]\n";
 
+if (0)
+{
+	$anvil->Alert->register({
+		debug       => 2,
+		alert_level => "warning",
+		message     => "message_0179",
+		set_by      => $THIS_FILE,
+	});
+}
+if (1)
+{
+	$anvil->Email->send_alerts({debug => 2});
+}

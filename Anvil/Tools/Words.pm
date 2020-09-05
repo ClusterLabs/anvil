@@ -337,7 +337,17 @@ sub parse_banged_string
 	# Setup default values
 	my $out_string = "";
 	my $key_string = defined $parameter->{key_string} ? $parameter->{key_string} : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
+	my $language   = defined $parameter->{language}   ? $parameter->{language}   : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		key_string => $key_string,
+		language   => $language, 
+	}});
+	
+	if (not $language)
+	{
+		$language = $anvil->Words->language();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { language => $language }});
+	}
 	
 	# Some variable values will be multi-line strings. We need to replace the new-lines in those 
 	# multi-line values into '##br##' so that we can do a proper variable insertion. We can't simply 
@@ -462,13 +472,22 @@ sub parse_banged_string
 			}
 			
 			# Parse the line now.
-			$out_string .= $anvil->Words->string({debug => $debug, key => $key, variables => $variables});
+			$out_string .= $anvil->Words->string({
+				test      => 0, 
+				key       => $key, 
+				variables => $variables,
+				language  => $language, 
+			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
 		}
 		else
 		{
 			# This key is just a key, no variables.
-			$out_string .= $anvil->Words->string({test => 0, key => $message});
+			$out_string .= $anvil->Words->string({
+				test     => 0, 
+				key      => $message,
+				language => $language, 
+			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { out_string => $out_string }});
 		}
 	}
@@ -728,8 +747,8 @@ sub string
 	
 	# Setup default values
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
-	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language;
-	my $file      = defined $parameter->{file}      ? $parameter->{file}      : $anvil->data->{path}{words}{'words.xml'};
+	my $language  =         $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language;
+	my $file      =         $parameter->{file}      ? $parameter->{file}      : $anvil->data->{path}{words}{'words.xml'};
 	my $string    = defined $parameter->{string}    ? $parameter->{string}    : "";
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
 	### NOTE: Don't call Log->entry here, or we'll get a recursive loop! Use 'test' to debug.

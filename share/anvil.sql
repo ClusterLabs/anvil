@@ -403,6 +403,7 @@ CREATE TABLE alerts (
     alert_message          text                        not null,                    -- ScanCore will read in the agents <name>.xml words file and look for this message key
     alert_sort_position    integer                     not null    default 9999,    -- The alerts will sort on this column. It allows for an optional sorting of the messages in the alert.
     alert_show_header      integer                     not null    default 1,       -- This can be set to have the alert be printed with only the contents of the string, no headers.
+    alert_processed        integer                     not null    default 0,       -- This is set to '1' when an alert has been processed (sent to recipients)
     modified_date          timestamp with time zone    not null,
     
     FOREIGN KEY(alert_host_uuid) REFERENCES hosts(host_uuid)
@@ -419,6 +420,7 @@ CREATE TABLE history.alerts (
     alert_message          text,
     alert_sort_position    integer,
     alert_show_header      integer,
+    alert_processed        integer,
     modified_date          timestamp with time zone    not null
 );
 ALTER TABLE history.alerts OWNER TO admin;
@@ -438,6 +440,7 @@ BEGIN
          alert_message,
          alert_sort_position, 
          alert_show_header, 
+         alert_processed, 
          modified_date)
     VALUES
         (history_alerts.alert_uuid,
@@ -448,6 +451,7 @@ BEGIN
          history_alerts.alert_message,
          history_alerts.alert_sort_position, 
          history_alerts.alert_show_header, 
+         history_alerts.alert_processed, 
          history_alerts.modified_date);
     RETURN NULL;
 END;
@@ -460,28 +464,24 @@ CREATE TRIGGER trigger_alerts
     FOR EACH ROW EXECUTE PROCEDURE history_alerts();
 
     
--- NOTE: This doesn't store the user's level, as it might be unique per Anvil!.
--- This is the list of alert recipients.
 CREATE TABLE recipients (
-    recipient_uuid         uuid                        not null    primary key,
-    recipient_name         text                        not null,                    -- This is the recipient's name
-    recipient_email        text                        not null,                    -- This is the recipient's email address or the file name, depending.
-    recipient_language     text                        not null,                    -- If set, this is the language the user wants to receive alerts in. If not set, the default language is used.
-    recipient_units        text                        not null,                    -- This can be set to 'imperial' if the user prefers temperatures in °F
-    recipient_new_level    integer                     not null,                    -- This is the alert level to use when automatically adding watch links to new systems. '0' tells us to ignore new systems, 1 is critical, 2 is warning, and 3 is notice
-    modified_date          timestamp with time zone    not null
+    recipient_uuid        uuid                        not null    primary key,
+    recipient_name        text                        not null,                    -- This is the recipient's name
+    recipient_email       text                        not null,                    -- This is the recipient's email address or the file name, depending.
+    recipient_language    text                        not null,                    -- If set, this is the language the user wants to receive alerts in. If not set, the default language is used.
+    recipient_level       integer                     not null,                    -- This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'notifications' table.
+    modified_date         timestamp with time zone    not null
 );
 ALTER TABLE recipients OWNER TO admin;
 
 CREATE TABLE history.recipients (
-    history_id             bigserial,
-    recipient_uuid         uuid,
-    recipient_name         text,
-    recipient_email        text,
-    recipient_language     text,
-    recipient_units        text,
-    recipient_new_level    integer,
-    modified_date          timestamp with time zone    not null
+    history_id            bigserial,
+    recipient_uuid        uuid,
+    recipient_name        text,
+    recipient_email       text,
+    recipient_language    text,
+    recipient_level       integer,
+    modified_date         timestamp with time zone    not null
 );
 ALTER TABLE history.recipients OWNER TO admin;
 
@@ -496,16 +496,14 @@ BEGIN
          recipient_name,
          recipient_email,
          recipient_language,
-         recipient_units, 
-         recipient_new_level,
+         recipient_level,
          modified_date)
     VALUES
         (history_recipients.recipient_uuid,
          history_recipients.recipient_name,
          history_recipients.recipient_email,
          history_recipients.recipient_language,
-         history_recipients.recipient_units,
-         history_recipients.recipient_new_level,
+         history_recipients.recipient_level,
          history_recipients.modified_date);
     RETURN NULL;
 END;
@@ -518,8 +516,8 @@ CREATE TRIGGER trigger_recipients
     FOR EACH ROW EXECUTE PROCEDURE history_recipients();
 
 
--- This creates links between recipients and Anvil! systems, with a request alert level, so that we can 
--- decide who gets what alerts for a given Anvil! system
+-- This table is used when a user wants to set a custom alert level for a given machine. Typically this is 
+-- used to ignore test Anvil! systems. 
 CREATE TABLE notifications (
     notification_uuid              uuid                        not null    primary key,
     notification_recipient_uuid    uuid                        not null,                    -- The recipient we're linking.
@@ -536,7 +534,7 @@ CREATE TABLE history.notifications (
     history_id                     bigserial,
     notification_uuid              uuid,
     notification_recipient_uuid    uuid,
-    notification_host_uuid        uuid,
+    notification_host_uuid         uuid,
     notification_alert_level       integer,
     modified_date                  timestamp with time zone    not null
 );
@@ -1647,7 +1645,8 @@ ALTER TABLE updated OWNER TO admin;
 -- To avoid "waffling" when a sensor is close to an alert (or cleared) threshold, a gap between the alarm 
 -- value and the clear value is used. If the sensor climbs above (or below) the "clear" value, but didn't 
 -- previously pass the "alert" threshold, we DON'T want to send an "all clear" message. So do solve that, 
--- this table is used by agents to record when a warning message was sent. 
+-- this table is used by agents to record when a warning message was sent (and as such, which need to be 
+-- cleared). 
 CREATE TABLE alert_sent (
     alert_sent_uuid         uuid                        not null    primary key,
     alert_sent_host_uuid    uuid                        not null,                   -- The node associated with this alert

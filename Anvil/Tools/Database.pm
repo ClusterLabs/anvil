@@ -20,6 +20,7 @@ my $THIS_FILE = "Database.pm";
 # configure_pgsql
 # connect
 # disconnect
+# get_alerts
 # get_anvils
 # get_fences
 # get_host_from_uuid
@@ -1252,7 +1253,7 @@ sub connect
 		}});
 		
 		# Copy my alert hash before I delete the uuid.
-		my $error_array = [];
+# 		my $error_array = [];
 		
 		# Delete this DB so that we don't try to use it later. This is a quiet alert because the 
 		# original connection error was likely logged.
@@ -1263,40 +1264,40 @@ sub connect
 		delete $anvil->data->{database}{$uuid};
 		
 		# If I've not sent an alert about this DB loss before, send one now.
-		my $set = $anvil->Alert->check_alert_sent({
-			debug          => $debug, 
-			type           => "set",
-			set_by         => $THIS_FILE,
-			record_locator => $uuid,
-			name           => "connect_to_db",
-			modified_date  => $anvil->data->{sys}{database}{timestamp},
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
-		
-		if ($set)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error_array => $error_array }});
-			foreach my $hash (@{$error_array})
-			{
-				my $message_key       = $hash->{message_key};
-				my $message_variables = $hash->{message_variables};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					hash              => $hash, 
-					message_key       => $message_key, 
-					message_variables => $message_variables, 
-				}});
-				
-				# These are warning level alerts.
-				$anvil->Alert->register({
-					debug                   => $debug, 
-					alert_level             => "warning", 
-					alert_set_by            => $THIS_FILE,
-					alert_title_key         => "alert_title_0003",
-					alert_message_key       => $message_key,
-					alert_message_variables => $message_variables,
-				});
-			}
-		}
+# 		my $set = $anvil->Alert->check_alert_sent({
+# 			debug          => $debug, 
+# 			type           => "set",
+# 			set_by         => $THIS_FILE,
+# 			record_locator => $uuid,
+# 			name           => "connect_to_db",
+# 			modified_date  => $anvil->data->{sys}{database}{timestamp},
+# 		});
+# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
+# 		
+# 		if ($set)
+# 		{
+# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error_array => $error_array }});
+# 			foreach my $hash (@{$error_array})
+# 			{
+# 				my $message = $hash->{message_key};
+# 				my $variable_count = keys 
+# 				my $message_key       = $hash->{message_key};
+# 				my $message_variables = $hash->{message_variables};
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+# 					hash              => $hash, 
+# 					message_key       => $message_key, 
+# 					message_variables => $message_variables, 
+# 				}});
+# 				
+# 				# These are warning level alerts.
+# 				$anvil->Alert->register({
+# 					debug       => $debug, 
+# 					alert_level => "warning", 
+# 					set_by      => $THIS_FILE,
+# 					message     => $message,
+# 				});
+# 			}
+# 		}
 	}
 	
 	# Send an 'all clear' message if a now-connected DB previously wasn't.
@@ -1324,29 +1325,29 @@ sub connect
 # 		
 # 		if ($count > 0)
 # 		{
-			my $cleared = $anvil->Alert->check_alert_sent({
-				debug          => $debug, 
-				type           => "clear",
-				set_by         => $THIS_FILE,
-				record_locator => $uuid,
-				name           => "connect_to_db",
-				modified_date  => $anvil->data->{sys}{database}{timestamp},
-			});
-			if ($cleared)
-			{
-				$anvil->Alert->register({
-					debug             => $debug, 
-					level             => "warning", 
-					agent_name        => "Anvil!",
-					title_key         => "an_title_0006",
-					message_key       => "cleared_log_0055",
-					message_variables => {
-						name => $database_name,
-						host => $anvil->data->{database}{$uuid}{host},
-						port => defined $anvil->data->{database}{$uuid}{port} ? $anvil->data->{database}{$uuid}{port} : 5432,
-					},
-				});
-			}
+# 			my $cleared = $anvil->Alert->check_alert_sent({
+# 				debug          => $debug, 
+# 				type           => "clear",
+# 				set_by         => $THIS_FILE,
+# 				record_locator => $uuid,
+# 				name           => "connect_to_db",
+# 				modified_date  => $anvil->data->{sys}{database}{timestamp},
+# 			});
+# 			if ($cleared)
+# 			{
+# 				$anvil->Alert->register({
+# 					debug             => $debug, 
+# 					level             => "warning", 
+# 					agent_name        => "Anvil!",
+# 					title_key         => "an_title_0006",
+# 					message_key       => "cleared_log_0055",
+# 					message_variables => {
+# 						name => $database_name,
+# 						host => $anvil->data->{database}{$uuid}{host},
+# 						port => defined $anvil->data->{database}{$uuid}{port} ? $anvil->data->{database}{$uuid}{port} : 5432,
+# 					},
+# 				});
+# 			}
 # 		}
 	}
 	
@@ -1439,35 +1440,94 @@ sub disconnect
 }
 
 
-=head2 get_recipients
+=head2 get_alerts
 
-This returns a list of users listening to alerts for a given host, along with their alert level.
+This reads in alerts from the C<< alerts >> table.
 
-This method takes no parameters.
+Data is stored as:
+
+ alerts::alert_uuid::<alert_uuid>::alert_host_uuid
+ alerts::alert_uuid::<alert_uuid>::alert_set_by
+ alerts::alert_uuid::<alert_uuid>::alert_level
+ alerts::alert_uuid::<alert_uuid>::alert_title
+ alerts::alert_uuid::<alert_uuid>::alert_message
+ alerts::alert_uuid::<alert_uuid>::alert_sort_position
+ alerts::alert_uuid::<alert_uuid>::alert_show_header
+ alerts::alert_uuid::<alert_uuid>::alert_processed
+ alerts::alert_uuid::<alert_uuid>::unix_modified_date
+ alerts::alert_uuid::<alert_uuid>::modified_date
+
+The C<< unix_modified_date >> is the unix timestamp to facilitate sorting by alert age.
+
+Parameters;
+
+=head3 include_processed (Optional, default 0)
+
+By default, only unprocessed alerts are loaded. If this is set to C<< 1 >>, alerts that have already been processed will also be loaded.
+
+=head3 all_hosts (Optional, default 0)
+
+By default, only alerts registered on the load host are loaded. If this is set to C<< 1 >>, alerts from all hosts are loaded. 
 
 =cut
-sub get_recipients
+sub get_alerts
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_recipients()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_manifests()" }});
 	
+	my $all_hosts         = defined $parameter->{all_hosts}         ? $parameter->{all_hosts}         : 0;
+	my $include_processed = defined $parameter->{include_processed} ? $parameter->{include_processed} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		all_hosts         => $all_hosts, 
+		include_processed => $include_processed, 
+	}});
+	
+	if (exists $anvil->data->{alerts})
+	{
+		delete $anvil->data->{alerts};
+	}
 	
 	my $query = "
 SELECT 
-    recipient_uuid,
-    recipient_name,
-    recipient_email,
-    recipient_language,
-    recipient_units, 
-    recipient_new_level 
+    alert_uuid, 
+    alert_host_uuid, 
+    alert_set_by, 
+    alert_level, 
+    alert_title, 
+    alert_message, 
+    alert_sort_position, 
+    alert_show_header, 
+    alert_processed, 
+    round(extract(epoch from modified_date)) AS unix_modified_date, 
+    modified_date 
 FROM 
-    recipients
+    alerts ";
+	if ((not $include_processed) && (not $all_hosts))
+	{
+		$query .= "
+WHERE 
+    alert_processed = '0' 
+AND 
+    alert_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." ";
+	}
+	elsif (not $include_processed)
+	{
+		$query .= "
+WHERE 
+    alert_processed = '0' ";
+	}
+	elsif (not $all_hosts)
+	{
+		$query .= "
+WHERE 
+    alert_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." "
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-	
 	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1476,42 +1536,56 @@ FROM
 	}});
 	foreach my $row (@{$results})
 	{
-		my $recipient_uuid      = $row->[0];
-		my $recipient_name      = $row->[1];
-		my $recipient_email     = $row->[2];
-		my $recipient_language  = $row->[3];
-		my $recipient_units     = $row->[4];
-		my $recipient_new_level = $row->[5];
+		my $alert_uuid          = $row->[0];
+		my $alert_host_uuid     = $row->[1];
+		my $alert_set_by        = $row->[2];
+		my $alert_level         = $row->[3]; 
+		my $alert_title         = $row->[4]; 
+		my $alert_message       = $row->[5]; 
+		my $alert_sort_position = $row->[6]; 
+		my $alert_show_header   = $row->[7];
+		my $alert_processed     = $row->[8];
+		my $unix_modified_date  = $row->[9];
+		my $modified_date       = $row->[10];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			recipient_uuid      => $recipient_uuid, 
-			recipient_name      => $recipient_name, 
-			recipient_email     => $recipient_email, 
-			recipient_language  => $recipient_language, 
-			recipient_units     => $recipient_units, 
-			recipient_new_level => $recipient_new_level, 
+			alert_uuid          => $alert_uuid, 
+			alert_host_uuid     => $alert_host_uuid, 
+			alert_set_by        => $alert_set_by, 
+			alert_level         => $anvil->Log->is_secure($alert_level), 
+			alert_title         => $alert_title, 
+			alert_message       => $alert_message, 
+			alert_sort_position => $alert_sort_position, 
+			alert_show_header   => $alert_show_header, 
+			alert_processed     => $alert_processed, 
+			unix_modified_date  => $unix_modified_date, 
+			modified_date       => $modified_date, 
 		}});
 		
-		# Store the data
-		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}      = $recipient_name;
-		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}     = $recipient_email;
-		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language}  = $recipient_language;
-		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_units}     = $recipient_units;
-		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_new_level} = $recipient_new_level;
+		# Record the data in the hash, too.
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_host_uuid}     = $alert_host_uuid;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_set_by}        = $alert_set_by;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_level}         = $alert_level;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_title}         = $alert_title;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_message}       = $alert_message;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_sort_position} = $alert_sort_position;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_show_header}   = $alert_show_header;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_processed}     = $alert_processed;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{unix_modified_date}  = $unix_modified_date;
+		$anvil->data->{alerts}{alert_uuid}{$alert_uuid}{modified_date}       = $modified_date;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_name"      => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_email"     => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_language"  => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_units"     => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_units}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_new_level" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_new_level}, 
-		}});
-		
-		# Make it easy to look up the mail server's UUID from the server address.
-		$anvil->data->{recipients}{email_to_uuid}{$recipient_email} = $recipient_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"recipients::email_to_uuid::${recipient_email}" => $anvil->data->{recipients}{email_to_uuid}{$recipient_email}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_host_uuid"     => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_host_uuid}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_set_by"        => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_set_by}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_level"         => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_level}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_title"         => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_title}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_message"       => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_message}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_sort_position" => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_sort_position}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_show_header"   => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_show_header}, 
+			"alerts::alert_uuid::${alert_uuid}::alert_processed"     => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_processed}, 
+			"alerts::alert_uuid::${alert_uuid}::unix_modified_date"  => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{unix_modified_date}, 
+			"alerts::alert_uuid::${alert_uuid}::modified_date"       => $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{modified_date}, 
 		}});
 	}
-	
+
 	return(0);
 }
 
@@ -2972,6 +3046,108 @@ FROM
 			"notifications::notification_uuid::${notification_uuid}::notification_host_uuid"      => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid}, 
 			"notifications::notification_uuid::${notification_uuid}::notification_alert_level"    => $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level}, 
 		}});
+	}
+	
+	return(0);
+}
+
+
+=head2 get_recipients
+
+This returns a list of users listening to alerts for a given host, along with their alert level. 
+
+This method takes no parameters.
+
+=cut
+sub get_recipients
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_recipients()" }});
+	
+	# We're going to include the alert levels for this host based on overrides that might exist in the 
+	# 'notifications' table. If the data hasn't already been loaded, we'll load it now.
+	if (not $anvil->data->{notifications}{notification_uuid})
+	{
+		$anvil->Database->get_notifications({debug => $debug});
+	}
+	
+	my $host_uuid = $anvil->Get->host_uuid();
+	my $query     = "
+SELECT 
+    recipient_uuid,
+    recipient_name,
+    recipient_email,
+    recipient_language,
+    recipient_level 
+FROM 
+    recipients
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $recipient_uuid     = $row->[0];
+		my $recipient_name     = $row->[1];
+		my $recipient_email    = $row->[2];
+		my $recipient_language = $row->[3];
+		my $recipient_level    = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			recipient_uuid     => $recipient_uuid, 
+			recipient_name     => $recipient_name, 
+			recipient_email    => $recipient_email, 
+			recipient_language => $recipient_language, 
+			recipient_level    => $recipient_level, 
+		}});
+		
+		# Store the data
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}     = $recipient_name;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}    = $recipient_email;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language} = $recipient_language;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level}    = $recipient_level;
+		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}      = $recipient_level;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_name"     => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_email"    => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_language" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::recipient_level"    => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level}, 
+			"recipients::recipient_uuid::${recipient_uuid}}::level_on_host"      => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}, 
+		}});
+		
+		# Make it easy to look up the mail server's UUID from the server address.
+		$anvil->data->{recipients}{email_to_uuid}{$recipient_email} = $recipient_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"recipients::email_to_uuid::${recipient_email}" => $anvil->data->{recipients}{email_to_uuid}{$recipient_email}, 
+		}});
+		
+		# If there is an override for a given recipient on this host, mark it as such.
+		foreach my $notification_uuid (keys %{$anvil->data->{notifications}{notification_uuid}})
+		{
+			my $notification_recipient_uuid = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_recipient_uuid};
+			my $notification_host_uuid      = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_host_uuid};
+			my $notification_alert_level    = $anvil->data->{notifications}{notification_uuid}{$notification_uuid}{notification_alert_level};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				notification_recipient_uuid => $notification_recipient_uuid, 
+				notification_host_uuid      => $notification_host_uuid, 
+				notification_alert_level    => $notification_alert_level, 
+			}});
+			if (($notification_host_uuid eq $host_uuid) && ($notification_recipient_uuid eq $recipient_uuid))
+			{
+				$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host} = $notification_alert_level;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"recipients::recipient_uuid::${recipient_uuid}}::level_on_host" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}, 
+				}});
+				last;
+			}
+		}
 	}
 	
 	return(0);
@@ -7960,7 +8136,7 @@ This is the language that alert emails are crafted using for this recipient. Thi
 
 This is the name of the recipient, and is used when crafting the email body and reply-to lists. 
 
-=head3 recipient_new_level (optional, default '2')
+=head3 recipient_level (optional, default '2')
 
 When adding a new Anvil! to the system, the recipient will automatically start monitoring the new Anvil! using this alert level. This can be set to C<< 0 >> to prevent auto-monitoring of new systems.
 
@@ -7982,10 +8158,6 @@ Warning alerts. These are alerts that likely require the attention of an adminis
 
 Notice alerts. These are generally low priority alerts that do not need attention, but might be indicators of developing problems. (ie: UPSes transfering to batteries, server migration/shut down/boot up, etc)
 
-=head3 recipient_units (optional, default 'metric')
-
-This can be set to 'imperial' if the user wants to receive values in imperial units. Currently, this causes temperatures to be returned in C<< °F >> instead of C<< °C >>.
-
 =head3 recipient_uuid (optional)
 
 If set, this is the UUID that will be used to update a record in the database. If not set, it will be searched for by looking for a matching C<< recipient_email >>.
@@ -7999,27 +8171,25 @@ sub insert_or_update_recipients
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_recipients()" }});
 	
-	my $delete              = defined $parameter->{'delete'}            ? $parameter->{'delete'}            : 0;
-	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
-	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
-	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
-	my $recipient_email     = defined $parameter->{recipient_email}     ? $parameter->{recipient_email}     : "";
-	my $recipient_language  = defined $parameter->{recipient_language}  ? $parameter->{recipient_language}  : "en_CA";
-	my $recipient_name      = defined $parameter->{recipient_name}      ? $parameter->{recipient_name}      : "";
-	my $recipient_new_level = defined $parameter->{recipient_new_level} ? $parameter->{recipient_new_level} : "2";
-	my $recipient_units     = defined $parameter->{recipient_units}     ? $parameter->{recipient_units}     : "metric";
-	my $recipient_uuid      = defined $parameter->{recipient_uuid}      ? $parameter->{recipient_uuid}      : "";
+	my $delete             = defined $parameter->{'delete'}           ? $parameter->{'delete'}           : 0;
+	my $uuid               = defined $parameter->{uuid}               ? $parameter->{uuid}               : "";
+	my $file               = defined $parameter->{file}               ? $parameter->{file}               : "";
+	my $line               = defined $parameter->{line}               ? $parameter->{line}               : "";
+	my $recipient_email    = defined $parameter->{recipient_email}    ? $parameter->{recipient_email}    : "";
+	my $recipient_language = defined $parameter->{recipient_language} ? $parameter->{recipient_language} : "en_CA";
+	my $recipient_name     = defined $parameter->{recipient_name}     ? $parameter->{recipient_name}     : "";
+	my $recipient_level    = defined $parameter->{recipient_level}    ? $parameter->{recipient_level}    : "2";
+	my $recipient_uuid     = defined $parameter->{recipient_uuid}     ? $parameter->{recipient_uuid}     : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		'delete'            => $delete, 
-		uuid                => $uuid, 
-		file                => $file, 
-		line                => $line, 
-		recipient_email     => $recipient_email, 
-		recipient_language  => $recipient_language, 
-		recipient_name      => $recipient_name, 
-		recipient_new_level => $recipient_new_level, 
-		recipient_units     => $recipient_units, 
-		recipient_uuid      => $recipient_uuid, 
+		'delete'           => $delete, 
+		uuid               => $uuid, 
+		file               => $file, 
+		line               => $line, 
+		recipient_email    => $recipient_email, 
+		recipient_language => $recipient_language, 
+		recipient_name     => $recipient_name, 
+		recipient_level    => $recipient_level, 
+		recipient_uuid     => $recipient_uuid, 
 	}});
 	
 	# Did we get a mail server name? 
@@ -8029,10 +8199,10 @@ sub insert_or_update_recipients
 		return("");
 	}
 	
-	# Make sure the recipient_new_level is 0, 1, 2 or 3
-	if (($recipient_new_level ne "0") && ($recipient_new_level ne "1") && ($recipient_new_level ne "2") && ($recipient_new_level ne "3"))
+	# Make sure the recipient_level is 0, 1, 2 or 3
+	if (($recipient_level ne "0") && ($recipient_level ne "1") && ($recipient_level ne "2") && ($recipient_level ne "3"))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0108", variables => { recipient_new_level => $recipient_new_level }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0108", variables => { recipient_level => $recipient_level }});
 		return("");
 	}
 	
@@ -8132,16 +8302,14 @@ INSERT INTO
     recipient_email, 
     recipient_language, 
     recipient_name, 
-    recipient_new_level, 
-    recipient_units, 
+    recipient_level, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($recipient_uuid).", 
     ".$anvil->Database->quote($recipient_email).", 
     ".$anvil->Database->quote($recipient_language).", 
     ".$anvil->Database->quote($recipient_name).", 
-    ".$anvil->Database->quote($recipient_new_level).", 
-    ".$anvil->Database->quote($recipient_units).", 
+    ".$anvil->Database->quote($recipient_level).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -8156,8 +8324,7 @@ SELECT
     recipient_email, 
     recipient_language, 
     recipient_name, 
-    recipient_new_level, 
-    recipient_units 
+    recipient_level 
 FROM 
     recipients 
 WHERE 
@@ -8179,39 +8346,35 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_recipient_email     = $row->[0]; 
-			my $old_recipient_language  = $row->[1];
-			my $old_recipient_name      = $row->[2]; 
-			my $old_recipient_new_level = $row->[3]; 
-			my $old_recipient_units     = $row->[4]; 
+			my $old_recipient_email    = $row->[0]; 
+			my $old_recipient_language = $row->[1];
+			my $old_recipient_name     = $row->[2]; 
+			my $old_recipient_level    = $row->[3]; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				old_recipient_email     => $old_recipient_email, 
-				old_recipient_language  => $old_recipient_language,
-				old_recipient_name      => $old_recipient_name, 
-				old_recipient_new_level => $old_recipient_new_level, 
-				old_recipient_units     => $old_recipient_units, 
+				old_recipient_email    => $old_recipient_email, 
+				old_recipient_language => $old_recipient_language,
+				old_recipient_name     => $old_recipient_name, 
+				old_recipient_level    => $old_recipient_level, 
 			}});
 			
 			# Anything change?
-			if (($old_recipient_email     ne $recipient_email)     or 
-			    ($old_recipient_language  ne $recipient_language)  or 
-			    ($old_recipient_name      ne $recipient_name)      or  
-			    ($old_recipient_new_level ne $recipient_new_level) or  
-			    ($old_recipient_units     ne $recipient_units))
+			if (($old_recipient_email    ne $recipient_email)    or 
+			    ($old_recipient_language ne $recipient_language) or 
+			    ($old_recipient_name     ne $recipient_name)     or  
+			    ($old_recipient_level    ne $recipient_level))
 			{
 				# Something changed, save.
 				my $query = "
 UPDATE 
     recipients 
 SET 
-    recipient_email     = ".$anvil->Database->quote($recipient_email).", 
-    recipient_language  = ".$anvil->Database->quote($recipient_language).", 
-    recipient_name      = ".$anvil->Database->quote($recipient_name).", 
-    recipient_new_level = ".$anvil->Database->quote($recipient_new_level).", 
-    recipient_units     = ".$anvil->Database->quote($recipient_units).", 
-    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    recipient_email    = ".$anvil->Database->quote($recipient_email).", 
+    recipient_language = ".$anvil->Database->quote($recipient_language).", 
+    recipient_name     = ".$anvil->Database->quote($recipient_name).", 
+    recipient_level    = ".$anvil->Database->quote($recipient_level).", 
+    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    recipient_uuid      = ".$anvil->Database->quote($recipient_uuid)." 
+    recipient_uuid     = ".$anvil->Database->quote($recipient_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});

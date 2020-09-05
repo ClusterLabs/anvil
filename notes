@@ -1,3 +1,82 @@
+BEGIN TRANSACTION;
+ALTER TABLE history.recipients RENAME recipient_new_level TO recipient_level;
+ALTER TABLE history.recipients DROP COLUMN recipient_units;
+ALTER TABLE recipients RENAME recipient_new_level TO recipient_level;
+ALTER TABLE recipients DROP COLUMN recipient_units;
+
+DROP FUNCTION history_recipients() CASCADE;
+CREATE FUNCTION history_recipients() RETURNS trigger
+AS $$
+DECLARE
+    history_recipients RECORD;
+BEGIN
+    SELECT INTO history_recipients * FROM recipients WHERE recipient_uuid = new.recipient_uuid;
+    INSERT INTO history.recipients
+        (recipient_uuid,
+         recipient_name,
+         recipient_email,
+         recipient_language,
+         recipient_level,
+         modified_date)
+    VALUES
+        (history_recipients.recipient_uuid,
+         history_recipients.recipient_name,
+         history_recipients.recipient_email,
+         history_recipients.recipient_language,
+         history_recipients.recipient_level,
+         history_recipients.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_recipients() OWNER TO admin;
+
+CREATE TRIGGER trigger_recipients
+    AFTER INSERT OR UPDATE ON recipients
+    FOR EACH ROW EXECUTE PROCEDURE history_recipients();
+
+ALTER TABLE alerts ADD COLUMN alert_processed integer not null default 0;
+ALTER TABLE history.alerts ADD COLUMN alert_processed integer;
+DROP FUNCTION history_alerts() CASCADE;
+CREATE FUNCTION history_alerts() RETURNS trigger
+AS $$
+DECLARE
+    history_alerts RECORD;
+BEGIN
+    SELECT INTO history_alerts * FROM alerts WHERE alert_uuid = new.alert_uuid;
+    INSERT INTO history.alerts
+        (alert_uuid,
+         alert_host_uuid,
+         alert_set_by,
+         alert_level,
+         alert_title,
+         alert_message,
+         alert_sort_position, 
+         alert_show_header, 
+         alert_processed, 
+         modified_date)
+    VALUES
+        (history_alerts.alert_uuid,
+         history_alerts.alert_host_uuid,
+         history_alerts.alert_set_by,
+         history_alerts.alert_level,
+         history_alerts.alert_title,
+         history_alerts.alert_message,
+         history_alerts.alert_sort_position, 
+         history_alerts.alert_show_header, 
+         history_alerts.alert_processed, 
+         history_alerts.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_alerts() OWNER TO admin;
+
+CREATE TRIGGER trigger_alerts
+    AFTER INSERT OR UPDATE ON alerts
+    FOR EACH ROW EXECUTE PROCEDURE history_alerts();
+COMMIT;
+
 ============
 From:     test-alert@alert.alteeve.com
 To:       Madison Kelly <debug@alteeve.com>

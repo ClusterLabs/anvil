@@ -412,27 +412,25 @@ sub process_email_recipient_page
 {
 	my ($anvil) = @_;
 	
-	my $recipient_uuid      = defined $anvil->data->{cgi}{recipient_uuid}{value}      ? $anvil->data->{cgi}{recipient_uuid}{value}      : "";
-	my $recipient_name      = defined $anvil->data->{cgi}{recipient_name}{value}      ? $anvil->data->{cgi}{recipient_name}{value}      : "";
-	my $recipient_email     = defined $anvil->data->{cgi}{recipient_email}{value}     ? $anvil->data->{cgi}{recipient_email}{value}     : "";
-	my $recipient_language  = defined $anvil->data->{cgi}{recipient_language}{value}  ? $anvil->data->{cgi}{recipient_language}{value}  : "en_CA";
-	my $recipient_units     = defined $anvil->data->{cgi}{recipient_units}{value}     ? $anvil->data->{cgi}{recipient_units}{value}     : "metric";
-	my $recipient_new_level = defined $anvil->data->{cgi}{recipient_new_level}{value} ? $anvil->data->{cgi}{recipient_new_level}{value} : "2";
-	my $delete              = defined $anvil->data->{cgi}{'delete'}{value}            ? $anvil->data->{cgi}{'delete'}{value}            : "";
-	my $back                = defined $anvil->data->{cgi}{back}{value}                ? $anvil->data->{cgi}{back}{value}                : "";
-	my $save                = defined $anvil->data->{cgi}{save}{value}                ? $anvil->data->{cgi}{save}{value}                : "";
-	my $confirm             = defined $anvil->data->{cgi}{confirm}{value}             ? $anvil->data->{cgi}{confirm}{value}             : "";
+	my $recipient_uuid     = defined $anvil->data->{cgi}{recipient_uuid}{value}     ? $anvil->data->{cgi}{recipient_uuid}{value}     : "";
+	my $recipient_name     = defined $anvil->data->{cgi}{recipient_name}{value}     ? $anvil->data->{cgi}{recipient_name}{value}     : "";
+	my $recipient_email    = defined $anvil->data->{cgi}{recipient_email}{value}    ? $anvil->data->{cgi}{recipient_email}{value}    : "";
+	my $recipient_language = defined $anvil->data->{cgi}{recipient_language}{value} ? $anvil->data->{cgi}{recipient_language}{value} : "en_CA";
+	my $recipient_level    = defined $anvil->data->{cgi}{recipient_level}{value}    ? $anvil->data->{cgi}{recipient_level}{value}    : "2";
+	my $delete             = defined $anvil->data->{cgi}{'delete'}{value}           ? $anvil->data->{cgi}{'delete'}{value}           : "";
+	my $back               = defined $anvil->data->{cgi}{back}{value}               ? $anvil->data->{cgi}{back}{value}               : "";
+	my $save               = defined $anvil->data->{cgi}{save}{value}               ? $anvil->data->{cgi}{save}{value}               : "";
+	my $confirm            = defined $anvil->data->{cgi}{confirm}{value}            ? $anvil->data->{cgi}{confirm}{value}            : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		recipient_uuid      => $recipient_uuid, 
-		recipient_name      => $recipient_name, 
-		recipient_email     => $recipient_email, 
-		recipient_language  => $recipient_language, 
-		recipient_units     => $recipient_units, 
-		recipient_new_level => $recipient_new_level, 
-		back                => $back,
-		save                => $save,
-		'delete'            => $delete, 
-		confirm             => $confirm,
+		recipient_uuid     => $recipient_uuid, 
+		recipient_name     => $recipient_name, 
+		recipient_email    => $recipient_email, 
+		recipient_language => $recipient_language, 
+		recipient_level    => $recipient_level, 
+		back               => $back,
+		save               => $save,
+		'delete'           => $delete, 
+		confirm            => $confirm,
 	}});
 	
 	if ($back)
@@ -456,8 +454,7 @@ SELECT
     recipient_name, 
     recipient_email, 
     recipient_language, 
-    recipient_units, 
-    recipient_new_level 
+    recipient_level 
 FROM 
     recipients 
 WHERE 
@@ -473,17 +470,15 @@ WHERE
 		}});
 		foreach my $row (@{$results})
 		{
-			$recipient_name      = $row->[0]; 
-			$recipient_email     = $row->[1];
-			$recipient_language  = $row->[2]; 
-			$recipient_units     = $row->[3]; 
-			$recipient_new_level = $row->[4]; 
+			$recipient_name     = $row->[0]; 
+			$recipient_email    = $row->[1];
+			$recipient_language = $row->[2]; 
+			$recipient_level    = $row->[3]; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				recipient_name      => $recipient_name, 
-				recipient_email     => $recipient_email, 
-				recipient_language  => $recipient_language, 
-				recipient_units     => $recipient_units, 
-				recipient_new_level => $recipient_new_level, 
+				recipient_name     => $recipient_name, 
+				recipient_email    => $recipient_email, 
+				recipient_language => $recipient_language, 
+				recipient_level    => $recipient_level, 
 			}});
 			
 			if ($delete)
@@ -503,11 +498,10 @@ WHERE
 					$anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
 					
 					# Clear the form
-					$recipient_name      = ""; 
-					$recipient_email     = "";
-					$recipient_language  = "en_CA"; 
-					$recipient_units     = "metric"; 
-					$recipient_new_level = "2"; 
+					$recipient_name     = ""; 
+					$recipient_email    = "";
+					$recipient_language = "en_CA"; 
+					$recipient_level    = "2"; 
 				}
 				else
 				{
@@ -576,13 +570,12 @@ WHERE
 		if ($confirm)
 		{
 			($recipient_uuid) = $anvil->Database->insert_or_update_recipients({
-				debug               => 2,
-				recipient_uuid      => $recipient_uuid, 
-				recipient_name      => $recipient_name, 
-				recipient_email     => $recipient_email, 
-				recipient_language  => $recipient_language, 
-				recipient_units     => $recipient_units, 
-				recipient_new_level => $recipient_new_level, 
+				debug              => 2,
+				recipient_uuid     => $recipient_uuid, 
+				recipient_name     => $recipient_name, 
+				recipient_email    => $recipient_email, 
+				recipient_language => $recipient_language, 
+				recipient_level    => $recipient_level, 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recipient_uuid => $recipient_uuid }});
 			if ($recipient_uuid)
@@ -592,12 +585,11 @@ WHERE
 				   $anvil->data->{form}{ok_message} = $anvil->Template->get({file => "main.html", name => "ok_message", variables => { ok_message => $ok_message }});
 				   
 				# Clear the form
-				$recipient_uuid      = "";
-				$recipient_name      = ""; 
-				$recipient_email     = "";
-				$recipient_language  = "en_CA"; 
-				$recipient_units     = "metric"; 
-				$recipient_new_level = "2"; 
+				$recipient_uuid     = "";
+				$recipient_name     = ""; 
+				$recipient_email    = "";
+				$recipient_language = "en_CA"; 
+				$recipient_level    = "2"; 
 			}
 			else
 			{
@@ -608,27 +600,22 @@ WHERE
 		}
 		else
 		{
-			my $say_recipient_units = "#!string!unit_0027!#";
-			if ($recipient_language eq "imperial")
-			{
-				$say_recipient_units = "#!string!unit_0028!#";
-			}
 			# Ignore
-			my $say_recipient_new_level = "#!string!unit_0023!#";
-			if ($recipient_new_level eq "1")
+			my $say_recipient_level = "#!string!unit_0023!#";
+			if ($recipient_level eq "1")
 			{
 				# Critical
-				$say_recipient_new_level = "#!string!unit_0024!#";
+				$say_recipient_level = "#!string!unit_0024!#";
 			}
-			elsif ($recipient_new_level eq "2")
+			elsif ($recipient_level eq "2")
 			{
 				# Warning
-				$say_recipient_new_level = "#!string!unit_0025!#";
+				$say_recipient_level = "#!string!unit_0025!#";
 			}
-			elsif ($recipient_new_level eq "3")
+			elsif ($recipient_level eq "3")
 			{
 				# Notice
-				$say_recipient_new_level = "#!string!unit_0026!#";
+				$say_recipient_level = "#!string!unit_0026!#";
 			}
 			my $say_recipient_language = $anvil->Words->language({iso => $recipient_language, long => 1});
 			   $say_recipient_language = "???" if not $say_recipient_language;
@@ -639,15 +626,13 @@ WHERE
 			$anvil->data->{form}{back_link}    =~ s/save=.*?$//;
 			$anvil->data->{form}{refresh_link} =  "";
 			$anvil->data->{form}{body}         =  $anvil->Template->get({file => "email.html", name => "recipient-confirm", variables => {
-				recipient_uuid          => $recipient_uuid, 
-				recipient_name          => $recipient_name, 
-				recipient_email         => $recipient_email, 
-				recipient_language      => $recipient_language, 
-				say_recipient_language  => $say_recipient_language, 
-				recipient_units         => $recipient_units, 
-				say_recipient_units     => $say_recipient_units, 
-				recipient_new_level     => $recipient_new_level, 
-				say_recipient_new_level => $say_recipient_new_level, 
+				recipient_uuid         => $recipient_uuid, 
+				recipient_name         => $recipient_name, 
+				recipient_email        => $recipient_email, 
+				recipient_language     => $recipient_language, 
+				say_recipient_language => $say_recipient_language, 
+				recipient_level        => $recipient_level, 
+				say_recipient_level    => $say_recipient_level, 
 			}});
 			return(0);
 		}
@@ -728,21 +713,9 @@ WHERE
 		class    => $anvil->data->{cgi}{recipient_language}{alert} ? "input_alert" : "input_clear",
 	});
 	
-	# Units (select)
-	my $recipient_units_select = $anvil->Template->select_form({
-		name     => "recipient_units",
-		options  => [
-			"metric#!#".$anvil->Words->string({key => "unit_0027"}),
-			"imperial#!#".$anvil->Words->string({key => "unit_0028"}),
-		],
-		blank    => 0,
-		selected => $recipient_units,
-		class    => $anvil->data->{cgi}{recipient_units}{alert} ? "input_alert" : "input_clear",
-	});
-	
 	# Log Level (select)
-	my $recipient_new_level_select = $anvil->Template->select_form({
-		name     => "recipient_new_level",
+	my $recipient_level_select = $anvil->Template->select_form({
+		name     => "recipient_level",
 		options  => [
 			"0#!#".$anvil->Words->string({key => "unit_0023"}),
 			"1#!#".$anvil->Words->string({key => "unit_0024"}),
@@ -750,8 +723,8 @@ WHERE
 			"3#!#".$anvil->Words->string({key => "unit_0026"}),
 		],
 		blank    => 0,
-		selected => $recipient_new_level,
-		class    => $anvil->data->{cgi}{recipient_new_level}{alert} ? "input_alert" : "input_clear",
+		selected => $recipient_level,
+		class    => $anvil->data->{cgi}{recipient_level}{alert} ? "input_alert" : "input_clear",
 	});
 	
 	# Show the menu.
@@ -762,8 +735,7 @@ WHERE
 		recipient_name  => $recipient_name_form,
 		recipient_email => $recipient_email_form, 
 		language        => $recipient_language_select, 
-		units           => $recipient_units_select, 
-		new_level       => $recipient_new_level_select, 
+		new_level       => $recipient_level_select, 
 		recipient_uuid  => $recipient_uuid, 
 	}});
 	

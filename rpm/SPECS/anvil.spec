@@ -3,7 +3,7 @@
 %define anvilgroup    admin
 Name:           anvil
 Version:        3.0
-Release:        35%{?dist}
+Release:        36%{?dist}
 Summary:        Alteeve Anvil! complete package.
 
 License:        GPLv2+
@@ -374,6 +374,9 @@ fi
 
 
 %changelog
+* tbd Madison Kelly <mkelly@alteeve.ca> 3.0-36
+- Updated source.
+
 * Thu Sep 03 2020 Madison Kelly <mkelly@alteeve.ca> 3.0-35
 - Added screen as a core module dependency
 - Updated source.
