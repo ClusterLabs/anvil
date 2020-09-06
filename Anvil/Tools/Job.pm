@@ -97,6 +97,7 @@ sub clear
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->clear()" }});
 
 	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
@@ -157,6 +158,7 @@ sub get_job_details
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->get_job_details()" }});
 
 	my $check    = defined $parameter->{check}    ? $parameter->{check}    : "";
 	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
@@ -323,6 +325,7 @@ sub get_job_uuid
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->get_job_uuid()" }});
 
 	my $job_uuid  = "";
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
@@ -386,6 +389,7 @@ sub running
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->running()" }});
 
 	my $query        = "
 SELECT 
@@ -427,6 +431,7 @@ sub html_list
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->html_list()" }});
 
 	my $ended_within = defined $parameter->{ended_within} ? $parameter->{ended_within} : 300;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -541,6 +546,7 @@ sub update_progress
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->update_progress()" }});
 
 	my $job_uuid     = defined $parameter->{job_uuid}     ? $parameter->{job_uuid}     : "";
 	my $message      = defined $parameter->{message}      ? $parameter->{message}      : "";

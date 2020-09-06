@@ -140,6 +140,7 @@ sub backup
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->backup()" }});
 	
 	my $fatal       = defined $parameter->{fatal}       ? $parameter->{fatal}       : 1;
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -363,6 +364,7 @@ sub change_mode
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->change_mode()" }});
 	
 	my $mode        = defined $parameter->{mode}        ? $parameter->{mode}        : "";
 	my $path        = defined $parameter->{path}        ? $parameter->{path}        : "";
@@ -479,6 +481,7 @@ sub change_owner
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->change_owner()" }});
 	
 	my $group       = defined $parameter->{group}       ? $parameter->{group}       : getgrgid($();
 	my $path        = defined $parameter->{path}        ? $parameter->{path}        : "";
@@ -582,6 +585,7 @@ sub check_md5sums
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->check_md5sums()" }});
 	
 	# We'll set this if anything has changed.
 	my $exit   = 0;
@@ -716,6 +720,7 @@ sub compress
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->compress()" }});
 	
 	my $file        = defined $parameter->{file}        ? $parameter->{file}        : 0;
 	my $keep        = defined $parameter->{keep}        ? $parameter->{keep}        : 0;
@@ -1049,6 +1054,7 @@ sub copy_file
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->copy_file()" }});
 	
 	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
@@ -1250,6 +1256,14 @@ This creates a logical volume on the local host.
 =cut
 sub create_lv
 {
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->create_lv()" }});
+	
+	
+	return(0);
 }
 
 =head2 find
@@ -1374,6 +1388,7 @@ sub make_directory
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->make_directory()" }});
 	
 	my $directory   = defined $parameter->{directory}   ? $parameter->{directory}   : "";
 	my $group       = defined $parameter->{group}       ? $parameter->{group}       : getgrgid($();
@@ -1582,6 +1597,7 @@ sub move_file
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->move_file()" }});
 	
 	my $overwrite   = defined $parameter->{overwrite}   ? $parameter->{overwrite}   : 0;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
@@ -1833,6 +1849,7 @@ sub read_config
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->read_config()" }});
 	
 	# Setup default values
 	my $file        = defined $parameter->{file} ? $parameter->{file} : $anvil->data->{path}{configs}{'anvil.conf'};
@@ -1972,6 +1989,7 @@ sub read_file
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->read_file()" }});
 	
 	my $body        = "";
 	my $cache       = defined $parameter->{cache}       ? $parameter->{cache}       : 1;
@@ -2153,6 +2171,7 @@ sub read_mode
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 1;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->read_mode()" }});
 	
 	my $target = defined $parameter->{target} ? $parameter->{target} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
@@ -2201,6 +2220,7 @@ sub record_md5sums
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->record_md5sums()" }});
 	
 	# Record the caller's MD5 sum
 	my $caller = $0;
@@ -2287,6 +2307,7 @@ sub rsync
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->rsync()" }});
 	
 	# Check my parameters.
 	my $destination = defined $parameter->{destination} ? $parameter->{destination} : "";
@@ -2517,6 +2538,7 @@ sub scan_directory
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->scan_directory()" }});
 	
 	# Set a default if nothing was passed.
 	my $directory  = defined $parameter->{directory}  ? $parameter->{directory}  : "";
@@ -2661,6 +2683,7 @@ sub search_directories
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->search_directories()" }});
 	
 	# Set a default if nothing was passed.
 	my $array      = defined $parameter->{directories} ? $parameter->{directories} : "";
@@ -2789,6 +2812,7 @@ sub update_config
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->update_config()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
@@ -2957,6 +2981,7 @@ sub update_file
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->update_file()" }});
 	
 	my $backup      = defined $parameter->{backup}      ? $parameter->{backup}      : 1;
 	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
@@ -3151,6 +3176,7 @@ sub write_file
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->write_file()" }});
 	
 	my $backup      = defined $parameter->{backup}      ? $parameter->{backup}      : 1;
 	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
@@ -3472,6 +3498,7 @@ sub _create_rsync_wrapper
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->_create_rsync_wrapper()" }});
 	
 	# Check my parameters.
 	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";

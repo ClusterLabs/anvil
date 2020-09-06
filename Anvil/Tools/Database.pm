@@ -1476,7 +1476,7 @@ sub get_alerts
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_manifests()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_alerts()" }});
 	
 	my $all_hosts         = defined $parameter->{all_hosts}         ? $parameter->{all_hosts}         : 0;
 	my $include_processed = defined $parameter->{include_processed} ? $parameter->{include_processed} : 0;
@@ -1629,7 +1629,7 @@ sub get_anvils
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_manifests()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_anvils()" }});
 	
 	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2079,7 +2079,7 @@ sub get_hosts_info
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_hosts_info()" }});
 	
 	my $query = "
 SELECT 
@@ -2180,6 +2180,7 @@ sub get_ip_addresses
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_ip_addresses()" }});
 	
 	# Make sure we've loaded host data.
 	$anvil->Database->get_hosts({debug => $debug});
@@ -2410,6 +2411,7 @@ sub get_job_details
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_job_details()" }});
 	
 	my $return   = "";
 	my $job_uuid = defined $parameter->{job_uuid} ? $parameter->{job_uuid} : "";
@@ -2747,7 +2749,7 @@ sub get_mail_servers
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_mail_servers()" }});
 	
 	if (exists $anvil->data->{mail_servers})
 	{
@@ -3005,7 +3007,7 @@ sub get_notifications
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_notifications()" }});
 	
 	my $query = "
 SELECT 
@@ -3176,7 +3178,7 @@ sub get_ssh_keys
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->initialize()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_ssh_keys()" }});
 	
 	# Delete any data from past scans.
 	delete $anvil->data->{ssh_keys}{ssh_key_uuid};
@@ -3271,7 +3273,7 @@ sub get_upses
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_host_from_uuid()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_upses()" }});
 	
 	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -9070,7 +9072,7 @@ sub insert_or_update_users
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_states()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_users()" }});
 	
 	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
 	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
@@ -10019,7 +10021,7 @@ sub log_connections
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->locking()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->log_connections()" }});
 	
 	# Log how many connections there are.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
@@ -10722,7 +10724,6 @@ sub quote
 	my $self   = shift;
 	my $string = shift;
 	my $anvil  = $self->parent;
-	my $debug  = 2;
 	
 	   $string = "" if not defined $string;
 	my $quoted = $anvil->Database->read->quote($string);
@@ -10910,7 +10911,7 @@ sub refresh_timestamp
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_test_access()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->refresh_timestamp()" }});
 	
 	my $query = "SELECT cast(now() AS timestamp with time zone);";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});

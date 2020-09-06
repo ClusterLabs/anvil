@@ -26,7 +26,7 @@ $anvil->Log->secure({set => 1});
 $anvil->Get->switches;
 
 print "Connecting to the database(s);\n";
-$anvil->Database->connect({debug => 2});
+$anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 
 if (0)
@@ -34,11 +34,13 @@ if (0)
 	$anvil->Alert->register({
 		debug       => 2,
 		alert_level => "warning",
-		message     => "message_0179",
+		title       => "alert_title_0002",
+		message     => "alert_message_0002",
 		set_by      => $THIS_FILE,
 	});
 }
 if (1)
 {
+	### TODO: Left off here. Remove 'alert_title_X' keys and continue testing email body generation.
 	$anvil->Email->send_alerts({debug => 2});
 }

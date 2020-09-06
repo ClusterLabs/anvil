@@ -120,6 +120,7 @@ sub encrypt_password
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->encrypt_password()" }});
 	
 	my $algorithm  = defined $parameter->{algorithm}  ? $parameter->{algorithm}  : "";
 	my $hash_count = defined $parameter->{hash_count} ? $parameter->{hash_count} : "";
@@ -253,6 +254,7 @@ sub login
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->login()" }});
 	
 	if ((not $anvil->data->{cgi}{username}{value}) or (not $anvil->data->{cgi}{password}{value}))
 	{
@@ -393,6 +395,7 @@ sub logout
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->logout()" }});
 	
 	# Delete the user's cookie data. Sending nothing to '_write_cookies' does this.
 	$anvil->Account->_write_cookies({debug => $debug});
@@ -487,6 +490,7 @@ sub read_cookies
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->read_cookies()" }});
 	
 	# Read in any cookies
 	if (defined $ENV{HTTP_COOKIE})
@@ -645,6 +649,7 @@ sub read_details
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->read_details()" }});
 	
 	my $user_uuid = defined $parameter->{user_uuid} ? $parameter->{user_uuid} : $anvil->data->{cookie}{anvil_user_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user_uuid => $user_uuid }});
@@ -762,6 +767,7 @@ sub validate_password
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->validate_password()" }});
 	
 	my $password  = defined $parameter->{password} ? $parameter->{password} : "";
 	my $user      = defined $parameter->{user}     ? $parameter->{user}     : "";
@@ -922,6 +928,7 @@ sub _build_cookie_hash
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->_build_cookie_hash()" }});
 	
 	my $offset     = defined $parameter->{offset}     ? $parameter->{offset}     : 0;
 	my $user_agent = defined $parameter->{user_agent} ? $parameter->{user_agent} : $ENV{HTTP_USER_AGENT};
@@ -997,6 +1004,7 @@ sub _write_cookies
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->_write_cookies()" }});
 	
 	my $hash = defined $parameter->{hash} ? $parameter->{hash} : "";
 	my $uuid = defined $parameter->{uuid} ? $parameter->{uuid} : "";

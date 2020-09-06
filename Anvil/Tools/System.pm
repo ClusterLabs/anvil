@@ -126,7 +126,7 @@ sub activate_lv
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->call()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->activate_lv()" }});
 	
 	my $path      = defined $parameter->{path} ? $parameter->{path} : "";
 	my $activated = 0;
@@ -658,7 +658,7 @@ sub check_ssh_keys
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_memory()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ssh_keys()" }});
 	
 	# We do a couple things here. First we make sure our user's keys are up to date and stored in the 
 	# 'ssh_keys' table. Then we look through the 'Get->trusted_hosts' array any other users@hosts we're
@@ -3546,6 +3546,7 @@ sub reload_daemon
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->reload_daemon()" }});
 	
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
@@ -3669,6 +3670,7 @@ sub restart_daemon
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->restart_daemon()" }});
 	
 	my $daemon = defined $parameter->{daemon} ? $parameter->{daemon} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { daemon => $daemon }});
@@ -4112,7 +4114,7 @@ sub update_hosts
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->stty_echo()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->update_hosts()" }});
 	
 	# Get the list of hosts we trust.
 	my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});

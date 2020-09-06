@@ -111,6 +111,7 @@ sub clean_spaces
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->clean_spaces()" }});
 	
 	# Setup default values
 	my $string =  defined $parameter->{string} ? $parameter->{string} : "";
@@ -128,7 +129,7 @@ NOTE: This is likely not the method you want. This method does no parsing at all
 
 This returns a string by its key name. Optionally, a language and/or a source file can be specified. When no file is specified, loaded files will be search in alphabetical order (including path) and the first match is returned. 
 
-If the requested string is not found, 'C<< #!not_found!# >>' is returned.
+If the requested string is not found, 'C<< #!not_found - <bad_key>!# >>' is returned.
 
 Example to retrieve 'C<< t_0001 >>';
 
@@ -180,7 +181,7 @@ sub key
 	my $key      = defined $parameter->{key}      ? $parameter->{key}      : "";
 	my $language = defined $parameter->{language} ? $parameter->{language} : $anvil->Words->language;
 	my $file     = defined $parameter->{file}     ? $parameter->{file}     : "";
-	my $string   = "#!not_found!#";
+	my $string   = "#!not_found - ".$key."!#";
 	my $error    = 0;
 	### NOTE: Don't call Log->entry or Log->variable in here, it'll cause a recursive loop! Use 'test' when needed
 	print $THIS_FILE." ".__LINE__."; [ Debug ] - key: [$key], language: [$language], file: [$file]\n" if $test;
@@ -333,6 +334,7 @@ sub parse_banged_string
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->parse_banged_string()" }});
 	
 	# Setup default values
 	my $out_string = "";
@@ -531,6 +533,7 @@ sub read
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->read()" }});
 	
 	# Setup default values
 	my $return_code = 0;
@@ -613,6 +616,7 @@ sub shorten_string
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->shorten_string()" }});
 	
 	# Setup default values
 	my $short_string = "";
@@ -1033,6 +1037,7 @@ sub _wrap_string
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->_wrap_string()" }});
 	
 	# Get the string to wrap.
 	my $string = defined $parameter->{string} ? $parameter->{string} : "";

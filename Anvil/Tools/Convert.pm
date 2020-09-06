@@ -103,6 +103,7 @@ sub add_commas
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->add_commas()" }});
 	
 	# Now see if the user passed the values in a hash reference or directly.
 	my $number = defined $parameter->{number} ? $parameter->{number} : "";
@@ -190,6 +191,7 @@ sub bytes_to_human_readable
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->bytes_to_human_readable()" }});
 	
 	# Now see if the user passed the values in a hash reference or directly.
 	my $size  = defined $parameter->{'bytes'} ? $parameter->{'bytes'}  : 0;
@@ -519,6 +521,7 @@ sub cidr
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->cidr()" }});
 	
 	my $cidr        = defined $parameter->{cidr}        ? $parameter->{cidr}        : "";
 	my $subnet_mask = defined $parameter->{subnet_mask} ? $parameter->{subnet_mask} : "";
@@ -623,6 +626,7 @@ sub host_name_to_ip
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->host_name_to_ip()" }});
 	
 	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : "";
 	my $ip        = 0;
@@ -693,6 +697,7 @@ sub human_readable_to_bytes
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->human_readable_to_bytes()" }});
 	
 	my $base2  =  defined $parameter->{base2}  ? $parameter->{base2}  : 0;
 	my $base10 =  defined $parameter->{base10} ? $parameter->{base10} : 0;
@@ -882,6 +887,7 @@ sub round
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->round()" }});
 	
 	# Setup my numbers.
 	my $number = $parameter->{number} ? $parameter->{number} : 0;
@@ -1007,6 +1013,7 @@ sub time
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->time()" }});
 	
 	my $time      = defined $parameter->{'time'}    ? $parameter->{'time'}    : 0;
 	my $long      = defined $parameter->{long}      ? $parameter->{long}      : 0;

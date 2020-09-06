@@ -1143,7 +1143,7 @@ sub load_ips
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->find_matches()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_ips()" }});
 	
 	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
@@ -1872,6 +1872,7 @@ sub get_network
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_network()" }});
 	
 	my $network     = "";
 	my $ip          = defined $parameter->{ip}          ? $parameter->{ip}          : "";
@@ -1923,6 +1924,7 @@ sub is_local
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->is_local()" }});
 	
 	my $host = $parameter->{host} ? $parameter->{host} : "";
 	return(1) if not $host;
@@ -1995,6 +1997,7 @@ sub is_ip_in_network
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->is_ip_in_network()" }});
 	
 	my $ip          = defined $parameter->{ip}          ? $parameter->{ip}          : "";
 	my $network     = defined $parameter->{network}     ? $parameter->{network}     : "";

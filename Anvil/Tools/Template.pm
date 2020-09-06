@@ -121,7 +121,7 @@ sub get
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Template->get()" }});
 	
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
 	my $language  = defined $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language({debug => $debug});
@@ -350,6 +350,7 @@ sub select_form
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Template->select_form()" }});
 	
 	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
 	my $blank     = defined $parameter->{blank}     ? $parameter->{blank}     : 0;	# Add a blank/null entry?
@@ -576,6 +577,7 @@ sub skin
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Template->skin()" }});
 	
 	my $fatal = defined $parameter->{fatal} ? $parameter->{fatal} : 1;
 	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";

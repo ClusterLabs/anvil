@@ -717,11 +717,13 @@ WHERE
 	my $recipient_level_select = $anvil->Template->select_form({
 		name     => "recipient_level",
 		options  => [
-			"0#!#".$anvil->Words->string({key => "unit_0023"}),
 			"1#!#".$anvil->Words->string({key => "unit_0024"}),
 			"2#!#".$anvil->Words->string({key => "unit_0025"}),
 			"3#!#".$anvil->Words->string({key => "unit_0026"}),
+			"4#!#".$anvil->Words->string({key => "unit_0027"}),
+			"0#!#".$anvil->Words->string({key => "unit_0023"}),
 		],
+		'sort'   => 0,
 		blank    => 0,
 		selected => $recipient_level,
 		class    => $anvil->data->{cgi}{recipient_level}{alert} ? "input_alert" : "input_clear",

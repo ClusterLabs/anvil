@@ -117,6 +117,7 @@ sub alphanumeric
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->alphanumeric()" }});
 	
 	my $valid  = 1;
 	my $string = defined $parameter->{string} ? $parameter->{string} : "";
@@ -161,6 +162,7 @@ sub domain_name
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->domain_name()" }});
 	
 	my $valid = 1;
 	my $name  = $parameter->{name} ? $parameter->{name} : "";
@@ -241,6 +243,7 @@ sub form_field
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->form_field()" }});
 	
 	my $valid    = 1;
 	my $name     = defined $parameter->{name}     ? $parameter->{name}     : "";
@@ -355,6 +358,7 @@ sub hex
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->hex()" }});
 	
 	my $sloppy = defined $parameter->{sloppy} ? $parameter->{sloppy} : "";
 	my $string = defined $parameter->{string} ? $parameter->{string} : "";
@@ -409,6 +413,7 @@ sub host_name
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->host_name()" }});
 	
 	my $valid = 1;
 	my $name  = $parameter->{name} ? $parameter->{name} : "";
@@ -481,6 +486,7 @@ sub email
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->email()" }});
 	
 	my $email = defined $parameter->{email} ? $parameter->{email} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { email => $email }});
@@ -516,6 +522,7 @@ sub ip
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->ip()" }});
 	
 	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
@@ -561,6 +568,7 @@ sub ipv4
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->ipv4()" }});
 	
 	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
@@ -599,6 +607,7 @@ sub ipv6
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->ipv6()" }});
 	
 	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
@@ -631,6 +640,7 @@ sub mac
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->mac()" }});
 	
 	my $mac = defined $parameter->{mac} ? $parameter->{mac} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mac => $mac }});
@@ -666,6 +676,7 @@ sub port
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->port()" }});
 	
 	my $port = defined $parameter->{port} ? $parameter->{port} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port => $port }});
@@ -717,6 +728,7 @@ sub positive_integer
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->positive_integer()" }});
 	
 	my $valid  = 1;
 	my $number = defined $parameter->{number} ? $parameter->{number} : "";
@@ -763,6 +775,7 @@ sub subnet_mask
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->subnet_mask()" }});
 	
 	my $valid       = 0;
 	my $subnet_mask = defined $parameter->{subnet_mask} ? $parameter->{subnet_mask} : 0;
@@ -827,6 +840,7 @@ sub uuid
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Validate->uuid()" }});
 	
 	my $uuid  = defined $parameter->{uuid} ? $parameter->{uuid} : 0;
 	my $valid = 0;

@@ -115,6 +115,7 @@ sub add_target_to_known_hosts
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->add_target_to_known_hosts()" }});
 	
 	my $delete_if_found = defined $parameter->{delete_if_found} ? $parameter->{delete_if_found} : 0;
 	my $port            = defined $parameter->{port}            ? $parameter->{port}            : 22;
@@ -272,6 +273,7 @@ sub call
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->call()" }});
 	# Get the target and port so that we can create the ssh_fh key
 	my $port        =         $parameter->{port}        ? $parameter->{port}        : 22;
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
@@ -747,6 +749,7 @@ sub test_access
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->test_access()" }});
 	
 	my $password = defined $parameter->{password} ? $parameter->{password} : "";
 	my $port     = defined $parameter->{port}     ? $parameter->{port}     : 22;
@@ -824,6 +827,7 @@ sub _call_ssh_keyscan
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->_call_ssh_keyscan()" }});
 	
 	my $known_hosts = defined $parameter->{known_hosts} ? $parameter->{known_hosts} : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -912,6 +916,7 @@ sub _check_known_hosts_for_target
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->_check_known_hosts_for_target()" }});
 	
 	my $delete_if_found = defined $parameter->{delete_if_found} ? $parameter->{delete_if_found} : 0;
 	my $known_hosts     = defined $parameter->{known_hosts}     ? $parameter->{known_hosts}     : "";

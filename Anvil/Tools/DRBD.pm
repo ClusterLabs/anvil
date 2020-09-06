@@ -118,6 +118,7 @@ sub allow_two_primaries
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->allow_two_primaries()" }});
 	
 	my $password       = defined $parameter->{password}       ? $parameter->{password}       : "";
 	my $port           = defined $parameter->{port}           ? $parameter->{port}           : "";
@@ -261,6 +262,7 @@ sub get_devices
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_devices()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -549,6 +551,7 @@ sub get_status
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_status()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -806,6 +809,7 @@ sub manage_resource
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->manage_resource()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -903,6 +907,7 @@ sub reload_defaults
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->reload_defaults()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -993,6 +998,7 @@ sub update_global_common
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->update_global_common()" }});
 	
 	my $usage_count = defined $parameter->{usage_count} ? $parameter->{usage_count} : 1;
 	my $use_flushes = defined $parameter->{use_flushes} ? $parameter->{use_flushes} : 0;

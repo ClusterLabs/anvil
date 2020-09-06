@@ -114,6 +114,7 @@ sub check_alert_sent
 	my $parameter = shift;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	my $anvil     = $self->parent;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Alert->check_alert_sent()" }});
 	
 	my $modified_date  = defined $parameter->{modified_date}  ? $parameter->{modified_date}  : $anvil->data->{sys}{database}{timestamp};
 	my $name           = defined $parameter->{name}           ? $parameter->{name}           : "";
@@ -367,6 +368,7 @@ sub register
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Alert->register()" }});
 	
 	my $alert_level   = defined $parameter->{alert_level}   ? $parameter->{alert_level}   : 0;
 	my $clear_alert   = defined $parameter->{clear_alert}   ? $parameter->{clear_alert}   : 0;
@@ -523,6 +525,9 @@ sub error
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Alert->error()" }});
+	
+	
 }
 
 1;

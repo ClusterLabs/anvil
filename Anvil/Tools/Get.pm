@@ -127,6 +127,7 @@ sub anvil_version
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->anvil_version()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -462,6 +463,7 @@ sub cgi
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->cgi()" }});
 	
 	# This will store all of the CGI variables.
 	$anvil->data->{sys}{cgi_string} = "?";
@@ -740,6 +742,7 @@ sub host_name
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_name()" }});
 	
 	my $host_name = "";
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
@@ -954,6 +957,7 @@ sub host_uuid
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_uuid()" }});
 	
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1059,6 +1063,7 @@ sub md5sum
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->md5sum()" }});
 	
 	my $sum = "";
 	my $file = defined $parameter->{file} ? $parameter->{file} : "";
@@ -1237,7 +1242,7 @@ sub trusted_hosts
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->uptime()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->trusted_hosts()" }});
 	
 	my $local_host_uuid    = $anvil->Get->host_uuid;
 	my $in_anvil           = $anvil->data->{hosts}{host_uuid}{$local_host_uuid}{anvil_name};
@@ -1320,6 +1325,7 @@ sub users_home
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->users_home()" }});
 	
 	my $home_directory = 0;
 	
@@ -1388,6 +1394,7 @@ sub uuid
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->uuid()" }});
 	
 	my $short = defined $parameter->{short} ? $parameter->{short} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -1426,6 +1433,7 @@ sub _salt
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->_salt()" }});
 
 	my $salt        = "";
 	my $salt_length = $anvil->data->{sys}{password}{salt_length} =~ /^\d+$/ ? $anvil->data->{sys}{password}{salt_length} : 16;
@@ -1485,6 +1493,7 @@ sub _wrap_to
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->_wrap_to()" }});
 	
 	# Get the column width
 	my ($columns, $return_code) = $anvil->System->call({debug => $debug, redirect_stderr => 0, shell_call => $anvil->data->{path}{exe}{tput}." cols" });

@@ -1192,6 +1192,7 @@ sub _set_paths
 				lvchange			=>	"/usr/sbin/lvchange",
 				lvs				=>	"/usr/sbin/lvs", 
 				lvscan				=>	"/usr/sbin/lvscan", 
+				mailx				=>	"/usr/bin/mailx",
 				man				=>	"/usr/bin/man",
 				md5sum				=>	"/usr/bin/md5sum",
 				'mkdir'				=>	"/usr/bin/mkdir",

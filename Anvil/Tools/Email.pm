@@ -361,8 +361,10 @@ sub send_alerts
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->send_alerts()" }});
 	
 	# Load the alerts
-	$anvil->Database->get_recipients({debug => 2});
 	$anvil->Database->get_alerts({debug => 2});
+	$anvil->Database->get_recipients({debug => 2});
+	my $host_uuid = $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	foreach my $alert_uuid (keys %{$anvil->data->{alerts}{alert_uuid}})
 	{
 		my $alert_host_uuid     = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_host_uuid};
@@ -376,6 +378,7 @@ sub send_alerts
 		my $unix_modified_date  = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{unix_modified_date};
 		my $modified_date       = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{modified_date};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			alert_uuid          => $alert_uuid,
 			alert_host_uuid     => $alert_host_uuid, 
 			alert_set_by        => $alert_set_by, 
 			alert_level         => $alert_level, 
@@ -387,6 +390,10 @@ sub send_alerts
 			unix_modified_date  => $unix_modified_date, 
 			modified_date       => $modified_date, 
 		}});
+		
+		# We should never have a processed alert or an alert for another host here, but just in case;
+		next if $alert_processed;
+		next if $alert_host_uuid ne $host_uuid;
 		
 		# Walk through the recipients to see who wants to hear about this.
 		foreach my $recipient_uuid (keys %{$anvil->data->{recipients}{recipient_uuid}})
@@ -407,7 +414,7 @@ sub send_alerts
 			# 2 - warning
 			# 3 - notice
 			# 4 - info
-			if ($recipient_level <= $alert_level)
+			if ($recipient_level >= $alert_level)
 			{
 				# The user wants it. 
 				my $message = $anvil->Words->parse_banged_string({
@@ -549,20 +556,70 @@ sub send_alerts
 		}});
 		
 		# Ready! 
-		my $email_body = "
-From:     ".$from."
-To:       ".$recipient_name." <".$recipient_email.">
+		my $to         = $recipient_name." <".$recipient_email.">";
+		my $email_body = "From:     ".$from."
+To:       ".$to."
 Subject:  ".$subject."
 Reply-To: ".$reply_to."
 
 ".$body."
-".$footer."
-";
+".$footer;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { email_body => $email_body }});
 		
 		# Write it to a file.
+		my $file_time  = $anvil->Get->date_and_time({file_name => 1});
+		my $short_uuid = $anvil->Get->uuid({short => 1});
+		my $file_name  = $anvil->data->{path}{directories}{alert_emails}."/alert_email.".$file_time.".".$short_uuid;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0541", variables => { file => $file_name }});
+		
+		my $problem = $anvil->Storage->write_file({
+			debug => 3, 
+			file  => $file_name, 
+			body  => $email_body, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 		
 		# Call mailx to read it in
+		if ($problem)
+		{
+			# Something went wrong
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0143", variables => { file => $file_name }});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0542", variables => { to => $to }});
+			my $shell_call = $anvil->data->{path}{exe}{mailx}." -t < ".$file_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call });
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+	}
+	
+	### NOTE: We don't block setting this alert to processed because some alerts may have gotten out and 
+	###       we don't want to risk whatever went wrong leading to a flood or alert email files being 
+	###       generated or dispatched.
+	# Update the database to mark that the alerts have been processed
+	foreach my $alert_uuid (keys %{$anvil->data->{alerts}{alert_uuid}})
+	{
+		my $alert_processed = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_processed};
+		my $alert_host_uuid = $anvil->data->{alerts}{alert_uuid}{$alert_uuid}{alert_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			alert_uuid      => $alert_uuid,
+			alert_host_uuid => $alert_host_uuid, 
+			alert_processed => $alert_processed, 
+		}});
+		
+		# We should never have a processed alert or an alert for another host here, but just in case;
+		next if $alert_processed;
+		next if $alert_host_uuid ne $host_uuid;
+		
+		my $query = "UPDATE alerts SET alert_processed = 1 WHERE alert_uuid = ".$anvil->Database->quote($alert_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
 	return(0);
@@ -671,7 +728,7 @@ sub _configure_for_server
 		
 		# Generate the binary version.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0531"});
-		my ($output, $return_code) = $anvil->System->call({ debug => $debug, shell_call => $anvil->data->{path}{exe}{postmap}." ".$anvil->data->{path}{configs}{postfix_relay_password} });
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{postmap}." ".$anvil->data->{path}{configs}{postfix_relay_password}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
 			return_code => $return_code,

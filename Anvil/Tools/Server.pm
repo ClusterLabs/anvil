@@ -105,6 +105,7 @@ sub boot
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->boot()" }});
 	
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
@@ -206,6 +207,7 @@ sub find
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->find()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -323,6 +325,7 @@ sub get_status
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_status()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -473,6 +476,7 @@ sub map_network
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->map_network()" }});
 	
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
@@ -572,6 +576,7 @@ sub provision
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->provision()" }});
 	
 =cut
 Provision order:
@@ -619,6 +624,7 @@ sub migrate
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->migrate()" }});
 	
 	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
 	my $source  = defined $parameter->{source} ? $parameter->{source} : "";
@@ -770,6 +776,7 @@ sub shutdown
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->shutdown()" }});
 	
 	my $server = defined $parameter->{server} ? $parameter->{server} : "";
 	my $force  = defined $parameter->{force}  ? $parameter->{force}  : 0;
@@ -968,6 +975,7 @@ sub _parse_definition
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->_parse_definition()" }});
 	
 	# Source is required.
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
