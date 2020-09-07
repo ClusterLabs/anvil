@@ -88,7 +88,7 @@ sub parent
 
 =head2 check_config
 
-This method checks the current postfix server configuration to see if it needs to be updated, then checks to see if the local C<< postfix >> daemin is enabled and started.
+This method checks the current postfix server configuration to see if it needs to be updated, then checks to see if the local C<< postfix >> daemon is enabled and started.
 
 If any problem is encountered, C<< 1 >> is returned. Otherwise, if all is well, C<< 0 >> is returned.
 
