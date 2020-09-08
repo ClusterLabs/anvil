@@ -437,10 +437,10 @@ sub register
 	if (($show_header) && (not $title))
 	{
 		# Set it based on the alert_level.
-		if    ($alert_level == 1) { $title = $clear_alert ? "alert_title_0005" : "alert_title_0001"; } # Critical (or Critical Cleared)
-		elsif ($alert_level == 2) { $title = $clear_alert ? "alert_title_0006" : "alert_title_0002"; } # Warning (or Warning Cleared)
-		elsif ($alert_level == 3) { $title = $clear_alert ? "alert_title_0007" : "alert_title_0003"; } # Notice (or Notice Cleared)
-		elsif ($alert_level == 4) { $title = $clear_alert ? "alert_title_0008" : "alert_title_0004"; } # Info (or Info Cleared)
+		if    ($alert_level == 1) { $title = $clear_alert ? "title_0005" : "title_0001"; } # Critical (or Critical Cleared)
+		elsif ($alert_level == 2) { $title = $clear_alert ? "title_0006" : "title_0002"; } # Warning (or Warning Cleared)
+		elsif ($alert_level == 3) { $title = $clear_alert ? "title_0007" : "title_0003"; } # Notice (or Notice Cleared)
+		elsif ($alert_level == 4) { $title = $clear_alert ? "title_0008" : "title_0004"; } # Info (or Info Cleared)
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { title => $title }});
 	}
 	

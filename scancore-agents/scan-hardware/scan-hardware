@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 # 
-# This scans the local network (interfaces, bonds and bridges).
+# This scans the hardware, like RAM modules, CSS LED status, CPU information, etc.
 # 
 # Examples;
 # 
@@ -28,7 +28,15 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 
+$anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches
+$anvil->Get->switches;
+
+# Make sure our schema is loaded.
+$anvil->Database->check_for_schema({file => $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql"});
+
 
 
 $anvil->nice_exit({exit_code => 0});

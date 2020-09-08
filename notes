@@ -286,27 +286,6 @@ Bridge
 * STP=no is default, we'll test 'yes'.
 * DOMAIN="<client_domain>"
 
-# Network Setup
-hostnamectl set-hostname m3-a02n01.alteeve.com --static
-hostnamectl set-hostname --pretty "Alteeve's Niche! - Anvil! 02, Node 01"
-hostname m3-a02n01.alteeve.com
-ssh-keygen -t rsa -N "" -b 8191 -f ~/.ssh/id_rsa
-
-hosts:
-====
-10.1.20.1	m3-a02n01.bcn m3-a02n01 m3-a02n01.alteeve.com
-10.41.20.1	m3-a02n01.sn
-10.255.20.1	m3-a02n01.ifn
-
-10.1.20.2	m3-a02n02.bcn m3-a02n02 m3-a02n02.alteeve.com
-10.41.20.2	m3-a02n02.sn
-10.255.20.2	m3-a02n02.ifn
-
-10.1.22.1	m3-a02dr01.bcn m3-a02dr01 m3-a02dr01.alteeve.com
-10.41.22.1	m3-a02dr01.sn
-10.255.22.1	m3-a02dr01.ifn
-====
-
 =======
 virt-manager stores information in dconf-editor -> /org/virt-manager/virt-manager/connections ($HOME/.config/dconf/user)
 
@@ -372,6 +351,7 @@ pcs stonith level add 3 mk-a02n02 delay_node2
 pcs property set stonith-max-attempts=INFINITY
 pcs property set stonith-enabled=true
 
+### TODO: Look into 'priority-fencing-delay' 
 
 
 # Create a new server resource, stopped, create the location constraint (higher == preferred), then start.

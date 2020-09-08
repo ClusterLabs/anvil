@@ -354,6 +354,50 @@ sub check_lock_age
 }
 
 
+=head2 check_for_schema
+
+This reads in a SQL schema file and checks if the first table seen exists in the database. If it isn't, the schema file is loaded into the database main.
+
+If the table exists (and loading isn't needed), C<< 0 >> is returned. If the schema is loaded, C<< 1 >> is returned. If there is any problem, C<< !!error!! >> is returned.
+
+B<< Note >>: This does not check for schema changes! 
+
+This method is meant to be used by ScanCore scan agents to see if they're running for the first time.
+
+Parameters;
+
+=head3 file (required)
+
+This is the file to be read in.
+
+=cut
+sub check_for_schema
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_for_schema()" }});
+	
+	my $loaded = 0;
+	my $file   = defined $parameter->{file} ? $parameter->{file} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file => $file, 
+	}});
+	
+	if (not $file)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->check_for_schema()", parameter => "file" }});
+		return("!!error!!");
+	}
+	
+	my $body = $anvil->Storage->read_file({file => $file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+	
+	return($loaded);
+}
+
+
 =head2 configure_pgsql
 
 This configures the local database server. Specifically, it checks to make sure the daemon is running and starts it if not. It also checks the C<< pg_hba.conf >> configuration to make sure it is set properly to listen on this machine's IP addresses and interfaces.
@@ -3058,7 +3102,11 @@ FROM
 
 This returns a list of users listening to alerts for a given host, along with their alert level. 
 
-This method takes no parameters.
+Parameters;
+
+=head3 include_deleted (optional, default '0')
+
+When a recipient is deleted, the C<< recipient_name >> is set to C<< DELETED >>. If you want these to be loaded as well, set this to C<< 1 >>
 
 =cut
 sub get_recipients
@@ -3068,6 +3116,11 @@ sub get_recipients
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_recipients()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
 	
 	# We're going to include the alert levels for this host based on overrides that might exist in the 
 	# 'notifications' table. If the data hasn't already been loaded, we'll load it now.
@@ -3085,7 +3138,14 @@ SELECT
     recipient_language,
     recipient_level 
 FROM 
-    recipients
+    recipients";
+	if (not $include_deleted)
+	{
+		$query .= "
+WHERE 
+    recipient_name != 'DELETED'";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	

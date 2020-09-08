@@ -34,8 +34,7 @@ if (0)
 	$anvil->Alert->register({
 		debug       => 2,
 		alert_level => "warning",
-		title       => "alert_title_0002",
-		message     => "alert_message_0002",
+		message     => "message_0002",
 		set_by      => $THIS_FILE,
 	});
 }

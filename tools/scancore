@@ -45,10 +45,10 @@ wait_for_database($anvil);
 # If we're not configured, sleep.
 wait_until_configured($anvil);
 
-# Send a startup 
-$anvil->Mail->check_config;
-$anvil->Alert->register
-exit;
+# Send a startup message immediately
+$anvil->Email->check_config();
+$anvil->Alert->register({alert_level => "notice", message => "message_0179", set_by => $THIS_FILE});
+$anvil->Email->send_alerts();
 
 # Disconnect. We'll reconnect inside the loop
 $anvil->Database->disconnect();
@@ -86,6 +86,8 @@ while(1)
 	if ($anvil->data->{switches}{'run-once'})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0055"});
+		$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "message_0055"});
+		$anvil->Email->send_alerts();
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -179,11 +181,7 @@ sub call_agents
 		if ($return_code eq "124")
 		{
 			# Register an alert...
-			$anvil->Alert->register({
-				alert_level => "notice", 
-				set_by      => $THIS_FILE,
-				message     => "alert_message_0001,!!agent_name!".$agent_name."!!,!!timeout!".$timeout."!!",
-			});
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "message_0180,!!agent_name!".$agent_name."!!,!!timeout!".$timeout."!!"});
 		}
 	}
 	

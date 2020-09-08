@@ -349,6 +349,8 @@ sub get_next_server
 
 This method looks for registered alerts, creates an email for recipients, and sends the resulting emails into the mail server queue for dispatch. 
 
+B<< Note >>: If there is no configured mail servers, this method returns with C<< 1 >> without actually doing anything. Otherwise, it returns C<< 0 >>.
+
 This method takes no parameters.
 
 =cut
@@ -359,6 +361,16 @@ sub send_alerts
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Email->send_alerts()" }});
+	
+	# If we don't have a configured mail server, there's no reason processing alerts.
+	my $active_mail_server = $anvil->Email->get_current_server({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_mail_server => $active_mail_server }});
+	if (not $active_mail_server)
+	{
+		# No mail server, no sense proceeding.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0543"});
+		return(1);
+	}
 	
 	# Load the alerts
 	$anvil->Database->get_alerts({debug => 2});

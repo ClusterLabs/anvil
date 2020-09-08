@@ -487,7 +487,7 @@ WHERE
 				if ($confirm)
 				{
 					# Delete.
-					$anvil->Database->insert_or_update_recipientss({
+					$anvil->Database->insert_or_update_recipients({
 						debug          => 2,
 						'delete'       => 1, 
 						recipient_uuid => $recipient_uuid, 
