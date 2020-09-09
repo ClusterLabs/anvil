@@ -77,15 +77,13 @@ sub parent
 
 =head2 check_alert_sent
 
+This method is used to see if an event that might last some time has had an alert send already to recipients. 
+
 This is used by programs, usually scancore scan agents, that need to track whether an alert was sent when a sensor dropped below/rose above a set alert threshold. For example, if a sensor alerts at 20°C and clears at 25°C, this will be called when either value is passed. When passing the warning threshold, the alert is registered and sent to the user. Once set, no further warning alerts are sent. When the value passes over the clear threshold, this is checked and if an alert was previously registered, it is removed and an "all clear" message is sent. In this way, multiple alerts will not go out if a sensor floats around the warning threshold and a "cleared" message won't be sent unless a "warning" message was previously sent.
 
 If there is a problem, C<< !!error!! >> is returned.
 
 Parameters;
-
-=head3 modified_date (optional)
-
-By default, this is set to C<< sys::database::timestamp >>. If you want to force a different timestamp, you can do so with this parameter.
 
 =head3 name (required)
 
@@ -116,26 +114,16 @@ sub check_alert_sent
 	my $anvil     = $self->parent;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Alert->check_alert_sent()" }});
 	
-	my $modified_date  = defined $parameter->{modified_date}  ? $parameter->{modified_date}  : $anvil->data->{sys}{database}{timestamp};
 	my $name           = defined $parameter->{name}           ? $parameter->{name}           : "";
 	my $record_locator = defined $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = defined $parameter->{set_by}         ? $parameter->{set_by}         : "";
 	my $type           = defined $parameter->{type}           ? $parameter->{type}           : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		modified_date  => $modified_date, 
 		name           => $name, 
 		record_locator => $record_locator, 
 		set_by         => $set_by, 
 		type           => $type, 
 	}});
-	
-	# Do we have a timestamp?
-	if (not $modified_date)
-	{
-		# Nope
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0093"});
-		return("!!error!!");
-	}
 	
 	# Do we have an alert name?
 	if (not $name)
@@ -170,7 +158,7 @@ sub check_alert_sent
 	}
 	
 	# This will get set to '1' if an alert is added or removed.
-	my $set = 0;
+	my $changed = 0;
 	
 	my $query = "
 SELECT 
@@ -225,7 +213,6 @@ WHERE
 					set_by         => $set_by, 
 					record_locator => $record_locator, 
 					name           => $name, 
-					modified_date  => $modified_date,
 				}});
 				return("!!error!!");
 			}
@@ -236,8 +223,8 @@ WHERE
 			}
 		}
 		
-		   $set   = 1;
-		my $query = "
+		   $changed = 1;
+		my $query   = "
 INSERT INTO 
     alert_sent 
 (
@@ -257,30 +244,30 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			query => $query,
-			set   => $set, 
+			query   => $query,
+			changed => $changed, 
 		}});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	elsif (($type eq "clear") && ($alert_sent_uuid))
 	{
 		# Alert previously existed, clear it.
-		   $set   = 1;
-		my $query = "
+		   $changed = 1;
+		my $query   = "
 DELETE FROM 
     alert_sent 
 WHERE 
     alert_sent_uuid = ".$anvil->Database->quote($alert_sent_uuid)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			query => $query,
-			set   => $set, 
+			query   => $query,
+			changed => $changed, 
 		}});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
-	return($set);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changed => $changed }});
+	return($changed);
 }
 
 =head2 register

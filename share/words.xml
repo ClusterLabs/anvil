@@ -1028,7 +1028,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0540">This host UUID is: [#!variable!uuid!#] and the database identifier is: [#!variable!identifier!#].</key>
 		<key name="log_0541">Writing out alert email to: [#!variable!file!#].</key>
 		<key name="log_0542">Sending email to: [#!variable!to!#].</key>
-		<key name="log_0543">I was asked to process alerts, but there are no configured email servers. No sense proceeding..</key>
+		<key name="log_0543">I was asked to process alerts, but there are no configured email servers. No sense proceeding.</key>
+		<key name="log_0544">The table: [#!variable!table!#] already exists in the database on the host: [#!variable!host!#], no need to load the schema.</key>
+		<key name="log_0545">The table: [#!variable!table!#] does NOT exists in the database on the host: [#!variable!host!#]. Will load the schema file: [#!variable!file!#] now.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1300,6 +1302,9 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0178">Hosts added or updated by the #!string!brand_0002!# on: [#!variable!date!#]:</key>
 		<key name="message_0179">ScanCore has started.</key>
 		<key name="message_0180">The scan agent: [#!variable!agent_name!#] timed out! It was given: [#!variable!timeout!#] seconds to run, but it didn't return, so it was terminated.</key>
+		<key name="message_0181">The scan agent: [#!variable!agent_name!#] check if it's schema was loaded! This is likely a problem with the SQL schema in the file: [#!variable!file!#]. Details are likely available in the: [#!data!path::log::main!#] log file.</key>
+		<key name="message_0182">The scan agent: [#!variable!agent_name!#] has now successfully loaded! Whatever issue existed with: [#!variable!file!#] has been resolved.</key>
+		<key name="message_0183">The SQL schema for the scan agent: [#!variable!agent_name!#] has been loaded into the database host: [#!variable!host_name!#].</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>

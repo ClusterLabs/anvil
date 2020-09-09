@@ -17,6 +17,7 @@ my $THIS_FILE = "Database.pm";
 ### Methods;
 # archive_database
 # check_lock_age
+# check_for_schema
 # configure_pgsql
 # connect
 # disconnect
@@ -358,7 +359,7 @@ sub check_lock_age
 
 This reads in a SQL schema file and checks if the first table seen exists in the database. If it isn't, the schema file is loaded into the database main.
 
-If the table exists (and loading isn't needed), C<< 0 >> is returned. If the schema is loaded, C<< 1 >> is returned. If there is any problem, C<< !!error!! >> is returned.
+If the table exists (and loading isn't needed), C<< 0 >> is returned. If the schema is loaded, an array reference of the host UUIDs that were loaded is returned. If there is any problem, C<< !!error!! >> is returned.
 
 B<< Note >>: This does not check for schema changes! 
 
@@ -385,14 +386,93 @@ sub check_for_schema
 		file => $file, 
 	}});
 	
+	# We only test that a file was passed in. Storage->read will catch errors with the file not existing,
+	# permission issues, etc.
 	if (not $file)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->check_for_schema()", parameter => "file" }});
 		return("!!error!!");
 	}
 	
-	my $body = $anvil->Storage->read_file({file => $file});
+	my $table  = "";
+	my $schema = "public";
+	my $body   = $anvil->Storage->read_file({file => $file});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+	foreach my $line (split/\n/, $body)
+	{
+		$line =~ s/--.*$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /CREATE TABLE (.*?) \(/i)
+		{
+			$table = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+			
+			if ($table =~ /^(.*?)\.(.*)$/)
+			{
+				$schema = $1;
+				$table  = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+					table  => $table, 
+					schema => $schema,
+				}});
+			}
+			last;
+		}
+	}
+	
+	# Did we find a table?
+	if (not $table)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+		return("!!error!!");
+	}
+	
+	my $query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename=".$anvil->Database->quote($table)." AND schemaname=".$anvil->Database->quote($schema).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	# We have to query each DB individually.
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $host_name = $anvil->Database->get_host_from_uuid({debug => $debug, short => 1, host_uuid => $uuid});
+		my $count     = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:count'     => $count,
+			's2:host_name' => $host_name,
+		}});
+		
+		if ($count)
+		{
+			# No need to add.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0544", variables => { 
+				table => $schema.".".$table,
+				host  => $host_name,
+			}});
+		}
+		else
+		{
+			# Load the schema.
+			if ($loaded eq "0")
+			{
+				$loaded = [];
+			}
+			push @{$loaded}, $uuid;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0545", variables => { 
+				table => $schema.".".$table,
+				host  => $host_name,
+				file  => $file,
+			}});
+			
+			# Write out the schema now.
+			$anvil->Database->write({
+				uuid        => $uuid, 
+				transaction => 1, 
+				query       => $body, 
+				source      => $THIS_FILE, 
+				line        => __LINE__,
+			});
+		}
+	}
 	
 	return($loaded);
 }
@@ -11445,7 +11525,39 @@ sub resync_databases
 
 =head2 write
 
-This records data to one or all of the databases. If an ID is passed, the query is written to one database only. Otherwise, it will be written to all DBs.
+This records data to one or all of the databases. If a UUID is passed, the query is written to one database only. Otherwise, it will be written to all DBs.
+
+Parameters;
+
+=head3 line (optional)
+
+If you want errors to be traced back to the query called, this can be set (usually to C<< __LINE__ >>) along with the C<< source >> parameter. In such a case, if there is an error in this method, the caller's file and line are displayed in the logs. 
+
+=head3 transaction (optional, default 0)
+
+Normally, if C<< query >> is an array reference, a C<< BEGIN TRANSACTION; >> is called before the queries are written, and closed off with a C<< COMMIT; >>. In this way, either all queries succeed or none do. In some cases, like loading a schema, multiple queries are passed as a single line. In these cases, you can set this to C<< 1 >> to wrap the query in a transaction block.
+
+=head3 query (required)
+
+This is the query or queries to be written. In string context, the query is directly passed to the database handle(s). In array reference context, the queries are wrapped in a transaction block (see tjhe 'transaction' parameter). 
+
+B<< Note >>: If the number of queries are in the array reference is greater than C<< sys::database::maximum_batch_size >>, the queries are "chunked" into smaller transaction blocks. This is done so that very large arrays don't take so long that locks time out or memory becomes an issue.
+
+=head3 reenter (optional)
+
+This is used internally to indicate when a very large query array has been broken up and we've re-entered this method to process component chunks. The main effect is that some checks this method performs are skipped.
+
+=head3 secure (optional, default 0)
+
+If the query contains sensitive information, like passwords, setting this will ensure that log entries will be appropriately surpressed unless secure logging is enabled.
+
+=head3 source (optional)
+
+If you want errors to be traced back to the query called, this can be set (usually to C<< $THIS_FILE >>) along with the C<< line >> parameter. In such a case, if there is an error in this method, the caller's file and line are displayed in the logs. 
+
+=head3 uuid (optional)
+
+By default, queries go to all connected databases. If a given write should go to only one database, set this to the C<< host_uuid >> of the dataabase host. This is generally only used internally during resync operations.
 
 =cut
 sub write
@@ -11456,12 +11568,13 @@ sub write
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->write()" }});
 	
-	my $uuid    = $parameter->{uuid}    ? $parameter->{uuid}   : "";
-	my $line    = $parameter->{line}    ? $parameter->{line}   : __LINE__;
-	my $query   = $parameter->{query}   ? $parameter->{query}  : "";
-	my $secure  = $parameter->{secure}  ? $parameter->{secure} : 0;
-	my $source  = $parameter->{source}  ? $parameter->{source} : $THIS_FILE;
-	my $reenter = $parameter->{reenter} ? $parameter->{reenter} : "";
+	my $line        = $parameter->{line}        ? $parameter->{line}        : __LINE__;
+	my $query       = $parameter->{query}       ? $parameter->{query}       : "";
+	my $reenter     = $parameter->{reenter}     ? $parameter->{reenter}     : "";
+	my $secure      = $parameter->{secure}      ? $parameter->{secure}      : 0;
+	my $source      = $parameter->{source}      ? $parameter->{source}      : $THIS_FILE;
+	my $transaction = $parameter->{transaction} ? $parameter->{transaction} : 0;
+	my $uuid        = $parameter->{uuid}        ? $parameter->{uuid}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid    => $uuid, 
 		line    => $line, 
@@ -11612,7 +11725,7 @@ sub write
 			uuid  => $uuid, 
 			count => $count, 
 		}});
-		if ($count)
+		if (($count) or ($transaction))
 		{
 			# More than one query, so start a transaction block.
 			$anvil->data->{cache}{database_handle}{$uuid}->begin_work;
@@ -11643,7 +11756,7 @@ sub write
 		}
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-		if ($count)
+		if (($count) or ($transaction))
 		{
 			# Commit the changes.
 			$anvil->data->{cache}{database_handle}{$uuid}->commit();

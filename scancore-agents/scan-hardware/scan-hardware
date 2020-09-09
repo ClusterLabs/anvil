@@ -27,6 +27,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
 
 $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -34,8 +36,18 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level 
 # Read switches
 $anvil->Get->switches;
 
+# Connect to DBs.
+$anvil->Database->connect;
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
 # Make sure our schema is loaded.
-$anvil->Database->check_for_schema({file => $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql"});
+check_database($anvil);
 
 
 
@@ -44,3 +56,87 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub check_database
+{
+	my ($anvil) = @_;
+	
+	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
+	my $loaded      = $anvil->Database->check_for_schema({
+		debug => 2, 
+		file  => $schema_file,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		loaded      => $loaded,
+		schema_file => $schema_file, 
+	}});
+	if ($loaded)
+	{
+		if ($loaded eq "!!error!!")
+		{
+			# Something went wrong.
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 2,
+				record_locator => "schema_load_failure",
+				set_by         => $THIS_FILE,
+				type           => "set",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Log and register an alert. This should never happen, so we set it as a 
+				# warning level alert.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0181", variables => {
+					agent_name => $THIS_FILE,
+					file       => $schema_file,
+				}});
+				$anvil->Alert->register({
+					debug       => 2,
+					alert_level => "warning",
+					message     => "message_0181,!!agent_name!".$THIS_FILE."!!,!!file!".$schema_file."!!",
+					set_by      => $THIS_FILE,
+				});
+			}
+		}
+		elsif (ref($loaded) eq "ARRAY")
+		{
+			# If there was an alert, clear it.
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 2,
+				record_locator => "schema_load_failure",
+				set_by         => $THIS_FILE,
+				type           => "clear",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Register an alert cleared message.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0182", variables => {
+					agent_name => $THIS_FILE,
+					file       => $schema_file,
+					
+				}});
+				$anvil->Alert->register({
+					debug       => 2,
+					alert_level => "warning",
+					clear_alert => 1,
+					message     => "message_0182,!!agent_name!".$THIS_FILE."!!,!!file!".$schema_file."!!",
+					set_by      => $THIS_FILE,
+				});
+			}
+
+			# Log which databses we loaded our schema into.
+			foreach my $uuid (@{$loaded})
+			{
+				my $host_name = $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0183", variables => {
+					agent_name => $THIS_FILE,
+					host_name  => $host_name,
+					
+				}});
+			}
+		}
+	}
+	
+	return(0);
+}
