@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 # 
-# This scans the hardware, like RAM modules, CSS LED status, CPU information, etc.
+# This scans the scan_hardware, like RAM modules, CSS LED status, CPU information, etc.
 # 
 # Examples;
 # 
 # Exit codes;
 # 0 = Normal exit.
-# 1 = No database connections available.
+# 1 = Startup failure (no DB, bad file read, etc)
 # 
 # TODO: 
 # - Decide if it's worth having a separate ScanCore.log file or just feed into anvil.log.
@@ -30,25 +30,41 @@ my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
+# These are the threasholds for when to alert when swap is running out.
+$anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  = 75;
+$anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} = 25;
+$anvil->data->{scancore}{'scan-hardware'}{ram}{high_threshold}   = 1073741824;	# 1 GiB
+$anvil->data->{scancore}{'scan-hardware'}{ram}{clear_threshold}  = 134217728;	# 128 MiB
+$anvil->data->{scancore}{'scan-hardware'}{score}{less_ram}       = 5;
+
 $anvil->Storage->read_config();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->Get->switches;
 
-# Connect to DBs.
-$anvil->Database->connect;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-if (not $anvil->data->{sys}{database}{connections})
+# Handle start-up tasks
+my $problem = $anvil->ScanCore->agent_startup({
+	debug  => 2,
+	agent  => $THIS_FILE,
+	tables => ["scan_hardware", "scan_hardware_ram_modules"],
+});
+if ($problem)
 {
-	# No databases, exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# Make sure our schema is loaded.
-check_database($anvil);
+# Read the data.
+collect_data($anvil);
 
+# Load stored data.
+read_last_scan($anvil);
+
+# Look for changes.
+find_changes($anvil);
+
+# Finally, process health weights.
+process_health($anvil)
 
 
 $anvil->nice_exit({exit_code => 0});
@@ -57,85 +73,1482 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-sub check_database
+# This reads in data about the CPU
+sub collect_cpu_data
+{
+	my ($anvil) = @_;
+
+	my $total_cores   = 0;
+	my $total_threads = 0;
+	my $cores         = 0;
+	my $threads       = 0;
+	my $in_cpu        = "";
+	
+	my ($output, $return_code) = $anvil->System->call({level => 2, shell_call => $anvil->data->{path}{exe}{dmidecode}." --type processor", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		
+		if ($line =~ /Socket Designation: (.*+)$/)
+		{
+			$in_cpu = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_cpu => $in_cpu }});
+		}
+		elsif (not $line)
+		{
+			$in_cpu  = "";
+			$cores   = 0;
+			$threads = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				in_cpu  => $in_cpu,
+				cores   => $cores,
+				threads => $threads, 
+			}});
+		}
+		next if $in_cpu eq "";
+		
+		if ($line =~ /Core Count: (\d+)$/)
+		{
+			$cores       =  $1;
+			$total_cores += $cores; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				cores       => $cores,
+				total_cores => $total_cores, 
+			}});
+		}
+		if ($line =~ /Thread Count: (\d+)$/)
+		{
+			$threads       =  $1;
+			$total_threads += $threads; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				threads       => $threads,
+				total_threads => $total_threads, 
+			}});
+		}
+	}
+	close $file_handle;
+	
+	# Read in /proc/cpuinfo.
+	my $flags          = "";
+	my $flag_mismatch  = 0;
+	my $bugs           = "";
+	my $bugs_mismatch  = 0;
+	my $model          = "";
+	my $model_mismatch = 0;
+	my $cpu_info       = $anvil->Storage->read_file({level => 2, file => $anvil->data->{path}{proc}{cpuinfo}});
+	foreach my $line (split/,/, $cpu_info)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		
+		if ($line =~ /^flags: (.*?)$/)
+		{
+			my $these_flags = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { these_flags => $these_flags }});
+			if (not $flags)
+			{
+				$flags = $these_flags;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+			}
+			elsif ($flags ne $these_flags)
+			{
+				# This should never happen.
+				   $flag_mismatch = 1;
+				my $changed       = $anvil->Alert->check_alert_sent({
+					debug          => 2,
+					record_locator => "scan_hardware::cpu_flags_mismatch",
+					set_by         => $THIS_FILE,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Register an alert.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0001", variables => {
+						these_flags => $these_flags,
+						flags       => $flags,
+					}});
+					$anvil->Alert->register({
+						alert_level => "notice", 
+						message     => "scan_hardware_alert_0001,!!these_flags!".$these_flags."!!,!!flags!".$flags."!!", 
+						set_by      => $THIS_FILE,
+					});
+				}
+			}
+		}
+		if ($line =~ /^bugs: (.*?)$/)
+		{
+			my $these_bugs = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { these_bugs => $these_bugs }});
+			if (not $bugs)
+			{
+				$bugs = $these_bugs;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bugs => $bugs }});
+			}
+			elsif ($bugs ne $these_bugs)
+			{
+				# This should never happen...
+				   $bugs_mismatch = 1;
+				my $changed       = $anvil->Alert->check_alert_sent({
+					debug          => 2,
+					record_locator => "scan_hardware::cpu_bugs_mismatch",
+					set_by         => $THIS_FILE,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Register an alert.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0003", variables => {
+						these_bugs => $these_bugs,
+						bugs       => $bugs,
+					}});
+					$anvil->Alert->register({
+						alert_level => "notice", 
+						message     => "scan_hardware_alert_0003,!!these_bugs!".$these_bugs."!!,!!bugs!".$bugs."!!", 
+						set_by      => $THIS_FILE,
+					});
+				}
+			}
+		}
+		if ($line =~ /^model name: (.*?)$/)
+		{
+			my $this_model = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_model => $this_model }});
+			if (not $model)
+			{
+				$model = $this_model;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { model => $model }});
+			}
+			elsif ($model ne $this_model)
+			{
+				# This should never happen...
+				   $model_mismatch = 1;
+				my $changed       = $anvil->Alert->check_alert_sent({
+					debug          => 2,
+					record_locator => "scan_hardware::cpu_model_mismatch",
+					set_by         => $THIS_FILE,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Register an alert.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0005", variables => {
+						this_model => $this_model,
+						model       => $model,
+					}});
+					$anvil->Alert->register({
+						alert_level => "notice", 
+						message     => "scan_hardware_alert_0005,!!this_model!".$this_model."!!,!!model!".$model."!!", 
+						set_by      => $THIS_FILE,
+					});
+				}
+			}
+		}
+	}
+	
+	# In the off chance that there was a flags, bugs or name mismatch before, clear it now if the issue is resolved.
+	if (not $flags_mismatch)
+	{
+		my $changed = $anvil->Alert->check_alert_sent({
+			debug          => 2,
+			record_locator => "scan_hardware::cpu_flags_mismatch",
+			set_by         => $THIS_FILE,
+			type           => "clear",
+		});
+		if ($changed)
+		{
+			# Register an alert-cleared event.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0002"});
+			$anvil->Alert->register({
+				alert_level => "notice", 
+				clear       => 1,
+				message     => "scan_hardware_alert_0002", 
+				set_by      => $THIS_FILE,
+			});
+		}
+	}
+	if (not $bugs_mismatch)
+	{
+		my $changed = $anvil->Alert->check_alert_sent({
+			debug          => 2,
+			record_locator => "scan_hardware::cpu_bugs_mismatch",
+			set_by         => $THIS_FILE,
+			type           => "clear",
+		});
+		if ($changed)
+		{
+			# Register an alert-cleared event.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0004"});
+			$anvil->Alert->register({
+				alert_level => "notice", 
+				clear       => 1,
+				message     => "scan_hardware_alert_0004", 
+				set_by      => $THIS_FILE,
+			});
+		}
+	}
+	if (not $model_mismatch)
+	{
+		my $changed = $anvil->Alert->check_alert_sent({
+			debug          => 2,
+			record_locator => "scan_hardware::cpu_model_mismatch",
+			set_by         => $THIS_FILE,
+			type           => "clear",
+		});
+		if ($changed)
+		{
+			# Register an alert-cleared event.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0006"});
+			$anvil->Alert->register({
+				alert_level => "notice", 
+				clear       => 1,
+				message     => "scan_hardware_alert_0006", 
+				set_by      => $THIS_FILE,
+			});
+		}
+	}
+	
+	# Record what we found.
+	$anvil->data->{summary}{cpu}{model}   = $model;
+	$anvil->data->{summary}{cpu}{cores}   = $total_cores;
+	$anvil->data->{summary}{cpu}{threads} = $total_threads;
+	$anvil->data->{summary}{cpu}{bugs}    = $bugs;
+	$anvil->data->{summary}{cpu}{flags}   = $flags;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"summary::cpu::model"   => $anvil->data->{summary}{cpu}{model}, 
+		"summary::cpu::cores"   => $anvil->data->{summary}{cpu}{cores}, 
+		"summary::cpu::threads" => $anvil->data->{summary}{cpu}{threads}, 
+		"summary::cpu::bugs"    => $anvil->data->{summary}{cpu}{bugs}, 
+		"summary::cpu::flags"   => $anvil->data->{summary}{cpu}{flags}, 
+	}});
+	
+	return(0);
+}
+
+# This reads in all the data we can find on the local system
+sub collect_data
 {
 	my ($anvil) = @_;
 	
-	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
-	my $loaded      = $anvil->Database->check_for_schema({
-		debug => 2, 
-		file  => $schema_file,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		loaded      => $loaded,
-		schema_file => $schema_file, 
-	}});
-	if ($loaded)
-	{
-		if ($loaded eq "!!error!!")
-		{
-			# Something went wrong.
-			my $changed = $anvil->Alert->check_alert_sent({
-				debug          => 2,
-				record_locator => "schema_load_failure",
-				set_by         => $THIS_FILE,
-				type           => "set",
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
-			if ($changed)
-			{
-				# Log and register an alert. This should never happen, so we set it as a 
-				# warning level alert.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0181", variables => {
-					agent_name => $THIS_FILE,
-					file       => $schema_file,
-				}});
-				$anvil->Alert->register({
-					debug       => 2,
-					alert_level => "warning",
-					message     => "message_0181,!!agent_name!".$THIS_FILE."!!,!!file!".$schema_file."!!",
-					set_by      => $THIS_FILE,
-				});
-			}
-		}
-		elsif (ref($loaded) eq "ARRAY")
-		{
-			# If there was an alert, clear it.
-			my $changed = $anvil->Alert->check_alert_sent({
-				debug          => 2,
-				record_locator => "schema_load_failure",
-				set_by         => $THIS_FILE,
-				type           => "clear",
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
-			if ($changed)
-			{
-				# Register an alert cleared message.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0182", variables => {
-					agent_name => $THIS_FILE,
-					file       => $schema_file,
-					
-				}});
-				$anvil->Alert->register({
-					debug       => 2,
-					alert_level => "warning",
-					clear_alert => 1,
-					message     => "message_0182,!!agent_name!".$THIS_FILE."!!,!!file!".$schema_file."!!",
-					set_by      => $THIS_FILE,
-				});
-			}
+	# Collect CPU info.
+	collect_cpu_data($anvil);
+	
+	# Collect RAM data.
+	collect_ram_data($anvil);
+	
+	# If this is a machine with IPMI, see if we can gather more info.
+	collect_led_states($anvil);
+	
+	return(0);
+}
 
-			# Log which databses we loaded our schema into.
-			foreach my $uuid (@{$loaded})
+# If this is a machine with IPMI, see if we can gather more info.
+sub collect_led_states
+{
+	my ($anvil) = @_;
+	
+	# I need to know what kind of machine I am. 
+	my $manufacturer = "";
+	my $id_led       = "unknown";
+	my $css_led      = "unknown";
+	my $error_led    = "unknown";
+	
+	my ($output, $return_code) = $anvil->System->call({level => 2, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-manufacturer", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	foreach my $line (split/\n/, $output)
+	{
+		$manufacturer = lc($line);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { manufacturer => $manufacturer }});
+	}
+	
+	if ($manufacturer eq "fujitsu")
+	{
+		my ($output, $return_code) = $anvil->System->call({level => 2, shell_call => $anvil->data->{path}{exe}{'ipmi-oem'}." Fujitsu get-system-status", source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+		foreach my $line (split/\n/, $output)
+		{
+			$line = $anvil->Words->clean_spaces({string => $line});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			
+			if ($line =~ /Identify LED: (.*)$/)
 			{
-				my $host_name = $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0183", variables => {
-					agent_name => $THIS_FILE,
-					host_name  => $host_name,
-					
-				}});
+				$id_led = lc($1);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { id_led => $id_led }});
+			}
+			if ($line =~ /CSS LED: (.*)$/)
+			{
+				$css_led = lc($1);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { css_led => $css_led }});
+			}
+			if ($line =~ /Global Error LED: (.*)$/)
+			{
+				$error_led = lc($1);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error_led => $error_led }});
 			}
 		}
+	}
+	elsif ($manufacturer eq "dell")
+	{
+		### TODO: When we get a dell, figure this out...
+		### TODO: There are a lot of useful bits here, including power load/headroom. Excellent data for the UI later.
+		#my ($output, $return_code) = $anvil->System->call({level => 2, shell_call => $anvil->data->{path}{exe}{'ipmi-oem'}." Dell get-system-status", source => $THIS_FILE, line => __LINE__});
+		#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+		#foreach my $line (split/\n/, $output)
+		#{
+		#	$line = $anvil->Words->clean_spaces({string => $line});
+		#	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		#}
+	}
+	
+	# Record.
+	$anvil->data->{summary}{led}{id_led}    = $id_led;
+	$anvil->data->{summary}{led}{css_led}   = $css_led;
+	$anvil->data->{summary}{led}{error_led} = $error_led;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"summary::led::id_led"    => $anvil->data->{summary}{led}{id_led},
+		"summary::led::css_led"   => $anvil->data->{summary}{led}{css_led},
+		"summary::led::error_led" => $anvil->data->{summary}{led}{error_led},
+	}});
+	
+	return(0);
+}
+
+# This reads in data about the RAM
+sub collect_ram_data
+{
+	my ($anvil) = @_;
+	
+	my $total_size    = 0;
+	my $size          = "";
+	my $locator       = "";
+	my $manufacturer  = "";
+	my $part_number   = "";
+	my $serial_number = "";
+	
+	my ($output, $return_code) = $anvil->System->call({level => 2, shell_call => $anvil->data->{path}{exe}{dmidecode}." --type memory", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+	
+		if ($line =~ /^Locator: (.*?)$/)
+		{
+			$locator = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { locator => $locator }});
+		}
+		if ($line =~ /^Size: (.*?)$/)
+		{
+			$size = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { size => $size }});
+			
+			# If the "size" is "no module installed", we're done here.
+			if ($size !~ /^\d/)
+			{
+				$locator = "";
+				$size    = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					locator => $locator, 
+					size    => $size,
+				}});
+				next;
+			}
+			
+			# THis reports in 'MB' but it's really 'MiB'.
+			$size = $anvil->Convert->human_readable_to_bytes({
+				base2 => 1,
+				size  => $size,
+			});
+			$total_size += $size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				locator    => $locator, 
+				total_size => $total_size,
+			}});
+		}
+		if ($line =~ /^Manufacturer: (.*)$/)
+		{
+			$manufacturer = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { manufacturer => $manufacturer }});
+		}
+		if ($line =~ /^Part Number: (.*)$/)
+		{
+			$part_number = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { part_number => $part_number }});
+		}
+		if ($line =~ /^Serial Number: (.*)$/)
+		{
+			$serial_number = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { serial_number => $serial_number }});
+		}
+		next if not $locator;
+		if (not $line)
+		{
+			if ($size)
+			{
+				$anvil->data->{ram}{dmi}{locator}{$locator}{size}          = $size;
+				$anvil->data->{ram}{dmi}{locator}{$locator}{manufacturer}  = $manufacturer;
+				$anvil->data->{ram}{dmi}{locator}{$locator}{part_number}   = $part_number;
+				$anvil->data->{ram}{dmi}{locator}{$locator}{serial_number} = $serial_number;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"ram::dmi::locator::${locator}::size"          => $anvil->Convert->add_commas({number => $anvil->data->{ram}{dmi}{locator}{$locator}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{ram}{dmi}{locator}{$locator}{size}}).")", 
+					"ram::dmi::locator::${locator}::manufacturer"  => $anvil->data->{ram}{dmi}{locator}{$locator}{manufacturer}, 
+					"ram::dmi::locator::${locator}::part_number"   => $anvil->data->{ram}{dmi}{locator}{$locator}{part_number}, 
+					"ram::dmi::locator::${locator}::serial_number" => $anvil->data->{ram}{dmi}{locator}{$locator}{serial_number}, 
+				}});
+			}
+			
+			$size          = "";
+			$locator       = "";
+			$manufacturer  = "";
+			$part_number   = "";
+			$serial_number = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"size"          => $size, 
+				"locator"       => $locator, 
+				"manufacturer"  => $manufacturer, 
+				"part_number"   => $part_number, 
+				"serial_number" => $serial_number, 
+			}});
+		}
+	}
+	
+	my $cpu_info = $anvil->Storage->read_file({level => 2, file => $anvil->data->{path}{proc}{meminfo}});
+	foreach my $line (split/,/, $cpu_info)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			
+		if ($line =~ /^(.*?):\s+(\d+.*?)$/)
+		{
+			my $variable = $1;
+			my $size     = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				variable => $variable, 
+				size     => $size, 
+			}});
+			
+			# We care about a few variables only.
+			my $say_variable = "";
+			if ($variable eq "MemTotal")
+			{
+				$say_variable = "memory_total";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_variable => $say_variable }});
+			}
+			if ($variable eq "MemFree")
+			{
+				$say_variable = "memory_free";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_variable => $say_variable }});
+			}
+			if ($variable eq "SwapTotal")
+			{
+				$say_variable = "swap_total";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_variable => $say_variable }});
+			}
+			if ($variable eq "SwapFree")
+			{
+				$say_variable = "swap_free";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_variable => $say_variable }});
+			}
+			next if not $say_variable;
+			
+			# This reports sizes as 'kB', but it's really base2.
+			$size = $anvil->Convert->human_readable_to_bytes({
+				base2 => 1,
+				size  => $size,
+			});
+			
+			$anvil->data->{summary}{ram}{proc}{$say_variable} = $size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"summary::ram::proc::${say_variable}" => $anvil->Convert->add_commas({number => $anvil->data->{summary}{ram}{proc}{$say_variable}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{summary}{ram}{proc}{$say_variable}}).")", 
+			}});
+		}
+	}
+	
+	$anvil->data->{summary}{ram}{size} = $total_size;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"summary::ram::size" => $anvil->Convert->add_commas({number => $anvil->data->{summary}{ram}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{summary}{ram}{size}}).")", 
+	}});
+	
+	return(0);
+}
+
+# This reads in the last scan data from one of the databases and compares it against the just-read data. If 
+# anything changed, register an alert.
+sub find_changes
+{
+	my ($anvil) = @_;
+	
+	# Walk through what I know. First the main info, then the RAM modules below.
+	my $new_scan_hardware_cpu_model    = $anvil->data->{summary}{cpu}{model};
+	my $new_scan_hardware_cpu_cores    = $anvil->data->{summary}{cpu}{cores};
+	my $new_scan_hardware_cpu_threads  = $anvil->data->{summary}{cpu}{threads};
+	my $new_scan_hardware_cpu_bugs     = $anvil->data->{summary}{cpu}{bugs};
+	my $new_scan_hardware_cpu_flags    = $anvil->data->{summary}{cpu}{flags};
+	my $new_scan_hardware_led_id       = $anvil->data->{summary}{led}{id_led};
+	my $new_scan_hardware_led_css      = $anvil->data->{summary}{led}{css_led};
+	my $new_scan_hardware_led_error    = $anvil->data->{summary}{led}{error_led};
+	my $new_scan_hardware_ram_total    = $anvil->data->{summary}{ram}{size};			# This is from counting the actual module capacity
+	my $new_scan_hardware_memory_total = $anvil->data->{summary}{ram}{proc}{memory_total};	# This is from /proc/meminfo and subtracts RAM used by shared video, etc.
+	my $new_scan_hardware_memory_free  = $anvil->data->{summary}{ram}{proc}{memory_free};
+	my $new_scan_hardware_swap_total   = $anvil->data->{summary}{ram}{proc}{swap_total};
+	my $new_scan_hardware_swap_free    = $anvil->data->{summary}{ram}{proc}{swap_free};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"new_scan_hardware_cpu_model"    => $new_scan_hardware_cpu_model, 
+		"new_scan_hardware_cpu_cores"    => $new_scan_hardware_cpu_cores, 
+		"new_scan_hardware_cpu_threads"  => $new_scan_hardware_cpu_threads, 
+		"new_scan_hardware_cpu_bugs"     => $new_scan_hardware_cpu_bugs, 
+		"new_scan_hardware_cpu_flags"    => $new_scan_hardware_cpu_flags, 
+		"new_scan_hardware_led_id"       => $new_scan_hardware_led_id, 
+		"new_scan_hardware_led_css"      => $new_scan_hardware_led_css, 
+		"new_scan_hardware_ram_total"    => $new_scan_hardware_ram_total, 
+		"new_scan_hardware_led_error"    => $new_scan_hardware_led_error, 
+		"new_scan_hardware_memory_total" => $anvil->Convert->add_commas({number => $new_scan_hardware_memory_total})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_total}).")", 
+		"new_scan_hardware_memory_free"  => $anvil->Convert->add_commas({number => $new_scan_hardware_memory_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_free}).")", 
+		"new_scan_hardware_swap_total"   => $anvil->Convert->add_commas({number => $new_scan_hardware_swap_total})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total}).")", 
+		"new_scan_hardware_swap_free"    => $anvil->Convert->add_commas({number => $new_scan_hardware_swap_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_free}).")", 
+	}});
+	
+	# The LED status needs to be translated.
+	my $say_new_scan_hardware_led_id = "#!string!scan_hardware_message_0001!#";
+	if ($new_scan_hardware_led_id eq "on")
+	{
+		$say_new_scan_hardware_led_id = "#!string!scan_hardware_message_0002!#";
+	}
+	elsif ($new_scan_hardware_led_id eq "off")
+	{
+		$say_new_scan_hardware_led_id = "#!string!scan_hardware_message_0003!#";
+	}
+	my $say_new_scan_hardware_led_css = "#!string!scan_hardware_message_0001!#";
+	if ($new_scan_hardware_led_css eq "on")
+	{
+		$say_new_scan_hardware_led_css = "#!string!scan_hardware_message_0002!#";
+	}
+	elsif ($new_scan_hardware_led_css eq "off")
+	{
+		$say_new_scan_hardware_led_css = "#!string!scan_hardware_message_0003!#";
+	}
+	my $say_new_scan_hardware_led_error = "#!string!scan_hardware_message_0001!#";
+	if ($new_scan_hardware_led_error eq "on")
+	{
+		$say_new_scan_hardware_led_error = "#!string!scan_hardware_message_0002!#";
+	}
+	elsif ($new_scan_hardware_led_error eq "off")
+	{
+		$say_new_scan_hardware_led_error = "#!string!scan_hardware_message_0003!#";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		say_new_scan_hardware_led_id    => $say_new_scan_hardware_led_id, 
+		say_new_scan_hardware_led_css   => $say_new_scan_hardware_led_css, 
+		say_new_scan_hardware_led_error => $say_new_scan_hardware_led_error, 
+	}});
+	
+	# INSERT or UPDATE?
+	if ((exists $anvil->data->{sql}{scan_hardware_uuid}) && ($anvil->data->{sql}{scan_hardware_uuid}))
+	{
+		# Look for changed.
+		my $scan_hardware_uuid = $anvil->data->{sql}{scan_hardware_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_hardware_uuid => $scan_hardware_uuid }});
+		
+		my $old_scan_hardware_cpu_model     = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_model};
+		my $old_scan_hardware_cpu_cores     = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_cores};
+		my $old_scan_hardware_cpu_threads   = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_threads};
+		my $old_scan_hardware_cpu_bugs      = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_bugs};
+		my $old_scan_hardware_cpu_flags     = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_flags};
+		my $old_scan_hardware_ram_total     = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_ram_total};
+		my $old_scan_hardware_memory_total  = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_memory_total};
+		my $old_scan_hardware_memory_free   = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_memory_free};
+		my $old_scan_hardware_swap_total    = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_swap_total};
+		my $old_scan_hardware_swap_free     = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_swap_free};
+		my $old_scan_hardware_led_id        = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_led_id};
+		my $old_scan_hardware_led_css       = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_led_css};
+		my $old_scan_hardware_led_error     = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_led_error};
+		my $old_scan_hardware_modified_date = $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_modified_date};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			old_scan_hardware_cpu_model     => $old_scan_hardware_cpu_model,
+			old_scan_hardware_cpu_cores     => $old_scan_hardware_cpu_cores,
+			old_scan_hardware_cpu_threads   => $old_scan_hardware_cpu_threads,
+			old_scan_hardware_cpu_bugs      => $old_scan_hardware_cpu_bugs,
+			old_scan_hardware_cpu_flags     => $old_scan_hardware_cpu_flags,
+			old_scan_hardware_ram_total     => $old_scan_hardware_ram_total,
+			old_scan_hardware_memory_total  => $old_scan_hardware_memory_total,
+			old_scan_hardware_memory_free   => $old_scan_hardware_memory_free,
+			old_scan_hardware_swap_total    => $old_scan_hardware_swap_total,
+			old_scan_hardware_swap_free     => $old_scan_hardware_swap_free,
+			old_scan_hardware_led_id        => $old_scan_hardware_led_id,
+			old_scan_hardware_led_css       => $old_scan_hardware_led_css,
+			old_scan_hardware_led_error     => $old_scan_hardware_led_error,
+			old_scan_hardware_modified_date => $old_scan_hardware_modified_date,
+		}});
+		
+		my $update = 0;
+		if ($new_scan_hardware_cpu_model ne $old_scan_hardware_cpu_model)
+		{
+			# CPU model changed, probably from a CPU upgrade or firmware flash, so just a notice level alert.
+			$update = 1;
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "scan_hardware_alert_0007,!!new!".$new_scan_hardware_cpu_model."!!,!!old!".$old_scan_hardware_cpu_model."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0007", variables => { new => $new_scan_hardware_cpu_model, old => $old_scan_hardware_cpu_model }});
+		}
+		if ($new_scan_hardware_cpu_bugs ne $old_scan_hardware_cpu_bugs)
+		{
+			# This is probably from a CPU upgrade or firward flash
+			$update = 1;
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "scan_hardware_alert_0008,!!new!".$new_scan_hardware_cpu_bugs."!!,!!old!".$old_scan_hardware_cpu_bugs."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0008", variables => { new => $new_scan_hardware_cpu_bugs, old => $old_scan_hardware_cpu_bugs }});
+		}
+		if ($new_scan_hardware_cpu_flags ne $old_scan_hardware_cpu_flags)
+		{
+			# This is probably from a CPU upgrade or firward flash
+			$update = 1;
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "scan_hardware_alert_0009,!!new!".$new_scan_hardware_cpu_flags."!!,!!old!".$old_scan_hardware_cpu_flags."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0009", variables => { new => $new_scan_hardware_cpu_flags, old => $old_scan_hardware_cpu_flags }});
+		}
+		if ($new_scan_hardware_cpu_cores ne $old_scan_hardware_cpu_cores)
+		{
+			# This is probably from a CPU upgrade
+			$update = 1;
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "scan_hardware_alert_0010,!!new!".$new_scan_hardware_cpu_cores."!!,!!old!".$old_scan_hardware_cpu_cores."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0010", variables => { new => $new_scan_hardware_cpu_cores, old => $old_scan_hardware_cpu_cores }});
+		}
+		if ($new_scan_hardware_cpu_threads ne $old_scan_hardware_cpu_threads)
+		{
+			# This is probably from a CPU upgrade
+			$update = 1;
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "scan_hardware_alert_0011,!!new!".$new_scan_hardware_cpu_threads."!!,!!old!".$old_scan_hardware_cpu_threads."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0011", variables => { new => $new_scan_hardware_cpu_threads, old => $old_scan_hardware_cpu_threads }});
+		}
+		if ($new_scan_hardware_ram_total ne $old_scan_hardware_ram_total)
+		{
+			# RAM (from dmidecode) changed could be a hardware upgrade, or it could be from a 
+			# failed modules. As such, we set this to 'warning'.
+			   $update      = 1;
+			my $say_new_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)";
+			my $say_old_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)";
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0012,!!new!".$say_new_ram."!!,!!old!".$say_old_ram."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0012", variables => { new => $say_new_ram, old => $say_old_ram}});
+		}
+		if ($new_scan_hardware_memory_total ne $old_scan_hardware_memory_total)
+		{
+			# Memory (/proc/meminfo) changed could be a hardware upgrade, or it could be from a 
+			# failed modules. As such, we set this to 'warning'.
+			   $update         = 1;
+			my $say_new_memory = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_total})." #!string!scan_hardware_unit_0001!#)";
+			my $say_old_memory = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_memory_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_memory_total})." #!string!scan_hardware_unit_0001!#)";
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0013,!!new!".$say_new_memory."!!,!!old!".$say_old_memory."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0013", variables => { new => $say_new_memory, old => $say_old_memory}});
+		}
+		if ($new_scan_hardware_swap_total ne $old_scan_hardware_swap_total)
+		{
+			# Memory (/proc/meminfo) changed could be a hardware upgrade, or it could be from a 
+			# failed modules. As such, we set this to 'warning'.
+			   $update       = 1;
+			my $say_new_swap = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_total})." #!string!scan_hardware_unit_0001!#)";
+			my $say_old_swap = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_swap_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_swap_total})." #!string!scan_hardware_unit_0001!#)";
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0014,!!new!".$say_new_swap."!!,!!old!".$say_old_swap."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0014", variables => { new => $say_new_swap, old => $say_old_swap}});
+		}
+		if ($new_scan_hardware_led_id ne $old_scan_hardware_led_id)
+		{
+			   $update                  = 1;
+			my $say_old_scan_hardware_led_id = "#!string!scan_hardware_message_0001!#";
+			if ($old_scan_hardware_led_id eq "on")
+			{
+				$say_old_scan_hardware_led_id = "#!string!scan_hardware_message_0002!#";
+			}
+			elsif ($old_scan_hardware_led_id eq "off")
+			{
+				$say_old_scan_hardware_led_id = "#!string!scan_hardware_message_0003!#";
+			}
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "scan_hardware_alert_0015,!!new!".$say_new_scan_hardware_led_id."!!,!!old!".$say_old_scan_hardware_led_id."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0015", variables => { new => $say_new_scan_hardware_led_id, old => $say_old_scan_hardware_led_id}});
+		}
+		if ($new_scan_hardware_led_css ne $old_scan_hardware_led_css)
+		{
+			# The CSS LED is an error LED, so it changing deserves to be a 'warning' level alert.
+			   $update                   = 1;
+			my $say_old_scan_hardware_led_css = "#!string!scan_hardware_message_0001!#";
+			if ($old_scan_hardware_led_css eq "on")
+			{
+				$say_old_scan_hardware_led_css = "#!string!scan_hardware_message_0002!#";
+			}
+			elsif ($old_scan_hardware_led_css eq "off")
+			{
+				$say_old_scan_hardware_led_css = "#!string!scan_hardware_message_0003!#";
+			}
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0016,!!new!".$say_new_scan_hardware_led_css."!!,!!old!".$say_old_scan_hardware_led_css."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0016", variables => { new => $say_new_scan_hardware_led_css, old => $say_old_scan_hardware_led_css}});
+		}
+		if ($new_scan_hardware_led_error ne $old_scan_hardware_led_error)
+		{
+			# The Hardware Error LED deserves to be a 'warning' level alert.
+			   $update                     = 1;
+			my $say_old_scan_hardware_led_error = "#!string!scan_hardware_message_0001!#";
+			if ($old_scan_hardware_led_error eq "on")
+			{
+				$say_old_scan_hardware_led_error = "#!string!scan_hardware_message_0002!#";
+			}
+			elsif ($old_scan_hardware_led_error eq "off")
+			{
+				$say_old_scan_hardware_led_error = "#!string!scan_hardware_message_0003!#";
+			}
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0017,!!new!".$say_new_scan_hardware_led_error."!!,!!old!".$say_old_scan_hardware_led_error."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0017", variables => { new => $say_new_scan_hardware_led_error, old => $say_old_scan_hardware_led_error}});
+		}
+		if ($new_scan_hardware_memory_free ne $old_scan_hardware_memory_free)
+		{
+			# This always changes, so it's an info-level alert
+			   $update                       = 1;
+			my $say_new_scan_hardware_memory_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_free})." #!string!scan_hardware_unit_0001!#)"
+			my $say_old_scan_hardware_memory_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_memory_free})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_memory_free})." #!string!scan_hardware_unit_0001!#)"
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "info", message => "scan_hardware_alert_0018,!!new!".$say_new_scan_hardware_memory_free."!!,!!old!".$say_old_scan_hardware_memory_free."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0018", variables => { new => $say_new_scan_hardware_memory_free, old => $say_old_scan_hardware_memory_free}});
+		}
+		if ($new_scan_hardware_swap_free ne $old_scan_hardware_swap_free)
+		{
+			   $update                       = 1;
+			my $say_new_scan_hardware_swap_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_free})." #!string!scan_hardware_unit_0001!#)"
+			my $say_old_scan_hardware_swap_free = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_swap_free})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_swap_free})." #!string!scan_hardware_unit_0001!#)"
+			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "info", message => "scan_hardware_alert_0019,!!new!".$say_new_scan_hardware_swap_free."!!,!!old!".$say_old_scan_hardware_swap_free."!!"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0019", variables => { new => $say_new_scan_hardware_swap_free, old => $say_old_scan_hardware_swap_free}});
+
+			my $new_swap_bytes_used   = $new_scan_hardware_swap_total - $new_scan_hardware_swap_free;
+			my $old_swap_bytes_used   = $old_scan_hardware_swap_total - $old_scan_hardware_swap_free;
+			my $new_swap_percent_used = $anvil->Math->round({number => (($new_swap_bytes_used / $new_scan_hardware_swap_total) * 100)});
+			my $old_swap_percent_used = $anvil->Math->round({number => (($old_swap_bytes_used / $old_scan_hardware_swap_total) * 100)});
+			my $swap_percent_high     = $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  =~ /^\d+/ ? $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  : 75;
+			my $swap_percent_low      = $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} =~ /^\d+/ ? $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} : 25;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:new_swap_bytes_used'   => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_swap_bytes_used})." (".$anvil->Convert->add_commas({number => $new_swap_bytes_used})." #!string!scan_hardware_unit_0001!#)", 
+				's2:old_swap_bytes_used'   => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_swap_bytes_used})." (".$anvil->Convert->add_commas({number => $old_swap_bytes_used})." #!string!scan_hardware_unit_0001!#)",
+				's3:new_swap_percent_used' => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_swap_percent_used})." (".$anvil->Convert->add_commas({number => $new_swap_percent_used})." #!string!scan_hardware_unit_0001!#)", 
+				's4:old_swap_percent_used' => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_swap_percent_used})." (".$anvil->Convert->add_commas({number => $old_swap_percent_used})." #!string!scan_hardware_unit_0001!#)", 
+				's5:swap_percent_high'     => $anvil->Convert->bytes_to_human_readable({'bytes' => $swap_percent_high})." (".$anvil->Convert->add_commas({number => $swap_percent_high})." #!string!scan_hardware_unit_0001!#)", 
+				's6:swap_percent_low'      => $anvil->Convert->bytes_to_human_readable({'bytes' => $swap_percent_low})." (".$anvil->Convert->add_commas({number => $swap_percent_low})." #!string!scan_hardware_unit_0001!#)", 
+			}});
+			
+			# Check if swap has gone over the high threshold or dropped below the clear 
+			# threashold.
+			if ($new_scan_hardware_swap_free > $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold})
+			{
+				# It's high
+				my $changed = $anvil->Alert->check_alert_sent({
+					debug          => 2,
+					record_locator => "scan_hardware::high_swap",
+					set_by         => $agent,
+					type           => "set",
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Log and register an alert.
+					my $say_used  = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_swap_bytes_used});
+					my $say_swap  = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total});
+					my $variables = {
+						say_used     => $say_used,
+						say_swap     => $say_swap,
+						swap_percent => $new_swap_percent_used,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_hardware_alert_0020", variables => $variables});
+					$anvil->Alert->register({
+						debug             => 2,
+						alert_level       => "warning",
+						message           => "scan_hardware_alert_0020",
+						message_variables => $variables,
+						set_by            => $agent,
+					});
+				}
+			}
+			elsif ($new_scan_hardware_swap_free < $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold})
+			{
+				# It's low
+				my $changed = $anvil->Alert->check_alert_sent({
+					debug          => 2,
+					record_locator => "scan_hardware::high_swap",
+					set_by         => $agent,
+					type           => "clear",
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Log and register that the alert has cleared.
+					my $say_used = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_swap_bytes_used});
+					my $say_swap = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_hardware_alert_0021", variables => {
+						say_used     => $say_used,
+						say_swap     => $say_swap,
+						swap_percent => $new_swap_percent_used,
+					}});
+					$anvil->Alert->register({
+						debug       => 2,
+						alert_level => "warning",
+						message     => "scan_hardware_alert_0021,!!say_used!".$say_used."!!,!!say_swap!".$say_swap."!!,!!swap_percent!".$new_swap_percent_used."!!",
+						set_by      => $agent,
+					});
+				}
+			}
+		}
+		
+		# Update?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		if ($update)
+		{
+			# Yup!
+			my $query = "
+UPDATE 
+    scan_hardware 
+SET
+    scan_hardware_cpu_model    = ".$anvil->Database->quote($new_scan_hardware_cpu_model).", 
+    scan_hardware_cpu_cores    = ".$anvil->Database->quote($new_scan_hardware_cpu_cores).", 
+    scan_hardware_cpu_threads  = ".$anvil->Database->quote($new_scan_hardware_cpu_threads).", 
+    scan_hardware_cpu_bugs     = ".$anvil->Database->quote($new_scan_hardware_cpu_bugs).", 
+    scan_hardware_cpu_flags    = ".$anvil->Database->quote($new_scan_hardware_cpu_flags).", 
+    scan_hardware_ram_total    = ".$anvil->Database->quote($new_scan_hardware_ram_total).", 
+    scan_hardware_memory_total = ".$anvil->Database->quote($new_scan_hardware_memory_total).", 
+    scan_hardware_memory_free  = ".$anvil->Database->quote($new_scan_hardware_memory_free).", 
+    scan_hardware_swap_total   = ".$anvil->Database->quote($new_scan_hardware_swap_total).", 
+    scan_hardware_swap_free    = ".$anvil->Database->quote($new_scan_hardware_swap_free).", 
+    scan_hardware_led_id       = ".$anvil->Database->quote($new_scan_hardware_led_id).", 
+    scan_hardware_led_css      = ".$anvil->Database->quote($new_scan_hardware_led_css).", 
+    scan_hardware_led_error    = ".$anvil->Database->quote($new_scan_hardware_led_error).", 
+    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_hardware_uuid         = ".$anvil->Database->quote($scan_hardware_uuid)."
+;";
+
+			# Now record the query in the array
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	else
+	{
+		# New record, send an alert telling that we've found data.
+		my $message_variables = {
+			total_cores      => $new_scan_hardware_cpu_cores, 
+			total_threads    => $new_scan_hardware_cpu_threads, 
+			cpu_bugs         => $new_scan_hardware_cpu_bugs, 
+			cpu_flags        => $new_scan_hardware_cpu_flags, 
+			id_led           => $say_new_scan_hardware_led_id, 
+			css_led          => $say_new_scan_hardware_led_css, 
+			error_led        => $say_new_scan_hardware_led_error, 
+			ram_total_size   => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)", 
+			ram_memory_total => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_total})." #!string!scan_hardware_unit_0001!#)", 
+			ram_memory_free  => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_free})." #!string!scan_hardware_unit_0001!#)", 
+			ram_swap_total   => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_total})." #!string!scan_hardware_unit_0001!#)", 
+			ram_swap_free    => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_free})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_free})." #!string!scan_hardware_unit_0001!#)",
+		};
+		$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_hardware_alert_0022", message_variables => $message_variables, set_by => $agent });
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0019", variables => $message_variables});
+		
+		# INSERT
+		my $scan_hardware_uuid = $anvil->Get->uuid();
+		my $query = "
+INSERT INTO 
+    scan_hardware 
+(
+    scan_hardware_uuid, 
+    scan_hardware_host_uuid, 
+    scan_hardware_cpu_model, 
+    scan_hardware_cpu_cores, 
+    scan_hardware_cpu_threads, 
+    scan_hardware_cpu_bugs, 
+    scan_hardware_cpu_flags, 
+    scan_hardware_ram_total, 
+    scan_hardware_memory_total, 
+    scan_hardware_memory_free, 
+    scan_hardware_swap_total, 
+    scan_hardware_swap_free, 
+    scan_hardware_led_id, 
+    scan_hardware_led_css, 
+    scan_hardware_led_error, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($scan_hardware_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($new_scan_hardware_cpu_model).", 
+    ".$anvil->Database->quote($new_scan_hardware_cpu_cores).", 
+    ".$anvil->Database->quote($new_scan_hardware_cpu_threads).", 
+    ".$anvil->Database->quote($new_scan_hardware_cpu_bugs).", 
+    ".$anvil->Database->quote($new_scan_hardware_cpu_flags).", 
+    ".$anvil->Database->quote($new_scan_hardware_ram_total).", 
+    ".$anvil->Database->quote($new_scan_hardware_memory_total).", 
+    ".$anvil->Database->quote($new_scan_hardware_memory_free).", 
+    ".$anvil->Database->quote($new_scan_hardware_swap_total).", 
+    ".$anvil->Database->quote($new_scan_hardware_swap_free).", 
+    ".$anvil->Database->quote($new_scan_hardware_led_id).", 
+    ".$anvil->Database->quote($new_scan_hardware_led_css).", 
+    ".$anvil->Database->quote($new_scan_hardware_led_css).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+		# Now record the query in the array
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	### TODO: Left off here.
+	# Now the RAM modules.
+	foreach my $hardware_ram_module_locator (sort {$a cmp $b} keys %{$anvil->data->{ram}{dmi}{locator}})
+	{
+		my $new_scan_hardware_ram_module_size          = $anvil->data->{ram}{dmi}{locator}{$hardware_ram_module_locator}{size};
+		my $new_scan_hardware_ram_module_manufacturer  = $anvil->data->{ram}{dmi}{locator}{$hardware_ram_module_locator}{manufacturer};
+		my $new_scan_hardware_ram_module_model         = $anvil->data->{ram}{dmi}{locator}{$hardware_ram_module_locator}{part_number};
+		my $new_scan_hardware_ram_module_serial_number = $anvil->data->{ram}{dmi}{locator}{$hardware_ram_module_locator}{serial_number};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			hardware_ram_module_locator                => $hardware_ram_module_locator, 
+			new_scan_hardware_ram_module_size          => $anvil->Convert->add_commas({number => $new_scan_hardware_ram_module_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_module_size}).")", 
+			new_scan_hardware_ram_module_manufacturer  => $new_scan_hardware_ram_module_manufacturer, 
+			new_scan_hardware_ram_module_model         => $new_scan_hardware_ram_module_model, 
+			new_scan_hardware_ram_module_serial_number => $new_scan_hardware_ram_module_serial_number, 
+		}});
+		
+		if ((exists $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator}) && ($anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator}))
+		{
+			# We've seen this module before, look for changes.
+			my $scan_hardware_ram_module_uuid = $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sql::hardware_ram_module_uuid::${scan_hardware_ram_module_locator}" => $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator}, 
+			}});
+			
+			my $old_scan_hardware_ram_module_size          = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_size};
+			my $old_scan_hardware_ram_module_manufacturer  = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_manufacturer};
+			my $old_scan_hardware_ram_module_model         = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_model};
+			my $old_scan_hardware_ram_module_serial_number = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_serial_number};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_scan_hardware_ram_module_size          => $anvil->Convert->add_commas({number => $old_scan_hardware_ram_module_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_module_size}).")", 
+				old_scan_hardware_ram_module_manufacturer  => $old_scan_hardware_ram_module_manufacturer, 
+				old_scan_hardware_ram_module_model         => $old_scan_hardware_ram_module_model, 
+				old_scan_hardware_ram_module_serial_number => $old_scan_hardware_ram_module_serial_number, 
+			}});
+			
+			# Delete the entry so we know we've processed this existing module.
+			delete $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator};
+			delete $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid};
+			
+			### We check all at once for a single alert as it's easy to see what has changed.
+			# Looks for changes.
+			if (($new_scan_hardware_ram_module_size          ne $old_scan_hardware_ram_module_size)         or 
+			    ($new_scan_hardware_ram_module_manufacturer  ne $old_scan_hardware_ram_module_manufacturer) or 
+			    ($old_scan_hardware_ram_module_model         ne $old_scan_hardware_ram_module_model)        or 
+			    ($new_scan_hardware_ram_module_serial_number ne $old_scan_hardware_ram_module_serial_number))
+			{
+				# This shouldn't change, but maybe the RAM was replaced or upgraded? It could
+				# be that a vanished module has returned?
+				if (($old_scan_hardware_ram_module_manufacturer eq "VANISHED") && ($new_scan_hardware_ram_module_manufacturer ne "VANISHED"))
+				{
+					# A vanished module has returned.
+					my $variables = {
+						locator           => $hardware_ram_module_locator,
+						old_size          => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_module_size})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_ram_module_size})." #!string!scan_hardware_unit_0001!#)",
+						old_manufacturer  => $old_scan_hardware_ram_module_manufacturer, 
+						old_model         => $old_scan_hardware_ram_module_model, 
+						old_serial_number => $old_scan_hardware_ram_module_serial_number, 
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_hardware_alert_0023", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_hardware_alert_0023", message_variables => $variables, set_by => $agent});
+				}
+				else
+				{
+					# Something else changed.
+					my $variables = {
+						locator           => $hardware_ram_module_locator,
+						new_size          => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_module_size})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_ram_module_size})." #!string!scan_hardware_unit_0001!#)",
+						new_manufacturer  => $new_scan_hardware_ram_module_manufacturer, 
+						new_model         => $new_scan_hardware_ram_module_model, 
+						new_serial_number => $new_scan_hardware_ram_module_serial_number, 
+						old_size          => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_module_size})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_ram_module_size})." #!string!scan_hardware_unit_0001!#)",
+						old_manufacturer  => $old_scan_hardware_ram_module_manufacturer, 
+						old_model         => $old_scan_hardware_ram_module_model, 
+						old_serial_number => $old_scan_hardware_ram_module_serial_number, 
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_hardware_alert_0024", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_hardware_alert_0024", message_variables => $variables, set_by => $agent});
+				}
+				
+				my $query = "
+UPDATE 
+    scan_hardware_ram_modules 
+SET
+    scan_hardware_ram_module_locator       = ".$anvil->Database->quote($hardware_ram_module_locator).", 
+    scan_hardware_ram_module_size          = ".$anvil->Database->quote($new_scan_hardware_ram_module_size).", 
+    scan_hardware_ram_module_manufacturer  = ".$anvil->Database->quote($new_scan_hardware_ram_module_manufacturer).", 
+    scan_hardware_ram_module_model         = ".$anvil->Database->quote($new_scan_hardware_ram_module_model).", 
+    scan_hardware_ram_module_serial_number = ".$anvil->Database->quote($new_scan_hardware_ram_module_serial_number).", 
+    modified_date                          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_hardware_ram_module_uuid          = ".$anvil->Database->quote($scan_hardware_ram_module_uuid)." 
+;";
+				# Now record the query in the array
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+		else
+		{
+			# Send an alert telling the user that we've found a new module.
+			my $variables = {
+				locator       => $hardware_ram_module_locator,
+				size          => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_module_size})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_ram_module_size})." #!string!scan_hardware_unit_0001!#)",
+				manufacturer  => $new_scan_hardware_ram_module_manufacturer, 
+				model         => $new_scan_hardware_ram_module_model, 
+				serial_number => $new_scan_hardware_ram_module_serial_number, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "scan_hardware_alert_0025", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_hardware_alert_0025", message_variables => $variables, set_by => $agent});
+			
+			# INSERT
+			my $scan_hardware_ram_module_uuid = $anvil->Get->uuid();
+			my $query = "
+INSERT INTO 
+    scan_hardware_ram_modules 
+(
+    scan_hardware_ram_module_host_uuid, 
+    scan_hardware_ram_module_uuid, 
+    scan_hardware_ram_module_locator, 
+    scan_hardware_ram_module_size, 
+    scan_hardware_ram_module_manufacturer, 
+    scan_hardware_ram_module_model, 
+    scan_hardware_ram_module_serial_number, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($scan_hardware_ram_module_uuid).", 
+    ".$anvil->Database->quote($hardware_ram_module_locator).", 
+    ".$anvil->Database->quote($new_scan_hardware_ram_module_size).", 
+    ".$anvil->Database->quote($new_scan_hardware_ram_module_manufacturer).", 
+    ".$anvil->Database->quote($new_scan_hardware_ram_module_model).", 
+    ".$anvil->Database->quote($new_scan_hardware_ram_module_serial_number).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+			# Now record the query in the array
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Now look for left over modules we found in the database but not on the local system.
+	foreach my $hardware_ram_module_locator (keys %{$anvil->data->{sql}{scan_hardware_ram_module_uuid}})
+	{
+		# Module vanished!
+		my $scan_hardware_ram_module_uuid = $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::hardware_ram_module_uuid::${scan_hardware_ram_module_locator}" => $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator}
+		}});
+		
+		my $old_scan_hardware_ram_module_size          = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_size};
+		my $old_scan_hardware_ram_module_manufacturer  = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_manufacturer};
+		my $old_scan_hardware_ram_module_model         = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_model};
+		my $old_scan_hardware_ram_module_serial_number = $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_serial_number};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			old_scan_hardware_ram_module_size          => $old_scan_hardware_ram_module_size, 
+			old_scan_hardware_ram_module_manufacturer  => $old_scan_hardware_ram_module_manufacturer, 
+			old_scan_hardware_ram_module_model         => $old_scan_hardware_ram_module_model, 
+			old_scan_hardware_ram_module_serial_number => $old_scan_hardware_ram_module_serial_number, 
+		}});
+		
+		# Delete the entry so we know we've processed this existing module.
+		delete $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$hardware_ram_module_locator};
+		delete $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid};
+		
+		my $variables = {
+			locator           => $hardware_ram_module_locator,
+			old_size          => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_module_size})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_ram_module_size})." #!string!scan_hardware_unit_0001!#)",
+			old_manufacturer  => $old_scan_hardware_ram_module_manufacturer, 
+			old_model         => $old_scan_hardware_ram_module_model, 
+			old_serial_number => $old_scan_hardware_ram_module_serial_number, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "scan_hardware_alert_0026", variables => $variables});
+		$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_hardware_alert_0026", message_variables => $variables, set_by => $agent});
+		
+		my $query = "
+UPDATE 
+    scan_hardware_ram_modules 
+SET
+    scan_hardware_ram_module_manufacturer  = 'VANISHED', 
+    modified_date                     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_hardware_ram_module_uuid          = ".$anvil->Database->quote($scan_hardware_ram_module_uuid)." 
+;";
+		# Now record the query in the array
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+
+	return(0);
+}
+
+# Here we see if our peer has more or less RAM. If we have less, we'll mark our health as degraded.
+sub process_health
+{
+	my ($anvil) = @_;
+	
+	# Only do this on nodes.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	return(0) if $host_type ne "node";
+	
+	# Find the host_uuid for the peer's host name and UUID.
+	$anvil->Cluster->get_peers({debug => 2});
+	my $peer_is        = $anvil->data->{sys}{anvil}{peer_is};
+	my $peer_host_name = $anvil->data->{sys}{anvil}{$peer_is}{host_name};
+	my $peer_host_uuid = $anvil->data->{sys}{anvil}{$peer_is}{host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		peer_host_name => $peer_host_name,
+		peer_host_uuid => $peer_host_uuid,
+	}});
+	
+	# How much RAM is on the other node?
+	my $query = "SELECT scan_hardware_ram_total FROM scan_hardware WHERE scan_hardware_host_uuid = ".$anvil->Database->quote($peer_host_uuid).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $peer_ram_total = $anvil->Database->query({level => 2, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	   $peer_ram_total = 0 if not defined $peer_ram_total;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_ram_total => $peer_ram_total }});
+	
+	# Do we know the peer's RAM?
+	my $clear_alerts = 1;
+	if ($peer_ram_total)
+	{
+		# We don't want to freak out unless the difference is at least 1GiB
+		my $hardware_ram_total = $an->data->{summary}{ram}{size};
+		my $difference         = $peer_ram_total - $hardware_ram_total;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			hardware_ram_total => $an->Readable->comma($hardware_ram_total)." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $hardware_ram_total}).")", 
+			difference         => $an->Readable->comma($difference)." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")", 
+		}});
+		
+		# greater than 1 GiB (default) or less than 128 MiB (default)
+		if (($peer_ram_total > $hardware_ram_total) && ($difference > $anvil->data->{scancore}{'scan-hardware'}{ram}{high_threshold}))
+		{
+			# Mark us as having a fairly major health issue if this has been the case for more 
+			# than five minutes.
+			my $age = $anvil->Database->check_condition_age({
+				debug     => 2,
+				name      => "scan-hardware::less_ram_than_peer",
+				host_uuid => $anvil->Get->host_uuid, 
+			});
+			
+			if ($age > 300)
+			{
+				my $changed = $anvil->Alert->check_alert_sent({
+					debug          => 2,
+					record_locator => "scan_hardware::less_ram_than_peer",
+					set_by         => $THIS_FILE,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Register an alert.
+					my $variables = {
+						local_ram  => $anvil->Convert->bytes_to_human_readable({'bytes' => $hardware_ram_total})." (".$an->Readable->comma($hardware_ram_total)." #!string!suffix_0009!#)",
+						peer_ram   => $anvil->Convert->bytes_to_human_readable({'bytes' => $peer_ram_total})." (".$an->Readable->comma($peer_ram_total)." #!string!suffix_0009!#)",
+						difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference})." (".$an->Readable->comma($difference)." #!string!suffix_0009!#)", 
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0027", variables => $variables});
+					$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0027", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				
+				
+			}
+			$clear_alerts = 0;
+			
+			my ($health_uuid) = $anvil->Database->insert_or_update_health({
+				debug                => 2,
+				health_agent_name    => $THIS_FILE,
+				health_source_name   => "less_ram_than_peer",
+				health_source_weight => $anvil->data->{scancore}{'scan-hardware'}{score}{less_ram},
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_uuid => $health_uuid }});
+		}
+		elsif (($peer_ram_total == $hardware_ram_total) or ($difference < $anvil->data->{scancore}{'scan-hardware'}{ram}{clear_threshold}))
+		{
+			### TODO: Left off here.
+=cut
+			# If there was a difference before, clear it.
+			my $clear = 0;
+			my $set   = $an->Alert->check_alert_sent({
+				type			=>	"clear",	# This is not the alert level, 'warning' == trouble, 'clear' == ok now.
+				alert_sent_by		=>	$THIS_FILE,
+				alert_record_locator	=>	"na",
+				alert_name		=>	"less_ram_than_peer",
+				modified_date		=>	$an->data->{sys}{db_timestamp},
+			});
+			$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+				name1  => "set", value1  => $set, 
+			}, file => $THIS_FILE, line => __LINE__});
+			if (not $set)
+			{
+				# There's a bug where the 
+				$query = "SELECT health_uuid FROM health WHERE health_host_uuid = ".$anvil->Database->quote($an->data->{sys}{host_uuid})." AND health_source_name = 'less_ram_than_peer';";
+				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+					name1 => "query", value1 => $query, 
+				}, file => $THIS_FILE, line => __LINE__});
+				my $health_uuid = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				   $health_uuid = "" if not defined $health_uuid;
+				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+					name1 => "health_uuid", value1 => $health_uuid, 
+				}, file => $THIS_FILE, line => __LINE__});
+				
+				if ($health_uuid)
+				{
+					# Clear it.
+					$clear = 1;
+					$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+						name1  => "clear", value1  => $clear, 
+					}, file => $THIS_FILE, line => __LINE__});
+				}
+			}
+			if ($set)
+			{
+				# Clear the warning
+				$an->Alert->register_alert({
+					alert_level		=>	"clear", 
+					alert_agent_name	=>	$THIS_FILE,
+					alert_sort		=>	$an->data->{sys}{alert_sort}++,
+					alert_title_key		=>	"an_alert_title_0004",
+					alert_message_key	=>	"scan_hardware_note_0010",
+					alert_message_variables	=>	{
+						difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference})." (".$an->Readable->comma($difference)." #!string!suffix_0009!#)", 
+						local_ram  => $anvil->Convert->bytes_to_human_readable({'bytes' => $hardware_ram_total})." (".$an->Readable->comma($hardware_ram_total)." #!string!suffix_0009!#)", 
+						peer_ram   => $anvil->Convert->bytes_to_human_readable({'bytes' => $peer_ram_total})." (".$an->Readable->comma($peer_ram_total)." #!string!suffix_0009!#)", 
+					},
+				});
+				
+				$clear = 1;;
+				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+					name1  => "clear", value1  => $clear, 
+				}, file => $THIS_FILE, line => __LINE__});
+			}
+			
+			$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+				name1  => "clear", value1  => $clear, 
+			}, file => $THIS_FILE, line => __LINE__});
+			if ($clear)
+			{
+				# Get the health_uuid
+				my $query = "SELECT health_uuid FROM health WHERE health_host_uuid = ".$anvil->Database->quote($an->data->{sys}{host_uuid})." AND health_source_name = 'less_ram_than_peer';";
+				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+					name1 => "query", value1 => $query, 
+				}, file => $THIS_FILE, line => __LINE__});
+				my $health_uuid = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+				   $health_uuid = "" if not defined $health_uuid;
+				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
+					name1 => "health_uuid", value1 => $health_uuid, 
+				}, file => $THIS_FILE, line => __LINE__});
+				
+				# Mark it as deleted for the history schema.
+				if ($health_uuid)
+				{
+					my $query = "
+UPDATE  
+    health
+SET 
+    health_source_name   = 'DELETED', 
+    health_source_weight = '0', 
+    modified_date        = ".$anvil->Database->quote($an->data->{sys}{db_timestamp})."
+WHERE 
+    health_uuid          = ".$anvil->Database->quote($health_uuid)."
+;";
+					$an->Log->entry({log_level => 1, message_key => "an_variables_0001", message_variables => {
+						name1 => "query", value1 => $query, 
+					}, file => $THIS_FILE, line => __LINE__});
+					$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					# Now actually delete it.
+					$query = "
+DELETE FROM 
+    health
+WHERE 
+    health_uuid = ".$anvil->Database->quote($health_uuid)."
+;";
+					$an->Log->entry({log_level => 1, message_key => "an_variables_0001", message_variables => {
+						name1 => "query", value1 => $query, 
+					}, file => $THIS_FILE, line => __LINE__});
+					$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+			}
+=cut
+		}
+	}
+
+	return(0);
+}
+
+# This reads in the last scan's data.
+sub read_last_scan
+{
+	my ($anvil) = @_;
+	
+	
+	# This calls up the entry for this host. There will only be one.
+	my $query = "
+SELECT 
+    scan_hardware_uuid, 
+    scan_hardware_cpu_model, 
+    scan_hardware_cpu_cores, 
+    scan_hardware_cpu_threads, 
+    scan_hardware_cpu_bugs, 
+    scan_hardware_cpu_flags, 
+    scan_hardware_ram_total, 
+    scan_hardware_memory_total, 
+    scan_hardware_memory_free, 
+    scan_hardware_swap_total, 
+    scan_hardware_swap_free, 
+    scan_hardware_led_id, 
+    scan_hardware_led_css, 
+    scan_hardware_led_error, 
+    floor(extract(epoch from modified_date))
+FROM 
+    scan_hardware 
+WHERE 
+    scan_hardware_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_hardware' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_hardware_uuid          = $row->[0]; 
+		my $scan_hardware_cpu_model     = $row->[1]; 
+		my $scan_hardware_cpu_cores     = $row->[2]; 
+		my $scan_hardware_cpu_threads   = $row->[3]; 
+		my $scan_hardware_cpu_bugs      = $row->[4]; 
+		my $scan_hardware_cpu_flags     = $row->[5]; 
+		my $scan_hardware_ram_total     = $row->[6]; 
+		my $scan_hardware_memory_total  = $row->[7]; 
+		my $scan_hardware_memory_free   = $row->[8]; 
+		my $scan_hardware_swap_total    = $row->[9]; 
+		my $scan_hardware_swap_free     = $row->[10]; 
+		my $scan_hardware_led_id        = $row->[11]; 
+		my $scan_hardware_led_css       = $row->[12]; 
+		my $scan_hardware_led_error     = $row->[13];  
+		my $scan_hardware_modified_date = $row->[14];  
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan_hardware_uuid"          => $scan_hardware_uuid,
+			"scan_hardware_cpu_model"     => $scan_hardware_cpu_model,
+			"scan_hardware_cpu_cores"     => $scan_hardware_cpu_cores,
+			"scan_hardware_cpu_threads"   => $scan_hardware_cpu_threads,
+			"scan_hardware_cpu_bugs"      => $scan_hardware_cpu_bugs,
+			"scan_hardware_cpu_flags"     => $scan_hardware_cpu_flags,
+			"scan_hardware_ram_total"     => $scan_hardware_ram_total,
+			"scan_hardware_memory_total"  => $scan_hardware_memory_total,
+			"scan_hardware_memory_free"   => $scan_hardware_memory_free,
+			"scan_hardware_swap_total"    => $scan_hardware_swap_total,
+			"scan_hardware_swap_free"     => $scan_hardware_swap_free,
+			"scan_hardware_led_id"        => $scan_hardware_led_id,
+			"scan_hardware_led_css"       => $scan_hardware_led_css,
+			"scan_hardware_led_error"     => $scan_hardware_led_error,
+			"scan_hardware_modified_date" => $scan_hardware_modified_date,
+		}});
+		
+		# Record the hardware_uuid in an easy to find place for later when looking for changes.
+		$anvil->data->{sql}{scan_hardware_uuid} = $scan_hardware_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sql::scan_hardware_uuid" => $anvil->data->{sql}{scan_hardware_uuid} }});
+		
+		# Store the old data now.
+		$anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid} = {
+			scan_hardware_cpu_model     => $scan_hardware_cpu_model,
+			scan_hardware_cpu_cores     => $scan_hardware_cpu_cores,
+			scan_hardware_cpu_threads   => $scan_hardware_cpu_threads,
+			scan_hardware_cpu_bugs      => $scan_hardware_cpu_bugs,
+			scan_hardware_cpu_flags     => $scan_hardware_cpu_flags,
+			scan_hardware_ram_total     => $scan_hardware_ram_total,
+			scan_hardware_memory_total  => $scan_hardware_memory_total,
+			scan_hardware_memory_free   => $scan_hardware_memory_free,
+			scan_hardware_swap_total    => $scan_hardware_swap_total,
+			scan_hardware_swap_free     => $scan_hardware_swap_free,
+			scan_hardware_led_id        => $scan_hardware_led_id,
+			scan_hardware_led_css       => $scan_hardware_led_css,
+			scan_hardware_led_error     => $scan_hardware_led_error,
+			scan_hardware_modified_date => $scan_hardware_modified_date,
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_cpu_model"     => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_model},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_cpu_cores"     => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_cores},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_cpu_threads"   => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_threads},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_cpu_bugs"      => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_bugs},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_cpu_flags"     => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_cpu_flags},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_ram_total"     => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_ram_total},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_memory_total"  => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_memory_total},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_memory_free"   => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_memory_free},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_swap_total"    => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_swap_total},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_swap_free"     => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_swap_free},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_led_id"        => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_led_id},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_led_css"       => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_led_css},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_led_error"     => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_led_error},
+			"sql::scan_hardware::scan_hardware_uuid::${scan_hardware_uuid}::scan_hardware_modified_date" => $anvil->data->{sql}{scan_hardware}{scan_hardware_uuid}{$scan_hardware_uuid}{scan_hardware_modified_date},
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	# Read in the RAM module data.
+	$query = "
+SELECT 
+    scan_hardware_ram_module_uuid, 
+    scan_hardware_ram_module_locator, 
+    scan_hardware_ram_module_size, 
+    scan_hardware_ram_module_manufacturer, 
+    scan_hardware_ram_module_model, 
+    scan_hardware_ram_module_serial_number 
+FROM 
+    scan_hardware_ram_modules 
+WHERE 
+    scan_hardware_ram_module_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_hardware_ram_modules' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_hardware_ram_module_uuid          = $row->[0]; 
+		my $scan_hardware_ram_module_locator       = $row->[1]; 
+		my $scan_hardware_ram_module_size          = $row->[2]; 
+		my $scan_hardware_ram_module_manufacturer  = $row->[3]; 
+		my $scan_hardware_ram_module_model         = $row->[4]; 
+		my $scan_hardware_ram_module_serial_number = $row->[5]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan_hardware_ram_module_uuid"          => $scan_hardware_ram_module_uuid,
+			"scan_hardware_ram_module_locator"       => $scan_hardware_ram_module_locator,
+			"scan_hardware_ram_module_size"          => $scan_hardware_ram_module_size,
+			"scan_hardware_ram_module_manufacturer"  => $scan_hardware_ram_module_manufacturer,
+			"scan_hardware_ram_module_model"         => $scan_hardware_ram_module_model,
+			"scan_hardware_ram_module_serial_number" => $scan_hardware_ram_module_serial_number,
+		}});
+		
+		# Record the scan_hardware_ram_module_uuid in an easy to find place for later when looking for changes.
+		$anvil->data->{sql}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_locator} = $scan_hardware_ram_module_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_hardware_ram_module_uuid::${scan_hardware_ram_module_locator}" => $anvil->data->{sql}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_locator}, 
+		}});
+		
+		# Store the old data now.
+		$anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid} = {
+			scan_hardware_ram_module_locator       => $scan_hardware_ram_module_locator,
+			scan_hardware_ram_module_size          => $scan_hardware_ram_module_size,
+			scan_hardware_ram_module_manufacturer  => $scan_hardware_ram_module_manufacturer,
+			scan_hardware_ram_module_model         => $scan_hardware_ram_module_model,
+			scan_hardware_ram_module_serial_number => $scan_hardware_ram_module_serial_number,
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_hardware_ram_module::scan_hardware_ram_module_uuid::${scan_hardware_ram_module_uuid}::scan_hardware_ram_module_locator"       => $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_locator},
+			"sql::scan_hardware_ram_module::scan_hardware_ram_module_uuid::${scan_hardware_ram_module_uuid}::scan_hardware_ram_module_size"          => $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_size},
+			"sql::scan_hardware_ram_module::scan_hardware_ram_module_uuid::${scan_hardware_ram_module_uuid}::scan_hardware_ram_module_manufacturer"  => $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_manufacturer},
+			"sql::scan_hardware_ram_module::scan_hardware_ram_module_uuid::${scan_hardware_ram_module_uuid}::scan_hardware_ram_module_model"         => $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_model},
+			"sql::scan_hardware_ram_module::scan_hardware_ram_module_uuid::${scan_hardware_ram_module_uuid}::scan_hardware_ram_module_serial_number" => $anvil->data->{sql}{scan_hardware_ram_module}{scan_hardware_ram_module_uuid}{$scan_hardware_ram_module_uuid}{scan_hardware_ram_module_serial_number},
+		}});
 	}
 	
 	return(0);

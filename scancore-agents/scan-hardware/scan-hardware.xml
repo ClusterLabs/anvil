@@ -13,8 +13,149 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hardware_l
 	<!-- Canadian English -->
 	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors hardware, like RAM modules, CSS LED status, CPU information, etc.">
 		
+		<!-- Alert entries -->
+		<key name="scan_hardware_alert_0001">
+For some reason, two (or more) CPU cores/threads returned different flags. This should never happen. The differences are:
+The differences are:
+====
+#!variable!flags!#
+====
+#!variable!these_flags!#
+====
+		</key>
+		<key name="scan_hardware_alert_0002">The issue with mismatched CPU flags has been resolved.</keys>
+		<key name="scan_hardware_alert_0003">
+For some reason, two (or more) CPU cores/threads returned different bugs. This should never happen: The differences are:
+The differences are:
+====
+#!variable!bugs!#
+====
+#!variable!these_bugs!#
+====
+		</key>
+		<key name="scan_hardware_alert_0004">The issue with mismatched CPU bugs has been resolved.</keys>
+		<key name="scan_hardware_alert_0005">
+For some reason, two (or more) CPU cores/threads returned different model names. This should never happen: The differences are:
+The differences are:
+====
+#!variable!model!#
+====
+#!variable!this_model!#
+====
+		</key>
+		<key name="scan_hardware_alert_0006">The issue with mismatched CPU model name has been resolved.</keys>
+		<key name="scan_hardware_alert_0007">The CPU model has changed:
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0008">The CPU bugs list has changed:
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0009">The CPU flags (register list) list has changed:
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0010">The number of CPU cores has changed. Was a new CPU installed?
+- New: [#!variable!new!# core(s)]
+- Old: [#!variable!old!# core(s)]
+		</key>
+		<key name="scan_hardware_alert_0011">The number of CPU threads has changed. Was a new CPU installed?
+- New: [#!variable!new!# thread(s)]
+- Old: [#!variable!old!# thread(s)]
+		</key>
+		<key name="scan_hardware_alert_0012">The amount of RAM (as reported by dmidecode) on the system has changed. If there was a hardware upgrade, then this is safe to ignore. If it was unexpected, a RAM module may have failed.
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0013">The amount of memory (as reported by /proc/meminfo) on the system has changed. If there was a hardware upgrade, then this is safe to ignore. If it was unexpected, a RAM module may have failed.
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0014">The amount of memory (as reported by /proc/meminfo) on the system has changed. If there was a hardware upgrade, then this is safe to ignore. If it was unexpected, a RAM module may have failed.
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0015">The ID LED (identification light) state has changed;
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0016">The Error (CSS) LED state has changed;
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0017">The Error (Hardware) LED state has changed;
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0018">The amount of available memory (as reported by /proc/meminfo) has changed (this is common and expected);
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0019">The amount of available swap space (as reported by /proc/meminfo) has changed (this is common and expected);
+- New: [#!variable!new!#]
+- Old: [#!variable!old!#]
+		</key>
+		<key name="scan_hardware_alert_0020">The amount of swap is high! The swap is now: [#!variable!say_used!#] of: [#!variable!say_swap!#] (#!variable!swap_percent!#% used).</key>
+		<key name="scan_hardware_alert_0021">The amount is back down to a low amount used. The swap is now: [#!variable!say_used!#] of: [#!variable!say_swap!#] (#!variable!swap_percent!#% used).</key>
+		<key name="scan_hardware_alert_0022">The CPU, RAM and LED (if possible) has been recorded;
+- CPU Model: ... [#!variable!cpu_model!#]
+- Total Cores: . [#!variable!total_cores!#]
+- Total Threads: [#!variable!total_threads!#]
+- CPU Bugs: .... [#!variable!cpu_bugs!#]
+- CPU Flags: ... [#!variable!cpu_flags!#]
+- ID LED state:  [#!variable!id_led!#]
+- CSS LED: ..... [#!variable!css_led!#] (CSS = Customer Self-Service)
+- Error LED: ... [#!variable!error_led!#]
+- Total RAM: ... [#!variable!ram_total_size!#]
+- Usable RAM: .. [#!variable!ram_memory_total!#] (Available to the OS)
+- Free Memory: . [#!variable!ram_memory_free!#]
+- Total swap: .. [#!variable!ram_swap_total!#]
+- Free swap: ... [#!variable!ram_swap_free!#]
+		</key>
+		<key name="scan_hardware_alert_0023">The RAM module [#!variable!locator!#] has returned! 
+- Size: ........ [#!variable!old_size!#]
+- Manufacturer:  [#!variable!old_manufacturer!#]
+- Model: ....... [#!variable!old_model!#]
+- Serial Number: [#!variable!old_serial_number!#]
+		</key>
+		<key name="scan_hardware_alert_0024">Something about the RAM module [#!variable!locator!#] has changed. 
+This shouldn't normally happen. Was the RAM module replaced?
+- Size: ........ [#!variable!old_size!#] -> [#!variable!new_size!#]
+- Manufacturer:  [#!variable!old_manufacturer!#] -> [#!variable!new_manufacturer!#]
+- Model: ....... [#!variable!old_model!#] -> [#!variable!new_model!#]
+- Serial Number: [#!variable!old_serial_number!#] -> [#!variable!new_serial_number!#]
+		</key>
+		<key name="scan_hardware_alert_0025">A new RAM memory module has been found;
+- Locator: ..... [#!variable!locator!#]
+- Size: ........ [#!variable!size!#]
+- Manufacturer:  [#!variable!manufacturer!#]
+- Model: ....... [#!variable!model!#]
+- Serial Number: [#!variable!serial_number!#]
+		</key>
+		<key name="scan_hardware_alert_0026">The RAM module [#!variable!locator!#] has vanished! 
+Was the module intentionally removed? If not, it may have failed. 
+- Size: ........ [#!variable!old_size!#]
+- Manufacturer:  [#!variable!old_manufacturer!#]
+- Model: ....... [#!variable!old_model!#]
+- Serial Number: [#!variable!old_serial_number!#]
+		</key>
+		<key name="scan_hardware_alert_0027">This node has: [#!variable!difference!#] less RAM than the peer node.
+If the RAM is being updated, this alert will clear once this node has been upgraded to have the same amount of RAM. If a memory module has failed, this warning will clear when the module has been replaced.
+- Local RAM:  [#!variable!local_ram!#]
+- Peer's RAM: [#!variable!peer_ram!#]
+		</key>
+		
 		<!-- Log entries -->
 		<key name="scan_hardware_log_0001">Starting: [#!variable!program!#].</key>
+		
+		<!-- Message entries (usually meant to be alerts) -->
+		<key name="scan_hardware_message_0001">Unknown</key>
+		<key name="scan_hardware_message_0002">Lit</key>
+		<key name="scan_hardware_message_0003">Off</key>
+		
+		<!-- Units -->
+		<key name="scan_hardware_unit_0001">bytes</key>
 		
 	</language>
 </words>

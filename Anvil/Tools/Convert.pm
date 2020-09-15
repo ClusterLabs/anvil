@@ -182,7 +182,7 @@ This is the number of bytes that will be converted. This can be a signed integer
 
 =head3 unit (optional)
 
-This is a letter 
+This is a letter that allows the caller to request the returned value be in a given unit, rather than the closest unit for the given value.
 
 =cut
 sub bytes_to_human_readable
@@ -194,36 +194,36 @@ sub bytes_to_human_readable
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->bytes_to_human_readable()" }});
 	
 	# Now see if the user passed the values in a hash reference or directly.
-	my $size  = defined $parameter->{'bytes'} ? $parameter->{'bytes'}  : 0;
+	my $bytes = defined $parameter->{'bytes'} ? $parameter->{'bytes'}  : 0;
 	my $unit  = defined $parameter->{unit}    ? uc($parameter->{unit}) : "";
 	my $base2 = defined $parameter->{base2}   ? $parameter->{base2}    : $anvil->data->{sys}{use_base2};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		size   => $size, 
-		unit   => $unit, 
-		base2  => $base2, 
+		base2      => $base2, 
+		'bytes'    => $bytes, 
+		unit       => $unit, 
 	}});
 	
 	# Expand exponential numbers.
-	if ($size =~ /(\d+)e\+(\d+)/)
+	if ($bytes =~ /(\d+)e\+(\d+)/)
 	{
-		my $base = $1;
-		my $exp  = $2;
-		   $size = $base;
+		my $base  = $1;
+		my $exp   = $2;
+		   $bytes = $base;
 		for (1..$exp)
 		{
-			$size .= "0";
+			$bytes .= "0";
 		}
 	}
 	
 	# Setup my variables.
 	my $suffix              = "";
-	my $human_readable_size = $size;
+	my $human_readable_size = $bytes;
 	
 	# Store and strip the sign
 	my $sign = "";
 	if ($human_readable_size =~ /^-/)
 	{
-		$sign    =  "-";
+		$sign                =  "-";
 		$human_readable_size =~ s/^-//;
 	}
 	$human_readable_size =~ s/,//g;
@@ -240,6 +240,8 @@ sub bytes_to_human_readable
 		return ("!!error!!");
 	}
 	
+	### TODO: We process the bytes here, but maybe we shouldn't so that when this goes into an alert, it
+	###       can be translated later.
 	# Do the math.
 	if ($base2)
 	{

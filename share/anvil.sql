@@ -1625,6 +1625,192 @@ CREATE TRIGGER trigger_upses
     FOR EACH ROW EXECUTE PROCEDURE history_upses();
 
 
+-- This is used to indicate the power state of UPSes. It is used to determine when the system needs to be 
+-- powered off. All UPS-type scan agents must use this table. The linkage between this and the 'upses' table
+-- will be sorted out automatically based on the scan agent used and the UPS host name / IP address.
+CREATE TABLE power (
+    power_uuid                 uuid                       primary key,    
+    power_ups_uuid             uuid                        not null,      -- This is the 'upses' -> 'ups_uuid' of the UPS. This is used to map what UPSes are powering a given node.
+    power_on_battery           boolean                     not null,      -- TRUE == use "time_remaining" to determine if graceful power off is needed. FALSE == power loss NOT imminent, do not power off node. 
+    power_seconds_left         numeric,                                   -- Should always be set, but not required *EXCEPT* when 'power_on_battery' is TRUE.
+    power_charge_percentage    numeric,                                   -- Percentage charge in the UPS. Used to determine when the dashboard should boot the node after AC restore
+    modified_date              timestamp with time zone    not null,
+    
+    FOREIGN KEY(power_ups_uuid) REFERENCES upses(ups_uuid)
+);
+ALTER TABLE power OWNER TO admin;
+
+CREATE TABLE history.power (
+    history_id                 bigserial,
+    power_uuid                 uuid,
+    power_ups_uuid             uuid,
+    power_on_battery           boolean,
+    power_seconds_left         numeric,
+    power_charge_percentage    numeric,
+    modified_date              timestamp with time zone    not null
+);
+ALTER TABLE history.power OWNER TO admin;
+
+CREATE FUNCTION history_power() RETURNS trigger
+AS $$
+DECLARE
+    history_power RECORD;
+BEGIN
+    SELECT INTO history_power * FROM power WHERE power_uuid = new.power_uuid;
+    INSERT INTO history.power
+        (power_uuid,
+         power_ups_uuid, 
+         power_on_battery,
+         power_seconds_left,
+         power_charge_percentage,
+         modified_date)
+    VALUES
+        (history_power.power_uuid,
+         history_power.power_ups_uuid, 
+         history_power.power_on_battery,
+         history_power.power_seconds_left,
+         history_power.power_charge_percentage,
+         history_power.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_power() OWNER TO admin;
+
+CREATE TRIGGER trigger_power
+    AFTER INSERT OR UPDATE ON power
+    FOR EACH ROW EXECUTE PROCEDURE history_power();
+
+
+-- This stores weighted health of nodes. Agents can set one or more health values. After a scan sweep 
+-- completes, ScanCore will sum these weights and the node with the *highest* value is considered the
+-- *least* healthy and any servers on it will be migrated to the peer.
+CREATE TABLE health (
+    health_uuid             uuid                        primary key,    
+    health_host_uuid        uuid                        not null,       -- The name of the node or dashboard that this health came from.
+    health_agent_name       text                        not null,       -- This is the scan agent (or program name) setting this score.
+    health_source_name      text                        not null,       -- This is the name of the problem, as set by the agent.
+    health_source_weight    numeric                     not null,       -- This is the numerical weight of this alert. The higher this value, the more severe the health issue is
+    modified_date           timestamp with time zone    not null,
+    
+    FOREIGN KEY(health_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE health OWNER TO admin;
+
+CREATE TABLE history.health (
+    history_id              bigserial,
+    health_uuid             uuid                        not null,
+    health_host_uuid        uuid                        not null,
+    health_agent_name       text                        not null,
+    health_source_name      text                        not null,
+    health_source_weight    numeric                     not null,
+    modified_date           timestamp with time zone    not null
+);
+ALTER TABLE history.health OWNER TO admin;
+
+CREATE FUNCTION history_health() RETURNS trigger
+AS $$
+DECLARE
+    history_health RECORD;
+BEGIN
+    SELECT INTO history_health * FROM health WHERE health_uuid = new.health_uuid;
+    INSERT INTO history.health
+        (health_uuid,
+         health_host_uuid,
+         health_agent_name,
+         health_source_name,
+         health_source_weight,
+         modified_date)
+    VALUES
+        (history_health.health_uuid,
+         history_health.health_host_uuid,
+         history_health.health_agent_name,
+         history_health.health_source_name,
+         history_health.health_source_weight,
+         history_health.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_health() OWNER TO admin;
+
+CREATE TRIGGER trigger_health
+    AFTER INSERT OR UPDATE ON health
+    FOR EACH ROW EXECUTE PROCEDURE history_health();
+
+
+-- This stores temperature information for a given host. ScanCore checks this data to decice if action needs 
+-- to be taken during a thermal event. On nodes, this is used to decide if a node should be shed or if an 
+-- Anvil! needs to be stopped entirely. On dashboards, this is used to check if/when it is safe to restart a
+-- node that shut down because of a thermal event.
+CREATE TABLE temperature (
+    temperature_uuid           uuid                        primary key,    
+    temperature_host_uuid      uuid                        not null,       -- The name of the node or dashboard that this temperature came from.
+    temperature_agent_name     text                        not null,       -- This is the name of the agent that set the alert
+    temperature_sensor_host    text                        not null,       -- This is the host (uuid) that the sensor was read from. This is important as ScanCore on a striker will read available thermal data from a node using it's IPMI data.
+    temperature_sensor_name    text                        not null,       -- This is the name of the sensor reporting the temperature
+    temperature_value_c        numeric                     not null,       -- This is the actual temperature, in celcius of course.
+    temperature_weight         numeric                     not null,       -- This is the weight of the sensor value. This is the value added to the sum when testing against 'scancore::threshold::warning_temperature' and 'scancore::threshold::warning_critical'.
+    temperature_state          text                        not null,       -- This is a string represnting the state of the sensor. Valid values are 'ok', 'warning', and 'critical'
+    temperature_is             text                        not null,       -- This indicate if the temperature 'nominal', 'high' or 'low'. 
+    modified_date              timestamp with time zone    not null,
+    
+    FOREIGN KEY(temperature_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE temperature OWNER TO admin;
+
+CREATE TABLE history.temperature (
+    history_id                 bigserial,
+    temperature_uuid           uuid, 
+    temperature_host_uuid      uuid, 
+    temperature_agent_name     text, 
+    temperature_sensor_host    text, 
+    temperature_sensor_name    text, 
+    temperature_value_c        numeric, 
+    temperature_weight         numeric, 
+    temperature_state          text, 
+    temperature_is             text, 
+    modified_date              timestamp with time zone    not null
+);
+ALTER TABLE history.temperature OWNER TO admin;
+
+CREATE FUNCTION history_temperature() RETURNS trigger
+AS $$
+DECLARE
+    history_temperature RECORD;
+BEGIN
+    SELECT INTO history_temperature * FROM temperature WHERE temperature_uuid = new.temperature_uuid;
+    INSERT INTO history.temperature
+        (temperature_uuid,
+         temperature_host_uuid,
+         temperature_agent_name,
+         temperature_sensor_host, 
+         temperature_sensor_name,
+         temperature_value_c,
+         temperature_state,
+         temperature_is,
+         modified_date)
+    VALUES
+        (history_temperature.temperature_uuid,
+         history_temperature.temperature_host_uuid,
+         history_temperature.temperature_agent_name,
+         history_temperature.temperature_sensor_host, 
+         history_temperature.temperature_sensor_name,
+         history_temperature.temperature_value_c,
+         history_temperature.temperature_state,
+         history_temperature.temperature_is,
+         history_temperature.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_temperature() OWNER TO admin;
+
+CREATE TRIGGER trigger_temperature
+    AFTER INSERT OR UPDATE ON temperature
+    FOR EACH ROW EXECUTE PROCEDURE history_temperature();
+
+
 -- ------------------------------------------------------------------------------------------------------- --
 -- These are special tables with no history or tracking UUIDs that simply record transient information.    --
 -- ------------------------------------------------------------------------------------------------------- --

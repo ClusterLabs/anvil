@@ -38,6 +38,7 @@ Requires:       expect
 Requires:       fence-agents-all 
 Requires:       fence-agents-virsh 
 Requires:       firewalld
+Requires:       freeipmi
 Requires:       gpm 
 Requires:       hdparm
 Requires:       htop

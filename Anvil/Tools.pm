@@ -51,6 +51,7 @@ use Anvil::Tools::Job;
 use Anvil::Tools::Log;
 use Anvil::Tools::Network;
 use Anvil::Tools::Remote;
+use Anvil::Tools::ScanCore;
 use Anvil::Tools::Server;
 use Anvil::Tools::Striker;
 use Anvil::Tools::Storage;
@@ -134,6 +135,7 @@ sub new
 			JOB				=>	Anvil::Tools::Job->new(),
 			NETWORK				=>	Anvil::Tools::Network->new(),
 			REMOTE				=>	Anvil::Tools::Remote->new(),
+			SCANCORE			=>	Anvil::Tools::ScanCore->new(),
 			SERVER				=>	Anvil::Tools::Server->new(),
 			STRIKER				=>	Anvil::Tools::Striker->new(),
 			STORAGE				=>	Anvil::Tools::Storage->new(),
@@ -177,6 +179,7 @@ sub new
 	$anvil->Job->parent($anvil);
 	$anvil->Network->parent($anvil);
 	$anvil->Remote->parent($anvil);
+	$anvil->ScanCore->parent($anvil);
 	$anvil->Server->parent($anvil);
 	$anvil->Striker->parent($anvil);
 	$anvil->Storage->parent($anvil);
@@ -592,6 +595,18 @@ sub Remote
 	return ($self->{HANDLE}{REMOTE});
 }
 
+=head2 ScanCore
+
+Access the C<ScanCore.pm> methods via 'C<< $anvil->ScanCore->method >>'.
+
+=cut
+sub ScanCore
+{
+	my $self = shift;
+	
+	return ($self->{HANDLE}{SCANCORE});
+}
+
 =head2 Server
 
 Access the C<Server.pm> methods via 'C<< $anvil->Server->method >>'.
@@ -897,6 +912,9 @@ sub _set_defaults
 			#       grep 'CREATE TABLE' share/anvil.sql | grep -v history. | awk '{print $3}'
 			core_tables			=>	[
 									"hosts",		# Always has to be first.
+									"health",
+									"power",
+									"temperature",
 									"ssh_keys",
 									"users", 
 									"host_variable", 
@@ -1184,6 +1202,7 @@ sub _set_paths
 				ifdown				=>	"/sbin/ifdown",
 				ifup				=>	"/sbin/ifup",
 				ip				=>	"/usr/sbin/ip",
+				'ipmi-oem'			=>	"/usr/sbin/ipmi-oem",
 				ipmitool			=>	"/usr/bin/ipmitool",
 				'iptables-save'			=>	"/usr/sbin/iptables-save",
 				journalctl			=>	"/usr/bin/journalctl",
@@ -1257,6 +1276,8 @@ sub _set_paths
 				alert				=>	"/var/log/anvil.alert.log",
 			},
 			proc			=>	{
+				cpuinfo				=>	"/proc/cpuinfo",
+				meminfo				=>	"/proc/meminfo",
 				uptime				=>	"/proc/uptime",
 			},
 			secure			=>	{

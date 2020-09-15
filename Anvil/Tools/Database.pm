@@ -16,6 +16,7 @@ my $THIS_FILE = "Database.pm";
 
 ### Methods;
 # archive_database
+# check_condition_age
 # check_lock_age
 # check_for_schema
 # configure_pgsql
@@ -44,7 +45,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_fences
 # insert_or_update_file_locations
 # insert_or_update_files
-# insert_or_update_ssh_keys
+# insert_or_update_health
 # insert_or_update_hosts
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
@@ -54,9 +55,12 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_notifications
 # insert_or_update_mac_to_ip
 # insert_or_update_oui
+# insert_or_update_power
 # insert_or_update_recipients
 # insert_or_update_sessions
+# insert_or_update_ssh_keys
 # insert_or_update_states
+# insert_or_update_temperature
 # insert_or_update_upses
 # insert_or_update_users
 # insert_or_update_variables
@@ -293,6 +297,121 @@ sub archive_database
 }
 
 
+=head2 check_condition_age
+
+This checks to see how long ago a given condition (variable, really) has been set. This is generally used when a program, often a scan agent, wants to wait to see if a given state persists before sending an alert and/or taking an action.
+
+A common example is seeing how long power has been lost, if a lost sensor is going to return, etc.
+
+The age of the condition is returned, in seconds. If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 clear (optional)
+
+When set to C<< 1 >>, if the condition exists, it is cleared. If the condition does not exist, nothing happens.
+
+=head3 name (required)
+
+This is the name of the condition being set. It's a free-form string, but generally in a format like C<< <scan_agent_name>::<condition_name> >>.
+
+=head3 host_uuid (optional)
+
+If a condition is host-specific, this can be set to the caller's C<< host_uuid >>. Generally this is needed, save for conditions related to hosted servers that are not host-bound.
+
+=cut
+sub check_condition_age
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_condition_age()" }});
+	
+	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 0;
+	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "NULL";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		clear     => $clear, 
+		name      => $name, 
+		host_uuid => $host_uuid, 
+	}});
+
+	if (not $name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->check_condition_age()", parameter => "name" }});
+		return("!!error!!");
+	}
+	
+	my $age          = 0;
+	my $source_table = $host_uuid ? "hosts" : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source_table => $source_table }});
+	
+	# See if this variable has been set yet.
+	my ($variable_value, $variable_uuid, $epoch_modified_date, $modified_date) = $anvil->Database->read_variable({
+		variable_name         => $name, 
+		variable_source_table => $source_table, 
+		variable_source_uuid  => $host_uuid,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		variable_value      => $variable_value, 
+		variable_uuid       => $variable_uuid, 
+		epoch_modified_date => $epoch_modified_date, 
+		modified_date       => $modified_date, 
+	}});
+	if ($variable_uuid)
+	{
+		# Are we clearing?
+		if ($clear)
+		{
+			# Yup
+			$variable_uuid = $anvil->Database->insert_or_update_variables({
+				debug             => $debug,
+				variable_uuid     => $variable_uuid,
+				variable_value    => "clear",
+				update_value_only => 1,
+			});
+		}
+		
+		# if the value was 'clear', change it to 'set'.
+		if ($variable_value eq "clear")
+		{
+			# Set it.
+			$variable_uuid = $anvil->Database->insert_or_update_variables({
+				debug             => $debug,
+				variable_uuid     => $variable_uuid,
+				variable_value    => "set",
+				update_value_only => 1,
+			});
+		}
+		else
+		{
+			# How old is it?
+			$age = time - $epoch_modified_date;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
+			return($age);
+		}
+	}
+	elsif (not $clear)
+	{
+		# New, set it.
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			debug                 => $debug, 
+			variable_name         => $name, 
+			variable_value        => "set",
+			variable_default      => "set", 
+			variable_description  => "striker_0278", 
+			variable_section      => "conditions", 
+			variable_source_uuid  => $host_uuid, 
+			variable_source_table => $source_table, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+	}
+	
+	return($age);
+}
+
+
 =head2 check_lock_age
 
 This checks to see if 'sys::database::local_lock_active' is set. If it is, its age is checked and if the age is >50% of sys::database::locking_reap_age, it will renew the lock.
@@ -352,6 +471,140 @@ sub check_lock_age
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { renewed => $renewed }});
 	return($renewed);
+}
+
+
+=head2 check_agent_data
+
+This method is designed to be used by ScanCore scan agents. It does two main tasks; Verifies that the agent's SQL schema is loaded in all databases and handles resync'ing their data when necessary.
+
+B<< Note >>: This method calls C<< Database->check_for_schema >>, so calling it before this method is generally not required.
+
+Parameters; 
+
+=head3 agent (required) 
+
+This is the name of the calling scan agent. The name is used to find the schema file under C<< <path::directories::scan_agents>/<agent>/<agent>.sql >>. 
+
+=cut
+sub check_agent_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_agent_data()" }});
+	
+	my $agent  = defined $parameter->{agent}  ? $parameter->{agent}  : "";
+	my $tables = defined $parameter->{tables} ? $parameter->{tables} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		agent  => $agent, 
+		tables => $tables, 
+	}});
+	
+	if (not $agent)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->check_agent_data()", parameter => "agent" }});
+		return("!!error!!");
+	}
+	
+	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".sql";
+	my $loaded      = $anvil->Database->check_for_schema({
+		debug => 2, 
+		file  => $schema_file,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		loaded      => $loaded,
+		schema_file => $schema_file, 
+	}});
+	if ($loaded)
+	{
+		if ($loaded eq "!!error!!")
+		{
+			# Something went wrong.
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 2,
+				record_locator => "schema_load_failure",
+				set_by         => $agent,
+				type           => "set",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Log and register an alert. This should never happen, so we set it as a 
+				# warning level alert.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0181", variables => {
+					agent_name => $agent,
+					file       => $schema_file,
+				}});
+				$anvil->Alert->register({
+					debug       => 2,
+					alert_level => "warning",
+					message     => "message_0181,!!agent_name!".$agent."!!,!!file!".$schema_file."!!",
+					set_by      => $agent,
+				});
+			}
+		}
+		elsif (ref($loaded) eq "ARRAY")
+		{
+			# If there was an alert, clear it.
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 2,
+				record_locator => "schema_load_failure",
+				set_by         => $agent,
+				type           => "clear",
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Register an alert cleared message.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0182", variables => {
+					agent_name => $agent,
+					file       => $schema_file,
+					
+				}});
+				$anvil->Alert->register({
+					debug       => 2,
+					alert_level => "warning",
+					clear_alert => 1,
+					message     => "message_0182,!!agent_name!".$agent."!!,!!file!".$schema_file."!!",
+					set_by      => $agent,
+				});
+			}
+
+			# Log which databses we loaded our schema into.
+			foreach my $uuid (@{$loaded})
+			{
+				my $host_name = $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0183", variables => {
+					agent_name => $agent,
+					host_name  => $host_name,
+					
+				}});
+			}
+		}
+	}
+	
+	# Now check to see if a resync is required...
+	if ($anvil->data->{sys}{database}{connections} > 1)
+	{
+		# The source is the agent
+		$anvil->Database->_find_behind_databases({
+			debug  => $debug, 
+			source => $agent, 
+		});
+	}
+	
+	# Hold if a lock has been requested.
+	$anvil->Database->locking({debug => $debug});
+	
+	# Mark that we're not active.
+	$anvil->Database->mark_active({debug => $debug, set => 1});
+	
+	# Sync the database, if needed.
+	$anvil->Database->resync_databases({debug => $debug});
+	
+	return(0);
 }
 
 
@@ -886,7 +1139,7 @@ If set to C<< 1 >>, no attempt to ping a target before connection will happen, e
 
 =head3 source (optional)
 
-The C<< source >> parameter is used to check the special C<< updated >> table one all connected databases to see when that source (program name, usually) last updated a given database. If the date stamp is the same on all connected databases, nothing further happens. If one of the databases differ, however, a resync will be requested.
+The C<< source >> parameter is used to check the special C<< updated >> table on all connected databases to see when that source (program name, usually) last updated a given database. If the date stamp is the same on all connected databases, nothing further happens. If one of the databases differ, however, a resync will be requested.
 
 If not defined, the core database will be checked.
 
@@ -4793,7 +5046,7 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -4826,7 +5079,7 @@ WHERE
     fence_uuid      = ".$anvil->Database->quote($fence_uuid)."
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
-				$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
 		}
 	}
@@ -4852,7 +5105,7 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	return($fence_uuid);
@@ -5332,93 +5585,93 @@ WHERE
 }
 
 
-=head2 insert_or_update_ssh_keys
+=head2 insert_or_update_health
 
-This updates (or inserts) a record in the 'ssh_keys' table. The C<< ssh_key_uuid >> UUID will be returned.
+This inserts or updates a value in the special c<< health >> table. 
 
-If there is an error, an empty string is returned.
+This stores weighted health of nodes. Agents can set one or more health values. After a scan sweep completes, ScanCore will sum these weights and the node with the B<< highest >> value is considered the B<< least >> healthy and any servers on it will be migrated to the peer.
 
-Parameters;
+If there is a problem, an empty string is returned. Otherwise, the C<< health_uuid >> is returned.
 
-=head3 uuid (optional)
+parameters;
 
-If set, only the corresponding database will be written to.
+=head3 health_uuid (optional)
 
-=head3 file (optional)
+Is passed, the specific entry will be updated.
 
-If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+=head3 health_host_uuid (optional, default Get->host_uuid)
 
-=head3 line (optional)
+This is the host registering the health score. 
 
-If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+=head3 health_agent_name (required)
 
-=head3 ssh_key_host_uuid (optional, default is Get->host_uuid)
+This is the scan agent (or program name) setting this score.
 
-This is the host that the corresponding user and key belong to.
+=head3 health_source_name (required)
 
-=head3 ssh_key_public_key (required)
+This is a decriptive name of the problem causing the health score to be set.
 
-This is the B<<PUBLIC>> key for the user, the full line stored in the user's C<< ~/.ssh/id_rsa.pub >> file.
+=head3 health_source_weight (optional, default '1')
 
-=head3 ssh_key_user_name (required)
+This is a whole number (0, 1, 2, ...) indicating the weight of the problem. The higher this number is, the more likely hosted server will be migrated to the peer. 
 
-This is the name of the user that the public key belongs to.
-
-=head3 ssh_key_uuid (optional)
-
-This is the specific record to update. If not provides, a search will be made to find a matching entry. If found, the record will be updated if one of the values has changed. If not, a new record will be inserted.
+B<< Note >>: A weight of C<< 0 >> is equal to the entry being deleted as it won't be factored into any health related decisions.
 
 =cut
-sub insert_or_update_ssh_keys
+sub insert_or_update_health
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_ssh_keys()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_health()" }});
 	
-	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
-	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
-	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
-	my $ssh_key_host_uuid  = defined $parameter->{ssh_key_host_uuid}  ? $parameter->{ssh_key_host_uuid}  : $anvil->Get->host_uuid;
-	my $ssh_key_public_key = defined $parameter->{ssh_key_public_key} ? $parameter->{ssh_key_public_key} : "";
-	my $ssh_key_user_name  = defined $parameter->{ssh_key_user_name}  ? $parameter->{ssh_key_user_name}  : "";
-	my $ssh_key_uuid       = defined $parameter->{ssh_key_uuid}       ? $parameter->{ssh_key_uuid}       : "";
+	my $uuid                 = defined $parameter->{uuid}                 ? $parameter->{uuid}                 : "";
+	my $file                 = defined $parameter->{file}                 ? $parameter->{file}                 : "";
+	my $line                 = defined $parameter->{line}                 ? $parameter->{line}                 : "";
+	my $health_uuid          = defined $parameter->{health_uuid}          ? $parameter->{health_uuid}          : "";
+	my $health_host_uuid     = defined $parameter->{health_host_uuid}     ? $parameter->{health_host_uuid}     : $anvil->Get->host_uuid;
+	my $health_agent_name    = defined $parameter->{health_agent_name}    ? $parameter->{health_agent_name}    : "";
+	my $health_source_name   = defined $parameter->{health_source_name}   ? $parameter->{health_source_name}   : "";
+	my $health_source_weight = defined $parameter->{health_source_weight} ? $parameter->{health_source_weight} : 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid                => $uuid, 
-		file                => $file, 
-		line                => $line, 
-		ssh_key_host_uuid  => $ssh_key_host_uuid, 
-		ssh_key_public_key => $ssh_key_public_key, 
-		ssh_key_user_name  => $ssh_key_user_name, 
-		ssh_key_uuid       => $ssh_key_uuid, 
+		uuid                 => $uuid, 
+		file                 => $file, 
+		line                 => $line, 
+		health_uuid          => $health_uuid,
+		health_host_uuid     => $health_host_uuid,
+		health_agent_name    => $health_agent_name,
+		health_source_name   => $health_source_name,
+		health_source_weight => $health_source_weight,
 	}});
 	
-	if (not $ssh_key_public_key)
+	if (not $health_agent_name)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ssh_keys()", parameter => "ssh_key_public_key" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_agent_name" }});
 		return("");
 	}
-	if (not $ssh_key_user_name)
+	if (not $health_source_name)
 	{
 		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ssh_keys()", parameter => "ssh_key_user_name" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_health()", parameter => "health_source_name" }});
 		return("");
 	}
 	
-	# If we don't have a UUID, see if we can find one for the given user and host.
-	if (not $ssh_key_uuid)
+	# If we don't have a health UUID, see if we can find one.
+	if (not $health_uuid)
 	{
 		my $query = "
 SELECT 
-    ssh_key_uuid 
+    health_uuid 
 FROM 
-    ssh_keys 
+    health 
 WHERE 
-    ssh_key_user_name = ".$anvil->Database->quote($ssh_key_user_name)." 
+    health_host_uuid   = ".$anvil->Database->quote($health_host_uuid)." 
 AND 
-    ssh_key_host_uuid = ".$anvil->Database->quote($ssh_key_host_uuid)." 
+    health_agent_name  = ".$anvil->Database->quote($health_agent_name)."
+AND 
+    health_source_name = ".$anvil->Database->quote($health_source_name)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -5430,52 +5683,25 @@ AND
 		}});
 		if ($count)
 		{
-			$ssh_key_uuid = $results->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+			$health_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { health_uuid => $health_uuid }});
 		}
 	}
 	
-	# If I still don't have an ssh_key_uuid, we're INSERT'ing .
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
-	if (not $ssh_key_uuid)
+	# If we have a health UUID now, look up the previous value and see if it has changed. If not, INSERT 
+	# a new entry.
+	if ($health_uuid)
 	{
-		# INSERT
-		$ssh_key_uuid = $anvil->Get->uuid();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
-		
-		my $query = "
-INSERT INTO 
-    ssh_keys 
-(
-    ssh_key_uuid, 
-    ssh_key_host_uuid, 
-    ssh_key_public_key, 
-    ssh_key_user_name, 
-    modified_date 
-) VALUES (
-    ".$anvil->Database->quote($ssh_key_uuid).", 
-    ".$anvil->Database->quote($ssh_key_host_uuid).", 
-    ".$anvil->Database->quote($ssh_key_public_key).", 
-    ".$anvil->Database->quote($ssh_key_user_name).", 
-    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
-);
-";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-	}
-	else
-	{
-		# Query the rest of the values and see if anything changed.
 		my $query = "
 SELECT 
-    ssh_key_host_uuid, 
-    ssh_key_public_key, 
-    ssh_key_user_name 
+    health_host_uuid, 
+    health_agent_name, 
+    health_source_name, 
+    health_source_weight 
 FROM 
-    ssh_keys 
+    health 
 WHERE 
-    ssh_key_uuid = ".$anvil->Database->quote($ssh_key_uuid)." 
-;";
+    health_uuid = ".$anvil->Database->quote($health_uuid).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
 		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
@@ -5486,46 +5712,71 @@ WHERE
 		}});
 		if (not $count)
 		{
-			# I have a ssh_key_uuid but no matching record. Probably an error.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "ssh_key_uuid", uuid => $ssh_key_uuid }});
+			# What?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "health_uuid", uuid => $health_uuid }});
 			return("");
 		}
-		foreach my $row (@{$results})
+		my $old_health_host_uuid     = $results->[0]->[0];
+		my $old_health_agent_name    = $results->[0]->[1];
+		my $old_health_source_name   = $results->[0]->[2];
+		my $old_health_source_weight = $results->[0]->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			old_health_host_uuid     => $old_health_host_uuid,
+			old_health_agent_name    => $old_health_agent_name, 
+			old_health_source_name   => $old_health_source_name, 
+			old_health_source_weight => $old_health_source_weight, 
+		}});
+		
+		if (($old_health_host_uuid     ne $health_host_uuid)   or 
+		    ($old_health_agent_name    ne $health_agent_name)  or
+		    ($old_health_source_name   ne $health_source_name) or
+		    ($old_health_source_weight ne $health_source_weight))
 		{
-			my $old_ssh_key_host_uuid  = $row->[0];
-			my $old_ssh_key_public_key = $row->[1];
-			my $old_ssh_key_user_name  = $row->[2];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				old_ssh_key_host_uuid  => $old_ssh_key_host_uuid, 
-				old_ssh_key_public_key => $old_ssh_key_public_key, 
-				old_ssh_key_user_name  => $old_ssh_key_user_name, 
-			}});
-			
-			# Anything change?
-			if (($old_ssh_key_host_uuid  ne $ssh_key_host_uuid)  or 
-			    ($old_ssh_key_public_key ne $ssh_key_public_key) or 
-			    ($old_ssh_key_user_name  ne $ssh_key_user_name))
-			{
-				# Something changed, save.
-				my $query = "
+			# Update.
+			my $query = "
 UPDATE 
-    ssh_keys 
+    health 
 SET 
-    ssh_key_host_uuid  = ".$anvil->Database->quote($ssh_key_host_uuid).",  
-    ssh_key_public_key = ".$anvil->Database->quote($ssh_key_public_key).", 
-    ssh_key_user_name  = ".$anvil->Database->quote($ssh_key_user_name).", 
-    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
-WHERE 
-    ssh_key_uuid       = ".$anvil->Database->quote($ssh_key_uuid)." 
-";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
-			}
+    health_host_uuid     = ".$anvil->Database->quote($health_host_uuid).",
+    health_agent_name    = ".$anvil->Database->quote($health_agent_name).",
+    health_source_name   = ".$anvil->Database->quote($health_source_name).", 
+    health_source_weight = ".$anvil->Database->quote($health_source_weight).",
+    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    health_uuid          = ".$anvil->Database->quote($health_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		}
 	}
+	else
+	{
+		# INSERT
+		   $health_uuid = $anvil->Get->uuid();
+		my $query       = "
+INSERT INTO 
+    health 
+(
+    health_uuid, 
+    health_host_uuid, 
+    health_agent_name, 
+    health_source_name, 
+    health_source_weight, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($health_uuid).", 
+    ".$anvil->Database->quote($health_host_uuid).",
+    ".$anvil->Database->quote($health_agent_name).",
+    ".$anvil->Database->quote($health_source_name).",
+    ".$anvil->Database->quote($health_source_weight).",
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
-	return($ssh_key_uuid);
+	return($health_uuid);
 }
 
 
@@ -5653,7 +5904,7 @@ WHERE
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
@@ -5695,7 +5946,7 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	elsif (($old_host_name ne $host_name) or 
 	       ($old_host_type ne $host_type) or 
@@ -5715,7 +5966,7 @@ WHERE
     host_uuid     = ".$anvil->Database->quote($host_uuid)."
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_hosts()" }});
@@ -7031,7 +7282,7 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -7119,7 +7370,7 @@ WHERE
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -7172,7 +7423,7 @@ WHERE
     manifest_uuid     = ".$anvil->Database->quote($manifest_uuid)."
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
 		}
 	}
@@ -7202,7 +7453,7 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_network_interfaces()" }});
@@ -7477,7 +7728,7 @@ WHERE
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -7542,7 +7793,7 @@ WHERE
 ;";
 					$query =~ s/'NULL'/NULL/g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-					$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+					$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 				}
 				return($network_interface_uuid);
 			}
@@ -7583,7 +7834,7 @@ WHERE
 ;";
 				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
 		}
 	}
@@ -7628,7 +7879,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0126", variables => { method => "Database->insert_or_update_network_interfaces()" }});
@@ -7825,7 +8076,7 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	return($notification_uuid)
@@ -8042,7 +8293,7 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	return($mac_to_ip_uuid);
@@ -8233,10 +8484,211 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	return($oui_uuid);
+}
+
+
+=head2 insert_or_update_power
+
+This inserts or updates a value in the special c<< power >> table. 
+
+This stores the most recent view of UPSes, and can be updated by any node that is able to talk to the UPS. 
+
+If there is a problem, an empty string is returned. Otherwise, the C<< power_uuid >> is returned.
+
+parameters;
+
+=head3 power_uuid (optional)
+
+Is passed, the specific entry will be updated.
+
+=head3 power_ups_uuid (required)
+
+This is the UPS UUID (C<< upses -> ups_uuid >> of this UPS. This is required to track that status of the UPSes powering nodes.
+
+=head3 power_on_battery (optional, default '0')
+
+This is used to determine when load shedding and emergency shut down actions should be taken. When set to C<< 1 >>, the UPS is considered to be drawing down it's batteries. If both/all UPSes powering a node are on batteries, load shedding will occur after a set delay. 
+
+=head3 power_seconds_left (required)
+
+This is the estimated hold up time, in seconds, for the UPS. Of course, this estimate will fluctuate will actual load.
+
+=head3 power_charge_percentage (required)
+
+This is the percentage charge of the UPS batteries. Used to determine when the dashboard should boot the node after main power returns following a power loss event.
+
+=cut
+sub insert_or_update_power
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_power()" }});
+	
+	my $uuid                    = defined $parameter->{uuid}                    ? $parameter->{uuid}                    : "";
+	my $file                    = defined $parameter->{file}                    ? $parameter->{file}                    : "";
+	my $line                    = defined $parameter->{line}                    ? $parameter->{line}                    : "";
+	my $power_uuid              = defined $parameter->{power_uuid}              ? $parameter->{power_uuid}              : "";
+	my $power_ups_uuid          = defined $parameter->{power_ups_uuid}          ? $parameter->{power_ups_uuid}          : 1;
+	my $power_on_battery        = defined $parameter->{power_on_battery}        ? $parameter->{power_on_battery}        : 0;
+	my $power_seconds_left      = defined $parameter->{power_seconds_left}      ? $parameter->{power_seconds_left}      : "";
+	my $power_charge_percentage = defined $parameter->{power_charge_percentage} ? $parameter->{power_charge_percentage} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                    => $uuid, 
+		file                    => $file, 
+		line                    => $line, 
+		power_uuid              => $power_uuid,
+		power_ups_uuid          => $power_ups_uuid,
+		power_on_battery        => $power_on_battery, 
+		power_seconds_left      => $power_seconds_left, 
+		power_charge_percentage => $power_charge_percentage, 
+	}});
+
+	if ($power_ups_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_power()", parameter => "power_ups_uuid" }});
+		return("");
+	}
+	if ($power_seconds_left eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_power()", parameter => "power_seconds_left" }});
+		return("");
+	}
+	if ($power_charge_percentage eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_power()", parameter => "power_charge_percentage" }});
+		return("");
+	}
+	
+	# Convert the passed in "on battery" value to TRUE/FALSE
+	$power_on_battery = $power_on_battery ? "TRUE" : "FALSE";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { power_on_battery => $power_on_battery }});
+	
+	# If we don't have a power UUID, see if we can find one.
+	if (not $power_uuid)
+	{
+		my $query = "
+SELECT 
+    power_uuid 
+FROM 
+    power 
+WHERE 
+    power_ups_uuid = ".$anvil->Database->quote($power_ups_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$power_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { power_uuid => $power_uuid }});
+		}
+	}
+	
+	# If we have a power UUID now, look up the previous value and see if it has changed. If not, INSERT 
+	# a new entry.
+	if ($power_uuid)
+	{
+		my $query = "
+SELECT 
+    power_record_locator, 
+    power_ups_uuid, 
+    power_on_battery, 
+    power_seconds_left, 
+    power_charge_percentage 
+FROM 
+    power 
+WHERE 
+    power_uuid = ".$anvil->Database->quote($power_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# What?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "power_uuid", uuid => $power_uuid }});
+			return("");
+		}
+		my $old_power_ups_uuid          = $results->[0]->[0];
+		my $old_power_on_battery        = $results->[0]->[1];
+		my $old_power_seconds_left      = $results->[0]->[2];
+		my $old_power_charge_percentage = $results->[0]->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			old_power_ups_uuid          => $old_power_ups_uuid, 
+			old_power_on_battery        => $old_power_on_battery, 
+			old_power_seconds_left      => $old_power_seconds_left, 
+			old_power_charge_percentage => $power_charge_percentage, 
+		}});
+		
+		# Convert the read-in "on battery" value to TRUE/FALSE
+		$old_power_on_battery = $power_on_battery ? "TRUE" : "FALSE";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_power_on_battery => $old_power_on_battery }});
+		
+		if (($old_power_ups_uuid          ne $power_ups_uuid)       or 
+		    ($old_power_on_battery        ne $power_on_battery)     or 
+		    ($old_power_seconds_left      ne $power_seconds_left)   or
+		    ($old_power_charge_percentage ne $power_charge_percentage))
+		{
+			# Update.
+			my $query = "
+UPDATE 
+    power 
+SET 
+    power_ups_uuid          = ".$anvil->Database->quote($power_ups_uuid).",
+    power_on_battery        = ".$anvil->Database->quote($power_on_battery).",
+    power_seconds_left      = ".$anvil->Database->quote($power_seconds_left).",
+    power_charge_percentage = ".$anvil->Database->quote($power_charge_percentage).",
+    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    power_uuid              = ".$anvil->Database->quote($power_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	else
+	{
+		# INSERT
+		   $power_uuid = $anvil->Get->uuid();
+		my $query       = "
+INSERT INTO 
+    power 
+(
+    power_uuid, 
+    power_ups_uuid, 
+    power_on_battery, 
+    power_seconds_left, 
+    power_charge_percentage, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($power_uuid).", 
+    ".$anvil->Database->quote($power_ups_uuid).",
+    ".$anvil->Database->quote($power_on_battery).",
+    ".$anvil->Database->quote($power_seconds_left).",
+    ".$anvil->Database->quote($power_charge_percentage).",
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($power_uuid);
 }
 
 
@@ -8712,16 +9164,215 @@ INSERT INTO
 ";
 		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	return($session_uuid);
 }
 
 
+=head2 insert_or_update_ssh_keys
+
+This updates (or inserts) a record in the 'ssh_keys' table. The C<< ssh_key_uuid >> UUID will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 uuid (optional)
+
+If set, only the corresponding database will be written to.
+
+=head3 file (optional)
+
+If set, this is the file name logged as the source of any INSERTs or UPDATEs.
+
+=head3 line (optional)
+
+If set, this is the file line number logged as the source of any INSERTs or UPDATEs.
+
+=head3 ssh_key_host_uuid (optional, default is Get->host_uuid)
+
+This is the host that the corresponding user and key belong to.
+
+=head3 ssh_key_public_key (required)
+
+This is the B<<PUBLIC>> key for the user, the full line stored in the user's C<< ~/.ssh/id_rsa.pub >> file.
+
+=head3 ssh_key_user_name (required)
+
+This is the name of the user that the public key belongs to.
+
+=head3 ssh_key_uuid (optional)
+
+This is the specific record to update. If not provides, a search will be made to find a matching entry. If found, the record will be updated if one of the values has changed. If not, a new record will be inserted.
+
+=cut
+sub insert_or_update_ssh_keys
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_ssh_keys()" }});
+	
+	my $uuid                = defined $parameter->{uuid}                ? $parameter->{uuid}                : "";
+	my $file                = defined $parameter->{file}                ? $parameter->{file}                : "";
+	my $line                = defined $parameter->{line}                ? $parameter->{line}                : "";
+	my $ssh_key_host_uuid  = defined $parameter->{ssh_key_host_uuid}  ? $parameter->{ssh_key_host_uuid}  : $anvil->Get->host_uuid;
+	my $ssh_key_public_key = defined $parameter->{ssh_key_public_key} ? $parameter->{ssh_key_public_key} : "";
+	my $ssh_key_user_name  = defined $parameter->{ssh_key_user_name}  ? $parameter->{ssh_key_user_name}  : "";
+	my $ssh_key_uuid       = defined $parameter->{ssh_key_uuid}       ? $parameter->{ssh_key_uuid}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                => $uuid, 
+		file                => $file, 
+		line                => $line, 
+		ssh_key_host_uuid  => $ssh_key_host_uuid, 
+		ssh_key_public_key => $ssh_key_public_key, 
+		ssh_key_user_name  => $ssh_key_user_name, 
+		ssh_key_uuid       => $ssh_key_uuid, 
+	}});
+	
+	if (not $ssh_key_public_key)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ssh_keys()", parameter => "ssh_key_public_key" }});
+		return("");
+	}
+	if (not $ssh_key_user_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_ssh_keys()", parameter => "ssh_key_user_name" }});
+		return("");
+	}
+	
+	# If we don't have a UUID, see if we can find one for the given user and host.
+	if (not $ssh_key_uuid)
+	{
+		my $query = "
+SELECT 
+    ssh_key_uuid 
+FROM 
+    ssh_keys 
+WHERE 
+    ssh_key_user_name = ".$anvil->Database->quote($ssh_key_user_name)." 
+AND 
+    ssh_key_host_uuid = ".$anvil->Database->quote($ssh_key_host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$ssh_key_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+		}
+	}
+	
+	# If I still don't have an ssh_key_uuid, we're INSERT'ing .
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+	if (not $ssh_key_uuid)
+	{
+		# INSERT
+		$ssh_key_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    ssh_keys 
+(
+    ssh_key_uuid, 
+    ssh_key_host_uuid, 
+    ssh_key_public_key, 
+    ssh_key_user_name, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($ssh_key_uuid).", 
+    ".$anvil->Database->quote($ssh_key_host_uuid).", 
+    ".$anvil->Database->quote($ssh_key_public_key).", 
+    ".$anvil->Database->quote($ssh_key_user_name).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    ssh_key_host_uuid, 
+    ssh_key_public_key, 
+    ssh_key_user_name 
+FROM 
+    ssh_keys 
+WHERE 
+    ssh_key_uuid = ".$anvil->Database->quote($ssh_key_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a ssh_key_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "ssh_key_uuid", uuid => $ssh_key_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_ssh_key_host_uuid  = $row->[0];
+			my $old_ssh_key_public_key = $row->[1];
+			my $old_ssh_key_user_name  = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_ssh_key_host_uuid  => $old_ssh_key_host_uuid, 
+				old_ssh_key_public_key => $old_ssh_key_public_key, 
+				old_ssh_key_user_name  => $old_ssh_key_user_name, 
+			}});
+			
+			# Anything change?
+			if (($old_ssh_key_host_uuid  ne $ssh_key_host_uuid)  or 
+			    ($old_ssh_key_public_key ne $ssh_key_public_key) or 
+			    ($old_ssh_key_user_name  ne $ssh_key_user_name))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    ssh_keys 
+SET 
+    ssh_key_host_uuid  = ".$anvil->Database->quote($ssh_key_host_uuid).",  
+    ssh_key_public_key = ".$anvil->Database->quote($ssh_key_public_key).", 
+    ssh_key_user_name  = ".$anvil->Database->quote($ssh_key_user_name).", 
+    modified_date       = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    ssh_key_uuid       = ".$anvil->Database->quote($ssh_key_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+	return($ssh_key_uuid);
+}
+
+
 =head2 insert_or_update_states
 
-This updates (or inserts) a record in the 'states' table. The C<< state_uuid >> referencing the database row will be returned.
+This updates (or inserts) a record in the 'states' table. The C<< state_uuid >> referencing the database row will be returned. This table is meant to be used for transient information (ie: server is migrating, condition age, etc). 
+
+B<< Note >>: No history is tracked on this table and it is excluded from resync operations. Think of this table as a scratch disk of sorts. 
 
 If there is an error, an empty string is returned.
 
@@ -8946,6 +9597,297 @@ WHERE
 }
 
 
+=head2 insert_or_update_temperature
+
+This inserts or updates a value in the special c<< temperature >> table. 
+
+This stores weighted temperature of nodes. Agents can set one or more temperature values. After a scan sweep completes, ScanCore will sum these weights and the node with the B<< highest >> value is considered the B<< least >> temperaturey and any servers on it will be migrated to the peer.
+
+If there is a problem, an empty string is returned. Otherwise, the C<< temperature_uuid >> is returned.
+
+parameters;
+
+=head3 temperature_uuid (optional)
+
+Is passed, the specific entry will be updated.
+
+=head3 temperature_host_uuid (optional, default Get->host_uuid)
+
+This is the host B<< recording >> the temperature. It is B<< not >> the host that the sensor is read from (though of course they can be the same). This is an important distinction as, for example, Striker dashboards will monitor available temperature sensors of nodes to tell when it is safe to boot them up, after a thermal event caused a shutdown, 
+
+=head3 temperature_agent_name (required)
+
+This is the scan agent (or program name) setting this score.
+
+=head3 temperature_sensor_host (required)
+
+This is the host (uuid) that the sensor was read from. This is important as ScanCore on a striker will read available thermal data from a node using it's IPMI data.
+
+=head3 temperature_sensor_name (required)
+
+This is the name of the free-form, descriptive name of the sensor reporting the temperature.
+
+=head3 temperature_value_c (required)
+
+This is the actual temperature being recorded, in celsius. The value can be a signed decimal value.
+
+=head3 temperature_state (optional, default 'ok')
+
+This is a string represnting the state of the sensor. Valid values are C<< ok >>, C<< warning >>, and C<< critical >>.
+
+When a sensor is in C<< warning >>, it's value is added up (along with C<< critical >> sensors) to derive a score. If that score is equal to over greater than C<< scancore::threshold::warning_temperature >> (default C<< 5 >>), servers will be migrated over to the peer, B<< if >> the peer's temperature score is below this threshold.
+
+When a sensor is in C<< critical >>, it's score is summed up along with other C<< critical >> temperatures (C<< warnings >> are not factored). If the total score is equal to or greater than C<< scancore::threshold::warning_critical >>, (default C<< 5 >>), the node will enter emergency shutdown. 
+
+=head3 temperature_is (optional, default 'nominal)
+
+This indicate if the temperature 'nominal', 'high' or 'low'. This distinction is used when calculating if C<< scancore::threshold::warning_temperature >> or C<< scancore::threshold::warning_critical >> has been passed. Temperatures that are in a C<< warning >> or C<< critical >> state will be evaluated as groups. That is, if through some weird case some temperatures were reading high and others were reading cold, decisions about threashold would be calculated separately for the over temp and again for the under temp values.
+
+=head3 temperature_weight (optional, default 1)
+
+This sets the weight of the temperature sensor. This allows a given sensor to have more or less influence of the derived score used to see if C<< scancore::threshold::warning_temperature >> or C<< scancore::threshold::warning_critical >> has been exceeded.
+
+=cut
+sub insert_or_update_temperature
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_temperature()" }});
+	
+	my $uuid                    = defined $parameter->{uuid}                    ? $parameter->{uuid}                    : "";
+	my $file                    = defined $parameter->{file}                    ? $parameter->{file}                    : "";
+	my $line                    = defined $parameter->{line}                    ? $parameter->{line}                    : "";
+	my $temperature_uuid        = defined $parameter->{temperature_uuid}        ? $parameter->{temperature_uuid}        : "";
+	my $temperature_host_uuid   = defined $parameter->{temperature_host_uuid}   ? $parameter->{temperature_host_uuid}   : $anvil->Get->host_uuid;
+	my $temperature_agent_name  = defined $parameter->{temperature_agent_name}  ? $parameter->{temperature_agent_name}  : "";
+	my $temperature_sensor_host = defined $parameter->{temperature_sensor_host} ? $parameter->{temperature_sensor_host} : "";
+	my $temperature_sensor_name = defined $parameter->{temperature_sensor_name} ? $parameter->{temperature_sensor_name} : "";
+	my $temperature_value_c     = defined $parameter->{temperature_value_c}     ? $parameter->{temperature_value_c}     : "";
+	my $temperature_state       = defined $parameter->{temperature_state}       ? $parameter->{temperature_state}       : "ok";
+	my $temperature_is          = defined $parameter->{temperature_is}          ? $parameter->{temperature_is}          : "nominal";
+	my $temperature_weight      = defined $parameter->{temperature_weight}      ? $parameter->{temperature_weight}      : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                    => $uuid, 
+		file                    => $file, 
+		line                    => $line, 
+		temperature_uuid        => $temperature_uuid,
+		temperature_host_uuid   => $temperature_host_uuid,
+		temperature_agent_name  => $temperature_agent_name,
+		temperature_sensor_host => $temperature_sensor_host,
+		temperature_sensor_name => $temperature_sensor_name,
+		temperature_value_c     => $temperature_value_c, 
+		temperature_state       => $temperature_state, 
+		temperature_is          => $temperature_is, 
+		temperature_weight      => $temperature_weight, 
+	}});
+	
+	# Pointy end up?
+	if ($temperature_state eq "norminal")
+	{
+		$temperature_state = "nominal";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_state => $temperature_state }});
+	}
+	
+	if (not $temperature_agent_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_agent_name" }});
+		return("");
+	}
+	if (not $temperature_sensor_host)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_sensor_host" }});
+		return("");
+	}
+	if (not $temperature_sensor_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_sensor_name" }});
+		return("");
+	}
+	if ($temperature_value_c eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_value_c" }});
+		return("");
+	}
+	if (not $temperature_state)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_state" }});
+		return("");
+	}
+	elsif (($temperature_state ne "ok") && ($temperature_state ne "warning") && ($temperature_state ne "critical"))
+	{
+		# Invalid value.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0546", variables => { temperature_state => $temperature_state }});
+		return("");
+	}
+	if (not $temperature_is)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_is" }});
+		return("");
+	}
+	elsif (($temperature_is ne "nominal") && ($temperature_is ne "warning") && ($temperature_is ne "critical"))
+	{
+		# Invalid value.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0547", variables => { temperature_is => $temperature_is }});
+		return("");
+	}
+	if ($temperature_weight eq "")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_temperature()", parameter => "temperature_weight" }});
+		return("");
+	}
+	
+	# If we don't have a temperature UUID, see if we can find one.
+	if (not $temperature_uuid)
+	{
+		my $query = "
+SELECT 
+    temperature_uuid 
+FROM 
+    temperature 
+WHERE 
+    temperature_host_uuid   = ".$anvil->Database->quote($temperature_host_uuid)." 
+AND 
+    temperature_sensor_host = ".$anvil->Database->quote($temperature_sensor_host)."
+AND 
+    temperature_agent_name  = ".$anvil->Database->quote($temperature_agent_name)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$temperature_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature_uuid => $temperature_uuid }});
+		}
+	}
+	
+	# If we have a temperature UUID now, look up the previous value and see if it has changed. If not, INSERT 
+	# a new entry.
+	if ($temperature_uuid)
+	{
+		my $query = "
+SELECT 
+    temperature_host_uuid, 
+    temperature_agent_name, 
+    temperature_sensor_host, 
+    temperature_sensor_name, 
+    temperature_value_c, 
+    temperature_state, 
+    temperature_is, 
+    temperature_weight 
+FROM 
+    temperature 
+WHERE 
+    temperature_uuid = ".$anvil->Database->quote($temperature_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# What?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "temperature_uuid", uuid => $temperature_uuid }});
+			return("");
+		}
+		my $old_temperature_host_uuid   = $results->[0]->[0];
+		my $old_temperature_agent_name  = $results->[0]->[1];
+		my $old_temperature_sensor_host = $results->[0]->[2];
+		my $old_temperature_sensor_name = $results->[0]->[3];
+		my $old_temperature_value_c     = $results->[0]->[4];
+		my $old_temperature_state       = $results->[0]->[5];
+		my $old_temperature_is          = $results->[0]->[6];
+		my $old_temperature_weight      = $results->[0]->[7];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			old_temperature_host_uuid   => $old_temperature_host_uuid,
+			old_temperature_agent_name  => $old_temperature_agent_name, 
+			old_temperature_sensor_host => $old_temperature_sensor_host, 
+			old_temperature_sensor_name => $old_temperature_sensor_name, 
+			old_temperature_value_c     => $old_temperature_value_c, 
+			old_temperature_state       => $old_temperature_state, 
+			old_temperature_is          => $old_temperature_is, 
+			old_temperature_weight      => $old_temperature_weight, 
+		}});
+		
+		if (($old_temperature_host_uuid   ne $temperature_host_uuid)   or 
+		    ($old_temperature_agent_name  ne $temperature_agent_name)  or
+		    ($old_temperature_sensor_host ne $temperature_sensor_host) or
+		    ($old_temperature_sensor_name ne $temperature_sensor_name) or 
+		    ($old_temperature_value_c     ne $temperature_value_c)     or
+		    ($old_temperature_state       ne $temperature_state)       or
+		    ($old_temperature_is          ne $temperature_is)          or
+		    ($old_temperature_weight      ne $temperature_weight))
+		{
+			# Update.
+			my $query = "
+UPDATE 
+    temperature 
+SET 
+    temperature_host_uuid   = ".$anvil->Database->quote($temperature_host_uuid).",
+    temperature_agent_name  = ".$anvil->Database->quote($temperature_agent_name).",
+    temperature_sensor_host = ".$anvil->Database->quote($temperature_sensor_host).", 
+    temperature_sensor_name = ".$anvil->Database->quote($temperature_sensor_name).", 
+    temperature_value_c     = ".$anvil->Database->quote($temperature_value_c).",
+    temperature_state       = ".$anvil->Database->quote($temperature_state).",
+    temperature_is          = ".$anvil->Database->quote($temperature_is).",
+    temperature_weight      = ".$anvil->Database->quote($temperature_weight).",
+    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    temperature_uuid        = ".$anvil->Database->quote($temperature_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+	}
+	else
+	{
+		# INSERT
+		   $temperature_uuid = $anvil->Get->uuid();
+		my $query       = "
+INSERT INTO 
+    temperature 
+(
+    temperature_uuid, 
+    temperature_host_uuid, 
+    temperature_agent_name, 
+    temperature_sensor_host, 
+    temperature_sensor_name, 
+    temperature_value_c, 
+    temperature_state, 
+    temperature_is, 
+    temperature_weight, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($temperature_uuid).", 
+    ".$anvil->Database->quote($temperature_host_uuid).", 
+    ".$anvil->Database->quote($temperature_agent_name).", 
+    ".$anvil->Database->quote($temperature_sensor_host).", 
+    ".$anvil->Database->quote($temperature_sensor_name).", 
+    ".$anvil->Database->quote($temperature_value_c).", 
+    ".$anvil->Database->quote($temperature_state).", 
+    ".$anvil->Database->quote($temperature_is).", 
+    ".$anvil->Database->quote($temperature_weight).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($temperature_uuid);
+}
+
+
 =head2 insert_or_update_upses
 
 This updates (or inserts) a record in the 'upses' table. The C<< ups_uuid >> UUID will be returned.
@@ -9081,7 +10023,7 @@ WHERE
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
-		my $results = $anvil->Database->query({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -9114,7 +10056,7 @@ WHERE
     ups_uuid       = ".$anvil->Database->quote($ups_uuid)."
 ;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
-				$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
 		}
 	}
@@ -9140,7 +10082,7 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, uuid => $uuid, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
 	return($ups_uuid);

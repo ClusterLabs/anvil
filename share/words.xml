@@ -1031,6 +1031,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0543">I was asked to process alerts, but there are no configured email servers. No sense proceeding.</key>
 		<key name="log_0544">The table: [#!variable!table!#] already exists in the database on the host: [#!variable!host!#], no need to load the schema.</key>
 		<key name="log_0545">The table: [#!variable!table!#] does NOT exists in the database on the host: [#!variable!host!#]. Will load the schema file: [#!variable!file!#] now.</key>
+		<key name="log_0546">The passed in 'temperature_state' value: [#!variable!temperature_state!#] is invalid. The value must be 'ok', 'warning' or 'critical'.</key>
+		<key name="log_0547">The passed in 'temperature_is' value: [#!variable!temperature_is!#] is invalid. The value must be 'nominal', 'warning' or 'critical'.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1611,6 +1613,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0275">Free-form description of this system.</key>
 		<key name="striker_0276">This tracks the last time a given mail server was configured for use. It allows for a round-robin switching of mail servers when one mail server stops working and two or more mail servers have been configured.</key>
 		<key name="striker_0277">No UPSes</key>
+		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
 		
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
@@ -1726,7 +1729,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0025">Warning</key>				<!-- Alert level 2 -->
 		<key name="unit_0026">Notice</key>				<!-- Alert level 3 -->
 		<key name="unit_0027">Info</key>				<!-- Alert level 4 -->
-		<key name="unit_0028"></key>	<!-- free -->
+		<key name="unit_0028">Lit</key>					<!-- LED State On -->
 		<key name="unit_0029">Up</key>
 		<key name="unit_0030">Down</key>
 		<key name="unit_0031">Mbps</key>
