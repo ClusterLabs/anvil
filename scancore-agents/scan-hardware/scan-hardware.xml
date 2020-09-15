@@ -145,6 +145,7 @@ If the RAM is being updated, this alert will clear once this node has been upgra
 - Local RAM:  [#!variable!local_ram!#]
 - Peer's RAM: [#!variable!peer_ram!#]
 		</key>
+		<key name="scan_hardware_alert_0028">The amount of RAM on both nodes is back to being the same. They both have: [#!variable!ram!#] now.</key>
 		
 		<!-- Log entries -->
 		<key name="scan_hardware_log_0001">Starting: [#!variable!program!#].</key>

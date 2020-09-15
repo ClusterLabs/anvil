@@ -66,6 +66,8 @@ find_changes($anvil);
 # Finally, process health weights.
 process_health($anvil)
 
+# Mark that we ran.
+$anvil->Database->insert_or_update_updated({debug => 2, updated_by => $THIS_FILE});
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -253,7 +255,7 @@ sub collect_cpu_data
 			debug          => 2,
 			record_locator => "scan_hardware::cpu_flags_mismatch",
 			set_by         => $THIS_FILE,
-			type           => "clear",
+			clear          => 1,
 		});
 		if ($changed)
 		{
@@ -273,7 +275,7 @@ sub collect_cpu_data
 			debug          => 2,
 			record_locator => "scan_hardware::cpu_bugs_mismatch",
 			set_by         => $THIS_FILE,
-			type           => "clear",
+			clear          => 1,
 		});
 		if ($changed)
 		{
@@ -293,7 +295,7 @@ sub collect_cpu_data
 			debug          => 2,
 			record_locator => "scan_hardware::cpu_model_mismatch",
 			set_by         => $THIS_FILE,
-			type           => "clear",
+			clear          => 1,
 		});
 		if ($changed)
 		{
@@ -834,7 +836,6 @@ sub find_changes
 					debug          => 2,
 					record_locator => "scan_hardware::high_swap",
 					set_by         => $agent,
-					type           => "set",
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
 				if ($changed)
@@ -864,7 +865,7 @@ sub find_changes
 					debug          => 2,
 					record_locator => "scan_hardware::high_swap",
 					set_by         => $agent,
-					type           => "clear",
+					clear          => 1,
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
 				if ($changed)
@@ -1245,11 +1246,7 @@ sub process_health
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0027", variables => $variables});
 					$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0027", message_variables => $variables, set_by => $THIS_FILE});
 				}
-				
-				
 			}
-			$clear_alerts = 0;
-			
 			my ($health_uuid) = $anvil->Database->insert_or_update_health({
 				debug                => 2,
 				health_agent_name    => $THIS_FILE,
@@ -1260,113 +1257,40 @@ sub process_health
 		}
 		elsif (($peer_ram_total == $hardware_ram_total) or ($difference < $anvil->data->{scancore}{'scan-hardware'}{ram}{clear_threshold}))
 		{
-			### TODO: Left off here.
-=cut
-			# If there was a difference before, clear it.
-			my $clear = 0;
-			my $set   = $an->Alert->check_alert_sent({
-				type			=>	"clear",	# This is not the alert level, 'warning' == trouble, 'clear' == ok now.
-				alert_sent_by		=>	$THIS_FILE,
-				alert_record_locator	=>	"na",
-				alert_name		=>	"less_ram_than_peer",
-				modified_date		=>	$an->data->{sys}{db_timestamp},
+			my $age = $anvil->Database->check_condition_age({
+				debug     => 2,
+				clear     => 1,
+				name      => "scan-hardware::less_ram_than_peer",
+				host_uuid => $anvil->Get->host_uuid, 
 			});
-			$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-				name1  => "set", value1  => $set, 
-			}, file => $THIS_FILE, line => __LINE__});
-			if (not $set)
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 2,
+				record_locator => "scan_hardware::less_ram_than_peer",
+				set_by         => $THIS_FILE,
+				clear          => 1,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
 			{
-				# There's a bug where the 
-				$query = "SELECT health_uuid FROM health WHERE health_host_uuid = ".$anvil->Database->quote($an->data->{sys}{host_uuid})." AND health_source_name = 'less_ram_than_peer';";
-				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-					name1 => "query", value1 => $query, 
-				}, file => $THIS_FILE, line => __LINE__});
-				my $health_uuid = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				   $health_uuid = "" if not defined $health_uuid;
-				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-					name1 => "health_uuid", value1 => $health_uuid, 
-				}, file => $THIS_FILE, line => __LINE__});
-				
-				if ($health_uuid)
-				{
-					# Clear it.
-					$clear = 1;
-					$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-						name1  => "clear", value1  => $clear, 
-					}, file => $THIS_FILE, line => __LINE__});
-				}
+				# Clear the alert.
+				my $variables = {
+					ram => $anvil->Convert->bytes_to_human_readable({'bytes' => $hardware_ram_total})." (".$an->Readable->comma($hardware_ram_total)." #!string!suffix_0009!#)",
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0028", variables => $variables});
+				$anvil->Alert->register({alert_level => "warning", message => "scan_hardware_alert_0028", message_variables => $variables, set_by => $THIS_FILE});
 			}
-			if ($set)
-			{
-				# Clear the warning
-				$an->Alert->register_alert({
-					alert_level		=>	"clear", 
-					alert_agent_name	=>	$THIS_FILE,
-					alert_sort		=>	$an->data->{sys}{alert_sort}++,
-					alert_title_key		=>	"an_alert_title_0004",
-					alert_message_key	=>	"scan_hardware_note_0010",
-					alert_message_variables	=>	{
-						difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference})." (".$an->Readable->comma($difference)." #!string!suffix_0009!#)", 
-						local_ram  => $anvil->Convert->bytes_to_human_readable({'bytes' => $hardware_ram_total})." (".$an->Readable->comma($hardware_ram_total)." #!string!suffix_0009!#)", 
-						peer_ram   => $anvil->Convert->bytes_to_human_readable({'bytes' => $peer_ram_total})." (".$an->Readable->comma($peer_ram_total)." #!string!suffix_0009!#)", 
-					},
-				});
-				
-				$clear = 1;;
-				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-					name1  => "clear", value1  => $clear, 
-				}, file => $THIS_FILE, line => __LINE__});
-			}
-			
-			$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-				name1  => "clear", value1  => $clear, 
-			}, file => $THIS_FILE, line => __LINE__});
-			if ($clear)
-			{
-				# Get the health_uuid
-				my $query = "SELECT health_uuid FROM health WHERE health_host_uuid = ".$anvil->Database->quote($an->data->{sys}{host_uuid})." AND health_source_name = 'less_ram_than_peer';";
-				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-					name1 => "query", value1 => $query, 
-				}, file => $THIS_FILE, line => __LINE__});
-				my $health_uuid = $an->DB->do_db_query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				   $health_uuid = "" if not defined $health_uuid;
-				$an->Log->entry({log_level => 2, message_key => "an_variables_0001", message_variables => {
-					name1 => "health_uuid", value1 => $health_uuid, 
-				}, file => $THIS_FILE, line => __LINE__});
-				
-				# Mark it as deleted for the history schema.
-				if ($health_uuid)
-				{
-					my $query = "
-UPDATE  
-    health
-SET 
-    health_source_name   = 'DELETED', 
-    health_source_weight = '0', 
-    modified_date        = ".$anvil->Database->quote($an->data->{sys}{db_timestamp})."
-WHERE 
-    health_uuid          = ".$anvil->Database->quote($health_uuid)."
-;";
-					$an->Log->entry({log_level => 1, message_key => "an_variables_0001", message_variables => {
-						name1 => "query", value1 => $query, 
-					}, file => $THIS_FILE, line => __LINE__});
-					$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
-					
-					# Now actually delete it.
-					$query = "
-DELETE FROM 
-    health
-WHERE 
-    health_uuid = ".$anvil->Database->quote($health_uuid)."
-;";
-					$an->Log->entry({log_level => 1, message_key => "an_variables_0001", message_variables => {
-						name1 => "query", value1 => $query, 
-					}, file => $THIS_FILE, line => __LINE__});
-					$an->DB->do_db_write({query => $query, source => $THIS_FILE, line => __LINE__});
-				}
-			}
-=cut
+			my ($health_uuid) = $anvil->Database->insert_or_update_health({
+				debug                => 2,
+				health_agent_name    => $THIS_FILE,
+				health_source_name   => "less_ram_than_peer",
+				health_source_weight => 0,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { health_uuid => $health_uuid }});
 		}
+	}
+	else
+	{
+		# We don't know how much RAM our peer has yet, so do nothing.
 	}
 
 	return(0);

@@ -97,13 +97,11 @@ This is a record locator, which generally allows a given alert to be tied to a g
 
 This is a string, usually the name of the program, that set the alert. Usuall this is simple C<< $THIS_FILE >> or C<< $0 >>.
 
-=head3 type (required)
+=head3 clear (optional, default '0')
 
-This is set to C<< set >> or C<< clear >>.
+If set to C<< 0 >> (set the alert), C<< 1 >> will be returned if this is the first time we've tried to set this alert. If the alert was set before, C<< 0 >> is returned.
 
-If set to C<< set >>, C<< 1 >> will be returned if this is the first time we've tried to set this alert. If the alert was set before, C<< 0 >> is returned.
-
-If set to C<< clear >>, C<< 1 >> will be returned if this is the alert existed and was cleared. If the alert didn't exist (and thus didn't need to be cleared), C<< 0 >> is returned.
+If set to C<< 1 >> (clear the alert), C<< 1 >> will be returned if this is the alert existed and was cleared. If the alert didn't exist (and thus didn't need to be cleared), C<< 0 >> is returned.
 
 =cut
 sub check_alert_sent
@@ -117,12 +115,12 @@ sub check_alert_sent
 	my $name           = defined $parameter->{name}           ? $parameter->{name}           : "";
 	my $record_locator = defined $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = defined $parameter->{set_by}         ? $parameter->{set_by}         : "";
-	my $type           = defined $parameter->{type}           ? $parameter->{type}           : "";
+	my $clear          = defined $parameter->{clear}          ? $parameter->{clear}          : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		name           => $name, 
 		record_locator => $record_locator, 
 		set_by         => $set_by, 
-		type           => $type, 
+		clear          => $clear, 
 	}});
 	
 	# Do we have an alert name?
@@ -149,14 +147,6 @@ sub check_alert_sent
 		return("!!error!!");
 	}
 	
-	# Are we setting or clearing?
-	if (not $type)
-	{
-		# Neither...
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0097"});
-		return("!!error!!");
-	}
-	
 	# This will get set to '1' if an alert is added or removed.
 	my $changed = 0;
 	
@@ -176,15 +166,15 @@ AND
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	# Now, if this is type=set, register the alert if it doesn't exist. If it is type=clear, remove the 
+	# Now, if this is clear = 0, register the alert if it doesn't exist. If it is clear = 1, remove the 
 	# alert if it exists.
 	my $alert_sent_uuid = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	   $alert_sent_uuid = "" if not defined $alert_sent_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		type            => $type,
+		clear           => $clear,
 		alert_sent_uuid => $alert_sent_uuid,
 	}});
-	if (($type eq "set") && (not $alert_sent_uuid))
+	if ((not $clear) && (not $alert_sent_uuid))
 	{
 		### New alert
 		# Make sure this host is in the database... It might not be on the very first run of ScanCore
@@ -209,7 +199,7 @@ WHERE
 			{
 				# Too early, we can't set an alert.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0098", variables => {
-					type           => $type, 
+					clear          => $clear, 
 					set_by         => $set_by, 
 					record_locator => $record_locator, 
 					name           => $name, 
@@ -249,7 +239,7 @@ INSERT INTO
 		}});
 		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 	}
-	elsif (($type eq "clear") && ($alert_sent_uuid))
+	elsif (($clear) && ($alert_sent_uuid))
 	{
 		# Alert previously existed, clear it.
 		   $changed = 1;

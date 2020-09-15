@@ -61,6 +61,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_ssh_keys
 # insert_or_update_states
 # insert_or_update_temperature
+# insert_or_update_updated
 # insert_or_update_upses
 # insert_or_update_users
 # insert_or_update_variables
@@ -526,7 +527,6 @@ sub check_agent_data
 				debug          => 2,
 				record_locator => "schema_load_failure",
 				set_by         => $agent,
-				type           => "set",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
 			if ($changed)
@@ -552,7 +552,7 @@ sub check_agent_data
 				debug          => 2,
 				record_locator => "schema_load_failure",
 				set_by         => $agent,
-				type           => "clear",
+				clear          => 1,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
 			if ($changed)
@@ -1643,7 +1643,6 @@ sub connect
 		# If I've not sent an alert about this DB loss before, send one now.
 # 		my $set = $anvil->Alert->check_alert_sent({
 # 			debug          => $debug, 
-# 			type           => "set",
 # 			set_by         => $THIS_FILE,
 # 			record_locator => $uuid,
 # 			name           => "connect_to_db",
@@ -1704,7 +1703,7 @@ sub connect
 # 		{
 # 			my $cleared = $anvil->Alert->check_alert_sent({
 # 				debug          => $debug, 
-# 				type           => "clear",
+#				clear          => 1,
 # 				set_by         => $THIS_FILE,
 # 				record_locator => $uuid,
 # 				name           => "connect_to_db",
@@ -9885,6 +9884,114 @@ INSERT INTO
 	}
 	
 	return($temperature_uuid);
+}
+
+
+=head2 insert_or_update_updated
+
+This adds or updates an entry in the c<< updated >> tables, used to help track how long ago given programs ran. This helps with determin when scan agents, ScanCore or other programs last ran.
+
+B<< Note >>: This method differs from most in two ways; First, it only take one parameter, specifc entries can't be updated. Second, this is considered a "scratch" function and has no history schema version. This table is not resync'ed if/when a resync is otherwise performed.
+
+The C<< updated_uuid >> is returned.
+
+Parameters;
+
+=head3 updated_by (required)
+
+This is the name of the caller updating the entry. Usually this is C<< $THIS_FILE >> as set in the caller.
+
+=cut
+sub insert_or_update_updated
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_updated()" }});
+	
+	my $uuid       = defined $parameter->{uuid}       ? $parameter->{uuid}       : "";
+	my $file       = defined $parameter->{file}       ? $parameter->{file}       : "";
+	my $line       = defined $parameter->{line}       ? $parameter->{line}       : "";
+	my $updated_by = defined $parameter->{updated_by} ? $parameter->{updated_by} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		updated_by => $updated_by,
+		
+	}});
+	
+	if (not $updated_by)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_updated()", parameter => "updated_by" }});
+		return("");
+	}
+	
+	# Look up the 'updated_uuid', if possible.
+	my $updated_uuid = "";
+	my $query        = "
+SELECT 
+    updated_uuid 
+FROM 
+    updated 
+WHERE 
+    updated_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+AND 
+    updated_by        = ".$anvil->Database->quote($updated_by)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		$updated_uuid = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { updated_uuid => $updated_uuid }});
+	}
+	
+	# Update or insert?
+	if ($updated_uuid)
+	{
+		# Update
+		my $query = "
+UPDATE 
+    updated 
+SET 
+    updated_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    updated_by        = ".$anvil->Database->quote($updated_by).", 
+    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    updated_uuid      = ".$anvil->Database->quote($updated_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Insert
+		   $updated_uuid = $anvil->Get->uuid();
+		my $query      = "
+INSERT INTO 
+    updated 
+(
+    updated_uuid, 
+    updated_host_uuid, 
+    updated_by, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($updated_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($updated_by).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($updated_uuid);
 }
 
 
