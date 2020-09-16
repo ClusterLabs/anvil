@@ -1819,6 +1819,7 @@ CREATE TRIGGER trigger_temperature
 -- This table records the last time a scan ran. It's sole purpose is to make sure at least one table's
 -- 'modified_date' changes per run, so that database resyncs can be triggered reliably.
 CREATE TABLE updated (
+    updated_uuid         uuid                        not null    primary key,
     updated_host_uuid    uuid                        not null,
     updated_by           text                        not null,    -- The name of the agent (or "ScanCore' itself) that updated.
     modified_date        timestamp with time zone    not null,
@@ -1838,7 +1839,6 @@ CREATE TABLE alert_sent (
     alert_sent_host_uuid    uuid                        not null,                   -- The node associated with this alert
     alert_set_by            text                        not null,                   -- name of the program that set this alert
     alert_record_locator    text                        not null,                   -- String used by the agent to identify the source of the alert (ie: UPS serial number)
-    alert_name              text                        not null,                   -- A free-form name used by the caller to identify this alert.
     modified_date           timestamp with time zone    not null,
     
     FOREIGN KEY(alert_sent_host_uuid) REFERENCES hosts(host_uuid)

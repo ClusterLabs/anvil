@@ -23,7 +23,7 @@ The differences are:
 #!variable!these_flags!#
 ====
 		</key>
-		<key name="scan_hardware_alert_0002">The issue with mismatched CPU flags has been resolved.</keys>
+		<key name="scan_hardware_alert_0002">The issue with mismatched CPU flags has been resolved.</key>
 		<key name="scan_hardware_alert_0003">
 For some reason, two (or more) CPU cores/threads returned different bugs. This should never happen: The differences are:
 The differences are:
@@ -33,7 +33,7 @@ The differences are:
 #!variable!these_bugs!#
 ====
 		</key>
-		<key name="scan_hardware_alert_0004">The issue with mismatched CPU bugs has been resolved.</keys>
+		<key name="scan_hardware_alert_0004">The issue with mismatched CPU bugs has been resolved.</key>
 		<key name="scan_hardware_alert_0005">
 For some reason, two (or more) CPU cores/threads returned different model names. This should never happen: The differences are:
 The differences are:
@@ -43,7 +43,7 @@ The differences are:
 #!variable!this_model!#
 ====
 		</key>
-		<key name="scan_hardware_alert_0006">The issue with mismatched CPU model name has been resolved.</keys>
+		<key name="scan_hardware_alert_0006">The issue with mismatched CPU model name has been resolved.</key>
 		<key name="scan_hardware_alert_0007">The CPU model has changed:
 - New: [#!variable!new!#]
 - Old: [#!variable!old!#]

@@ -518,14 +518,13 @@ The database connection error was:
 		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
 		<key name="log_0095">The database user: [#!variable!user!#] was created with UUID: [#!variable!id!#].</key>
 		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
-		<key name="log_0097"></key>	<!-- free -->
+		<key name="log_0097">[ Error ] - Failed to find any tables in: [#!variable!file!#]. Unable to check/load the agent's schema.</key>
 		<key name="log_0098">
 [ Warning ] - Failed to set an alert because this host is not yet in the database. This can happen if the alert was set before this host was added to the database.
 * Details of the alert:
 - Type: ......... [#!variable!type!#]
 - Clear? ........ [#!variable!clear!#]
 - Record Locator: [#!variable!record_locator!#]
-- Name: ......... [#!variable!name!#]
 - Timestamp: .... [#!variable!modified_date!#]
 		</key>
 		<key name="log_0099">[ Error ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::config::anvil.conf!#]'s DB entry: [#!variable!uuid!#].</key>

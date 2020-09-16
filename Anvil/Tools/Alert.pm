@@ -85,10 +85,6 @@ If there is a problem, C<< !!error!! >> is returned.
 
 Parameters;
 
-=head3 name (required)
-
-This is the name of the alert. So for an alert related to a critically high temperature, this might get set to C<< temperature_high_critical >>. It is meant to compliment the C<< record_locator >> parameter.
-
 =head3 record_locator
 
 This is a record locator, which generally allows a given alert to be tied to a given source. For example, an alert related to a temperature might use C<< an-a01n01.alteeve.com:cpu1_temperature >>.
@@ -112,24 +108,14 @@ sub check_alert_sent
 	my $anvil     = $self->parent;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Alert->check_alert_sent()" }});
 	
-	my $name           = defined $parameter->{name}           ? $parameter->{name}           : "";
 	my $record_locator = defined $parameter->{record_locator} ? $parameter->{record_locator} : "";
 	my $set_by         = defined $parameter->{set_by}         ? $parameter->{set_by}         : "";
 	my $clear          = defined $parameter->{clear}          ? $parameter->{clear}          : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		name           => $name, 
 		record_locator => $record_locator, 
 		set_by         => $set_by, 
 		clear          => $clear, 
 	}});
-	
-	# Do we have an alert name?
-	if (not $name)
-	{
-		# Nope
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Alert->check_alert_sent()", parameter => "name" }});
-		return("!!error!!");
-	}
 	
 	# Do we have an record locator?
 	if (not $record_locator)
@@ -161,8 +147,6 @@ AND
     alert_set_by         = ".$anvil->Database->quote($set_by)." 
 AND 
     alert_record_locator = ".$anvil->Database->quote($record_locator)." 
-AND 
-    alert_name           = ".$anvil->Database->quote($name)."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -202,7 +186,6 @@ WHERE
 					clear          => $clear, 
 					set_by         => $set_by, 
 					record_locator => $record_locator, 
-					name           => $name, 
 				}});
 				return("!!error!!");
 			}
@@ -222,14 +205,12 @@ INSERT INTO
     alert_sent_host_uuid, 
     alert_set_by, 
     alert_record_locator, 
-    alert_name, 
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($anvil->Get->uuid).", 
     ".$anvil->Database->quote($anvil->Get->host_uuid).", 
     ".$anvil->Database->quote($set_by).", 
     ".$anvil->Database->quote($record_locator).", 
-    ".$anvil->Database->quote($name).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";

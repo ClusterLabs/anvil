@@ -497,10 +497,8 @@ sub check_agent_data
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_agent_data()" }});
 	
 	my $agent  = defined $parameter->{agent}  ? $parameter->{agent}  : "";
-	my $tables = defined $parameter->{tables} ? $parameter->{tables} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		agent  => $agent, 
-		tables => $tables, 
 	}});
 	
 	if (not $agent)
@@ -511,10 +509,10 @@ sub check_agent_data
 	
 	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".sql";
 	my $loaded      = $anvil->Database->check_for_schema({
-		debug => 2, 
+		debug => $debug, 
 		file  => $schema_file,
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		loaded      => $loaded,
 		schema_file => $schema_file, 
 	}});
@@ -528,7 +526,7 @@ sub check_agent_data
 				record_locator => "schema_load_failure",
 				set_by         => $agent,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changed => $changed }});
 			if ($changed)
 			{
 				# Log and register an alert. This should never happen, so we set it as a 
@@ -554,7 +552,7 @@ sub check_agent_data
 				set_by         => $agent,
 				clear          => 1,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changed => $changed }});
 			if ($changed)
 			{
 				# Register an alert cleared message.
@@ -576,7 +574,7 @@ sub check_agent_data
 			foreach my $uuid (@{$loaded})
 			{
 				my $host_name = $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0183", variables => {
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => $debug, key => "message_0183", variables => {
 					agent_name => $agent,
 					host_name  => $host_name,
 					
@@ -649,7 +647,7 @@ sub check_for_schema
 	
 	my $table  = "";
 	my $schema = "public";
-	my $body   = $anvil->Storage->read_file({file => $file});
+	my $body   = $anvil->Storage->read_file({debug => $debug, file => $file});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
 	foreach my $line (split/\n/, $body)
 	{
@@ -677,7 +675,7 @@ sub check_for_schema
 	# Did we find a table?
 	if (not $table)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0050"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0097", variables => { file => $file}});
 		return("!!error!!");
 	}
 	
@@ -718,6 +716,7 @@ sub check_for_schema
 			
 			# Write out the schema now.
 			$anvil->Database->write({
+				debug       => $debug,
 				uuid        => $uuid, 
 				transaction => 1, 
 				query       => $body, 
@@ -11232,8 +11231,8 @@ sub log_connections
 		}});
 		
 		my $query      = "SELECT system_identifier FROM pg_control_system();";
-		my $identifier = $anvil->Database->query({uuid => $uuid, debug => ($debug + 1), query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => ($debug + 1), key => "log_0540", variables => { 
+		my $identifier = $anvil->Database->query({uuid => $uuid, debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0540", variables => { 
 			uuid       => $uuid,
 			identifier => $identifier, 
 		}});
@@ -11746,6 +11745,114 @@ sub mark_active
 }
 
 
+=head2 purge_data
+
+This method takes an array reference of table name and will delete them in reverse order. 
+
+Specifically, it takes each table name and looks for an associated function called C<< history_<table>() >> and calls a C<< DROP ... CASCADE; >> (which takes an associated TRIGGER with it), then looks to see if there is a table in the C<< history >> and C<< public >> schemas, DROP'ing them if found.
+
+This method is designed to allow ScanCore scan agents to be called with C<< --purge >> so that collected data can be purged from the database(s) without deleting non-ScanCore data.
+
+This method returns C<< !!error!! >> if there is a problem, and C<< 0 >> otherwise.
+
+Parameters;
+
+=head3 tables (required)
+
+This is an array reference of table tables to search more. There is no need to specify schema as both C<< public >> and C<< history >> schemas are checked automatically.
+
+This array is walked through in reverse order to allow the same array that is used to load and resync data to be used here.
+
+=cut
+sub purge_data
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->purge_data()" }});
+	
+	my $tables = $parameter->{tables} ? $parameter->{tables} : "";
+
+	if (not $tables)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->purge_data()", parameter => "tables" }});
+		return("!!error!!");
+	}
+	if (ref($tables) ne "ARRAY")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0218", variables => { name => "tables", value => $tables }});
+		return("!!error!!");
+	}
+	
+	my $count = \@{$tables};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $vacuum = 0;
+		foreach my $table (reverse @{$tables})
+		{
+			# Check for the function.
+			my $safe_table       =  $anvil->Database->quote($table);
+			   $safe_table       =~ s/^'(.*?)'$/$1/;
+			my $history_function =  "history_".$table;
+			my $function_query   =  "SELECT COUNT(*) FROM pg_catalog.pg_proc WHERE proname = ".$anvil->Database->quote($history_function).";";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { function_query => $function_query }});
+			
+			my $function_count = $anvil->Database->query({query => $function_query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { function_count => $function_count }});
+			if ($function_count)
+			{
+				# Delete it.
+				   $vacuum           =  1;
+				   $history_function =~ s/^'(.*?)'$/$1/;
+				my $query            =  "DROP FUNCTION ".$history_function."() CASCADE;";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+			
+			my $history_query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename = ".$anvil->Database->quote($table)." AND schemaname='history';";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { history_query => $history_query }});
+			
+			my $history_count = $anvil->Database->query({query => $history_query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { history_count => $history_count }});
+			if ($history_count)
+			{
+				# Delete it.
+				   $vacuum =  1;
+				my $query  =  "DROP TABLE history.".$safe_table.";";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+			
+			my $public_query = "SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE tablename = ".$anvil->Database->quote($table)." AND schemaname='public';";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { public_query => $public_query }});
+			
+			my $public_count = $anvil->Database->query({query => $public_query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { public_count => $public_count }});
+			if ($public_count)
+			{
+				# Delete it.
+				   $vacuum = 1;
+				my $query  = "DROP TABLE public.".$safe_table.";";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { vacuum => $vacuum }});
+		if ($vacuum)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0458"});
+			my $query = "VACUUM FULL;";
+			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 query
 
 This performs a query and returns an array reference of array references (from C<< DBO->fetchall_arrayref >>). The first array contains all the returned rows and each row is an array reference of columns in that row.
@@ -12116,6 +12223,8 @@ sub refresh_timestamp
 
 This will resync the database data on this and peer database(s) if needed. It takes no arguments and will immediately return unless C<< sys::database::resync_needed >> was set.
 
+If C<< switches::purge >> is set, this method will also return without doing anything.
+
 =cut
 sub resync_databases
 {
@@ -12130,6 +12239,14 @@ sub resync_databases
 	if (not $anvil->data->{sys}{database}{resync_needed})
 	{
 		# We don't need table data, clear it.
+		delete $anvil->data->{sys}{database}{table};
+		return(0);
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "switches::purge" => $anvil->data->{switches}{purge} }});
+	if ((exists $anvil->data->{switches}{purge}) && ($anvil->data->{switches}{purge}))
+	{
+		# The user is calling a purge, so skip resync for now as the data might be about to all go away anyway.
 		delete $anvil->data->{sys}{database}{table};
 		return(0);
 	}
@@ -12870,7 +12987,7 @@ sub _archive_table
 	
 	if (not $table)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->_archive_table()", parameter => "table" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->_archive_table()", parameter => "table" }});
 		return("!!error!!");
 	}
 	

@@ -25,6 +25,22 @@ $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 $anvil->Get->switches;
 
+my $array = ["1", "2", "a", "b"];
+
+print "Normal:\n";
+foreach my $thing (@{$array})
+{
+	print "- ".$thing."\n";
+}
+
+print "Reverse:\n";
+foreach my $thing (reverse @{$array})
+{
+	print "- ".$thing."\n";
+}
+
+exit;
+
 print "Connecting to the database(s);\n";
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});

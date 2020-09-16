@@ -3,6 +3,7 @@ ALTER TABLE history.recipients RENAME recipient_new_level TO recipient_level;
 ALTER TABLE history.recipients DROP COLUMN recipient_units;
 ALTER TABLE recipients RENAME recipient_new_level TO recipient_level;
 ALTER TABLE recipients DROP COLUMN recipient_units;
+ALTER TABLE alert_sent DROP COLUMN alert_name;
 
 DROP FUNCTION history_recipients() CASCADE;
 CREATE FUNCTION history_recipients() RETURNS trigger

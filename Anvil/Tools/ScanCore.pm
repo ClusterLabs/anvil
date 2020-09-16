@@ -139,7 +139,7 @@ sub agent_startup
 	}
 	
 	# Connect to DBs.
-	$anvil->Database->connect({debug => ($debug + 1)});
+	$anvil->Database->connect({debug => $debug});
 	$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
 	if (not $anvil->data->{sys}{database}{connections})
 	{
@@ -150,19 +150,19 @@ sub agent_startup
 
 	# Make sure our schema is loaded.
 	$anvil->Database->check_agent_data({
-		debug  => $debug,
-		agent  => $agent,
+		debug => $debug,
+		agent => $agent,
 	});
 
 	# Read in our word strings.
 	my $words_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".xml";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { words_file => $words_file }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { words_file => $words_file }});
 	
 	my $problem = $anvil->Words->read({
-		debug => ($debug + 1), 
+		debug => $debug, 
 		file  => $words_file,
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	
 	if ($problem)
 	{
