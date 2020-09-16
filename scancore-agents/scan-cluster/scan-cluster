@@ -1,0 +1,95 @@
+#!/usr/bin/perl
+# 
+# This scans the cluster by processing the CIB and storing information about nodes, cluster states, etc.
+# 
+# Examples;
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Startup failure (no DB, bad file read, etc)
+# 
+# TODO: 
+# - 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Disable buffering
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+$anvil->Storage->read_config();
+
+# Read switches
+$anvil->Get->switches;
+
+# These are the tables used by this agent. The order matters as it controls to order the tables are created 
+# and sync'ed. For purges, this array is walked backwards.
+$anvil->data->{scancore}{'scan-cluster'}{tables} = ["scan_cluster"];
+
+# Handle start-up tasks
+my $problem = $anvil->ScanCore->agent_startup({
+	debug  => 3,
+	agent  => $THIS_FILE,
+	tables => $anvil->data->{scancore}{'scan-cluster'}{tables},
+});
+if ($problem)
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->Log->entry({test => 1, source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0001", variables => { program => $THIS_FILE }});
+if ($anvil->data->{switches}{purge})
+{
+	# This can be called when doing bulk-database purges.
+	$anvil->Database->purge_data({
+		debug  => 2,
+		tables => $anvil->data->{scancore}{'scan-cluster'}{tables},
+	});
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# Before we do anything, are we a node in a pacemaker cluster?
+my $host_type = $anvil->Get->host_type;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+if ($host_type ne "node")
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0002", variables => { host_type => $host_type }});
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# Read the data.
+collect_data($anvil);
+
+
+
+$anvil->nice_exit({exit_code => 0});
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+
+# This reads in all the data we can find on the local system
+sub collect_data
+{
+	my ($anvil) = @_;
+	
+	# 
+	
+	
+	return(0);
+}

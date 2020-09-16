@@ -9,7 +9,7 @@
 # 1 = Startup failure (no DB, bad file read, etc)
 # 
 # TODO: 
-# - Decide if it's worth having a separate ScanCore.log file or just feed into anvil.log.
+# - 
 #
 
 use strict;

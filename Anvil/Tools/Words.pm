@@ -752,7 +752,7 @@ sub string
 	# Setup default values
 	my $key       = defined $parameter->{key}       ? $parameter->{key}       : "";
 	my $language  =         $parameter->{language}  ? $parameter->{language}  : $anvil->Words->language;
-	my $file      =         $parameter->{file}      ? $parameter->{file}      : $anvil->data->{path}{words}{'words.xml'};
+	my $file      =         $parameter->{file}      ? $parameter->{file}      : "";
 	my $string    = defined $parameter->{string}    ? $parameter->{string}    : "";
 	my $variables = defined $parameter->{variables} ? $parameter->{variables} : "";
 	### NOTE: Don't call Log->entry here, or we'll get a recursive loop! Use 'test' to debug.

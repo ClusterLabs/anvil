@@ -69,6 +69,7 @@ my $THIS_FILE = "Database.pm";
 # locking
 # manage_anvil_conf
 # mark_active
+# purge_data
 # query
 # quote
 # read

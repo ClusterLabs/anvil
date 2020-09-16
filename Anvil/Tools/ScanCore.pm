@@ -156,13 +156,13 @@ sub agent_startup
 
 	# Read in our word strings.
 	my $words_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".xml";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { words_file => $words_file }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { words_file => $words_file }});
 	
 	my $problem = $anvil->Words->read({
 		debug => $debug, 
 		file  => $words_file,
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	
 	if ($problem)
 	{
