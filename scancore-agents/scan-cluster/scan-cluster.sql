@@ -1,9 +1,12 @@
 -- This is the database schema for the 'scan-cluster Scan Agent'.
 
 CREATE TABLE scan_cluster (
-    scan_cluster_uuid         uuid                        primary key,
-    scan_cluster_host_uuid    uuid                        not null,
-    modified_date             timestamp with time zone    not null,
+    scan_cluster_uuid                uuid                        primary key,
+    scan_cluster_host_uuid           uuid                        not null,
+    scan_cluster_stonith_enabled     boolean                     not null,       -- Tracks when stonith (fencing) was enabled/disabled
+    scan_cluster_maintenance_mode    boolean                     not null,       -- Tracks when maintenance mode is enabled/disabled.
+    scan_cluster_no_quorum_policy    text                        not null,       -- Tracks what is done when quorum is lost.
+    modified_date                    timestamp with time zone    not null,
     
     FOREIGN KEY(scan_cluster_host_uuid) REFERENCES hosts(host_uuid)
 );

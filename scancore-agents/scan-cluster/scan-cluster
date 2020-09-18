@@ -88,7 +88,10 @@ sub collect_data
 {
 	my ($anvil) = @_;
 	
-	# 
+	# Pick out core cluster details.
+# 	my $stonith_enabled  = $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{
+# 	my $maintenance_mode = 
+# 	my $no_quorum_policy = 
 	
 	
 	return(0);
