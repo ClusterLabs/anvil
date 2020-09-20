@@ -18,6 +18,7 @@ my $THIS_FILE = "Cluster.pm";
 # get_peers
 # parse_cib
 # start_cluster
+# which_node
 
 =pod
 
@@ -564,7 +565,7 @@ sub parse_cib
 		}});
 		
 		# Is this me or the peer?
-		if (($node_name ne $anvil->_host_name) && ($node_name ne $anvil->_short_host_name))
+		if (($node_name ne $anvil->Get->host_name) && ($node_name ne $anvil->Get->short_host_name))
 		{
 			# It's our peer.
 			$anvil->data->{cib}{parsed}{peer}{ready} = $ready;
@@ -613,7 +614,7 @@ sub parse_cib
 		{
 			$anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} = $value;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-				"cib::parsed::data::cluster::name" => $anvil->data->{cib}{parsed}{data}{cluster}{name}, 
+				"cib::parsed::data::cluster::maintenance-mode" => $anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'}, 
 			}});
 		}
 	}
@@ -703,6 +704,7 @@ sub parse_cib
 	return($problem);
 }
 
+
 =head2 start_cluster
 
 This will join the local node to the pacemaker cluster. Optionally, it can try to start the cluster on both nodes if C<< all >> is set.
@@ -745,6 +747,99 @@ sub start_cluster
 	
 	return($success);
 }
+
+
+=head2 which_node
+
+This method returns which node a given machine is in the cluster, returning either C<< node1 >> or C<< node2 >>. If the host is not a node, an empty string is returned.
+
+This method is meant to compliment C<< Database->get_anvils() >> to make it easy for tasks that only need to run on one node in the cluster to decide it that is them or not.
+
+Parameters;
+
+=head3 host_name (optional, default Get->short_host_name)
+
+This is the host name to look up. If not set, B<< and >> C<< node_uuid >> is also not set, the short host name of the local system is used.
+
+B<< Note >>; If the host name is passed and the host UUID is not, and the host UUID can not be located (or the host name is invalid), this method will return C<< !!error!! >>.
+
+=head3 host_uuid (optional, default Get->host_uuid)
+
+This is the host UUID to look up. If not set, B<< and >> C<< node_name >> is also not set, the local system's host UUID is used.
+
+=cut
+sub which_node
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->start_cluster()" }});
+	
+	my $node_is   = "";
+	my $node_name = defined $parameter->{node_name} ? $parameter->{node_name} : "";
+	my $node_uuid = defined $parameter->{node_uuid} ? $parameter->{node_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		node_name => $node_name,
+		node_uuid => $node_uuid, 
+	}});
+	
+	if ((not $node_name) && (not $node_uuid))
+	{
+		$node_name = $anvil->Get->short_host_name();
+		$node_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			node_name => $node_name,
+			node_uuid => $node_uuid, 
+		}});
+	}
+	elsif (not $node_uuid)
+	{
+		# Get the node UUID from the host name.
+		$node_uuid = $anvil->Get->host_name_from_uuid({host_name => $node_name}); 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_uuid => $node_uuid }});
+		
+		if (not $node_uuid)
+		{
+			return("!!error!!");
+		}
+	}
+	
+	# Load Anvil! systems.
+	if ((not exists $anvil->data->{anvils}{anvil_name}) && (not $anvil->data->{anvils}{anvil_name}))
+	{
+		$anvil->Database->load_anvils({debug => $debug});
+	}
+	
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
+
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			anvil_name      => $anvil_name,
+			node1_host_uuid => $node1_host_uuid 
+			node2_host_uuid => $node2_host_uuid 
+		}});
+		
+		if ($node_uuid eq $node1_host_uuid)
+		{
+			$node_id = "node1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_id => $node_id }});
+			last;
+		}
+		elsif ($node_uuid eq $node2_host_uuid)
+		{
+			$node_id = "node2";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_id => $node_id }});
+			last;
+		}
+	}
+	
+	
+	return($node_is);
+}
+
 
 # =head3
 # 

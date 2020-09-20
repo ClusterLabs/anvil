@@ -2,6 +2,9 @@
 # 
 # This scans the cluster by processing the CIB and storing information about nodes, cluster states, etc.
 # 
+# NOTE: The data stored here is not bound to a given host. As such, node 1 will run this agent and node 2 
+#       won't, _except_ when node 1 is offline and only node 2 is up.
+# 
 # Examples;
 # 
 # Exit codes;
@@ -89,9 +92,33 @@ sub collect_data
 	my ($anvil) = @_;
 	
 	# Pick out core cluster details.
-# 	my $stonith_enabled  = $anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}{
-# 	my $maintenance_mode = 
-# 	my $no_quorum_policy = 
+	my $problem = $anvil->Cluster->parse_cib({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { offline => $offline }});
+
+	my $cluster_name         = $anvil->data->{cib}{parsed}{data}{cluster}{name};
+	my $stonith_enabled      = $anvil->data->{cib}{parsed}{data}{stonith}{enabled};
+	my $maintenance_mode     = $anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'};
+	my $stonith_max_attempts = $anvil->data->{cib}{parsed}{data}{cluster}{'stonith-max-attempts'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		cluster_name         => $cluster_name, 
+		stonith_enabled      => $stonith_enabled,
+		maintenance_mode     => $maintenance_mode, 
+		stonith_max_attempts => $stonith_max_attempts, 
+	}});
+	
+	### TODO: If we're node 2, or not in the cluster, only update our information in the
+	###       'scan_cluster_nodes' table. Node 1 will update everything else if it's 'ready' (else node 2
+	###       will, if it's ready)
+	
+	my $ready = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}; 
+	
+	if ($stonith_max_attempts ne "INFINITY")
+	{
+		### TODO: Call pcs to update 
+	}
+	
+	# Pick up node data
+	
 	
 	
 	return(0);

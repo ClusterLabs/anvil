@@ -104,7 +104,7 @@ sub check_initial_setup
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
 	
 	my $internet_zone = "";
-	my $local_host    = $anvil->_short_host_name();
+	my $local_host    = $anvil->Get->short_host_name();
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});

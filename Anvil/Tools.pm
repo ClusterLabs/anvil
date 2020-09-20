@@ -26,11 +26,9 @@ my $THIS_FILE = "Tools.pm";
 # refresh
 # _add_hash_reference
 # _anvil_version
-# _host_name
 # _make_hash_reference
 # _set_defaults
 # _set_paths
-# _short_host_name
 
 use utf8;
 binmode(STDERR, ':encoding(utf-8)');
@@ -746,48 +744,6 @@ sub _anvil_version
 	return($anvil->{HOST}{ANVIL_VERSION});
 }
 
-=head3 _domain_name
-
-This returns the domain name portion of the systen's host name. That is to say, the host name after the first '.'. If there is no domain portion, nothing is returned.
-
-=cut
-sub _domain_name
-{
-	my $self  = shift;
-	my $anvil =  $self;
-	
-	my $domain_name =  $anvil->_host_name;
-	   $domain_name =~ s/^.*?\.//;
-	   $domain_name =  "" if not defined $domain_name;
-	
-	return($domain_name);
-}
-
-=head2 _host_name
-
-This returns the (full) host name for the machine this is running on.
-
-=cut
-sub _host_name
-{
-	my $self  = shift;
-	my $anvil = $self;
-	
-	my $host_name = "";
-	if ($ENV{HOSTNAME})
-	{
-		# We have an environment variable, so use it.
-		$host_name = $ENV{HOSTNAME};
-	}
-	else
-	{
-		# The environment variable isn't set. Call 'hostnamectl' on the command line.
-		($host_name, my $return_code) = $anvil->System->call({debug => 9999, shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
-	}
-	
-	return($host_name);
-}
-
 =head2 _get_hash_reference
 
 This is called when we need to parse a double-colon separated string into two or more elements which represent keys in the 'C<< $anvil->data >>' hash. Once suitably split up, the value is read and returned.
@@ -1320,22 +1276,6 @@ sub _set_paths
 	};
 	
 	return(0);
-}
-
-=head3 _short_host_name
-
-This returns the short host name for the machine this is running on. That is to say, the host name up to the first '.'.
-
-=cut
-sub _short_host_name
-{
-	my $self  = shift;
-	my $anvil =  $self;
-	
-	my $short_host_name =  $anvil->_host_name;
-	   $short_host_name =~ s/\..*$//;
-	
-	return($short_host_name);
 }
 
 =head1 Exit Codes

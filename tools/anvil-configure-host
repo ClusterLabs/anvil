@@ -165,7 +165,7 @@ sub reconfigure_network
 {
 	my ($anvil) = @_;
 	
-	my $local_host       = $anvil->_short_host_name();
+	my $local_host       = $anvil->Get->short_host_name();
 	my $reboot_needed    = 0;
 	my $prefix           = exists $anvil->data->{variables}{form}{config_step1}{prefix}{value}       ? $anvil->data->{variables}{form}{config_step1}{prefix}{value}       : "";
 	my $sequence         = exists $anvil->data->{variables}{form}{config_step1}{sequence}{value}     ? $anvil->data->{variables}{form}{config_step1}{sequence}{value}     : "";

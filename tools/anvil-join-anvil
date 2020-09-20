@@ -1068,12 +1068,12 @@ sub check_local_network
 	my ($anvil) = @_;
 	
 	# What host name and IP(s) should I have?
-	my $local_host    = $anvil->_short_host_name();
+	my $local_host    = $anvil->Get->short_host_name();
 	my $machine       = $anvil->data->{sys}{machine};
 	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
 	
 	my $domain        = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{domain};
-	my $old_host_name = $anvil->_host_name;
+	my $old_host_name = $anvil->Get->host_name;
 	my $new_host_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name};
 	if ($domain)
 	{

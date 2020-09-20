@@ -548,7 +548,7 @@ sub process_entry
 		my $peer_connected = 0;
 		until($peer_connected)
 		{
-			my $say_host = $anvil->Get->host_name({host_uuid => $host_uuid});
+			my $say_host = $anvil->Get->host_name_from_uuid({host_uuid => $host_uuid});
 			   $say_host = $host_uuid if not $say_host;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				say_host                               => $say_host, 

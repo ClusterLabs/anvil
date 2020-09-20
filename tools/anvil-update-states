@@ -127,7 +127,7 @@ sub update_network
 	# We'll read through '/sys/class/net' looking for network interfaces.
 	# * 'network::${local_host}::interface::<iface_name>::ip'          - If an IP address is set
 	# * 'network::${local_host}::interface::<iface_name>::subnet_mask' - If an IP is set
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my $directory  = "/sys/class/net";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { directory => $directory }});
 	

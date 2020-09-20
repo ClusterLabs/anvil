@@ -156,7 +156,7 @@ sub activate_lv
 	$anvil->System->check_storage({debug => $debug, scan => 2});
 	
 	# Check if it worked.
-	my $host = $anvil->_short_host_name();
+	my $host = $anvil->Get->short_host_name();
 	$activated = $anvil->data->{lvm}{$host}{lv}{$path}{active};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { activated => $activated }});
 	
@@ -1055,7 +1055,7 @@ sub check_storage
 	###       DRBD devices being "wrong medium type" when Secondary. We check for and ignore these 
 	###       warnings.
 	# Gather PV data.
-	my $host = $anvil->_short_host_name();
+	my $host = $anvil->Get->short_host_name();
 	my ($pvs_output, $pvs_return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pvs}." --units b --noheadings --separator \\\#\\\!\\\# -o pv_name,vg_name,pv_fmt,pv_attr,pv_size,pv_free,pv_used,pv_uuid 2>/dev/null"});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		pvs_output      => $pvs_output,
@@ -1907,7 +1907,7 @@ sub generate_state_json
 	# We're going to look for matches as we go, so look 
 	$anvil->Network->load_ips({
 		debug     => $debug,
-		host      => $anvil->_short_host_name(),
+		host      => $anvil->Get->short_host_name(),
 		host_uuid => $anvil->data->{sys}{host_uuid},
 	});
 	
@@ -1940,12 +1940,12 @@ sub generate_state_json
 		# Find what interface on this host we can use to talk to it (if we're not looking at ourselves).
 		my $matched_interface  = "";
 		my $matched_ip_address = "";
-		if ($host_name ne $anvil->_host_name)
+		if ($host_name ne $anvil->Get->host_name)
 		{
 			# Don't need to call 'local_ips', it was called by load_interfaces above.
 			my ($match) = $anvil->Network->find_matches({
 				debug  => $debug,
-				first  => $anvil->_short_host_name(),
+				first  => $anvil->Get->short_host_name(),
 				second => $short_host_name, 
 			});
 			
@@ -2383,7 +2383,7 @@ sub find_matching_ip
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
 	
 	# Look through our IPs. First match wins.
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});

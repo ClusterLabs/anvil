@@ -456,7 +456,7 @@ sub setup_boot_environment
 	# Get my BCN IP and active OS.
 	$anvil->Network->get_ips();
 	my $bcn_interface = "";
-	my $local_host    = $anvil->_short_host_name();
+	my $local_host    = $anvil->Get->short_host_name();
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { interface => $interface }});
@@ -485,9 +485,9 @@ sub setup_boot_environment
 	my $dns             = $anvil->data->{network}{$local_host}{interface}{$bcn_interface}{dns} ? $anvil->data->{network}{$local_host}{interface}{$bcn_interface}{dns} : $anvil->data->{defaults}{network}{dns};
 	my $domain          = "localdomain";
 	my $base_url        = "http://".$bcn_ip."/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch};
-	if ($anvil->_host_name =~ /\./)
+	if ($anvil->Get->host_name =~ /\./)
 	{
-		$domain =  $anvil->_host_name;
+		$domain =  $anvil->Get->host_name;
 		$domain =~ s/^.*?\.//;
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -502,7 +502,7 @@ sub setup_boot_environment
 	
 	### NOTE: The DNS range is a bit tricky, so for now, we'll assume that the BCN is always a /16 
 	###       network. Someday this might change, and if so, we'll need to make this a lot smarter.
-	my $striker_number =  ($anvil->_short_host_name =~ /striker(\d+)/)[0];
+	my $striker_number =  ($anvil->Get->short_host_name =~ /striker(\d+)/)[0];
 	   $striker_number =  1 if not $striker_number;
 	   $striker_number =~ s/^0//;
 	my $third_octet    =  (10 * $striker_number) + 4;
@@ -617,9 +617,9 @@ sub setup_boot_environment
 	
 	### TODO: Add repos for all known strikers
 	# Build the repository file body.
-	my $repo_file = "/etc/yum.repos.d/".$anvil->_short_host_name.".repo";
-	my $repo_body =  "[".$anvil->_short_host_name."-repo]\n";
-	   $repo_body .= "name=".$anvil->_host_name." #!string!message_0153!#\n";
+	my $repo_file = "/etc/yum.repos.d/".$anvil->Get->short_host_name.".repo";
+	my $repo_body =  "[".$anvil->Get->short_host_name."-repo]\n";
+	   $repo_body .= "name=".$anvil->Get->host_name." #!string!message_0153!#\n";
 	# Add the IPs.
 	$anvil->Network->get_ips({});
 	my $first_line = 1;

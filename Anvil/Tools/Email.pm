@@ -475,7 +475,7 @@ sub send_alerts
 	}
 	
 	# Build the emails now.
-	my $host_name = $anvil->_host_name;
+	my $host_name = $anvil->Get->host_name;
 	foreach my $recipient_uuid (keys %{$anvil->data->{alerts}{queue}})
 	{
 		my $recipient_name      = $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name};
@@ -759,7 +759,7 @@ sub _configure_for_server
 	my $relayhost_seen                  = 0;
 	my $relayhost_line                  = "relayhost = [".$mail_server_address."]:".$mail_server_port;
 	my $smtp_helo_name_seen             = 0;
-	my $smtp_helo_name_line             = "smtp_helo_name = ".$anvil->_domain_name();
+	my $smtp_helo_name_line             = "smtp_helo_name = ".$anvil->Get->domain_name();
 	my $smtp_use_tls_seen               = 0;
 	my $smtp_use_tls_line               = "smtp_use_tls = yes";
 	my $smtp_sasl_auth_enable_seen      = 0;

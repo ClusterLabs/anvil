@@ -229,7 +229,7 @@ sub find
 	}
 	
 	my $host_type    = $anvil->Get->host_type({debug => $debug});
-	my $host         = $anvil->_host_name;
+	my $host         = $anvil->Get->host_name;
 	my $virsh_output = "";
 	my $return_code  = "";
 	if ($anvil->Network->is_local({host => $target}))
@@ -340,7 +340,7 @@ sub get_status
 	}});
 	
 	# This is used in the hash reference when storing the data.
-	my $host = $target ? $target : $anvil->_short_host_name();
+	my $host = $target ? $target : $anvil->Get->short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	
 	if (not $server)
@@ -365,7 +365,7 @@ sub get_status
 	
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
-	my $this_host  = $anvil->_short_host_name;
+	my $this_host  = $anvil->Get->short_host_name;
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local.
@@ -545,7 +545,7 @@ sub map_network
 			});
 			
 			# This is used in the hash reference when storing the data.
-			my $host = $target ? $target : $anvil->_short_host_name();
+			my $host = $target ? $target : $anvil->Get->short_host_name();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 			foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}})
 			{
@@ -628,7 +628,7 @@ sub migrate
 	
 	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
 	my $source  = defined $parameter->{source} ? $parameter->{source} : "";
-	my $target  = defined $parameter->{target} ? $parameter->{target} : $anvil->_host_name;
+	my $target  = defined $parameter->{target} ? $parameter->{target} : $anvil->Get->host_name;
 	my $success = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server => $server, 
@@ -981,8 +981,8 @@ sub _parse_definition
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
 	my $source     = defined $parameter->{source}     ? $parameter->{source}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
-	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->_short_host_name;
-	my $target     = $anvil->_short_host_name();
+	my $host       = defined $parameter->{host}       ? $parameter->{host}       : $anvil->Get->short_host_name;
+	my $target     = $anvil->Get->short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		server     => $server,
 		source     => $source, 

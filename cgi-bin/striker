@@ -900,7 +900,7 @@ WHERE
 	# If we don't have $helo_domain, use the host's domain
 	if (not $helo_domain)
 	{
-		$helo_domain = $anvil->_domain_name();
+		$helo_domain = $anvil->Get->domain_name();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { helo_domain => $helo_domain }});
 	}
 	
@@ -2441,14 +2441,14 @@ sub handle_manifest
 			# Pre-load values
 			if (not $anvil->data->{cgi}{prefix}{value})
 			{
-				$anvil->data->{cgi}{prefix}{value} =  $anvil->_short_host_name() =~ /-/ ? $anvil->_short_host_name() : "xx";
+				$anvil->data->{cgi}{prefix}{value} =  $anvil->Get->short_host_name() =~ /-/ ? $anvil->Get->short_host_name() : "xx";
 				$anvil->data->{cgi}{prefix}{value} =~ s/-.*$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::prefix::value" => $anvil->data->{cgi}{prefix}{value} }});
 			}
 			
 			if (not $anvil->data->{cgi}{domain}{value})
 			{
-				$anvil->data->{cgi}{domain}{value} =  $anvil->_host_name() =~ /\./ ? $anvil->_host_name() : "example.com";
+				$anvil->data->{cgi}{domain}{value} =  $anvil->Get->host_name() =~ /\./ ? $anvil->Get->host_name() : "example.com";
 				$anvil->data->{cgi}{domain}{value} =~ s/^.*?\.//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "cgi::domain::value" => $anvil->data->{cgi}{domain}{value} }});
 			}
@@ -5916,7 +5916,7 @@ sub process_prep_host_page
 			dr_checked   => $dr_checked, 
 		}});
 		
-		my $host_name         =  $anvil->_host_name;
+		my $host_name         =  $anvil->Get->host_name;
 		   $host_name         =~ s/striker\d\d/xxx/;
 		my $default_host_name = $host_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -6194,7 +6194,7 @@ sub process_sync_page
 	
 	# We'll want to show the user way to access the local machine. For that, we'll loop through our own IPs.
 	my $inbound_table = "";
-	my $local_host    = $anvil->_short_host_name();
+	my $local_host    = $anvil->Get->short_host_name();
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		next if (($interface !~ /^bcn/) && ($interface !~ /^ifn/));
@@ -6314,7 +6314,7 @@ sub delete_sync_peer
 	my ($anvil) = @_;
 	
 	my $uuid      = $anvil->data->{cgi}{'delete'}{value};
-	my $host_name = $anvil->Get->host_name({host_uuid => $uuid});
+	my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => $uuid});
 	my $host      = $anvil->data->{database}{$uuid}{host} ? $anvil->data->{database}{$uuid}{host} : ""; # This should fail
 	my $name      = $anvil->data->{database}{$uuid}{name} ? $anvil->data->{database}{$uuid}{name} : $anvil->data->{sys}{database}{name};
 	my $user      = $anvil->data->{database}{$uuid}{user} ? $anvil->data->{database}{$uuid}{user} : $anvil->data->{sys}{database}{user};

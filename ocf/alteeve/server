@@ -692,9 +692,9 @@ sub stop_drbd_resource
 {
 	my ($anvil) = @_;
 	
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host       = $anvil->_short_host_name;
+	my $host       = $anvil->Get->short_host_name;
 	my $peer       = $anvil->data->{drbd}{config}{$host}{peer};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server  => $server,
@@ -737,9 +737,9 @@ sub start_drbd_resource
 {
 	my ($anvil) = @_;
 	
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host       = $anvil->_short_host_name;
+	my $host       = $anvil->Get->short_host_name;
 	my $peer       = $anvil->data->{drbd}{config}{$host}{peer};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server  => $server,
@@ -875,7 +875,7 @@ sub find_server
 	my ($anvil) = @_;
 	
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	my $host   = $anvil->_short_host_name;
+	my $host   = $anvil->Get->short_host_name;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0415", variables => { server => $server }});
 	foreach my $ip_address (sort {$a cmp $b} keys %{$anvil->data->{drbd}{config}{$host}{ip_addresses}})
 	{
@@ -908,7 +908,7 @@ sub find_server
 			host   => $host, 
 		}});
 		
-		if ($host eq $anvil->_host_name)
+		if ($host eq $anvil->Get->host_name)
 		{
 			# Already running, we're good, and we're done.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0416", variables => { server => $server }});
@@ -1173,7 +1173,7 @@ sub migrate_server
 	# missing. 
 	# If we're given 'migrate_from', we're pulling the server towards us, so we can check both brdiges
 	# and storage.
-	my $local_host   = $anvil->_short_host_name();
+	my $local_host   = $anvil->Get->short_host_name();
 	my $server       = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source       = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source};
 	my $target       = $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target};
@@ -1269,7 +1269,7 @@ sub migrate_server
 		
 		# Make sure all resource(s) are ready for the server.
 		my $all_up_to_date = 1;
-		my $host           = $anvil->_short_host_name;
+		my $host           = $anvil->Get->short_host_name;
 		my $peer_name      = $anvil->data->{drbd}{config}{$host}{peer};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			host      => $host, 
@@ -1394,7 +1394,7 @@ sub migrate_server
 		
 		# This is called after a migration. If that is the case here, the target will be us. Just 
 		# make sure it is running and, if so, return '0'. The 'meta_on_node' is the new host.
-		if (($target eq $anvil->_host_name) or ($target eq $anvil->_short_host_name) or ($target eq $meta_on_node))
+		if (($target eq $anvil->Get->host_name) or ($target eq $anvil->Get->short_host_name) or ($target eq $meta_on_node))
 		{
 			# If it's running, we're succesfully out.
 			if ((($host eq $target) or ($short_host eq $target)) && ($status eq "running"))
@@ -1487,7 +1487,7 @@ sub validate_bridges
 	$anvil->Get->bridges({debug => 3});
 	
 	# Find the Optical drives and DRBD devices.
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{from_disk}{device}{interface}})
 	{
@@ -1534,7 +1534,7 @@ sub validate_storage
 		server => $server, 
 		target => $target,
 	}});
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my $xml_source = "from_disk";
 	if ($anvil->data->{server}{$local_host}{$server}{from_memory}{host})
 	{
@@ -1594,8 +1594,8 @@ sub validate_storage_drbd
 	# Now check storage.
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $xml_source = "from_disk";
-	my $host       = $anvil->_short_host_name;
-	my $local_host = $anvil->_short_host_name();
+	my $host       = $anvil->Get->short_host_name;
+	my $local_host = $anvil->Get->short_host_name();
 	
 	# Did I find a resource for each disk?
 	foreach my $device_path (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{device}})
@@ -1676,7 +1676,7 @@ sub validate_emulator
 	my ($anvil) = @_;
 	
 	# What emulator is this using?
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $emulator   = $anvil->data->{server}{$local_host}{$server}{from_disk}{info}{emulator};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
@@ -1708,7 +1708,7 @@ sub validate_name
 {
 	my ($anvil) = @_;
 	
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my $server     = $anvil->data->{environment}{OCF_RESKEY_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server                                            => $server,
@@ -1745,7 +1745,7 @@ sub validate_ram
 	my ($anvil) = @_;
 	
 	# How mcuh RAM does the server need and how much do we have free?
-	my $local_host       = $anvil->_short_host_name();
+	my $local_host       = $anvil->Get->short_host_name();
 	my $server           = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $server_ram_bytes = $anvil->data->{server}{$local_host}{$server}{from_disk}{memory};
 	my $available        = $anvil->Get->free_memory({debug => 3});

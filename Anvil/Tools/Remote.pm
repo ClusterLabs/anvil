@@ -313,7 +313,7 @@ sub call
 	}});
 	
 	# In case 'target' is our short host name, change it to ''.
-	if ($target eq $anvil->_short_host_name())
+	if ($target eq $anvil->Get->short_host_name())
 	{
 		$target = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});

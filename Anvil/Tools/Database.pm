@@ -1568,8 +1568,8 @@ sub connect
 			
 			# Set the first ID to be the one I read from later. Alternatively, if this host is 
 			# local, use it.
-			if (($host eq $anvil->_host_name)       or 
-			    ($host eq $anvil->_short_host_name) or 
+			if (($host eq $anvil->Get->host_name)       or 
+			    ($host eq $anvil->Get->short_host_name) or 
 			    ($host eq "localhost")              or 
 			    ($host eq "127.0.0.1")              or 
 			    (not $anvil->data->{sys}{database}{read_uuid}))
@@ -3080,7 +3080,7 @@ sub get_local_uuid
 	$anvil->Network->get_ips({debug => $debug});
 	
 	# Look for matches
-	my $host = $anvil->_short_host_name();
+	my $host = $anvil->Get->short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { local_uuid => $local_uuid }});
 	if (not $local_uuid)
 	{
@@ -3218,7 +3218,7 @@ AND
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	my $local_host = $anvil->_short_host_name;
+	my $local_host = $anvil->Get->short_host_name;
 	   $results    = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	   $count      = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -5850,7 +5850,7 @@ sub insert_or_update_hosts
 	my $line      = defined $parameter->{line}      ? $parameter->{line}      : "";
 	my $host_ipmi = defined $parameter->{host_ipmi} ? $parameter->{host_ipmi} : "";
 	my $host_key  = defined $parameter->{host_key}  ? $parameter->{host_key}  : "";
-	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->_host_name;
+	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : $anvil->Get->host_name;
 	my $host_type = defined $parameter->{host_type} ? $parameter->{host_type} : $anvil->Get->host_type;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -7037,7 +7037,7 @@ WHERE
 	# Fill some data
 	if (not $mail_server_helo_domain)
 	{
-		$mail_server_helo_domain = $anvil->_domain_name();
+		$mail_server_helo_domain = $anvil->Get->domain_name();
 		if (not $mail_server_helo_domain)
 		{
 			# Fall back on 'localdomain'
@@ -11004,7 +11004,7 @@ sub locking
 	}});
 	
 	# These are used to ID this lock.
-	my $source_name = $anvil->_host_name;
+	my $source_name = $anvil->Get->host_name;
 	my $source_uuid = $anvil->data->{sys}{host_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		source_name => $source_name, 
@@ -11068,7 +11068,7 @@ sub locking
 			}});
 			
 			# Log that the lock has been released.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0039", variables => { host => $anvil->_host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0039", variables => { host => $anvil->Get->host_name }});
 		}
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
@@ -11098,7 +11098,7 @@ sub locking
 		}});
 		
 		# Log that we've renewed the lock.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0044", variables => { host => $anvil->_host_name }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0044", variables => { host => $anvil->Get->host_name }});
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 		return($set);
@@ -11187,7 +11187,7 @@ sub locking
 			}});
 			
 			# Log that we've got the lock.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $anvil->_host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0045", variables => { host => $anvil->Get->host_name }});
 		}
 	}
 	
@@ -12671,7 +12671,7 @@ sub resync_databases
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0221", variables => { 
 					to_write  => $anvil->Convert->add_commas({number => $to_write_count}),
 					table     => $table, 
-					host_name => $anvil->Get->host_name({host_uuid => $uuid}), 
+					host_name => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}), 
 				}});
 				$anvil->Database->write({debug => $debug, uuid => $uuid, query => $merged, source => $THIS_FILE, line => __LINE__});
 				undef $merged;
@@ -13421,7 +13421,7 @@ ORDER BY
 			# We've been asked to resync this DB.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0476", variables => { 
 				uuid => $uuid,
-				host => $anvil->Get->host_name({host_uuid => $uuid}),
+				host => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
 			}});
 			
 			# Mark it as behind.
@@ -13459,7 +13459,7 @@ ORDER BY
 					seconds => $difference, 
 					table   => $table, 
 					uuid    => $uuid,
-					host    => $anvil->Get->host_name({host_uuid => $uuid}),
+					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
 				}});
 				
 				# Mark it as behind.
@@ -13478,7 +13478,7 @@ ORDER BY
 					missing => $difference, 
 					table   => $table, 
 					uuid    => $uuid,
-					host    => $anvil->Get->host_name({host_uuid => $uuid}),
+					host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}),
 				}});
 				
 				# Mark it as behind.

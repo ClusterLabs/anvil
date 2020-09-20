@@ -143,7 +143,7 @@ sub allow_two_primaries
 	}
 	
 	# Do we need to scan devices?
-	my $host = $anvil->_short_host_name;
+	my $host = $anvil->Get->short_host_name;
 	if (not $anvil->data->{drbd}{config}{$host}{peer})
 	{
 		# Get our device list.
@@ -276,7 +276,7 @@ sub get_devices
 	}});
 	
 	# Is this a local call or a remote call?
-	my $host       = $anvil->_short_host_name;
+	my $host       = $anvil->Get->short_host_name;
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dump-xml";
 	my $output     = "";
 	if ($anvil->Network->is_local({host => $target}))
@@ -402,11 +402,11 @@ sub get_devices
 			### TODO: Handle external metadata
 			my $this_host = $host_href->{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				this_host                  => $this_host,
-				'$anvil->_host_name'       => $anvil->_host_name, 
-				'$anvil->_short_host_name' => $anvil->_short_host_name, 
+				this_host                      => $this_host,
+				'$anvil->Get->host_name'       => $anvil->Get->host_name, 
+				'$anvil->Get->short_host_name' => $anvil->Get->short_host_name, 
 			}});
-			if (($this_host eq $anvil->_host_name) or ($this_host eq $anvil->_short_host_name))
+			if (($this_host eq $anvil->Get->host_name) or ($this_host eq $anvil->Get->short_host_name))
 			{
 				$anvil->data->{drbd}{config}{$host}{host} = $this_host;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "drbd::config::${host}::host" => $anvil->data->{drbd}{config}{$host}{host} }});
@@ -567,7 +567,7 @@ sub get_status
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
-	my $host       = $anvil->_short_host_name();
+	my $host       = $anvil->Get->short_host_name();
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Clear the hash where we'll store the data.

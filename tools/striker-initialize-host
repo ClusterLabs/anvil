@@ -147,7 +147,7 @@ sub add_databases
 		password    => $anvil->data->{data}{password}, 
 		port        => $anvil->data->{data}{ssh_port}, 
 	});
-	my $local_host = $anvil->_short_host_name();
+	my $local_host = $anvil->Get->short_host_name();
 	my ($match)    = $anvil->Network->find_matches({
 		debug  => 3,
 		first  => $local_host,
@@ -347,7 +347,7 @@ sub add_repos
 		# NOTE: We can't use Storage->write_file() because the target may not have 'rsync' installed
 		#       yet.
 		my $shell_call = "
-".$anvil->data->{path}{exe}{cat}." > /etc/yum.repos.d/".$anvil->_short_host_name.".repo << EOF
+".$anvil->data->{path}{exe}{cat}." > /etc/yum.repos.d/".$anvil->Get->short_host_name.".repo << EOF
 $repo
 EOF
 ";

@@ -20,7 +20,10 @@ my $THIS_FILE = "Get.pm";
 # bridges
 # cgi
 # date_and_time
+# domain_name
 # free_memory
+# host_name
+# host_name_from_uuid
 # host_type
 # host_uuid
 # md5sum
@@ -268,7 +271,7 @@ sub bridges
 	}});
 	
 	# Delete any previously known data
-	my $host = $anvil->_short_host_name();
+	my $host = $anvil->Get->short_host_name();
 	if (exists $anvil->data->{$host}{network}{bridges})
 	{
 		delete $anvil->data->{$host}{network}{bridges};
@@ -725,7 +728,58 @@ sub date_and_time
 	return($return_string);
 }
 
+
+=head2 domain_name
+
+This returns the domain name portion of the local system's host name. That is to say, the host name after the first C<< . >>. If there is no domain portion, nothing is returned.
+
+This method takes no parameters.
+
+=cut
+sub domain_name
+{
+	### NOTE: This method doesn't offer logging.
+	my $self  = shift;
+	my $anvil = $self->parent;
+	
+	my $domain_name =  $anvil->Get->host_name;
+	   $domain_name =~ s/^.*?\.//;
+	   $domain_name =  "" if not defined $domain_name;
+	
+	return($domain_name);
+}
+
+
 =head2 host_name
+
+This returns the full host name for the local machine.
+
+This method takes no parameters.
+
+=cut
+sub host_name
+{
+	### NOTE: This method doesn't offer logging.
+	my $self  = shift;
+	my $anvil = $self->parent;
+	
+	my $host_name = "";
+	if ($ENV{HOSTNAME})
+	{
+		# We have an environment variable, so use it.
+		$host_name = $ENV{HOSTNAME};
+	}
+	else
+	{
+		# The environment variable isn't set. Call 'hostnamectl' on the command line.
+		($host_name, my $return_code) = $anvil->System->call({debug => 9999, shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static"});
+	}
+	
+	return($host_name);
+}
+
+
+=head2 host_name_from_uuid
 
 This takes a host UUID and returns the host name (as recorded in the C<< hosts >> table). If the entry is not found, an empty string is returned.
 
@@ -736,13 +790,13 @@ Parameters;
 This is the C<< host_uuid >> to translate into a host name.
 
 =cut
-sub host_name
+sub host_name_from_uuid
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_name()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_name_from_uuid()" }});
 	
 	my $host_name = "";
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
@@ -837,7 +891,7 @@ sub host_type
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_type()" }});
 	
 	my $host_type = "";
-	my $host_name = $anvil->_short_host_name;
+	my $host_name = $anvil->Get->short_host_name;
 	   $host_type = "unknown";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_type        => $host_type,
@@ -1146,6 +1200,27 @@ sub os_type
 	}});
 	return($os_type, $os_arch);
 }
+
+
+=head2 short_host_name
+
+This returns the short host name for the machine this is running on. That is to say, the host name up to the first C<< . >>.
+
+The method takes no parameters.
+
+=cut
+sub short_host_name
+{
+	### NOTE: This method doesn't offer logging.
+	my $self  = shift;
+	my $anvil = $self->parent;
+	
+	my $short_host_name =  $anvil->Get->host_name;
+	   $short_host_name =~ s/\..*$//;
+	
+	return($short_host_name);
+}
+
 
 =head2 switches
 

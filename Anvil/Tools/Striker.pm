@@ -523,7 +523,7 @@ sub get_local_repo
 	# What are my IPs?
 	$anvil->Network->get_ips();
 	my $base_url = "";
-	my $host     = $anvil->_short_host_name();
+	my $host     = $anvil->Get->short_host_name();
 	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{interface}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
@@ -547,8 +547,8 @@ sub get_local_repo
 	###       - https://docs.fedoraproject.org/en-US/modularity/making-modules/defining-modules/
 	###       - https://docs.fedoraproject.org/en-US/modularity/hosting-modules/
 	# Create the local repo file body
-	my $repo = "[".$anvil->_short_host_name."-repo]
-name=Repo on ".$anvil->_host_name."
+	my $repo = "[".$anvil->Get->short_host_name."-repo]
+name=Repo on ".$anvil->Get->host_name."
 ".$base_url."
 enabled=1
 gpgcheck=0
@@ -1130,7 +1130,7 @@ sub parse_all_status_json
 	# We're going to look for matches as we go, so look 
 	$anvil->Network->load_ips({
 		debug     => $debug,
-		host      => $anvil->_short_host_name(),
+		host      => $anvil->Get->short_host_name(),
 		host_uuid => $anvil->data->{sys}{host_uuid},
 	});
 	
@@ -1160,7 +1160,7 @@ sub parse_all_status_json
 		# Find what interface on this host we can use to talk to it (if we're not looking at ourselves).
 		my $matched_interface  = "";
 		my $matched_ip_address = "";
-		if ($host_name ne $anvil->_host_name)
+		if ($host_name ne $anvil->Get->host_name)
 		{
 			$anvil->Network->load_ips({
 				debug     => $debug, 
@@ -1169,7 +1169,7 @@ sub parse_all_status_json
 			});
 			my ($match) = $anvil->Network->find_matches({
 				debug  => 3,
-				first  => $anvil->_short_host_name(),
+				first  => $anvil->Get->short_host_name(),
 				second => $short_name, 
 			});
 			if ($match)

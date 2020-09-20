@@ -186,7 +186,7 @@ sub bridge_info
 	{
 		my $bridge    = $hash_ref->{master};
 		my $interface = $hash_ref->{ifname};
-		my $host      = $target ? $target : $anvil->_short_host_name();
+		my $host      = $target ? $target : $anvil->Get->short_host_name();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:bridge'    => $bridge,
 			's2:interface' => $interface, 
@@ -1493,7 +1493,7 @@ sub get_ips
 	}});
 	
 	# This is used in the hash reference when storing the data.
-	my $host = $target ? $target : $anvil->_short_host_name();
+	my $host = $target ? $target : $anvil->Get->short_host_name();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	
 	if (exists $anvil->data->{network}{$host})
@@ -1939,8 +1939,8 @@ sub is_local
 	}
 	
 	$anvil->data->{cache}{is_local}{$host} = 0;
-	if (($host eq $anvil->_host_name)       or 
-	    ($host eq $anvil->_short_host_name) or 
+	if (($host eq $anvil->Get->host_name)       or 
+	    ($host eq $anvil->Get->short_host_name) or 
 	    ($host eq "localhost")              or 
 	    ($host eq "127.0.0.1"))
 	{
@@ -1951,7 +1951,7 @@ sub is_local
 	else
 	{
 		# Get the list of current IPs and see if they match.
-		my $local_host = $anvil->_short_host_name();
+		my $local_host = $anvil->Get->short_host_name();
 		if (not exists $anvil->data->{network}{$local_host}{interface})
 		{
 			$anvil->Network->get_ips({debug => 9999});
@@ -2349,7 +2349,7 @@ sub read_nmcli
 	
 	if (not $host)
 	{
-		$host = $target ? $target : $anvil->_short_host_name();
+		$host = $target ? $target : $anvil->Get->short_host_name();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
 	}
 	
