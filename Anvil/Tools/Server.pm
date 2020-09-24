@@ -12,12 +12,12 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Server.pm";
 
 ### Methods;
-# boot
+# boot_virsh
 # find
 # get_status
 # map_network
-# migrate
-# shutdown
+# migrate_virsh
+# shutdown_virsh
 
 =pod
 
@@ -78,13 +78,13 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
-=head2 boot
+=head2 boot_virsh
 
 This takes a server name and tries to boot it (using C<< virsh create /mnt/shared/definition/<server>.xml >>. It requires that any supporting systems already be started (ie: DRBD resource is up).
 
 If booted, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
 
- my ($booted) = $anvil->Server->boot({server => "test_server"});
+#  my ($booted) = $anvil->Server->boot_virsh({server => "test_server"});
 
 Parameters;
 
@@ -99,13 +99,13 @@ By default, the definition file used will be named C<< <server>.xml >> in the C<
 This is the name of the server, as it appears in C<< virsh >>.
 
 =cut
-sub boot
+sub boot_virsh
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->boot()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->boot_virsh()" }});
 	
 	my $server     = defined $parameter->{server}     ? $parameter->{server}     : "";
 	my $definition = defined $parameter->{definition} ? $parameter->{definition} : "";
@@ -117,7 +117,7 @@ sub boot
 	
 	if (not $server)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->boot()", parameter => "server" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->boot_virsh()", parameter => "server" }});
 		return(1);
 	}
 	if (not $definition)
@@ -595,11 +595,15 @@ Provision order:
 	return(0);
 }
 
-=head2 migrate
+=head2 migrate_virsh
 
 This will migrate (push or pull) a server from one node to another. If the migration was successful, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned with a (hopefully) useful error being logged.
 
-NOTE: It is assumed that sanity checks are completed before this method is called.
+Generally speaking, this is B<< NOT >> the method you want to call. 
+
+B<< Warning >>: This method is meant to do the raw C<< virsh >> call, it is NOT designed to be called by pacemaker. To migrate via pacemaker, use C<< Cluster->migrate >>.
+
+B<< Note >>: It is assumed that sanity checks are completed before this method is called.
 
 Parameters;
 
@@ -618,13 +622,13 @@ If set, the server will be pulled.
 This is the host name (or IP) Of the host that the server will be pushed to, if C<< source >> is not set. When this is not passed, the local full host name is used as default.
 
 =cut
-sub migrate
+sub migrate_virsh
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->migrate()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->migrate_virsh()" }});
 	
 	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
 	my $source  = defined $parameter->{source} ? $parameter->{source} : "";
@@ -638,7 +642,7 @@ sub migrate
 	
 	if (not $server)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->migrate()", parameter => "server" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->migrate_virsh()", parameter => "server" }});
 		return($success);
 	}
 	
@@ -745,13 +749,13 @@ sub migrate
 	return($success);
 }
 
-=head2 shutdown
+=head2 shutdown_virsh
 
 This takes a server name and tries to shut it down. If the server was found locally, the shut down is requested and this method will wait for the server to actually shut down before returning.
 
 If shut down, C<< 1 >> is returned. If the server wasn't found or another problem occurs, C<< 0 >> is returned.
 
- my ($shutdown) = $anvil->Server->shutdown({server => "test_server"});
+ my ($shutdown) = $anvil->Server->shutdown_virsh({server => "test_server"});
 
 Parameters;
 
@@ -770,13 +774,13 @@ This is the name of the server (as it appears in C<< virsh >>) to shut down.
 By default, this method will wait indefinetly for the server to shut down before returning. If this is set to a non-zero number, the method will wait that number of seconds for the server to shut dwwn. If the server is still not off by then, C<< 0 >> is returned.
 
 =cut
-sub shutdown
+sub shutdown_virsh
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->shutdown()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->shutdown_virsh()" }});
 	
 	my $server = defined $parameter->{server} ? $parameter->{server} : "";
 	my $force  = defined $parameter->{force}  ? $parameter->{force}  : 0;
@@ -789,7 +793,7 @@ sub shutdown
 	
 	if (not $server)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->shutdown()", parameter => "server" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->shutdown_virsh()", parameter => "server" }});
 		return($success);
 	}
 	if (($wait) && ($wait =~ /\D/))

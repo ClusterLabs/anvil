@@ -54,7 +54,7 @@ if ($problem)
 	$anvil->nice_exit({exit_code => 1});
 }
 
-$anvil->Log->entry({test => 1, source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0001", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0001", variables => { program => $THIS_FILE }});
 if ($anvil->data->{switches}{purge})
 {
 	# This can be called when doing bulk-database purges.
@@ -77,6 +77,7 @@ if ($host_type ne "node")
 # Read the data.
 collect_data($anvil);
 
+# Read last scan
 
 
 $anvil->nice_exit({exit_code => 0});
@@ -108,16 +109,34 @@ sub collect_data
 	
 	### TODO: If we're node 2, or not in the cluster, only update our information in the
 	###       'scan_cluster_nodes' table. Node 1 will update everything else if it's 'ready' (else node 2
-	###       will, if it's ready)
+	###       will, if it's ready).
+	my $i_am           = $anvil->Cluster->which_node({debug => 1});
+	my $my_node_name   = $anvil->data->{cib}{parsed}{'local'}{name};
+	my $peer_node_name = $anvil->data->{cib}{parsed}{peer}{name};
+	my $peer_ready     = $anvil->data->{cib}{parsed}{peer}{ready};
+	my $local_ready    = $anvil->data->{cib}{parsed}{data}{node}{$my_node_name}{node_state}{ready};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		i_am           => $i_am, 
+		my_node_name   => $my_node_name, 
+		peer_node_name => $peer_node_name, 
+		peer_ready     => $peer_ready, 
+		local_ready    => $local_ready, 
+	}});
 	
-	my $ready = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}; 
+	### TODO: Change the logic so that when both nodes are in the cluster, the node with the lowest
+	###       load does the scan (typically the node without VMs).
+	if (($i_am eq "node2") && ($peer_ready))
+	{
+		# We're not going to run.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_cluster_message_0001"});
+		$anvil->nice_exit({exit_code => 0});
+	}
 	
+	# If we're still alive, we're either node 1, or we're node 2 and node 1 is not ready. If we're not ready, 
 	if ($stonith_max_attempts ne "INFINITY")
 	{
 		### TODO: Call pcs to update 
 	}
-	
-	# Pick up node data
 	
 	
 	

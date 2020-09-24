@@ -3,7 +3,7 @@
 #   This is the resource agent used to manage servers on the Anvil! Intelligent Availability platform.
 #
 #   License: GNU General Public License (GPL) v2+
-#            (c) 1997-2019 - Alteeve's Niche! Inc.
+#            (c) 1997-2020 - Alteeve's Niche! Inc.
 # 
 # WARNING: This is a pretty purpose-specific resource agent. No effort was made to test this on an rgmanager
 #          cluster or on any configuration outside how the Anvil! m3 uses it. If you plan to adapt it to 
@@ -665,7 +665,7 @@ sub start_server
 	start_drbd_resource($anvil);
 	
 	# Still alive? Boot!
-	my ($success) = $anvil->Server->boot({debug => 3, server => $server});
+	my ($success) = $anvil->Server->boot_virsh({debug => 3, server => $server});
 	if ($success)
 	{
 		# Success!
@@ -955,7 +955,7 @@ sub stop_server
 	$anvil->Server->get_status({debug => 3, server => $server});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0313", variables => { server => $server }});
-	my $success = $anvil->Server->shutdown({debug => 3, server => $server});
+	my $success = $anvil->Server->shutdown_virsh({debug => 3, server => $server});
 	if (not $success)
 	{
 		# Something went wrong. Details should be in the logs.
@@ -997,7 +997,7 @@ sub server_status
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
 	
-	# Is 'libvirtd' running? We'll wait up to halfthe timeout for it to start (in case it _just_ started)
+	# Is 'libvirtd' running? We'll wait up to half the timeout for it to start (in case it _just_ started)
 	# before timing out.
 	my $wait_until    = time + ($anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} / 2000); # Devide by 2000 to convert to seconds and total second halved.
 	my $look_for_pid  = 0;
@@ -1358,7 +1358,7 @@ sub migrate_server
 		}
 		
 		# If we're still alive, we're ready to migrate.
-		($migrated) = $anvil->Server->migrate({
+		($migrated) = $anvil->Server->migrate_virsh({
 			debug  => 3, 
 			server => $server, 
 			source => $source, 
@@ -1413,7 +1413,7 @@ sub migrate_server
 		validate_all($anvil);
 		
 		# Call the pull migation.
-		($migrated) = $anvil->Server->migrate({
+		($migrated) = $anvil->Server->migrate_virsh({
 			debug  => 3, 
 			server => $server, 
 			source => $source,

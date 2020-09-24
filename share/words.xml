@@ -216,6 +216,21 @@ The error was:
 		<key name="error_0141">There appears to be no mail server in the database with the UUID: [#!variable!uuid!#].</key>
 		<key name="error_0142">There alert level: [#!variable!alert_level!#] is invalid. Valid values are '1' / 'critical', '2' / 'warning, '3' / 'notice', and '4' / 'info'.</key>
 		<key name="error_0143">Failed to write the email alert file: [#!variable!file!#]! Unable to process the alert. Check the logs above for possible reasons for the error.</key>
+		<key name="error_0144">I was asked to change the preferred host node of the server: [#!variable!server!#] to: [#!variable!node!#], but that doesn't match the name of either node in the cluster. The node names are: [#!variable!node1!#] and [#!variable!node2!#].</key>
+		<key name="error_0145">Unable to boot the server: [#!variable!server!#] as the cluster isn't running or there was a problem parsing the cluster CIB.</key>
+		<key name="error_0146">Unable to boot the server: [#!variable!server!#] as this host is not a node.</key>
+		<key name="error_0147">Unable to boot the server: [#!variable!server!#] as this node is not (yet) a full member of the cluster.</key>
+		<key name="error_0148">Unable to set the preferred host of the server: [#!variable!server!#] to: [#!variable!node!#] as this node is not (yet) a full member of the cluster.</key>
+		<key name="error_0149">Unable to boot the server: [#!variable!server!#] as this server was not found in the cluster information base (CIB).</key>
+		<key name="error_0150">Unable to shut down the server: [#!variable!server!#] as this host is not a node.</key>
+		<key name="error_0151">Unable to shut down the server: [#!variable!server!#] as the cluster isn't running or there was a problem parsing the cluster CIB.</key>
+		<key name="error_0152">Unable to shut down the server: [#!variable!server!#] as this node is not (yet) a full member of the cluster.</key>
+		<key name="error_0153">Unable to shut down the server: [#!variable!server!#] as this server was not found in the cluster information base (CIB).</key>
+		<key name="error_0154">Unable to migrate the server: [#!variable!server!#] as this host is not a node.</key>
+		<key name="error_0155">Unable to migrate the server: [#!variable!server!#] as the cluster isn't running or there was a problem parsing the cluster CIB.</key>
+		<key name="error_0156">Unable to migrate the server: [#!variable!server!#] as this node is not (yet) a full member of the cluster.</key>
+		<key name="error_0157">Unable to migrate the server: [#!variable!server!#] as the peer node is not (yet) a full member of the cluster.</key>
+		<key name="error_0158">Unable to migrate the server: [#!variable!server!#] as this server was not found in the cluster information base (CIB).</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1032,6 +1047,14 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0545">The table: [#!variable!table!#] does NOT exists in the database on the host: [#!variable!host!#]. Will load the schema file: [#!variable!file!#] now.</key>
 		<key name="log_0546">The passed in 'temperature_state' value: [#!variable!temperature_state!#] is invalid. The value must be 'ok', 'warning' or 'critical'.</key>
 		<key name="log_0547">The passed in 'temperature_is' value: [#!variable!temperature_is!#] is invalid. The value must be 'nominal', 'warning' or 'critical'.</key>
+		<key name="log_0548">The server: [#!variable!server!#] is already running, no need to boot it.</key>
+		<key name="log_0549">The server: [#!variable!server!#] is already running on the target node: [#!variable!requested_node!#], migration not needed.</key>
+		<key name="log_0550">Waiting for the server: [#!variable!server!#] to finish migrating to the node: [#!variable!requested_node!#]...</key>
+		<key name="log_0551">The migration of the server: [#!variable!server!#] to the node: [#!variable!requested_node!#] is complete!</key>
+		<key name="log_0552">Waiting for the server: [#!variable!server!#] to boot...</key>
+		<key name="log_0553">The server: [#!variable!server!#] has booted!</key>
+		<key name="log_0554">Waiting for the server: [#!variable!server!#] to shut down...</key>
+		<key name="log_0555">The server: [#!variable!server!#] is now off.</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1814,6 +1837,9 @@ The error was:
 		<key name="warning_0056">[ Warning ] - The DR Host is set to the same machine as Node 2.</key>
 		<key name="warning_0057">[ Warning ] - The 'libvirtd' daemon is not running. Checking to see if the server is running by looking for its PID (server state won't be available). Please start 'libvirtd'!</key>
 		<key name="warning_0058">[ Warning ] - The server: [#!variable!server!#] is in a crashed state!</key>
+		<key name="warning_0059">[ Warning ] - The server: [#!variable!server!#] was asked to be booted on: [#!variable!requested_node!#], but it is is already running on: [#!variable!current_host!#].</key>
+		<key name="warning_0060">[ Warning ] - The server: [#!variable!server!#] was asked to be shutdown, but it's in an unexpected state: [#!variable!state!#] on the host: [#!variable!current_host!#]. Aborting.</key>
+		<key name="warning_0061">[ Warning ] - The server: [#!variable!server!#] was asked to be migrated to: [#!variable!requested_node!#], but the server is off. Aborting.</key>
 		
 	</language>
 	<!-- 日本語 -->

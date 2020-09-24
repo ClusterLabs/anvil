@@ -14,11 +14,15 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Cluster.pm";
 
 ### Methods;
+# boot_server
 # check_node_status
 # get_peers
+# migrate_server
 # parse_cib
+# shutdown_server
 # start_cluster
 # which_node
+# _set_server_constraint
 
 =pod
 
@@ -78,6 +82,162 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+=head2 boot_server
+
+This uses pacemaker to boot a server.
+
+If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 server (required)
+
+This is the name of the server to boot.
+
+=head3 node (optional)
+
+If set, a resource constraint is placed so that the server prefers one node over the other before it boots.
+
+B<< Note >>; The method relies on pacemaker to boot the node. As such, if for some reason it decides the server can not be booted on the prefered node, it may boot on the other node. As such, this parameter does not guarantee that the server will be booted on the target node!
+
+=head3 wait (optional, default '1')
+
+This controls whether the method waits for the server to shut down before returning. By default, it will go into a loop and check every 2 seconds to see if the server is still running. Once it's found to be off, the method returns. If this is set to C<< 0 >>, the method will return as soon as the request to shut down the server is issued.
+
+=cut
+sub boot_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->boot_server()" }});
+	
+	my $node   = defined $parameter->{node}   ? $parameter->{node}   : "";
+	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		node   => $node,
+		server => $server,
+		'wait' => $wait,
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->boot_server()", parameter => "server" }});
+		return("!!error!!");
+	}
+	
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0146", variables => { server => $server }});
+		return("!!error!!");
+	}
+	
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0145", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is this node fully in the cluster?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0147", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is the server one we know of?
+	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
+	{
+		# The server isn't in the pacemaker config.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0149", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is the server already running? If so, do nothing.
+	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		status => $status,
+		host   => $host, 
+	}});
+	
+	if ($status eq "running")
+	{
+		# Nothing to do.
+		if ((not $node) or ($host eq $node))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0548", variables => { server => $server }});
+			return(0);
+		}
+		else
+		{
+			# It's running, but on the other node.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0059", variables => { 
+				server         => $server,
+				requested_node => $node,
+				current_host   => $host,
+			}});
+			return(0);
+		}
+	}
+	
+	if ($node)
+	{
+		$anvil->Cluster->_set_server_constraint({
+			server         => $server,
+			preferred_node => $node,
+		});
+	}
+	
+	# Now boot the server.
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{pcs}." resource enable ".$server});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	if (not $wait)
+	{
+		# We're done.
+		return(0);
+	}
+	
+	# Wait now for the server to start.
+	my $waiting = 1;
+	while($waiting)
+	{
+		$anvil->Cluster->parse_cib({debug => $debug});
+		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			status => $status,
+			host   => $host, 
+		}});
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0552", variables => { server => $server }});
+		if ($host eq "running")
+		{
+			# It's up.
+			$waiting = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0553", variables => { server => $server }});
+		}
+		else
+		{
+			# Wait a bit and check again.
+			sleep 2;
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 check_node_status
 
 This takes a node name (generally the short host name) and, using a C<< parse_cib >> call data (made before calling this method), the node's ready state will be checked. If the node is ready, C<< 1 >> is returned. If not, C<< 0 >> is returned. If there is a problem, C<< !!error!! >> is returned.
@@ -104,7 +264,7 @@ sub check_node_status
 	
 	if (not $node_name)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->get_host_from_uuid()", parameter => "host_uuid" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->get_host_from_uuid()", parameter => "host_uuid" }});
 		return("!!error!!");
 	}
 	
@@ -202,7 +362,7 @@ sub get_peers
 		elsif ($host_uuid eq $anvil_node2_host_uuid)
 		{
 			# Found our Anvil!, and we're node 1.
-			$found                             = 1;
+			$found                              = 1;
 			$anvil->data->{sys}{anvil}{i_am}    = "node2";
 			$anvil->data->{sys}{anvil}{peer_is} = "node1";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -247,6 +407,181 @@ sub get_peers
 	
 	return($peer);
 }
+
+
+=head2 migrate_server
+
+This manipulates pacemaker's location constraints to trigger a pacemaker-controlled migration of one or more servers.
+
+This method works by confirming that the server is running and it not on the target C<< node >>. If the server is server indeed needs to be migrated, a location constraint is set to give preference to the target node. Optionally, this method can wait until the migration is complete.
+
+B<< Note >>: This method does not make the actual C<< virsh >> call! To perform a migration B<< OUTSIDE >> pacemaker, use C<< Server->migrate_virsh() >>. 
+
+Parameters;
+
+=head3 server (required)
+
+This is the server to migrate.
+
+=head3 node (required)
+
+This is the name of the node to move the server to. 
+
+=head3 wait (optional, default '1')
+
+This controls whether the method waits for the server to shut down before returning. By default, it will go into a loop and check every 2 seconds to see if the server is still running. Once it's found to be off, the method returns. If this is set to C<< 0 >>, the method will return as soon as the request to shut down the server is issued.
+
+=cut
+sub migrate_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->migrate_server()" }});
+	
+	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	my $node   = defined $parameter->{node}   ? $parameter->{node}   : "";
+	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		server => $server,
+		node   => $node, 
+		'wait' => $wait,
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->migrate_server()", parameter => "server" }});
+		return("!!error!!");
+	}
+	
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0154", variables => { server => $server }});
+		return("!!error!!");
+	}
+	
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0155", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Are both nodes fully in the cluster?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0156", variables => { server => $server }});
+		return('!!error!!');
+	}
+	if (not $anvil->data->{cib}{parsed}{peer}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0157", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is the server one we know of?
+	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
+	{
+		# The server isn't in the pacemaker config.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0158", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is the server already running? If so, where?
+	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		status => $status,
+		host   => $host, 
+	}});
+	
+	if ($status eq "off")
+	{
+		# It's not running on either node, nothing to do.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0061", variables => { 
+			server         => $server,
+			requested_node => $node,
+		}});
+		return(0);
+	}
+	elsif (($status eq "running") && ($host eq $node))
+	{
+		# Already running on the target.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0549", variables => { 
+			server         => $server,
+			requested_node => $node,
+		}});
+		return(0);
+	}
+	elsif ($status ne "running")
+	{
+		# The server is in an unknown state.
+		# It's in an unknown state, abort.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0060", variables => { 
+			server        => $server,
+			current_host  => $host,
+			current_state => $status, 
+		}});
+		return('!!error!!');
+	}
+	
+	# TODO: Record that the server is migrating
+	
+	# change the constraint to trigger the move.
+	if ($node)
+	{
+		$anvil->Cluster->_set_server_constraint({
+			server         => $server,
+			preferred_node => $node,
+		});
+	}
+	
+	if (not $wait)
+	{
+		# We'll leave it to the scan-server scan agent to clear the migration flag from the database.
+		return(0);
+	}
+	
+	# Wait now for the server to start.
+	my $waiting = 1;
+	while($waiting)
+	{
+		$anvil->Cluster->parse_cib({debug => $debug});
+		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			status => $status,
+			host   => $host, 
+		}});
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0550", variables => { 
+			server         => $server,
+			requested_node => $node, 
+		}});
+		if (($host eq "running") && ($host eq $node))
+		{
+			# It's done.
+			$waiting = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0551", variables => { 
+				server         => $server,
+				requested_node => $node, 
+			}});
+		}
+		else
+		{
+			# Wait a bit and check again.
+			sleep 2;
+		}
+	}
+	
+	
+	return(0);
+}
+
 
 =head2 parse_cib
 
@@ -565,7 +900,17 @@ sub parse_cib
 		}});
 		
 		# Is this me or the peer?
-		if (($node_name ne $anvil->Get->host_name) && ($node_name ne $anvil->Get->short_host_name))
+		if (($node_name eq $anvil->Get->host_name) or ($node_name eq $anvil->Get->short_host_name))
+		{
+			# Me.
+			$anvil->data->{cib}{parsed}{'local'}{ready} = $node_name;
+			$anvil->data->{cib}{parsed}{'local'}{name}  = $node_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready}, 
+				"cib::parsed::local::name"  => $anvil->data->{cib}{parsed}{'local'}{name}, 
+			}});
+		}
+		else
 		{
 			# It's our peer.
 			$anvil->data->{cib}{parsed}{peer}{ready} = $ready;
@@ -701,7 +1046,297 @@ sub parse_cib
 		}});
 	}
 	
+	# Hosted server information
+	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}})
+	{
+		my $node_name = $anvil->data->{cib}{parsed}{configuration}{nodes}{$id}{uname};
+		foreach my $lrm_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}})
+		{
+			foreach my $lrm_resource_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}})
+			{
+				my $lrm_resource_operations_count = keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}};
+				foreach my $lrm_rsc_op_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}})
+				{
+					my $type      = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{type};
+					my $class     = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{class};
+					my $operation = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{operation};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						lrm_resource_operations_count => $lrm_resource_operations_count,
+						type                          => $type,
+						class                         => $class, 
+						operation                     => $operation, 
+						lrm_rsc_op_id                 => $lrm_rsc_op_id,
+					}});
+					
+					# Skip unless it's a server.
+					next if $type ne "server";
+					
+					# This will be updated below if the server is running.
+					if (not exists $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id})
+					{
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status}                   = "off";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation}           = "unknown";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code}   = "-1";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host}                     = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code}     = "-1";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_operation}   = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code} = "-1";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+							"cib::parsed::data::server::${lrm_resource_id}::status"                   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status},
+							"cib::parsed::data::server::${lrm_resource_id}::host"                     => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host},
+							"cib::parsed::data::server::${lrm_resource_id}::last_monitor_rc_code"     => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code},
+							"cib::parsed::data::server::${lrm_resource_id}::last_operation"           => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation},
+							"cib::parsed::data::server::${lrm_resource_id}::last_operation_rc_code"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code},
+							"cib::parsed::data::server::${lrm_resource_id}::last_failure_operation"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation},
+							"cib::parsed::data::server::${lrm_resource_id}::last_failure_return_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code},
+						}});
+					}
+					
+					# If there are two LRM resource operation IDs, then the server is 
+					# running on this node. Generally (always?) there will be a 
+					# '$lrm_rsc_op_id' called '<server>_last_0'. If there is a second one
+					# with '_monitor' in it, the server is running locally (we always have
+					# a monitor operation defined).
+					if (($lrm_resource_operations_count > 1) && ($lrm_rsc_op_id !~ /_last_/))
+					{
+						# The server is (should be) running. 
+						# - return code is from the RA's last status check. 
+						# - exit-reason is the STDERR of the RA
+						# - 
+						my $last_return_code = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
+						my $status           = "unknown";
+						if ($last_return_code eq "0")
+						{
+							$status = "running";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { status => $status }});
+						}
+						elsif ($last_return_code eq "7")
+						{
+							$status = "stopped";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { status => $status }});
+						}
+						else
+						{
+							$status = "error_condition - rc: ".$last_return_code;
+							
+							# Log all variables in case there is anything useful.
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 1, list => { status => $status }});
+							foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}})
+							{
+								my $value = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable};
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 1, list => { 
+									"cib::parsed::cib::status::node_state::${id}::lrm_id::${lrm_id}::lrm_resource::${lrm_resource_id}::lrm_rsc_op_id::${lrm_rsc_op_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable},
+								}});
+							}
+						}
+						
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status}               = $status;
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host}                 = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'on_node'};
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code} = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+							"cib::parsed::data::server::${lrm_resource_id}::status"               => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status},
+							"cib::parsed::data::server::${lrm_resource_id}::host"                 => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host},
+							"cib::parsed::data::server::${lrm_resource_id}::last_monitor_rc_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code},
+						}});
+					}
+					elsif ($lrm_rsc_op_id =~ /_last_failure_/)
+					{
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_operation}   = $operation;
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code} = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+							"cib::parsed::data::server::${lrm_resource_id}::last_failure_operation"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_operation},
+							"cib::parsed::data::server::${lrm_resource_id}::last_failure_return_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code},
+						}});
+					}
+					else
+					{
+						# This isn't a monirot operation, so it will contain the most
+						# recent data on the server.
+						if ($anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation} eq "unknown")
+						{
+							$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation} = $operation;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+								"cib::parsed::data::server::${lrm_resource_id}::last_operation" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation},
+							}});
+						}
+						if ($anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code} eq "-1")
+						{
+							$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code} = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+								"cib::parsed::data::server::${lrm_resource_id}::last_operation_rc_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code},
+							}});
+						}
+					}
+					
+					print "Node: [".$node_name."] (".$id."), lrm_id: [".$lrm_id."], lrm_resource_id: [".$lrm_resource_id."] (type: [".$type."], class: [".$class."]), lrm_rsc_op_id: [".$lrm_rsc_op_id."] (".$lrm_resource_operations_count.")\n";
+					foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}})
+					{
+						my $value = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable};
+						print "- Variable: [".$variable."], value: [".$value."]\n";
+					}
+				}
+			}
+		}
+	}
+	
+	# Debug code.
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	{
+		my $last_operation           = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_operation};
+		my $last_operation_rc_code   = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_operation_rc_code};
+		my $status                   = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host                     = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		my $last_monitor_rc_code     = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_monitor_rc_code};
+		my $last_failure_operation   = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_failure_operation};
+		my $last_failure_return_code = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_failure_return_code};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			's1:server'                   => $server,
+			's2:host'                     => $host,
+			's3:status'                   => $status,
+			's4:last_monitor_rc_code'     => $last_monitor_rc_code,
+			's5:last_operation'           => $last_operation,
+			's6:last_operation_rc_code'   => $last_operation_rc_code,
+			's7:last_failure_operation'   => $last_failure_operation, 
+			's8:last_failure_return_code' => $last_failure_return_code, 
+		}});
+	}
+	
 	return($problem);
+}
+
+
+=head2 shutdown_server
+
+This shuts down a server that is running on the Anvil! system. 
+
+Parameters;
+
+=head3 server (required)
+
+This is the name of the server to shut down.
+
+=head3 wait (optional, default '1')
+
+This controls whether the method waits for the server to shut down before returning. By default, it will go into a loop and check every 2 seconds to see if the server is still running. Once it's found to be off, the method returns. If this is set to C<< 0 >>, the method will return as soon as the request to shut down the server is issued.
+
+=cut
+sub shutdown_server
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->shutdown_server()" }});
+	
+	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		server => $server,
+		'wait' => $wait,
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->shutdown_server()", parameter => "server" }});
+		return("!!error!!");
+	}
+	
+	my $host_type = $anvil->Get->host_type({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0150", variables => { server => $server }});
+		return("!!error!!");
+	}
+	
+	my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0151", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is this node fully in the cluster?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0152", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is the server one we know of?
+	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
+	{
+		# The server isn't in the pacemaker config.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0153", variables => { server => $server }});
+		return('!!error!!');
+	}
+	
+	# Is the server already running? If so, do nothing.
+	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		status => $status,
+		host   => $host, 
+	}});
+	
+	if ($status eq "off")
+	{
+		# Already off.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0548", variables => { server => $server }});
+		return(0);
+	}
+	elsif ($status ne "running")
+	{
+		# It's in an unknown state, abort.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0060", variables => { 
+			server        => $server,
+			current_host  => $host,
+			current_state => $status, 
+		}});
+		return('!!error!!');
+	}
+	
+	# Now shut down the server.
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{pcs}." resource disable ".$server});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	if (not $wait)
+	{
+		# We're done.
+		return(0);
+	}
+	
+	# Wait now for the server to start.
+	my $waiting = 1;
+	while($waiting)
+	{
+		$anvil->Cluster->parse_cib({debug => $debug});
+		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			status => $status,
+			host   => $host, 
+		}});
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0554", variables => { server => $server }});
+		if ($host eq "running")
+		{
+			# Wait a bit and check again.
+			sleep 2;
+		}
+		else
+		{
+			# It's down.
+			$waiting = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0555", variables => { server => $server }});
+		}
+	}
+	
+	return(0);
 }
 
 
@@ -818,24 +1453,23 @@ sub which_node
 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 			anvil_name      => $anvil_name,
-			node1_host_uuid => $node1_host_uuid 
-			node2_host_uuid => $node2_host_uuid 
+			node1_host_uuid => $node1_host_uuid, 
+			node2_host_uuid => $node2_host_uuid, 
 		}});
 		
 		if ($node_uuid eq $node1_host_uuid)
 		{
-			$node_id = "node1";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_id => $node_id }});
+			$node_is = "node1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_is => $node_is }});
 			last;
 		}
 		elsif ($node_uuid eq $node2_host_uuid)
 		{
-			$node_id = "node2";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_id => $node_id }});
+			$node_is = "node2";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { node_is => $node_is }});
 			last;
 		}
 	}
-	
 	
 	return($node_is);
 }
@@ -850,3 +1484,106 @@ sub which_node
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
+
+=head2 _set_server_constraint
+
+This is a private method used to set a preferencial location constraint for a server. It takes a server name and a preferred host node. It checks to see if a location constraint exists and, if so, which node is preferred. If it is not the requested node, the constraint is updated. If no constraint exists, it is created.
+
+Returns C<< !!error!! >> if there is a problem, C<< 0 >> otherwise
+
+Parameters;
+
+=head3 server (required)
+
+This is the name of the server whose preferred host node priproty is being set.
+
+=head3 preferred_node (required)
+
+This is the name the node that a server will prefer to run on.
+
+=cut
+sub _set_server_constraint
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->_set_server_constraint()" }});
+	
+	my $preferred_node = defined $parameter->{preferred_node} ? $parameter->{preferred_node} : "";
+	my $server         = defined $parameter->{server}         ? $parameter->{server}         : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		server         => $server,
+		preferred_node => $preferred_node,
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->_set_server_constraint()", parameter => "server" }});
+		return("!!error!!");
+	}
+	
+	if (not $preferred_node)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Cluster->_set_server_constraint()", parameter => "preferred_node" }});
+		return("!!error!!");
+	}
+	
+	if (not exists $anvil->data->{cib}{parsed}{data}{cluster}{name})
+	{
+		my $problem = $anvil->Cluster->parse_cib({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+		if ($problem)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0145", variables => { server => $server }});
+			
+		}
+	}
+	
+	# Is this node fully in the cluster?
+	if (not $anvil->data->{cib}{parsed}{'local'}{ready})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0148", variables => { 
+			server => $server,
+			node   => $preferred_node,
+		}});
+		return('!!error!!');
+	}
+
+	my $peer_name  = $anvil->data->{cib}{parsed}{peer}{name};
+	my $local_name = $anvil->data->{cib}{parsed}{'local'}{name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		peer_name  => $peer_name,
+		local_name => $local_name,
+	}});
+	
+	my $shell_call = "";
+	if ($preferred_node eq $peer_name)
+	{
+		$shell_call = $anvil->data->{path}{exe}{pcs}." constraint location ".$server." prefers ".$peer_name."=200 ".$local_name."=100";
+	}
+	elsif ($preferred_node eq $local_name)
+	{
+		$shell_call = $anvil->data->{path}{exe}{pcs}." constraint location ".$server." prefers ".$peer_name."=100 ".$local_name."=200";
+	}
+	else
+	{
+		# Invalid
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0144", variables => { 
+			server => $server, 
+			node   => $preferred_node,
+			node1  => $local_name,
+			node2  => $peer_name, 
+		}});
+		return("!!error!!");
+	}
+	
+	# Change the location constraint
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	return(0);
+}
