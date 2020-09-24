@@ -1840,6 +1840,18 @@ The error was:
 		<key name="warning_0059">[ Warning ] - The server: [#!variable!server!#] was asked to be booted on: [#!variable!requested_node!#], but it is is already running on: [#!variable!current_host!#].</key>
 		<key name="warning_0060">[ Warning ] - The server: [#!variable!server!#] was asked to be shutdown, but it's in an unexpected state: [#!variable!state!#] on the host: [#!variable!current_host!#]. Aborting.</key>
 		<key name="warning_0061">[ Warning ] - The server: [#!variable!server!#] was asked to be migrated to: [#!variable!requested_node!#], but the server is off. Aborting.</key>
+		<key name="warning_0062">[ Warning ] - Failed to read the 'crm_mon' output. Is the cluster started?</key>
+		<key name="warning_0063">[ Warning ] - Failed to parse the XML output from 'crm_mon'. The XML read was:
+========
+#!variable!xml!#
+========
+
+The error was:
+
+========
+#!variable!error!#
+========
+		</key>
 		
 	</language>
 	<!-- 日本語 -->

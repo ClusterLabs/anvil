@@ -32,17 +32,26 @@ $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
 
 # These are the threasholds for when to alert when swap is running out.
-$anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  = 75;
-$anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} = 25;
-$anvil->data->{scancore}{'scan-hardware'}{ram}{high_threshold}   = 1073741824;	# 1 GiB
+$anvil->data->{scancore}{'scan-hardware'}{disable}               = 0;
 $anvil->data->{scancore}{'scan-hardware'}{ram}{clear_threshold}  = 134217728;	# 128 MiB
+$anvil->data->{scancore}{'scan-hardware'}{ram}{high_threshold}   = 1073741824;	# 1 GiB
 $anvil->data->{scancore}{'scan-hardware'}{score}{less_ram}       = 5;
+$anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} = 25;
+$anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  = 75;
+$anvil->data->{switches}{force}                                  = 0;
 
 $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->Get->switches;
+
+# If we're disabled and '--force' wasn't used, exit.
+if (($anvil->data->{scancore}{'scan-hardware'}{disable}) && (not $anvil->data->{switches}{force}))
+{
+	# Exit.
+	$anvil->nice_exit({exit_code => 0});
+}
 
 # These are the tables used by this agent. The order matters as it controls to order the tables are created 
 # and sync'ed. For purges, this array is walked backwards.

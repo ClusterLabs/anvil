@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+# 
+# This scans the nodes and DR host for VMs 
+# 
+# NOTE: The data stored here is not bound to a given host. As such, only hosted VMs are processed.
+# 
+# Examples;
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Startup failure (no DB, bad file read, etc)
+# 
+# TODO: 
+# - 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Disable buffering
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+$anvil->data->{scancore}{'scan-server'}{disable} = 0;
+$anvil->data->{switches}{force}                   = 0;
+
+$anvil->Storage->read_config();
+
+# Read switches
+$anvil->Get->switches;
+
+# If we're disabled and '--force' wasn't used, exit.
+if (($anvil->data->{scancore}{'scan-server'}{disable}) && (not $anvil->data->{switches}{force}))
+{
+	# Exit.
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# This scan agent only uses core tables (server and definitions).
+$anvil->data->{scancore}{'scan-server'}{tables} = [""];
+
+# Handle start-up tasks
+my $problem = $anvil->ScanCore->agent_startup({
+	debug  => 3,
+	agent  => $THIS_FILE,
+	tables => $anvil->data->{scancore}{'scan-server'}{tables},
+});
+if ($problem)
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_log_0001", variables => { program => $THIS_FILE }});
+
+# There are no tables for this agent, so '--purge' is useless here.
+
+# Before we do anything, are we a node or a DR host?
+my $host_type = $anvil->Get->host_type;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+if ($host_type eq "striker")
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_log_0002", variables => { host_type => $host_type }});
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# Read the data.
+collect_data($anvil);
+
+# Read last scan
+
+
+$anvil->nice_exit({exit_code => 0});
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+
+# This reads in all the data we can find on the local system
+sub collect_data
+{
+	my ($anvil) = @_;
+	
+
+	
+	
+	
+	return(0);
+}

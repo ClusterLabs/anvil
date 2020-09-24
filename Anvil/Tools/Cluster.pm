@@ -1046,7 +1046,9 @@ sub parse_cib
 		}});
 	}
 	
-	# Hosted server information
+	# Hosted server information... We can only get basic information out of the CIB, so we'll use crm_mon
+	# for details. We don't just rely on 'crm_mon' however, as servers that aren't running will not (yet)
+	# show there.
 	foreach my $id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}})
 	{
 		my $node_name = $anvil->data->{cib}{parsed}{configuration}{nodes}{$id}{uname};
@@ -1074,131 +1076,196 @@ sub parse_cib
 					# This will be updated below if the server is running.
 					if (not exists $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id})
 					{
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status}                   = "off";
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation}           = "unknown";
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code}   = "-1";
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host}                     = "";
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code}     = "-1";
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_operation}   = "";
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code} = "-1";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status}    = "off";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host_name} = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host_id}   = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{active}    = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{blocked}   = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{failed}    = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{managed}   = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{orphaned}  = "";
+						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{role}      = "";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-							"cib::parsed::data::server::${lrm_resource_id}::status"                   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status},
-							"cib::parsed::data::server::${lrm_resource_id}::host"                     => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host},
-							"cib::parsed::data::server::${lrm_resource_id}::last_monitor_rc_code"     => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code},
-							"cib::parsed::data::server::${lrm_resource_id}::last_operation"           => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation},
-							"cib::parsed::data::server::${lrm_resource_id}::last_operation_rc_code"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code},
-							"cib::parsed::data::server::${lrm_resource_id}::last_failure_operation"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation},
-							"cib::parsed::data::server::${lrm_resource_id}::last_failure_return_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code},
+							"cib::parsed::data::server::${lrm_resource_id}::status"    => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status},
+							"cib::parsed::data::server::${lrm_resource_id}::host_name" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host_name},
+							"cib::parsed::data::server::${lrm_resource_id}::host_id"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host_id},
+							"cib::parsed::data::server::${lrm_resource_id}::active"    => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{active},
+							"cib::parsed::data::server::${lrm_resource_id}::blocked"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{blocked},
+							"cib::parsed::data::server::${lrm_resource_id}::failed"    => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{failed},
+							"cib::parsed::data::server::${lrm_resource_id}::managed"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{managed},
+							"cib::parsed::data::server::${lrm_resource_id}::orphaned"  => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{orphaned},
+							"cib::parsed::data::server::${lrm_resource_id}::role"      => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{role},
 						}});
-					}
-					
-					# If there are two LRM resource operation IDs, then the server is 
-					# running on this node. Generally (always?) there will be a 
-					# '$lrm_rsc_op_id' called '<server>_last_0'. If there is a second one
-					# with '_monitor' in it, the server is running locally (we always have
-					# a monitor operation defined).
-					if (($lrm_resource_operations_count > 1) && ($lrm_rsc_op_id !~ /_last_/))
-					{
-						# The server is (should be) running. 
-						# - return code is from the RA's last status check. 
-						# - exit-reason is the STDERR of the RA
-						# - 
-						my $last_return_code = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
-						my $status           = "unknown";
-						if ($last_return_code eq "0")
-						{
-							$status = "running";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { status => $status }});
-						}
-						elsif ($last_return_code eq "7")
-						{
-							$status = "stopped";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { status => $status }});
-						}
-						else
-						{
-							$status = "error_condition - rc: ".$last_return_code;
-							
-							# Log all variables in case there is anything useful.
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 1, list => { status => $status }});
-							foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}})
-							{
-								my $value = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable};
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 1, list => { 
-									"cib::parsed::cib::status::node_state::${id}::lrm_id::${lrm_id}::lrm_resource::${lrm_resource_id}::lrm_rsc_op_id::${lrm_rsc_op_id}::${variable}" => $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable},
-								}});
-							}
-						}
-						
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status}               = $status;
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host}                 = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'on_node'};
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code} = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-							"cib::parsed::data::server::${lrm_resource_id}::status"               => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{status},
-							"cib::parsed::data::server::${lrm_resource_id}::host"                 => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{host},
-							"cib::parsed::data::server::${lrm_resource_id}::last_monitor_rc_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_monitor_rc_code},
-						}});
-					}
-					elsif ($lrm_rsc_op_id =~ /_last_failure_/)
-					{
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_operation}   = $operation;
-						$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code} = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-							"cib::parsed::data::server::${lrm_resource_id}::last_failure_operation"   => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_operation},
-							"cib::parsed::data::server::${lrm_resource_id}::last_failure_return_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_failure_return_code},
-						}});
-					}
-					else
-					{
-						# This isn't a monirot operation, so it will contain the most
-						# recent data on the server.
-						if ($anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation} eq "unknown")
-						{
-							$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation} = $operation;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-								"cib::parsed::data::server::${lrm_resource_id}::last_operation" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation},
-							}});
-						}
-						if ($anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code} eq "-1")
-						{
-							$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code} = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{'rc-code'};
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-								"cib::parsed::data::server::${lrm_resource_id}::last_operation_rc_code" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{last_operation_rc_code},
-							}});
-						}
-					}
-					
-					print "Node: [".$node_name."] (".$id."), lrm_id: [".$lrm_id."], lrm_resource_id: [".$lrm_resource_id."] (type: [".$type."], class: [".$class."]), lrm_rsc_op_id: [".$lrm_rsc_op_id."] (".$lrm_resource_operations_count.")\n";
-					foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}})
-					{
-						my $value = $anvil->data->{cib}{parsed}{cib}{status}{node_state}{$id}{lrm_id}{$lrm_id}{lrm_resource}{$lrm_resource_id}{lrm_rsc_op_id}{$lrm_rsc_op_id}{$variable};
-						print "- Variable: [".$variable."], value: [".$value."]\n";
 					}
 				}
 			}
 		}
 	}
 	
+	# Now call 'crm_mon --output-as=xml' to determine which resource are running where. As of the time 
+	# of writting this (late 2020), stopped resources are not displayed. So the principle purpose of this
+	# call is to determine what resources are running, and where they are running.
+	$anvil->Cluster->parse_crm_mon({debug => $debug});
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}})
+	{
+		my $host_name = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_name};
+		my $host_id   = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{host}{node_id};
+		my $role      = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{role};
+		my $active    = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{active}   eq "true" ? 1 : 0;
+		my $blocked   = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{blocked}  eq "true" ? 1 : 0;
+		my $failed    = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed}   eq "true" ? 1 : 0;
+		my $managed   = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{managed}  eq "true" ? 1 : 0;
+		my $orphaned  = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{orphaned} eq "true" ? 1 : 0;
+		my $status    = lc($role);
+		if ((lc($role) eq "started") or (lc($role) eq "starting"))
+		{
+			$status = "on";
+		}
+=cut
+2020/09/24 18:14:42:Cluster.pm:1154; Variables:
+|- server: ..... [srv07-el6]
+|- host_name: .. [mk-a02n02] <- Old host
+|- status: ..... [migrating]
+|- role: ....... [Migrating]
+\- active: ..... [1]
+=cut
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{status}    = $status;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} = $host_name;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{host_id}   = $host_id;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{role}      = $role;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{active}    = $active;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{blocked}   = $blocked;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{failed}    = $failed;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{managed}   = $managed;
+		$anvil->data->{cib}{parsed}{data}{server}{$server}{orphaned}  = $orphaned;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			"cib::parsed::data::server::${server}::status"    => $anvil->data->{cib}{parsed}{data}{server}{$server}{status},
+			"cib::parsed::data::server::${server}::host_name" => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name},
+			"cib::parsed::data::server::${server}::host_id"   => $anvil->data->{cib}{parsed}{data}{server}{$server}{host_id},
+			"cib::parsed::data::server::${server}::role"      => $anvil->data->{cib}{parsed}{data}{server}{$server}{role},
+			"cib::parsed::data::server::${server}::active"    => $anvil->data->{cib}{parsed}{data}{server}{$server}{active},
+			"cib::parsed::data::server::${server}::blocked"   => $anvil->data->{cib}{parsed}{data}{server}{$server}{blocked},
+			"cib::parsed::data::server::${server}::failed"    => $anvil->data->{cib}{parsed}{data}{server}{$server}{failed},
+			"cib::parsed::data::server::${server}::managed"   => $anvil->data->{cib}{parsed}{data}{server}{$server}{managed},
+			"cib::parsed::data::server::${server}::orphaned"  => $anvil->data->{cib}{parsed}{data}{server}{$server}{orphaned},
+		}});
+	}
+	
 	# Debug code.
 	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
 	{
-		my $last_operation           = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_operation};
-		my $last_operation_rc_code   = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_operation_rc_code};
-		my $status                   = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host                     = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
-		my $last_monitor_rc_code     = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_monitor_rc_code};
-		my $last_failure_operation   = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_failure_operation};
-		my $last_failure_return_code = $anvil->data->{cib}{parsed}{data}{server}{$server}{last_failure_return_code};
+		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
+		my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
+		my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-			's1:server'                   => $server,
-			's2:host'                     => $host,
-			's3:status'                   => $status,
-			's4:last_monitor_rc_code'     => $last_monitor_rc_code,
-			's5:last_operation'           => $last_operation,
-			's6:last_operation_rc_code'   => $last_operation_rc_code,
-			's7:last_failure_operation'   => $last_failure_operation, 
-			's8:last_failure_return_code' => $last_failure_return_code, 
+			's1:server'    => $server,
+			's2:status'    => $status,
+			's2:host_name' => $host_name,
+			's4:role'      => $role,
+			's5:active'    => $active, 
 		}});
+	}
+
+	return($problem);
+}
+
+
+=head2 parse_crm_mon
+
+This reads in the XML output of C<< crm_mon >> and parses it. On success, it returns C<< 0 >>. On failure (ie: pcsd isn't running), returns C<< 1 >>.
+
+B<< Note >>: At this time, this method only pulls out the host for running servers. More data may be parsed out at a future time.
+
+Parameters;
+
+=head3 xml (optional)
+
+B<< Note >>: Generally this should not be used.
+
+By default, the C<< crm_mon --output-as=xml >> is read directly. However, this parameter can be used to pass in raw XML instead. If this is set, C<< crm_mon >> is B<< NOT >> invoked.
+
+=cut
+sub parse_crm_mon
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->parse_crm_mon()" }});
+	
+	my $xml = defined $parameter->{xml} ? $parameter->{xml} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		xml => $xml,
+	}});
+	
+	my $problem      = 1;
+	my $crm_mon_data = "";
+	my $return_code  = 0;
+	if ($xml)
+	{
+		$crm_mon_data = $xml;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { crm_mon_data => $crm_mon_data }});
+	}
+	else
+	{
+		my $shell_call = $anvil->data->{path}{exe}{crm_mon}." --output-as=xml";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { shell_call => $shell_call }});
+		
+		($crm_mon_data, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			crm_mon_data => $crm_mon_data,
+			return_code  => $return_code, 
+		}});
+	}
+	if ($return_code)
+	{
+		# Failed to read the CIB.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0062"});
+	}
+	else
+	{
+		local $@;
+		my $dom = eval { XML::LibXML->load_xml(string => $crm_mon_data); };
+		if ($@)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0063", variables => { 
+				xml   => $crm_mon_data,
+				error => $@,
+			}});
+		}
+		else
+		{
+			# Successful parse!
+			$problem = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { problem => $problem }});
+			foreach my $resource ($dom->findnodes('/pacemaker-result/resources/resource'))
+			{
+				next if $resource->{resource_agent} ne "ocf::alteeve:server";
+				my $id             = $resource->{id};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { id => $id }});
+				foreach my $variable (sort {$a cmp $b} keys %{$resource})
+				{
+					next if $variable eq "id";
+					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable} = $resource->{$variable};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::variables::${variable}" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{variables}{$variable}, 
+					}});
+				}
+				foreach my $node ($resource->findnodes('./node'))
+				{
+					my $node_id   = $node->{id};
+					my $node_name = $node->{name};
+					my $cached    = $node->{cached};
+					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name} = $node->{name};
+					$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}   = $node->{id};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_name" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name}, 
+						"crm_mon::parsed::pacemaker-result::resources::resource::${id}::host::node_id"   => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}, 
+					}});
+				}
+			}
+		}
 	}
 	
 	return($problem);

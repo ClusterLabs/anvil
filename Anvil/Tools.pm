@@ -1138,6 +1138,8 @@ sub _set_paths
 				createrepo_c			=>	"/usr/bin/createrepo_c",
 				createuser			=>	"/usr/bin/createuser",
 				crm_error			=>	"/usr/sbin/crm_error",
+				crm_resource			=>	"/usr/sbin/crm_resource",
+				crm_mon				=>	"/usr/sbin/crm_mon",
 				dmidecode			=>	"/usr/sbin/dmidecode",
 				dnf				=>	"/usr/bin/dnf",
 				drbdadm				=>	"/usr/sbin/drbdadm",

@@ -126,33 +126,37 @@ sub agent_startup
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "agent" }});
 		return("!!error!!");
 	}
-	if ((not $tables) or (ref($tables) ne "ARRAY") or (@{$tables} == 0))
+	if ((not $tables) or (ref($tables) ne "ARRAY"))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "tables" }});
 		return("!!error!!");
 	}
 	
-	# Append our tables 
-	foreach my $table (@{$tables})
+	# It's possible that some agents don't have a database (or use core database tables only)
+	if (@{$tables} > 0)
 	{
-		push @{$anvil->data->{sys}{database}{check_tables}}, $table;
-	}
-	
-	# Connect to DBs.
-	$anvil->Database->connect({debug => $debug});
-	$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
-	if (not $anvil->data->{sys}{database}{connections})
-	{
-		# No databases, exit.
-		$anvil->Log->entry({source => $agent, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
-		return(1);
-	}
+		# Append our tables 
+		foreach my $table (@{$tables})
+		{
+			push @{$anvil->data->{sys}{database}{check_tables}}, $table;
+		}
+		
+		# Connect to DBs.
+		$anvil->Database->connect({debug => $debug});
+		$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
+		if (not $anvil->data->{sys}{database}{connections})
+		{
+			# No databases, exit.
+			$anvil->Log->entry({source => $agent, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
+			return(1);
+		}
 
-	# Make sure our schema is loaded.
-	$anvil->Database->check_agent_data({
-		debug => $debug,
-		agent => $agent,
-	});
+		# Make sure our schema is loaded.
+		$anvil->Database->check_agent_data({
+			debug => $debug,
+			agent => $agent,
+		});
+	}
 
 	# Read in our word strings.
 	my $words_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".xml";

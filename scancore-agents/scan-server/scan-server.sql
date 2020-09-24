@@ -1,0 +1,1 @@
+-- There are no tables needed by scan-server, it only uses core tables.
