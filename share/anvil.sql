@@ -1240,16 +1240,16 @@ CREATE TABLE servers (
     server_uuid                        uuid                        not null    primary key,
     server_name                        text                        not null,                     -- This is the server's name. It can change without re-uploading the server.
     server_anvil_uuid                  uuid                        not null,                     -- This is the Anvil! system that the server lives on. It can move to another Anvil!, so this can change.
-    server_clean_stop                  boolean                                 default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
-    server_start_after_server_uuid     uuid,                                                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
+    server_clean_stop                  boolean                     not null    default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
+    server_start_after_server_uuid     uuid                        not null,                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
     server_start_delay                 integer                     not null    default 0,        -- See above.
-    server_host_uuid                   uuid,                                                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
-    server_state                       text,                                                     -- This is the current state of this server.
+    server_host_uuid                   uuid                        not null,                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
+    server_state                       text                        not null,                     -- This is the current state of this server.
     server_live_migration              boolean                     not null    default TRUE,     -- When false, servers will be stopped and then rebooted when a migration is requested. Also, when false, preventative migrations will not happen.
-    server_pre_migration_file_uuid     uuid,                                                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.
-    server_pre_migration_arguments     text,                                                     -- These are arguments to pass to the pre-migration script
-    server_post_migration_file_uuid    uuid,                                                     -- This is set to the files -> file_uuid of a script to run AFTER migrating a server. If the file isn't found or can't run, the script is ignored.
-    server_post_migration_arguments    text,                                                     -- These are arguments to pass to the post-migration script
+    server_pre_migration_file_uuid     uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_pre_migration_arguments     text                        not null,                     -- These are arguments to pass to the pre-migration script
+    server_post_migration_file_uuid    uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run AFTER migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_post_migration_arguments    text                        not null,                     -- These are arguments to pass to the post-migration script
     modified_date                      timestamp with time zone    not null, 
     
     FOREIGN KEY(server_anvil_uuid)               REFERENCES anvils(anvil_uuid),

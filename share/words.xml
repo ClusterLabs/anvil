@@ -231,6 +231,9 @@ The error was:
 		<key name="error_0156">Unable to migrate the server: [#!variable!server!#] as this node is not (yet) a full member of the cluster.</key>
 		<key name="error_0157">Unable to migrate the server: [#!variable!server!#] as the peer node is not (yet) a full member of the cluster.</key>
 		<key name="error_0158">Unable to migrate the server: [#!variable!server!#] as this server was not found in the cluster information base (CIB).</key>
+		<key name="error_0159">Unable to read the stat information for the file: [#!variable!file_path!#], the file doesn't appear to exist.</key>
+		<key name="error_0160">The '#!variable!name!#': [#!variable!uuid!#] is not valid.</key>
+		<key name="error_0161">Unable to mark the server with UUID: [#!variable!uuid!#] as "deleted" because it doesn't apprear to exist in the database in the first place.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -1852,6 +1855,8 @@ The error was:
 #!variable!error!#
 ========
 		</key>
+		<key name="warning_0064">[ Warning ] - The server: [#!variable!server!#] was asked to be migrated to: [#!variable!requested_node!#], but the server is shutting down. Aborting.</key>
+		<key name="warning_0065">[ Warning ] - The server: [#!variable!server!#] was asked to be migrated to: [#!variable!requested_node!#], but the server is already in the middle of a migration. Aborting.</key>
 		
 	</language>
 	<!-- 日本語 -->

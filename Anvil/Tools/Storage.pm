@@ -21,6 +21,7 @@ my $THIS_FILE = "Storage.pm";
 # check_md5sums
 # copy_file
 # find
+# get_file_stats
 # make_directory
 # move_file
 # read_config
@@ -1337,6 +1338,136 @@ sub find
 	print $THIS_FILE." ".__LINE__."; [ Debug] - full_path: [$full_path]\n" if $debug;
 	return ($full_path);
 }
+
+=head2 get_file_stats
+
+This method calls a C<< stat >> (or C<< lstat >> and pulls out the file information. 
+
+If successful, C<< 0 >> is returned. If there was a problem, like the file wasn't found, C<< 1 >> is returned.
+
+Collected information is stored as (see C<< perldoc -f stat >> for details):
+
+ file_stat::<file_path>::device_number
+ file_stat::<file_path>::inode_number
+ file_stat::<file_path>::mode                  - raw mode information (you probably don't want this)
+ file_stat::<file_path>::unix_mode             - decimal mode (bitwise'd 4-digit decimal version of the mode, you probably want this)
+ file_stat::<file_path>::number_of_hardlinks
+ file_stat::<file_path>::user_id
+ file_stat::<file_path>::user_name
+ file_stat::<file_path>::group_id
+ file_stat::<file_path>::group_name
+ file_stat::<file_path>::device_identifier
+ file_stat::<file_path>::size
+ file_stat::<file_path>::access_time
+ file_stat::<file_path>::modified_time
+ file_stat::<file_path>::inode_change_time
+ file_stat::<file_path>::block_size
+ file_stat::<file_path>::blocks
+
+Parameters;
+
+=head3 file_path (required)
+
+This is the path to the file (or directory, symlink, etc) to be examined.
+
+=cut
+sub get_file_stats
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	my $test      = defined $parameter->{test}  ? $parameter->{test}  : 0;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->get_file_stats()" }});
+	
+	my $file_path = defined $parameter->{file_path} ? $parameter->{file_path} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file_path => $file_path,
+	}});
+	
+	if (not $file_path)
+	{
+		# No source passed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->get_file_stats()", parameter => "file_path" }});
+		return(1);
+	}
+	
+	if (not -e $file_path)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0159", variables => { file_path => $file_path }});
+		return(1);
+	}
+	
+	### Data collected by array position, from 'perldoc -f stat'.
+	#  0 dev      device number of filesystem
+	#  1 ino      inode number
+	#  2 mode     file mode  (type and permissions)
+	#  3 nlink    number of (hard) links to the file
+	#  4 uid      numeric user ID of file's owner
+	#  5 gid      numeric group ID of file's owner
+	#  6 rdev     the device identifier (special files only)
+	#  7 size     total size of file, in bytes
+	#  8 atime    last access time in seconds since the epoch
+	#  9 mtime    last modify time in seconds since the epoch
+	# 10 ctime    inode change time in seconds since the epoch (*)
+	# 11 blksize  preferred I/O size in bytes for interacting with the file (may vary from file to file)
+	# 12 blocks   actual number of system-specific blocks allocated on disk (often, but not always, 512 bytes each)
+	my ($device_number, $inode_number, $mode, $number_of_hardlinks, $user_id, $group_id, $device_identifier, $size, $access_time, $modified_time, $inode_change_time, $block_size, $blocks) = "";
+	if (-l $file_path)
+	{
+		# Use lstat
+		($device_number, $inode_number, $mode, $number_of_hardlinks, $user_id, $group_id, $device_identifier, $size, $access_time, $modified_time, $inode_change_time, $block_size, $blocks) = lstat($file_path);
+	}
+	else
+	{
+		# Use stat
+		($device_number, $inode_number, $mode, $number_of_hardlinks, $user_id, $group_id, $device_identifier, $size, $access_time, $modified_time, $inode_change_time, $block_size, $blocks) = stat($file_path);
+	}
+	
+	# A little processing...
+	my $user_name  = getpwuid($user_id);
+	my $group_name = getgrgid($group_id);
+	my $unix_mode  = sprintf("%04s", sprintf("%o", ($mode & 07777)));
+	
+	$anvil->data->{file_stat}{$file_path}{device_number}       = $device_number;
+	$anvil->data->{file_stat}{$file_path}{inode_number}        = $inode_number;
+	$anvil->data->{file_stat}{$file_path}{mode}                = $mode;
+	$anvil->data->{file_stat}{$file_path}{unix_mode}           = $unix_mode;
+	$anvil->data->{file_stat}{$file_path}{number_of_hardlinks} = $number_of_hardlinks;
+	$anvil->data->{file_stat}{$file_path}{user_id}             = $user_id;
+	$anvil->data->{file_stat}{$file_path}{user_name}           = $user_name;
+	$anvil->data->{file_stat}{$file_path}{group_id}            = $group_id;
+	$anvil->data->{file_stat}{$file_path}{group_name}          = $group_name;
+	$anvil->data->{file_stat}{$file_path}{device_identifier}   = $device_identifier;
+	$anvil->data->{file_stat}{$file_path}{size}                = $size;
+	$anvil->data->{file_stat}{$file_path}{access_time}         = $access_time;
+	$anvil->data->{file_stat}{$file_path}{modified_time}       = $modified_time;
+	$anvil->data->{file_stat}{$file_path}{inode_change_time}   = $inode_change_time;
+	$anvil->data->{file_stat}{$file_path}{block_size}          = $block_size;
+	$anvil->data->{file_stat}{$file_path}{blocks}              = $blocks;
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"s1:file_stat::${file_path}::device_number"       => $anvil->data->{file_stat}{$file_path}{device_number}, 
+		"s2:file_stat::${file_path}::inode_number"        => $anvil->data->{file_stat}{$file_path}{inode_number},
+		"s3:file_stat::${file_path}::mode"                => $anvil->data->{file_stat}{$file_path}{mode}, 
+		"s4:file_stat::${file_path}::unix_mode"           => $anvil->data->{file_stat}{$file_path}{unix_mode},
+		"s5:file_stat::${file_path}::number_of_hardlinks" => $anvil->data->{file_stat}{$file_path}{number_of_hardlinks}, 
+		"s6:file_stat::${file_path}::user_id"             => $anvil->data->{file_stat}{$file_path}{user_id}, 
+		"s7:file_stat::${file_path}::user_name"           => $anvil->data->{file_stat}{$file_path}{user_name},
+		"s8:file_stat::${file_path}::group_id"            => $anvil->data->{file_stat}{$file_path}{group_id}, 
+		"s9:file_stat::${file_path}::group_name"          => $anvil->data->{file_stat}{$file_path}{group_name}, 
+		"s10:file_stat::${file_path}::device_identifier"  => $anvil->data->{file_stat}{$file_path}{device_identifier},
+		"s11:file_stat::${file_path}::size"               => $anvil->Convert->add_commas({number => $anvil->data->{file_stat}{$file_path}{size}})." (".$anvil->Convert->bytes_to_human_readable({"bytes" => $anvil->data->{file_stat}{$file_path}{size}}).")",
+		"s12:file_stat::${file_path}::access_time"        => $anvil->data->{file_stat}{$file_path}{access_time}, 
+		"s13:file_stat::${file_path}::modified_time"      => $anvil->data->{file_stat}{$file_path}{modified_time}, 
+		"s14:file_stat::${file_path}::inode_change_time"  => $anvil->data->{file_stat}{$file_path}{inode_change_time},
+		"s15:file_stat::${file_path}::block_size"         => $anvil->data->{file_stat}{$file_path}{block_size},
+		"s16:file_stat::${file_path}::blocks"             => $anvil->data->{file_stat}{$file_path}{blocks},
+	}});
+
+	return(0);
+}
+
 
 =head2 make_directory
 

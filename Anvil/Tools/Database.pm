@@ -8979,6 +8979,311 @@ WHERE
 }
 
 
+=head2 insert_or_update_servers
+
+This updates (or inserts) a record in the 'sessions' table. The C<< server_uuid >> referencing the database row will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 delete (optional, default '0')
+
+If set to C<< 1 >>, the server referenced but the C<< server_uuid >> is marked as deleted. 
+
+B<< Note >>: If this is set to C<< 1 >>, then only C<< server_uuid >> is required.
+
+=head3 server_uuid (required)
+
+This is the Server's UUID. In most tables, if a record doesn't exist then a random UUID is generated to create the new record. 
+
+In the C<< servers >> table however, the UUID used is the UUID in the server's definition file. As such, this parameter is always required.
+
+=head3 server_name (required)
+
+This is the name of the server being added.
+
+=head3 server_anvil_uuid (required)
+
+This is the C<< anvils >> -> C<< anvil_uuid >> that this server is currently hosted on.
+
+=head3 server_clean_stop (optional, default '0')
+
+This indicates when a server was stopped by a user. If this is set to C<< 1 >>, then the Anvil! will not boot the server (during an C<< anvil-safe-start >> run). 
+
+=head3 server_start_after_server_uuid (optional)
+
+If the user wants to boot this server after another server, this can be set to C<< servers >> -> C<< server_uuid >>. When set, the server referenced will be booted (at least) C<< server_start_delay >> seconds before this server is booted.
+
+=head3 server_start_delay (optional, default '30')
+
+If C<< server_start_after_server_uuid >> is set, then this value controls the delay between when the referenced server boots and when this server boots.
+
+B<< Note >>: This is the B<< minimum >> delay! It's possible that the actual delay could be a bit more than this value.
+
+=head3 server_host_uuid (optional)
+
+If the server is running, this is the C<< current hosts >> -> C<< host_uuid >> for this server. If the server is off, this will should be blank.
+
+B<< Note >>: If the server is migating, this should be the old host until after the migration completes.
+
+=head3 server_state (required)
+
+This is the current status of the server. Valid values are;
+
+* starting
+* running
+* stopping
+* off
+* migrating
+* DELETED
+
+B<< Note >>: The C<< DELETED >> state is special, in that it marks the server as no longer exists. 
+
+=head3 server_live_migration (optional, default '1')
+
+Normally, when a server migrates the server keeps running, with changes to memory being tracked and copied. When most of the memory has been copied, the server is frozen for a brief moment, the last of the memory is copied, and then the server is thawed on the new host.
+
+In some cases, with servers that have a lot of RAM or very quickly change the memory contents, a migation could take a very long time to complete, if it ever does at all. 
+
+For cases where a server can't be live migrated, set this to C<< 0 >>. When set to C<< 0 >>, the server is frozen before the RAM copy begins, and thawed on the new host when the migration is complete. In this way, the migration can be completed over a relatively short time.
+
+B<< Note >>: Depending on the BCN network speed and the amount of RAM to copy, the server could be in a frozen state long enough for client connections to timeout. The server itself should handle the freeze fine in most modern systems.
+
+=head3 server_pre_migration_file_uuid (optional)
+
+This is set to the C<< files >> -> C<< file_uuid >> of a script to run B<< BEFORE >> migrating a server. If the file isn't found or can't be run, the script is ignored.
+
+=head3 server_pre_migration_arguments (optional)
+
+These are arguments to pass to the pre-migration script above. 
+
+=head3 server_post_migration_file_uuid (optional)
+
+This is set to the C<< files >> -> C<< file_uuid >> of a script to run B<< AFTER >> migrating a server. If the file isn't found or can't run, the script is ignored.
+
+=head3 server_post_migration_arguments (optional)
+
+These are arguments to pass to the post-migration script above.
+
+=cut
+sub insert_or_update_servers
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_servers()" }});
+	
+	my $uuid                            = defined $parameter->{uuid}                            ? $parameter->{uuid}                            : "";
+	my $file                            = defined $parameter->{file}                            ? $parameter->{file}                            : "";
+	my $line                            = defined $parameter->{line}                            ? $parameter->{line}                            : "";
+	my $delete                          = defined $parameter->{'delete'}                        ? $parameter->{'delete'}                        : 0;
+	my $server_uuid                     = defined $parameter->{server_uuid}                     ? $parameter->{server_uuid}                     : "";
+	my $server_name                     = defined $parameter->{server_name}                     ? $parameter->{server_name}                     : "";
+	my $server_anvil_uuid               = defined $parameter->{server_anvil_uuid}               ? $parameter->{server_anvil_uuid}               : "";
+	my $server_clean_stop               = defined $parameter->{server_clean_stop}               ? $parameter->{server_clean_stop}               : 0;
+	my $server_start_after_server_uuid  = defined $parameter->{server_start_after_server_uuid}  ? $parameter->{server_start_after_server_uuid}  : "";
+	my $server_start_delay              = defined $parameter->{server_start_delay}              ? $parameter->{server_start_delay}              : 30;
+	my $server_host_uuid                = defined $parameter->{server_host_uuid}                ? $parameter->{server_host_uuid}                : "";
+	my $server_state                    = defined $parameter->{server_state}                    ? $parameter->{server_state}                    : "";
+	my $server_live_migration           = defined $parameter->{server_live_migration}           ? $parameter->{server_live_migration}           : 1;
+	my $server_pre_migration_file_uuid  = defined $parameter->{server_pre_migration_file_uuid}  ? $parameter->{server_pre_migration_file_uuid}  : "";
+	my $server_pre_migration_arguments  = defined $parameter->{server_pre_migration_arguments}  ? $parameter->{server_pre_migration_arguments}  : "";
+	my $server_post_migration_file_uuid = defined $parameter->{server_post_migration_file_uuid} ? $parameter->{server_post_migration_file_uuid} : "";
+	my $server_post_migration_arguments = defined $parameter->{server_post_migration_arguments} ? $parameter->{server_post_migration_arguments} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'delete'                        => $delete, 
+		uuid                            => $uuid, 
+		file                            => $file, 
+		line                            => $line, 
+		server_uuid                     => $server_uuid, 
+		server_name                     => $server_name, 
+		server_anvil_uuid               => $server_anvil_uuid,
+		server_clean_stop               => $server_clean_stop,
+		server_start_after_server_uuid  => $server_start_after_server_uuid,
+		server_start_delay              => $server_start_delay,
+		server_host_uuid                => $server_host_uuid,
+		server_state                    => $server_state,
+		server_live_migration           => $server_live_migration,
+		server_pre_migration_file_uuid  => $server_pre_migration_file_uuid,
+		server_pre_migration_arguments  => $server_pre_migration_arguments,
+		server_post_migration_file_uuid => $server_post_migration_file_uuid,
+		server_post_migration_arguments => $server_post_migration_arguments, 
+	}});
+	
+	if (not $server_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_servers()", parameter => "server_uuid" }});
+		return("!!error!!");
+	}
+	if (not $anvil->Validate->uuid({uuid => $server_uuid}))
+	{
+		# invalid UUID
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0160", variables => { variable => "server_uuid", uuid => $server_uuid }});
+		return("!!error!!");
+	}
+	if (not $delete)
+	{
+		if (not $server_name)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_servers()", parameter => "server_name" }});
+			return("!!error!!");
+		}
+		if (not $server_anvil_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_servers()", parameter => "server_anvil_uuid" }});
+			return("!!error!!");
+		}
+		if (not $server_state)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_servers()", parameter => "server_state" }});
+			return("!!error!!");
+		}
+	}
+	
+	# Do we already know about this 
+	my $exists = 0; 
+	my $query  = "SELECT COUNT(*) FROM servers WHERE server_uuid = ".$anvil->Database->quote($server_uuid).";";
+	my $count  = $anvil->Database->query({query => $function_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+	if ($count)
+	{
+		$exists = 1;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'exists' => $exists }});
+	
+	if ($delete)
+	{
+		if (not $exists)
+		{
+			# Can't delete what doesn't exist...
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0161", variables => { server_uuid => "server_uuid" }});
+			return("!!error!!");
+		}
+
+		# Delete it
+		my $query = "SELECT server_state FROM servers WHERE server_uuid = ".$anvil->Database->quote($server_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+
+		my $old_server_state = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_server_state => $old_server_state }});
+		
+		if ($old_server_name ne "DELETED")
+		{
+			my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state  = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    server_uuid   = ".$anvil->Database->quote($server_uuid)."
+;";
+			$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		}
+		return($server_uuid);
+	}
+	
+	### TODO: Left off here.
+	# Are we updating or inserting?
+	if (not $exists)
+	{
+		# INSERT
+		my $query = "
+INSERT INTO 
+    servers 
+(
+    server_uuid, 
+    server_name, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($server_uuid).", 
+    ".$anvil->Database->quote($server_name).", 
+    ".$anvil->Database->quote($).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    server_email, 
+    server_language, 
+    server_name, 
+    server_level 
+FROM 
+    servers 
+WHERE 
+    server_uuid = ".$anvil->Database->quote($server_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a server_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "server_uuid", uuid => $server_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_server_email    = $row->[0]; 
+			my $old_server_language = $row->[1];
+			my $old_server_name     = $row->[2]; 
+			my $old_server_level    = $row->[3]; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_server_email    => $old_server_email, 
+				old_server_language => $old_server_language,
+				old_server_name     => $old_server_name, 
+				old_server_level    => $old_server_level, 
+			}});
+			
+			# Anything change?
+			if (($old_server_email    ne $server_email)    or 
+			    ($old_server_language ne $server_language) or 
+			    ($old_server_name     ne $server_name)     or  
+			    ($old_server_level    ne $server_level))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    servers 
+SET 
+    server_email    = ".$anvil->Database->quote($server_email).", 
+    server_language = ".$anvil->Database->quote($server_language).", 
+    server_name     = ".$anvil->Database->quote($server_name).", 
+    server_level    = ".$anvil->Database->quote($server_level).", 
+    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid     = ".$anvil->Database->quote($server_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	return($server_uuid);
+}
+
+
 =head2 insert_or_update_sessions
 
 This updates (or inserts) a record in the 'sessions' table. The C<< session_uuid >> referencing the database row will be returned.

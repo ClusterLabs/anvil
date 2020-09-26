@@ -29,6 +29,11 @@ print "Connecting to the database(s);\n";
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 
+$anvil->Storage->get_file_stats({
+	debug     => 2,
+	file_path => "/root/test",
+});
+
 # $anvil->Cluster->shutdown_server({
 # 	debug  => 2,
 # 	server => "srv07-el6",
@@ -53,5 +58,8 @@ if (0)
 	}
 }
 
-my $problem = $anvil->Cluster->parse_cib({debug => 2});
-print "Problem: [".$problem."]\n";
+if (0)
+{
+	my $problem = $anvil->Cluster->parse_cib({debug => 2});
+	print "Problem: [".$problem."]\n";
+}

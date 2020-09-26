@@ -493,10 +493,12 @@ sub migrate_server
 	
 	# Is the server already running? If so, where?
 	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host};
+	my $host   = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
+	my $role   = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 		status => $status,
 		host   => $host, 
+		role   => $role,
 	}});
 	
 	if ($status eq "off")
@@ -517,11 +519,28 @@ sub migrate_server
 		}});
 		return(0);
 	}
+	elsif (lc($role) eq "stopping")
+	{
+		# It's stopping, don't migrate.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0064", variables => { 
+			server         => $server,
+			requested_node => $node,
+		}});
+		return('!!error!!');
+	}
+	elsif (lc($role) eq "migating")
+	{
+		# It's stopping, don't migrate.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0065", variables => { 
+			server         => $server,
+			requested_node => $node,
+		}});
+		return('!!error!!');
+	}
 	elsif ($status ne "running")
 	{
 		# The server is in an unknown state.
-		# It's in an unknown state, abort.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0060", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0061", variables => { 
 			server        => $server,
 			current_host  => $host,
 			current_state => $status, 
@@ -1117,18 +1136,15 @@ sub parse_cib
 		my $managed   = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{managed}  eq "true" ? 1 : 0;
 		my $orphaned  = $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{orphaned} eq "true" ? 1 : 0;
 		my $status    = lc($role);
-		if ((lc($role) eq "started") or (lc($role) eq "starting"))
+		if ($role)
 		{
-			$status = "on";
+			### Known roles;
+			# Started
+			# Starting
+			# Migrating
+			# Stopping
+			$status = "running";
 		}
-=cut
-2020/09/24 18:14:42:Cluster.pm:1154; Variables:
-|- server: ..... [srv07-el6]
-|- host_name: .. [mk-a02n02] <- Old host
-|- status: ..... [migrating]
-|- role: ....... [Migrating]
-\- active: ..... [1]
-=cut
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{status}    = $status;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} = $host_name;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{host_id}   = $host_id;

@@ -9,6 +9,7 @@
 # Exit codes;
 # 0 = Normal exit.
 # 1 = Startup failure (no DB, bad file read, etc)
+# 2 = libvirtd is not running.
 # 
 # TODO: 
 # - 
@@ -93,9 +94,98 @@ sub collect_data
 {
 	my ($anvil) = @_;
 	
-
+	# Is 'libvirtd' running?
+	my $running = $anvil->System->check_daemon({daemon => "libvirtd"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
+	if (not $running)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_server_log_0003"});
+		$anvil->nice_exit({exit_code => 2});
+	}
 	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all", source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		
+		if ($line =~ /^\d+ (.*?) (.*)$/)
+		{
+			my $server  = $1;
+			my $state = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				server  => $server, 
+				'state' => $state, 
+			}});
+			
+			$anvil->data->{'scan-server'}{server}{$server}{'state'}  = $state;
+			$anvil->data->{'scan-server'}{server}{$server}{undefine} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"scan-server::server::${server}::state"    => $anvil->data->{'scan-server'}{server}{$server}{'state'}, 
+				"scan-server::server::${server}::undefine" => $anvil->data->{'scan-server'}{server}{$server}{undefine}, 
+			}});
+		}
+		
+		if ($line =~ /- (.*?) shut off/)
+		{
+			# The server is shut off. If this is a node, it shouldn't be defined.
+			my $server = $1;
+			my $host_type   = $anvil->Get->host_type;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+			if ($host_type eq "node")
+			{
+				$anvil->data->{'scan-server'}{server}{$server}{undefine} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan-server::server::${server}::undefine" => $anvil->data->{'scan-server'}{server}{$server}{undefine}, 
+				}});
+			}
+		}
+	}
 	
+	# Now loop through the found servers and read their XML definition.
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{'scan-server'}{server}})
+	{
+		my ($definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml ".$server, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $definition, return_code => $definition }});
+		
+		my $target  = $anvil->Get->short_host_name;
+		my $source  = "from_memory";
+		my $problem = $anvil->Server->parse_definition({
+			debug      => 2,
+			server     => $server,
+			source     => $source, 
+			definition => $definition, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# Wat?
+			next;
+		}
+		
+		my $server_uuid = $anvil->data->{server}{$target}{$server}{$source}{info}{uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_uuid => $server_uuid }});
+		
+		# See if this server is in the database.
+		my $query = "SELECT COUNT(*) FROM servers WHERE server_uuid = ".$anvil->Database->quote($server_uuid).";";
+		my $count = $anvil->Database->query({query => $function_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
+		if (not $count)
+		{
+			# Add it.
+		}
+		
+		### TODO: left off here, look for the XML file on disk. If it's not found, write it. 
+		my $xml_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+		if (-e $xml_file)
+		{
+			$anvil->Storage->get_file_stats({
+				debug     => 2,
+				file_path => $xml_file,
+			});
+		}
+	}
 	
 	return(0);
 }
