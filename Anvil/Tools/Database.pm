@@ -36,6 +36,7 @@ my $THIS_FILE = "Database.pm";
 # get_manifests
 # get_notifications
 # get_recipients
+# get_servers
 # get_ssh_keys
 # get_upses
 # initialize
@@ -3542,6 +3543,134 @@ WHERE
 				last;
 			}
 		}
+	}
+	
+	return(0);
+}
+
+
+=head2 get_servers
+
+This loads all known servers from the database.
+
+ servers::server_uuid::<server_uuid>::server_name
+ servers::server_uuid::<server_uuid>::server_anvil_uuid
+ servers::server_uuid::<server_uuid>::server_clean_stop
+ servers::server_uuid::<server_uuid>::server_start_after_server_uuid
+ servers::server_uuid::<server_uuid>::server_start_delay
+ servers::server_uuid::<server_uuid>::server_host_uuid
+ servers::server_uuid::<server_uuid>::server_state
+ servers::server_uuid::<server_uuid>::server_live_migration
+ servers::server_uuid::<server_uuid>::server_pre_migration_file_uuid
+ servers::server_uuid::<server_uuid>::server_pre_migration_arguments
+ servers::server_uuid::<server_uuid>::server_post_migration_file_uuid
+ servers::server_uuid::<server_uuid>::server_post_migration_arguments
+
+This method takes no parameters.
+
+=cut
+sub get_servers
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_servers()" }});
+	
+	# Delete any data from past scans.
+	delete $anvil->data->{servers}{server_uuid};
+	delete $anvil->data->{sys}{servers}{by_uuid};
+	delete $anvil->data->{sys}{servers}{by_name};
+	
+		my $query = "
+SELECT 
+    server_uuid, 
+    server_name, 
+    server_anvil_uuid, 
+    server_clean_stop, 
+    server_start_after_server_uuid, 
+    server_start_delay, 
+    server_host_uuid, 
+    server_state, 
+    server_live_migration, 
+    server_pre_migration_file_uuid, 
+    server_pre_migration_arguments, 
+    server_post_migration_file_uuid, 
+    server_post_migration_arguments, 
+FROM 
+    servers 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if (not $count)
+	{
+		# I have a server_uuid but no matching record. Probably an error.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "server_uuid", uuid => $server_uuid }});
+		return("");
+	}
+	foreach my $row (@{$results})
+	{
+		my $server_uuid                     = $row->[0];
+		my $server_name                     = $row->[1];
+		my $server_anvil_uuid               = $row->[2]; 
+		my $server_clean_stop               = $row->[3]; 
+		my $server_start_after_server_uuid  = $row->[4]; 
+		my $server_start_delay              = $row->[5]; 
+		my $server_host_uuid                = $row->[6]; 
+		my $server_state                    = $row->[7]; 
+		my $server_live_migration           = $row->[8]; 
+		my $server_pre_migration_file_uuid  = $row->[9]; 
+		my $server_pre_migration_arguments  = $row->[10]; 
+		my $server_post_migration_file_uuid = $row->[11]; 
+		my $server_post_migration_arguments = $row->[12]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			server_uuid                     => $server_uuid,
+			server_name                     => $server_name, 
+			server_anvil_uuid               => $server_anvil_uuid, 
+			server_clean_stop               => $server_clean_stop, 
+			server_start_after_server_uuid  => $server_start_after_server_uuid, 
+			server_start_delay              => $server_start_delay, 
+			server_host_uuid                => $server_host_uuid, 
+			server_state                    => $server_state, 
+			server_live_migration           => $server_live_migration, 
+			server_pre_migration_file_uuid  => $server_pre_migration_file_uuid, 
+			server_pre_migration_arguments  => $server_pre_migration_arguments, 
+			server_post_migration_file_uuid => $server_post_migration_file_uuid, 
+			server_post_migration_arguments => $server_post_migration_arguments, 
+		}});
+		
+		# Record the data in the hash, too.
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}                     = $server_name;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}               = $server_anvil_uuid;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}  = $server_start_after_server_uuid;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}              = $server_start_delay;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}                = $server_host_uuid;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_state}                    = $server_state;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}           = $server_live_migration;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}  = $server_pre_migration_file_uuid;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}  = $server_pre_migration_arguments;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid} = $server_post_migration_file_uuid;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments} = $server_post_migration_arguments;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"servers::server_uuid::${server_uuid}::"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{}, 
+			"servers::server_uuid::${server_uuid}::server_anvil_uuid"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+			"servers::server_uuid::${server_uuid}::server_clean_stop"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
+			"servers::server_uuid::${server_uuid}::server_start_after_server_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+			"servers::server_uuid::${server_uuid}::server_start_delay"              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+			"servers::server_uuid::${server_uuid}::server_host_uuid"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
+			"servers::server_uuid::${server_uuid}::server_state"                    => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state}, 
+			"servers::server_uuid::${server_uuid}::server_live_migration"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+			"servers::server_uuid::${server_uuid}::server_pre_migration_file_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+			"servers::server_uuid::${server_uuid}::server_pre_migration_arguments"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+			"servers::server_uuid::${server_uuid}::server_post_migration_file_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+			"servers::server_uuid::${server_uuid}::server_post_migration_arguments" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+		}});
 	}
 	
 	return(0);
@@ -9203,11 +9332,32 @@ INSERT INTO
 (
     server_uuid, 
     server_name, 
+    server_anvil_uuid, 
+    server_clean_stop, 
+    server_start_after_server_uuid, 
+    server_start_delay, 
+    server_host_uuid, 
+    server_state, 
+    server_live_migration, 
+    server_pre_migration_file_uuid, 
+    server_pre_migration_arguments, 
+    server_post_migration_file_uuid, 
+    server_post_migration_arguments, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($server_uuid).", 
     ".$anvil->Database->quote($server_name).", 
-    ".$anvil->Database->quote($).", 
+    ".$anvil->Database->quote($server_anvil_uuid).", 
+    ".$anvil->Database->quote($server_clean_stop).", 
+    ".$anvil->Database->quote($server_start_after_server_uuid).", 
+    ".$anvil->Database->quote($server_start_delay).", 
+    ".$anvil->Database->quote($server_host_uuid).", 
+    ".$anvil->Database->quote($server_state).", 
+    ".$anvil->Database->quote($server_live_migration).", 
+    ".$anvil->Database->quote($server_pre_migration_file_uuid).", 
+    ".$anvil->Database->quote($server_pre_migration_arguments).", 
+    ".$anvil->Database->quote($server_post_migration_file_uuid).", 
+    ".$anvil->Database->quote($server_post_migration_arguments).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -9219,10 +9369,18 @@ INSERT INTO
 		# Query the rest of the values and see if anything changed.
 		my $query = "
 SELECT 
-    server_email, 
-    server_language, 
     server_name, 
-    server_level 
+    server_anvil_uuid, 
+    server_clean_stop, 
+    server_start_after_server_uuid, 
+    server_start_delay, 
+    server_host_uuid, 
+    server_state, 
+    server_live_migration, 
+    server_pre_migration_file_uuid, 
+    server_pre_migration_arguments, 
+    server_post_migration_file_uuid, 
+    server_post_migration_arguments, 
 FROM 
     servers 
 WHERE 
@@ -9244,35 +9402,67 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_server_email    = $row->[0]; 
-			my $old_server_language = $row->[1];
-			my $old_server_name     = $row->[2]; 
-			my $old_server_level    = $row->[3]; 
+			my $old_server_name                     = $row->[0];
+			my $old_server_anvil_uuid               = $row->[1]; 
+			my $old_server_clean_stop               = $row->[2]; 
+			my $old_server_start_after_server_uuid  = $row->[3]; 
+			my $old_server_start_delay              = $row->[4]; 
+			my $old_server_host_uuid                = $row->[5]; 
+			my $old_server_state                    = $row->[6]; 
+			my $old_server_live_migration           = $row->[7]; 
+			my $old_server_pre_migration_file_uuid  = $row->[8]; 
+			my $old_server_pre_migration_arguments  = $row->[9]; 
+			my $old_server_post_migration_file_uuid = $row->[10]; 
+			my $old_server_post_migration_arguments = $row->[11]; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				old_server_email    => $old_server_email, 
-				old_server_language => $old_server_language,
-				old_server_name     => $old_server_name, 
-				old_server_level    => $old_server_level, 
+				old_server_name                     => $old_server_name, 
+				old_server_anvil_uuid               => $old_server_anvil_uuid, 
+				old_server_clean_stop               => $old_server_clean_stop, 
+				old_server_start_after_server_uuid  => $old_server_start_after_server_uuid, 
+				old_server_start_delay              => $old_server_start_delay, 
+				old_server_host_uuid                => $old_server_host_uuid, 
+				old_server_state                    => $old_server_state, 
+				old_server_live_migration           => $old_server_live_migration, 
+				old_server_pre_migration_file_uuid  => $old_server_pre_migration_file_uuid, 
+				old_server_pre_migration_arguments  => $old_server_pre_migration_arguments, 
+				old_server_post_migration_file_uuid => $old_server_post_migration_file_uuid, 
+				old_server_post_migration_arguments => $old_server_post_migration_arguments, 
 			}});
 			
 			# Anything change?
-			if (($old_server_email    ne $server_email)    or 
-			    ($old_server_language ne $server_language) or 
-			    ($old_server_name     ne $server_name)     or  
-			    ($old_server_level    ne $server_level))
+			if (($old_server_name                     ne $server_name)                     or  
+			    ($old_server_anvil_uuid               ne $server_anvil_uuid)               or 
+			    ($old_server_clean_stop               ne $server_clean_stop)               or 
+			    ($old_server_start_after_server_uuid  ne $server_start_after_server_uuid)  or 
+			    ($old_server_start_delay              ne $server_start_delay)              or 
+			    ($old_server_host_uuid                ne $server_host_uuid)                or 
+			    ($old_server_state                    ne $server_state)                    or 
+			    ($old_server_live_migration           ne $server_live_migration)           or 
+			    ($old_server_pre_migration_file_uuid  ne $server_pre_migration_file_uuid)  or 
+			    ($old_server_pre_migration_arguments  ne $server_pre_migration_arguments)  or 
+			    ($old_server_post_migration_file_uuid ne $server_post_migration_file_uuid) or 
+			    ($old_server_post_migration_arguments ne $server_post_migration_arguments))
 			{
 				# Something changed, save.
 				my $query = "
 UPDATE 
     servers 
 SET 
-    server_email    = ".$anvil->Database->quote($server_email).", 
-    server_language = ".$anvil->Database->quote($server_language).", 
-    server_name     = ".$anvil->Database->quote($server_name).", 
-    server_level    = ".$anvil->Database->quote($server_level).", 
-    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+    server_name                     = ".$anvil->Database->quote($server_name).", 
+    server_anvil_uuid               = ".$anvil->Database->quote($server_anvil_uuid).", 
+    server_clean_stop               = ".$anvil->Database->quote($server_clean_stop).", 
+    server_start_after_server_uuid  = ".$anvil->Database->quote($server_start_after_server_uuid).", 
+    server_start_delay              = ".$anvil->Database->quote($server_start_delay).", 
+    server_host_uuid                = ".$anvil->Database->quote($server_host_uuid).", 
+    server_state                    = ".$anvil->Database->quote($server_state).", 
+    server_live_migration           = ".$anvil->Database->quote($server_live_migration).", 
+    server_pre_migration_file_uuid  = ".$anvil->Database->quote($server_pre_migration_file_uuid).", 
+    server_pre_migration_arguments  = ".$anvil->Database->quote($server_pre_migration_arguments).", 
+    server_post_migration_file_uuid = ".$anvil->Database->quote($server_post_migration_file_uuid).", 
+    server_post_migration_arguments = ".$anvil->Database->quote($server_post_migration_arguments).", 
+    modified_date                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
-    server_uuid     = ".$anvil->Database->quote($server_uuid)." 
+    server_uuid                     = ".$anvil->Database->quote($server_uuid)." 
 ";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
