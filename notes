@@ -264,6 +264,151 @@ CREATE TRIGGER trigger_temperature
     AFTER INSERT OR UPDATE ON temperature
     FOR EACH ROW EXECUTE PROCEDURE history_temperature();
     
+DROP FUNCTION history_definitions() CASCADE;
+DROP TABLE history.definitions;
+DROP TABLE definitions;
+DROP FUNCTION history_servers() CASCADE;
+DROP TABLE history.servers;
+DROP TABLE servers;
+
+-- This stores servers made available to Anvil! systems and DR hosts.
+CREATE TABLE servers (
+    server_uuid                        uuid                        not null    primary key,
+    server_name                        text                        not null,                     -- This is the server's name. It can change without re-uploading the server.
+    server_anvil_uuid                  uuid                        not null,                     -- This is the Anvil! system that the server lives on. It can move to another Anvil!, so this can change.
+    server_clean_stop                  boolean                     not null    default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
+    server_start_after_server_uuid     uuid                        not null,                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
+    server_start_delay                 integer                     not null    default 0,        -- See above.
+    server_host_uuid                   uuid                        not null,                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
+    server_state                       text                        not null,                     -- This is the current state of this server.
+    server_live_migration              boolean                     not null    default TRUE,     -- When false, servers will be stopped and then rebooted when a migration is requested. Also, when false, preventative migrations will not happen.
+    server_pre_migration_file_uuid     uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_pre_migration_arguments     text                        not null,                     -- These are arguments to pass to the pre-migration script
+    server_post_migration_file_uuid    uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run AFTER migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_post_migration_arguments    text                        not null,                     -- These are arguments to pass to the post-migration script
+    modified_date                      timestamp with time zone    not null, 
+    
+    FOREIGN KEY(server_anvil_uuid)               REFERENCES anvils(anvil_uuid),
+    FOREIGN KEY(server_start_after_server_uuid)  REFERENCES servers(server_uuid),
+    FOREIGN KEY(server_host_uuid)                REFERENCES hosts(host_uuid), 
+    FOREIGN KEY(server_pre_migration_file_uuid)  REFERENCES files(file_uuid), 
+    FOREIGN KEY(server_post_migration_file_uuid) REFERENCES files(file_uuid) 
+);
+ALTER TABLE servers OWNER TO admin;
+
+CREATE TABLE history.servers (
+    history_id                         bigserial,
+    server_uuid                        uuid,
+    server_name                        text,
+    server_anvil_uuid                  uuid,
+    server_clean_stop                  boolean,
+    server_start_after_server_uuid     uuid,
+    server_start_delay                 integer,
+    server_host_uuid                   uuid,
+    server_state                       text,
+    server_live_migration              boolean,
+    server_pre_migration_file_uuid     uuid,
+    server_pre_migration_arguments     text,
+    server_post_migration_file_uuid    uuid,
+    server_post_migration_arguments    text,
+    modified_date                      timestamp with time zone    not null
+);
+ALTER TABLE history.servers OWNER TO admin;
+
+CREATE FUNCTION history_servers() RETURNS trigger
+AS $$
+DECLARE
+    history_servers RECORD;
+BEGIN
+    SELECT INTO history_servers * FROM servers WHERE server_uuid = new.server_uuid;
+    INSERT INTO history.servers
+        (server_uuid,
+         server_name, 
+         server_anvil_uuid,
+         server_clean_stop,
+         server_start_after_server_uuid,
+         server_start_delay,
+         server_host_uuid,
+         server_state,
+         server_live_migration,
+         server_pre_migration_file_uuid,
+         server_pre_migration_arguments,
+         server_post_migration_file_uuid,
+         server_post_migration_arguments,
+         modified_date)
+    VALUES
+        (history_servers.server_uuid, 
+         history_servers.server_name, 
+         history_servers.server_clean_stop,
+         history_servers.server_start_after_server_uuid,
+         history_servers.server_start_delay,
+         history_servers.server_host_uuid,
+         history_servers.server_state,
+         history_servers.server_live_migration,
+         history_servers.server_pre_migration_file_uuid,
+         history_servers.server_pre_migration_arguments,
+         history_servers.server_post_migration_file_uuid,
+         history_servers.server_post_migration_arguments,
+         history_servers.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_servers() OWNER TO admin;
+
+CREATE TRIGGER trigger_servers
+    AFTER INSERT OR UPDATE ON servers
+    FOR EACH ROW EXECUTE PROCEDURE history_servers();
+
+
+-- This stores the XML definition for a server. Whenever a server_definition is found missing on a node or DR host, 
+-- it will be rewritten from here. If this copy changes, it will be updated on the hosts.
+CREATE TABLE server_definitions (
+    server_definition_uuid           uuid                        not null    primary key,
+    server_definition_server_uuid    uuid                        not null,                   -- This is the servers -> server_uuid of the server
+    server_definition_xml            text                        not null,                   -- This is the XML body.
+    modified_date                    timestamp with time zone    not null, 
+    
+    FOREIGN KEY(server_definition_server_uuid) REFERENCES servers(server_uuid) 
+);
+ALTER TABLE server_definitions OWNER TO admin;
+
+CREATE TABLE history.server_definitions (
+    history_id                       bigserial,
+    server_definition_uuid           uuid,
+    server_definition_server_uuid    uuid, 
+    server_definition_xml            text, 
+    modified_date                    timestamp with time zone    not null
+);
+ALTER TABLE history.server_definitions OWNER TO admin;
+
+CREATE FUNCTION history_server_definitions() RETURNS trigger
+AS $$
+DECLARE
+    history_server_definitions RECORD;
+BEGIN
+    SELECT INTO history_server_definitions * FROM server_definitions WHERE server_definition_uuid = new.server_definition_uuid;
+    INSERT INTO history.server_definitions
+        (server_definition_uuid,
+         server_definition_server_uuid, 
+         server_definition_xml, 
+         modified_date)
+    VALUES
+        (history_server_definitions.server_definition_uuid, 
+         history_server_definitions.server_definition_server_uuid, 
+         history_server_definitions.server_definition_xml, 
+         history_server_definitions.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_server_definitions() OWNER TO admin;
+
+CREATE TRIGGER trigger_server_definitions
+    AFTER INSERT OR UPDATE ON server_definitions
+    FOR EACH ROW EXECUTE PROCEDURE history_server_definitions();
+
+
 COMMIT;
 
 ============

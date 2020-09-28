@@ -6,7 +6,8 @@
 # 
 # Exit codes;
 # 0 = Normal exit.
-# 1 = No database connections available.
+# 1 = Not running as root.
+# 2 = 
 # 
 # TODO: 
 # - Decide if it's worth having a separate ScanCore.log file or just feed into anvil.log.
@@ -20,6 +21,10 @@ use Data::Dumper;
 # Disable buffering
 $| = 1;
 
+# Prevent a discrepency between UID/GID and EUID/EGID from throwing an error.
+$< = $>;
+$( = $);
+
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 if (($running_directory =~ /^\./) && ($ENV{PWD}))
@@ -28,6 +33,15 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->nice_exit({exit_code => 1});
+}
 
 $anvil->data->{scancore} = {
 	threshold => {

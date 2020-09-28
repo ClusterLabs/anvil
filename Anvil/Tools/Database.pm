@@ -8,8 +8,9 @@ use warnings;
 use DBI;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
-use Time::HiRes qw(gettimeofday tv_interval);
 use Text::Diff;
+use Time::HiRes qw(gettimeofday tv_interval);
+use XML::LibXML;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
@@ -58,6 +59,8 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_oui
 # insert_or_update_power
 # insert_or_update_recipients
+# insert_or_update_servers
+# insert_or_update_server_definitions
 # insert_or_update_sessions
 # insert_or_update_ssh_keys
 # insert_or_update_states
@@ -3184,13 +3187,13 @@ FROM
 		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication} = $mail_server_authentication;
 		$anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain}    = $mail_server_helo_domain;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_address"        => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_address}, 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_port"           => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port}, 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_username"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username}, 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_password"       => $anvil->Log->is_secure($anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password}), 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_security"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security}, 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_authentication" => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication}, 
-			"mail_servers::mail_server::${mail_server_uuid}}::mail_server_helo_domain"    => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain}, 
+			"mail_servers::mail_server::${mail_server_uuid}::mail_server_address"        => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_address}, 
+			"mail_servers::mail_server::${mail_server_uuid}::mail_server_port"           => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_port}, 
+			"mail_servers::mail_server::${mail_server_uuid}::mail_server_username"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_username}, 
+			"mail_servers::mail_server::${mail_server_uuid}::mail_server_password"       => $anvil->Log->is_secure($anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_password}), 
+			"mail_servers::mail_server::${mail_server_uuid}::mail_server_security"       => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_security}, 
+			"mail_servers::mail_server::${mail_server_uuid}::mail_server_authentication" => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_authentication}, 
+			"mail_servers::mail_server::${mail_server_uuid}::mail_server_helo_domain"    => $anvil->data->{mail_servers}{mail_server}{$mail_server_uuid}{mail_server_helo_domain}, 
 		}});
 		
 		# Make it easy to look up the mail server's UUID from the server address.
@@ -3510,11 +3513,11 @@ WHERE
 		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level}    = $recipient_level;
 		$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}      = $recipient_level;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_name"     => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_email"    => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_language" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::recipient_level"    => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level}, 
-			"recipients::recipient_uuid::${recipient_uuid}}::level_on_host"      => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}, 
+			"recipients::recipient_uuid::${recipient_uuid}::recipient_name"     => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_name}, 
+			"recipients::recipient_uuid::${recipient_uuid}::recipient_email"    => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_email}, 
+			"recipients::recipient_uuid::${recipient_uuid}::recipient_language" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_language}, 
+			"recipients::recipient_uuid::${recipient_uuid}::recipient_level"    => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{recipient_level}, 
+			"recipients::recipient_uuid::${recipient_uuid}::level_on_host"      => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}, 
 		}});
 		
 		# Make it easy to look up the mail server's UUID from the server address.
@@ -3538,7 +3541,7 @@ WHERE
 			{
 				$anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host} = $notification_alert_level;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"recipients::recipient_uuid::${recipient_uuid}}::level_on_host" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}, 
+					"recipients::recipient_uuid::${recipient_uuid}::level_on_host" => $anvil->data->{recipients}{recipient_uuid}{$recipient_uuid}{level_on_host}, 
 				}});
 				last;
 			}
@@ -3582,7 +3585,7 @@ sub get_servers
 	delete $anvil->data->{sys}{servers}{by_uuid};
 	delete $anvil->data->{sys}{servers}{by_name};
 	
-		my $query = "
+	my $query = "
 SELECT 
     server_uuid, 
     server_name, 
@@ -3602,18 +3605,12 @@ FROM
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
-	my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 	my $count   = @{$results};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		results => $results, 
 		count   => $count, 
 	}});
-	if (not $count)
-	{
-		# I have a server_uuid but no matching record. Probably an error.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "server_uuid", uuid => $server_uuid }});
-		return("");
-	}
 	foreach my $row (@{$results})
 	{
 		my $server_uuid                     = $row->[0];
@@ -3658,7 +3655,6 @@ FROM
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid} = $server_post_migration_file_uuid;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments} = $server_post_migration_arguments;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"servers::server_uuid::${server_uuid}::"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{}, 
 			"servers::server_uuid::${server_uuid}::server_anvil_uuid"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
 			"servers::server_uuid::${server_uuid}::server_clean_stop"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
 			"servers::server_uuid::${server_uuid}::server_start_after_server_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
@@ -3670,6 +3666,96 @@ FROM
 			"servers::server_uuid::${server_uuid}::server_pre_migration_arguments"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
 			"servers::server_uuid::${server_uuid}::server_post_migration_file_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
 			"servers::server_uuid::${server_uuid}::server_post_migration_arguments" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+		}});
+	}
+	
+	return(0);
+}
+
+
+=head2 get_server_definitions
+
+This loads all known server definition records from the database.
+
+Data is stored in two formats;
+
+ server_definitions::server_definition_uuid::<server_definition_uuid>::server_definition_server_uuid
+ server_definitions::server_definition_uuid::<server_definition_uuid>::server_definition_xml
+ server_definitions::server_definition_uuid::<server_definition_uuid>::unix_modified_time
+
+And;
+
+ server_definitions::server_definition_server_uuid::<server_definition_server_uuid>::$server_definition_uuid
+ server_definitions::server_definition_server_uuid::<server_definition_server_uuid>::server_definition_xml
+ server_definitions::server_definition_server_uuid::<server_definition_server_uuid>::unix_modified_time
+
+This method takes no parameters.
+
+=cut
+sub get_server_definitions
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_server_definitions()" }});
+	
+	# We're going to include the alert levels for this host based on overrides that might exist in the 
+	# 'notifications' table. If the data hasn't already been loaded, we'll load it now.
+	if (not $anvil->data->{notifications}{notification_uuid})
+	{
+		$anvil->Database->get_notifications({debug => $debug});
+	}
+	
+	my $host_uuid = $anvil->Get->host_uuid();
+	my $query     = "
+SELECT 
+    server_definition_uuid,
+    server_definition_server_uuid,
+    server_definition_xml,
+    round(extract(epoch from modified_date)) AS mtime 
+FROM 
+    server_definitions
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $server_definition_uuid        = $row->[0];
+		my $server_definition_server_uuid = $row->[1];
+		my $server_definition_xml         = $row->[2];
+		my $unix_modified_time            = $row->[3];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			server_definition_uuid        => $server_definition_uuid, 
+			server_definition_server_uuid => $server_definition_server_uuid, 
+			server_definition_xml         => $server_definition_xml, 
+			unix_modified_time            => $unix_modified_time, 
+		}});
+		
+		# Store the data
+		$anvil->data->{server_definitions}{server_definition_uuid}{$server_definition_uuid}{server_definition_server_uuid} = $server_definition_server_uuid;
+		$anvil->data->{server_definitions}{server_definition_uuid}{$server_definition_uuid}{server_definition_xml}         = $server_definition_xml;
+		$anvil->data->{server_definitions}{server_definition_uuid}{$server_definition_uuid}{unix_modified_time}            = $unix_modified_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"server_definitions::server_definition_uuid::${server_definition_uuid}::server_definition_server_uuid" => $anvil->data->{server_definitions}{server_definition_uuid}{$server_definition_uuid}{server_definition_server_uuid}, 
+			"server_definitions::server_definition_uuid::${server_definition_uuid}::server_definition_xml"         => $anvil->data->{server_definitions}{server_definition_uuid}{$server_definition_uuid}{server_definition_xml}, 
+			"server_definitions::server_definition_uuid::${server_definition_uuid}::unix_modified_time"            => $anvil->data->{server_definitions}{server_definition_uuid}{$server_definition_uuid}{unix_modified_time}, 
+		}});
+		
+		# Make it easy to locate records by 'server_uuid' as well.
+		$anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{server_definition_uuid} = $server_definition_uuid;
+		$anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{server_definition_xml}  = $server_definition_xml;
+		$anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{unix_modified_time}     = $unix_modified_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"server_definitions::server_definition_server_uuid::${server_definition_server_uuid}::$server_definition_uuid" => $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{server_definition_uuid}, 
+			"server_definitions::server_definition_server_uuid::${server_definition_server_uuid}::server_definition_xml"   => $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{server_definition_xml}, 
+			"server_definitions::server_definition_server_uuid::${server_definition_server_uuid}::unix_modified_time"      => $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_definition_server_uuid}{unix_modified_time}, 
 		}});
 	}
 	
@@ -9274,7 +9360,7 @@ sub insert_or_update_servers
 	# Do we already know about this 
 	my $exists = 0; 
 	my $query  = "SELECT COUNT(*) FROM servers WHERE server_uuid = ".$anvil->Database->quote($server_uuid).";";
-	my $count  = $anvil->Database->query({query => $function_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	my $count  = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 	if ($count)
 	{
@@ -9305,7 +9391,7 @@ sub insert_or_update_servers
 		my $old_server_state = $results->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_server_state => $old_server_state }});
 		
-		if ($old_server_name ne "DELETED")
+		if ($old_server_state ne "DELETED")
 		{
 			my $query = "
 UPDATE 
@@ -9471,6 +9557,212 @@ WHERE
 	}
 	
 	return($server_uuid);
+}
+
+
+=head2 insert_or_update_server_definitions
+
+This inserts or updates the C<< server_definitions >> table used to store (virtual) server XML definitions.
+
+Parameters;
+
+=head3 server_definition_uuid (optional)
+
+This is the server_definition UUID of a specific record to update. 
+
+=head3 server_definition_server_uuid (required)
+
+This is the C<< servers >> -> C<< server_uuid >> of the server whose server_definition this belongs to.
+
+server_definition_xml (required)
+
+This is the server's XML definition file itself.
+
+=cut
+sub insert_or_update_server_definitions
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_server_definitions()" }});
+	
+	my $uuid                          = defined $parameter->{uuid}                          ? $parameter->{uuid}                          : "";
+	my $file                          = defined $parameter->{file}                          ? $parameter->{file}                          : "";
+	my $line                          = defined $parameter->{line}                          ? $parameter->{line}                          : "";
+	my $server_definition_uuid        = defined $parameter->{server_definition_uuid}        ? $parameter->{server_definition_uuid}        : "";
+	my $server_definition_server_uuid = defined $parameter->{server_definition_server_uuid} ? $parameter->{server_definition_server_uuid} : "";
+	my $server_definition_xml         = defined $parameter->{server_definition_xml}         ? $parameter->{server_definition_xml}         : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                          => $uuid, 
+		file                          => $file, 
+		line                          => $line, 
+		server_definition_uuid        => $server_definition_uuid, 
+		server_definition_server_uuid => $server_definition_server_uuid, 
+		server_definition_xml         => $server_definition_xml, 
+	}});
+	
+	if (not $server_definition_server_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_server_definitions()", parameter => "server_definition_server_uuid" }});
+		return("!!error!!");
+	}
+	if (not $anvil->Validate->uuid({uuid => $server_definition_server_uuid}))
+	{
+		# Bad UUID.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_server_definitions()", parameter => "server_definition_server_uuid", uuid => $server_definition_server_uuid }});
+		return("!!error!!");
+	}
+	if (not $server_definition_xml)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_server_definitions()", parameter => "server_definition_xml" }});
+		return("!!error!!");
+	}
+	
+	# Make sure the server_definition_xml looks valid.
+	local $@;
+	my $dom = eval { XML::LibXML->load_xml(string => $server_definition_xml); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0066", variables => { 
+			xml   => $server_definition_xml,
+			error => $@,
+		}});
+		return("!!error!!");
+	}
+	
+	# Verify that I can read the UUID from the XML and verify that it matches the 
+	# 'server_definition_server_uuid'.
+	my $server_name = $dom->findvalue('/domain/name');
+	my $read_uuid   = $dom->findvalue('/domain/uuid');
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server_name => $server_name, 
+		read_uuid   => $read_uuid,
+	}});
+	
+	if (not $read_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0067", variables => { xml => $server_definition_xml }});
+		return("!!error!!");
+	}
+	elsif ($read_uuid ne $server_definition_server_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0067", variables => { 
+			passed_uuid => $server_definition_server_uuid,
+			read_uuid   => $read_uuid,
+			xml         => $server_definition_xml,
+		}});
+		return("!!error!!");
+	}
+	
+	# If we don't have a server_definition_uuid, look for one using the server_uuid.
+	if (not $server_definition_uuid)
+	{
+		my $query = "
+SELECT 
+    server_definition_uuid 
+FROM 
+    server_definitions 
+WHERE 
+    server_definition_server_uuid = ".$anvil->Database->quote($server_definition_server_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$server_definition_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_definition_uuid => $server_definition_uuid }});
+		}
+	}
+	
+	# UPDATE or INSERT.
+	if ($server_definition_uuid)
+	{
+		# Is there any difference?
+		my $query = "
+SELECT 
+    server_definition_server_uuid, 
+    server_definition_xml 
+FROM 
+    server_definitions 
+WHERE 
+    server_definition_uuid = ".$anvil->Database->quote($server_definition_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_server_definition_server_uuid = $row->[0];
+			my $old_server_definition_xml         = $row->[1];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				old_server_definition_server_uuid => $old_server_definition_server_uuid,
+				old_server_definition_xml         => $old_server_definition_xml, 
+			}});
+			if (($old_server_definition_server_uuid ne $server_definition_server_uuid) or 
+			    ($old_server_definition_xml         ne $server_definition_xml))
+			{
+				# If the server_definition is what changed, log the diff.
+				if ($old_server_definition_xml ne $server_definition_xml)
+				{
+					my $difference = diff \$old_server_definition_xml, \$server_definition_xml, { STYLE => 'Unified' };
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0556", variables => { 
+						server_name            => $server_name,
+						server_definition_server_uuid => $server_definition_server_uuid, 
+						difference             => $difference,
+					}});
+				}
+				
+				# Save the changes.
+				my $query = "
+UPDATE 
+    server_definitions
+SET 
+    server_definition_xml         = ".$anvil->Database->quote($server_definition_xml).", 
+    server_definition_server_uuid = ".$anvil->Database->quote($server_definition_server_uuid).", 
+    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    server_definition_uuid        = ".$anvil->Database->quote($server_definition_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		   $server_definition_uuid = $anvil->Get->uuid();
+		my $query = "
+INSERT INTO 
+    server_definitions 
+(
+    server_definition_uuid, 
+    server_definition_server_uuid, 
+    server_definition_xml, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($server_definition_uuid).", 
+    ".$anvil->Database->quote($server_definition_server_uuid).",
+    ".$anvil->Database->quote($server_definition_xml).",
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($server_definition_uuid);
 }
 
 

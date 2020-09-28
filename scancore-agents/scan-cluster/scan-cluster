@@ -9,7 +9,7 @@
 # 
 # Exit codes;
 # 0 = Normal exit.
-# 1 = Startup failure (no DB, bad file read, etc)
+# 1 = Startup failure (not running as root, no DB, bad file read, etc)
 # 
 # TODO: 
 # - 
@@ -23,6 +23,10 @@ use Data::Dumper;
 # Disable buffering
 $| = 1;
 
+# Prevent a discrepency between UID/GID and EUID/EGID from throwing an error.
+$< = $>;
+$( = $);
+
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 if (($running_directory =~ /^\./) && ($ENV{PWD}))
@@ -33,6 +37,15 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->nice_exit({exit_code => 1});
+}
 
 $anvil->data->{scancore}{'scan-cluster'}{disable} = 0;
 $anvil->data->{switches}{force}                   = 0;

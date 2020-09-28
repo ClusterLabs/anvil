@@ -14,7 +14,20 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_server_log
 	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors hardware, like RAM modules, CSS LED status, CPU information, etc.">
 		
 		<!-- Alert entries -->
-		<key name="scan_server_alert_0001"></key>
+		<key name="scan_server_alert_0001">
+The definition file for the server: [#!variable!server!#] has changed relative to the database record. This is usually harmless.
+The differences are:
+====
+#!variable!difference!#
+====
+		</key>
+		<key name="scan_server_alert_0002">
+The definition file for the server: [#!variable!server!#] has changed relative to disk record. This is usually harmless.
+The differences are:
+====
+#!variable!difference!#
+====
+		</key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>

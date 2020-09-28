@@ -288,6 +288,61 @@ sub check_node_status
 	return($anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready});
 }
 
+=head2 get_anvil_uuid
+
+This returns the C<< anvils >> -> C<< anvil_uuid >> that a host belongs to. If the host is not found in any Anvil!, an empty string is returned.
+
+Parameters;
+
+=head3 host_uuid (optional, default Get->host_uuid)
+
+This is the C<< host_uuid >> of the host who we're looking for Anvil! membership of.
+
+=cut
+sub get_anvil_uuid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->check_node_status()" }});
+	
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+		host_uuid => $host_uuid,
+	}});
+	
+	# Load the Anvil! data.
+	$anvil->Database->get_anvils({debug => $debug});
+	my $member_anvil_uuid = "";
+	
+	foreach my $anvil_uuid (keys %{$anvil->data->{anvils}{anvil_uuid}})
+	{
+		my $anvil_name            = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $anvil_dr1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			anvil_name            => $anvil_name,
+			anvil_node1_host_uuid => $anvil_node1_host_uuid, 
+			anvil_node2_host_uuid => $anvil_node2_host_uuid, 
+			anvil_dr1_host_uuid   => $anvil_dr1_host_uuid, 
+		}});
+		
+		if (($host_uuid eq $anvil_node1_host_uuid) or 
+		    ($host_uuid eq $anvil_node2_host_uuid) or 
+		    ($host_uuid eq $anvil_dr1_host_uuid))
+		{
+			# Found ot!
+			$member_anvil_uuid = $anvil_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { member_anvil_uuid => $member_anvil_uuid }});
+			last;
+		}
+	}
+	
+	return($member_anvil_uuid);
+}
+
 =head2 get_peers
 
 This method uses the local machine's host UUID and finds the host names of the cluster memebers. If this host is in a cluster and it is a node, the peer's short host name is returned. Otherwise, an empty string is returned.

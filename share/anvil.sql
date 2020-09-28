@@ -1325,52 +1325,52 @@ CREATE TRIGGER trigger_servers
     FOR EACH ROW EXECUTE PROCEDURE history_servers();
 
 
--- This stores the XML definition for a server. Whenever a definition is found missing on a node or DR host, 
+-- This stores the XML definition for a server. Whenever a server_definition is found missing on a node or DR host, 
 -- it will be rewritten from here. If this copy changes, it will be updated on the hosts.
-CREATE TABLE definitions (
-    definition_uuid           uuid                        not null    primary key,
-    definition_server_uuid    uuid                        not null,                   -- This is the servers -> server_uuid of the server
-    definition_xml            text                        not null,                   -- This is the XML body.
-    modified_date             timestamp with time zone    not null, 
+CREATE TABLE server_definitions (
+    server_definition_uuid           uuid                        not null    primary key,
+    server_definition_server_uuid    uuid                        not null,                   -- This is the servers -> server_uuid of the server
+    server_definition_xml            text                        not null,                   -- This is the XML body.
+    modified_date                    timestamp with time zone    not null, 
     
-    FOREIGN KEY(definition_server_uuid) REFERENCES servers(server_uuid) 
+    FOREIGN KEY(server_definition_server_uuid) REFERENCES servers(server_uuid) 
 );
-ALTER TABLE definitions OWNER TO admin;
+ALTER TABLE server_definitions OWNER TO admin;
 
-CREATE TABLE history.definitions (
-    history_id                bigserial,
-    definition_uuid           uuid,
-    definition_server_uuid    uuid, 
-    definition_xml            text, 
-    modified_date             timestamp with time zone    not null
+CREATE TABLE history.server_definitions (
+    history_id                       bigserial,
+    server_definition_uuid           uuid,
+    server_definition_server_uuid    uuid, 
+    server_definition_xml            text, 
+    modified_date                    timestamp with time zone    not null
 );
-ALTER TABLE history.definitions OWNER TO admin;
+ALTER TABLE history.server_definitions OWNER TO admin;
 
-CREATE FUNCTION history_definitions() RETURNS trigger
+CREATE FUNCTION history_server_definitions() RETURNS trigger
 AS $$
 DECLARE
-    history_definitions RECORD;
+    history_server_definitions RECORD;
 BEGIN
-    SELECT INTO history_definitions * FROM definitions WHERE definition_uuid = new.definition_uuid;
-    INSERT INTO history.definitions
-        (definition_uuid,
-         definition_server_uuid, 
-         definition_xml, 
+    SELECT INTO history_server_definitions * FROM server_definitions WHERE server_definition_uuid = new.server_definition_uuid;
+    INSERT INTO history.server_definitions
+        (server_definition_uuid,
+         server_definition_server_uuid, 
+         server_definition_xml, 
          modified_date)
     VALUES
-        (history_definitions.definition_uuid, 
-         history_definitions.definition_server_uuid, 
-         history_definitions.definition_xml, 
-         history_definitions.modified_date);
+        (history_server_definitions.server_definition_uuid, 
+         history_server_definitions.server_definition_server_uuid, 
+         history_server_definitions.server_definition_xml, 
+         history_server_definitions.modified_date);
     RETURN NULL;
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_definitions() OWNER TO admin;
+ALTER FUNCTION history_server_definitions() OWNER TO admin;
 
-CREATE TRIGGER trigger_definitions
-    AFTER INSERT OR UPDATE ON definitions
-    FOR EACH ROW EXECUTE PROCEDURE history_definitions();
+CREATE TRIGGER trigger_server_definitions
+    AFTER INSERT OR UPDATE ON server_definitions
+    FOR EACH ROW EXECUTE PROCEDURE history_server_definitions();
 
 
 -- It stores a general list of OUI (Organizationally Unique Identifier) to allow lookup of MAC address to 

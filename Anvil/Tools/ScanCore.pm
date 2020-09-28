@@ -132,6 +132,9 @@ sub agent_startup
 		return("!!error!!");
 	}
 	
+	my $table_count = @{$tables};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table_count => $table_count }});
+	
 	# It's possible that some agents don't have a database (or use core database tables only)
 	if (@{$tables} > 0)
 	{

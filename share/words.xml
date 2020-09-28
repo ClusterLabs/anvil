@@ -1058,6 +1058,11 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0553">The server: [#!variable!server!#] has booted!</key>
 		<key name="log_0554">Waiting for the server: [#!variable!server!#] to shut down...</key>
 		<key name="log_0555">The server: [#!variable!server!#] is now off.</key>
+		<key name="log_0556">The server: [#!variable!server!#] (#!variable!server_uuid!#) has a definition change:
+====
+#!variable!difference!#
+====
+		</key>
 		
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -1857,6 +1862,30 @@ The error was:
 		</key>
 		<key name="warning_0064">[ Warning ] - The server: [#!variable!server!#] was asked to be migrated to: [#!variable!requested_node!#], but the server is shutting down. Aborting.</key>
 		<key name="warning_0065">[ Warning ] - The server: [#!variable!server!#] was asked to be migrated to: [#!variable!requested_node!#], but the server is already in the middle of a migration. Aborting.</key>
+		<key name="warning_0066">[ Warning ] - Failed to parse the XML:
+========
+#!variable!xml!#
+========
+
+The error was:
+
+========
+#!variable!error!#
+========
+		</key>
+		<key name="warning_0067">[ Warning ] - Failed to find the server's UUID from the definition XML:
+========
+#!variable!xml!#
+========
+		</key>
+		<key name="warning_0068">[ Warning ] - The server UUID read: from the definition XML doesn't match the passed-in server UUID.
+Passed in UUID: [#!variable!passed_uuid!#] 
+Read UUID: .... [#!variable!read_uuid!#]
+
+========
+#!variable!xml!#
+========
+		</key>
 		
 	</language>
 	<!-- 日本語 -->

@@ -8,7 +8,7 @@
 # 
 # Exit codes;
 # 0 = Normal exit.
-# 1 = Startup failure (no DB, bad file read, etc)
+# 1 = Startup failure (not running as root, no DB, bad file read, etc)
 # 2 = libvirtd is not running.
 # 
 # TODO: 
@@ -19,9 +19,14 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use Text::Diff;
 
 # Disable buffering
 $| = 1;
+
+# Prevent a discrepency between UID/GID and EUID/EGID from throwing an error.
+$< = $>;
+$( = $);
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -33,6 +38,15 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->nice_exit({exit_code => 1});
+}
 
 $anvil->data->{scancore}{'scan-server'}{disable} = 0;
 $anvil->data->{switches}{force}                   = 0;
@@ -50,7 +64,7 @@ if (($anvil->data->{scancore}{'scan-server'}{disable}) && (not $anvil->data->{sw
 }
 
 # This scan agent only uses core tables (server and definitions).
-$anvil->data->{scancore}{'scan-server'}{tables} = [""];
+$anvil->data->{scancore}{'scan-server'}{tables} = [];
 
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({
@@ -103,6 +117,10 @@ sub collect_data
 		$anvil->nice_exit({exit_code => 2});
 	}
 	
+	# Load data we know about
+	$anvil->Database->get_servers({debug => 2});
+	$anvil->Database->get_server_definitions({debug => 2});
+	
 	my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all", source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	foreach my $line (split/\n/, $output)
@@ -112,8 +130,8 @@ sub collect_data
 		
 		if ($line =~ /^\d+ (.*?) (.*)$/)
 		{
-			my $server  = $1;
-			my $state = $2;
+			my $server = $1;
+			my $state  = $2;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				server  => $server, 
 				'state' => $state, 
@@ -165,25 +183,174 @@ sub collect_data
 		}
 		
 		my $server_uuid = $anvil->data->{server}{$target}{$server}{$source}{info}{uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_uuid => $server_uuid }});
+		my $server_name = $anvil->data->{server}{$target}{$server}{$source}{info}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_uuid => $server_uuid,
+			server_name => $server_name, 
+		}});
 		
 		# See if this server is in the database.
-		my $query = "SELECT COUNT(*) FROM servers WHERE server_uuid = ".$anvil->Database->quote($server_uuid).";";
-		my $count = $anvil->Database->query({query => $function_query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-		if (not $count)
+		if (not exists $anvil->data->{servers}{server_uuid}{$server_uuid})
 		{
-			# Add it.
+			# Add it. I'll need my anvil_uuid first.
+			my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 2});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+			
+			my $got_server_uuid = $anvil->Database->insert_or_update_servers({
+				debug                           => 2, 
+				server_uuid                     => $server_uuid, 
+				server_name                     => $server_name, 
+				server_anvil_uuid               => $anvil_uuid, 
+				server_clean_stop               => "", 
+				server_start_after_server_uuid  => "", 
+				server_start_delay              => 0, 
+				server_host_uuid                => $anvil->Get->host_uuid, 
+				server_state                    => $anvil->data->{'scan-server'}{server}{$server}{'state'}, 
+				server_live_migration           => 1, 
+				server_pre_migration_file_uuid  => "", 
+				server_pre_migration_arguments  => "", 
+				server_post_migration_file_uuid => "", 
+				server_post_migration_arguments => "", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { got_server_uuid => $got_server_uuid }});
+			
+			if ((not $got_server_uuid) or ($got_server_uuid eq "!!error!!"))
+			{
+				# What?
+				next;
+			}
+			else
+			{
+				# Store the definition from memory
+				my $server_definition_uuid = $anvil->Database->insert_or_update_server_definitions({
+					debug                         => 2,
+					server_definition_xml         => $definition,  
+					server_definition_server_uuid => $server_uuid, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
+				if ((not $server_definition_uuid) or ($server_definition_uuid ne "!!error!!"))
+				{
+					# What?
+					next;
+				}
+			}
+			
+			# Reload the servers.
+			$anvil->Database->get_servers({debug => 2});
+			$anvil->Database->get_server_definitions({debug => 2});
 		}
 		
-		### TODO: left off here, look for the XML file on disk. If it's not found, write it. 
-		my $xml_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
-		if (-e $xml_file)
+		# If the defition in the database isn't the same as the definition in memory, update it.
+		if ($definition ne $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml})
 		{
-			$anvil->Storage->get_file_stats({
-				debug     => 2,
-				file_path => $xml_file,
+			# Register a notice-level alert.
+			my $difference = diff \$anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml}, \$definition, { STYLE => 'Unified' };
+			my $variables  = {
+				server     => $server,
+				difference => $difference,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0001", variables => $variables});
+			$anvil->Alert->register({
+				alert_level       => "notice", 
+				message           => "scan_server_alert_0001",
+				message_variables => $variables, 
+				set_by            => $THIS_FILE,
 			});
+			
+			# Update the definition in the database.
+			my $server_definition_uuid = $anvil->Database->insert_or_update_server_definitions({
+				debug                         => 2,
+				server_definition_xml         => $definition,  
+				server_definition_server_uuid => $server_uuid, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
+			if ((not $server_definition_uuid) or ($server_definition_uuid ne "!!error!!"))
+			{
+				# What?
+				next;
+			}
+			$anvil->Database->get_server_definitions({debug => 2});
+		}
+		
+		### NOTE: If the disk version differs from the in-memory or in-database copy, and the 
+		###       age of the file on disk is newer than the age of the database record (which will 
+		###       match the in-memory definition by this point), we'll leave the disk version alone.
+		###       This is done so that a manual edit of the definition file won't be immediately
+		###       overwritten by the definition in memory. 
+		# If the file doesn't exist, we'll write it out. 
+		# If it does exist, but differs from the version in memory, we'll write the file.
+		my $write_file = 0;
+		my $xml_file   = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+		if (not -e $xml_file)
+		{
+			$write_file = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { write_file => $write_file }});
+		}
+		else
+		{
+			my $on_disk_definition = $anvil->Storage->read_file({
+				debug => 2,
+				file  => $xml_file,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { on_disk_definition => $on_disk_definition }});
+			if (($on_disk_definition ne "!!error!!") && ($on_disk_definition) && ($definition ne $on_disk_definition))
+			{
+				$anvil->Storage->get_file_stats({
+					debug     => 2,
+					file_path => $xml_file,
+				});
+				
+				my $current_time           = time;
+				my $file_modified_time     = $anvil->data->{file_stat}{$xml_file}{modified_time};
+				my $database_modified_time = $anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{unix_modified_time};
+				my $file_age               = $current_time - $file_modified_time;
+				my $database_age           = $current_time - $database_modified_time;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:current_time'           => $current_time,
+					's2:file_modified_time'     => $file_modified_time, 
+					's3:database_modified_time' => $database_modified_time, 
+					's4:file_age'               => $file_age, 
+					's5:database_age'           => $database_age, 
+				}});
+				
+				# Compare the age of the on-disk file with the age of the database record. If
+				# the database age is newer, update the on-disk copy.
+				if ($file_age >= $database_age)
+				{
+					# Update the disk copy.
+					my $difference = diff \$anvil->data->{server_definitions}{server_definition_server_uuid}{$server_uuid}{server_definition_xml}, \$definition, { STYLE => 'Unified' };
+					my $variables  = {
+						server     => $server,
+						difference => $difference,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0002", variables => $variables});
+					$anvil->Alert->register({
+						alert_level       => "notice", 
+						message           => "scan_server_alert_0002",
+						message_variables => $variables, 
+						set_by            => $THIS_FILE,
+					});
+					
+					$write_file = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { write_file => $write_file }});
+				}
+			}
+		}
+		
+		if ($write_file)
+		{
+			my $return = $anvil->Storage->write_file({
+				debug       => 3,
+				body        => $definition,
+				file        => $xml_file,
+				overwrite   => 1,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+			if ($return)
+			{
+				# Something went wrong.
+				next;
+			}
 		}
 	}
 	
