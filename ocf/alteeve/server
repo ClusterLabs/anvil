@@ -1113,6 +1113,16 @@ sub server_status
 						found   => $found, 
 						'state' => $state,
 					}});
+=cut
+* Server states;
+running     - The domain is currently running on a CPU
+idle        - The domain is idle, and not running or runnable.  This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
+paused      - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
+in shutdown - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
+shut off    - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
+crashed     - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
+pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3 state.
+=cut
 					
 					### TODO: Should we treat 'idle' same as crashed?
 					if ($state eq "crashed")
@@ -1205,8 +1215,7 @@ sub migrate_server
 	# The actual migration command will involve enabling dual primary, then beginning the migration. The
 	# virsh call will depend on if we're pushing or pulling. Once the migration completes, regardless of
 	# success or failure, dual primary will be disabled again.
-	my $migration_command = "";
-	my $migrated          = 0;
+	my $migrated = 0;
 	if ($target)
 	{
 		# Can I even connect to the target?
@@ -1527,7 +1536,7 @@ sub validate_storage
 {
 	my ($anvil) = @_;
 	
-	# When checking on a running server, use 'from_memory'.
+	# When checking on a running server, use 'from_virsh'.
 	my $server =         $anvil->data->{environment}{OCF_RESKEY_name};
 	my $target = defined $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} ? $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1536,9 +1545,9 @@ sub validate_storage
 	}});
 	my $local_host = $anvil->Get->short_host_name();
 	my $xml_source = "from_disk";
-	if ($anvil->data->{server}{$local_host}{$server}{from_memory}{host})
+	if ($anvil->data->{server}{$local_host}{$server}{from_virsh}{host})
 	{
-		$xml_source = "from_memory";
+		$xml_source = "from_virsh";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 		server     => $server,

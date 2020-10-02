@@ -1244,12 +1244,16 @@ CREATE TABLE servers (
     server_start_after_server_uuid     uuid                        not null,                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
     server_start_delay                 integer                     not null    default 0,        -- See above.
     server_host_uuid                   uuid                        not null,                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
-    server_state                       text                        not null,                     -- This is the current state of this server.
-    server_live_migration              boolean                     not null    default TRUE,     -- When false, servers will be stopped and then rebooted when a migration is requested. Also, when false, preventative migrations will not happen.
+    server_state                       text                        not null,                     -- This is the current state of this server, as reported by 'virsh list --all' (see: man virsh -> GENERIC COMMANDS -> --list)
+    server_live_migration              boolean                     not null    default TRUE,     -- When false, servers will be frozen for a migration, instead of being migrated while the server is migrating. During a cold migration, the server will be unresponsive, so connections to it could time out. However, by being frozen the migration will complete faster.
     server_pre_migration_file_uuid     uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.
     server_pre_migration_arguments     text                        not null,                     -- These are arguments to pass to the pre-migration script
     server_post_migration_file_uuid    uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run AFTER migrating a server. If the file isn't found or can't run, the script is ignored.
     server_post_migration_arguments    text                        not null,                     -- These are arguments to pass to the post-migration script
+    server_ram_in_use                  numeric                     not null,                     -- This is the amount of RAM currently used by the server. If the server is off, then this is the amount of RAM last used when the server was running.
+    server_configured_ram              numeric                     not null,                     -- This is the amount of RAM allocated to the server in the on-disk definition file. This should always match the table above, but allows us to track when a user manually updated the allocated RAM in the on-disk definition, but that hasn't yet been picked up by the server
+    server_updated_by_user             numeric                     not null,                     -- This is set to a unix timestamp when the user last updated the definition (via striker). When set, scan-server will check this value against the age of the definition file on disk. If this is newer, the on-disk defition will be updated. On the host with the server (if any), the new definition will be loaded into virsh as well.
+    server_boot_time                   numeric                     not null,                     -- This is the unix time (since epoch) when the server booted. It is calculated by checking the 'ps -p <pid> -o etimes=' when a server is seen to be running when it had be last seen as off. If a server that had been running is seen to be off, this is set back to 0.
     modified_date                      timestamp with time zone    not null, 
     
     FOREIGN KEY(server_anvil_uuid)               REFERENCES anvils(anvil_uuid),
@@ -1275,6 +1279,10 @@ CREATE TABLE history.servers (
     server_pre_migration_arguments     text,
     server_post_migration_file_uuid    uuid,
     server_post_migration_arguments    text,
+    server_ram_in_use                  numeric,
+    server_configured_ram              numeric,
+    server_updated_by_user             numeric,
+    server_boot_time                   numeric,
     modified_date                      timestamp with time zone    not null
 );
 ALTER TABLE history.servers OWNER TO admin;
@@ -1299,6 +1307,10 @@ BEGIN
          server_pre_migration_arguments,
          server_post_migration_file_uuid,
          server_post_migration_arguments,
+         server_ram_in_use, 
+         server_configured_ram, 
+         server_updated_by_user, 
+         server_boot_time, 
          modified_date)
     VALUES
         (history_servers.server_uuid, 
@@ -1313,6 +1325,10 @@ BEGIN
          history_servers.server_pre_migration_arguments,
          history_servers.server_post_migration_file_uuid,
          history_servers.server_post_migration_arguments,
+         history_servers.server_ram_in_use, 
+         history_servers.server_configured_ram, 
+         history_servers.server_updated_by_user, 
+         history_servers.server_boot_time, 
          history_servers.modified_date);
     RETURN NULL;
 END;

@@ -64,17 +64,20 @@ The differences are:
 - New: [#!variable!new!# thread(s)]
 - Old: [#!variable!old!# thread(s)]
 		</key>
-		<key name="scan_hardware_alert_0012">The amount of RAM (as reported by dmidecode) on the system has changed. If there was a hardware upgrade, then this is safe to ignore. If it was unexpected, a RAM module may have failed.
-- New: [#!variable!new!#]
-- Old: [#!variable!old!#]
+		<key name="scan_hardware_alert_0012">The amount of RAM (as reported by dmidecode) on the system has dropped. If it was unexpected, a RAM module may have failed.
+- New: ...... [#!variable!new!#]
+- Old: ...... [#!variable!old!#]
+- Difference: [#!variable!difference!#]
 		</key>
-		<key name="scan_hardware_alert_0013">The amount of memory (as reported by /proc/meminfo) on the system has changed. If there was a hardware upgrade, then this is safe to ignore. If it was unexpected, a RAM module may have failed.
-- New: [#!variable!new!#]
-- Old: [#!variable!old!#]
+		<key name="scan_hardware_alert_0013">The amount of memory (as reported by /proc/meminfo) on the system has dropped.
+- New: ...... [#!variable!new!#]
+- Old: ...... [#!variable!old!#]
+- Difference: [#!variable!difference!#]
 		</key>
-		<key name="scan_hardware_alert_0014">The amount of memory (as reported by /proc/meminfo) on the system has changed. If there was a hardware upgrade, then this is safe to ignore. If it was unexpected, a RAM module may have failed.
-- New: [#!variable!new!#]
-- Old: [#!variable!old!#]
+		<key name="scan_hardware_alert_0014">The amount of swap (as reported by /proc/meminfo) on the system has dropped.
+- New: ...... [#!variable!new!#]
+- Old: ...... [#!variable!old!#]
+- Difference: [#!variable!difference!#]
 		</key>
 		<key name="scan_hardware_alert_0015">The ID LED (identification light) state has changed;
 - New: [#!variable!new!#]
@@ -88,11 +91,11 @@ The differences are:
 - New: [#!variable!new!#]
 - Old: [#!variable!old!#]
 		</key>
-		<key name="scan_hardware_alert_0018">The amount of available memory (as reported by /proc/meminfo) has changed (this is common and expected);
+		<key name="scan_hardware_alert_0018">The amount of free memory (as reported by /proc/meminfo) has changed (this is common and expected);
 - New: [#!variable!new!#]
 - Old: [#!variable!old!#]
 		</key>
-		<key name="scan_hardware_alert_0019">The amount of available swap space (as reported by /proc/meminfo) has changed (this is common and expected);
+		<key name="scan_hardware_alert_0019">The amount of free swap space (as reported by /proc/meminfo) has changed (this is common and expected);
 - New: [#!variable!new!#]
 - Old: [#!variable!old!#]
 		</key>
@@ -146,6 +149,11 @@ If the RAM is being updated, this alert will clear once this node has been upgra
 - Peer's RAM: [#!variable!peer_ram!#]
 		</key>
 		<key name="scan_hardware_alert_0028">The amount of RAM on both nodes is back to being the same. They both have: [#!variable!ram!#] now.</key>
+		<key name="scan_hardware_alert_0029">The amount of RAM (as reported by dmidecode) on the system has increased. Likely the system was upgraded.
+- New: ...... [#!variable!new!#]
+- Old: ...... [#!variable!old!#]
+- Difference: [#!variable!difference!#]
+		</key>
 		
 		<!-- Log entries -->
 		<key name="scan_hardware_log_0001">Starting: [#!variable!program!#].</key>

@@ -14,6 +14,7 @@ my $THIS_FILE = "Server.pm";
 ### Methods;
 # boot_virsh
 # find
+# get_runtime
 # get_status
 # map_network
 # parse_definition
@@ -291,9 +292,72 @@ sub find
 	return(0);
 }
 
+
+=head2 get_runtime
+
+This returns the number of seconds that a (virtual) server has been running on this host. 
+
+If the server is not found to be running locally, C<< 0 >> is returned. Otherwise, the number of seconds is returned.
+
+B<< Note >>: This is NOT the overall runtime! If the server migrated, it will return the number of seconds that the server has been on this host, which could vary dramatically from the guest's actual runtime!
+
+Parameters;
+
+=head3 server (required)
+
+This is the name of the server whose runtime we are checking. 
+
+=cut
+sub get_runtime
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_status()" }});
+	
+	my $runtime = 0;
+	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server => $server, 
+	}});
+	
+	# To find the runtime, we first need to find the PID.
+	my $server_pid = 0;
+	my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({ string => $line });
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^qemu\s+(\d+)\s.*?guest=\Q$server\E,/)
+		{
+			$server_pid = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_pid => $server_pid }});
+			last;
+		}
+	}
+	
+	if ($server_pid)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{ps}." -p ".$server_pid." -o etimes=";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		foreach my $line (split/\n/, $output)
+		{
+			$runtime = $anvil->Words->clean_spaces({ string => $line });
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { runtime => $runtime }});
+		}
+	}
+	
+	return($runtime);
+}
+
 =head2 get_status
 
-This reads in a server's XML definition file from disk, if available, and from memory, if the server is running. The XML is analyzed and data is stored under C<< server::<target>::<server_name>::from_disk::x >> for data from the on-disk XML and C<< server::<target>>::<server_name>::from_memory::x >>. 
+This reads in a server's XML definition file from disk, if available, and from memory, if the server is running. The XML is analyzed and data is stored under C<< server::<target>::<server_name>::from_disk::x >> for data from the on-disk XML and C<< server::<target>>::<server_name>::from_virsh::x >>. 
 
 Any pre-existing data on the server is flushed before the new information is processed.
 
@@ -353,7 +417,7 @@ sub get_status
 	{
 		delete $anvil->data->{server}{$host}{$server};
 	}
-	$anvil->data->{server}{$host}{$server}{from_memory}{host} = "";
+	$anvil->data->{server}{$host}{$server}{from_virsh}{host} = "";
 	
 	# We're going to map DRBD devices to resources, so we need to collect that data now. 
 	$anvil->DRBD->get_devices({
@@ -365,22 +429,22 @@ sub get_status
 	});
 	
 	# Is this a local call or a remote call?
-	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server;
 	my $this_host  = $anvil->Get->short_host_name;
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local.
-		($anvil->data->{server}{$host}{$server}{from_memory}{xml}, $anvil->data->{server}{$host}{$server}{from_memory}{return_code}) = $anvil->System->call({shell_call => $shell_call});
+		($anvil->data->{server}{$host}{$server}{from_virsh}{xml}, $anvil->data->{server}{$host}{$server}{from_virsh}{return_code}) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"server::${host}::${server}::from_memory::xml"         => $anvil->data->{server}{$host}{$server}{from_memory}{xml},
-			"server::${host}::${server}::from_memory::return_code" => $anvil->data->{server}{$host}{$server}{from_memory}{return_code},
+			"server::${host}::${server}::from_virsh::xml"         => $anvil->data->{server}{$host}{$server}{from_virsh}{xml},
+			"server::${host}::${server}::from_virsh::return_code" => $anvil->data->{server}{$host}{$server}{from_virsh}{return_code},
 		}});
 	}
 	else
 	{
 		# Remote call.
 		$this_host = $target;
-		($anvil->data->{server}{$host}{$server}{from_memory}{xml}, my $error, $anvil->data->{server}{$host}{$server}{from_memory}{return_code}) = $anvil->Remote->call({
+		($anvil->data->{server}{$host}{$server}{from_virsh}{xml}, my $error, $anvil->data->{server}{$host}{$server}{from_virsh}{return_code}) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
 			target      => $target,
@@ -390,25 +454,25 @@ sub get_status
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			error                                     => $error,
-			"server::${host}::${server}::from_memory::xml"         => $anvil->data->{server}{$host}{$server}{from_memory}{xml},
-			"server::${host}::${server}::from_memory::return_code" => $anvil->data->{server}{$host}{$server}{from_memory}{return_code},
+			"server::${host}::${server}::from_virsh::xml"         => $anvil->data->{server}{$host}{$server}{from_virsh}{xml},
+			"server::${host}::${server}::from_virsh::return_code" => $anvil->data->{server}{$host}{$server}{from_virsh}{return_code},
 		}});
 	}
 	
 	# If the return code was non-zero, we can't parse the XML.
-	if ($anvil->data->{server}{$host}{$server}{from_memory}{return_code})
+	if ($anvil->data->{server}{$host}{$server}{from_virsh}{return_code})
 	{
-		$anvil->data->{server}{$host}{$server}{from_memory}{xml} = "";
+		$anvil->data->{server}{$host}{$server}{from_virsh}{xml} = "";
 	}
 	else
 	{
-		$anvil->data->{server}{$host}{$server}{from_memory}{host} = $this_host;
+		$anvil->data->{server}{$host}{$server}{from_virsh}{host} = $this_host;
 		$anvil->Server->parse_definition({
 			debug      => $debug,
 			host       => $this_host,
 			server     => $server, 
-			source     => "from_memory",
-			definition => $anvil->data->{server}{$host}{$server}{from_memory}{xml}, 
+			source     => "from_virsh",
+			definition => $anvil->data->{server}{$host}{$server}{from_virsh}{xml}, 
 		});
 	}
 	
@@ -548,10 +612,10 @@ sub map_network
 			# This is used in the hash reference when storing the data.
 			my $host = $target ? $target : $anvil->Get->short_host_name();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
-			foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}})
+			foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server}{$host}{$server}{from_virsh}{device}{interface}})
 			{
-				my $device = $anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}{$mac}{target};
-				my $bridge = $anvil->data->{server}{$host}{$server}{from_memory}{device}{interface}{$mac}{bridge};
+				my $device = $anvil->data->{server}{$host}{$server}{from_virsh}{device}{interface}{$mac}{target};
+				my $bridge = $anvil->data->{server}{$host}{$server}{from_virsh}{device}{interface}{$mac}{bridge};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					's1:device' => $device, 
 					's2:mac'    => $mac,
@@ -682,11 +746,55 @@ sub migrate_virsh
 			resource => $resource, 
 		});
 	}
-
+	
+	# Mark this server as being in a migration state.
+	$anvil->Database->get_servers({debug => 2});
+	my $server_uuid      = "";
+	my $old_server_state = "";
+	foreach my $this_server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
+	{
+		if ($server eq $anvil->data->{servers}{server_uuid}{$this_server_uuid}{server_name})
+		{
+			$server_uuid = $this_server_uuid;
+			last;
+		}
+	}
+	if ($server_uuid)
+	{
+		if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} ne "migrating")
+		{
+			$old_server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Database->insert_or_update_servers({
+				debug                           => $debug, 
+				server_uuid                     => $server_uuid, 
+				server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
+				server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+				server_clean_stop               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
+				server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+				server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+				server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
+				server_state                    => "migrating", 
+				server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+				server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+				server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+				server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+				server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+				server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
+				server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+			});
+		}
+	}
+	
 	# The virsh command switches host names to IPs and needs to have both the source and target IPs in 
 	# the known_hosts file to work.
-	my $target_ip = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
+	my $live_migrate = not $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration} ? "" : "--live";
+	my $target_ip    = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		target_ip    => $target_ip,
+		live_migrate => $live_migrate,
+	}});
 	foreach my $host ($target, $target_ip)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
@@ -695,7 +803,7 @@ sub migrate_virsh
 			target => $host,
 		});
 	}
-	my $migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
+	my $migration_command = $anvil->data->{path}{exe}{virsh}." migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
 	if ($source)
 	{
 		my $source_ip = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $source});
@@ -709,7 +817,7 @@ sub migrate_virsh
 			});
 		}
 		
-		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p --live ".$server." qemu+ssh://".$target."/system";
+		$migration_command = $anvil->data->{path}{exe}{virsh}." -c qemu+ssh://root\@".$source."/system migrate --undefinesource --tunnelled --p2p ".$live_migrate." ".$server." qemu+ssh://".$target."/system";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { migration_command => $migration_command }});
 	
@@ -719,6 +827,9 @@ sub migrate_virsh
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	
+	# Before we update, re-scan servers as some time may have passed.
+	$anvil->Database->get_servers({debug => 2});
 	if ($return_code)
 	{
 		# Something went wrong.
@@ -728,6 +839,31 @@ sub migrate_virsh
 			return_code => $return_code, 
 			output      => $output, 
 		}});
+		
+		# Revert the migrating state.
+		if ($server_uuid)
+		{
+			$anvil->Database->insert_or_update_servers({
+				debug                           => $debug, 
+				server_uuid                     => $server_uuid, 
+				server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
+				server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+				server_clean_stop               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
+				server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+				server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+				server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
+				server_state                    => $old_server_state, 
+				server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+				server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+				server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+				server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+				server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+				server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
+				server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+			});
+		}
 	}
 	else
 	{
@@ -735,6 +871,40 @@ sub migrate_virsh
 		
 		$success = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
+		
+		# Revert the server state and update the server host.
+		my $server_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $target});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_uuid => $server_host_uuid }});
+		if (not $server_host_uuid)
+		{
+			# We didn't find the target's host_uuid, so use the old one and let scan-server 
+			# handle it.
+			$server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_uuid => $server_host_uuid }});
+		}
+		if ($server_uuid)
+		{
+			$anvil->Database->insert_or_update_servers({
+				debug                           => $debug, 
+				server_uuid                     => $server_uuid, 
+				server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
+				server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+				server_clean_stop               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
+				server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+				server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+				server_host_uuid                => $server_host_uuid, 
+				server_state                    => $old_server_state, 
+				server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+				server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+				server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+				server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+				server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+				server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
+				server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+			});
+		}
 	}
 	
 	# Switch off dual-primary.
@@ -770,7 +940,7 @@ This is the source of the XML. This is done to simplify looking for differences 
 
 The XML was read from a file on the host's storage.
 
-=head4 C<< from_memory >> 
+=head4 C<< from_virsh >> 
 
 The XML was dumped by C<< virsh >> from memory.
 
@@ -1136,7 +1306,7 @@ sub parse_definition
 			# - Model: [pcie-root-port]
 			# - Target chassis: [2], port: [0x11]
 			# - Bus type: [pci], domain: [0x0000], bus: [0x00], slot: [0x02], function: [0x1]
-			#      server::test_server::from_memory::address::virtio-serial::controller::0::bus::0::port::2: [channel - spicevmc]
+			#      server::test_server::from_virsh::address::virtio-serial::controller::0::bus::0::port::2: [channel - spicevmc]
 # 			$anvil->data->{server}{$target}{$server}{$source}{address}{$address_type}{controller}{$type}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain} = $address_domain;
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 # 				"server::${target}::${server}::${source}::address::${address_type}::controller::${type}::bus::${address_bus}::slot::${address_slot}::function::${address_function}::domain" => $anvil->data->{server}{$target}{$server}{$source}{address}{$address_type}{controller}{$type}{bus}{$address_bus}{bus}{$address_bus}{slot}{$address_slot}{function}{$address_function}{domain},

@@ -66,6 +66,10 @@ wait_for_database($anvil);
 # If we're not configured, sleep.
 wait_until_configured($anvil);
 
+# Load the strings from all the agents we know about before we process alerts so that we can include their 
+# messages in any emails we're going to send.
+load_agent_strings($anvil);
+
 # Send a startup message immediately
 $anvil->Email->check_config();
 $anvil->Alert->register({alert_level => "notice", message => "message_0179", set_by => $THIS_FILE});
@@ -167,17 +171,23 @@ sub call_agents
 			# Read the words file so that we can generate alerts later.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0251", variables => {
 				agent_name => $agent_name,
-				file       => $agent_path,
+				file       => $agent_words,
 			}});
 			$anvil->Words->read({file => $agent_words});
 		}
 		
+		# Set the timeout.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			agent_name                         => $agent_name,
+			"scancore::${agent_name}::timeout" => $anvil->data->{scancore}{$agent_name}{timeout},
+		}});
+		
 		# Now call the agent.
 		my $start_time = time;
 		my $timeout    = $default_timeout;
-		if ((exists $anvil->data->{scancore}{agent}{$agent_name}{agent_runtime}) && ($anvil->data->{scancore}{agent}{$agent_name}{agent_runtime} =~ /^\d+$/))
+		if (($anvil->data->{scancore}{$agent_name}{timeout}) && ($anvil->data->{scancore}{$agent_name}{timeout} =~ /^\d+$/))
 		{
-			$timeout = $anvil->data->{scancore}{agent}{$agent_name}{agent_runtime};
+			$timeout = $anvil->data->{scancore}{$agent_name}{timeout};
 		}
 		my $shell_call = $anvil->data->{path}{exe}{timeout}." ".$timeout." ".$agent_path;
 		if ($anvil->data->{sys}{'log'}{level})
@@ -197,6 +207,11 @@ sub call_agents
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		}
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0557", variables => {
+			agent_name  => $agent_name,
+			runtime     => (time - $start_time),
+			return_code => $return_code,
+		}});
 		
 		# If the return code is '124', timeout popped.
 		if ($return_code eq "124")
@@ -239,6 +254,36 @@ sub exit_if_sums_changed
 		# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "message_0014"});
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+# This loads the strings from all the agents we know about.
+sub load_agent_strings
+{
+	my ($anvil) = @_;
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"path::directories::scan_agents" => $anvil->data->{path}{directories}{scan_agents},
+	}});
+	scan_directory($anvil, $anvil->data->{path}{directories}{scan_agents});
+	
+	# Now loop through the agents I found and call them.
+	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
+	{
+		my $agent_words = $anvil->data->{scancore}{agent}{$agent_name}.".xml";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { agent_words => $agent_words }});
+		
+		if ((-e $agent_words) && (-r $agent_words))
+		{
+			# Read the words file.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0251", variables => {
+				agent_name => $agent_name,
+				file       => $agent_words,
+			}});
+			$anvil->Words->read({file => $agent_words});
+		}
 	}
 	
 	return(0);

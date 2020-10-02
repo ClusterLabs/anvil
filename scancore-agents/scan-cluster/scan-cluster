@@ -12,7 +12,6 @@
 # 1 = Startup failure (not running as root, no DB, bad file read, etc)
 # 
 # TODO: 
-# - 
 # 
 
 use strict;
@@ -117,7 +116,7 @@ sub collect_data
 	
 	# Pick out core cluster details.
 	my $problem = $anvil->Cluster->parse_cib({debug => 2});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { offline => $offline }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 
 	my $cluster_name         = $anvil->data->{cib}{parsed}{data}{cluster}{name};
 	my $stonith_enabled      = $anvil->data->{cib}{parsed}{data}{stonith}{enabled};

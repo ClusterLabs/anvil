@@ -15,19 +15,62 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_server_log
 		
 		<!-- Alert entries -->
 		<key name="scan_server_alert_0001">
-The definition file for the server: [#!variable!server!#] has changed relative to the database record. This is usually harmless.
-The differences are:
-====
-#!variable!difference!#
-====
+The definition for the server: [#!variable!server!#] was changed via Striker. 
+- Pushing the new version to the on-disk definition file [#!variable!definition_file!#]
+- Also updating definition used by the hypervisor.
+
+- Note: You may need to reboot or power cycle for the changes to take effect.
+
+- The changes are:
+==[ Disk ]============
+#!variable!disk_difference!#
+==[ Hypervisor ]======
+#!variable!virsh_difference!#
+==[ New Definition ]==
+#!variable!new_difference!#
+======================
 		</key>
 		<key name="scan_server_alert_0002">
-The definition file for the server: [#!variable!server!#] has changed relative to disk record. This is usually harmless.
-The differences are:
+The on-disk definition for the server: [#!variable!server!#] was directly edited.
+- Pushing the new version to the database definition.
+- Also updating definition used by the hypervisor.
+
+- Note: You may need to reboot or power cycle for the changes to take effect.
+
+- The changes are:
+==[ Database ]========
+#!variable!db_difference!#
+==[ Hypervisor ]======
+#!variable!virsh_difference!#
+==[ New Definition ]==
+#!variable!new_difference!#
+======================
+		</key>
+		<key name="scan_server_alert_0003">
+The definition for the server: [#!variable!server!#] was edited outside of the Anvil! system. This usually means it was updated using Virtual Machine Manager (or another libvirt tool like the virsh shell).
+- Pushing the new version to the on-disk definition file [#!variable!definition_file!#]
+- Pushing the new version to the database definition as well.
+
+- Note: You may need to reboot or power cycle for the changes to take effect.
+
+- The changes are:
+==[ Disk ]============
+#!variable!disk_difference!#
+==[ Database ]========
+#!variable!db_difference!#
+==[ New Definition ]==
+#!variable!new_difference!#
+======================
+		</key>
+		<key name="scan_server_alert_0004">The active definition for the server: [#!variable!server!#] now matches the definition on disk. Changes should now be applied.</key>
+		<key name="scan_server_alert_0005"></key>	<!-- free -->
+		<key name="scan_server_alert_0006">
+A new server named: [#!variable!server!#] has been found. The definition XML is:
 ====
-#!variable!difference!#
+#!variable!definition!#
 ====
 		</key>
+		<key name="scan_server_alert_0007">The server: [#!variable!server!#] has been shut off.</key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>
@@ -35,7 +78,7 @@ The differences are:
 		<key name="scan_server_log_0003">The libvirtd daemon is not running. Exiting.</key>
 		
 		<!-- Message entries (usually meant to be alerts) -->
-		<key name="scan_server_message_0001">We're node 2, and node 1 is running as well. Exiting as only one node needs to run this agent.</key>
+		<key name="scan_server_message_0001">The server: [#!variable!server!#] is migrating, skipping scanning it.</key>
 		
 		<!-- Units -->
 		<key name="scan_server_unit_0001"></key>

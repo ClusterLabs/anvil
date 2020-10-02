@@ -3568,6 +3568,10 @@ This loads all known servers from the database.
  servers::server_uuid::<server_uuid>::server_pre_migration_arguments
  servers::server_uuid::<server_uuid>::server_post_migration_file_uuid
  servers::server_uuid::<server_uuid>::server_post_migration_arguments
+ servers::server_uuid::<server_uuid>::server_ram_in_use
+ servers::server_uuid::<server_uuid>::server_configured_ram
+ servers::server_uuid::<server_uuid>::server_updated_by_user
+ servers::server_uuid::<server_uuid>::server_boot_time
 
 This method takes no parameters.
 
@@ -3600,6 +3604,10 @@ SELECT
     server_pre_migration_arguments, 
     server_post_migration_file_uuid, 
     server_post_migration_arguments, 
+    server_ram_in_use, 
+    server_configured_ram, 
+    server_updated_by_user, 
+    server_boot_time 
 FROM 
     servers 
 ;";
@@ -3626,6 +3634,10 @@ FROM
 		my $server_pre_migration_arguments  = $row->[10]; 
 		my $server_post_migration_file_uuid = $row->[11]; 
 		my $server_post_migration_arguments = $row->[12]; 
+		my $server_ram_in_use               = $row->[13];
+		my $server_configured_ram           = $row->[14];
+		my $server_updated_by_user          = $row->[15];
+		my $server_boot_time                = $row->[16];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			server_uuid                     => $server_uuid,
 			server_name                     => $server_name, 
@@ -3640,11 +3652,16 @@ FROM
 			server_pre_migration_arguments  => $server_pre_migration_arguments, 
 			server_post_migration_file_uuid => $server_post_migration_file_uuid, 
 			server_post_migration_arguments => $server_post_migration_arguments, 
+			server_ram_in_use               => $server_ram_in_use,
+			server_configured_ram           => $server_configured_ram, 
+			server_updated_by_user          => $server_updated_by_user, 
+			server_boot_time                => $server_boot_time, 
 		}});
 		
 		# Record the data in the hash, too.
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}                     = $server_name;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}               = $server_anvil_uuid;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}               = $server_clean_stop;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}  = $server_start_after_server_uuid;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}              = $server_start_delay;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}                = $server_host_uuid;
@@ -3654,6 +3671,10 @@ FROM
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}  = $server_pre_migration_arguments;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid} = $server_post_migration_file_uuid;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments} = $server_post_migration_arguments;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}               = $server_ram_in_use;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}           = $server_configured_ram;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}          = $server_updated_by_user;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}                = $server_boot_time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"servers::server_uuid::${server_uuid}::server_anvil_uuid"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
 			"servers::server_uuid::${server_uuid}::server_clean_stop"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
@@ -3666,6 +3687,10 @@ FROM
 			"servers::server_uuid::${server_uuid}::server_pre_migration_arguments"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
 			"servers::server_uuid::${server_uuid}::server_post_migration_file_uuid" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
 			"servers::server_uuid::${server_uuid}::server_post_migration_arguments" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+			"servers::server_uuid::${server_uuid}::server_ram_in_use"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+			"servers::server_uuid::${server_uuid}::server_configured_ram"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+			"servers::server_uuid::${server_uuid}::server_updated_by_user"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}, 
+			"servers::server_uuid::${server_uuid}::server_boot_time"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}, 
 		}});
 	}
 	
@@ -9244,16 +9269,17 @@ B<< Note >>: If the server is migating, this should be the old host until after 
 
 =head3 server_state (required)
 
-This is the current status of the server. Valid values are;
+This is the current status of the server. The values come from C<< virsh >> and are:
 
-* starting
-* running
-* stopping
-* off
-* migrating
-* DELETED
-
-B<< Note >>: The C<< DELETED >> state is special, in that it marks the server as no longer exists. 
+* running     - The domain is currently running on a CPU
+* idle        - The domain is idle, and not running or runnable.  This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
+* paused      - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
+* in shutdown - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
+* shut off    - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
+* crashed     - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
+* pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3 state.
+* migrating   - B<< Note >>: This is special, in that it's set by the Anvil! while a server is migrating between hosts.
+* DELETED     - B<< Note >>: This is special, in that it marks the server as no longer exists and comes from the Anvil!, not C<< virsh >>.
 
 =head3 server_live_migration (optional, default '1')
 
@@ -9261,7 +9287,7 @@ Normally, when a server migrates the server keeps running, with changes to memor
 
 In some cases, with servers that have a lot of RAM or very quickly change the memory contents, a migation could take a very long time to complete, if it ever does at all. 
 
-For cases where a server can't be live migrated, set this to C<< 0 >>. When set to C<< 0 >>, the server is frozen before the RAM copy begins, and thawed on the new host when the migration is complete. In this way, the migration can be completed over a relatively short time.
+For cases where a server can't be live migrated, set this to C<< 0 >>. When set to C<< 0 >>, the server is frozen before the RAM copy begins, and thawed on the new host when the migration is complete. In this way, the migration can be completed over a relatively short time. The tradeoff is that connections to the server could time out.
 
 B<< Note >>: Depending on the BCN network speed and the amount of RAM to copy, the server could be in a frozen state long enough for client connections to timeout. The server itself should handle the freeze fine in most modern systems.
 
@@ -9280,6 +9306,28 @@ This is set to the C<< files >> -> C<< file_uuid >> of a script to run B<< AFTER
 =head3 server_post_migration_arguments (optional)
 
 These are arguments to pass to the post-migration script above.
+
+=head3 server_ram_in_use (optional, default '0')
+
+This column, along with C<< server_configured_ram >>, is used to handle when the amount of RAM (in bytes) allocated to a server in the on-disk definition differs from the amount of RAM currently used by a running server. This can occur when a user has changed the allocated RAM but the server has not yet been poewr cycled to pick up the change.
+
+B<< Note >>: If this is set to C<< 0 >>, it doesn't mean that the server has no RAM! 
+
+The only time this and C<< server_configured_ram >> matters is when both are set to non-zero values and differ. Otherwise, these columns are ignored and the RAM is parsed from the XML definition data stored in the associated C<< server_definitions >> -> C<< server_definition_xml >>.
+
+=head3 server_configured_ram (optional, default '0')
+
+This is used to store the amount of RAM (in bytes) allocated to a server as stored in the on-disk XML file.
+
+See C<< server_ram_in_use >> for more information.
+
+=head3 server_updated_by_user (optional, default 0)
+
+This is set to a unix timestamp when the user last updated the definition. When set, scan-server will check this value against the age of the definition file on disk. If this is newer and the running definition is different from the database definition, the database definition will be used to update the on-disk definition.
+
+=head3 server_boot_time (optional, default 0)
+
+This is the unix time (since epoch) when the server booted. It is calculated by checking the C<< ps -p <pid> -o etimes= >> when a server is seen to be running when it had be last seen as off. If a server that had been running is seen to be off, this is set back to 0.
 
 =cut
 sub insert_or_update_servers
@@ -9307,6 +9355,10 @@ sub insert_or_update_servers
 	my $server_pre_migration_arguments  = defined $parameter->{server_pre_migration_arguments}  ? $parameter->{server_pre_migration_arguments}  : "";
 	my $server_post_migration_file_uuid = defined $parameter->{server_post_migration_file_uuid} ? $parameter->{server_post_migration_file_uuid} : "";
 	my $server_post_migration_arguments = defined $parameter->{server_post_migration_arguments} ? $parameter->{server_post_migration_arguments} : "";
+	my $server_ram_in_use               = defined $parameter->{server_ram_in_use}               ? $parameter->{server_ram_in_use}               : 0;
+	my $server_configured_ram           = defined $parameter->{server_configured_ram}           ? $parameter->{server_configured_ram}           : 0;
+	my $server_updated_by_user          = defined $parameter->{server_updated_by_user}          ? $parameter->{server_updated_by_user}          : 0;
+	my $server_boot_time                = defined $parameter->{server_boot_time}                ? $parameter->{server_boot_time}                : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		'delete'                        => $delete, 
 		uuid                            => $uuid, 
@@ -9325,6 +9377,10 @@ sub insert_or_update_servers
 		server_pre_migration_arguments  => $server_pre_migration_arguments,
 		server_post_migration_file_uuid => $server_post_migration_file_uuid,
 		server_post_migration_arguments => $server_post_migration_arguments, 
+		server_ram_in_use               => $server_ram_in_use,
+		server_configured_ram           => $server_configured_ram,
+		server_updated_by_user          => $server_updated_by_user, 
+		server_boot_time                => $server_boot_time, 
 	}});
 	
 	if (not $server_uuid)
@@ -9429,6 +9485,10 @@ INSERT INTO
     server_pre_migration_arguments, 
     server_post_migration_file_uuid, 
     server_post_migration_arguments, 
+    server_ram_in_use, 
+    server_configured_ram, 
+    server_updated_by_user, 
+    server_boot_time, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($server_uuid).", 
@@ -9444,6 +9504,10 @@ INSERT INTO
     ".$anvil->Database->quote($server_pre_migration_arguments).", 
     ".$anvil->Database->quote($server_post_migration_file_uuid).", 
     ".$anvil->Database->quote($server_post_migration_arguments).", 
+    ".$anvil->Database->quote($server_ram_in_use).", 
+    ".$anvil->Database->quote($server_configured_ram).", 
+    ".$anvil->Database->quote($server_updated_by_user).", 
+    ".$anvil->Database->quote($server_boot_time).", 
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
@@ -9467,6 +9531,10 @@ SELECT
     server_pre_migration_arguments, 
     server_post_migration_file_uuid, 
     server_post_migration_arguments, 
+    server_ram_in_use, 
+    server_configured_ram, 
+    server_updated_by_user, 
+    server_boot_time 
 FROM 
     servers 
 WHERE 
@@ -9500,6 +9568,10 @@ WHERE
 			my $old_server_pre_migration_arguments  = $row->[9]; 
 			my $old_server_post_migration_file_uuid = $row->[10]; 
 			my $old_server_post_migration_arguments = $row->[11]; 
+			my $old_server_ram_in_use               = $row->[12];
+			my $old_server_configured_ram           = $row->[13];
+			my $old_server_updated_by_user          = $row->[14];
+			my $old_server_boot_time                = $row->[15];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_server_name                     => $old_server_name, 
 				old_server_anvil_uuid               => $old_server_anvil_uuid, 
@@ -9513,6 +9585,10 @@ WHERE
 				old_server_pre_migration_arguments  => $old_server_pre_migration_arguments, 
 				old_server_post_migration_file_uuid => $old_server_post_migration_file_uuid, 
 				old_server_post_migration_arguments => $old_server_post_migration_arguments, 
+				old_server_ram_in_use               => $old_server_ram_in_use, 
+				old_server_configured_ram           => $old_server_configured_ram, 
+				old_server_updated_by_user          => $old_server_updated_by_user,
+				old_server_boot_time                => $old_server_boot_time,
 			}});
 			
 			# Anything change?
@@ -9527,7 +9603,11 @@ WHERE
 			    ($old_server_pre_migration_file_uuid  ne $server_pre_migration_file_uuid)  or 
 			    ($old_server_pre_migration_arguments  ne $server_pre_migration_arguments)  or 
 			    ($old_server_post_migration_file_uuid ne $server_post_migration_file_uuid) or 
-			    ($old_server_post_migration_arguments ne $server_post_migration_arguments))
+			    ($old_server_post_migration_arguments ne $server_post_migration_arguments) or 
+			    ($old_server_ram_in_use               ne $server_ram_in_use)               or 
+			    ($old_server_configured_ram           ne $server_configured_ram)           or
+			    ($old_server_updated_by_user          ne $server_updated_by_user)          or 
+			    ($old_server_boot_time                ne $server_boot_time)) 
 			{
 				# Something changed, save.
 				my $query = "
@@ -9546,6 +9626,10 @@ SET
     server_pre_migration_arguments  = ".$anvil->Database->quote($server_pre_migration_arguments).", 
     server_post_migration_file_uuid = ".$anvil->Database->quote($server_post_migration_file_uuid).", 
     server_post_migration_arguments = ".$anvil->Database->quote($server_post_migration_arguments).", 
+    server_ram_in_use               = ".$anvil->Database->quote($server_ram_in_use).", 
+    server_configured_ram           = ".$anvil->Database->quote($server_configured_ram).", 
+    server_updated_by_user          = ".$anvil->Database->quote($server_updated_by_user).", 
+    server_boot_time                = ".$anvil->Database->quote($server_boot_time).", 
     modified_date                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
 WHERE 
     server_uuid                     = ".$anvil->Database->quote($server_uuid)." 

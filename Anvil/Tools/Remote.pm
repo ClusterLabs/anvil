@@ -720,7 +720,10 @@ sub call
 
 This attempts to log into the target to verify that the target is up and reachable. It returns C<< 1 >> on access, C<< 0 >> otherwise.
 
- my $access = $anvil->Remote->test_access({});
+ my $access = $anvil->Remote->test_access({
+ 	target   => "remote_host",
+ 	password => "secret",
+ });
 
 Parameters;
 

@@ -3217,15 +3217,15 @@ sub manage_firewall
 
 =head2 pids
 
-This parses 'ps aux' and stores the information about running programs in C<< pids::<pid_number>::<data> >>.
+This parses C<< ps aux >> and stores the information about running programs in C<< pids::<pid_number>::<data> >>.
 
 Optionally, if the C<< program_name >> parameter is set, an array of PIDs for that program will be returned.
 
 Parameters;
 
-=head3 ignore_me (optional)
+=head3 ignore_me (optional, default '0')
 
-If set to '1', the PID of this program is ignored.
+If set to C<< 1 >>, the PID of this program is ignored.
 
 =head3 program_name (optional)
 
@@ -3240,7 +3240,7 @@ sub pids
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->pids()" }});
 	
-	my $ignore_me    = defined $parameter->{ignore_me}    ? $parameter->{ignore_me}    : "";
+	my $ignore_me    = defined $parameter->{ignore_me}    ? $parameter->{ignore_me}    : 0;
 	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		ignore_me    => $ignore_me, 

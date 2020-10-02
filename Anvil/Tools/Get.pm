@@ -16,6 +16,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
 
 ### Methods;
+# anvil_name_from_uuid
 # anvil_version
 # bridges
 # cgi
@@ -24,6 +25,7 @@ my $THIS_FILE = "Get.pm";
 # free_memory
 # host_name
 # host_name_from_uuid
+# host_uuid_from_name
 # host_type
 # host_uuid
 # md5sum
@@ -99,6 +101,57 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+
+=head2 anvil_name_from_uuid
+
+This takes a Anvil! UUID and returns the Anvil! name (as recorded in the C<< anvils >> table). If the entry is not found, an empty string is returned.
+
+Parameters;
+
+=head3 anvil_uuid (required)
+
+This is the C<< anvils >> -> C<< anvil_uuid >> to translate into the Anvil! name.
+
+=cut
+sub anvil_name_from_uuid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->anvil_name_from_uuid()" }});
+	
+	my $anvil_name = "";
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+	
+	my $query = "
+SELECT 
+    anvil_name 
+FROM 
+    anvils 
+WHERE 
+    anvil_uuid = ".$anvil->Database->quote($anvil_uuid).";
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count == 1)
+	{
+		# Found it
+		$anvil_name = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+	return($anvil_name);
+}
+
 
 =head2 anvil_version
 
@@ -827,6 +880,75 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
 	return($host_name);
 }
+
+
+=head2 host_uuid_from_name
+
+This takes a host name and looks for a UUID from the C<< hosts >> table). If the entry is not found, an empty string is returned.
+
+Parameters;
+
+=head3 host_name (required)
+
+This is the host name to translate into a C<< host_uuid >>. If an exact match isn't found, the short host name will be used to try to find a match.
+
+=cut
+sub host_uuid_from_name
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->host_uuid_from_name()" }});
+	
+	my $host_uuid = "";
+	my $host_name = defined $parameter->{host_name} ? $parameter->{host_name} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+	
+	my $short_host_name =  $host_name;
+	   $short_host_name =~ s/\..*$//;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
+	
+	# We use Database->get_hosts(), first looping for an exact match. If that fails, we'll loop again, 
+	# reducing all host names to short version.
+	$anvil->Database->get_hosts({debug => 2});
+	
+	if (exists $anvil->data->{sys}{hosts}{by_name}{$host_name})
+	{
+		$host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+	}
+	else
+	{
+		foreach my $this_host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
+		{
+			my $this_host_name       = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{host_name}
+			my $this_short_host_name = $this_host_name;
+			   $this_short_host_name =~ s/\..*$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				this_host_name       => $this_host_name,
+				this_short_host_name => $this_short_host_name, 
+			}});
+			
+			if ($host_name eq $this_host_name)
+			{
+				# Found it.
+				$host_uuid = $this_host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+				last;
+			}
+			elsif ($short_host_name eq $this_short_host_name)
+			{
+				# This is probably it, but we'll keep looping to be sure.
+				$host_uuid = $this_host_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	return($host_uuid);
+}
+
 
 =head2 free_memory
 

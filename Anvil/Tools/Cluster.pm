@@ -405,7 +405,7 @@ sub get_peers
 		if ($host_uuid eq $anvil_node1_host_uuid)
 		{
 			# Found our Anvil!, and we're node 1.
-			$found                             = 1;
+			$found                              = 1;
 			$anvil->data->{sys}{anvil}{i_am}    = "node1";
 			$anvil->data->{sys}{anvil}{peer_is} = "node2";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -603,8 +603,7 @@ sub migrate_server
 		return('!!error!!');
 	}
 	
-	# TODO: Record that the server is migrating
-	
+	### NOTE: A server's state is set in Server->migrate_virsh(), so we don't need to do it here.
 	# change the constraint to trigger the move.
 	if ($node)
 	{
@@ -1199,7 +1198,55 @@ sub parse_cib
 			# Migrating
 			# Stopping
 			$status = "running";
+			
+			# If the role is NOT 'migating', check to see if it's marked as such in the database.
+			if ($role ne "migrating")
+			{
+				$anvil->Database->get_servers({debug => $debug});
+				my $anvil_uuid  = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+				my $server_uuid = "";
+				foreach my $this_server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
+				{
+					if (($server     eq $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}) && 
+					    ($anvil_uuid eq $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}))
+					{
+						# Found it.
+						$server_uuid = $this_server_uuid;
+						if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} eq "migrating")
+						{
+							# We need to clean up a stale migration state. It may
+							# not actually be 'running', but if not, scan-server 
+							# will clean it up. So long as the state is 
+							# 'migrating', scan-server won't touch it.
+							$anvil->Database->insert_or_update_servers({
+								debug                           => $debug, 
+								server_uuid                     => $server_uuid, 
+								server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
+								server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+								server_clean_stop               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
+								server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+								server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+								server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
+								server_state                    => "running", 
+								server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+								server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+								server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+								server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+								server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+								server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+								server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+								server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
+								server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+							});
+						}
+						last;
+					}
+				}
+				
+			}
 		}
+		
+		
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{status}    = $status;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{host_name} = $host_name;
 		$anvil->data->{cib}{parsed}{data}{server}{$server}{host_id}   = $host_id;

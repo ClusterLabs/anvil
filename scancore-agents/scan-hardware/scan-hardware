@@ -769,33 +769,78 @@ sub find_changes
 		}
 		if ($new_scan_hardware_ram_total ne $old_scan_hardware_ram_total)
 		{
-			# RAM (from dmidecode) changed could be a hardware upgrade, or it could be from a 
-			# failed modules. As such, we set this to 'warning'.
-			   $update      = 1;
-			my $say_new_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)";
-			my $say_old_ram = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)";
-			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0012,!!new!".$say_new_ram."!!,!!old!".$say_old_ram."!!"});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0012", variables => { new => $say_new_ram, old => $say_old_ram}});
+			# If the RAM (from dmidecode) has increased, it's a safe upgrade. If it's a decrease,
+			# it's likely a failure.
+			if ($old_scan_hardware_ram_total > $new_scan_hardware_ram_total)
+			{
+				# It dropped, alarm
+				   $update     = 1;
+				my $difference = $old_scan_hardware_ram_total - $new_scan_hardware_ram_total;
+				my $variables  = {
+					new        => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)", 
+					old        => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)", 
+					difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference})." (".$anvil->Convert->add_commas({number => $difference})." #!string!scan_hardware_unit_0001!#)", 
+				};
+				$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0012", message_variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0012", variables => $variables});
+			}
+			else
+			{
+				# Increased, probably an upgrade
+				   $update     = 1;
+				my $difference = $new_scan_hardware_ram_total - $old_scan_hardware_ram_total;
+				my $variables  = {
+					new        => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)", 
+					old        => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_ram_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_ram_total})." #!string!scan_hardware_unit_0001!#)", 
+					difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference})." (".$anvil->Convert->add_commas({number => $difference})." #!string!scan_hardware_unit_0001!#)", 
+				};
+				$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "scan_hardware_alert_0029", message_variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0029", variables => $variables});
+			}
 		}
 		if ($new_scan_hardware_memory_total ne $old_scan_hardware_memory_total)
 		{
-			# Memory (/proc/meminfo) changed could be a hardware upgrade, or it could be from a 
-			# failed modules. As such, we set this to 'warning'.
-			   $update         = 1;
-			my $say_new_memory = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_total})." #!string!scan_hardware_unit_0001!#)";
-			my $say_old_memory = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_memory_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_memory_total})." #!string!scan_hardware_unit_0001!#)";
-			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0013,!!new!".$say_new_memory."!!,!!old!".$say_old_memory."!!"});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0013", variables => { new => $say_new_memory, old => $say_old_memory}});
+			# If the difference is less than 1 GiB, or the amount has grown, ignore it.
+			if ($old_scan_hardware_memory_total > $new_scan_hardware_memory_total)
+			{
+				my $difference = $old_scan_hardware_memory_total - $new_scan_hardware_memory_total;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference}) }});
+				if ($difference > 1073741824)
+				{
+					# Memory (/proc/meminfo) changed could be a hardware upgrade, or it 
+					# could be from a failed modules. As such, we set this to 'warning'.
+					   $update    = 1;
+					my $variables = {
+						new        => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_memory_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_memory_total})." #!string!scan_hardware_unit_0001!#)", 
+						old        => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_memory_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_memory_total})." #!string!scan_hardware_unit_0001!#)", 
+						difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference})." (".$anvil->Convert->add_commas({number => $difference})." #!string!scan_hardware_unit_0001!#)", 
+					};
+					$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0013", message_variables => $variables});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0013", variables => $variables});
+				}
+			}
 		}
 		if ($new_scan_hardware_swap_total ne $old_scan_hardware_swap_total)
 		{
-			# Memory (/proc/meminfo) changed could be a hardware upgrade, or it could be from a 
-			# failed modules. As such, we set this to 'warning'.
-			   $update       = 1;
-			my $say_new_swap = $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_total})." #!string!scan_hardware_unit_0001!#)";
-			my $say_old_swap = $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_swap_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_swap_total})." #!string!scan_hardware_unit_0001!#)";
-			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0014,!!new!".$say_new_swap."!!,!!old!".$say_old_swap."!!"});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0014", variables => { new => $say_new_swap, old => $say_old_swap}});
+			# If the difference is less than 1 GiB, or the amount has grown, ignore it.
+			if ($old_scan_hardware_swap_total > $new_scan_hardware_swap_total)
+			{
+				my $difference = $old_scan_hardware_swap_total - $new_scan_hardware_swap_total;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference}) }});
+				if ($difference > 1073741824)
+				{
+					# Memory (/proc/meminfo) changed could be a hardware upgrade, or it
+					# could be from a failed modules. As such, we set this to 'warning'.
+					   $update    = 1;
+					my $variables = {
+						new        => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_scan_hardware_swap_total})." (".$anvil->Convert->add_commas({number => $new_scan_hardware_swap_total})." #!string!scan_hardware_unit_0001!#)", 
+						old        => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_hardware_swap_total})." (".$anvil->Convert->add_commas({number => $old_scan_hardware_swap_total})." #!string!scan_hardware_unit_0001!#)", 
+						difference => $anvil->Convert->bytes_to_human_readable({'bytes' => $difference})." (".$anvil->Convert->add_commas({number => $difference})." #!string!scan_hardware_unit_0001!#)", 
+					};
+					$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "warning", message => "scan_hardware_alert_0014", message_variables => $variables});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0014", variables => $variables});
+				}
+			}
 		}
 		if ($new_scan_hardware_led_id ne $old_scan_hardware_led_id)
 		{
@@ -959,7 +1004,7 @@ SET
     scan_hardware_led_id       = ".$anvil->Database->quote($new_scan_hardware_led_id).", 
     scan_hardware_led_css      = ".$anvil->Database->quote($new_scan_hardware_led_css).", 
     scan_hardware_led_error    = ".$anvil->Database->quote($new_scan_hardware_led_error).", 
-    modified_date         = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+    modified_date              = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 WHERE 
     scan_hardware_uuid         = ".$anvil->Database->quote($scan_hardware_uuid)."
 ;";
@@ -1350,7 +1395,6 @@ sub process_health
 sub read_last_scan
 {
 	my ($anvil) = @_;
-	
 	
 	# This calls up the entry for this host. There will only be one.
 	my $query = "

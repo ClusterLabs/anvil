@@ -34,6 +34,22 @@ $anvil->Storage->get_file_stats({
 	file_path => "/root/test",
 });
 
+my $server  = "srv07-el6";
+my $runtime = $anvil->Server->get_runtime({
+	debug  => 2,
+	server => $server,
+});
+if ($runtime)
+{
+	my $boot_time = time - $runtime;
+	print "Server: [".$server."] has been running for: [".$runtime."] seconds.\n";
+	print "- Booted at: [".$anvil->Get->date_and_time({use_time => $boot_time})."]\n";
+}
+else
+{
+	print "The server: [".$server."] isn't running.\n";
+}
+
 # $anvil->Cluster->shutdown_server({
 # 	debug  => 2,
 # 	server => "srv07-el6",
