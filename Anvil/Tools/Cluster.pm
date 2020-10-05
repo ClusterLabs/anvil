@@ -1223,7 +1223,7 @@ sub parse_cib
 								server_uuid                     => $server_uuid, 
 								server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
 								server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
-								server_clean_stop               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
+								server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
 								server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
 								server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
 								server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 

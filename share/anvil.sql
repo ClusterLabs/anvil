@@ -1240,7 +1240,7 @@ CREATE TABLE servers (
     server_uuid                        uuid                        not null    primary key,
     server_name                        text                        not null,                     -- This is the server's name. It can change without re-uploading the server.
     server_anvil_uuid                  uuid                        not null,                     -- This is the Anvil! system that the server lives on. It can move to another Anvil!, so this can change.
-    server_clean_stop                  boolean                     not null    default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
+    server_user_stop                   boolean                     not null    default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
     server_start_after_server_uuid     uuid                        not null,                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
     server_start_delay                 integer                     not null    default 0,        -- See above.
     server_host_uuid                   uuid                        not null,                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
@@ -1269,7 +1269,7 @@ CREATE TABLE history.servers (
     server_uuid                        uuid,
     server_name                        text,
     server_anvil_uuid                  uuid,
-    server_clean_stop                  boolean,
+    server_user_stop                   boolean,
     server_start_after_server_uuid     uuid,
     server_start_delay                 integer,
     server_host_uuid                   uuid,
@@ -1297,7 +1297,7 @@ BEGIN
         (server_uuid,
          server_name, 
          server_anvil_uuid,
-         server_clean_stop,
+         server_user_stop,
          server_start_after_server_uuid,
          server_start_delay,
          server_host_uuid,
@@ -1315,7 +1315,7 @@ BEGIN
     VALUES
         (history_servers.server_uuid, 
          history_servers.server_name, 
-         history_servers.server_clean_stop,
+         history_servers.server_user_stop,
          history_servers.server_start_after_server_uuid,
          history_servers.server_start_delay,
          history_servers.server_host_uuid,

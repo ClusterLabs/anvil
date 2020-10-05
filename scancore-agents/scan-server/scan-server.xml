@@ -62,8 +62,8 @@ The definition for the server: [#!variable!server!#] was edited outside of the A
 #!variable!new_difference!#
 ======================
 		</key>
-		<key name="scan_server_alert_0004">The active definition for the server: [#!variable!server!#] now matches the definition on disk. Changes should now be applied.</key>
-		<key name="scan_server_alert_0005"></key>	<!-- free -->
+		<key name="scan_server_alert_0004">The name of the server: [#!variable!old_name!#] has changed to: [#!variable!new_name!#]</key>
+		<key name="scan_server_alert_0005">The server: [#!variable!old_name!#] state has changed from: [#!variable!old_state!#] to: [#!variable!new_state!#].</key>
 		<key name="scan_server_alert_0006">
 A new server named: [#!variable!server!#] has been found. The definition XML is:
 ====
@@ -71,6 +71,18 @@ A new server named: [#!variable!server!#] has been found. The definition XML is:
 ====
 		</key>
 		<key name="scan_server_alert_0007">The server: [#!variable!server!#] has been shut off.</key>
+		<key name="scan_server_alert_0008">The server: [#!variable!server!#] boot time has changed from: [#!variable!old_boot_time_date!#] to: [#!variable!new_boot_time_date!#] (epoch from: [#!variable!old_boot_time_epoch!#] to: [#!variable!new_boot_time_epoch!#]).</key>
+		<key name="scan_server_alert_0009">The server: [#!variable!server!#] has moved from the Anvil!: [#!variable!old_anvil_name!#] to: [#!variable!new_anvil_name!#] (from: [#!variable!old_anvil_uuid!#] to: [#!variable!new_anvil_uuid!#]).</key>
+		<key name="scan_server_alert_0010">The server: [#!variable!server!#] has is now marked as user-stopped.</key>
+		<key name="scan_server_alert_0011">The server: [#!variable!server!#] has is no longer marked as user-stopped.</key>
+		<key name="scan_server_alert_0012">The server: [#!variable!server!#] has moved from the node: [#!variable!old_host_name!#] to: [#!variable!new_host_name!#] (from: [#!variable!old_host_uuid!#] to: [#!variable!new_host_uuid!#]).</key>
+		<key name="scan_server_alert_0013">The amount of RAM the server: [#!variable!server!#] is currently using has changed from: [#!variable!old_ram_in_use_short!#] to: [#!variable!new_ram_in_use_short!#] (from: [#!variable!old_ram_in_use_bytes!# bytes] to: [#!variable!new_ram_in_use_bytes!# bytes]).</key>
+		<key name="scan_server_alert_0014">The amount of RAM configured for the server: [#!variable!server!#] has changed from: [#!variable!old_ram_in_use_short!#] to: [#!variable!new_ram_in_use_short!#] (from: [#!variable!old_ram_in_use_bytes!# bytes] to: [#!variable!new_ram_in_use_bytes!# bytes]).</key>
+		<key name="scan_server_alert_0015">
+The amount of RAM configured for the server: [#!variable!server!#] has changed from: [#!variable!old_ram_in_use_short!#] to: [#!variable!new_ram_in_use_short!#] (from: [#!variable!old_ram_in_use_bytes!# bytes] to: [#!variable!new_ram_in_use_bytes!# bytes]).
+
+- NOTE: This RAM will not be used until the server is power cycled!
+		</key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>

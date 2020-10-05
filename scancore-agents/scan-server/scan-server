@@ -124,6 +124,7 @@ sub collect_data
 	$anvil->Database->get_server_definitions({debug => 2});
 
 	# Find our Anvil! UUID
+	my $target     = $anvil->Get->short_host_name();
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 2});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 	
@@ -133,7 +134,10 @@ sub collect_data
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-		
+	
+		# This is set to 1 when we add a server, supressing detailed change checks as we'll have 
+		# already registered an alert.
+		my $added = 0;
 		### TODO: We may want to handle crashed / idle servers.
 =cut
 * Server states;
@@ -149,7 +153,7 @@ migrating - Set and cleared by Server->migrate_virsh();
 DELETED   - Marks a server as no longer existing
 =cut
 		
-		if ($line =~ /^\d+ (.*?) (.*)$/)
+		if (($line =~ /^\d+ (.*?) (.*)$/) or ($line =~ /- (.*?) (.*)$/))
 		{
 			my $server_name  = $1;
 			my $server_state = $2;
@@ -200,8 +204,8 @@ DELETED   - Marks a server as no longer existing
 				elsif ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} eq "shut off")
 				{
 					# It booted. Record the start time.
-					my $runtime   = $anvil->Server->get_runtime({server => $server_name});
-					   $boot_time = time - $runtime;
+					my $runtime          = $anvil->Server->get_runtime({server => $server_name});
+					my $server_boot_time = time - $runtime;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						runtime          => $runtime,
 						server_boot_time => $server_boot_time." (".$anvil->Get->date_and_time({use_time => $boot_time}).")",
@@ -211,27 +215,28 @@ DELETED   - Marks a server as no longer existing
 			else
 			{
 				# It's not in the database yet, add it. 
-				my $runtime          = $anvil->Server->get_runtime({server => $server});
-				   $server_boot_time = time - $runtime;
+				   $added            = 1;
+				my $runtime          = $anvil->Server->get_runtime({server => $server_name});
+				my $server_boot_time = time - $runtime;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					runtime          => $runtime,
 					server_boot_time => $server_boot_time." (".$anvil->Get->date_and_time({use_time => $boot_time}).")",
 				}});
 
 				my $got_server_uuid = $anvil->Database->insert_or_update_servers({
-					debug                           => 2, 
-					server_uuid                     => $server_uuid, 
-					server_name                     => $server_name, 
-					server_anvil_uuid               => $anvil_uuid, 
-					server_host_uuid                => $anvil->Get->host_uuid, 
-					server_state                    => $server_state, 
-					server_ram_in_use               => $server_ram_in_use, 
-					server_configured_ram           => $server_configured_ram, 
-					server_boot_time                => $server_boot_time,
+					debug                 => 2, 
+					server_uuid           => $server_uuid, 
+					server_state          => $server_state, 
+					server_name           => $server_name, 
+					server_anvil_uuid     => $anvil_uuid, 
+					server_host_uuid      => $anvil->Get->host_uuid, 
+					server_ram_in_use     => $server_ram_in_use, 
+					server_configured_ram => $server_configured_ram, 
+					server_boot_time      => $server_boot_time,
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { got_server_uuid => $got_server_uuid }});
 				
-				# Store the definition from memory
+				# Store the definition from virsh
 				my $server_definition_uuid = $anvil->Database->insert_or_update_server_definitions({
 					debug                         => 2,
 					server_definition_xml         => $virsh_definition,  
@@ -245,12 +250,7 @@ DELETED   - Marks a server as no longer existing
 					definition => $virsh_definition,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0006", variables => $variables});
-				$anvil->Alert->register({
-					alert_level       => "notice", 
-					message           => "scan_server_alert_0006",
-					message_variables => $variables, 
-					set_by            => $THIS_FILE,
-				});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0006", message_variables => $variables, set_by => $THIS_FILE});
 				
 				# Reload the servers.
 				$anvil->Database->get_servers({debug => 2});
@@ -273,31 +273,34 @@ DELETED   - Marks a server as no longer existing
 				"scan-server::server_name::${server_name}::server_ram_in_use"     => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_ram_in_use}, 
 				"scan-server::server_name::${server_name}::server_configured_ram" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_configured_ram}, 
 			}});
-		}
-		if ($line =~ /- (.*?) shut off/)
-		{
-			# The server is shut off. If this is a node, it shouldn't be defined.
-			my $server_name = $1;
-			my $host_type   = $anvil->Get->host_type;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-			if ($host_type eq "node")
-			{
-				# The definition was likely changed by the user while it was running. We 
-				# should have already picked up the changes, but just to be safe, check for
-				# differences.
-				my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name, source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $virsh_definition, return_code => $return_code }});
-				
-				# The definition will have certainly changed, so update it as well.
-				update_definitions_from_virsh($anvil, $server_name, $server_uuid, $virsh_definition);
-				
-				# Now undefine the server
-				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." undefine ".$server_name, source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
-			}
 			
-			# Set the boot time back to zero.
-			$anvil->data->{'scan-server'}{server_name}{$server_name}{server_boot_time} = 0;
+			if ($server_state eq "shut off")
+			{
+				my $host_type = $anvil->Get->host_type;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+				if ($host_type eq "node")
+				{
+					# The definition was likely changed by the user while it was running. We 
+					# should have already picked up the changes, but just to be safe, check for
+					# differences.
+					my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $virsh_definition, return_code => $return_code }});
+					
+					# The definition may have certainly changed, so update it in case 
+					# needed.
+					update_definitions_from_virsh($anvil, $server_name, $server_uuid, $virsh_definition);
+					
+					# Now undefine the server
+					(my $output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." undefine ".$server_name, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+				}
+				
+				# Set the boot time back to zero.
+				$anvil->data->{'scan-server'}{server_name}{$server_name}{server_boot_time} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan-server::server_name::${server_name}::server_boot_time" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_boot_time}, 
+				}});
+			}
 		}
 	}
 	
@@ -362,12 +365,7 @@ DELETED   - Marks a server as no longer existing
 					new_definition   => $database_definition,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0001", variables => $variables});
-				$anvil->Alert->register({
-					alert_level       => "notice", 
-					message           => "scan_server_alert_0001",
-					message_variables => $variables, 
-					set_by            => $THIS_FILE,
-				});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0001", message_variables => $variables, set_by => $THIS_FILE});
 			}
 			else
 			{
@@ -384,12 +382,7 @@ DELETED   - Marks a server as no longer existing
 					new_definition   => $on_disk_definition,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0002", variables => $variables});
-				$anvil->Alert->register({
-					alert_level       => "notice", 
-					message           => "scan_server_alert_0002",
-					message_variables => $variables, 
-					set_by            => $THIS_FILE,
-				});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0002", message_variables => $variables, set_by => $THIS_FILE});
 			}
 			
 			# In either case, update the virsh definition from the disk now (either to load the 
@@ -419,34 +412,211 @@ DELETED   - Marks a server as no longer existing
 				new_definition  => $virsh_definition,
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0003", variables => $variables});
-			$anvil->Alert->register({
-				alert_level       => "notice", 
-				message           => "scan_server_alert_0003",
-				message_variables => $variables, 
-				set_by            => $THIS_FILE,
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0003", message_variables => $variables, set_by => $THIS_FILE});
+		}
+		
+		my ($virsh_live_definition, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." dumpxml ".$server_name, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $virsh_definition, return_code => $return_code }});
+		$anvil->Server->parse_definition({
+			debug       => 2,
+			server_name => $server_name,
+			source      => "from_live_virsh", 
+			definition  => $virsh_live_definition, 
+		});
+		
+		# Now that definition updates are dealth with, has anything else changed?
+		my $server_state              = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state};
+		my $server_boot_time          = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_boot_time};
+		my $server_anvil_uuid         = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_anvil_uuid};
+		my $server_user_stop          = $server_state eq "shut off" ? $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop} : 0;
+		my $server_host_uuid          = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_host_uuid};
+		my $server_ram_in_use         = $anvil->data->{server}{$target}{$server_name}{from_live_virsh}{memory};
+		my $server_configured_ram     = $anvil->data->{server}{$target}{$server_name}{from_disk}{memory};
+		# Old values
+		my $old_server_name           = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		my $old_server_state          = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		my $old_server_boot_time      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time};
+		my $old_server_anvil_uuid     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		my $old_server_user_stop      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop};
+		my $old_server_host_uuid      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+		my $old_server_ram_in_use     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+		my $old_server_configured_ram = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_uuid'                => $server_uuid,
+			's2:server_name'                => $server_name,
+			's3:old_server_name'            => $old_server_name,
+			's4:server_state'               => $server_state, 
+			's5:old_server_state'           => $old_server_state, 
+			's6:server_boot_time'           => $server_boot_time,
+			's7:old_server_boot_time'       => $old_server_boot_time, 
+			's8:server_anvil_uuid'          => $server_anvil_uuid, 
+			's9:old_server_anvil_uuid'      => $old_server_anvil_uuid, 
+			's10:server_user_stop'          => $server_user_stop,
+			's11:$old_server_user_stop'     => $old_server_user_stop, 
+			's12:server_host_uuid'          => $server_host_uuid, 
+			's13:old_server_host_uuid'      => $old_server_host_uuid, 
+			's14:server_ram_in_use'         => $anvil->Convert->add_commas({number => $server_ram_in_use})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}).")", 
+			's15:old_server_ram_in_use'     => $anvil->Convert->add_commas({number => $old_server_ram_in_use})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_server_ram_in_use}).")", 
+			's16:server_configured_ram'     => $anvil->Convert->add_commas({number => $server_configured_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}).")",
+			's17:old_server_configured_ram' => $anvil->Convert->add_commas({number => $old_server_configured_ram})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_server_configured_ram}).")",
+		}});
+		
+		# Find changes.
+		my $update = 0;
+		if ($server_name ne $old_server_name)
+		{
+			# Server name has changed.
+			my $variables  = { 
+				old_name => $old_server_name,
+				new_name => $server_name,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0004", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0004", message_variables => $variables, set_by => $THIS_FILE });
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		if ($server_state ne $old_server_state)
+		{
+			# The state has changed.
+			my $variables  = { 
+				server    => $server_name,
+				old_state => $old_server_state,
+				new_state => $server_state,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0005", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0005", message_variables => $variables, set_by => $THIS_FILE});
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		if ($server_boot_time ne $old_server_boot_time)
+		{
+			# Boot time changed (expected on shut down or boot up)
+			my $variables  = { 
+				server              => $server_name,
+				old_boot_time_date  => $anvil->Get->date_and_time({use_time => $old_server_boot_time}),
+				old_boot_time_epoch => $anvil->Convert->add_commas({number => $old_server_boot_time}),
+				new_boot_time_date  => $anvil->Get->date_and_time({use_time => $server_boot_time}),
+				new_boot_time_epoch => $anvil->Convert->add_commas({number => $server_boot_time}),
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0008", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0008", message_variables => $variables, set_by => $THIS_FILE});
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		if ($server_anvil_uuid ne $old_server_anvil_uuid)
+		{
+			# Moved between Anvil! systems
+			my $variables  = { 
+				server         => $server_name,
+				old_anvil_name => $anvil->Get->anvil_name_from_uuid({anvil_uuid => $old_server_anvil_uuid}),
+				old_anvil_uuid => $old_server_anvil_uuid,
+				new_anvil_name => $anvil->Get->anvil_name_from_uuid({anvil_uuid => $server_anvil_uuid}),
+				new_anvil_uuid => $server_anvil_uuid,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0009", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0009", message_variables => $variables, set_by => $THIS_FILE});
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		if ($server_user_stop ne $old_server_user_stop)
+		{
+			# Server booted and cleared this or the user shut down the server and this got set)
+			my $say_user_stop = $server_user_stop eq "TRUE" ? "scan_server_alert_0010" : "scan_server_alert_0011";
+			my $variables     = { server => $server_name };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_user_stop, variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => $say_user_stop, message_variables => $variables, set_by => $THIS_FILE});
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		if ($server_host_uuid ne $old_server_host_uuid)
+		{
+			# Server migated (to the peer or to a new Anvil!)
+			my $variables  = { 
+				server        => $server_name,
+				old_host_name => $anvil->Get->host_name_from_uuid({host_uuid => $old_server_host_uuid}),
+				old_host_uuid => $old_server_host_uuid,
+				new_host_name => $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid}),
+				new_host_uuid => $server_host_uuid,
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0012", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0012", message_variables => $variables, set_by => $THIS_FILE});
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		if ($server_ram_in_use ne $old_server_ram_in_use)
+		{
+			# The amount of RAM the server uses has changed, likely after rebooting after a 
+			# config change.
+			my $variables  = { 
+				server               => $server_name,
+				old_ram_in_use_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}),
+				old_ram_in_use_bytes => $anvil->Convert->add_commas({number => $server_ram_in_use}),
+				new_ram_in_use_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_server_ram_in_use}),
+				new_ram_in_use_bytes => $anvil->Convert->add_commas({number => $old_server_ram_in_use}),
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0013", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0013", message_variables => $variables, set_by => $THIS_FILE});
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		if ($server_configured_ram ne $old_server_configured_ram)
+		{
+			# The amount of allocated RAM has changed, but if this value doesn't match
+			# 'server_ram_in_use', the user needs to reboot. 
+			my $say_ram   = $server_configured_ram eq $server_ram_in_use ? "scan_server_alert_0014" : "scan_server_alert_0015";
+			my $variables = { 
+				server                   => $server_name,
+				old_configured_ram_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}),
+				old_configured_ram_bytes => $anvil->Convert->add_commas({number => $server_configured_ram}),
+				new_configured_ram_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_server_configured_ram}),
+				new_configured_ram_bytes => $anvil->Convert->add_commas({number => $old_server_configured_ram}),
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_ram, variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => $say_ram, message_variables => $variables, set_by => $THIS_FILE});
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+		}
+		
+		if ($update)
+		{
+			# Update.
+			$anvil->Database->insert_or_update_servers({
+				debug                           => 2,
+				server_uuid                     => $server_uuid,
+				server_state                    => $server_state, 
+				server_boot_time                => $server_boot_time,
+				server_anvil_uuid               => $server_anvil_uuid,
+				server_user_stop                => $server_user_stop,
+				server_host_uuid                => $server_host_uuid,
+				server_ram_in_use               => $server_ram_in_use,
+				server_configured_ram           => $server_configured_ram,
+				server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid},
+				server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay},
+				server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration},
+				server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid},
+				server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments},
+				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid},
+				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments},
 			});
 		}
-
-		### TODO: Left off here. Check the RAM in use in the live XML (not --inactive) to see if it diffes from the config file.
-		# Now that definition updates are dealth with, has anything else changed?
-		my $current_state = $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state};
-		my $last_state    = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		
+		# Delete the database record so we know this one has been dealt with.
+		delete $anvil->data->{servers}{server_uuid}{$server_uuid};
 	}
 	
+	# Lastly, if we can access our peer, see what servers are running there. This will let us know if a 
+	# server that had been running on us before is not off (versus migrated).
 	$anvil->Cluster->get_peers();
 	my $peer_is   = $anvil->data->{sys}{anvil}{peer_is};
 	my $peer_name = $anvil->data->{sys}{anvil}{$peer_is}{host_name};
 	my $peer_uuid = $anvil->data->{sys}{anvil}{$peer_is}{host_uuid};
-	my $dr_name   = $anvil->data->{sys}{anvil}{dr1}{host_name};
-	my $dr_uuid   = $anvil->data->{sys}{anvil}{dr1}{host_uuid};
 	my $password  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:peer_is'   => $peer_is,
 		's2:peer_name' => $peer_name, 
 		's3:peer_uuid' => $peer_uuid, 
-		's4:dr_name'   => $dr_name, 
-		's5:dr_uuid'   => $dr_uuid, 
-		's6:password'  => $anvil->Log->is_secure($password), 
+		's4:password'  => $anvil->Log->is_secure($password), 
 	}});
 	
 	# If we can access our peer or DR host, see what servers are running on them. We do no parsing or 
@@ -455,14 +625,7 @@ DELETED   - Marks a server as no longer existing
 		target   => $peer_name,
 		password => $password,
 	});
-	my $dr_access = $anvil->Remote->test_access({
-		target   => $dr_name,
-		password => $password,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		peer_access => $peer_access, 
-		dr_access   => $dr_access, 
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_access => $peer_access }});
 	if ($peer_access)
 	{
 		# Get a list of servers running on our peer. 
@@ -492,58 +655,17 @@ DELETED   - Marks a server as no longer existing
 				}});
 				
 				$anvil->data->{'scan-server'}{server_name}{$server_name}{server_state} = $server_state;
-				$anvil->data->{'scan-server'}{server_name}{$server_name}{undefine}     = 0;
 				$anvil->data->{'scan-server'}{server_name}{$server_name}{host}         = $peer_name;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"scan-server::server_name::${server_name}::server_state" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state}, 
-					"scan-server::server_name::${server_name}::undefine"     => $anvil->data->{'scan-server'}{server_name}{$server_name}{undefine}, 
-					"scan-server::server_name::${server_name}::host"         => $anvil->data->{'scan-server'}{server_name}{$server_name}{host}, 
-				}});
-			}
-		}
-	}
-	if ($dr_access)
-	{
-		# Get a list of servers running on the DR host.
-		my ($output, $error, $return_code) = $anvil->Remote->call({
-			debug       => 2, 
-			target      => $dr_name,
-			password    => $password,
-			shell_call  => $anvil->data->{path}{exe}{virsh}." list --all",
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			error       => $error,
-			output      => $output,
-			return_code => $return_code, 
-		}});
-		foreach my $line (split/\n/, $output)
-		{
-			$line = $anvil->Words->clean_spaces({string => $line});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			
-			if ($line =~ /^\d+ (.*?) (.*)$/)
-			{
-				my $server_name  = $1;
-				my $server_state = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					server_name  => $server_name, 
-					server_state => $server_state, 
-				}});
-				
-				$anvil->data->{'scan-server'}{server_name}{$server_name}{server_state} = $server_state;
-				$anvil->data->{'scan-server'}{server_name}{$server_name}{undefine}     = 0;
-				$anvil->data->{'scan-server'}{server_name}{$server_name}{host}         = $dr_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"scan-server::server_name::${server_name}::server_state" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state}, 
-					"scan-server::server_name::${server_name}::undefine"     => $anvil->data->{'scan-server'}{server_name}{$server_name}{undefine}, 
 					"scan-server::server_name::${server_name}::host"         => $anvil->data->{'scan-server'}{server_name}{$server_name}{host}, 
 				}});
 			}
 		}
 	}
 	
-	# Now, loop through all servers associated with our Anvil!. As we loop through, any servers we didn't
-	# see will be considered to be off.
+	# Now, loop through all remaining servers from when we loaded them out of the database. Already 
+	# processed servers will be removed, so what's left are either on the peer, or shut off now.
 	foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
 	{
 		my $server_name      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
@@ -552,8 +674,8 @@ DELETED   - Marks a server as no longer existing
 		my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
 		my $server_host_name = $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid});
 		my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:name'             => $name,
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_name'      => $server_name,
 			's2:host_anvil_uuid'  => $host_anvil_uuid, 
 			's3:host_anvil_name'  => $host_anvil_name, 
 			's4:server_host_uuid' => $server_host_uuid, 
@@ -564,80 +686,21 @@ DELETED   - Marks a server as no longer existing
 		# Skip if this isn't our Anvil!
 		next if $host_anvil_uuid ne $anvil_uuid;
 		
-		# If we saw the server in the previous scan, skip it.
-		my $is_off = 0;
-		if (not $anvil->data->{'scan-server'}{server}{$server_name})
+		# If the server is on the peer, skip it.
+		next if $server_host_uuid ne $anvil->Get->host_uuid;
+		
+		# If we're here, the server used to be on us, and isn't on the peer, so mark it as off.
+		if ($server_state ne "shut off")
 		{
-			# This server isn't running anywhere. If it was last seen to be running, mark it as 
-			# wnow off.
-			if ($server_state ne "shut off")
-			{
-				# Mark it as being off now.
-				my $query = "UPDATE servers SET server_state = 'shut off' WHERE server_uuid = ".$anvil->Database->quote($server_uuid).";";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
-				
-				# Now register an alert.
-				my $variables  = { server => $server_name };
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0007", variables => $variables});
-				$anvil->Alert->register({
-					alert_level       => "notice", 
-					message           => "scan_server_alert_0007",
-					message_variables => $variables, 
-					set_by            => $THIS_FILE,
-				});
-			}
-		}
-		else
-		{
-			my $seen_state = $anvil->data->{'scan-server'}{server}{$server_name}{server_state};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { seen_state => $seen_state }});
+			# Mark it as being off now.
+			my $query = "UPDATE servers SET server_state = 'shut off' WHERE server_uuid = ".$anvil->Database->quote($server_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 			
-			# If it needs to be undefined, do so now.
-			if (($anvil->data->{'scan-server'}{server}{$server_name}{undefine}) && ($anvil->data->{scancore}{'scan-server'}{'auto-undefine'}))
-			{
-				# It's off, and should be undefined. Dump the defition to archive and underfine.
-				my $backup_file = $anvil->data->{path}{directories}{shared}{archives}."/".$server_name.".pre-undefine.".$anvil->Get->date_and_time({file_name => 1}).".xml";
-				my $shell_call  = $anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name." > ".$backup_file;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-				
-				my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{virsh}." list --all", source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
-				
-				# Register an alert.
-				my $variables  = {
-					server => $server_name,
-					backup => $backup_file,
-				};
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0005", variables => $variables});
-				$anvil->Alert->register({
-					alert_level       => "notice", 
-					message           => "scan_server_alert_0005",
-					message_variables => $variables, 
-					set_by            => $THIS_FILE,
-				});
-			}
-			
-			### TODO: left off here
-			# If anything has changed, register an alert and update.
-			
-			# Nothing else should have changed, but just in case...
-			$anvil->Database->insert_or_update_servers({
-				debug                           => 2,
-				server_uuid                     => $server_uuid,
-				server_ram_in_use               => $anvil->data->{'scan-server'}{server}{$server_name}{server_ram_in_use},
-				server_configured_ram           => $anvil->data->{'scan-server'}{server}{$server_name}{server_configured_ram},
-				server_anvil_uuid               => $anvil->data->{'scan-server'}{server}{$server_name}{server_anvil_uuid},
-				server_clean_stop               => $anvil->data->{'scan-server'}{server}{$server_name}{server_clean_stop},
-				server_host_uuid                => $anvil->data->{'scan-server'}{server}{$server_name}{server_host_uuid},
-				server_start_after_server_uuid  => $anvil->data->{'scan-server'}{server}{$server_name}{server_start_after_server_uuid},
-				server_start_delay              => $anvil->data->{'scan-server'}{server}{$server_name}{server_start_delay},
-				server_live_migration           => $anvil->data->{'scan-server'}{server}{$server_name}{server_live_migration},
-				server_pre_migration_file_uuid  => $anvil->data->{'scan-server'}{server}{$server_name}{server_pre_migration_file_uuid},
-				server_pre_migration_arguments  => $anvil->data->{'scan-server'}{server}{$server_name}{server_pre_migration_arguments},
-				server_post_migration_file_uuid => $anvil->data->{'scan-server'}{server}{$server_name}{server_post_migration_file_uuid},
-				server_post_migration_arguments => $anvil->data->{'scan-server'}{server}{$server_name}{server_post_migration_arguments},
-			}});
+			# Now register an alert.
+			my $variables  = { server => $server_name };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0007", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0007", message_variables => $variables, set_by => $THIS_FILE});
 		}
 	}
 	
@@ -666,6 +729,9 @@ sub get_and_parse_database_definition
 sub get_and_parse_disk_definition
 {
 	my ($anvil, $server_name) = @_;
+	
+	my $xml_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { xml_file => $xml_file }});
 
 	my $on_disk_definition = $anvil->Storage->read_file({file => $xml_file});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { on_disk_definition => $on_disk_definition }});
@@ -717,7 +783,7 @@ sub redefine_server_from_disk
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 	
 	# Re-read and parse the new (inactive) definition
-	$virsh_definition = get_and_parse_virsh_definition($anvil, $server_name);
+	my $virsh_definition = get_and_parse_virsh_definition($anvil, $server_name);
 	
 	return($virsh_definition);
 }
@@ -734,6 +800,7 @@ sub update_definitions_from_virsh
 		source      => "from_virsh", 
 		definition  => $virsh_definition, 
 	});
+	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if (not $problem)
 	{
@@ -779,8 +846,9 @@ sub update_database_definition
 		debug       => 2,
 		server_name => $server_name,
 		source      => "new_definition", 
-		definition  => $virsh_definition, 
+		definition  => $new_definition, 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	
 	return($new_definition);
 }

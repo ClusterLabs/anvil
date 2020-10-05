@@ -921,7 +921,7 @@ sub host_uuid_from_name
 	{
 		foreach my $this_host_uuid (keys %{$anvil->data->{hosts}{host_uuid}})
 		{
-			my $this_host_name       = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{host_name}
+			my $this_host_name       = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{host_name};
 			my $this_short_host_name = $this_host_name;
 			   $this_short_host_name =~ s/\..*$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

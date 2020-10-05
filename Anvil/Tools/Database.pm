@@ -3558,7 +3558,7 @@ This loads all known servers from the database.
 
  servers::server_uuid::<server_uuid>::server_name
  servers::server_uuid::<server_uuid>::server_anvil_uuid
- servers::server_uuid::<server_uuid>::server_clean_stop
+ servers::server_uuid::<server_uuid>::server_user_stop
  servers::server_uuid::<server_uuid>::server_start_after_server_uuid
  servers::server_uuid::<server_uuid>::server_start_delay
  servers::server_uuid::<server_uuid>::server_host_uuid
@@ -3594,7 +3594,7 @@ SELECT
     server_uuid, 
     server_name, 
     server_anvil_uuid, 
-    server_clean_stop, 
+    server_user_stop, 
     server_start_after_server_uuid, 
     server_start_delay, 
     server_host_uuid, 
@@ -3624,7 +3624,7 @@ FROM
 		my $server_uuid                     = $row->[0];
 		my $server_name                     = $row->[1];
 		my $server_anvil_uuid               = $row->[2]; 
-		my $server_clean_stop               = $row->[3]; 
+		my $server_user_stop                = $row->[3]; 
 		my $server_start_after_server_uuid  = $row->[4]; 
 		my $server_start_delay              = $row->[5]; 
 		my $server_host_uuid                = $row->[6]; 
@@ -3642,7 +3642,7 @@ FROM
 			server_uuid                     => $server_uuid,
 			server_name                     => $server_name, 
 			server_anvil_uuid               => $server_anvil_uuid, 
-			server_clean_stop               => $server_clean_stop, 
+			server_user_stop                => $server_user_stop, 
 			server_start_after_server_uuid  => $server_start_after_server_uuid, 
 			server_start_delay              => $server_start_delay, 
 			server_host_uuid                => $server_host_uuid, 
@@ -3661,7 +3661,7 @@ FROM
 		# Record the data in the hash, too.
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}                     = $server_name;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}               = $server_anvil_uuid;
-		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}               = $server_clean_stop;
+		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}                = $server_user_stop;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}  = $server_start_after_server_uuid;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}              = $server_start_delay;
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}                = $server_host_uuid;
@@ -3677,7 +3677,7 @@ FROM
 		$anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}                = $server_boot_time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"servers::server_uuid::${server_uuid}::server_anvil_uuid"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
-			"servers::server_uuid::${server_uuid}::server_clean_stop"               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_clean_stop}, 
+			"servers::server_uuid::${server_uuid}::server_user_stop"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
 			"servers::server_uuid::${server_uuid}::server_start_after_server_uuid"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
 			"servers::server_uuid::${server_uuid}::server_start_delay"              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
 			"servers::server_uuid::${server_uuid}::server_host_uuid"                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
@@ -9247,7 +9247,7 @@ This is the name of the server being added.
 
 This is the C<< anvils >> -> C<< anvil_uuid >> that this server is currently hosted on.
 
-=head3 server_clean_stop (optional, default '0')
+=head3 server_user_stop (optional, default '0')
 
 This indicates when a server was stopped by a user. If this is set to C<< 1 >>, then the Anvil! will not boot the server (during an C<< anvil-safe-start >> run). 
 
@@ -9345,7 +9345,7 @@ sub insert_or_update_servers
 	my $server_uuid                     = defined $parameter->{server_uuid}                     ? $parameter->{server_uuid}                     : "";
 	my $server_name                     = defined $parameter->{server_name}                     ? $parameter->{server_name}                     : "";
 	my $server_anvil_uuid               = defined $parameter->{server_anvil_uuid}               ? $parameter->{server_anvil_uuid}               : "";
-	my $server_clean_stop               = defined $parameter->{server_clean_stop}               ? $parameter->{server_clean_stop}               : 0;
+	my $server_user_stop                = defined $parameter->{server_user_stop}                ? $parameter->{server_user_stop}                : 0;
 	my $server_start_after_server_uuid  = defined $parameter->{server_start_after_server_uuid}  ? $parameter->{server_start_after_server_uuid}  : "";
 	my $server_start_delay              = defined $parameter->{server_start_delay}              ? $parameter->{server_start_delay}              : 30;
 	my $server_host_uuid                = defined $parameter->{server_host_uuid}                ? $parameter->{server_host_uuid}                : "";
@@ -9367,7 +9367,7 @@ sub insert_or_update_servers
 		server_uuid                     => $server_uuid, 
 		server_name                     => $server_name, 
 		server_anvil_uuid               => $server_anvil_uuid,
-		server_clean_stop               => $server_clean_stop,
+		server_user_stop                => $server_user_stop,
 		server_start_after_server_uuid  => $server_start_after_server_uuid,
 		server_start_delay              => $server_start_delay,
 		server_host_uuid                => $server_host_uuid,
@@ -9475,7 +9475,7 @@ INSERT INTO
     server_uuid, 
     server_name, 
     server_anvil_uuid, 
-    server_clean_stop, 
+    server_user_stop, 
     server_start_after_server_uuid, 
     server_start_delay, 
     server_host_uuid, 
@@ -9494,7 +9494,7 @@ INSERT INTO
     ".$anvil->Database->quote($server_uuid).", 
     ".$anvil->Database->quote($server_name).", 
     ".$anvil->Database->quote($server_anvil_uuid).", 
-    ".$anvil->Database->quote($server_clean_stop).", 
+    ".$anvil->Database->quote($server_user_stop).", 
     ".$anvil->Database->quote($server_start_after_server_uuid).", 
     ".$anvil->Database->quote($server_start_delay).", 
     ".$anvil->Database->quote($server_host_uuid).", 
@@ -9521,7 +9521,7 @@ INSERT INTO
 SELECT 
     server_name, 
     server_anvil_uuid, 
-    server_clean_stop, 
+    server_user_stop, 
     server_start_after_server_uuid, 
     server_start_delay, 
     server_host_uuid, 
@@ -9558,7 +9558,7 @@ WHERE
 		{
 			my $old_server_name                     = $row->[0];
 			my $old_server_anvil_uuid               = $row->[1]; 
-			my $old_server_clean_stop               = $row->[2]; 
+			my $old_server_user_stop                = $row->[2]; 
 			my $old_server_start_after_server_uuid  = $row->[3]; 
 			my $old_server_start_delay              = $row->[4]; 
 			my $old_server_host_uuid                = $row->[5]; 
@@ -9575,7 +9575,7 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_server_name                     => $old_server_name, 
 				old_server_anvil_uuid               => $old_server_anvil_uuid, 
-				old_server_clean_stop               => $old_server_clean_stop, 
+				old_server_user_stop                => $old_server_user_stop, 
 				old_server_start_after_server_uuid  => $old_server_start_after_server_uuid, 
 				old_server_start_delay              => $old_server_start_delay, 
 				old_server_host_uuid                => $old_server_host_uuid, 
@@ -9594,7 +9594,7 @@ WHERE
 			# Anything change?
 			if (($old_server_name                     ne $server_name)                     or  
 			    ($old_server_anvil_uuid               ne $server_anvil_uuid)               or 
-			    ($old_server_clean_stop               ne $server_clean_stop)               or 
+			    ($old_server_user_stop                ne $server_user_stop)               or 
 			    ($old_server_start_after_server_uuid  ne $server_start_after_server_uuid)  or 
 			    ($old_server_start_delay              ne $server_start_delay)              or 
 			    ($old_server_host_uuid                ne $server_host_uuid)                or 
@@ -9616,7 +9616,7 @@ UPDATE
 SET 
     server_name                     = ".$anvil->Database->quote($server_name).", 
     server_anvil_uuid               = ".$anvil->Database->quote($server_anvil_uuid).", 
-    server_clean_stop               = ".$anvil->Database->quote($server_clean_stop).", 
+    server_user_stop                = ".$anvil->Database->quote($server_user_stop).", 
     server_start_after_server_uuid  = ".$anvil->Database->quote($server_start_after_server_uuid).", 
     server_start_delay              = ".$anvil->Database->quote($server_start_delay).", 
     server_host_uuid                = ".$anvil->Database->quote($server_host_uuid).", 
