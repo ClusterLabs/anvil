@@ -3621,23 +3621,23 @@ FROM
 	}});
 	foreach my $row (@{$results})
 	{
-		my $server_uuid                     = $row->[0];
-		my $server_name                     = $row->[1];
-		my $server_anvil_uuid               = $row->[2]; 
-		my $server_user_stop                = $row->[3]; 
-		my $server_start_after_server_uuid  = $row->[4]; 
-		my $server_start_delay              = $row->[5]; 
-		my $server_host_uuid                = $row->[6]; 
-		my $server_state                    = $row->[7]; 
-		my $server_live_migration           = $row->[8]; 
-		my $server_pre_migration_file_uuid  = $row->[9]; 
-		my $server_pre_migration_arguments  = $row->[10]; 
-		my $server_post_migration_file_uuid = $row->[11]; 
-		my $server_post_migration_arguments = $row->[12]; 
-		my $server_ram_in_use               = $row->[13];
-		my $server_configured_ram           = $row->[14];
-		my $server_updated_by_user          = $row->[15];
-		my $server_boot_time                = $row->[16];
+		my $server_uuid                     =         $row->[0];
+		my $server_name                     =         $row->[1];
+		my $server_anvil_uuid               =         $row->[2]; 
+		my $server_user_stop                =         $row->[3]; 
+		my $server_start_after_server_uuid  = defined $row->[4]  ? $row->[4]  : 'NULL'; 
+		my $server_start_delay              =         $row->[5]; 
+		my $server_host_uuid                =         $row->[6]; 
+		my $server_state                    =         $row->[7]; 
+		my $server_live_migration           =         $row->[8]; 
+		my $server_pre_migration_file_uuid  = defined $row->[9]  ? $row->[9]  : 'NULL'; 
+		my $server_pre_migration_arguments  =         $row->[10]; 
+		my $server_post_migration_file_uuid = defined $row->[11] ? $row->[11] : 'NULL'; 
+		my $server_post_migration_arguments =         $row->[12]; 
+		my $server_ram_in_use               =         $row->[13];
+		my $server_configured_ram           =         $row->[14];
+		my $server_updated_by_user          =         $row->[15];
+		my $server_boot_time                =         $row->[16];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			server_uuid                     => $server_uuid,
 			server_name                     => $server_name, 
@@ -9345,15 +9345,15 @@ sub insert_or_update_servers
 	my $server_uuid                     = defined $parameter->{server_uuid}                     ? $parameter->{server_uuid}                     : "";
 	my $server_name                     = defined $parameter->{server_name}                     ? $parameter->{server_name}                     : "";
 	my $server_anvil_uuid               = defined $parameter->{server_anvil_uuid}               ? $parameter->{server_anvil_uuid}               : "";
-	my $server_user_stop                = defined $parameter->{server_user_stop}                ? $parameter->{server_user_stop}                : 0;
-	my $server_start_after_server_uuid  = defined $parameter->{server_start_after_server_uuid}  ? $parameter->{server_start_after_server_uuid}  : "";
+	my $server_user_stop                = defined $parameter->{server_user_stop}                ? $parameter->{server_user_stop}                : "FALSE";
+	my $server_start_after_server_uuid  = defined $parameter->{server_start_after_server_uuid}  ? $parameter->{server_start_after_server_uuid}  : "NULL";
 	my $server_start_delay              = defined $parameter->{server_start_delay}              ? $parameter->{server_start_delay}              : 30;
 	my $server_host_uuid                = defined $parameter->{server_host_uuid}                ? $parameter->{server_host_uuid}                : "";
 	my $server_state                    = defined $parameter->{server_state}                    ? $parameter->{server_state}                    : "";
-	my $server_live_migration           = defined $parameter->{server_live_migration}           ? $parameter->{server_live_migration}           : 1;
-	my $server_pre_migration_file_uuid  = defined $parameter->{server_pre_migration_file_uuid}  ? $parameter->{server_pre_migration_file_uuid}  : "";
+	my $server_live_migration           = defined $parameter->{server_live_migration}           ? $parameter->{server_live_migration}           : "TRUE";
+	my $server_pre_migration_file_uuid  = defined $parameter->{server_pre_migration_file_uuid}  ? $parameter->{server_pre_migration_file_uuid}  : "NULL";
 	my $server_pre_migration_arguments  = defined $parameter->{server_pre_migration_arguments}  ? $parameter->{server_pre_migration_arguments}  : "";
-	my $server_post_migration_file_uuid = defined $parameter->{server_post_migration_file_uuid} ? $parameter->{server_post_migration_file_uuid} : "";
+	my $server_post_migration_file_uuid = defined $parameter->{server_post_migration_file_uuid} ? $parameter->{server_post_migration_file_uuid} : "NULL";
 	my $server_post_migration_arguments = defined $parameter->{server_post_migration_arguments} ? $parameter->{server_post_migration_arguments} : "";
 	my $server_ram_in_use               = defined $parameter->{server_ram_in_use}               ? $parameter->{server_ram_in_use}               : 0;
 	my $server_configured_ram           = defined $parameter->{server_configured_ram}           ? $parameter->{server_configured_ram}           : 0;
@@ -9511,6 +9511,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
 );
 ";
+		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
@@ -9556,22 +9557,22 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_server_name                     = $row->[0];
-			my $old_server_anvil_uuid               = $row->[1]; 
-			my $old_server_user_stop                = $row->[2]; 
-			my $old_server_start_after_server_uuid  = $row->[3]; 
-			my $old_server_start_delay              = $row->[4]; 
-			my $old_server_host_uuid                = $row->[5]; 
-			my $old_server_state                    = $row->[6]; 
-			my $old_server_live_migration           = $row->[7]; 
-			my $old_server_pre_migration_file_uuid  = $row->[8]; 
-			my $old_server_pre_migration_arguments  = $row->[9]; 
-			my $old_server_post_migration_file_uuid = $row->[10]; 
-			my $old_server_post_migration_arguments = $row->[11]; 
-			my $old_server_ram_in_use               = $row->[12];
-			my $old_server_configured_ram           = $row->[13];
-			my $old_server_updated_by_user          = $row->[14];
-			my $old_server_boot_time                = $row->[15];
+			my $old_server_name                     =         $row->[0];
+			my $old_server_anvil_uuid               =         $row->[1]; 
+			my $old_server_user_stop                =         $row->[2]; 
+			my $old_server_start_after_server_uuid  = defined $row->[3]  ? $row->[3]  : 'NULL'; 
+			my $old_server_start_delay              =         $row->[4]; 
+			my $old_server_host_uuid                =         $row->[5]; 
+			my $old_server_state                    =         $row->[6]; 
+			my $old_server_live_migration           =         $row->[7]; 
+			my $old_server_pre_migration_file_uuid  = defined $row->[8]  ? $row->[8]  : 'NULL'; 
+			my $old_server_pre_migration_arguments  =         $row->[9]; 
+			my $old_server_post_migration_file_uuid = defined $row->[10] ? $row->[10] : 'NULL'; 
+			my $old_server_post_migration_arguments =         $row->[11]; 
+			my $old_server_ram_in_use               =         $row->[12];
+			my $old_server_configured_ram           =         $row->[13];
+			my $old_server_updated_by_user          =         $row->[14];
+			my $old_server_boot_time                =         $row->[15];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_server_name                     => $old_server_name, 
 				old_server_anvil_uuid               => $old_server_anvil_uuid, 
@@ -9634,6 +9635,7 @@ SET
 WHERE 
     server_uuid                     = ".$anvil->Database->quote($server_uuid)." 
 ";
+				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}

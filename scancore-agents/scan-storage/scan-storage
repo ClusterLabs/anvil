@@ -1,0 +1,100 @@
+#!/usr/bin/perl
+# 
+# This scans the storage seen by the OS. That is to say, it monitors DRBD, LVM and backing devices. It does 
+# NOT monitor mdadm arrays, nor vendor-specific storage hardware. There should be dedicated scan agents for 
+# those tasks.
+# 
+# Examples;
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Startup failure (not running as root, no DB, bad file read, etc)
+# 
+# TODO: 
+# - 
+#
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+# Disable buffering
+$| = 1;
+
+# Prevent a discrepency between UID/GID and EUID/EGID from throwing an error.
+$< = $>;
+$( = $);
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# These are the threasholds for when to alert when swap is running out.
+$anvil->data->{scancore}{'scan-storage'}{disable} = 0;
+$anvil->data->{switches}{force}                   = 0;
+
+$anvil->Storage->read_config();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches
+$anvil->Get->switches;
+
+# If we're disabled and '--force' wasn't used, exit.
+if (($anvil->data->{scancore}{'scan-storage'}{disable}) && (not $anvil->data->{switches}{force}))
+{
+	# Exit.
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# These are the tables used by this agent. The order matters as it controls to order the tables are created 
+# and sync'ed. For purges, this array is walked backwards.
+$anvil->data->{scancore}{'scan-storage'}{tables} = ["scan_storage", "scan_storage_ram_modules"];
+
+# Handle start-up tasks
+my $problem = $anvil->ScanCore->agent_startup({
+	debug  => 3,
+	agent  => $THIS_FILE,
+	tables => $anvil->data->{scancore}{'scan-storage'}{tables},
+});
+if ($problem)
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
+if ($anvil->data->{switches}{purge})
+{
+	# This can be called when doing bulk-database purges.
+	$anvil->Database->purge_data({
+		debug  => 2,
+		tables => $anvil->data->{scancore}{'scan-storage'}{tables},
+	});
+	$anvil->nice_exit({exit_code => 0});
+}
+
+
+# Mark that we ran.
+$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+
+$anvil->nice_exit({exit_code => 0});
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+

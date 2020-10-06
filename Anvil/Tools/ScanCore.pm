@@ -132,6 +132,16 @@ sub agent_startup
 		return("!!error!!");
 	}
 	
+	# Connect to DBs.
+	$anvil->Database->connect({debug => $debug});
+	$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, exit.
+		$anvil->Log->entry({source => $agent, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
+		return(1);
+	}
+	
 	my $table_count = @{$tables};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table_count => $table_count }});
 	
@@ -142,16 +152,6 @@ sub agent_startup
 		foreach my $table (@{$tables})
 		{
 			push @{$anvil->data->{sys}{database}{check_tables}}, $table;
-		}
-		
-		# Connect to DBs.
-		$anvil->Database->connect({debug => $debug});
-		$anvil->Log->entry({source => $agent, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
-		if (not $anvil->data->{sys}{database}{connections})
-		{
-			# No databases, exit.
-			$anvil->Log->entry({source => $agent, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0003"});
-			return(1);
 		}
 
 		# Make sure our schema is loaded.

@@ -1241,14 +1241,14 @@ CREATE TABLE servers (
     server_name                        text                        not null,                     -- This is the server's name. It can change without re-uploading the server.
     server_anvil_uuid                  uuid                        not null,                     -- This is the Anvil! system that the server lives on. It can move to another Anvil!, so this can change.
     server_user_stop                   boolean                     not null    default FALSE,    -- When set, the server was stopped by a user. The Anvil! will not start a server that has been cleanly stopped.
-    server_start_after_server_uuid     uuid                        not null,                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
+    server_start_after_server_uuid     uuid,                                                     -- This can be the server_uuid of another server. If set, this server will boot 'server_start_delay' seconds after the referenced server boots. A value of '00000000-0000-0000-0000-000000000000' will tell 'anvil-safe-start' to not boot the server at all. If a server is set not to start, any dependent servers will also stay off.
     server_start_delay                 integer                     not null    default 0,        -- See above.
     server_host_uuid                   uuid                        not null,                     -- This is the current hosts -> host_uuid for this server. If the server is off, this will be blank.
     server_state                       text                        not null,                     -- This is the current state of this server, as reported by 'virsh list --all' (see: man virsh -> GENERIC COMMANDS -> --list)
     server_live_migration              boolean                     not null    default TRUE,     -- When false, servers will be frozen for a migration, instead of being migrated while the server is migrating. During a cold migration, the server will be unresponsive, so connections to it could time out. However, by being frozen the migration will complete faster.
-    server_pre_migration_file_uuid     uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_pre_migration_file_uuid     uuid,                                                     -- This is set to the files -> file_uuid of a script to run BEFORE migrating a server. If the file isn't found or can't run, the script is ignored.
     server_pre_migration_arguments     text                        not null,                     -- These are arguments to pass to the pre-migration script
-    server_post_migration_file_uuid    uuid                        not null,                     -- This is set to the files -> file_uuid of a script to run AFTER migrating a server. If the file isn't found or can't run, the script is ignored.
+    server_post_migration_file_uuid    uuid,                                                     -- This is set to the files -> file_uuid of a script to run AFTER migrating a server. If the file isn't found or can't run, the script is ignored.
     server_post_migration_arguments    text                        not null,                     -- These are arguments to pass to the post-migration script
     server_ram_in_use                  numeric                     not null,                     -- This is the amount of RAM currently used by the server. If the server is off, then this is the amount of RAM last used when the server was running.
     server_configured_ram              numeric                     not null,                     -- This is the amount of RAM allocated to the server in the on-disk definition file. This should always match the table above, but allows us to track when a user manually updated the allocated RAM in the on-disk definition, but that hasn't yet been picked up by the server
@@ -1315,6 +1315,7 @@ BEGIN
     VALUES
         (history_servers.server_uuid, 
          history_servers.server_name, 
+         history_servers.server_anvil_uuid,
          history_servers.server_user_stop,
          history_servers.server_start_after_server_uuid,
          history_servers.server_start_delay,

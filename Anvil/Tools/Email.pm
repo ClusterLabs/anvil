@@ -213,6 +213,7 @@ sub check_queue
 	# This is empty if there is nothing in the queue.
 	foreach my $email (split/\n/, $queue)
 	{
+		### TODO: Wrap this in an eval
 		my $json       = JSON->new->allow_nonref;
 		my $postqueueu = $json->decode($email);
 		my $queue_id   = $postqueueu->{queue_id};

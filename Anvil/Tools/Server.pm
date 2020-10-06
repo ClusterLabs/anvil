@@ -747,8 +747,13 @@ sub migrate_virsh
 		});
 	}
 	
+	### NOTE: This method is called by ocf:alteeve:server, which is allowed to operate without database 
+	###       access. As such, queries need to be run only if we've got one or more DB connections.
 	# Mark this server as being in a migration state.
-	$anvil->Database->get_servers({debug => 2});
+	if ($anvil->data->{sys}{database}{connections})
+	{
+		$anvil->Database->get_servers({debug => 2});
+	}
 	my $server_uuid      = "";
 	my $old_server_state = "";
 	foreach my $this_server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
@@ -759,7 +764,7 @@ sub migrate_virsh
 			last;
 		}
 	}
-	if ($server_uuid)
+	if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
 	{
 		if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} ne "migrating")
 		{
@@ -829,7 +834,10 @@ sub migrate_virsh
 	}});
 	
 	# Before we update, re-scan servers as some time may have passed.
-	$anvil->Database->get_servers({debug => 2});
+	if ($anvil->data->{sys}{database}{connections})
+	{
+		$anvil->Database->get_servers({debug => 2});
+	}
 	if ($return_code)
 	{
 		# Something went wrong.
@@ -841,7 +849,7 @@ sub migrate_virsh
 		}});
 		
 		# Revert the migrating state.
-		if ($server_uuid)
+		if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
 		{
 			$anvil->Database->insert_or_update_servers({
 				debug                           => $debug, 
@@ -882,7 +890,7 @@ sub migrate_virsh
 			$server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_uuid => $server_host_uuid }});
 		}
-		if ($server_uuid)
+		if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
 		{
 			$anvil->Database->insert_or_update_servers({
 				debug                           => $debug, 
