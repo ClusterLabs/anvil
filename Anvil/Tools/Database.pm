@@ -3627,7 +3627,7 @@ FROM
 		my $server_user_stop                =         $row->[3]; 
 		my $server_start_after_server_uuid  = defined $row->[4]  ? $row->[4]  : 'NULL'; 
 		my $server_start_delay              =         $row->[5]; 
-		my $server_host_uuid                =         $row->[6]; 
+		my $server_host_uuid                = defined $row->[6]  ? $row->[6]  : 'NULL'; 
 		my $server_state                    =         $row->[7]; 
 		my $server_live_migration           =         $row->[8]; 
 		my $server_pre_migration_file_uuid  = defined $row->[9]  ? $row->[9]  : 'NULL'; 
@@ -9348,7 +9348,7 @@ sub insert_or_update_servers
 	my $server_user_stop                = defined $parameter->{server_user_stop}                ? $parameter->{server_user_stop}                : "FALSE";
 	my $server_start_after_server_uuid  = defined $parameter->{server_start_after_server_uuid}  ? $parameter->{server_start_after_server_uuid}  : "NULL";
 	my $server_start_delay              = defined $parameter->{server_start_delay}              ? $parameter->{server_start_delay}              : 30;
-	my $server_host_uuid                = defined $parameter->{server_host_uuid}                ? $parameter->{server_host_uuid}                : "";
+	my $server_host_uuid                = defined $parameter->{server_host_uuid}                ? $parameter->{server_host_uuid}                : "NULL";
 	my $server_state                    = defined $parameter->{server_state}                    ? $parameter->{server_state}                    : "";
 	my $server_live_migration           = defined $parameter->{server_live_migration}           ? $parameter->{server_live_migration}           : "TRUE";
 	my $server_pre_migration_file_uuid  = defined $parameter->{server_pre_migration_file_uuid}  ? $parameter->{server_pre_migration_file_uuid}  : "NULL";
@@ -9562,7 +9562,7 @@ WHERE
 			my $old_server_user_stop                =         $row->[2]; 
 			my $old_server_start_after_server_uuid  = defined $row->[3]  ? $row->[3]  : 'NULL'; 
 			my $old_server_start_delay              =         $row->[4]; 
-			my $old_server_host_uuid                =         $row->[5]; 
+			my $old_server_host_uuid                = defined $row->[5]  ? $row->[5]  : 'NULL'; 
 			my $old_server_state                    =         $row->[6]; 
 			my $old_server_live_migration           =         $row->[7]; 
 			my $old_server_pre_migration_file_uuid  = defined $row->[8]  ? $row->[8]  : 'NULL'; 
@@ -9595,7 +9595,7 @@ WHERE
 			# Anything change?
 			if (($old_server_name                     ne $server_name)                     or  
 			    ($old_server_anvil_uuid               ne $server_anvil_uuid)               or 
-			    ($old_server_user_stop                ne $server_user_stop)               or 
+			    ($old_server_user_stop                ne $server_user_stop)                or 
 			    ($old_server_start_after_server_uuid  ne $server_start_after_server_uuid)  or 
 			    ($old_server_start_delay              ne $server_start_delay)              or 
 			    ($old_server_host_uuid                ne $server_host_uuid)                or 

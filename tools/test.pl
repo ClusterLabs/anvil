@@ -23,59 +23,41 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 $anvil->Log->level({set => 2});
 $anvil->Log->secure({set => 1});
+
+$anvil->data->{switches}{'shutdown'} = "";
+$anvil->data->{switches}{boot}       = "";
+$anvil->data->{switches}{server}     = "";
 $anvil->Get->switches;
 
 print "Connecting to the database(s);\n";
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0132"});
 
-$anvil->Storage->get_file_stats({
+my $host_name = "mk-a02n02";
+my $host_uuid = $anvil->Get->host_uuid_from_name({
 	debug     => 2,
-	file_path => "/root/test",
+	host_name => $host_name,
 });
+print "host name: [".$host_name."], host_uuid: [".$host_uuid."]\n";
 
-my $server  = "srv07-el6";
-my $runtime = $anvil->Server->get_runtime({
-	debug  => 2,
-	server => $server,
-});
-if ($runtime)
-{
-	my $boot_time = time - $runtime;
-	print "Server: [".$server."] has been running for: [".$runtime."] seconds.\n";
-	print "- Booted at: [".$anvil->Get->date_and_time({use_time => $boot_time})."]\n";
-}
-else
-{
-	print "The server: [".$server."] isn't running.\n";
-}
+exit;
 
-# $anvil->Cluster->shutdown_server({
-# 	debug  => 2,
-# 	server => "srv07-el6",
-# });
-# $anvil->Cluster->shutdown_server({
-# 	debug  => 2,
-# 	server => "srv01-sql",
-# });
-# exit;
 
-if (0)
+my $server_name = $anvil->data->{switches}{server} ? $anvil->data->{switches}{server} : "srv07-el6";
+if ($anvil->data->{switches}{boot})
 {
-	my $xml = '';
-	my $problem = $anvil->Cluster->parse_crm_mon({debug => 2, xml => $xml});
-	if ($problem)
-	{
-		print "Problem reading or parsing the 'crm_mon' XML.\n";
-	}
-	else
-	{
-		print "crm_mon parsed.\n";
-	}
+	print "Booting: [".$server_name."]\n";
+	$anvil->Server->boot_virsh({
+		debug  => 2,
+		server => $server_name,
+	});
 }
-
-if (0)
+elsif ($anvil->data->{switches}{'shutdown'})
 {
-	my $problem = $anvil->Cluster->parse_cib({debug => 2});
-	print "Problem: [".$problem."]\n";
+	print "Shutting down: [".$server_name."]\n";
+	$anvil->Server->shutdown_virsh({
+		debug  => 2,
+		server => $server_name,
+	});
 }
+exit;

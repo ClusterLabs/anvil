@@ -30,6 +30,7 @@ my $THIS_FILE = "Get.pm";
 # host_uuid
 # md5sum
 # os_type
+# server_uuid_from_name
 # switches
 # trusted_hosts
 # uptime
@@ -105,7 +106,7 @@ sub parent
 
 =head2 anvil_name_from_uuid
 
-This takes a Anvil! UUID and returns the Anvil! name (as recorded in the C<< anvils >> table). If the entry is not found, an empty string is returned.
+This takes a Anvil! UUID and returns the Anvil! name (as recorded in the C<< anvils >> table). If the entry is not found, an empty string is returned. If there is a problem, C<< !!error!! >> will be returned.
 
 Parameters;
 
@@ -125,6 +126,12 @@ sub anvil_name_from_uuid
 	my $anvil_name = "";
 	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->anvil_name_from_uuid()", parameter => "server_name" }});
+		return("!!error!!");
+	}
 	
 	my $query = "
 SELECT 
@@ -916,6 +923,7 @@ sub host_uuid_from_name
 	if (exists $anvil->data->{sys}{hosts}{by_name}{$host_name})
 	{
 		$host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	}
 	else
 	{
@@ -932,14 +940,14 @@ sub host_uuid_from_name
 			if ($host_name eq $this_host_name)
 			{
 				# Found it.
-				$host_uuid = $this_host_name;
+				$host_uuid = $this_host_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 				last;
 			}
 			elsif ($short_host_name eq $this_short_host_name)
 			{
 				# This is probably it, but we'll keep looping to be sure.
-				$host_uuid = $this_host_name;
+				$host_uuid = $this_host_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 			}
 		}
@@ -1321,6 +1329,89 @@ sub os_type
 		os_arch => $os_arch,
 	}});
 	return($os_type, $os_arch);
+}
+
+
+=head2 server_uuid_from_name
+
+This takes a server name and returns the server's uuid (as recorded in the C<< servers >> table). If the entry is not found, an empty string is returned. If there is a problem, C<< !!error!! >> will be returned.
+
+Parameters;
+
+=head3 anvil_uuid (optional)
+
+If defined, only servers associated with the referenced Anvil! will be searched. This can help prevent situations where the same server name was used on different Anvil! systems.
+
+=head3 server_name (required)
+
+This is the C<< servers >> -> C<< server_name >> to translate into the server UUID.
+
+=cut
+sub server_uuid_from_name
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->server_uuid_from_name()" }});
+	
+	my $server_uuid = "";
+	my $anvil_uuid  = defined $parameter->{anvil_uuid}  ? $parameter->{anvil_uuid}  : "";
+	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid  => $anvil_uuid,
+		server_name => $server_name, 
+	}});
+	
+	if (not $server_name)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Get->server_uuid_from_name()", parameter => "server_name" }});
+		return("!!error!!");
+	}
+	if ($anvil_uuid)
+	{
+		# Make sure the Anvil! UUID is valid. 
+		my $anvil_name = $anvil->Get->anvil_name_from_uuid({anvil_uuid => $anvil_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+		if ((not $anvil_name) or ($anvil_name eq "!!error!!"))
+		{
+			# Invalid anvil_uuid
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0162", variables => { anvil_uuid => $anvil_uuid }});
+			return("!!error!!");
+		}
+	}
+	
+	my $query = "
+SELECT 
+    server_uuid 
+FROM 
+    servers 
+WHERE 
+    server_name = ".$anvil->Database->quote($server_name)." ";
+	if ($anvil_uuid)
+	{
+		$query .= "
+AND 
+    server_anvil_uuid = ".$anvil->Database->quote($anvil_uuid)." ";
+	}
+	$query .= "
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count == 1)
+	{
+		# Found it
+		$server_name = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name }});
+	return($server_name);
 }
 
 

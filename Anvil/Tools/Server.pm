@@ -157,6 +157,57 @@ sub boot_virsh
 				server => $server, 
 				host   => $anvil->data->{server}{location}{$server}{host},
 			}});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
+			if ($anvil->data->{sys}{database}{connections})
+			{
+				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+				
+				my $server_uuid = $anvil->Get->server_uuid_from_name({
+					debug       => $debug, 
+					server_name => $server, 
+					anvil_uuid  => $anvil_uuid,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
+				if (($server_uuid) && ($server_uuid ne "!!error!!"))
+				{
+					$anvil->Database->get_servers({debug => $debug});
+					if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+					{
+						my $old_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_state => $old_state }});
+						
+						if ($old_state ne "in shutdown")
+						{
+							# Update it.
+							my $runtime = $anvil->Server->get_runtime({
+								debug  => 2,
+								server => $server,
+							});
+							my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state     = 'running', 
+    server_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).", ";
+							if ($runtime =~ /^\d+$/)
+							{
+								my $boot_time =  time - $runtime;
+								   $query     .= "
+    server_boot_time = ".$anvil->Database->quote($boot_time).",  ";
+							}
+							$query .= "
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid      = ".$anvil->Database->quote($server_uuid)."
+;";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+							$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+						}
+					}
+				}
+			}
 		}
 		
 		if ($wait)
@@ -769,32 +820,23 @@ sub migrate_virsh
 		if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} ne "migrating")
 		{
 			$old_server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
-			$anvil->Database->insert_or_update_servers({
-				debug                           => $debug, 
-				server_uuid                     => $server_uuid, 
-				server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
-				server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
-				server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
-				server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
-				server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
-				server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
-				server_state                    => "migrating", 
-				server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
-				server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
-				server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
-				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
-				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
-				server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
-				server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
-				server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
-				server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
-			});
+			my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state  = 'migrating',
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid   = ".$anvil->Database->quote($server_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 		}
 	}
 	
 	# The virsh command switches host names to IPs and needs to have both the source and target IPs in 
 	# the known_hosts file to work.
-	my $live_migrate = not $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration} ? "" : "--live";
+	my $live_migrate = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration} ? "--live" : "";
 	my $target_ip    = $anvil->Convert->host_name_to_ip({debug => $debug, host_name => $target});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		target_ip    => $target_ip,
@@ -837,6 +879,7 @@ sub migrate_virsh
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		$anvil->Database->get_servers({debug => 2});
+		$anvil->Database->refresh_timestamp({debug => $debug});
 	}
 	if ($return_code)
 	{
@@ -851,26 +894,17 @@ sub migrate_virsh
 		# Revert the migrating state.
 		if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
 		{
-			$anvil->Database->insert_or_update_servers({
-				debug                           => $debug, 
-				server_uuid                     => $server_uuid, 
-				server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
-				server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
-				server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
-				server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
-				server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
-				server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
-				server_state                    => $old_server_state, 
-				server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
-				server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
-				server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
-				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
-				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
-				server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
-				server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
-				server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
-				server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
-			});
+			my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state  = ".$anvil->Database->quote($old_server_state).", 
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid   = ".$anvil->Database->quote($server_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 		}
 	}
 	else
@@ -881,7 +915,7 @@ sub migrate_virsh
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
 		
 		# Revert the server state and update the server host.
-		my $server_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $target});
+		my $server_host_uuid = $anvil->Get->host_uuid_from_name({debug => $debug, host_name => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_uuid => $server_host_uuid }});
 		if (not $server_host_uuid)
 		{
@@ -892,6 +926,18 @@ sub migrate_virsh
 		}
 		if (($server_uuid) && ($anvil->data->{sys}{database}{connections}))
 		{
+			my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state     = ".$anvil->Database->quote($old_server_state).", 
+    server_host_uuid = ".$anvil->Database->quote($server_host_uuid).", 
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid      = ".$anvil->Database->quote($server_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 			$anvil->Database->insert_or_update_servers({
 				debug                           => $debug, 
 				server_uuid                     => $server_uuid, 
@@ -1535,10 +1581,11 @@ sub shutdown_virsh
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->shutdown_virsh()" }});
 	
-	my $server = defined $parameter->{server} ? $parameter->{server} : "";
-	my $force  = defined $parameter->{force}  ? $parameter->{force}  : 0;
-	my $wait   = defined $parameter->{'wait'} ? $parameter->{'wait'} : 0;
-	my $success = 0;
+	my $server      = defined $parameter->{server} ? $parameter->{server} : "";
+	my $force       = defined $parameter->{force}  ? $parameter->{force}  : 0;
+	my $wait        = defined $parameter->{'wait'} ? $parameter->{'wait'} : 0;
+	my $success     = 0;
+	my $server_uuid = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		force  => $force, 
 		server => $server, 
@@ -1644,6 +1691,44 @@ sub shutdown_virsh
 		# Shut it down.
 		if ($shutdown)
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
+			if ($anvil->data->{sys}{database}{connections})
+			{
+				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+				
+				$server_uuid = $anvil->Get->server_uuid_from_name({
+					debug       => $debug, 
+					server_name => $server, 
+					anvil_uuid  => $anvil_uuid,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
+				if (($server_uuid) && ($server_uuid ne "!!error!!"))
+				{
+					$anvil->Database->get_servers({debug => $debug});
+					if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+					{
+						my $old_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_state => $old_state }});
+						
+						if ($old_state ne "in shutdown")
+						{
+							# Update it.
+							my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state  = 'in shutdown',
+    modified_date = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid   = ".$anvil->Database->quote($server_uuid)."
+;";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+							$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+						}
+					}
+				}
+			}
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0520", variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({
 				debug      => $debug, 
@@ -1693,6 +1778,36 @@ sub shutdown_virsh
 			# Success!
 			$success = 1;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0426", variables => { server => $server }});
+			
+			# Mark it as stopped now. (if we have a server_uuid, we have a database connection)
+			if ($server_uuid)
+			{
+				$anvil->Database->get_servers({debug => $debug});
+				if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+				{
+					my $old_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_state => $old_state }});
+					
+					if ($old_state ne "shut off")
+					{
+						# Update it.
+						$anvil->Database->refresh_timestamp({debug => $debug});
+						my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state     = 'shut off', 
+    server_boot_time = 0, 
+    server_host_uuid = NULL, 
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})." 
+WHERE 
+    server_uuid      = ".$anvil->Database->quote($server_uuid)."
+;";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+						$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					}
+				}
+			}
 		}
 		
 		if (($stop_waiting) && (time > $stop_waiting))

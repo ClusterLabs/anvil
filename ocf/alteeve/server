@@ -676,7 +676,8 @@ sub start_server
 	start_drbd_resource($anvil);
 	
 	# Still alive? Boot!
-	my ($success) = $anvil->Server->boot_virsh({debug => 3, server => $server});
+	my ($success) = $anvil->Server->boot_virsh({debug => 2, server => $server});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
 	if ($success)
 	{
 		# Success!
@@ -981,10 +982,6 @@ sub stop_server
 	{
 		stop_drbd_resource($anvil);
 	}
-	
-	### Disabled, we'll leave daemons running.
-	# If this was the last running server, stop the daemons.
-	#check_daemons($anvil, "stop");
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0324", variables => { server => $server }});
 	$anvil->nice_exit({exit_code => 0});
@@ -1379,7 +1376,7 @@ sub migrate_server
 		
 		# If we're still alive, we're ready to migrate.
 		($migrated) = $anvil->Server->migrate_virsh({
-			debug  => 3, 
+			debug  => 2, 
 			server => $server, 
 			source => $source, 
 			target => $target 
@@ -1434,7 +1431,7 @@ sub migrate_server
 		
 		# Call the pull migation.
 		($migrated) = $anvil->Server->migrate_virsh({
-			debug  => 3, 
+			debug  => 2, 
 			server => $server, 
 			source => $source,
 			target => $target 

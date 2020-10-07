@@ -16,6 +16,7 @@ my $THIS_FILE = "Cluster.pm";
 ### Methods;
 # boot_server
 # check_node_status
+# get_anvil_uuid
 # get_peers
 # migrate_server
 # parse_cib
@@ -305,7 +306,7 @@ sub get_anvil_uuid
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->check_node_status()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_anvil_uuid()" }});
 	
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
@@ -340,6 +341,7 @@ sub get_anvil_uuid
 		}
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { member_anvil_uuid => $member_anvil_uuid }});
 	return($member_anvil_uuid);
 }
 
@@ -1203,46 +1205,42 @@ sub parse_cib
 			if ($role ne "migrating")
 			{
 				$anvil->Database->get_servers({debug => $debug});
-				my $anvil_uuid  = $anvil->Cluster->get_anvil_uuid({debug => $debug});
-				my $server_uuid = "";
-				foreach my $this_server_uuid (keys %{$anvil->data->{servers}{server_uuid}})
-				{
-					if (($server     eq $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}) && 
-					    ($anvil_uuid eq $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}))
-					{
-						# Found it.
-						$server_uuid = $this_server_uuid;
-						if ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} eq "migrating")
-						{
-							# We need to clean up a stale migration state. It may
-							# not actually be 'running', but if not, scan-server 
-							# will clean it up. So long as the state is 
-							# 'migrating', scan-server won't touch it.
-							$anvil->Database->insert_or_update_servers({
-								debug                           => $debug, 
-								server_uuid                     => $server_uuid, 
-								server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
-								server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
-								server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
-								server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
-								server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
-								server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
-								server_state                    => "running", 
-								server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
-								server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
-								server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
-								server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
-								server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
-								server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
-								server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
-								server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
-								server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
-							});
-						}
-						last;
-					}
-				}
+				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
 				
+				my $server_uuid = $anvil->Get->server_uuid_from_name({
+					debug       => $debug, 
+					server_name => $server, 
+					anvil_uuid  => $anvil_uuid,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
+				if (($server_uuid) && (exists $anvil->data->{servers}{server_uuid}{$server_uuid}) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} eq "migrating"))
+				{
+					# We need to clean up a stale migration state. It may
+					# not actually be 'running', but if not, scan-server 
+					# will clean it up. So long as the state is 
+					# 'migrating', scan-server won't touch it.
+					$anvil->Database->insert_or_update_servers({
+						debug                           => $debug, 
+						server_uuid                     => $server_uuid, 
+						server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
+						server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid}, 
+						server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop}, 
+						server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid}, 
+						server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay}, 
+						server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid}, 
+						server_state                    => "running", 
+						server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration}, 
+						server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid}, 
+						server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments}, 
+						server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid}, 
+						server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+						server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use}, 
+						server_configured_ram           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram}, 
+						server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user},
+						server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time},
+					});
+				}
 			}
 		}
 		

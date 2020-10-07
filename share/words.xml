@@ -234,6 +234,7 @@ The error was:
 		<key name="error_0159">Unable to read the stat information for the file: [#!variable!file_path!#], the file doesn't appear to exist.</key>
 		<key name="error_0160">The '#!variable!name!#': [#!variable!uuid!#] is not valid.</key>
 		<key name="error_0161">Unable to mark the server with UUID: [#!variable!uuid!#] as "deleted" because it doesn't apprear to exist in the database in the first place.</key>
+		<key name="error_0162">The 'anvil_uuid': [#!variable!anvil_uuid!#] in invalid.</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>
@@ -795,7 +796,7 @@ We will keep looking.</key>
 		<key name="log_0321">The server: [#!variable!server!#] is already off.</key>
 		<key name="log_0322">The server: [#!variable!server!#] is hung. Its state is: [#!variable!state!#]. We will force it off now.</key>
 		<key name="log_0323">The attempt to force-off the server: [#!variable!server!#] returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
-		<key name="log_0324">The server: [#!variable!server!#] is now off.</key>
+		<key name="log_0324">The server: [#!variable!server!#] is not running on this machine.</key>
 		<key name="log_0325">The server: [#!variable!server!#] is running, but it is in an unexpected state: [#!variable!state!#]. Human intervention is required!</key>
 		<key name="log_0326">The server: [#!variable!server!#] was not listed on this node, so it is not running here.</key>
 		<key name="log_0327">Asking the server: [#!variable!server!#] to shut down now. Please be patient.</key>
