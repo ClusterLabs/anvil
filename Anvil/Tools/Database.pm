@@ -527,7 +527,7 @@ sub check_agent_data
 		{
 			# Something went wrong.
 			my $changed = $anvil->Alert->check_alert_sent({
-				debug          => 2,
+				debug          => $debug,
 				record_locator => "schema_load_failure",
 				set_by         => $agent,
 			});
@@ -552,7 +552,7 @@ sub check_agent_data
 		{
 			# If there was an alert, clear it.
 			my $changed = $anvil->Alert->check_alert_sent({
-				debug          => 2,
+				debug          => $debug,
 				record_locator => "schema_load_failure",
 				set_by         => $agent,
 				clear          => 1,
@@ -567,7 +567,7 @@ sub check_agent_data
 					
 				}});
 				$anvil->Alert->register({
-					debug       => 2,
+					debug       => $debug,
 					alert_level => "warning",
 					clear_alert => 1,
 					message     => "message_0182,!!agent_name!".$agent."!!,!!file!".$schema_file."!!",

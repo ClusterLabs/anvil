@@ -12,6 +12,8 @@
 # TODO: 
 # - Decide if it's worth having a separate ScanCore.log file or just feed into anvil.log.
 # - Examine limits in: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#LimitCPU=
+# - Use 'nvme-cli' to write a scan-nvme scan agent, can get thermal and wear data
+# - 
 
 use strict;
 use warnings;
@@ -151,10 +153,10 @@ sub call_agents
 	scan_directory($anvil, $anvil->data->{path}{directories}{scan_agents});
 	
 	# Now loop through the agents I found and call them.
-	my $default_timeout = 30;
+	my $timeout = 30;
 	if ((exists $anvil->data->{scancore}{timing}{agent_runtime}) && ($anvil->data->{scancore}{timing}{agent_runtime} =~ /^\d+$/))
 	{
-		$default_timeout = $anvil->data->{scancore}{timing}{agent_runtime};
+		$timeout = $anvil->data->{scancore}{timing}{agent_runtime};
 	}
 	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
 	{
@@ -184,12 +186,11 @@ sub call_agents
 		
 		# Now call the agent.
 		my $start_time = time;
-		my $timeout    = $default_timeout;
 		if (($anvil->data->{scancore}{$agent_name}{timeout}) && ($anvil->data->{scancore}{$agent_name}{timeout} =~ /^\d+$/))
 		{
 			$timeout = $anvil->data->{scancore}{$agent_name}{timeout};
 		}
-		my $shell_call = $anvil->data->{path}{exe}{timeout}." ".$timeout." ".$agent_path;
+		my $shell_call = $agent_path;
 		if ($anvil->data->{sys}{'log'}{level})
 		{
 			$shell_call .= " ".$anvil->data->{sys}{'log'}{level};
@@ -201,7 +202,7 @@ sub call_agents
 			agent_name => $agent_name,
 			timeout    => $timeout,
 		}});
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		my ($output, $return_code) = $anvil->System->call({timeout => $timeout, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 		foreach my $line (split/\n/, $output)
 		{
@@ -216,6 +217,7 @@ sub call_agents
 		# If the return code is '124', timeout popped.
 		if ($return_code eq "124")
 		{
+			### TODO: Check if this alert was set so it only goes out once.
 			# Register an alert...
 			$anvil->Alert->register({set_by => $THIS_FILE, alert_level => "notice", message => "message_0180,!!agent_name!".$agent_name."!!,!!timeout!".$timeout."!!"});
 		}

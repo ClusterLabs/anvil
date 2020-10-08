@@ -1,0 +1,213 @@
+#!/usr/bin/perl
+# 
+# This scans the LVM (logical volume management) components (PV, VG and LV). 
+# 
+# Examples;
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = Startup failure (not running as root, no DB, bad file read, etc)
+# 
+# TODO: 
+# - 
+#
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use JSON;
+
+# Disable buffering
+$| = 1;
+
+# Prevent a discrepency between UID/GID and EUID/EGID from throwing an error.
+$< = $>;
+$( = $);
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	print $anvil->Words->string({key => "error_0005"})."\n";
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# These are the threasholds for when to alert when swap is running out.
+$anvil->data->{scancore}{'scan-lvm'}{disable} = 0;
+$anvil->data->{switches}{force}               = 0;
+
+$anvil->Storage->read_config();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches
+$anvil->Get->switches;
+
+# If we're disabled and '--force' wasn't used, exit.
+if (($anvil->data->{scancore}{'scan-lvm'}{disable}) && (not $anvil->data->{switches}{force}))
+{
+	# Exit.
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# These are the tables used by this agent. The order matters as it controls to order the tables are created 
+# and sync'ed. For purges, this array is walked backwards.
+$anvil->data->{scancore}{'scan-lvm'}{tables} = ["scan_lvm_pvs", "scan_lvm_vgs", "scan_lvm_lvs"];
+
+# Handle start-up tasks
+my $problem = $anvil->ScanCore->agent_startup({
+	debug  => 3,
+	agent  => $THIS_FILE,
+	tables => $anvil->data->{scancore}{'scan-lvm'}{tables},
+});
+if ($problem)
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
+if ($anvil->data->{switches}{purge})
+{
+	# This can be called when doing bulk-database purges.
+	$anvil->Database->purge_data({
+		debug  => 2,
+		tables => $anvil->data->{scancore}{'scan-lvm'}{tables},
+	});
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# Find the block devices on this host.
+collect_data($anvil);
+
+
+# Mark that we ran.
+$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+
+$anvil->nice_exit({exit_code => 0});
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub collect_data
+{
+	my ($anvil) = @_;
+	
+	### TODO: Swap oput '--separator \#!\#' for '--reportformat json'
+	collect_pvs_data($anvil);
+	collect_vgs_data($anvil);
+	collect_lvs_data($anvil);
+	
+	return(0);
+}
+
+sub collect_pvs_data
+{
+	my ($anvil) = @_;
+	
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{pvscan}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{pvs}." --noheadings --units b --reportformat json -o pv_uuid,pv_name,vg_name,pv_attr,pv_size,pv_free"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	
+	my $json     = JSON->new->allow_nonref;
+	my $pvs_data = $json->decode($output);
+	foreach my $hash_ref (@{$pvs_data->{report}->[0]->{pv}})
+	{
+		my $pv_uuid                                           = $hash_ref->{pv_uuid};
+		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{name}       = $hash_ref->{pv_name};
+		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{used_by_vg} = $hash_ref->{vg_name};
+		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{attributes} = $hash_ref->{pv_attr};	# TODO: Parse this out
+		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{size}       = ($hash_ref->{pv_size} =~ /^(\d+)B/)[0];
+		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{free_space} = ($hash_ref->{pv_free} =~ /^(\d+)B/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"lvm::pv_uuid::${pv_uuid}::name"       => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{name},
+			"lvm::pv_uuid::${pv_uuid}::used_by_vg" => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{used_by_vg},
+			"lvm::pv_uuid::${pv_uuid}::attributes" => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{attributes},
+			"lvm::pv_uuid::${pv_uuid}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{size}}).")",
+			"lvm::pv_uuid::${pv_uuid}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{free_space}}).")",
+		}});
+	}
+	
+	return(0);
+}
+	
+sub collect_vgs_data
+{
+	my ($anvil) = @_;
+	
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{vgscan}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{vgs}." --noheadings --units b --reportformat json -o vg_uuid,vg_name,vg_attr,vg_extent_size,vg_size,vg_free"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	
+	my $json     = JSON->new->allow_nonref;
+	my $vgs_data = $json->decode($output);
+	foreach my $hash_ref (@{$vgs_data->{report}->[0]->{vg}})
+	{
+		my $vg_uuid                                            = $hash_ref->{vg_uuid};
+		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{name}        = $hash_ref->{vg_name};
+		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{attributes}  = $hash_ref->{vg_attr};
+		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{extent_size} = ($hash_ref->{vg_extent_size} =~ /^(\d+)B/)[0];
+		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{size}        = ($hash_ref->{vg_size} =~ /^(\d+)B/)[0];
+		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{free_space}  = ($hash_ref->{vg_free} =~ /^(\d+)B/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"lvm::vg_uuid::${vg_uuid}::name"        => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{name},
+			"lvm::vg_uuid::${vg_uuid}::attributes"  => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{attributes},
+			"lvm::vg_uuid::${vg_uuid}::extent_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{extent_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{extent_size}}),
+			"lvm::vg_uuid::${vg_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{size}}),
+			"lvm::vg_uuid::${vg_uuid}::free_space"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{free_space}}),
+		}});
+	}
+	
+	return(0);
+}
+	
+sub collect_lvs_data
+{
+	my ($anvil) = @_;
+	
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{lvscan}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{lvs}." --noheadings --units b --reportformat json -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	
+	my $json     = JSON->new->allow_nonref;
+	my $lvs_data = $json->decode($output);
+	foreach my $hash_ref (@{$lvs_data->{report}->[0]->{lv}})
+	{
+		my $lv_uuid                                            =  $hash_ref->{lv_uuid};
+		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{name}        =  $hash_ref->{lv_name};
+		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{attributes}  =  $hash_ref->{lv_attr};
+		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_vg}       =  $hash_ref->{vg_name};
+		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{device_path} =  $hash_ref->{lv_path};
+		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{size}        =  ($hash_ref->{lv_size} =~ /^(\d+)B/)[0];
+		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_pvs}      =  $hash_ref->{devices};
+		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_pvs}      =~ s/\(\d+\)//g;			# Remove the starting PE numver
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"lvm::lv_uuid::${lv_uuid}::name"        => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{name},
+			"lvm::lv_uuid::${lv_uuid}::attributes"  => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{attributes},
+			"lvm::lv_uuid::${lv_uuid}::on_vg"       => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_vg},
+			"lvm::lv_uuid::${lv_uuid}::device_path" => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{device_path},
+			"lvm::lv_uuid::${lv_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{size}}),
+			"lvm::lv_uuid::${lv_uuid}::on_pvs"      => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_pvs},
+		}});
+	}
+	
+	return(0);
+}
+	

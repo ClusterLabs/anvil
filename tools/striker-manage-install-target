@@ -1973,6 +1973,7 @@ sub load_packages
 			"nss.x86_64",
 			"numactl-libs.x86_64",
 			"numad.x86_64",
+			"nvme-cli.x86_64", 
 		],
 		o	=>	[
 			"openldap.x86_64",
@@ -2342,6 +2343,7 @@ sub load_packages
 			"shadow-utils.x86_64",
 			"shared-mime-info.x86_64",
 			"slang.x86_64",
+			"smartmontools.x86_64", 
 			"snappy.x86_64",
 			"sound-theme-freedesktop.noarch",
 			"speexdsp.x86_64",

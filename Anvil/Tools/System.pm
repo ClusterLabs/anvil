@@ -207,6 +207,10 @@ B<NOTE>: This is only used when C<< background >> is set to C<< 1 >>.
 
 If set, the C<< STDOUT >> output will be sent to the corresponding file. If this isn't a full path, the file will be placed under C<< /tmp/ >>.
 
+=head3 timeout (optional, default '0')
+
+If set, a timeout will be placed on the call. If the call takes more than C<< timeout >> seconds, the call will fail and the C<< return_code >> will be C<< 124 >>.
+
 =cut
 sub call
 {
@@ -224,6 +228,7 @@ sub call
 	my $source          = defined $parameter->{source}          ? $parameter->{source}          : $THIS_FILE;
 	my $stderr_file     = defined $parameter->{stderr_file}     ? $parameter->{stderr_file}     : "";
 	my $stdout_file     = defined $parameter->{stdout_file}     ? $parameter->{stdout_file}     : "";
+	my $timeout         = defined $parameter->{timeout}         ? $parameter->{timeout}         : 0;
 	my $redirect        = $redirect_stderr ? " 2>&1" : "";
 	$anvil->Log->variables({source => $source, line => $line, level => $debug, secure => $secure, list => { 
 		background      => $background, 
@@ -284,6 +289,14 @@ sub call
 					"s2:arguments" => $arguments, 
 				}});
 			}
+			
+			if ($timeout)
+			{
+				# Prepend a timeout.
+				$shell_call = $anvil->data->{path}{exe}{timeout}." ".$timeout." ".$shell_call;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { shell_call => $shell_call }});
+			}
+			
 			if ($background)
 			{
 				# Prepend '/tmp/' to STDOUT and/or STDERR output files, if needed.

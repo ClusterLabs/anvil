@@ -46,6 +46,7 @@ Requires:       iproute
 Requires:       lsscsi
 Requires:       mailx
 Requires:       mlocate 
+Requires:       nvme-cli
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
 Requires:       perl-Data-Validate-Domain
@@ -78,6 +79,7 @@ Requires:       postgresql-contrib
 Requires:       postgresql-plperl 
 Requires:       rsync 
 Requires:       screen
+Requires:       smartmontools
 Requires:       syslinux
 Requires:       tmux
 Requires:       usbutils

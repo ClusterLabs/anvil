@@ -1166,6 +1166,7 @@ sub _set_paths
 				journalctl			=>	"/usr/bin/journalctl",
 				logger				=>	"/usr/bin/logger",
 				ls				=>	"/usr/bin/ls",
+				lsblk				=>	"/usr/bin/lsblk",
 				lvchange			=>	"/usr/sbin/lvchange",
 				lvs				=>	"/usr/sbin/lvs", 
 				lvscan				=>	"/usr/sbin/lvscan", 
