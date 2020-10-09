@@ -20,10 +20,12 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_lvm_log_00
 		<key name="scan_lvm_alert_0004">The physical volume: [#!variable!pv_name!#] (UUID: [#!variable!pv_uuid!#]) has been assigned to the volume group: [#!variable!vg_name!#].</key>
 		<key name="scan_lvm_alert_0005">The physical volume: [#!variable!pv_name!#] (UUID: [#!variable!pv_uuid!#]) has been assigned to the volume group: [#!variable!new_vg_name!#]. It used to be assigned to: [#!variable!old_vg_name!#]. Did the volume group name change? If so, then this is not a concern.</key>
 		<key name="scan_lvm_alert_0006">The physical volume: [#!variable!pv_name!#] (UUID: [#!variable!pv_uuid!#]) attribute bits have changed from: [#!variable!old_attributes!#] to: [#!variable!new_attributes!#].
+====
 The attribute bits are:
 1 - (d)uplicate, (a)llocatable, (u)sed
 2 - e(x)ported
 3 - (m)issing
+====
 		</key>
 		<key name="scan_lvm_alert_0007">The physical volume: [#!variable!pv_name!#] (UUID: [#!variable!pv_uuid!#]) has increased in size from: [#!variable!old_pv_size!#] (#!variable!old_pv_size_bytes!# bytes) to: [#!variable!new_pv_size!#] (#!variable!new_pv_size_bytes!# bytes). This is the expected if you grew the disk.</key>
 		<key name="scan_lvm_alert_0008">The physical volume: [#!variable!pv_name!#] (UUID: [#!variable!pv_uuid!#]) has decreased in size from: [#!variable!old_pv_size!#] (#!variable!old_pv_size_bytes!# bytes) to: [#!variable!new_pv_size!#] (#!variable!new_pv_size_bytes!# bytes).</key>
@@ -32,6 +34,7 @@ The attribute bits are:
 		<key name="scan_lvm_alert_0011">The volume group: [#!variable!vg_name!#] (UUID: [#!variable!vg_uuid!#]) has returned. This is normal if the VG is on a removable medium like a USB disk.</key>
 		<key name="scan_lvm_alert_0012">The volume group: [#!variable!old_vg_name!#] (UUID: [#!variable!vg_uuid!#]) has changed to: [#!variable!new_vg_name!#].</key>
 		<key name="scan_lvm_alert_0013">The volume group: [#!variable!vg_name!#] (UUID: [#!variable!vg_uuid!#]) attribute bits have changed from: [#!variable!old_attributes!#] to: [#!variable!new_attributes!#].
+====
 The attribute bits are:
 1 - Permissions: (w)riteable, (r)ead-only
 2 - Resi(z)eable
@@ -39,6 +42,7 @@ The attribute bits are:
 4 - (p)artial: one or more physical volumes belonging to the volume group are missing from the system
 5 - Allocation policy: (c)ontiguous, c(l)ing, (n)ormal, (a)nywhere
 6 - (c)lustered, (s)hared
+====
 		</key>
 		<key name="scan_lvm_alert_0014">The volume group: [#!variable!pv_name!#] (UUID: [#!variable!pv_uuid!#]) extent size has changed from: [#!variable!old_vg_extent_size!#] (#!variable!old_vg_extent_size_bytes!# bytes) to: [#!variable!new_pv_size!#] (#!variable!new_pv_size_bytes!# bytes). This should never happen...</key>
 		<key name="scan_lvm_alert_0015">The volume group: [#!variable!vg_name!#] (UUID: [#!variable!vg_uuid!#]) has increased in size from: [#!variable!old_vg_size!#] (#!variable!old_vg_size_bytes!# bytes) to: [#!variable!new_vg_size!#] (#!variable!new_vg_size_bytes!# bytes). This is the expected if you added a PV to this VG.</key>
@@ -50,18 +54,19 @@ Assigned to VG: [#!variable!vg_name!#]
 Attribute bits: [#!variable!attributes!#]
 PV Size: ...... [#!variable!pv_size!#] (#!variable!pv_size_bytes!# bytes)
 Free Space: ... [#!variable!pv_free!#] (#!variable!pv_free_bytes!# bytes)
-
+====
 The attribute bits are:
 1 - (d)uplicate, (a)llocatable, (u)sed
 2 - e(x)ported
 3 - (m)issing
+====
 		</key>
 		<key name="scan_lvm_alert_0020">The new volume group: [#!variable!vg_name!#] (UUID: [#!variable!vg_uuid!#]) has been found.
 Attribute bits: [#!variable!attributes!#]
 VG Size: ...... [#!variable!vg_size!#] (#!variable!vg_size_bytes!# bytes)
 Free Space: ... [#!variable!vg_free!#] (#!variable!vg_free_bytes!# bytes)
 Extent Size: .. [#!variable!extent_size!#] (#!variable!extent_size_bytes!# bytes)
-
+====
 The attribute bits are:
 1 - Permissions: (w)riteable, (r)ead-only
 2 - Resi(z)eable
@@ -69,10 +74,12 @@ The attribute bits are:
 4 - (p)artial: one or more physical volumes belonging to the volume group are missing from the system
 5 - Allocation policy: (c)ontiguous, c(l)ing, (n)ormal, (a)nywhere
 6 - (c)lustered, (s)hared
+====
 		</key>
 		<key name="scan_lvm_alert_0021">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) has returned. This is normal if the LV is on a removable medium like a USB disk.</key>
 		<key name="scan_lvm_alert_0022">The logical volume: [#!variable!old_lv_name!#] (UUID: [#!variable!lv_uuid!#]) has changed to: [#!variable!new_lv_name!#].</key>
 		<key name="scan_lvm_alert_0023">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) attribute bits have changed from: [#!variable!old_attributes!#] to: [#!variable!new_attributes!#].
+====
 The attribute bits are:
 1 - Volume type: 
     * (C)ache, 
@@ -133,19 +140,20 @@ The attribute bits are:
     * (v)irtual. 
 8 - Newly-allocated data blocks are overwritten with blocks of (z)eroes before use.
 9 - Volume Health, where there are currently three groups of attributes identified:
+====
 		</key>
 		<key name="scan_lvm_alert_0024">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) is on a volume group that has changed its name from: [#!variable!old_lv_on_vg!#] to: [#!variable!new_lv_on_vg!#].</key>
 		<key name="scan_lvm_alert_0025">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) has increased in size from: [#!variable!old_lv_size!#] (#!variable!old_lv_size_bytes!# bytes) to: [#!variable!new_lv_size!#] (#!variable!new_lv_size_bytes!# bytes). This is expected when an LV is extended.</key>
 		<key name="scan_lvm_alert_0026">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) has decreased in size from: [#!variable!old_lv_size!#] (#!variable!old_lv_size_bytes!# bytes) to: [#!variable!new_lv_size!#] (#!variable!new_lv_size_bytes!# bytes). This is expected when an LV is shrunk.</key>
 		<key name="scan_lvm_alert_0027">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) device path has changed from: [#!variable!old_lv_path!#] to: [#!variable!new_lv_path!#].</key>
 		<key name="scan_lvm_alert_0028">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) list of physical volumes is spans has changed from: [#!variable!old_lv_on_pvs!#] to: [#!variable!new_lv_on_pvs!#].</key>
-		<key name="scan_lvm_alert_0029">The new logical volume: [#!variable!vg_name!#] (UUID: [#!variable!vg_uuid!#]) has been found.
+		<key name="scan_lvm_alert_0029">The new logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) has been found.
 Attribute bits: [#!variable!attributes!#]
 LV on VG: ..... [#!variable!lv_on_vg!#]
-LV Size: ...... [#!variable!vg_size!#] (#!variable!vg_size_bytes!# bytes)
-Device path: .. [#!variable!lv_on_vg!#]
+LV Size: ...... [#!variable!lv_size!#] (#!variable!lv_size_bytes!# bytes)
+Device path: .. [#!variable!lv_path!#]
 Using PV(s): .. [#!variable!lv_on_pvs!#]
-
+====
 The attribute bits are:
 1 - Volume type: 
     * (C)ache, 
@@ -206,6 +214,7 @@ The attribute bits are:
     * (v)irtual. 
 8 - Newly-allocated data blocks are overwritten with blocks of (z)eroes before use.
 9 - Volume Health, where there are currently three groups of attributes identified:
+====
 		</key>
 		<key name="scan_lvm_alert_0030">The volume group: [#!variable!vg_name!#] (UUID: [#!variable!vg_uuid!#]) has vanished! If this is a removable device, like a USB drive, this is OK. Otherwise, it could be the sign of a disk failure.</key>
 		<key name="scan_lvm_alert_0031">The logical volume: [#!variable!lv_name!#] (UUID: [#!variable!lv_uuid!#]) has been lost. This is normal if the LV is on a removable medium like a USB disk. Otherwise, it could be the sign of a disk failure.</key>
