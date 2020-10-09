@@ -51,7 +51,7 @@ BEGIN
          history_scan_lvm_pvs.scan_lvm_pv_used_by_vg, 
          history_scan_lvm_pvs.scan_lvm_pv_attributes, 
          history_scan_lvm_pvs.scan_lvm_pv_size, 
-         history_scan_lvm_pvs.scan_lvm_pv_used, 
+	 history_scan_lvm_pvs.scan_lvm_pv_free, 
          history_scan_lvm_pvs.modified_date);
     RETURN NULL;
 END;
@@ -132,10 +132,9 @@ CREATE TABLE scan_lvm_lvs (
     scan_lvm_lv_uuid          uuid                        primary key,    -- This comes from the VG itself.
     scan_lvm_lv_host_uuid     uuid                        not null,
     scan_lvm_lv_name          text                        not null,       -- This is the name of the VG.  
-    scan_lvm_lv_attributes    text                        not null,       -- This is the short 10-character attribute of the LV
+    scan_lvm_lv_attributes    text                        not null,       -- This is the short 9-character attribute of the LV
     scan_lvm_lv_on_vg         text                        not null,       -- This is the name of the volume group this LV is on
     scan_lvm_lv_size          numeric                     not null,       -- The size of the VG, in bytes.
-    scan_lvm_lv_free          numeric                     not null,       -- The free space in the VG, in bytes.
     scan_lvm_lv_path          text                        not null,       -- The device path to this LV
     scan_lvm_lv_on_pvs        text                        not null,       -- This is a comma-separated list of PVs this LV spans over.
     modified_date             timestamp with time zone    not null,
@@ -152,7 +151,6 @@ CREATE TABLE history.scan_lvm_lvs (
     scan_lvm_lv_attributes    text,
     scan_lvm_lv_on_vg         text,
     scan_lvm_lv_size          numeric,
-    scan_lvm_lv_free          numeric,
     scan_lvm_lv_path          text,
     scan_lvm_lv_on_pvs        text,
     modified_date             timestamp with time zone    not null
@@ -172,7 +170,6 @@ BEGIN
          scan_lvm_lv_attributes,
          scan_lvm_lv_on_vg,
          scan_lvm_lv_size,
-         scan_lvm_lv_free,
          scan_lvm_lv_path,
          scan_lvm_lv_on_pvs,
          modified_date)
@@ -183,7 +180,6 @@ BEGIN
          history_scan_lvm_lvs.scan_lvm_lv_attributes,
          history_scan_lvm_lvs.scan_lvm_lv_on_vg,
          history_scan_lvm_lvs.scan_lvm_lv_size,
-         history_scan_lvm_lvs.scan_lvm_lv_free,
          history_scan_lvm_lvs.scan_lvm_lv_path,
          history_scan_lvm_lvs.scan_lvm_lv_on_pvs,
          history_scan_lvm_lvs.modified_date);

@@ -90,6 +90,11 @@ if ($anvil->data->{switches}{purge})
 # Find the block devices on this host.
 collect_data($anvil);
 
+# Load stored data.
+read_last_scan($anvil);
+
+# Loog for changes
+find_changes($anvil);
 
 # Mark that we ran.
 $anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
@@ -99,6 +104,938 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub find_changes
+{
+	my ($anvil) = @_;
+	
+	# Changes in PVs?
+	find_changes_in_pvs($anvil);
+	
+	# Changes in VGs?
+	find_changes_in_vgs($anvil);
+	
+	# Changes in LVs?
+	find_changes_in_lvs($anvil);
+	
+	return(0);
+}
+
+sub find_changes_in_lvs
+{
+	my ($anvil) = @_;
+	
+	foreach my $scan_lvm_lv_uuid (keys %{$anvil->data->{lvm}{scan_lvm_lv_uuid}})
+	{
+		my $scan_lvm_lv_name       = $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{name};
+		my $scan_lvm_lv_attributes = $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{attributes};
+		my $scan_lvm_lv_on_vg      = $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_vg};
+		my $scan_lvm_lv_size       = $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{size};
+		my $scan_lvm_lv_path       = $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{device_path};
+		my $scan_lvm_lv_on_pvs     = $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_pvs};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_lvm_lv_uuid       => $scan_lvm_lv_uuid, 
+			scan_lvm_lv_name       => $scan_lvm_lv_name,
+			scan_lvm_lv_attributes => $scan_lvm_lv_attributes,
+			scan_lvm_lv_on_vg      => $scan_lvm_lv_on_vg,
+			scan_lvm_lv_size       => $anvil->Convert->add_commas({number => $scan_lvm_lv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_lv_size}),
+			scan_lvm_lv_path       => $scan_lvm_lv_path,
+			scan_lvm_lv_on_pvs     => $scan_lvm_lv_on_pvs, 
+		}});
+		
+		# Have we seen this before?
+		if (exists $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid})
+		{
+			# Yup, anything changed?
+			my $old_scan_lvm_lv_name       = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_name};
+			my $old_scan_lvm_lv_attributes = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_attributes};
+			my $old_scan_lvm_lv_on_vg      = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_on_vg};
+			my $old_scan_lvm_lv_size       = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_size};
+			my $old_scan_lvm_lv_path       = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_path};
+			my $old_scan_lvm_lv_on_pvs     = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_on_pvs};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_scan_lvm_lv_name       => $old_scan_lvm_lv_name,
+				old_scan_lvm_lv_attributes => $old_scan_lvm_lv_attributes,
+				old_scan_lvm_lv_on_vg      => $old_scan_lvm_lv_on_vg,
+				old_scan_lvm_lv_size       => $anvil->Convert->add_commas({number => $old_scan_lvm_lv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_lv_size}),
+				old_scan_lvm_lv_path       => $old_scan_lvm_lv_path,
+				old_scan_lvm_lv_on_pvs     => $old_scan_lvm_lv_on_pvs, 
+			}});
+			
+			my $update = 0;
+			if ($scan_lvm_lv_name ne $old_scan_lvm_lv_name)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				if ($old_scan_lvm_lv_name eq "DELETED")
+				{
+					# A lost LV is back
+					my $variables = { 
+						lv_uuid => $scan_lvm_lv_uuid, 
+						lv_name => $scan_lvm_lv_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0021", variables => $variables});
+					$anvil->Alert->register({debug => 2, clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0021", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# LV name changed.
+					my $variables = {
+						lv_uuid     => $scan_lvm_lv_uuid, 
+						new_lv_name => $scan_lvm_lv_name,
+						old_lv_name => $old_scan_lvm_lv_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0022", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0022", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			if ($scan_lvm_lv_attributes ne $old_scan_lvm_lv_attributes)
+			{
+				# Attribute bits changed.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					lv_uuid        => $scan_lvm_lv_uuid, 
+					lv_name        => $scan_lvm_lv_name,
+					new_attributes => $scan_lvm_lv_attributes,
+					old_attributes => $old_scan_lvm_lv_attributes,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0023", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0023", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_lvm_lv_on_vg ne $old_scan_lvm_lv_on_vg)
+			{
+				# This happens when an VG is renamed.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					lv_uuid      => $scan_lvm_lv_uuid, 
+					lv_name      => $scan_lvm_lv_name,
+					new_lv_on_vg => $scan_lvm_lv_on_vg,
+					old_lv_on_vg => $old_scan_lvm_lv_on_vg,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0024", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0024", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_lvm_lv_size ne $old_scan_lvm_lv_size)
+			{
+				# VG size change; Did it grow or shrink?
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					lv_uuid           => $scan_lvm_lv_uuid, 
+					lv_name           => $scan_lvm_lv_name,
+					new_lv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_lv_size}),
+					new_lv_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_lv_size}),
+					old_lv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_lv_size}),
+					old_lv_size_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_lv_size}),
+				};
+				if ($scan_lvm_lv_size > $old_scan_lvm_lv_size)
+				{
+					# Grew, probably added a new PV
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0025", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0025", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# Shrank, 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0026", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0026", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			if ($scan_lvm_lv_path ne $old_scan_lvm_lv_path)
+			{
+				# VG size changed, Grows when an LV is removed, shrings when an existing LV is extended or a new LV is created.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					lv_uuid     => $scan_lvm_lv_uuid, 
+					lv_name     => $scan_lvm_lv_name,
+					new_lv_path => $scan_lvm_lv_path,
+					old_lv_path => $old_scan_lvm_lv_path,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0027", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0027", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_lvm_lv_on_pvs ne $old_scan_lvm_lv_on_pvs)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					lv_uuid       => $scan_lvm_lv_uuid, 
+					lv_name       => $scan_lvm_lv_name,
+					new_lv_on_pvs => $scan_lvm_lv_path,
+					old_lv_on_pvs => $old_scan_lvm_lv_path,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0028", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0028", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+			if ($update)
+			{
+				my $query = "
+UPDATE 
+    scan_lvm_lvs 
+SET 
+    scan_lvm_lv_name       = ".$anvil->Database->quote($scan_lvm_lv_name).", 
+    scan_lvm_lv_attributes = ".$anvil->Database->quote($scan_lvm_lv_attributes).", 
+    scan_lvm_lv_on_vg      = ".$anvil->Database->quote($scan_lvm_lv_on_vg).", 
+    scan_lvm_lv_size       = ".$anvil->Database->quote($scan_lvm_lv_size).", 
+    scan_lvm_lv_path       = ".$anvil->Database->quote($scan_lvm_lv_path).", 
+    scan_lvm_lv_on_pvs     = ".$anvil->Database->quote($scan_lvm_lv_on_pvs).", 
+    modified_date          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_lvm_lv_uuid       = ".$anvil->Database->quote($scan_lvm_lv_uuid)." 
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+			
+			# Delete the loaded entry so we can check for missing PVs later.
+			delete $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid};
+		}
+		else
+		{
+			# New VG
+			my $variables = {
+				lv_uuid       => $scan_lvm_lv_uuid, 
+				lv_name       => $scan_lvm_lv_name,
+				attributes    => $scan_lvm_lv_attributes,
+				lv_on_vg      => $scan_lvm_lv_on_vg,
+				lv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_lv_size}),
+				lv_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_lv_size}),
+				lv_path       => $scan_lvm_lv_path,
+				lv_on_pvs     => $scan_lvm_lv_on_pvs, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0029", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0029", message_variables => $variables, set_by => $THIS_FILE});
+			
+			my $query = "
+INSERT INTO 
+    scan_lvm_lvs 
+(
+    scan_lvm_lv_uuid,
+    scan_lvm_lv_host_uuid, 
+    scan_lvm_lv_name, 
+    scan_lvm_lv_on_vg, 
+    scan_lvm_lv_attributes, 
+    scan_lvm_lv_size, 
+    scan_lvm_lv_path, 
+    scan_lvm_lv_on_pvs, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_lvm_lv_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($scan_lvm_lv_name).", 
+    ".$anvil->Database->quote($scan_lvm_lv_on_vg).", 
+    ".$anvil->Database->quote($scan_lvm_lv_attributes).", 
+    ".$anvil->Database->quote($scan_lvm_lv_size).", 
+    ".$anvil->Database->quote($scan_lvm_lv_path).", 
+    ".$anvil->Database->quote($scan_lvm_lv_on_pvs).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Any missing LVs?
+	foreach my $scan_lvm_lv_uuid (keys %{$anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}})
+	{
+		# This one is missing.
+		my $old_scan_lvm_lv_name = $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_name};
+		next if $old_scan_lvm_lv_name eq "DELETED";
+		
+		# Register an alert
+		my $variables = { 
+			lv_uuid => $scan_lvm_lv_uuid, 
+			lv_name => $old_scan_lvm_lv_name,
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0031", variables => $variables});
+		$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0031", message_variables => $variables, set_by => $THIS_FILE});
+		
+		# Update it PV name to be 'DELTED'
+		my $query = "
+UPDATE 
+    scan_lvm_lvs
+SET 
+    scan_lvm_lv_name = 'DELETED',
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_lvm_lv_uuid = ".$anvil->Database->quote($scan_lvm_lv_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
+sub find_changes_in_vgs
+{
+	my ($anvil) = @_;
+	
+	foreach my $scan_lvm_vg_uuid (keys %{$anvil->data->{lvm}{scan_lvm_vg_uuid}})
+	{
+		my $scan_lvm_vg_name        = $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{name};
+		my $scan_lvm_vg_attributes  = $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{attributes};
+		my $scan_lvm_vg_extent_size = $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{extent_size};
+		my $scan_lvm_vg_size        = $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{size};
+		my $scan_lvm_vg_free        = $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{free_space};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_lvm_vg_uuid        => $scan_lvm_vg_uuid, 
+			scan_lvm_vg_name        => $scan_lvm_vg_name,
+			scan_lvm_vg_attributes  => $scan_lvm_vg_attributes,
+			scan_lvm_vg_extent_size => $anvil->Convert->add_commas({number => $scan_lvm_vg_extent_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_extent_size}),
+			scan_lvm_vg_size        => $anvil->Convert->add_commas({number => $scan_lvm_vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}),
+			scan_lvm_vg_free        => $anvil->Convert->add_commas({number => $scan_lvm_vg_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free}),
+		}});
+		
+		# Have we seen this before?
+		if (exists $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid})
+		{
+			# Yup, anything changed?
+			my $old_scan_lvm_vg_name        = $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_name};
+			my $old_scan_lvm_vg_attributes  = $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_attributes};
+			my $old_scan_lvm_vg_extent_size = $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_extent_size};
+			my $old_scan_lvm_vg_size        = $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_size};
+			my $old_scan_lvm_vg_free        = $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_free};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_scan_lvm_vg_name        => $old_scan_lvm_vg_name,
+				old_scan_lvm_vg_attributes  => $old_scan_lvm_vg_attributes,
+				old_scan_lvm_vg_extent_size => $anvil->Convert->add_commas({number => $old_scan_lvm_vg_extent_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_vg_extent_size}),,
+				old_scan_lvm_vg_size        => $anvil->Convert->add_commas({number => $old_scan_lvm_vg_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_vg_size}),
+				old_scan_lvm_vg_free        => $anvil->Convert->add_commas({number => $old_scan_lvm_vg_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_vg_free}),
+			}});
+			
+			my $update = 0;
+			if ($scan_lvm_vg_name ne $old_scan_lvm_vg_name)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				if ($old_scan_lvm_vg_name eq "DELETED")
+				{
+					# A lost PV is back
+					my $variables = { 
+						vg_uuid => $scan_lvm_vg_uuid, 
+						vg_name => $scan_lvm_vg_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0011", variables => $variables});
+					$anvil->Alert->register({debug => 2, clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0011", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# Device (name) changed... This can happen if the vg was renamed 
+					my $variables = {
+						vg_uuid     => $scan_lvm_vg_uuid, 
+						new_vg_name => $scan_lvm_vg_name,
+						old_vg_name => $old_scan_lvm_vg_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0012", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0012", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			if ($scan_lvm_vg_attributes ne $old_scan_lvm_vg_attributes)
+			{
+				# Attribute bits changed.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					vg_uuid        => $scan_lvm_vg_uuid, 
+					vg_name        => $scan_lvm_vg_name,
+					new_attributes => $scan_lvm_vg_attributes,
+					old_attributes => $old_scan_lvm_vg_attributes,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0013", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0013", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_lvm_vg_extent_size ne $old_scan_lvm_vg_extent_size)
+			{
+				# This should never happen...
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					vg_uuid                  => $scan_lvm_vg_uuid, 
+					vg_name                  => $scan_lvm_vg_name,
+					new_vg_extent_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_extent_size}),
+					new_vg_extent_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_vg_extent_size}),
+					old_vg_extent_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_vg_extent_size}),
+					old_vg_extent_size_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_vg_extent_size}),
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0014", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0014", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_lvm_vg_size ne $old_scan_lvm_vg_size)
+			{
+				# VG size change; Did it grow or shrink?
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					vg_uuid           => $scan_lvm_vg_uuid, 
+					vg_name           => $scan_lvm_vg_name,
+					new_vg_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}),
+					new_vg_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_vg_size}),
+					old_vg_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_vg_size}),
+					old_vg_size_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_vg_size}),
+				};
+				if ($scan_lvm_vg_size > $old_scan_lvm_vg_size)
+				{
+					# Grew, probably added a new PV
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0015", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0015", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# Shrank, wat?
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0016", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0016", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			if ($scan_lvm_vg_free ne $old_scan_lvm_vg_free)
+			{
+				# VG size changed, Grows when an LV is removed, shrings when an existing LV is extended or a new LV is created.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					vg_uuid           => $scan_lvm_vg_uuid, 
+					vg_name           => $scan_lvm_vg_name,
+					new_vg_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free}),
+					new_vg_free_bytes => $anvil->Convert->add_commas({number => $scan_lvm_vg_free}),
+					old_vg_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_vg_free}),
+					old_vg_free_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_vg_free}),
+				};
+				if ($scan_lvm_vg_free < $old_scan_lvm_vg_free)
+				{
+					# Likely a new LV was created or an existing one was extended.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0017", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0017", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# An old LV was probably removed.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0018", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0018", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+			if ($update)
+			{
+				my $query = "
+UPDATE 
+    scan_lvm_vgs 
+SET 
+    scan_lvm_vg_name        = ".$anvil->Database->quote($scan_lvm_vg_name).", 
+    scan_lvm_vg_attributes  = ".$anvil->Database->quote($scan_lvm_vg_attributes).", 
+    scan_lvm_vg_extent_size = ".$anvil->Database->quote($scan_lvm_vg_extent_size).", 
+    scan_lvm_vg_size        = ".$anvil->Database->quote($scan_lvm_vg_size).", 
+    scan_lvm_vg_free        = ".$anvil->Database->quote($scan_lvm_vg_free).", 
+    modified_date           = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_lvm_vg_uuid       = ".$anvil->Database->quote($scan_lvm_vg_uuid)." 
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+			
+			# Delete the loaded entry so we can check for missing PVs later.
+			delete $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid};
+		}
+		else
+		{
+			# New VG
+			my $variables = {
+				vg_uuid           => $scan_lvm_vg_uuid, 
+				vg_name           => $scan_lvm_vg_name,
+				attributes        => $scan_lvm_vg_attributes,
+				extent_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_extent_size}),
+				extent_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_vg_extent_size}),
+				vg_size           => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}),
+				vg_size_bytes     => $anvil->Convert->add_commas({number => $scan_lvm_vg_size}),
+				vg_free           => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free}),
+				vg_free_bytes     => $anvil->Convert->add_commas({number => $scan_lvm_vg_free}),
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0020", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0020", message_variables => $variables, set_by => $THIS_FILE});
+			
+			my $query = "
+INSERT INTO 
+    scan_lvm_vgs 
+(
+    scan_lvm_vg_uuid,
+    scan_lvm_vg_host_uuid, 
+    scan_lvm_vg_name, 
+    scan_lvm_vg_extent_size, 
+    scan_lvm_vg_attributes, 
+    scan_lvm_vg_size, 
+    scan_lvm_vg_free, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_lvm_vg_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($scan_lvm_vg_name).", 
+    ".$anvil->Database->quote($scan_lvm_vg_extent_size).", 
+    ".$anvil->Database->quote($scan_lvm_vg_attributes).", 
+    ".$anvil->Database->quote($scan_lvm_vg_size).", 
+    ".$anvil->Database->quote($scan_lvm_vg_free).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Any missing VGs?
+	foreach my $scan_lvm_vg_uuid (keys %{$anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}})
+	{
+		# This one is missing.
+		my $old_scan_lvm_vg_name = $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_name};
+		next if $old_scan_lvm_vg_name eq "DELETED";
+		
+		# Register an alert
+		my $variables = { 
+			vg_uuid => $scan_lvm_vg_uuid, 
+			vg_name => $old_scan_lvm_vg_name,
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0030", variables => $variables});
+		$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0030", message_variables => $variables, set_by => $THIS_FILE});
+		
+		# Update it PV name to be 'DELTED'
+		my $query = "
+UPDATE 
+    scan_lvm_vgs
+SET 
+    scan_lvm_vg_name = 'DELETED',
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_lvm_vg_uuid = ".$anvil->Database->quote($scan_lvm_vg_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
+sub find_changes_in_pvs
+{
+	my ($anvil) = @_;
+	
+	foreach my $scan_lvm_pv_uuid (keys %{$anvil->data->{lvm}{scan_lvm_pv_uuid}})
+	{
+		my $scan_lvm_pv_name       = $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{name};
+		my $scan_lvm_pv_used_by_vg = $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{used_by_vg};
+		my $scan_lvm_pv_attributes = $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{attributes};
+		my $scan_lvm_pv_size       = $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{size};
+		my $scan_lvm_pv_free       = $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{free_space};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_lvm_pv_uuid       => $scan_lvm_pv_uuid, 
+			scan_lvm_pv_name       => $scan_lvm_pv_name,
+			scan_lvm_pv_used_by_vg => $scan_lvm_pv_used_by_vg,
+			scan_lvm_pv_attributes => $scan_lvm_pv_attributes,
+			scan_lvm_pv_size       => $anvil->Convert->add_commas({number => $scan_lvm_pv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}),
+			scan_lvm_pv_free       => $anvil->Convert->add_commas({number => $scan_lvm_pv_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}),
+		}});
+		
+		# Have we seen this before?
+		if (exists $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid})
+		{
+			# Yup, anything changed?
+			my $old_scan_lvm_pv_name       = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_name};
+			my $old_scan_lvm_pv_used_by_vg = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_used_by_vg};
+			my $old_scan_lvm_pv_attributes = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_attributes};
+			my $old_scan_lvm_pv_size       = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_size};
+			my $old_scan_lvm_pv_free       = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_free};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_scan_lvm_pv_name       => $old_scan_lvm_pv_name,
+				old_scan_lvm_pv_used_by_vg => $old_scan_lvm_pv_used_by_vg,
+				old_scan_lvm_pv_attributes => $old_scan_lvm_pv_attributes,
+				old_scan_lvm_pv_size       => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_size}),
+				old_scan_lvm_pv_free       => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_free})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_free}),
+			}});
+			
+			my $update = 0;
+			if ($scan_lvm_pv_name ne $old_scan_lvm_pv_name)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				if ($old_scan_lvm_pv_name eq "DELETED")
+				{
+					# A lost PV is back
+					my $variables = { 
+						pv_uuid => $scan_lvm_pv_uuid, 
+						pv_name => $scan_lvm_pv_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0001", variables => $variables});
+					$anvil->Alert->register({debug => 2, clear_alert => 1, alert_level => "warning", message => "scan_lvm_alert_0001", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# Device (name) changed... This shouldn't normally happen.
+					my $variables = {
+						pv_uuid     => $scan_lvm_pv_uuid, 
+						new_pv_name => $scan_lvm_pv_name,
+						old_pv_name => $old_scan_lvm_pv_name,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0002", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0002", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			if ($scan_lvm_pv_used_by_vg ne $old_scan_lvm_pv_used_by_vg)
+			{
+				# If the old value was blank, then this PV was added to a VG and that's fine.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				if (not $old_scan_lvm_pv_used_by_vg)
+				{
+					# Added to a VG
+					my $variables = {
+						pv_uuid => $scan_lvm_pv_uuid, 
+						pv_name => $scan_lvm_pv_name,
+						vg_name => $scan_lvm_pv_used_by_vg,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0004", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0004", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# The VG was probably renamed.
+					my $variables = {
+						pv_uuid     => $scan_lvm_pv_uuid, 
+						pv_name     => $scan_lvm_pv_name,
+						new_vg_name => $scan_lvm_pv_used_by_vg,
+						old_vg_name => $old_scan_lvm_pv_used_by_vg,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0005", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0005", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			if ($scan_lvm_pv_attributes ne $old_scan_lvm_pv_attributes)
+			{
+				# Attribute bits changed.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					pv_uuid        => $scan_lvm_pv_uuid, 
+					pv_name        => $scan_lvm_pv_name,
+					new_attributes => $scan_lvm_pv_attributes,
+					old_attributes => $old_scan_lvm_pv_attributes,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0006", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0006", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_lvm_pv_size ne $old_scan_lvm_pv_size)
+			{
+				# PE size changed, likely grew.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					pv_uuid           => $scan_lvm_pv_uuid, 
+					pv_name           => $scan_lvm_pv_name,
+					new_pv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}),
+					new_pv_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_size}),
+					old_pv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_size}),
+					old_pv_size_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_size}),
+				};
+				if ($scan_lvm_pv_size > $old_scan_lvm_pv_size)
+				{
+					# Yup
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0007", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0007", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# Uhhhh... We'll make this a warning as it shouldn't happen.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0008", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0008", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			if ($scan_lvm_pv_free ne $old_scan_lvm_pv_free)
+			{
+				# PE size changed, likely shrunk.
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+				my $variables = {
+					pv_uuid           => $scan_lvm_pv_uuid, 
+					pv_name           => $scan_lvm_pv_name,
+					new_pv_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}),
+					new_pv_free_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_free}),
+					old_pv_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_scan_lvm_pv_free}),
+					old_pv_free_bytes => $anvil->Convert->add_commas({number => $old_scan_lvm_pv_free}),
+				};
+				if ($scan_lvm_pv_free < $old_scan_lvm_pv_free)
+				{
+					# Yup
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0009", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0009", message_variables => $variables, set_by => $THIS_FILE});
+				}
+				else
+				{
+					# Uhhhh... We'll make this a warning as it shouldn't happen.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0010", variables => $variables});
+					$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0010", message_variables => $variables, set_by => $THIS_FILE});
+				}
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+			if ($update)
+			{
+				my $query = "
+UPDATE 
+    scan_lvm_pvs 
+SET 
+    scan_lvm_pv_name       = ".$anvil->Database->quote($scan_lvm_pv_name).", 
+    scan_lvm_pv_used_by_vg = ".$anvil->Database->quote($scan_lvm_pv_used_by_vg).", 
+    scan_lvm_pv_attributes = ".$anvil->Database->quote($scan_lvm_pv_attributes).", 
+    scan_lvm_pv_size       = ".$anvil->Database->quote($scan_lvm_pv_size).", 
+    scan_lvm_pv_free       = ".$anvil->Database->quote($scan_lvm_pv_free).", 
+    modified_date          = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_lvm_pv_uuid       = ".$anvil->Database->quote($scan_lvm_pv_uuid)." 
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+			
+			# Delete the loaded entry so we can check for missing PVs later.
+			delete $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid};
+		}
+		else
+		{
+			# New PV
+			my $variables = {
+				pv_uuid       => $scan_lvm_pv_uuid, 
+				pv_name       => $scan_lvm_pv_name,
+				vg_name       => $scan_lvm_pv_used_by_vg ? $scan_lvm_pv_used_by_vg : "--",
+				attributes    => $scan_lvm_pv_attributes,
+				pv_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_size}),
+				pv_size_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_size}),
+				pv_free       => $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_pv_free}),
+				pv_free_bytes => $anvil->Convert->add_commas({number => $scan_lvm_pv_free}),
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0019", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_lvm_alert_0019", message_variables => $variables, set_by => $THIS_FILE});
+			
+			my $query = "
+INSERT INTO 
+    scan_lvm_pvs 
+(
+    scan_lvm_pv_uuid,
+    scan_lvm_pv_host_uuid, 
+    scan_lvm_pv_name, 
+    scan_lvm_pv_used_by_vg, 
+    scan_lvm_pv_attributes, 
+    scan_lvm_pv_size, 
+    scan_lvm_pv_free, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_lvm_pv_uuid).", 
+    ".$anvil->Database->quote($anvil->Get->host_uuid).", 
+    ".$anvil->Database->quote($scan_lvm_pv_name).", 
+    ".$anvil->Database->quote($scan_lvm_pv_used_by_vg).", 
+    ".$anvil->Database->quote($scan_lvm_pv_attributes).", 
+    ".$anvil->Database->quote($scan_lvm_pv_size).", 
+    ".$anvil->Database->quote($scan_lvm_pv_free).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Any missing PVs?
+	foreach my $scan_lvm_pv_uuid (keys %{$anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}})
+	{
+		# This one is missing.
+		my $old_scan_lvm_pv_name = $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_name};
+		next if $old_scan_lvm_pv_name eq "DELETED";
+		
+		# Register an alert
+		my $variables = { 
+			pv_uuid => $scan_lvm_pv_uuid, 
+			pv_name => $old_scan_lvm_pv_name,
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_lvm_alert_0003", variables => $variables});
+		$anvil->Alert->register({debug => 2, alert_level => "warning", message => "scan_lvm_alert_0003", message_variables => $variables, set_by => $THIS_FILE});
+		
+		# Update it PV name to be 'DELTED'
+		my $query = "
+UPDATE 
+    scan_lvm_pvs
+SET 
+    scan_lvm_pv_name = 'DELETED',
+    modified_date    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_lvm_pv_uuid = ".$anvil->Database->quote($scan_lvm_pv_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return(0);
+}
+
+# This reads in the last scan's data.
+sub read_last_scan
+{
+	my ($anvil) = @_;
+	
+	# Load PV data
+	my $query = "
+SELECT 
+    scan_lvm_pv_uuid, 
+    scan_lvm_pv_name, 
+    scan_lvm_pv_used_by_vg, 
+    scan_lvm_pv_attributes, 
+    scan_lvm_pv_size, 
+    scan_lvm_pv_free 
+FROM 
+    scan_lvm_pvs 
+WHERE 
+    scan_lvm_pv_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_lvm_pv' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_lvm_pv_uuid                                                                              = $row->[0]; 
+		my $scan_lvm_pv_name                                                                              = $row->[1];
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_name}       = $scan_lvm_pv_name; 
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_used_by_vg} = $row->[2]; 
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_attributes} = $row->[3];
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_size}       = $row->[4];
+		   $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_free}       = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_lvm_pvs::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::scan_lvm_pv_name"       => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_name},
+			"sql::scan_lvm_pvs::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::scan_lvm_pv_used_by_vg" => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_used_by_vg},
+			"sql::scan_lvm_pvs::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::scan_lvm_pv_attributes" => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_attributes},
+			"sql::scan_lvm_pvs::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::scan_lvm_pv_size"       => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_size}}),
+			"sql::scan_lvm_pvs::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::scan_lvm_pv_free"       => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_free}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_pvs}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{scan_lvm_pv_free}}),
+		}});
+		
+		# Store the name to UUID lok up
+		$anvil->data->{sql}{scan_lvm_pvs}{$scan_lvm_pv_name}{scan_lvm_pv_uuid} = $scan_lvm_pv_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_lvm_pvs::${scan_lvm_pv_name}::scan_lvm_pv_uuid" => $anvil->data->{sql}{scan_lvm_pvs}{$scan_lvm_pv_name}{scan_lvm_pv_uuid},
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	# Load VG data
+	$query = "
+SELECT 
+    scan_lvm_vg_uuid, 
+    scan_lvm_vg_name, 
+    scan_lvm_vg_attributes, 
+    scan_lvm_vg_extent_size,
+    scan_lvm_vg_size,
+    scan_lvm_vg_free 
+FROM 
+    scan_lvm_vgs 
+WHERE 
+    scan_lvm_vg_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_lvm_vg' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_lvm_vg_uuid                                                                               = $row->[0]; 
+		my $scan_lvm_vg_name                                                                               = $row->[1];
+		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_name}        = $scan_lvm_vg_name; 
+		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_attributes}  = $row->[2]; 
+		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_extent_size} = $row->[3];
+		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_size}        = $row->[4];
+		   $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_free}        = $row->[5];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_lvm_vgs::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::scan_lvm_vg_name"        => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_name},
+			"sql::scan_lvm_vgs::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::scan_lvm_vg_attributes"  => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_attributes},
+			"sql::scan_lvm_vgs::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::scan_lvm_vg_extent_size" => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_extent_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_extent_size}}),
+			"sql::scan_lvm_vgs::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::scan_lvm_vg_size"        => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_size}}),
+			"sql::scan_lvm_vgs::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::scan_lvm_vg_free"        => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_free}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_vgs}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{scan_lvm_vg_free}}),
+		}});
+		
+		# Store the name to UUID lok up
+		$anvil->data->{sql}{scan_lvm_vgs}{$scan_lvm_vg_name}{scan_lvm_vg_uuid} = $scan_lvm_vg_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_lvm_vgs::${scan_lvm_vg_name}::scan_lvm_vg_uuid" => $anvil->data->{sql}{scan_lvm_vgs}{$scan_lvm_vg_name}{scan_lvm_vg_uuid},
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	# Load LV data
+	$query = "
+SELECT 
+    scan_lvm_lv_uuid, 
+    scan_lvm_lv_name, 
+    scan_lvm_lv_attributes, 
+    scan_lvm_lv_on_vg,
+    scan_lvm_lv_size,
+    scan_lvm_lv_path,
+    scan_lvm_lv_on_pvs
+FROM 
+    scan_lvm_lvs 
+WHERE 
+    scan_lvm_lv_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_lvm_lv' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_lvm_lv_uuid                                                                              = $row->[0]; 
+		my $scan_lvm_lv_name                                                                              = $row->[1];
+		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_name}       = $scan_lvm_lv_name; 
+		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_attributes} = $row->[2]; 
+		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_on_vg}      = $row->[3]; 
+		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_size}       = $row->[4]; 
+		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_path}       = $row->[5]; 
+		   $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_on_pvs}     = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_lvm_lvs::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::scan_lvm_lv_name"       => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_name},
+			"sql::scan_lvm_lvs::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::scan_lvm_lv_attributes" => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_attributes},
+			"sql::scan_lvm_lvs::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::scan_lvm_lv_on_vg"      => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_on_vg},
+			"sql::scan_lvm_lvs::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::scan_lvm_lv_size"       => $anvil->Convert->add_commas({number => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_size}}),
+			"sql::scan_lvm_lvs::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::scan_lvm_lv_path"       => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_path},
+			"sql::scan_lvm_lvs::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::scan_lvm_lv_on_pvs"     => $anvil->data->{sql}{scan_lvm_lvs}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{scan_lvm_lv_on_pvs},
+		}});
+		
+		# Store the name to UUID lok up
+		$anvil->data->{sql}{scan_lvm_lvs}{$scan_lvm_lv_name}{scan_lvm_lv_uuid} = $scan_lvm_lv_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_lvm_lvs::${scan_lvm_lv_name}::scan_lvm_lv_uuid" => $anvil->data->{sql}{scan_lvm_lvs}{$scan_lvm_lv_name}{scan_lvm_lv_uuid},
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	return(0);
+}
 
 sub collect_data
 {
@@ -126,18 +1063,18 @@ sub collect_pvs_data
 	my $pvs_data = $json->decode($output);
 	foreach my $hash_ref (@{$pvs_data->{report}->[0]->{pv}})
 	{
-		my $pv_uuid                                           = $hash_ref->{pv_uuid};
-		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{name}       = $hash_ref->{pv_name};
-		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{used_by_vg} = $hash_ref->{vg_name};
-		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{attributes} = $hash_ref->{pv_attr};	# TODO: Parse this out
-		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{size}       = ($hash_ref->{pv_size} =~ /^(\d+)B/)[0];
-		   $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{free_space} = ($hash_ref->{pv_free} =~ /^(\d+)B/)[0];
+		my $scan_lvm_pv_uuid                                                    = $hash_ref->{pv_uuid};
+		   $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{name}       = $hash_ref->{pv_name};
+		   $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{used_by_vg} = $hash_ref->{vg_name};
+		   $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{attributes} = $hash_ref->{pv_attr};	# TODO: Parse this out
+		   $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{size}       = ($hash_ref->{pv_size} =~ /^(\d+)B/)[0];
+		   $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{free_space} = ($hash_ref->{pv_free} =~ /^(\d+)B/)[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"lvm::pv_uuid::${pv_uuid}::name"       => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{name},
-			"lvm::pv_uuid::${pv_uuid}::used_by_vg" => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{used_by_vg},
-			"lvm::pv_uuid::${pv_uuid}::attributes" => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{attributes},
-			"lvm::pv_uuid::${pv_uuid}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{size}}).")",
-			"lvm::pv_uuid::${pv_uuid}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{pv_uuid}{$pv_uuid}{free_space}}).")",
+			"lvm::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::name"       => $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{name},
+			"lvm::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::used_by_vg" => $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{used_by_vg},
+			"lvm::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::attributes" => $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{attributes},
+			"lvm::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{size}}).")",
+			"lvm::scan_lvm_pv_uuid::${scan_lvm_pv_uuid}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_pv_uuid}{$scan_lvm_pv_uuid}{free_space}}).")",
 		}});
 	}
 	
@@ -158,18 +1095,18 @@ sub collect_vgs_data
 	my $vgs_data = $json->decode($output);
 	foreach my $hash_ref (@{$vgs_data->{report}->[0]->{vg}})
 	{
-		my $vg_uuid                                            = $hash_ref->{vg_uuid};
-		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{name}        = $hash_ref->{vg_name};
-		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{attributes}  = $hash_ref->{vg_attr};
-		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{extent_size} = ($hash_ref->{vg_extent_size} =~ /^(\d+)B/)[0];
-		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{size}        = ($hash_ref->{vg_size} =~ /^(\d+)B/)[0];
-		   $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{free_space}  = ($hash_ref->{vg_free} =~ /^(\d+)B/)[0];
+		my $scan_lvm_vg_uuid                                                     = $hash_ref->{vg_uuid};
+		   $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{name}        = $hash_ref->{vg_name};
+		   $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{attributes}  = $hash_ref->{vg_attr};
+		   $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{extent_size} = ($hash_ref->{vg_extent_size} =~ /^(\d+)B/)[0];
+		   $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{size}        = ($hash_ref->{vg_size} =~ /^(\d+)B/)[0];
+		   $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{free_space}  = ($hash_ref->{vg_free} =~ /^(\d+)B/)[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"lvm::vg_uuid::${vg_uuid}::name"        => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{name},
-			"lvm::vg_uuid::${vg_uuid}::attributes"  => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{attributes},
-			"lvm::vg_uuid::${vg_uuid}::extent_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{extent_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{extent_size}}),
-			"lvm::vg_uuid::${vg_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{size}}),
-			"lvm::vg_uuid::${vg_uuid}::free_space"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{vg_uuid}{$vg_uuid}{free_space}}),
+			"lvm::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::name"        => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{name},
+			"lvm::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::attributes"  => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{attributes},
+			"lvm::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::extent_size" => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{extent_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{extent_size}}),
+			"lvm::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{size}}),
+			"lvm::scan_lvm_vg_uuid::${scan_lvm_vg_uuid}::free_space"  => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_vg_uuid}{$scan_lvm_vg_uuid}{free_space}}),
 		}});
 	}
 	
@@ -184,28 +1121,41 @@ sub collect_lvs_data
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	
 	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $anvil->data->{path}{exe}{lvs}." --noheadings --units b --reportformat json -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	
 	my $json     = JSON->new->allow_nonref;
 	my $lvs_data = $json->decode($output);
 	foreach my $hash_ref (@{$lvs_data->{report}->[0]->{lv}})
 	{
-		my $lv_uuid                                            =  $hash_ref->{lv_uuid};
-		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{name}        =  $hash_ref->{lv_name};
-		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{attributes}  =  $hash_ref->{lv_attr};
-		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_vg}       =  $hash_ref->{vg_name};
-		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{device_path} =  $hash_ref->{lv_path};
-		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{size}        =  ($hash_ref->{lv_size} =~ /^(\d+)B/)[0];
-		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_pvs}      =  $hash_ref->{devices};
-		   $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_pvs}      =~ s/\(\d+\)//g;			# Remove the starting PE numver
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"lvm::lv_uuid::${lv_uuid}::name"        => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{name},
-			"lvm::lv_uuid::${lv_uuid}::attributes"  => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{attributes},
-			"lvm::lv_uuid::${lv_uuid}::on_vg"       => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_vg},
-			"lvm::lv_uuid::${lv_uuid}::device_path" => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{device_path},
-			"lvm::lv_uuid::${lv_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{size}}),
-			"lvm::lv_uuid::${lv_uuid}::on_pvs"      => $anvil->data->{lvm}{lv_uuid}{$lv_uuid}{on_pvs},
-		}});
+		my $scan_lvm_lv_uuid =  $hash_ref->{lv_uuid};
+		my $on_pvs           =  $hash_ref->{devices};
+		   $on_pvs           =~ s/\(\d+\)//g;
+		# In JSON format, there are 2+ hash references when there are 2+ PVs under an LV. So we 
+		# record all data on the first pass and append the additional PVs.
+		if (not exists $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid})
+		{
+			$anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{name}        =  $hash_ref->{lv_name};
+			$anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{attributes}  =  $hash_ref->{lv_attr};
+			$anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_vg}       =  $hash_ref->{vg_name};
+			$anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{device_path} =  $hash_ref->{lv_path};
+			$anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{size}        =  ($hash_ref->{lv_size} =~ /^(\d+)B/)[0];
+			$anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_pvs} = $on_pvs;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"lvm::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::name"        => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{name},
+				"lvm::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::attributes"  => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{attributes},
+				"lvm::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::on_vg"       => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_vg},
+				"lvm::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::device_path" => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{device_path},
+				"lvm::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{size}}),
+				"lvm::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::on_pvs"      => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_pvs},
+			}});
+		}
+		else
+		{
+			$anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_pvs} .= ",".$on_pvs;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"lvm::scan_lvm_lv_uuid::${scan_lvm_lv_uuid}::on_pvs" => $anvil->data->{lvm}{scan_lvm_lv_uuid}{$scan_lvm_lv_uuid}{on_pvs},
+			}});
+		}
 	}
 	
 	return(0);

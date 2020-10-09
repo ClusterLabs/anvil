@@ -1008,8 +1008,6 @@ SET
 WHERE 
     scan_hardware_uuid         = ".$anvil->Database->quote($scan_hardware_uuid)."
 ;";
-
-			# Now record the query in the array
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 		}

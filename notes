@@ -424,6 +424,16 @@ CREATE TRIGGER trigger_server_definitions
     AFTER INSERT OR UPDATE ON server_definitions
     FOR EACH ROW EXECUTE PROCEDURE history_server_definitions();
 
+DROP TABLE updated;
+CREATE TABLE updated (
+    updated_uuid         uuid                        not null    primary key,
+    updated_host_uuid    uuid                        not null,
+    updated_by           text                        not null,    -- The name of the agent (or "ScanCore' itself) that updated.
+    modified_date        timestamp with time zone    not null,
+    
+    FOREIGN KEY(updated_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE updated OWNER TO admin;
 
 COMMIT;
 
