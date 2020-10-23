@@ -769,13 +769,29 @@ sub parse_cib
 						}});
 						
 						# Preload state values (in case they're not read in this CIB.
-						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm} = "false";
-						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}   = "offline";
-						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'} = "down";
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}             = "false";
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}               = "offline";
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}             = "down";
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'maintenance-mode'} = "off";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-							"cib::parsed::cib::node_state::${node_id}::in_ccm" => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}, 
-							"cib::parsed::cib::node_state::${node_id}::crmd"   => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}, 
-							"cib::parsed::cib::node_state::${node_id}::join"   => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}, 
+							"cib::parsed::cib::node_state::${node_id}::in_ccm"           => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}, 
+							"cib::parsed::cib::node_state::${node_id}::crmd"             => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}, 
+							"cib::parsed::cib::node_state::${node_id}::join"             => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}, 
+							"cib::parsed::cib::node_state::${node_id}::maintenance-mode" => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'maintenance-mode'}, 
+						}});
+					}
+				}
+				foreach my $instance_attributes ($node->findnodes('./instance_attributes'))
+				{
+					my $instance_attributes_id = $instance_attributes->{id};
+					foreach my $nvpair ($instance_attributes->findnodes('./nvpair'))
+					{
+						my $id    = $nvpair->{id};
+						my $name  = $nvpair->{name};
+						my $value = $nvpair->{value};
+						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{$name} = $value;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+							"cib::parsed::cib::node_state::${node_id}::${name}" => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{$name}, 
 						}});
 					}
 				}
@@ -943,60 +959,6 @@ sub parse_cib
 		}
 	}
 	
-	# Pull some data out for easier access.
-	$anvil->data->{cib}{parsed}{peer}{ready} = "";
-	$anvil->data->{cib}{parsed}{peer}{name}  = "";
-	foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
-	{
-		# The "coming up" order is 'in_ccm' then 'crmd' then 'join'.
-		my $node_id = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{id};
-		my $in_ccm  = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm} eq "true"   ? 1 : 0; # 'true' or 'false'     - Corosync member
-		my $crmd    = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}   eq "online" ? 1 : 0; # 'online' or 'offline' - In corosync process group
-		my $join    = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'} eq "member" ? 1 : 0; # 'member' or 'down'    - Completed controller join process
-		my $ready   = (($in_ccm) && ($crmd) && ($join))                                          ? 1 : 0; # Our summary of if the node is "up"
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-			's1:node_name' => $node_name, 
-			's2:node_id'   => $node_id, 
-			's3:in_ccm'    => $in_ccm, 
-			's4:crmd'      => $crmd,
-			's5:join'      => $join,
-			's6:ready'     => $ready, 
-		}});
-		
-		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm} = $in_ccm;
-		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd}   = $crmd;
-		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'} = $join;
-		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}  = $ready;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-			"cib::parsed::data::node::${node_name}::node_state::in_ccm" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm}, 
-			"cib::parsed::data::node::${node_name}::node_state::crmd"   => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd}, 
-			"cib::parsed::data::node::${node_name}::node_state::join"   => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'}, 
-			"cib::parsed::data::node::${node_name}::node_state::ready"  => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}, 
-		}});
-		
-		# Is this me or the peer?
-		if (($node_name eq $anvil->Get->host_name) or ($node_name eq $anvil->Get->short_host_name))
-		{
-			# Me.
-			$anvil->data->{cib}{parsed}{'local'}{ready} = $node_name;
-			$anvil->data->{cib}{parsed}{'local'}{name}  = $node_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-				"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready}, 
-				"cib::parsed::local::name"  => $anvil->data->{cib}{parsed}{'local'}{name}, 
-			}});
-		}
-		else
-		{
-			# It's our peer.
-			$anvil->data->{cib}{parsed}{peer}{ready} = $ready;
-			$anvil->data->{cib}{parsed}{peer}{name}  = $node_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
-				"cib::parsed::peer::ready" => $anvil->data->{cib}{parsed}{peer}{ready}, 
-				"cib::parsed::peer::name"  => $anvil->data->{cib}{parsed}{peer}{name}, 
-			}});
-		}
-	}
-	
 	# Set some cluster value defaults.
 	$anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} = "false";
 	foreach my $nvpair_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{configuration}{crm_config}{cluster_property_set}{nvpair}})
@@ -1035,6 +997,73 @@ sub parse_cib
 			$anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} = $value;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
 				"cib::parsed::data::cluster::maintenance-mode" => $anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'}, 
+			}});
+		}
+	}
+	
+	# Pull some data out for easier access.
+	$anvil->data->{cib}{parsed}{peer}{ready} = "";
+	$anvil->data->{cib}{parsed}{peer}{name}  = "";
+	foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
+	{
+		# The "coming up" order is 'in_ccm' then 'crmd' then 'join'.
+		my $node_id          = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{id};
+		my $maintenance_mode = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'maintenance-mode'} eq "on"     ? 1 : 0; # 'on' or 'off'         - Node is not monitoring resources
+		my $in_ccm           = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}             eq "true"   ? 1 : 0; # 'true' or 'false'     - Corosync member
+		my $crmd             = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}               eq "online" ? 1 : 0; # 'online' or 'offline' - In corosync process group
+		my $join             = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}             eq "member" ? 1 : 0; # 'member' or 'down'    - Completed controller join process
+		my $ready            = (($in_ccm) && ($crmd) && ($join))                                                   ? 1 : 0; # Our summary of if the node is "up"
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			's1:node_name'        => $node_name, 
+			's2:node_id'          => $node_id, 
+			's3:maintenance_mode' => $maintenance_mode, 
+			's4:in_ccm'           => $in_ccm, 
+			's5:crmd'             => $crmd,
+			's6:join'             => $join,
+			's7:ready'            => $ready, 
+		}});
+		
+		# If the global maintenance mode is set, set maintenance mode to true.
+		if (($anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'}) && ($anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} eq "true"))
+		{
+			$maintenance_mode = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { maintenance_mode => $maintenance_mode }});
+		}
+		
+		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{pacemaker_id}       = $node_id;
+		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'maintenance-mode'} = $maintenance_mode;
+		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm}             = $in_ccm;
+		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd}               = $crmd;
+		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'}             = $join;
+		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}              = $ready;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+			"cib::parsed::data::node::${node_name}::node_state::pacemaker_id"     => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{pacemaker_id}, 
+			"cib::parsed::data::node::${node_name}::node_state::maintenance_mode" => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'maintenance-mode'}, 
+			"cib::parsed::data::node::${node_name}::node_state::in_ccm"           => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm}, 
+			"cib::parsed::data::node::${node_name}::node_state::crmd"             => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd}, 
+			"cib::parsed::data::node::${node_name}::node_state::join"             => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'}, 
+			"cib::parsed::data::node::${node_name}::node_state::ready"            => $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready}, 
+		}});
+		
+		# Is this me or the peer?
+		if (($node_name eq $anvil->Get->host_name) or ($node_name eq $anvil->Get->short_host_name))
+		{
+			# Me.
+			$anvil->data->{cib}{parsed}{'local'}{ready} = $node_name;
+			$anvil->data->{cib}{parsed}{'local'}{name}  = $node_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready}, 
+				"cib::parsed::local::name"  => $anvil->data->{cib}{parsed}{'local'}{name}, 
+			}});
+		}
+		else
+		{
+			# It's our peer.
+			$anvil->data->{cib}{parsed}{peer}{ready} = $ready;
+			$anvil->data->{cib}{parsed}{peer}{name}  = $node_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => $debug, list => { 
+				"cib::parsed::peer::ready" => $anvil->data->{cib}{parsed}{peer}{ready}, 
+				"cib::parsed::peer::name"  => $anvil->data->{cib}{parsed}{peer}{name}, 
 			}});
 		}
 	}
@@ -1626,7 +1655,7 @@ sub which_node
 	# Load Anvil! systems.
 	if ((not exists $anvil->data->{anvils}{anvil_name}) && (not $anvil->data->{anvils}{anvil_name}))
 	{
-		$anvil->Database->load_anvils({debug => $debug});
+		$anvil->Database->get_anvils({debug => $debug});
 	}
 	
 	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})

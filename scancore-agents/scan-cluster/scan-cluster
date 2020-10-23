@@ -10,6 +10,7 @@
 # Exit codes;
 # 0 = Normal exit.
 # 1 = Startup failure (not running as root, no DB, bad file read, etc)
+# 2 = Not a cluster member
 # 
 # TODO: 
 # 
@@ -63,7 +64,7 @@ if (($anvil->data->{scancore}{'scan-cluster'}{disable}) && (not $anvil->data->{s
 
 # These are the tables used by this agent. The order matters as it controls to order the tables are created 
 # and sync'ed. For purges, this array is walked backwards.
-$anvil->data->{scancore}{'scan-cluster'}{tables} = ["scan_cluster"];
+$anvil->data->{scancore}{'scan-cluster'}{tables} = ["scan_cluster", "scan_cluster_nodes"];
 
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({
@@ -89,18 +90,21 @@ if ($anvil->data->{switches}{purge})
 
 # Before we do anything, are we a node in a pacemaker cluster?
 my $host_type = $anvil->Get->host_type;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 if ($host_type ne "node")
 {
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0002", variables => { host_type => $host_type }});
 	$anvil->nice_exit({exit_code => 0});
 }
 
-# Read the data.
+# Read last scan
+read_last_scan($anvil);
+
+# Read and process in one shot.
 collect_data($anvil);
 
-# Read last scan
-
+# Find changes.
+find_changes($anvil);
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -108,6 +112,409 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# Looks for changes.
+sub find_changes
+{
+	my ($anvil) = @_;
+	
+	# We can't track a cluster through name change, so either we're INSERTing a new one, or bust.
+	my $scan_cluster_anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_name              = $anvil->Get->anvil_name_from_uuid({anvil_uuid => $scan_cluster_anvil_uuid});
+	my $scan_cluster_uuid       = "";
+	my $cluster_name            = $anvil->data->{cib}{parsed}{data}{cluster}{name};
+	my $stonith_enabled         = $anvil->data->{cib}{parsed}{data}{stonith}{enabled};
+	my $stonith_max_attempts    = $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		cluster_name         => $cluster_name, 
+		stonith_enabled      => $stonith_enabled,
+		stonith_max_attempts => $stonith_max_attempts, 
+	}});
+	
+	if (exists $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid})
+	{
+		# Check for a name change
+		   $scan_cluster_uuid = $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid};
+		my $old_cluster_name  = $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_cluster_uuid => $scan_cluster_uuid,
+			old_cluster_name  => $old_cluster_name, 
+		}});
+		if ($cluster_name ne $old_cluster_name)
+		{
+			# The name of the cluster has changed.
+			my $query = "
+UPDATE 
+    scan_cluster 
+SET 
+    scan_cluster_name = ".$anvil->Database->quote($cluster_name).", 
+    modified_date     = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_cluster_uuid = ".$anvil->Database->quote($scan_cluster_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			
+			my $variables = {
+				new_cluster_name => $cluster_name, 
+				old_cluster_name => $old_cluster_name, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0002", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0002", message_variables => $variables, set_by => $THIS_FILE});
+		}
+	}
+	else
+	{
+		# New cluster, INSERT
+		   $scan_cluster_uuid = $anvil->Get->uuid();
+		my $query             = "
+INSERT INTO  
+    scan_cluster 
+(
+    scan_cluster_uuid, 
+    scan_cluster_anvil_uuid,
+    scan_cluster_name, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_cluster_uuid).", 
+    ".$anvil->Database->quote($scan_cluster_anvil_uuid).",
+    ".$anvil->Database->quote($cluster_name).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		my $variables = { cluster_name => $cluster_name };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0001", variables => $variables});
+		$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0001", message_variables => $variables, set_by => $THIS_FILE});
+	}
+	
+	$anvil->Database->get_anvils();
+	foreach my $scan_cluster_node_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
+	{
+		my $scan_cluster_node_host_uuid        = $anvil->Get->host_uuid_from_name({host_name => $scan_cluster_node_name});
+		my $scan_cluster_node_pacemaker_id     = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{pacemaker_id};
+		my $scan_cluster_node_in_ccm           = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{in_ccm};
+		my $scan_cluster_node_crmd_member      = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{crmd};
+		my $scan_cluster_node_cluster_member   = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{'join'};
+		my $scan_cluster_node_maintenance_mode = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{'maintenance-mode'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+			scan_cluster_node_name             => $scan_cluster_node_name,
+			scan_cluster_node_host_uuid        => $scan_cluster_node_host_uuid, 
+			scan_cluster_node_pacemaker_id     => $scan_cluster_node_pacemaker_id, 
+			scan_cluster_node_in_ccm           => $scan_cluster_node_in_ccm, 
+			scan_cluster_node_crmd_member      => $scan_cluster_node_crmd_member, 
+			scan_cluster_node_cluster_member   => $scan_cluster_node_cluster_member, 
+			scan_cluster_node_maintenance_mode => $scan_cluster_node_maintenance_mode, 
+		}});
+		
+		if (exists $anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid})
+		{
+			# Look for changes.
+			my $scan_cluster_node_uuid                 = $anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid};
+			my $old_scan_cluster_node_name             = $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_name};
+			my $old_scan_cluster_node_pacemaker_id     = $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_pacemaker_id};
+			my $old_scan_cluster_node_in_ccm           = $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_in_ccm};
+			my $old_scan_cluster_node_crmd_member      = $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_crmd_member};
+			my $old_scan_cluster_node_cluster_member   = $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_cluster_member};
+			my $old_scan_cluster_node_maintenance_mode = $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_maintenance_mode};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+				scan_cluster_node_uuid                 => $scan_cluster_node_uuid, 
+				old_scan_cluster_node_name             => $old_scan_cluster_node_name,
+				old_scan_cluster_node_pacemaker_id     => $old_scan_cluster_node_pacemaker_id, 
+				old_scan_cluster_node_in_ccm           => $old_scan_cluster_node_in_ccm, 
+				old_scan_cluster_node_crmd_member      => $old_scan_cluster_node_crmd_member, 
+				old_scan_cluster_node_cluster_member   => $old_scan_cluster_node_cluster_member, 
+				old_scan_cluster_node_maintenance_mode => $old_scan_cluster_node_maintenance_mode, 
+			}});
+
+			my $update = 0;
+			if ($scan_cluster_node_name ne $old_scan_cluster_node_name)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
+				
+				my $variables = { 
+					new_node_name => $scan_cluster_node_name,
+					old_node_name => $old_scan_cluster_node_name, 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0008", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0009", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_cluster_node_pacemaker_id ne $old_scan_cluster_node_pacemaker_id)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
+				
+				my $variables = { 
+					node_name        => $scan_cluster_node_name,
+					new_pacemaker_id => $scan_cluster_node_pacemaker_id     ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+					old_pacemaker_id => $old_scan_cluster_node_pacemaker_id ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0004", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0004", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_cluster_node_in_ccm ne $old_scan_cluster_node_in_ccm)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
+				
+				my $variables = { 
+					node_name  => $scan_cluster_node_name,
+					new_in_ccm => $scan_cluster_node_in_ccm     ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+					old_in_ccm => $old_scan_cluster_node_in_ccm ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0005", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0005", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_cluster_node_crmd_member ne $old_scan_cluster_node_crmd_member)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
+				
+				my $variables = { 
+					node_name       => $scan_cluster_node_name,
+					new_crmd_member => $scan_cluster_node_crmd_member     ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+					old_crmd_member => $old_scan_cluster_node_crmd_member ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0006", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0006", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_cluster_node_cluster_member ne $old_scan_cluster_node_cluster_member)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
+				
+				my $variables = { 
+					node_name          => $scan_cluster_node_name,
+					new_cluster_member => $scan_cluster_node_cluster_member     ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+					old_cluster_member => $old_scan_cluster_node_cluster_member ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0007", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0007", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			if ($scan_cluster_node_maintenance_mode ne $old_scan_cluster_node_maintenance_mode)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
+				
+				my $variables = { 
+					node_name            => $scan_cluster_node_name,
+					new_maintenance_mode => $scan_cluster_node_maintenance_mode     ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+					old_maintenance_mode => $old_scan_cluster_node_maintenance_mode ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0008", variables => $variables});
+				$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0008", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { update => $update }});
+			if ($update)
+			{
+				my $query = "
+UPDATE 
+    scan_cluster_nodes 
+SET 
+    scan_cluster_node_name             = ".$anvil->Database->quote($scan_cluster_node_name).", 
+    scan_cluster_node_pacemaker_id     = ".$anvil->Database->quote($scan_cluster_node_pacemaker_id).", 
+    scan_cluster_node_in_ccm           = ".$anvil->Database->quote($scan_cluster_node_in_ccm).", 
+    scan_cluster_node_crmd_member      = ".$anvil->Database->quote($scan_cluster_node_crmd_member).", 
+    scan_cluster_node_cluster_member   = ".$anvil->Database->quote($scan_cluster_node_cluster_member).", 
+    scan_cluster_node_maintenance_mode = ".$anvil->Database->quote($scan_cluster_node_maintenance_mode).", 
+    modified_date                      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE
+    scan_cluster_node_uuid             = ".$anvil->Database->quote($scan_cluster_node_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+		else
+		{
+			# Add the node.
+			my $scan_cluster_node_uuid = $anvil->Get->uuid();
+			my $query                  = "
+INSERT INTO 
+    scan_cluster_nodes 
+(
+    scan_cluster_node_uuid, 
+    scan_cluster_node_scan_cluster_uuid, 
+    scan_cluster_node_host_uuid, 
+    scan_cluster_node_name, 
+    scan_cluster_node_pacemaker_id, 
+    scan_cluster_node_in_ccm, 
+    scan_cluster_node_crmd_member, 
+    scan_cluster_node_cluster_member, 
+    scan_cluster_node_maintenance_mode, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($scan_cluster_node_uuid).", 
+    ".$anvil->Database->quote($scan_cluster_uuid).", 
+    ".$anvil->Database->quote($scan_cluster_node_host_uuid).", 
+    ".$anvil->Database->quote($scan_cluster_node_name).", 
+    ".$anvil->Database->quote($scan_cluster_node_pacemaker_id).", 
+    ".$anvil->Database->quote($scan_cluster_node_in_ccm).", 
+    ".$anvil->Database->quote($scan_cluster_node_crmd_member).", 
+    ".$anvil->Database->quote($scan_cluster_node_cluster_member).", 
+    ".$anvil->Database->quote($scan_cluster_node_maintenance_mode).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			
+			my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => $scan_cluster_node_host_uuid});
+			my $variables = { 
+				cluster_name     => $cluster_name, 
+				node_name        => $scan_cluster_node_name,
+				host_uuid        => $scan_cluster_node_host_uuid, 
+				host_name        => $host_name, 
+				pacemaker_id     => $scan_cluster_node_pacemaker_id, 
+				in_ccm           => $scan_cluster_node_in_ccm           ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", # Yes or No
+				crmd_member      => $scan_cluster_node_crmd_member      ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+				cluster_member   => $scan_cluster_node_cluster_member   ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+				maintenance_mode => $scan_cluster_node_maintenance_mode ? "#!string!scan_cluster_unit_0001!#" : "#!string!scan_cluster_unit_0002!#", 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0003", variables => $variables});
+			$anvil->Alert->register({debug => 2, alert_level => "notice", message => "scan_cluster_alert_0003", message_variables => $variables, set_by => $THIS_FILE});
+		}
+	}
+	
+	### TODO: Check for / repair bad cluster config issues
+	# If we're still alive, we're either node 1, or we're node 2 and node 1 is not ready. If we're not ready, 
+	if ($stonith_max_attempts ne "INFINITY")
+	{
+		### TODO: Call pcs to update 
+	}
+	
+	return(0);
+}
+
+# Read in existing data from the database.
+sub read_last_scan
+{
+	my ($anvil) = @_;
+	
+	my $query = "
+SELECT 
+    scan_cluster_uuid, 
+    scan_cluster_anvil_uuid, 
+    scan_cluster_name 
+FROM 
+    scan_cluster 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# NOTE: There's no known way to track a cluster name change, so we can't really avoid having 
+		#       an entery per cluster name.
+		my $scan_cluster_uuid       = $row->[0]; 
+		my $scan_cluster_anvil_uuid = $row->[1];
+		my $scan_cluster_name       = $row->[2]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan_cluster_uuid"       => $scan_cluster_uuid,
+			"scan_cluster_anvil_uuid" => $scan_cluster_anvil_uuid, 
+			"scan_cluster_name"       => $scan_cluster_name,
+		}});
+		
+		# Store the old data now.
+		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name}       = $scan_cluster_name;
+		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_anvil_uuid} = $scan_cluster_anvil_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_name"       => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name},
+			"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_anvil_uuid" => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_anvil_uuid},
+		}});
+		
+		# Make it easy to look up the cluster_uuid from the anvil_uuid.
+		$anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid} = $scan_cluster_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::anvil_uuid::${scan_cluster_anvil_uuid}" => $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid},
+		}});
+	}
+	undef $count;
+	undef $results;
+	
+	$query = "
+SELECT 
+    scan_cluster_node_uuid, 
+    scan_cluster_node_scan_cluster_uuid, 
+    scan_cluster_node_host_uuid, 
+    scan_cluster_node_name, 
+    scan_cluster_node_pacemaker_id, 
+    scan_cluster_node_in_ccm, 
+    scan_cluster_node_crmd_member, 
+    scan_cluster_node_cluster_member, 
+    scan_cluster_node_maintenance_mode 
+FROM 
+    scan_cluster_nodes 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		# We've got an entry in the 'scan_cluster_nodes' table, so now we'll look for data in the node and 
+		# services tables.
+		my $scan_cluster_node_uuid              = $row->[0]; 
+		my $scan_cluster_node_scan_cluster_uuid = $row->[1]; 
+		my $scan_cluster_node_host_uuid         = $row->[2]; 
+		my $scan_cluster_node_name              = $row->[3]; 
+		my $scan_cluster_node_pacemaker_id      = $row->[4]; 
+		my $scan_cluster_node_in_ccm            = $row->[5]; 
+		my $scan_cluster_node_crmd_member       = $row->[6]; 
+		my $scan_cluster_node_cluster_member    = $row->[7]; 
+		my $scan_cluster_node_maintenance_mode  = $row->[8]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			scan_cluster_node_uuid              => $scan_cluster_node_uuid,
+			scan_cluster_node_scan_cluster_uuid => $scan_cluster_node_scan_cluster_uuid,
+			scan_cluster_node_host_uuid         => $scan_cluster_node_host_uuid,
+			scan_cluster_node_name              => $scan_cluster_node_name,
+			scan_cluster_node_pacemaker_id      => $scan_cluster_node_pacemaker_id,
+			scan_cluster_node_in_ccm            => $scan_cluster_node_in_ccm,
+			scan_cluster_node_crmd_member       => $scan_cluster_node_crmd_member, 
+			scan_cluster_node_cluster_member    => $scan_cluster_node_cluster_member, 
+			scan_cluster_node_maintenance_mode  => $scan_cluster_node_maintenance_mode, 
+		}});
+		
+		# Store the old data now.
+		$anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid} = {
+			scan_cluster_node_scan_cluster_uuid => $scan_cluster_node_scan_cluster_uuid,
+			scan_cluster_node_host_uuid         => $scan_cluster_node_host_uuid,
+			scan_cluster_node_name              => $scan_cluster_node_name,
+			scan_cluster_node_pacemaker_id      => $scan_cluster_node_pacemaker_id,
+			scan_cluster_node_in_ccm            => $scan_cluster_node_in_ccm,
+			scan_cluster_node_crmd_member       => $scan_cluster_node_crmd_member, 
+			scan_cluster_node_cluster_member    => $scan_cluster_node_cluster_member, 
+			scan_cluster_node_maintenance_mode  => $scan_cluster_node_maintenance_mode, 
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_scan_cluster_uuid" => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_scan_cluster_uuid},
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_host_uuid"         => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_host_uuid},
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_name"              => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_name},
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_pacemaker_id"      => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_pacemaker_id},
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_in_ccm"            => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_in_ccm},
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_crmd_member"       => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_crmd_member}, 
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_cluster_member"    => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_cluster_member}, 
+			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_maintenance_mode"  => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_maintenance_mode}, 
+		}});
+		
+		$anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid} = $scan_cluster_node_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_cluster_node_host_uuid::${scan_cluster_node_host_uuid}" => $anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid},
+		}});
+	}
+	
+	return(0);
+}
 
 # This reads in all the data we can find on the local system
 sub collect_data
@@ -115,52 +522,101 @@ sub collect_data
 	my ($anvil) = @_;
 	
 	# Pick out core cluster details.
-	my $problem = $anvil->Cluster->parse_cib({debug => 2});
+	my $problem = $anvil->Cluster->parse_cib({debug => 3});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-
-	my $cluster_name         = $anvil->data->{cib}{parsed}{data}{cluster}{name};
-	my $stonith_enabled      = $anvil->data->{cib}{parsed}{data}{stonith}{enabled};
-	my $maintenance_mode     = $anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'};
-	my $stonith_max_attempts = $anvil->data->{cib}{parsed}{data}{cluster}{'stonith-max-attempts'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		cluster_name         => $cluster_name, 
-		stonith_enabled      => $stonith_enabled,
-		maintenance_mode     => $maintenance_mode, 
-		stonith_max_attempts => $stonith_max_attempts, 
-	}});
 	
-	### TODO: If we're node 2, or not in the cluster, only update our information in the
-	###       'scan_cluster_nodes' table. Node 1 will update everything else if it's 'ready' (else node 2
-	###       will, if it's ready).
-	my $i_am           = $anvil->Cluster->which_node({debug => 1});
-	my $my_node_name   = $anvil->data->{cib}{parsed}{'local'}{name};
-	my $peer_node_name = $anvil->data->{cib}{parsed}{peer}{name};
-	my $peer_ready     = $anvil->data->{cib}{parsed}{peer}{ready};
-	my $local_ready    = $anvil->data->{cib}{parsed}{data}{node}{$my_node_name}{node_state}{ready};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		i_am           => $i_am, 
-		my_node_name   => $my_node_name, 
-		peer_node_name => $peer_node_name, 
-		peer_ready     => $peer_ready, 
-		local_ready    => $local_ready, 
-	}});
-	
-	### TODO: Change the logic so that when both nodes are in the cluster, the node with the lowest
-	###       load does the scan (typically the node without VMs).
-	if (($i_am eq "node2") && ($peer_ready))
+	# If there was a problem, we're not in the cluster.
+	if ($problem)
 	{
-		# We're not going to run.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_cluster_message_0001"});
-		$anvil->nice_exit({exit_code => 0});
+		my $changed = $anvil->Alert->check_alert_sent({
+			record_locator => "scan_cluster::in_cluster",
+			set_by         => $THIS_FILE,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+		if ($changed)
+		{
+			# Register an alert.
+			my $variables = { host_name => $anvil->Get->host_name() };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0010", variables => $variables});
+			$anvil->Alert->register({alert_level => "warning", message => "scan_cluster_alert_0010", message_variables => $variables, set_by => $THIS_FILE});
+		
+			# See if I need to mark us as out of the cluster. Normally, our peer would do this, 
+			# but if we went down at the same time as our peer, both of us might not update the 
+			# membership values.
+			my $query = "
+SELECT 
+    scan_cluster_node_uuid, 
+    scan_cluster_node_in_ccm, 
+    scan_cluster_node_crmd_member, 
+    scan_cluster_node_cluster_member 
+FROM 
+    scan_cluster_nodes 
+WHERE 
+    scan_cluster_node_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			foreach my $row (@{$results})
+			{
+				# We've got an entry in the 'scan_cluster_nodes' table, so now we'll look for data in the node and 
+				# services tables.
+				my $scan_cluster_node_uuid           = $row->[0]; 
+				my $scan_cluster_node_in_ccm         = $row->[1]; 
+				my $scan_cluster_node_crmd_member    = $row->[2]; 
+				my $scan_cluster_node_cluster_member = $row->[3]; 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					scan_cluster_node_uuid           => $scan_cluster_node_uuid,
+					scan_cluster_node_in_ccm         => $scan_cluster_node_in_ccm,
+					scan_cluster_node_crmd_member    => $scan_cluster_node_crmd_member, 
+					scan_cluster_node_cluster_member => $scan_cluster_node_cluster_member, 
+				}});
+				
+				if (($scan_cluster_node_in_ccm) or ($scan_cluster_node_crmd_member) or ($scan_cluster_node_cluster_member))
+				{
+					# Update
+					my $query = "
+UPDATE 
+    scan_cluster_nodes 
+SET 
+    scan_cluster_node_in_ccm         = '0', 
+    scan_cluster_node_crmd_member    = '0', 
+    scan_cluster_node_cluster_member = '0',
+    modified_date                    = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_cluster_node_uuid           = ".$anvil->Database->quote($scan_cluster_node_uuid)."
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+			}
+		}
+		
+		# Exit now.
+		$anvil->nice_exit({exit_code => 2});
 	}
-	
-	# If we're still alive, we're either node 1, or we're node 2 and node 1 is not ready. If we're not ready, 
-	if ($stonith_max_attempts ne "INFINITY")
+	else
 	{
-		### TODO: Call pcs to update 
+		# See if we came back into the cluster
+		my $changed = $anvil->Alert->check_alert_sent({
+			clear          => 1,
+			record_locator => "scan_cluster::in_cluster",
+			set_by         => $THIS_FILE,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+		if ($changed)
+		{
+			# Register an alert.
+			my $variables = { host_name => $anvil->Get->host_name() };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0011", variables => $variables});
+			$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_cluster_alert_0011", message_variables => $variables, set_by => $THIS_FILE});
+		}
 	}
-	
-	
 	
 	return(0);
 }

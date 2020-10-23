@@ -1195,6 +1195,8 @@ sub _set_paths
 				rsync				=>	"/usr/bin/rsync",
 				sed				=>	"/usr/bin/sed", 
 				'shutdown'			=>	"/usr/sbin/shutdown",
+				snmpget				=>	"/usr/bin/snmpget",
+				snmpset				=>	"/usr/bin/snmpset",
 				'ssh-keygen'			=>	"/usr/bin/ssh-keygen",
 				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
 				'stat'				=>	"/usr/bin/stat",

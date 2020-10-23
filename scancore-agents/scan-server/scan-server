@@ -551,9 +551,9 @@ DELETED   - Marks a server as no longer existing
 			# Server migated (to the peer or to a new Anvil!)
 			my $variables  = { 
 				server        => $server_name,
-				old_host_name => $anvil->Get->host_name_from_uuid({host_uuid => $old_server_host_uuid}),
+				old_host_name => $old_server_host_uuid eq "NULL" ? "NULL" : $anvil->Get->host_name_from_uuid({host_uuid => $old_server_host_uuid}),
 				old_host_uuid => $old_server_host_uuid,
-				new_host_name => $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid}),
+				new_host_name => $server_host_uuid     eq "NULL" ? "NULL" : $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid}),
 				new_host_uuid => $server_host_uuid,
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0012", variables => $variables});
@@ -690,7 +690,7 @@ DELETED   - Marks a server as no longer existing
 		my $host_anvil_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
 		my $host_anvil_name  = $anvil->Get->anvil_name_from_uuid({anvil_uuid => $host_anvil_uuid});
 		my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
-		my $server_host_name = $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid});
+		my $server_host_name = $server_host_uuid eq "NULL" ? "NULL" : $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid});
 		my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:server_name'      => $server_name,

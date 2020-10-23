@@ -17,6 +17,7 @@ my $THIS_FILE = "Remote.pm";
 ### Methods;
 # add_target_to_known_hosts
 # call
+# read_snmp_oid
 # test_access
 # _call_ssh_keyscan
 # _check_known_hosts_for_target
@@ -716,6 +717,172 @@ sub call
 	return($output, $error, $return_code);
 }
 
+
+=head2 read_snmp_oid
+
+This connects to a remote machine using SNMP and reads (if possible) the OID specified. If unable to reach the target device, C<< !!no_connection!! >> is returned. If there is a problem with the call made to this method, C<< !!error!! >> is returned. 
+
+Otherwise, two values are returned; first the data and second the data type.
+
+Parameters;
+
+=head3 community (optional)
+
+This is the SNMP community used to connect to.
+
+=head3 mib (optional)
+
+If set to a path to a file, the file is treated as a custom MIB to be fed into C<< snmpget >>
+
+=head3 oid (required)
+
+This is the OID string to query.
+
+=head3 target (required)
+
+This is the IP or (resolvable) host name to query.
+
+=head3 version (optional, default '2c')
+
+This is the SNMP protocol version to use when connecting to the target.
+
+=cut
+sub read_snmp_oid
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->read_snmp_oid()" }});
+	
+	my $community = defined $parameter->{community} ? $parameter->{community} : "";
+	my $mib       = defined $parameter->{mib}       ? $parameter->{mib}       : "";
+	my $oid       = defined $parameter->{oid}       ? $parameter->{oid}       : "";
+	my $target    = defined $parameter->{target}    ? $parameter->{target}    : "";
+	my $version   = defined $parameter->{version}   ? $parameter->{version}   : "2c";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		community => $community, 
+		mib       => $mib, 
+		oid       => $oid, 
+		target    => $target,
+		version   => $version, 
+	}});
+	
+	if (not $oid)
+	{
+		# Um, what are we supposed to read?
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->read_snmp_oid()", parameter => "oid" }});
+		die;
+		return("!!error!!");
+	}
+	if (not $target)
+	{
+		# Who ya gonna call? No, seriously, I have no idea...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->read_snmp_oid()", parameter => "target" }});
+		die;
+		return("!!error!!");
+	}
+	if (($mib) && (not -r $mib))
+	{
+		# Bad MIB path
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0163", variables => { mib => $mib }});
+		die;
+		return("!!error!!");
+	}
+	
+	my $data_type  = "unknown";
+	my $shell_call = $anvil->data->{path}{exe}{snmpget}." -On";
+	if ($community)
+	{
+		$shell_call .= " -c ".$community;
+	}
+	if ($mib)
+	{
+		$shell_call .= " -m ".$mib;
+	}
+	$shell_call .= " -v ".$version." ".$target." ".$oid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	my $value = "#!no_value!#";
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /No Response/i)
+		{
+			$value = "#!no_connection!#";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+		}
+		elsif (($line =~ /STRING: "(.*)"$/i) or ($line =~ /STRING: (.*)$/i))
+		{
+			$value     = $1;
+			$data_type = "string";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				value     => $value,
+				data_type => $data_type, 
+			}});
+		}
+		elsif ($line =~ /INTEGER: (\d+)$/i)
+		{
+			$value     = $1;
+			$data_type = "integer";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				value     => $value,
+				data_type => $data_type, 
+			}});
+		}
+		elsif ($line =~ /Hex-STRING: (.*)$/i)
+		{
+			$value     = $1;
+			$data_type = "hex-string";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				value     => $value,
+				data_type => $data_type, 
+			}});
+		}
+		elsif ($line =~ /Gauge32: (.*)$/i)
+		{
+			$value     = $1;
+			$data_type = "guage32";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				value     => $value,
+				data_type => $data_type, 
+			}});
+		}
+		elsif ($line =~ /Timeticks: \((\d+)\) /i)
+		{
+			$value     = $1;
+			$data_type = "timeticks";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				value     => $value,
+				data_type => $data_type, 
+			}});
+		}
+		elsif ($line =~ /No Such Instance/i)
+		{
+			$value = "--";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { value => $value }});
+		}
+		elsif ($line =~ /^(.*?): (.*$)/i)
+		{
+			$data_type = $1;
+			$value     = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				value     => $value,
+				data_type => $data_type, 
+			}});
+		}
+	}
+	
+	return($value, $data_type);
+}
+
+
 =head2 test_access
 
 This attempts to log into the target to verify that the target is up and reachable. It returns C<< 1 >> on access, C<< 0 >> otherwise.
@@ -759,7 +926,7 @@ sub test_access
 	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
 	my $user     = defined $parameter->{user}     ? $parameter->{user}     : getpwuid($<); 
 	my $access   = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		password => $anvil->Log->is_secure($password), 
 		port     => $port, 
 		target   => $target,
@@ -785,7 +952,7 @@ sub test_access
 		$access = 1;
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
 	return($access);
 }
 

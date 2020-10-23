@@ -17,7 +17,6 @@ my $THIS_FILE = "Database.pm";
 
 ### Methods;
 # archive_database
-# check_condition_age
 # check_lock_age
 # check_for_schema
 # configure_pgsql
@@ -300,121 +299,6 @@ sub archive_database
 	}
 	
 	return(0);
-}
-
-
-=head2 check_condition_age
-
-This checks to see how long ago a given condition (variable, really) has been set. This is generally used when a program, often a scan agent, wants to wait to see if a given state persists before sending an alert and/or taking an action.
-
-A common example is seeing how long power has been lost, if a lost sensor is going to return, etc.
-
-The age of the condition is returned, in seconds. If there is a problem, C<< !!error!! >> is returned.
-
-Parameters;
-
-=head3 clear (optional)
-
-When set to C<< 1 >>, if the condition exists, it is cleared. If the condition does not exist, nothing happens.
-
-=head3 name (required)
-
-This is the name of the condition being set. It's a free-form string, but generally in a format like C<< <scan_agent_name>::<condition_name> >>.
-
-=head3 host_uuid (optional)
-
-If a condition is host-specific, this can be set to the caller's C<< host_uuid >>. Generally this is needed, save for conditions related to hosted servers that are not host-bound.
-
-=cut
-sub check_condition_age
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_condition_age()" }});
-	
-	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 0;
-	my $name      = defined $parameter->{name}      ? $parameter->{name}      : "";
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "NULL";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		clear     => $clear, 
-		name      => $name, 
-		host_uuid => $host_uuid, 
-	}});
-
-	if (not $name)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->check_condition_age()", parameter => "name" }});
-		return("!!error!!");
-	}
-	
-	my $age          = 0;
-	my $source_table = $host_uuid ? "hosts" : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { source_table => $source_table }});
-	
-	# See if this variable has been set yet.
-	my ($variable_value, $variable_uuid, $epoch_modified_date, $modified_date) = $anvil->Database->read_variable({
-		variable_name         => $name, 
-		variable_source_table => $source_table, 
-		variable_source_uuid  => $host_uuid,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		variable_value      => $variable_value, 
-		variable_uuid       => $variable_uuid, 
-		epoch_modified_date => $epoch_modified_date, 
-		modified_date       => $modified_date, 
-	}});
-	if ($variable_uuid)
-	{
-		# Are we clearing?
-		if ($clear)
-		{
-			# Yup
-			$variable_uuid = $anvil->Database->insert_or_update_variables({
-				debug             => $debug,
-				variable_uuid     => $variable_uuid,
-				variable_value    => "clear",
-				update_value_only => 1,
-			});
-		}
-		
-		# if the value was 'clear', change it to 'set'.
-		if ($variable_value eq "clear")
-		{
-			# Set it.
-			$variable_uuid = $anvil->Database->insert_or_update_variables({
-				debug             => $debug,
-				variable_uuid     => $variable_uuid,
-				variable_value    => "set",
-				update_value_only => 1,
-			});
-		}
-		else
-		{
-			# How old is it?
-			$age = time - $epoch_modified_date;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { age => $age }});
-			return($age);
-		}
-	}
-	elsif (not $clear)
-	{
-		# New, set it.
-		my $variable_uuid = $anvil->Database->insert_or_update_variables({
-			debug                 => $debug, 
-			variable_name         => $name, 
-			variable_value        => "set",
-			variable_default      => "set", 
-			variable_description  => "striker_0278", 
-			variable_section      => "conditions", 
-			variable_source_uuid  => $host_uuid, 
-			variable_source_table => $source_table, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
-	}
-	
-	return($age);
 }
 
 
@@ -2411,7 +2295,7 @@ FROM
 			host_name     => $host_name, 
 			host_type     => $host_type, 
 			host_key      => $host_key, 
-			host_ipmi     => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi, 
+			host_ipmi     => $host_ipmi, 
 			modified_date => $modified_date, 
 		};
 		
@@ -4212,8 +4096,15 @@ sub insert_or_update_anvils
 	}
 	elsif ((not $anvil_name) && (not $anvil_uuid))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0127", variables => { table => "anvils" }});
-		return("");
+		# Can we find the anvil_uuid?
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		
+		if (not $anvil_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0127", variables => { table => "anvils" }});
+			return("");
+		}
 	}
 	
 	# If we don't have a UUID, see if we can find one for the given anvil name.
@@ -4417,6 +4308,7 @@ SET
 WHERE 
     anvil_uuid            = ".$anvil->Database->quote($anvil_uuid)." 
 ";
+				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
@@ -10005,6 +9897,7 @@ SET
 WHERE 
     session_uuid       = ".$anvil->Database->quote($session_uuid)." 
 ";
+				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
@@ -12245,7 +12138,7 @@ sub manage_anvil_conf
 		file        => $anvil->data->{path}{configs}{'anvil.conf'},
 		force_read  => 1, 
 		port        => $port, 
-		password    => $anvil->Log->is_secure($password), 
+		password    => $password, 
 		remote_user => $remote_user, 
 		secure      => 1, 
 		target      => $target,
@@ -12542,7 +12435,7 @@ sub manage_anvil_conf
 			group       => "admin", 
 			mode        => "0644",
 			overwrite   => 1,
-			password    => $anvil->Log->is_secure($password), 
+			password    => $password, 
 			port        => $port, 
 			remote_user => $remote_user, 
 			target      => $target,

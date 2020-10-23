@@ -14,17 +14,35 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_cluster_lo
 	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors hardware, like RAM modules, CSS LED status, CPU information, etc.">
 		
 		<!-- Alert entries -->
-		<key name="scan_cluster_alert_0001"></key>
+		<key name="scan_cluster_alert_0001">The new cluster: [#!variable!cluster_name!#] has been found.</key>
+		<key name="scan_cluster_alert_0002">The cluster: [#!variable!old_cluster_name!#] has been renamed to: [#!variable!new_cluster_name!#].</key>
+		<key name="scan_cluster_alert_0003">The new node: [#!variable!node_name!#] has been found in the cluster: [#!variable!cluster_name!#];
+Host Name/UUID: .......... [#!variable!host_name!#] / [#!variable!host_uuid!#]
+Pacemaker ID: ............ [#!variable!pacemaker_id!#]
+Corosync Cluster Member: . [#!variable!in_ccm!#]
+In Corosync Process Group: [#!variable!crmd_member!#]
+Joined Domain: ........... [#!variable!cluster_member!#]
+In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
+		</key>
+		<key name="scan_cluster_alert_0004">The node: [#!variable!node_name!#] pacemaker ID: [#!variable!old_pacemaker_id!#] has changed to: [#!variable!new_pacemaker_id!#]</key>
+		<key name="scan_cluster_alert_0005">The node: [#!variable!node_name!#] corosync cluster membership status has changed from: [#!variable!old_in_ccm!#] has changed to: [#!variable!new_in_ccm!#]</key>
+		<key name="scan_cluster_alert_0006">The node: [#!variable!node_name!#] corosync process group status changed from: [#!variable!old_crmd_member!#] has changed to: [#!variable!new_crmd_member!#]</key>
+		<key name="scan_cluster_alert_0007">The node: [#!variable!node_name!#] cluster domain membership status changed from: [#!variable!old_cluster_member!#] has changed to: [#!variable!new_cluster_member!#]</key>
+		<key name="scan_cluster_alert_0008">The node: [#!variable!node_name!#] maintenance mode status has changed from: [#!variable!old_maintenance_mode!#] has changed to: [#!variable!new_maintenance_mode!#]</key>
+		<key name="scan_cluster_alert_0009">The node: [#!variable!old_node_name!#] has been renamed to: [#!variable!new_node_name!#]</key>
+		<key name="scan_cluster_alert_0010">The node: [#!variable!host_name!#] is no longer in the cluster.</key>
+		<key name="scan_cluster_alert_0011">The node: [#!variable!host_name!#] is returning back into the cluster.</key>
 		
 		<!-- Log entries -->
 		<key name="scan_cluster_log_0001">Starting: [#!variable!program!#].</key>
 		<key name="scan_cluster_log_0002">This host is a: [#!variable!host_type!#], this agent is only useful on nodes. Exiting.</key>
 		
 		<!-- Message entries (usually meant to be alerts) -->
-		<key name="scan_cluster_message_0001">We're node 2, and node 1 is running as well. Exiting as only one node needs to run this agent.</key>
+		<key name="scan_cluster_message_0001"></key>
 		
 		<!-- Units -->
-		<key name="scan_cluster_unit_0001"></key>
+		<key name="scan_cluster_unit_0001">Yes</key>
+		<key name="scan_cluster_unit_0002">No</key>
 		
 	</language>
 </words>

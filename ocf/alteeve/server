@@ -101,7 +101,7 @@ $anvil->Log->secure({set => 1});
 
 # If we can connect to a database, we'll set/clear the 'migrating' flag during migrations
 $anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -996,7 +996,7 @@ sub server_status
 	# the server is failed, return OCF_ERR_GENERIC (1).
 	my $state  = "";
 	my $server = $anvil->data->{environment}{OCF_RESKEY_name};
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0521", variables => { server => $server }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0521", variables => { server => $server }});
 	
 	if (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout})
 	{
@@ -1158,7 +1158,7 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 					else
 					{
 						# In some fashion or another, the server is running. Exit with OCF_SUCCESS (rc: 0)
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0527", variables => { 'state' => $state }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0527", variables => { 'state' => $state }});
 						$anvil->nice_exit({exit_code => 0});
 					}
 				}
@@ -1458,8 +1458,6 @@ sub validate_all
 	my ($anvil) = @_;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0361"});
 	
-	### TODO: When we have actual Anvil! systems, connect to the peers (nodes / DR) for this host and see
-	###       if the server is running elsewhere.
 	my $server =         $anvil->data->{environment}{OCF_RESKEY_name};
 	my $source = defined $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} ? $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} : "";
 	my $target = defined $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} ? $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} : "";
@@ -1469,9 +1467,9 @@ sub validate_all
 		target => $target,
 	}});
 	
-	# Read in an parse the server's XML.
+	# Read in and parse the server's XML.
 	$anvil->System->check_storage({debug => 3});
-	$anvil->Server->get_status({debug => 3, server => $server});
+	$anvil->Server->get_status({debug => 2, server => $server});
 	
 	# Is the name in the definition file what we expect (and did we read the XML data at all)?
 	validate_name($anvil);

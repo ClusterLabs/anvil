@@ -46,6 +46,7 @@ Requires:       iproute
 Requires:       lsscsi
 Requires:       mailx
 Requires:       mlocate 
+Requires:       net-snmp-utils
 Requires:       nvme-cli
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 

@@ -102,7 +102,7 @@ CREATE TABLE ssh_keys (
     ssh_key_host_uuid     uuid                        not null,
     ssh_key_user_name     text                        not null,                   -- This is the user name on the system, not a web interface user.
     ssh_key_public_key    text                        not null,                   -- Either 'node', 'dashboard' or 'dr'
-    modified_date          timestamp with time zone    not null, 
+    modified_date         timestamp with time zone    not null, 
     
     FOREIGN KEY(ssh_key_host_uuid) REFERENCES hosts(host_uuid)
 );

@@ -1,0 +1,2624 @@
+#!/usr/bin/perl
+# 
+# This uses data in the 'fences' database table (any agent starting with 'fence_apc_*' to get a list of APC-
+# brand PDUs to scan.
+# 
+# Examples;
+# 
+# Exit codes;
+# 0 - Success
+# 1 - Something went wrong, agent aborted run.
+# 
+# 255 - The host's UUID isn't in the hosts table yet, ScanCore itself hasn't been run.
+# 
+
+# Use my modules.
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Socket;
+no warnings 'recursion';
+
+=cut
+
+OIDs of interest;
+
+State data
+.1.3.6.1.4.1.318.1.1.4.1.5.0         = Serial Number							<- Global ID
+.1.3.6.1.4.1.318.1.1.4.1.4.0         = Model Number
+.1.3.6.1.4.1.318.1.1.4.1.3.0         = Date of manufacture (mm/dd/yyyy, if 'yy' year 2000 = '00')
+.1.3.6.1.4.1.318.1.1.4.1.2.0         = Firmware version
+.1.3.6.1.4.1.318.1.1.4.1.1.0         = Hardware version (never changes)
+
+Variables
+.1.3.6.1.2.1.1.3.0                   = Uptime (in timeticks, 900 = 9 seconds)
+.1.3.6.1.4.1.318.1.1.12.1.16.0       = Wattage draw (seems to be for the full device, not per phase)
+
+# Phase info
+.1.3.6.1.4.1.318.1.1.12.2.1.1.0      = Max Amperage out per phase
+.1.3.6.1.4.1.318.1.1.12.2.1.2.0      = Number of phases on the PDU
+.1.3.6.1.4.1.318.1.1.12.2.2.1.1.2.1  = Low amp threshold. (0 = Disabled; No alarm on low power. Any digit is the minimum amperage under which we throw an alert)  (NOTE: last digit is phase number, so .1 == phase 1) 
+.1.3.6.1.4.1.318.1.1.12.2.2.1.1.3.1  = High amperage warning threshold. If the power draw exceeds this, throw a warning alert, warn on equal or greater
+.1.3.6.1.4.1.318.1.1.12.2.2.1.1.4.1  = High amperage critical threshold. If the power draw exceeds this, throw a critical alert (breaker is about to pop), warn on equal or greater	(NOTE: Default == max amp per phase, we should set it lower, Max - 2?)
+.1.3.6.1.4.1.318.1.1.12.2.3.1.1.2.1  = Current Amperage on the phase, in 1/10 Amp (x10 to get Amp)
+
+Port information
+.1.3.6.1.4.1.318.1.1.4.4.1.0         = Number of outlets (ie: 8)
+.1.3.6.1.4.1.318.1.1.4.4.2.1.2.n     = Pending action on state? (1 = command pending, 2 = no command pending, 3 = unknown. If all ports are '3', power cycle is required. If the all devices on the peer report Power is OK, do so immediately)
+.1.3.6.1.4.1.318.1.1.4.4.2.1.3.n     = Current state (read: 1 = on, 2 = off, 4 = unknown --- write: 1 = turn on, 2 = turn off, 3 = cycle (~5s), 5 = on after 'sPDUOutletPowerOnTime' delay, 6 = off after sPDUOutletPowerOffTime delay, 7 = off after sPDUOutletPowerOffTime delay, wait sPDUOutletRebootDuration time, then back on.)
+.1.3.6.1.4.1.318.1.1.4.5.2.1.3.n     = Outlet name (default is 'Outlet N'), Can be read or set, max 20 chars.		<- Set this when we map the Anvil! 
+.1.3.6.1.4.1.318.1.1.4.5.2.1.2.n     = Power on delay (in seconds), default is '0' seconds.  (-1 = stay off, 0 = on with PDU,  X = number of seconds to wait before powering on)
+.1.3.6.1.4.1.318.1.1.4.5.2.1.4.n     = Power off delay (in seconds)                          (-1 = stay on,  0 = off with PDU, X = number of seconds to wait before powering off)
+.1.3.6.1.4.1.318.1.1.4.5.2.1.5.n     = Reboot delay (sleep time), default is '5' seconds.
+.1.3.6.1.4.1.318.1.1.12.3.5.1.1.3.n  = Phase that this outlet is in
+
+Network data  (NOTE: .1 is the loopback interface, .2 is the physical interface)
+.1.3.6.1.2.1.2.2.1.4.2 = MTU size
+.1.3.6.1.2.1.2.2.1.5.2 = Link speed (in bps)
+.1.3.6.1.2.1.2.2.1.6.2 = MAC address	- This is losing the first nibble... It returns type STRING instead of Hex-STRING, even if -Ox is used. If I point to the APC MIB, it returns OK. This is what we should be using.
+.1.3.6.1.6.3.10.2.1.1.0 = MAC address (with some prefix) in hex. Not sure if this is supported on other PDUs though...
+
+=cut
+
+# Disable buffering
+$| = 1;
+
+# Prevent a discrepency between UID/GID and EUID/EGID from throwing an error.
+$< = $>;
+$( = $);
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new({log_level => 2, log_secure => 1});
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
+# Make sure we're running as 'root'
+# $< == real UID, $> == effective UID
+if (($< != 0) && ($> != 0))
+{
+	# Not root
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0005"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+$anvil->data->{'scan-apc-pdu'} = {
+	disable				=>	0,
+	alert_sort			=>	0,
+	# Ticks are genera	lly in 10ms increments
+	ticks_per_second		=>	100,
+	# By default, the critical amperage is the same as the max amperage. If that is the
+	# case here, we will subtract this number of amps from the max and use that as our
+	# critical warning threshold. So if the max threshold is 12, and the critical 
+	# threshold is also 11 or 12, we will drop it to 10. If the critical is set below 10,
+	# we won't adjust it at all.
+	critical_amps_below_max		=>	2,
+	# This drops the warning to be at least this number of amps below critical's level.
+	warning_amps_below_critical	=>	2,
+	# A warning or critical alert has to be this number of amps above/below the threshold
+	# for the alert to be cleared.
+	clear_alert_threshold		=>	2,
+	# This is needed to trick/force the 'scan_apc_pdu_mac_address' OID into returning a Hex-STRING.
+	striker_mib			=>	"/usr/sbin/scancore-agents/".$THIS_FILE."/Striker-MIB.txt",
+};
+$anvil->data->{oids} = {
+	scan_apc_pdu			=>	{
+		scan_apc_pdu_serial_number	=>	".1.3.6.1.4.1.318.1.1.4.1.5.0", 
+		scan_apc_pdu_model_number	=>	".1.3.6.1.4.1.318.1.1.4.1.4.0", 
+		scan_apc_pdu_manufacture_date	=>	".1.3.6.1.4.1.318.1.1.4.1.3.0", 
+		scan_apc_pdu_firmware_version	=>	".1.3.6.1.4.1.318.1.1.4.1.2.0", 
+		scan_apc_pdu_hardware_version	=>	".1.3.6.1.4.1.318.1.1.4.1.1.0", 
+		scan_apc_pdu_mac_address	=>	".1.3.6.1.2.1.2.2.1.6.2", 
+		scan_apc_pdu_mac_address_alt	=>	".1.3.6.1.2.1.2.2.1.6.1", 	# Some PDUs use this
+		scan_apc_pdu_mtu_size		=>	".1.3.6.1.2.1.2.2.1.4.2", 
+		scan_apc_pdu_mtu_size_alt	=>	".1.3.6.1.2.1.2.2.1.4.1", 	# Some PDUs use this
+		scan_apc_pdu_link_speed		=>	".1.3.6.1.2.1.2.2.1.5.2", 
+		scan_apc_pdu_link_speed_alt	=>	".1.3.6.1.2.1.2.2.1.5.1", 
+		scan_apc_pdu_phase_count	=>	".1.3.6.1.4.1.318.1.1.12.2.1.2.0", 
+		scan_apc_pdu_outlet_count	=>	".1.3.6.1.4.1.318.1.1.4.4.1.0", 
+	},
+	scan_apc_pdu_phases		=>	{
+		# The phase number will be appended to the OID
+		scan_apc_pdu_phase_current_amperage =>	".1.3.6.1.4.1.318.1.1.12.2.3.1.1.2.", 
+		scan_apc_pdu_phase_max_amperage	=>	".1.3.6.1.4.1.318.1.1.12.2.1.1.0",
+		### NOTE: These aren't recorded, but they are used for alert triggers.
+		phase_low_amp_warning		=>	".1.3.6.1.4.1.318.1.1.12.2.2.1.1.2.1",
+		# We'll drop these to be at least 2 Amps below max.
+		phase_high_amp_warning		=>	".1.3.6.1.4.1.318.1.1.12.2.2.1.1.3.1",
+		# If this is less than 'scan-apc-pdu::critical_amps_below_max' below max, it 
+		# will be automatically dropped.
+		phase_high_amp_critical		=>	".1.3.6.1.4.1.318.1.1.12.2.2.1.1.4.1",
+	},
+	scan_apc_pdu_outlets		=>	{
+		### The outlet number will be appended to all of these OIDs.
+		scan_apc_pdu_outlet_name	=>	".1.3.6.1.4.1.318.1.1.4.5.2.1.3.", 
+		scan_apc_pdu_outlet_on_phase	=>	".1.3.6.1.4.1.318.1.1.12.3.5.1.1.3.", 
+		# read:  1 = on, 2 = off, 4 = unknown
+		# write: 1 = on, 2 = off, 3 = cycle
+		scan_apc_pdu_outlet_state	=>	".1.3.6.1.4.1.318.1.1.4.4.2.1.3.", 
+	},
+	scan_apc_pdu_variables	=>	{
+		# This is in ticks, so divide the value by 'scan-apc-pdu::ticks_per_second'
+		uptime				=>	".1.3.6.1.2.1.1.3.0",
+		total_wattage_draw		=>	".1.3.6.1.4.1.318.1.1.12.1.16.0",
+	},
+};
+$anvil->data->{snmp} = {
+	community		=>	{
+		version			=>	"2c",
+		'read'			=>	"public",
+		'write'			=>	"private",
+	},
+};
+
+$anvil->Storage->read_config();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Read switches
+$anvil->Get->switches;
+
+# If we're disabled and '--force' wasn't used, exit.
+if (($anvil->data->{scancore}{'scan-apc-pdu'}{disable}) && (not $anvil->data->{switches}{force}))
+{
+	# Exit.
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# These are the tables used by this agent. The order matters as it controls to order the tables are created 
+# and sync'ed. For purges, this array is walked backwards.
+$anvil->data->{scancore}{'scan-apc-pdu'}{tables} = ["scan_apc_pdus", "scan_apc_pdu_phases", "scan_apc_pdu_outlets", "scan_apc_pdu_variables"];
+
+# Handle start-up tasks
+my $problem = $anvil->ScanCore->agent_startup({
+	debug  => 3,
+	agent  => $THIS_FILE,
+	tables => $anvil->data->{scancore}{'scan-apc-pdu'}{tables},
+});
+if ($problem)
+{
+	$anvil->nice_exit({exit_code => 1});
+}
+
+if ($anvil->data->{switches}{purge})
+{
+	# This can be called when doing bulk-database purges.
+	$anvil->Database->purge_data({
+		debug  => 2,
+		tables => $anvil->data->{scancore}{'scan-apc-pdu'}{tables},
+	});
+	$anvil->nice_exit({exit_code => 0});
+}
+
+# Find the PDUs. The number of PDUs found is returned. If 0, we exit
+if (not find_pdus($anvil))
+{
+	# No PDUs found.
+	$anvil->Log->entry({log_level => 1, message_key => "scan_apc_pdu_message_0001", file => $THIS_FILE, line => __LINE__});
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Collect data from PDUs.
+gather_pdu_data($anvil);
+
+# Read the last state of any PDUs we already know about
+read_last_scan($anvil);
+
+# Look for changes.
+find_changes($anvil);
+
+# Update the database
+$anvil->Database->insert_or_update_updated({updated_by => $THIS_FILE});
+
+# Clean up and go away.
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This reads in the last scan's data.
+sub read_last_scan
+{
+	my ($anvil) = @_;
+	
+	# Read in existing data, if any.
+	my $query = "
+SELECT 
+    scan_apc_pdu_uuid, 
+    scan_apc_pdu_fence_uuid, 
+    scan_apc_pdu_serial_number, 
+    scan_apc_pdu_model_number, 
+    scan_apc_pdu_manufacture_date, 
+    scan_apc_pdu_firmware_version, 
+    scan_apc_pdu_hardware_version, 
+    scan_apc_pdu_ipv4_address, 
+    scan_apc_pdu_mac_address, 
+    scan_apc_pdu_mtu_size, 
+    scan_apc_pdu_link_speed, 
+    scan_apc_pdu_phase_count, 
+    scan_apc_pdu_outlet_count 
+FROM 
+    scan_apc_pdus 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	# One or more records were found.
+	foreach my $row (@{$results})
+	{
+		my $scan_apc_pdu_uuid             = $row->[0];
+		my $scan_apc_pdu_fence_uuid       = $row->[1];
+		my $scan_apc_pdu_serial_number    = $row->[2];
+		my $scan_apc_pdu_model_number     = $row->[3];
+		my $scan_apc_pdu_manufacture_date = $row->[4];
+		my $scan_apc_pdu_firmware_version = $row->[5];
+		my $scan_apc_pdu_hardware_version = $row->[6];
+		my $scan_apc_pdu_ipv4_address     = $row->[7];
+		my $scan_apc_pdu_mac_address      = $row->[8];
+		my $scan_apc_pdu_mtu_size         = $row->[9];
+		my $scan_apc_pdu_link_speed       = $row->[10];
+		my $scan_apc_pdu_phase_count      = $row->[11];
+		my $scan_apc_pdu_outlet_count     = $row->[12];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_apc_pdu_uuid             => $scan_apc_pdu_uuid, 
+			scan_apc_pdu_fence_uuid       => $scan_apc_pdu_fence_uuid, 
+			scan_apc_pdu_serial_number    => $scan_apc_pdu_serial_number, 
+			scan_apc_pdu_model_number     => $scan_apc_pdu_model_number, 
+			scan_apc_pdu_manufacture_date => $scan_apc_pdu_manufacture_date, 
+			scan_apc_pdu_firmware_version => $scan_apc_pdu_firmware_version, 
+			scan_apc_pdu_hardware_version => $scan_apc_pdu_hardware_version, 
+			scan_apc_pdu_ipv4_address     => $scan_apc_pdu_ipv4_address, 
+			scan_apc_pdu_mac_address      => $scan_apc_pdu_mac_address, 
+			scan_apc_pdu_mtu_size         => $scan_apc_pdu_mtu_size, 
+			scan_apc_pdu_link_speed       => $scan_apc_pdu_link_speed, 
+			scan_apc_pdu_phase_count      => $scan_apc_pdu_phase_count, 
+			scan_apc_pdu_outlet_count     => $scan_apc_pdu_outlet_count, 
+		}});
+		
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_serial_number}    = $scan_apc_pdu_serial_number;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_fence_uuid}       = $scan_apc_pdu_fence_uuid;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_model_number}     = $scan_apc_pdu_model_number;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_manufacture_date} = $scan_apc_pdu_manufacture_date;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_firmware_version} = $scan_apc_pdu_firmware_version;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_hardware_version} = $scan_apc_pdu_hardware_version;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_ipv4_address}     = $scan_apc_pdu_ipv4_address;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_mac_address}      = $scan_apc_pdu_mac_address;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_mtu_size}         = $scan_apc_pdu_mtu_size;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_link_speed}       = $scan_apc_pdu_link_speed;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phase_count}      = $scan_apc_pdu_phase_count;
+		$anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlet_count}     = $scan_apc_pdu_outlet_count;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_serial_number"    => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_serial_number}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_fence_uuid"       => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_fence_uuid}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_model_number"     => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_model_number}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_manufacture_date" => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_manufacture_date}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_firmware_version" => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_firmware_version}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_hardware_version" => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_hardware_version}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_ipv4_address"     => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_ipv4_address}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_mac_address"      => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_mac_address}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_mtu_size"         => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_mtu_size}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_link_speed"       => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_link_speed}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_phase_count"      => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phase_count}, 
+			"sql::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlet_count"     => $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlet_count}, 
+		}});
+	}
+	undef $results;
+	
+	# Read in the phase data
+	$query = "
+SELECT 
+    scan_apc_pdu_phase_uuid, 
+    scan_apc_pdu_phase_scan_apc_pdu_uuid,
+    scan_apc_pdu_phase_number, 
+    scan_apc_pdu_phase_current_amperage, 
+    scan_apc_pdu_phase_max_amperage 
+FROM 
+    scan_apc_pdu_phases 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	# Do the query against the source DB and loop through the results.
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_apc_pdu_phase_uuid              = $row->[0];
+		my $scan_apc_pdu_phase_scan_apc_pdu_uuid = $row->[1];
+		my $scan_apc_pdu_phase_number            = $row->[2];
+		my $scan_apc_pdu_phase_current_amperage  = $row->[3];
+		my $scan_apc_pdu_phase_max_amperage      = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_apc_pdu_phase_uuid             => $scan_apc_pdu_phase_uuid, 
+			scan_apc_pdu_phase_scan_apc_pdu_uuid     => $scan_apc_pdu_phase_scan_apc_pdu_uuid, 
+			scan_apc_pdu_phase_number           => $scan_apc_pdu_phase_number, 
+			scan_apc_pdu_phase_current_amperage => $scan_apc_pdu_phase_current_amperage, 
+			scan_apc_pdu_phase_max_amperage     => $scan_apc_pdu_phase_max_amperage, 
+		}});
+		
+		# Which serial number does this phase belong to?
+		my $scan_apc_pdu_serial_number = $anvil->data->{uuid_to_serial}{$scan_apc_pdu_phase_scan_apc_pdu_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_apc_pdu_serial_number => $scan_apc_pdu_serial_number }});
+		
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_uuid}              = $scan_apc_pdu_phase_uuid;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_scan_apc_pdu_uuid} = $scan_apc_pdu_phase_scan_apc_pdu_uuid;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage}  = $scan_apc_pdu_phase_current_amperage;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_max_amperage}      = $scan_apc_pdu_phase_max_amperage;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_phases::${scan_apc_pdu_phase_number}::scan_apc_pdu_phase_uuid"              => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_uuid}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_phases::${scan_apc_pdu_phase_number}::scan_apc_pdu_phase_scan_apc_pdu_uuid" => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_scan_apc_pdu_uuid}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_phases::${scan_apc_pdu_phase_number}::scan_apc_pdu_phase_current_amperage"  => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_phases::${scan_apc_pdu_phase_number}::scan_apc_pdu_phase_max_amperage"      => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_max_amperage}, 
+		}});
+	}
+	undef $results;
+	
+	# Read in the outlets.
+	$query = "
+SELECT 
+    scan_apc_pdu_outlet_uuid, 
+    scan_apc_pdu_outlet_scan_apc_pdu_uuid,
+    scan_apc_pdu_outlet_number, 
+    scan_apc_pdu_outlet_name, 
+    scan_apc_pdu_outlet_on_phase, 
+    scan_apc_pdu_outlet_state 
+FROM 
+    scan_apc_pdu_outlets 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_apc_pdu_outlet_uuid              = $row->[0];
+		my $scan_apc_pdu_outlet_scan_apc_pdu_uuid = $row->[1];
+		my $scan_apc_pdu_outlet_number            = $row->[2];
+		my $scan_apc_pdu_outlet_name              = $row->[3];
+		my $scan_apc_pdu_outlet_on_phase          = $row->[4];
+		my $scan_apc_pdu_outlet_state             = $row->[5];
+		my $scan_apc_pdu_outlet_note              = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_apc_pdu_outlet_uuid              => $scan_apc_pdu_outlet_uuid, 
+			scan_apc_pdu_outlet_scan_apc_pdu_uuid => $scan_apc_pdu_outlet_scan_apc_pdu_uuid, 
+			scan_apc_pdu_outlet_number            => $scan_apc_pdu_outlet_number, 
+			scan_apc_pdu_outlet_name              => $scan_apc_pdu_outlet_name, 
+			scan_apc_pdu_outlet_on_phase          => $scan_apc_pdu_outlet_on_phase, 
+			scan_apc_pdu_outlet_state             => $scan_apc_pdu_outlet_state, 
+		}});
+		
+		# Which serial number does this phase belong to?
+		my $scan_apc_pdu_serial_number = $anvil->data->{uuid_to_serial}{$scan_apc_pdu_outlet_scan_apc_pdu_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_apc_pdu_serial_number => $scan_apc_pdu_serial_number }});
+		
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_uuid}              = $scan_apc_pdu_outlet_uuid;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_scan_apc_pdu_uuid} = $scan_apc_pdu_outlet_scan_apc_pdu_uuid;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name}              = $scan_apc_pdu_outlet_name;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_on_phase}          = $scan_apc_pdu_outlet_on_phase;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state}             = $scan_apc_pdu_outlet_state;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_uuid"              => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_uuid}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_scan_apc_pdu_uuid" => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_scan_apc_pdu_uuid}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_name"              => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_on_phase"          => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_on_phase}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_state"             => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state}, 
+		}});
+	}
+	undef $results;
+	
+	# Read in the history schema
+	$query = "
+SELECT 
+    scan_apc_pdu_variable_uuid, 
+    scan_apc_pdu_variable_scan_apc_pdu_uuid,
+    scan_apc_pdu_variable_is_temperature, 
+    scan_apc_pdu_variable_name, 
+    scan_apc_pdu_variable_value 
+FROM 
+    scan_apc_pdu_variables 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	$results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	$count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_apc_pdu_variable_uuid              = $row->[0];
+		my $scan_apc_pdu_variable_scan_apc_pdu_uuid = $row->[1];
+		my $scan_apc_pdu_variable_is_temperature    = $row->[2];
+		my $scan_apc_pdu_variable_name              = $row->[3];
+		my $scan_apc_pdu_variable_value             = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_apc_pdu_variable_uuid              => $scan_apc_pdu_variable_uuid, 
+			scan_apc_pdu_variable_scan_apc_pdu_uuid => $scan_apc_pdu_variable_scan_apc_pdu_uuid, 
+			scan_apc_pdu_variable_is_temperature    => $scan_apc_pdu_variable_is_temperature, 
+			scan_apc_pdu_variable_name              => $scan_apc_pdu_variable_name, 
+			scan_apc_pdu_variable_value             => $scan_apc_pdu_variable_value, 
+		}});
+		
+		# Which serial number does this phase belong to?
+		my $scan_apc_pdu_serial_number = $anvil->data->{uuid_to_serial}{$scan_apc_pdu_variable_scan_apc_pdu_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_apc_pdu_serial_number => $scan_apc_pdu_serial_number }});
+		
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_uuid}              = $scan_apc_pdu_variable_uuid;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_scan_apc_pdu_uuid} = $scan_apc_pdu_variable_scan_apc_pdu_uuid;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_is_temperature}    = $scan_apc_pdu_variable_is_temperature;
+		$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_value}             = $scan_apc_pdu_variable_value;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_variables::${scan_apc_pdu_variable_name}::scan_apc_pdu_variable_uuid"              => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_uuid}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_variables::${scan_apc_pdu_variable_name}::scan_apc_pdu_variable_scan_apc_pdu_uuid" => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_scan_apc_pdu_uuid}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_variables::${scan_apc_pdu_variable_name}::scan_apc_pdu_variable_is_temperature"    => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_is_temperature}, 
+			"sql::${scan_apc_pdu_serial_number}::scan_apc_pdu_variables::${scan_apc_pdu_variable_name}::scan_apc_pdu_variable_value"             => $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{$scan_apc_pdu_variable_name}{scan_apc_pdu_variable_value}, 
+		}});
+	}
+	
+	return($count);
+}
+
+# This reads in the last scan data from one of the databases and compares it against the just-read data. If 
+# anything changed, register an alert.
+sub find_changes
+{
+	my ($anvil) = @_;
+	
+	# If we can't ping or can't connect to a PDU, these keys will be used to see how long that's been the
+	# case to decide when to send an alert.
+	#my $ping_condition_key       = "scan-apc-pdu::".$fence_uuid."::no_ping";
+	#my $connection_condition_key = "scan-apc-pdu::".$fence_uuid."::no_connection";
+	
+	# This stores all the queries so that they're committed in one transaction.
+	my $queries = [];
+	
+	# Loop through each PDU we've seen this pass
+	foreach my $scan_apc_pdu_uuid (sort {$a cmp $b} keys %{$anvil->data->{pdu}{scan_apc_pdu_uuid}})
+	{
+		my $new_pdu                 = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{new_pdu};
+		my $pdu_host_name           = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{pdu_host_name};
+		my $scan_apc_pdu_fence_uuid = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_fence_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_apc_pdu_uuid       => $scan_apc_pdu_uuid, 
+			new_pdu                 => $new_pdu, 
+			scan_apc_pdu_fence_uuid => $scan_apc_pdu_fence_uuid, 
+			pdu_host_name           => $pdu_host_name, 
+		}});
+		
+		# Convert all the long hashes into shorter variables
+		my $new_scan_apc_pdu_serial_number    = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_serial_number};
+		my $new_scan_apc_pdu_model_number     = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_model_number};
+		my $new_scan_apc_pdu_manufacture_date = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date};
+		my $new_scan_apc_pdu_firmware_version = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_firmware_version};
+		my $new_scan_apc_pdu_hardware_version = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_hardware_version};
+		my $new_scan_apc_pdu_ipv4_address     = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_ipv4_address};
+		my $new_scan_apc_pdu_mac_address      = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address};
+		my $new_scan_apc_pdu_mtu_size         = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size};
+		my $new_scan_apc_pdu_link_speed       = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed};
+		my $new_scan_apc_pdu_phase_count      = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_phase_count};
+		my $new_scan_apc_pdu_outlet_count     = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_outlet_count};
+		my $new_uptime                        = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{uptime};
+		my $new_total_wattage_draw            = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{total_wattage_draw};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			new_scan_apc_pdu_serial_number    => $new_scan_apc_pdu_serial_number, 
+			new_scan_apc_pdu_model_number     => $new_scan_apc_pdu_model_number, 
+			new_scan_apc_pdu_manufacture_date => $new_scan_apc_pdu_manufacture_date, 
+			new_scan_apc_pdu_firmware_version => $new_scan_apc_pdu_firmware_version, 
+			new_scan_apc_pdu_hardware_version => $new_scan_apc_pdu_hardware_version, 
+			new_scan_apc_pdu_ipv4_address     => $new_scan_apc_pdu_ipv4_address, 
+			new_scan_apc_pdu_mac_address      => $new_scan_apc_pdu_mac_address, 
+			new_scan_apc_pdu_mtu_size         => $new_scan_apc_pdu_mtu_size, 
+			new_scan_apc_pdu_link_speed       => $new_scan_apc_pdu_link_speed, 
+			new_scan_apc_pdu_phase_count      => $new_scan_apc_pdu_phase_count, 
+			new_scan_apc_pdu_outlet_count     => $new_scan_apc_pdu_outlet_count, 
+			new_uptime                        => $new_uptime, 
+			new_total_wattage_draw            => $new_total_wattage_draw, 
+		}});
+
+		# These are used later for checking the state of the phases. They are not stored in the 
+		# database, except for max amps. They should never change.
+		my $new_scan_apc_pdu_phase_max_amperage = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{maximum};
+		my $new_phase_low_amp_warning           = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{low_warning};
+		my $new_phase_high_amp_warning          = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning};
+		my $new_phase_high_amp_critical         = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			new_scan_apc_pdu_phase_max_amperage => $new_scan_apc_pdu_phase_max_amperage, 
+			new_phase_low_amp_warning           => $new_phase_low_amp_warning, 
+			new_phase_high_amp_warning          => $new_phase_high_amp_warning, 
+			new_phase_high_amp_critical         => $new_phase_high_amp_critical, 
+		}});
+		
+		# Have I seen this PDU before?
+		if (not $new_pdu)
+		{
+			# Yup. Search for changes.
+			my $old_scan_apc_pdu_serial_number    = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_serial_number};
+			my $old_scan_apc_pdu_model_number     = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_model_number};
+			my $old_scan_apc_pdu_manufacture_date = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_manufacture_date};
+			my $old_scan_apc_pdu_firmware_version = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_firmware_version};
+			my $old_scan_apc_pdu_hardware_version = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_hardware_version};
+			my $old_scan_apc_pdu_ipv4_address     = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_ipv4_address};
+			my $old_scan_apc_pdu_mac_address      = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_mac_address};
+			my $old_scan_apc_pdu_mtu_size         = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_mtu_size};
+			my $old_scan_apc_pdu_link_speed       = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_link_speed};
+			my $old_scan_apc_pdu_phase_count      = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phase_count};
+			my $old_scan_apc_pdu_outlet_count     = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlet_count};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_scan_apc_pdu_model_number     => $old_scan_apc_pdu_model_number, 
+				old_scan_apc_pdu_manufacture_date => $old_scan_apc_pdu_manufacture_date, 
+				old_scan_apc_pdu_firmware_version => $old_scan_apc_pdu_firmware_version, 
+				old_scan_apc_pdu_hardware_version => $old_scan_apc_pdu_hardware_version, 
+				old_scan_apc_pdu_ipv4_address     => $old_scan_apc_pdu_ipv4_address, 
+				old_scan_apc_pdu_mac_address      => $old_scan_apc_pdu_mac_address, 
+				old_scan_apc_pdu_mtu_size         => $old_scan_apc_pdu_mtu_size, 
+				old_scan_apc_pdu_link_speed       => $old_scan_apc_pdu_link_speed, 
+				old_scan_apc_pdu_phase_count      => $old_scan_apc_pdu_phase_count, 
+				old_scan_apc_pdu_outlet_count     => $old_scan_apc_pdu_outlet_count, 
+			}});
+			
+			# Has the phase data changed?
+			my $changes = 0;
+			if ($new_scan_apc_pdu_model_number ne $old_scan_apc_pdu_model_number)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				if ($old_scan_apc_pdu_model_number eq "DELETED")
+				{
+					# It's back.
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					
+					my $variables = {
+						name          => $pdu_host_name,
+						serial_number => $new_scan_apc_pdu_serial_number,
+						ip_address    => $new_scan_apc_pdu_ipv4_address, 
+					}
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0006", variables => $variables});
+					$anvil->Alert->register({
+						alert_level       => "warning", 
+						message           => "scan_apc_pdu_message_0006", 
+						message_variables => $variables, 
+						set_by            => $THIS_FILE, 
+						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					});
+				}
+				else
+				{
+					my $variables = {
+						name			=>	$pdu_host_name,
+						old_model_number	=>	$old_scan_apc_pdu_model_number,
+						new_model_number	=>	$new_scan_apc_pdu_model_number,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0007", variables => $variables});
+					$anvil->Alert->register({
+						alert_level       => "warning", 
+						message           => "scan_apc_pdu_message_0007", 
+						message_variables => $variables, 
+						set_by            => $THIS_FILE, 
+						sort_position     => $anvil->data->{'scan-apc-pdu'}{alert_sort}++,
+					});
+				}
+			}
+			if ($new_scan_apc_pdu_serial_number ne $old_scan_apc_pdu_serial_number)
+			{
+			}
+			if ($new_scan_apc_pdu_manufacture_date ne $old_scan_apc_pdu_manufacture_date)
+			{
+				# Wat?
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0011",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_manufacture_date	=>	$old_scan_apc_pdu_manufacture_date,
+						new_manufacture_date	=>	$new_scan_apc_pdu_manufacture_date,
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_firmware_version ne $old_scan_apc_pdu_firmware_version)
+			{
+				# This is about the only thing that should ever change.
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0016",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_firmware_version	=>	$old_scan_apc_pdu_firmware_version,
+						new_firmware_version	=>	$new_scan_apc_pdu_firmware_version,
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_hardware_version ne $old_scan_apc_pdu_hardware_version)
+			{
+				# Wat?
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0017",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_hardware_version	=>	$old_scan_apc_pdu_hardware_version,
+						new_hardware_version	=>	$new_scan_apc_pdu_hardware_version,
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_ipv4_address ne $old_scan_apc_pdu_ipv4_address)
+			{
+				# This could change, sure.
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0018",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_ipv4_address	=>	$old_scan_apc_pdu_ipv4_address,
+						new_ipv4_address	=>	$new_scan_apc_pdu_ipv4_address,
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_mac_address ne $old_scan_apc_pdu_mac_address)
+			{
+				# How?!
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0019",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_mac_address		=>	$old_scan_apc_pdu_mac_address,
+						new_mac_address		=>	$new_scan_apc_pdu_mac_address,
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_mtu_size ne $old_scan_apc_pdu_mtu_size)
+			{
+				# OK, maybe...
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0020",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_mtu_size		=>	$old_scan_apc_pdu_mtu_size,
+						new_mtu_size		=>	$new_scan_apc_pdu_mtu_size,
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_link_speed ne $old_scan_apc_pdu_link_speed)
+			{
+				# This could happen, too.
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				
+				my $say_new_link_speed_hr   = $anvil->Convert->bytes_to_human_readable({ 'bytes' => ($new_scan_apc_pdu_link_speed / 8) })."/s";
+				my $say_new_link_speed_mbps = ($new_scan_apc_pdu_link_speed / 100000)." Mbps";
+				my $say_old_link_speed_hr   = $anvil->Convert->bytes_to_human_readable({ 'bytes' => ($old_scan_apc_pdu_link_speed / 8) })."/s";
+				my $say_old_link_speed_mbps = ($old_scan_apc_pdu_link_speed / 100000)." Mbps";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"say_new_link_speed_mbps" => $say_new_link_speed_mbps, 
+					"say_new_link_speed_hr"   => $say_new_link_speed_hr, 
+					"say_old_link_speed_mbps" => $say_old_link_speed_mbps, 
+					"say_old_link_speed_hr"   => $say_old_link_speed_hr, 
+				}});
+				
+				# The speed has changed. Make this a proper warning
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0004",
+					alert_message_key	=>	"scan_apc_pdu_message_0022",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_link_speed_mbps	=>	$say_old_link_speed_mbps,
+						old_link_speed_hr	=>	$say_old_link_speed_hr,
+						new_link_speed_mbps	=>	$say_new_link_speed_mbps,
+						new_link_speed_hr	=>	$say_new_link_speed_hr,
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_phase_count ne $old_scan_apc_pdu_phase_count)
+			{
+				# How?!
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0023",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_phase_count		=>	sprintf("%02d", $old_scan_apc_pdu_phase_count),
+						new_phase_count		=>	sprintf("%02d", $new_scan_apc_pdu_phase_count),
+					},
+				});
+			}
+			if ($new_scan_apc_pdu_outlet_count ne $old_scan_apc_pdu_outlet_count)
+			{
+				# I don't even...
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0024",
+					alert_message_variables	=>	{
+						name			=>	$pdu_host_name,
+						old_outlet_count	=>	sprintf("%02d", $old_scan_apc_pdu_outlet_count),
+						new_outlet_count	=>	sprintf("%02d", $new_scan_apc_pdu_outlet_count),
+					},
+				});
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+			if ($changes)
+			{
+				# Save the changes.
+				my $query = "
+UPDATE 
+    public.scan_apc_pdus 
+SET
+    scan_apc_pdu_serial_number    = ".$anvil->Database->quote($scan_apc_pdu_serial_number).", 
+    scan_apc_pdu_model_number     = ".$anvil->Database->quote($new_scan_apc_pdu_model_number).", 
+    scan_apc_pdu_manufacture_date = ".$anvil->Database->quote($new_scan_apc_pdu_manufacture_date).", 
+    scan_apc_pdu_firmware_version = ".$anvil->Database->quote($new_scan_apc_pdu_firmware_version).", 
+    scan_apc_pdu_hardware_version = ".$anvil->Database->quote($new_scan_apc_pdu_hardware_version).", 
+    scan_apc_pdu_ipv4_address     = ".$anvil->Database->quote($new_scan_apc_pdu_ipv4_address).", 
+    scan_apc_pdu_mac_address      = ".$anvil->Database->quote($new_scan_apc_pdu_mac_address).", 
+    scan_apc_pdu_mtu_size         = ".$anvil->Database->quote($new_scan_apc_pdu_mtu_size).", 
+    scan_apc_pdu_link_speed       = ".$anvil->Database->quote($new_scan_apc_pdu_link_speed).", 
+    scan_apc_pdu_phase_count      = ".$anvil->Database->quote($new_scan_apc_pdu_phase_count).", 
+    scan_apc_pdu_outlet_count     = ".$anvil->Database->quote($new_scan_apc_pdu_outlet_count).", 
+    modified_date                 = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_apc_pdu_uuid             = ".$anvil->Database->quote($scan_apc_pdu_uuid)." 
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				push @{$anvil->data->{sys}{sql}}, $query;
+			}
+			
+			### What about other variables?
+			# Do I have a previous uptime?
+			if ($anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{uptime}{scan_apc_pdu_variable_uuid})
+			{
+				# Exists, change?
+				my $scan_apc_pdu_variable_uuid = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{uptime}{scan_apc_pdu_variable_uuid};
+				my $old_uptime            = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{uptime}{scan_apc_pdu_variable_value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan_apc_pdu_variable_uuid" => $scan_apc_pdu_variable_uuid, 
+					"old_uptime"            => $old_uptime, 
+				}});
+				
+				if ($new_uptime ne $old_uptime)
+				{
+					update_variables($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_variable_uuid, "uptime", $new_uptime);
+					
+					# We expect this to change. If the new uptime is less than the old 
+					# one, it rebooted.
+					if ($new_uptime > $old_uptime)
+					{
+						# Normal, info-level
+						$anvil->Alert->register({
+							alert_level		=>	"info", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0002",
+							alert_message_key	=>	"scan_apc_pdu_message_0013",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								old_uptime		=>	$anvil->Readable->time({ 'time' => $old_uptime }),
+								new_uptime		=>	$anvil->Readable->time({ 'time' => $new_uptime }), 
+							},
+						});
+					}
+					elsif ($new_uptime < 300)
+					{
+						# It's rebooted. This is notice level as it's generally just 
+						# the NIC rebooting and doesn't interfere with power.
+						$anvil->Alert->register({
+							alert_level		=>	"notice", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0003",
+							alert_message_key	=>	"scan_apc_pdu_message_0014",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								old_uptime		=>	$anvil->Readable->time({ 'time' => $old_uptime }),
+								new_uptime		=>	$anvil->Readable->time({ 'time' => $new_uptime }), 
+							},
+						});
+					}
+				}
+			}
+			else
+			{
+				# New, INSERT it (is_temperature is always false for now).
+				insert_variables($anvil, $scan_apc_pdu_uuid, "uptime", $new_uptime);
+			}
+			
+			# Do I have a previous wattage?
+			if ($anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{total_wattage_draw}{scan_apc_pdu_variable_uuid})
+			{
+				# Exists, change?
+				my $scan_apc_pdu_variable_uuid  = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{total_wattage_draw}{scan_apc_pdu_variable_uuid};
+				my $old_total_wattage_draw = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_variables}{total_wattage_draw}{scan_apc_pdu_variable_value};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan_apc_pdu_variable_uuid"  => $scan_apc_pdu_variable_uuid, 
+					"old_total_wattage_draw" => $old_total_wattage_draw, 
+				}});
+				
+				if ($new_total_wattage_draw ne $old_total_wattage_draw)
+				{
+					update_variables($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_variable_uuid, "total_wattage_draw", $new_total_wattage_draw);
+					
+					# We expect this to change. 
+					$anvil->Alert->register({
+						alert_level		=>	"info", 
+						alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+						alert_agent_name	=>	$THIS_FILE,
+						alert_title_key		=>	"an_alert_title_0002",
+						alert_message_key	=>	"scan_apc_pdu_message_0015",
+						alert_message_variables	=>	{
+							name			=>	$pdu_host_name,
+							old_total_wattage_draw	=>	$old_total_wattage_draw,
+							new_total_wattage_draw	=>	$new_total_wattage_draw, 
+						},
+					});
+				}
+			}
+			else
+			{
+				# New, INSERT it (is_temperature is always false for now).
+				insert_variables($anvil, $scan_apc_pdu_uuid, "total_wattage_draw", $new_total_wattage_draw);
+			}
+			
+			# Have any phases changed?
+			foreach my $scan_apc_pdu_phase_number (sort {$a cmp $b} keys %{$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}})
+			{
+				my $new_scan_apc_pdu_phase_current_amperage = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage};
+				my $new_scan_apc_pdu_phase_note             = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan_apc_pdu_phase_number"               => $scan_apc_pdu_phase_number, 
+					"new_scan_apc_pdu_phase_current_amperage" => $new_scan_apc_pdu_phase_current_amperage, 
+					"new_scan_apc_pdu_phase_max_amperage"     => $new_scan_apc_pdu_phase_max_amperage, 
+				}});
+				
+				if ($anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_uuid})
+				{
+					# We've seen this phase before. Changes?
+					my $scan_apc_pdu_phase_uuid                 = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_uuid};
+					my $old_scan_apc_pdu_phase_scan_apc_pdu_uuid     = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_scan_apc_pdu_uuid};
+					my $old_scan_apc_pdu_phase_current_amperage = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage};
+					my $old_scan_apc_pdu_phase_max_amperage     = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_max_amperage};
+					my $old_scan_apc_pdu_phase_note             = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_note};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"scan_apc_pdu_phase_uuid"                 => $scan_apc_pdu_phase_uuid, 
+						"old_scan_apc_pdu_phase_scan_apc_pdu_uuid"     => $old_scan_apc_pdu_phase_scan_apc_pdu_uuid, 
+						"old_scan_apc_pdu_phase_current_amperage" => $old_scan_apc_pdu_phase_current_amperage, 
+						"old_scan_apc_pdu_phase_max_amperage"     => $old_scan_apc_pdu_phase_max_amperage, 
+						"old_scan_apc_pdu_phase_note"             => $old_scan_apc_pdu_phase_note, 
+					}});
+					
+					# The max amps per phase is set across all phases. 
+					if ($new_scan_apc_pdu_phase_max_amperage ne $old_scan_apc_pdu_phase_max_amperage)
+					{
+						# This should never change, but OK, whatever
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						$anvil->Alert->register({
+							alert_level		=>	"warning", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0004",
+							alert_message_key	=>	"scan_apc_pdu_message_0025",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+								old_phase_max_amperage	=>	$old_scan_apc_pdu_phase_max_amperage,
+								new_phase_max_amperage	=>	$new_scan_apc_pdu_phase_max_amperage,
+							},
+						});
+					}
+					if ($old_scan_apc_pdu_phase_current_amperage ne $new_scan_apc_pdu_phase_current_amperage)
+					{
+						# The phase amperage can change all the time.
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						$anvil->Alert->register({
+							alert_level		=>	"info", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0002",
+							alert_message_key	=>	"scan_apc_pdu_message_0026",
+							alert_message_variables	=>	{
+								name				=>	$pdu_host_name,
+								phase				=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+								old_phase_current_amperage	=>	$old_scan_apc_pdu_phase_current_amperage,
+								new_phase_current_amperage	=>	$new_scan_apc_pdu_phase_current_amperage, 
+							},
+						});
+					}
+					
+					# If the note was 'DELETED', the phase has returned.
+					if ($old_scan_apc_pdu_phase_note eq "DELETED")
+					{
+						# The phase amperage can change all the time.
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						$anvil->Alert->register({
+							alert_level		=>	"warning", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0006",
+							alert_message_key	=>	"scan_apc_pdu_message_0027",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+							},
+						});
+					}
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					if ($changes)
+					{
+						my $query = "
+UPDATE 
+    scan_apc_pdu_phases 
+SET
+    scan_apc_pdu_phase_scan_apc_pdu_uuid     = ".$anvil->Database->quote($scan_apc_pdu_uuid).",
+    scan_apc_pdu_phase_number           = ".$anvil->Database->quote($scan_apc_pdu_phase_number).", 
+    scan_apc_pdu_phase_current_amperage = ".$anvil->Database->quote($new_scan_apc_pdu_phase_current_amperage).", 
+    scan_apc_pdu_phase_max_amperage     = ".$anvil->Database->quote($new_scan_apc_pdu_phase_max_amperage).", 
+    scan_apc_pdu_phase_note             = ".$anvil->Database->quote($new_scan_apc_pdu_phase_note).", 
+    modified_date                  = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_apc_pdu_phase_uuid             = ".$anvil->Database->quote($scan_apc_pdu_phase_uuid)." 
+;";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+						push @{$anvil->data->{sys}{sql}}, $query;
+					}
+					
+					# Cheack for low alerts to set or high alerts to clear
+					if ($new_scan_apc_pdu_phase_current_amperage < $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{low_warning})
+					{
+						# Dropped too low, clear high warn and high crit
+						set_phase_low_warning($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+						
+						# Clear the high-warning and high-critical, if needed.
+						clear_phase_high_critical($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+						clear_phase_high_warning($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+					}
+					elsif ($new_scan_apc_pdu_phase_current_amperage < $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_high_warning})
+					{
+						# Dropped low enough to clear high warn and high crit
+						clear_phase_high_critical($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+						clear_phase_high_warning($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+					}
+					elsif ($new_scan_apc_pdu_phase_current_amperage < $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_high_critical})
+					{
+						# Dropped low enough to clear high crit.
+						clear_phase_high_critical($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+					}
+					
+					# Cheack for low alerts to clear or high alerts to set
+					if ($new_scan_apc_pdu_phase_current_amperage > $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical})
+					{
+						# Set high crit, clear low warn
+						set_phase_high_critical($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+						clear_phase_low_warning($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+					}
+					elsif ($new_scan_apc_pdu_phase_current_amperage > $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning})
+					{
+						# Set high warn
+						set_phase_high_warning($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+						clear_phase_low_warning($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+					}
+					elsif ($new_scan_apc_pdu_phase_current_amperage > $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_low_warning})
+					{
+						# Clear the low warning
+						clear_phase_low_warning($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number);
+					}
+				}
+				
+				delete $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number};
+			}
+			
+			# Any phases that vanished?
+			foreach my $scan_apc_pdu_phase_number (sort {$a cmp $b} keys %{$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}})
+			{
+				# Did it just vanish?
+				my $scan_apc_pdu_phase_uuid = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_uuid};
+				my $scan_apc_pdu_phase_note = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_note};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan_apc_pdu_phase_uuid" => $scan_apc_pdu_phase_uuid, 
+					"scan_apc_pdu_phase_note" => $scan_apc_pdu_phase_note, 
+				}});
+				if ($scan_apc_pdu_phase_note ne "DELETED")
+				{
+					# Yup
+					my $query = "
+UPDATE 
+    scan_apc_pdu_phases 
+SET 
+    scan_apc_pdu_phase_note = 'DELETED', 
+    modified_date      = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_apc_pdu_phase_uuid = ".$anvil->Database->quote($scan_apc_pdu_phase_uuid)." 
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					push @{$anvil->data->{sys}{sql}}, $query;
+
+					$anvil->Alert->register({
+						alert_level		=>	"warning", 
+						alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+						alert_agent_name	=>	$THIS_FILE,
+						alert_title_key		=>	"an_alert_title_0004",
+						alert_message_key	=>	"scan_apc_pdu_message_0028",
+						alert_message_variables	=>	{
+							name			=>	$pdu_host_name,
+							phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+						},
+					});
+				}
+			}
+			
+			# Have any outlets changed?
+			foreach my $scan_apc_pdu_outlet_number (sort {$a cmp $b} keys %{$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}})
+			{
+				my $new_scan_apc_pdu_outlet_name     = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name};
+				my $new_scan_apc_pdu_outlet_on_phase = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_on_phase};
+				my $new_scan_apc_pdu_outlet_state    = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state};
+				my $new_scan_apc_pdu_outlet_note     = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_scan_apc_pdu_outlet_name"     => $new_scan_apc_pdu_outlet_name, 
+					"new_scan_apc_pdu_outlet_on_phase" => $new_scan_apc_pdu_outlet_on_phase, 
+					"new_scan_apc_pdu_outlet_state"    => $new_scan_apc_pdu_outlet_state, 
+				}});
+				
+				# Do I know about this outlet?
+				if ($anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_uuid})
+				{
+					# Yup!
+					my $scan_apc_pdu_outlet_uuid         = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_uuid};
+					my $old_scan_apc_pdu_outlet_note     = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_note};
+					my $old_scan_apc_pdu_outlet_name     = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name};
+					my $old_scan_apc_pdu_outlet_on_phase = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_on_phase};
+					my $old_scan_apc_pdu_outlet_state    = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"scan_apc_pdu_outlet_uuid"         => $scan_apc_pdu_outlet_uuid, 
+						"old_scan_apc_pdu_outlet_name"     => $old_scan_apc_pdu_outlet_name, 
+						"old_scan_apc_pdu_outlet_on_phase" => $old_scan_apc_pdu_outlet_on_phase, 
+						"old_scan_apc_pdu_outlet_state"    => $old_scan_apc_pdu_outlet_state, 
+						"old_scan_apc_pdu_outlet_note"     => $old_scan_apc_pdu_outlet_note, 
+					}});
+					
+					# Did a vanished outlet come back?
+					my $changes = 0;
+					if ($old_scan_apc_pdu_outlet_note eq "DELETED")
+					{
+						# It's back!
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						$anvil->Alert->register({
+							alert_level		=>	"warning", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0004",
+							alert_message_key	=>	"scan_apc_pdu_message_0037",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								outlet			=>	sprintf("%02d", $scan_apc_pdu_outlet_number),
+							},
+						});
+					}
+					if ($new_scan_apc_pdu_outlet_name ne $old_scan_apc_pdu_outlet_name)
+					{
+						# Name changed.
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						$anvil->Alert->register({
+							alert_level		=>	"warning", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0004",
+							alert_message_key	=>	"scan_apc_pdu_message_0038",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								outlet			=>	sprintf("%02d", $scan_apc_pdu_outlet_number),
+								old_outlet_name		=>	$old_scan_apc_pdu_outlet_name,
+								new_outlet_name		=>	$new_scan_apc_pdu_outlet_name,
+							},
+						});
+					}
+					if ($new_scan_apc_pdu_outlet_on_phase ne $old_scan_apc_pdu_outlet_on_phase)
+					{
+						# Phase changed, but why tho?
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						$anvil->Alert->register({
+							alert_level		=>	"warning", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0004",
+							alert_message_key	=>	"scan_apc_pdu_message_0039",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								outlet			=>	sprintf("%02d", $scan_apc_pdu_outlet_number),
+								old_outlet_on_phase	=>	$old_scan_apc_pdu_outlet_on_phase,
+								new_outlet_on_phase	=>	$new_scan_apc_pdu_outlet_on_phase,
+							},
+						});
+					}
+					if ($new_scan_apc_pdu_outlet_state ne $old_scan_apc_pdu_outlet_state)
+					{
+						# This is likely from a fence action, so we make it critical
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+						$anvil->Alert->register({
+							alert_level		=>	"critical", 
+							alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+							alert_agent_name	=>	$THIS_FILE,
+							alert_title_key		=>	"an_alert_title_0005",
+							alert_message_key	=>	"scan_apc_pdu_message_0040",
+							alert_message_variables	=>	{
+								name			=>	$pdu_host_name,
+								outlet			=>	sprintf("%02d", $scan_apc_pdu_outlet_number),
+								old_outlet_state	=>	$old_scan_apc_pdu_outlet_state,
+								new_outlet_state	=>	$new_scan_apc_pdu_outlet_state,
+							},
+						});
+					}
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					if ($changes)
+					{
+						# Save.
+						update_outlets($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_outlet_uuid, $scan_apc_pdu_outlet_number, $new_scan_apc_pdu_outlet_name, $new_scan_apc_pdu_outlet_on_phase, $new_scan_apc_pdu_outlet_state, $new_scan_apc_pdu_outlet_note);
+					}
+					
+					delete $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number};
+				}
+				else
+				{
+					# Nope, INSERT it.
+					insert_outlets($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_outlet_number, $new_scan_apc_pdu_outlet_name, $new_scan_apc_pdu_outlet_on_phase, $new_scan_apc_pdu_outlet_state, "");
+					
+					my $say_state = "#!string!an_state_0001!#";
+					if ($new_scan_apc_pdu_outlet_state eq "on")
+					{
+						
+						$say_state = "#!string!an_state_0005!#";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"new_scan_apc_pdu_outlet_state" => $new_scan_apc_pdu_outlet_state, 
+						}});
+					}
+					elsif ($new_scan_apc_pdu_outlet_state eq "off")
+					{
+						$say_state = "#!string!an_state_0006!#";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"new_scan_apc_pdu_outlet_state" => $new_scan_apc_pdu_outlet_state, 
+						}});
+					}
+					$anvil->Alert->register({
+						alert_level		=>	"warning", 
+						alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+						alert_agent_name	=>	$THIS_FILE,
+						alert_title_key		=>	"an_alert_title_0008",
+						alert_message_key	=>	"scan_apc_pdu_message_0036",
+						alert_message_variables	=>	{
+							pdu_name		=>	$pdu_host_name, 
+							outlet			=>	sprintf("%02d", $scan_apc_pdu_outlet_number),
+							'state'			=>	$say_state,
+							on_phase		=>	sprintf("%02d", $new_scan_apc_pdu_outlet_on_phase),
+							name			=>	$new_scan_apc_pdu_outlet_name,
+						},
+					});
+				}
+			}
+			
+			# Any outlets vanished?
+			foreach my $scan_apc_pdu_outlet_number (sort {$a cmp $b} keys %{$anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}})
+			{
+				# Lost, update the note.
+				my $scan_apc_pdu_outlet_uuid     = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_uuid};
+				my $old_scan_apc_pdu_outlet_note = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_note};
+				my $old_scan_apc_pdu_outlet_name = $anvil->data->{sql}{$scan_apc_pdu_serial_number}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan_apc_pdu_outlet_uuid"     => $scan_apc_pdu_outlet_uuid, 
+					"old_scan_apc_pdu_outlet_name" => $old_scan_apc_pdu_outlet_name, 
+					"old_scan_apc_pdu_outlet_note" => $old_scan_apc_pdu_outlet_note, 
+				}});
+				
+				if ($old_scan_apc_pdu_outlet_note ne "DELETED")
+				{
+					# Yup
+					my $query = "
+UPDATE 
+    scan_apc_pdu_outlets 
+SET 
+    scan_apc_pdu_outlet_value = 'DELETED', 
+    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_apc_pdu_outlet_uuid  = ".$anvil->Database->quote($scan_apc_pdu_outlet_uuid)." 
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					push @{$anvil->data->{sys}{sql}}, $query;
+
+					$anvil->Alert->register({
+						alert_level		=>	"warning", 
+						alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+						alert_agent_name	=>	$THIS_FILE,
+						alert_title_key		=>	"an_alert_title_0004",
+						alert_message_key	=>	"scan_apc_pdu_message_0035",
+						alert_message_variables	=>	{
+							name			=>	$pdu_host_name,
+							outlet			=>	sprintf("%02d", $scan_apc_pdu_outlet_number),
+						},
+					});
+				}
+			}
+			
+			# Delete this from the SQL history 
+			delete $anvil->data->{sql}{$scan_apc_pdu_serial_number};
+		}
+		else
+		{
+			# OK, now INSERT it.
+			my $query = "
+INSERT INTO 
+    scan_apc_pdus
+(
+    scan_apc_pdu_uuid, 
+    scan_apc_pdu_serial_number, 
+    scan_apc_pdu_model_number, 
+    scan_apc_pdu_manufacture_date, 
+    scan_apc_pdu_firmware_version, 
+    scan_apc_pdu_hardware_version, 
+    scan_apc_pdu_ipv4_address, 
+    scan_apc_pdu_mac_address, 
+    scan_apc_pdu_mtu_size, 
+    scan_apc_pdu_link_speed, 
+    scan_apc_pdu_phase_count, 
+    scan_apc_pdu_outlet_count, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($scan_apc_pdu_uuid).", 
+    ".$anvil->Database->quote($scan_apc_pdu_serial_number).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_model_number).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_manufacture_date).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_firmware_version).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_hardware_version).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_ipv4_address).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_mac_address).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_mtu_size).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_link_speed).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_phase_count).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_outlet_count).", 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			push @{$queries}, $query;
+			
+			# Send an alert telling the user about this new PDU.
+			my $say_link_speed_hr   = "#!string!scan_apc_pdu_message_0006!#";	# "Down"
+			my $say_link_speed_mbps = "#!string!scan_apc_pdu_message_0006!#";	# "Down"
+			if (($new_scan_apc_pdu_link_speed) && ($new_scan_apc_pdu_link_speed =~ /^\d+$/))
+			{
+				$say_link_speed_hr   = $anvil->Convert->bytes_to_human_readable({ 'bytes' => ($new_scan_apc_pdu_link_speed / 8) })."/s";
+				$say_link_speed_mbps = ($new_scan_apc_pdu_link_speed / 1000000)." Mbps";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"say_link_speed_hr"   => $say_link_speed_hr, 
+					"say_link_speed_mbps" => $say_link_speed_mbps, 
+				}});
+			}
+			$anvil->Alert->register({
+				alert_level		=>	"warning", 
+				alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+				alert_agent_name	=>	$THIS_FILE,
+				alert_title_key		=>	"an_alert_title_0008",
+				alert_message_key	=>	"scan_apc_pdu_message_0007",
+				alert_message_variables	=>	{
+					name			=>	$pdu_host_name,
+					serial_number		=>	$scan_apc_pdu_serial_number,
+					model_number		=>	$new_scan_apc_pdu_model_number,
+					manufacture_date	=>	$new_scan_apc_pdu_manufacture_date." #!string!tools_suffix_0082!#",
+					firmware_version	=>	$new_scan_apc_pdu_firmware_version,
+					hardware_version	=>	$new_scan_apc_pdu_hardware_version,
+					ipv4_address		=>	$new_scan_apc_pdu_ipv4_address,
+					mac_address		=>	$new_scan_apc_pdu_mac_address,
+					mtu_size		=>	$new_scan_apc_pdu_mtu_size,
+					link_speed_hr		=>	$say_link_speed_hr,
+					link_speed_mbps		=>	$say_link_speed_mbps,
+					phase_count		=>	$new_scan_apc_pdu_phase_count,
+					outlet_count		=>	$new_scan_apc_pdu_outlet_count,
+					phase_max_amperage	=>	$new_scan_apc_pdu_phase_max_amperage,
+					phase_low_amp_warning	=>	$new_phase_low_amp_warning,
+					phase_high_amp_warning	=>	$new_phase_high_amp_warning,
+					phase_high_amp_critical	=>	$new_phase_high_amp_critical,
+					uptime			=>	$anvil->Readable->time({'time' => $new_uptime}), 
+					total_wattage_draw	=>	$new_total_wattage_draw, 
+				},
+			});
+			
+			# Record the variables (uptime and wattage)
+			foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}})
+			{
+				my $value = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{$variable};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"variable" => $variable, 
+					"value"    => $value, 
+				}});
+				
+				insert_variables($anvil, $scan_apc_pdu_uuid, $variable, $value);
+				
+				# NOTE: We don't send an alert here as we incorporated the two variables we care about above.
+			}
+			
+			# Insert the phase data
+			foreach my $scan_apc_pdu_phase_number (sort {$a cmp $b} keys %{$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}})
+			{
+				my $scan_apc_pdu_phase_uuid                 = $anvil->Get->uuid();
+				my $new_scan_apc_pdu_phase_current_amperage = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan_apc_pdu_phase_uuid"                 => $scan_apc_pdu_phase_uuid, 
+					"new_scan_apc_pdu_phase_current_amperage" => $new_scan_apc_pdu_phase_current_amperage, 
+				}});
+				
+				my $query = "
+INSERT INTO 
+    scan_apc_pdu_phases 
+(
+    scan_apc_pdu_phase_uuid, 
+    scan_apc_pdu_phase_scan_apc_pdu_uuid, 
+    scan_apc_pdu_phase_number, 
+    scan_apc_pdu_phase_current_amperage, 
+    scan_apc_pdu_phase_max_amperage, 
+    scan_apc_pdu_phase_note, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($scan_apc_pdu_phase_uuid).", 
+    ".$anvil->Database->quote($scan_apc_pdu_uuid).", 
+    ".$anvil->Database->quote($scan_apc_pdu_phase_number).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_phase_current_amperage).", 
+    ".$anvil->Database->quote($new_scan_apc_pdu_phase_max_amperage).", 
+    '', 
+    ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+);";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				push @{$anvil->data->{sys}{sql}}, $query;
+				
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_header		=>	"FALSE",
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0008",
+					alert_message_variables	=>	{
+						phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+						amps			=>	$new_scan_apc_pdu_phase_current_amperage,
+					},
+				});
+			}
+			
+			# Insert the outlet data
+			foreach my $scan_apc_pdu_outlet_number (sort {$a cmp $b} keys %{$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}})
+			{
+				my $scan_apc_pdu_outlet_uuid         = $anvil->Get->uuid();
+				my $new_scan_apc_pdu_outlet_name     = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name};
+				my $new_scan_apc_pdu_outlet_on_phase = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_on_phase};
+				my $new_scan_apc_pdu_outlet_state    = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"scan_apc_pdu_outlet_uuid"         => $scan_apc_pdu_outlet_uuid, 
+					"new_scan_apc_pdu_outlet_name"     => $new_scan_apc_pdu_outlet_name, 
+					"new_scan_apc_pdu_outlet_on_phase" => $new_scan_apc_pdu_outlet_on_phase, 
+					"new_scan_apc_pdu_outlet_state"    => $new_scan_apc_pdu_outlet_state, 
+				}});
+				
+				insert_outlets($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_outlet_number, $new_scan_apc_pdu_outlet_name, $new_scan_apc_pdu_outlet_on_phase, $new_scan_apc_pdu_outlet_state, "");
+				
+				my $say_state = "#!string!an_state_0001!#";
+				if ($new_scan_apc_pdu_outlet_state eq "on")
+				{
+					
+					$say_state = "#!string!an_state_0005!#";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"new_scan_apc_pdu_outlet_state" => $new_scan_apc_pdu_outlet_state, 
+					}});
+				}
+				elsif ($new_scan_apc_pdu_outlet_state eq "off")
+				{
+					$say_state = "#!string!an_state_0006!#";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"new_scan_apc_pdu_outlet_state" => $new_scan_apc_pdu_outlet_state, 
+					}});
+				}
+				$anvil->Alert->register({
+					alert_level		=>	"warning", 
+					alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+					alert_header		=>	"FALSE",
+					alert_agent_name	=>	$THIS_FILE,
+					alert_title_key		=>	"an_alert_title_0008",
+					alert_message_key	=>	"scan_apc_pdu_message_0009",
+					alert_message_variables	=>	{
+						outlet			=>	sprintf("%02d", $scan_apc_pdu_outlet_number),
+						'state'			=>	$say_state,
+						on_phase		=>	sprintf("%02d", $new_scan_apc_pdu_outlet_on_phase),
+						name			=>	$new_scan_apc_pdu_outlet_name,
+					},
+				});
+			}
+		}
+	}
+	
+	# Look for PDUs that we saw before that are gone now.
+	foreach my $scan_apc_pdu_serial_number (sort {$a cmp $b} keys %{$anvil->data->{sql}})
+	{
+		# Gone! Is this the first time it's disappeared?
+		my $scan_apc_pdu_uuid         = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_uuid};
+		my $scan_apc_pdu_model_number = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_model_number};
+		my $scan_apc_pdu_ipv4_address = $anvil->data->{sql}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_ipv4_address};
+		   $scan_apc_pdu_ipv4_address = "--" if not defined $scan_apc_pdu_ipv4_address;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan_apc_pdu_serial_number"              => $scan_apc_pdu_serial_number, 
+			"scan_apc_pdu_uuid"                       => $scan_apc_pdu_uuid, 
+			"scan_apc_pdu_model_number"               => $scan_apc_pdu_model_number, 
+			"scan_apc_pdu_ipv4_address"               => $scan_apc_pdu_ipv4_address, 
+			"dont_delete::$scan_apc_pdu_ipv4_address" => $scan_apc_pdu_ipv4_address, 
+		}});
+		
+		if ($scan_apc_pdu_model_number ne "DELETED")
+		{
+			# Yup! send an alert.
+			my $query = "
+UPDATE 
+    scan_apc_pdus 
+SET 
+    scan_apc_pdu_model_number = 'DELETED', 
+    modified_date        = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+WHERE 
+    scan_apc_pdu_uuid         = ".$anvil->Database->quote($scan_apc_pdu_uuid)." 
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			push @{$anvil->data->{sys}{sql}}, $query;
+
+			$anvil->Alert->register({
+				alert_level		=>	"warning", 
+				alert_sort		=>	$anvil->data->{sys}{alert_sort}++,
+				alert_agent_name	=>	$THIS_FILE,
+				alert_title_key		=>	"an_alert_title_0004",
+				alert_message_key	=>	"scan_apc_pdu_message_0041",
+				alert_message_variables	=>	{
+					model			=>	$scan_apc_pdu_model_number,
+					serial_numer		=>	$scan_apc_pdu_serial_number,
+					ip_address		=>	$scan_apc_pdu_ipv4_address,
+				},
+			});
+		}
+	}
+	
+	# Commit the queries.
+	$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+	
+	return(0);
+}
+
+# Set the phase-low alert, if not set before
+sub set_phase_low_warning
+{
+	my ($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number) = @_;
+	
+# 	my $set = $anvil->Alert->check_alert_sent({
+# 		type			=>	"warning",
+# 		alert_sent_by		=>	$THIS_FILE,
+# 		alert_record_locator	=>	$scan_apc_pdu_serial_number,
+# 		alert_name		=>	"phase_".$scan_apc_pdu_phase_number."_amp_low_warning",
+# 		modified_date		=>	$anvil->data->{sys}{database}{timestamp},
+# 	});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 		"set" => $set, 
+# 	}});
+# 	if ($set)
+# 	{
+# 		# This is a new loss of comms.
+# 		$anvil->Alert->register({
+# 			alert_level		=>	"warning", 
+# 			alert_agent_name	=>	$THIS_FILE,
+# 			alert_title_key		=>	"an_alert_title_0004",
+# 			alert_message_key	=>	"scan_apc_pdu_message_0029",
+# 			alert_message_variables	=>	{
+# 				pdu_name		=>	$pdu_host_name,
+# 				phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+# 			},
+# 		});
+# 	}
+	
+	return(0);
+}
+
+# Set the phase-low alert, if not clear before
+sub clear_phase_low_warning
+{
+	my ($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number) = @_;
+	
+# 	my $clear = $anvil->Alert->check_alert_sent({
+# 		type			=>	"clear",
+# 		alert_sent_by		=>	$THIS_FILE,
+# 		alert_record_locator	=>	$scan_apc_pdu_serial_number,
+# 		alert_name		=>	"phase_".$scan_apc_pdu_phase_number."_amp_low_warning",
+# 		modified_date		=>	$anvil->data->{sys}{database}{timestamp},
+# 	});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 		"clear" => $clear, 
+# 	}});
+# 	if ($clear)
+# 	{
+# 		# This is a new loss of comms.
+# 		$anvil->Alert->register({
+# 			alert_level		=>	"warning", 
+# 			alert_agent_name	=>	$THIS_FILE,
+# 			alert_title_key		=>	"an_alert_title_0006",
+# 			alert_message_key	=>	"scan_apc_pdu_message_0033",
+# 			alert_message_variables	=>	{
+# 				pdu_name		=>	$pdu_host_name,
+# 				phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+# 			},
+# 		});
+# 	}
+	
+	return(0);
+}
+
+# This sets the phase amparage high warning alert, if set.
+sub set_phase_high_warning
+{
+	my ($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number) = @_;
+	
+# 	my $set = $anvil->Alert->check_alert_sent({
+# 		type			=>	"warning",
+# 		alert_sent_by		=>	$THIS_FILE,
+# 		alert_record_locator	=>	$scan_apc_pdu_serial_number,
+# 		alert_name		=>	"phase_".$scan_apc_pdu_phase_number."_amp_high_warning",
+# 		modified_date		=>	$anvil->data->{sys}{database}{timestamp},
+# 	});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 		"set" => $set, 
+# 	}});
+# 	if ($set)
+# 	{
+# 		# This is a new loss of comms.
+# 		$anvil->Alert->register({
+# 			alert_level		=>	"warning", 
+# 			alert_agent_name	=>	$THIS_FILE,
+# 			alert_title_key		=>	"an_alert_title_0004",
+# 			alert_message_key	=>	"scan_apc_pdu_message_0034",
+# 			alert_message_variables	=>	{
+# 				pdu_name		=>	$pdu_host_name,
+# 				phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+# 			},
+# 		});
+# 	}
+	
+	return(0)
+}
+
+# This clears the phase amparage high warning alert, if set.
+sub clear_phase_high_warning
+{
+	my ($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number) = @_;
+	
+# 	my $clear = $anvil->Alert->check_alert_sent({
+# 		type			=>	"clear",
+# 		alert_sent_by		=>	$THIS_FILE,
+# 		alert_record_locator	=>	$scan_apc_pdu_serial_number,
+# 		alert_name		=>	"phase_".$scan_apc_pdu_phase_number."_amp_high_warning",
+# 		modified_date		=>	$anvil->data->{sys}{database}{timestamp},
+# 	});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 		"clear" => $clear, 
+# 	}});
+# 	if ($clear)
+# 	{
+# 		# This is a new loss of comms.
+# 		$anvil->Alert->register({
+# 			alert_level		=>	"warning", 
+# 			alert_agent_name	=>	$THIS_FILE,
+# 			alert_title_key		=>	"an_alert_title_0006",
+# 			alert_message_key	=>	"scan_apc_pdu_message_0031",
+# 			alert_message_variables	=>	{
+# 				pdu_name		=>	$pdu_host_name,
+# 				phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+# 			},
+# 		});
+# 	}
+	
+	return(0)
+}
+
+# This sets the phase high-critical alert, if not already.
+sub set_phase_high_critical
+{
+	my ($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number) = @_;
+	
+# 	my $set = $anvil->Alert->check_alert_sent({
+# 		type			=>	"warning",
+# 		alert_sent_by		=>	$THIS_FILE,
+# 		alert_record_locator	=>	$scan_apc_pdu_serial_number,
+# 		alert_name		=>	"phase_".$scan_apc_pdu_phase_number."_amp_high_critical",
+# 		modified_date		=>	$anvil->data->{sys}{database}{timestamp},
+# 	});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 		"set" => $set, 
+# 	}});
+# 	if ($set)
+# 	{
+# 		$anvil->Alert->register({
+# 			alert_level		=>	"critical", 
+# 			alert_agent_name	=>	$THIS_FILE,
+# 			alert_title_key		=>	"an_alert_title_0005",
+# 			alert_message_key	=>	"scan_apc_pdu_message_0032",
+# 			alert_message_variables	=>	{
+# 				pdu_name		=>	$pdu_host_name,
+# 				phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+# 			},
+# 		});
+# 	}
+	
+	return(0);
+}
+
+# This clears the phase amparage high critical alert, if set.
+sub clear_phase_high_critical
+{
+	my ($anvil, $pdu_host_name, $scan_apc_pdu_phase_number, $scan_apc_pdu_serial_number) = @_;
+	
+# 	my $clear = $anvil->Alert->check_alert_sent({
+# 		type			=>	"clear",
+# 		alert_sent_by		=>	$THIS_FILE,
+# 		alert_record_locator	=>	$scan_apc_pdu_serial_number,
+# 		alert_name		=>	"phase_".$scan_apc_pdu_phase_number."_amp_high_critical",
+# 		modified_date		=>	$anvil->data->{sys}{database}{timestamp},
+# 	});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 		"clear" => $clear, 
+# 	}});
+# 	if ($clear)
+# 	{
+# 		# This is a new loss of comms.
+# 		$anvil->Alert->register({
+# 			alert_level		=>	"critical", 
+# 			alert_agent_name	=>	$THIS_FILE,
+# 			alert_title_key		=>	"an_alert_title_0007",
+# 			alert_message_key	=>	"scan_apc_pdu_message_0030",
+# 			alert_message_variables	=>	{
+# 				pdu_name		=>	$pdu_host_name,
+# 				phase			=>	sprintf("%02d", $scan_apc_pdu_phase_number),
+# 			},
+# 		});
+# 	}
+	
+	return(0)
+}
+
+# This UPDATEs a outlet
+sub update_outlets
+{
+	my ($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_outlet_uuid, $scan_apc_pdu_outlet_number, $scan_apc_pdu_outlet_name, $scan_apc_pdu_outlet_on_phase, $scan_apc_pdu_outlet_state, $scan_apc_pdu_outlet_note) = @_;
+	
+# 	my $query = "
+# UPDATE 
+#     scan_apc_pdu_outlets 
+# SET
+#     scan_apc_pdu_outlet_scan_apc_pdu_uuid = ".$anvil->Database->quote($scan_apc_pdu_uuid).",
+#     scan_apc_pdu_outlet_number       = ".$anvil->Database->quote($scan_apc_pdu_outlet_number).", 
+#     scan_apc_pdu_outlet_name         = ".$anvil->Database->quote($scan_apc_pdu_outlet_name).", 
+#     scan_apc_pdu_outlet_on_phase     = ".$anvil->Database->quote($scan_apc_pdu_outlet_on_phase).", 
+#     scan_apc_pdu_outlet_state        = ".$anvil->Database->quote($scan_apc_pdu_outlet_state).", 
+#     scan_apc_pdu_outlet_note         = ".$anvil->Database->quote($scan_apc_pdu_outlet_note).", 
+#     modified_date               = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+# WHERE 
+#     scan_apc_pdu_outlet_uuid         = ".$anvil->Database->quote($scan_apc_pdu_outlet_uuid)." 
+# ;";
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+# 	push @{$anvil->data->{sys}{sql}}, $query;
+	
+	return(0);
+}
+
+# This INSERTs a new outlet
+sub insert_outlets
+{
+	my ($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_outlet_number, $scan_apc_pdu_outlet_name, $scan_apc_pdu_outlet_on_phase, $scan_apc_pdu_outlet_state, $scan_apc_pdu_outlet_note) = @_;
+	
+	my $scan_apc_pdu_outlet_uuid = $anvil->Get->uuid();
+# 	my $query                    = "
+# INSERT INTO 
+#     scan_apc_pdu_outlets 
+# (
+#     scan_apc_pdu_outlet_uuid, 
+#     scan_apc_pdu_outlet_scan_apc_pdu_uuid, 
+#     scan_apc_pdu_outlet_number, 
+#     scan_apc_pdu_outlet_name, 
+#     scan_apc_pdu_outlet_on_phase, 
+#     scan_apc_pdu_outlet_state, 
+#     scan_apc_pdu_outlet_note, 
+#     modified_date 
+# ) VALUES (
+#     ".$anvil->Database->quote($scan_apc_pdu_outlet_uuid).", 
+#     ".$anvil->Database->quote($scan_apc_pdu_uuid).", 
+#     ".$anvil->Database->quote($scan_apc_pdu_outlet_number).", 
+#     ".$anvil->Database->quote($scan_apc_pdu_outlet_name).", 
+#     ".$anvil->Database->quote($scan_apc_pdu_outlet_on_phase).", 
+#     ".$anvil->Database->quote($scan_apc_pdu_outlet_state).", 
+#     ".$anvil->Database->quote($scan_apc_pdu_outlet_note).", 
+#     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+# );";
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+# 	push @{$anvil->data->{sys}{sql}}, $query;
+	
+	return($scan_apc_pdu_outlet_uuid);
+}
+
+# This UPDATEs a variable
+sub update_variables
+{
+	my ($anvil, $scan_apc_pdu_uuid, $scan_apc_pdu_variable_uuid, $variable, $value) = @_;
+	
+# 	my $query = "
+# UPDATE 
+#     scan_apc_pdu_variables 
+# SET
+#     scan_apc_pdu_variable_scan_apc_pdu_uuid   = ".$anvil->Database->quote($scan_apc_pdu_uuid).",
+#     scan_apc_pdu_variable_is_temperature = FALSE, 
+#     scan_apc_pdu_variable_name           = ".$anvil->Database->quote($variable).", 
+#     scan_apc_pdu_variable_value          = ".$anvil->Database->quote($value).", 
+#     modified_date                   = ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+# WHERE 
+#     scan_apc_pdu_variable_uuid           = ".$anvil->Database->quote($scan_apc_pdu_variable_uuid)." 
+# ;";
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+# 	push @{$anvil->data->{sys}{sql}}, $query;
+	
+	return(0);
+}
+
+# This INSERTs a new variable
+sub insert_variables
+{
+	my ($anvil, $scan_apc_pdu_uuid, $variable, $value) = @_;
+	
+	my $scan_apc_pdu_variable_uuid = $anvil->Get->uuid();
+# 	my $query = "
+# INSERT INTO 
+#     scan_apc_pdu_variables 
+# (
+#     scan_apc_pdu_variable_uuid, 
+#     scan_apc_pdu_variable_scan_apc_pdu_uuid, 
+#     scan_apc_pdu_variable_is_temperature, 
+#     scan_apc_pdu_variable_name, 
+#     scan_apc_pdu_variable_value, 
+#     modified_date 
+# ) VALUES (
+#     ".$anvil->Database->quote($scan_apc_pdu_variable_uuid).", 
+#     ".$anvil->Database->quote($scan_apc_pdu_uuid).", 
+#     FALSE, 
+#     ".$anvil->Database->quote($variable).", 
+#     ".$anvil->Database->quote($value).", 
+#     ".$anvil->Database->quote($anvil->data->{sys}{database}{timestamp})."
+# );";
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+# 	push @{$anvil->data->{sys}{sql}}, $query;
+	
+	return($scan_apc_pdu_variable_uuid);
+}
+
+# This calls each PDU, first to get the model number and update the OIDs to use if needed, then gathers the 
+# information from the PDU.
+sub gather_pdu_data
+{
+	my ($anvil) = @_;
+	
+	# Loop through the PDUs we found in fences (we may miss existing entries from 'scan_apc_pdus', but 
+	# we'll watch for that later).
+	foreach my $fence_uuid (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_uuid}})
+	{
+		my $pdu_ip   = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ip_address};
+		my $pdu_name = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			fence_uuid => $fence_uuid, 
+			pdu_ip     => $pdu_ip, 
+			pdu_name   => $pdu_name, 
+		}});
+		
+		# Have we seen this PDU before?
+		my $scan_apc_pdu_uuid = "";
+		my $new_pdu           = 0;
+		if ((exists $anvil->data->{pdu}{fence_uuid_to_apc_pdu_uuid}{$fence_uuid}) && (defined $anvil->data->{pdu}{fence_uuid_to_apc_pdu_uuid}{$fence_uuid}))
+		{
+			# Yup!
+			$scan_apc_pdu_uuid = $anvil->data->{pdu}{fence_uuid_to_apc_pdu_uuid}{$fence_uuid};
+		}
+		else
+		{
+			# It's new, generate the UUID now. We'll set 'scan_apc_pdu_new' so we know to INSERT 
+			# it later.
+			$scan_apc_pdu_uuid = $anvil->Get->uuid();
+			$new_pdu           = 1;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_apc_pdu_uuid => $scan_apc_pdu_uuid, 
+			new_pdu           => $new_pdu, 
+		}});
+		
+		# Can I ping it? This returns '1' if it was pingable, '0' if not.
+		my ($pinged) = $anvil->Network->ping({ping => $pdu_ip});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pinged => $pinged }});
+		
+		if (not $pinged)
+		{
+			# Can't reach it.
+			$anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}      = 0;
+			$anvil->data->{fences}{fence_uuid}{$fence_uuid}{connected} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"fences::fence_uuid::${fence_uuid}::ping"      => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}, 
+				"fences::fence_uuid::${fence_uuid}::connected" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{connected}, 
+			}});
+			next;
+		}
+
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}              = 1;
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version}      = $anvil->data->{snmp}{community}{version};
+		$anvil->data->{fences}{fence_uuid}{$fence_uuid}{scan_apc_pdu_uuid} = $scan_apc_pdu_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"fences::fence_uuid::${fence_uuid}::ping"              => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ping}, 
+			"fences::fence_uuid::${fence_uuid}::snmp_version"      => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version}, 
+			"fences::fence_uuid::${fence_uuid}::scan_apc_pdu_uuid" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{scan_apc_pdu_uuid}, 
+		}});
+		
+		my ($scan_apc_pdu_serial_number, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_serial_number},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_apc_pdu_serial_number => $scan_apc_pdu_serial_number,
+			data_type                  => $data_type,
+		}});
+		
+		# If the serial number is '!!no_connection!!', this might be an old PDU that only supports SNMP v1.
+		if ($scan_apc_pdu_serial_number eq "!!no_connection!!")
+		{
+			# Try SNMP v1
+			$anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"fences::fence_uuid::${fence_uuid}::snmp_version" => $anvil->data->{snmp}{community}{version}, 
+			}});
+			
+			($scan_apc_pdu_serial_number, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_serial_number},
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				scan_apc_pdu_serial_number => $scan_apc_pdu_serial_number,
+				data_type                  => $data_type,
+			}});
+			
+			# If it's still '!!no_connection!!', something else is wrong. Is possible it's a new 
+			# PDU with SNMP turned off, perhaps?
+			if ($scan_apc_pdu_serial_number eq "!!no_connection!!")
+			{
+				# No luck
+				$scan_apc_pdu_serial_number                             = "";
+				$anvil->data->{fences}{fence_uuid}{$fence_uuid}{connected} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					scan_apc_pdu_serial_number                  => $scan_apc_pdu_serial_number, 
+					"fences::fence_uuid::${fence_uuid}::connected" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{connected}, 
+				}});
+			}
+		}
+		
+		# These are set to avoid 'undefined' variable warnings later if we fail to reach this PDU.
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{pdu_host_name}                               = $pdu_name;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{new_pdu}                                     = $new_pdu;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_fence_uuid}       = $fence_uuid;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_serial_number}    = $scan_apc_pdu_serial_number;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_model_number}     = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date} = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_firmware_version} = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_hardware_version} = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_ipv4_address}     = $pdu_ip;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address}      = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size}         = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed}       = 0;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_phase_count}      = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_outlet_count}     = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{uptime}              = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{total_wattage_draw}  = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{maximum}                           = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{low_warning}                       = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning}                      = "";
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical}                     = "";
+		
+		# If I got the serial number, I found the PDU.
+		next if not $scan_apc_pdu_serial_number;
+		
+		#############################################################################################
+		# Base PDU info                                                                             #
+		#############################################################################################
+		
+		### Get the base PDU info.
+		# Model Number
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_model_number}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_model_number},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_model_number" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_model_number},
+			data_type                                                                               => $data_type,
+		}});
+		
+		# Manufacture date 
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_manufacture_date},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_manufacture_date" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date},
+			data_type                                                                                   => $data_type,
+		}});
+		
+		# Firmware version
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_firmware_version}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_firmware_version},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_firmware_version" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_firmware_version},
+			data_type                                                                                   => $data_type,
+		}});
+		
+		# Hardware version
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_hardware_version}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_hardware_version},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_hardware_version" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_hardware_version},
+			data_type                                                                                   => $data_type,
+		}});
+		
+		# MAC address. Note, this could use a couple different OIDs, depending on the version. It also requires the custom MIB
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_mac_address},
+			mib       => $anvil->data->{'scan-apc-pdu'}{striker_mib}, 
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_mac_address" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address},
+			data_type                                                                              => $data_type,
+		}});
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address} eq "#!no_value!#")
+		{
+			# Some older PDUs use a different OID.
+			($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address}, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_mac_address_alt},
+				mib       => $anvil->data->{'scan-apc-pdu'}{striker_mib}, 
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_mac_address" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address},
+				data_type                                                                              => $data_type,
+			}});
+		}
+		# Make the MAC address lower case and replace the spaces with colons
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address} =  lc($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address});
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address} =~ s/^\s+//g;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address} =~ s/\s+$//g;
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address} =~ s/ /:/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_mac_address" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address},
+		}});
+		
+		# Read the MTU. This again could be at one of two OIDs.
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_mtu_size},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_mtu_size" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size},
+			data_type                                                                           => $data_type,
+		}});
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size} eq "#!no_value!#")
+		{
+			# Some older PDUs use a different OID.
+			($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size}, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_mtu_size_alt},
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_mtu_size" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size},
+				data_type                                                                           => $data_type,
+			}});
+		}
+		
+		# Read the link speed. Again, this could be at alternate OIDs.
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_link_speed},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_link_speed" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed},
+			data_type                                                                             => $data_type,
+		}});
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed} eq "#!no_value!#")
+		{
+			# Some older PDUs use a different OID.
+			($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed}, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_link_speed_alt},
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_link_speed" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed},
+				data_type                                                                             => $data_type,
+			}});
+		}
+		
+		# Read in the phase count
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_phase_count}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_phase_count},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_phase_count" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_phase_count},
+			data_type                                                                              => $data_type,
+		}});
+		
+		# Read in the outlet count
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_outlet_count}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu}{scan_apc_pdu_outlet_count},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_outlet_count" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_outlet_count},
+			data_type                                                                               => $data_type,
+		}});
+		
+		### These change often and will go into the 'variables' table
+		# Read the uptime
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{uptime}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu_variables}{uptime},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_variables::uptime" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{uptime},
+			data_type                                                                      => $data_type,
+		}});
+		
+		# Total watt draw
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{total_wattage_draw}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu_variables}{total_wattage_draw},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_variables::total_wattage_draw" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{total_wattage_draw},
+			data_type                                                                                  => $data_type,
+		}});
+		
+		### These are used later for checking the state of the phases. They are not stored in the database.
+		# Macimum allowed amperage
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{maximum}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu_phases}{scan_apc_pdu_phase_max_amperage},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::maximum" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{maximum},
+			data_type                                                         => $data_type,
+		}});
+		
+		# Low amperage on a phase threshold
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{low_warning}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu_phases}{phase_low_amp_warning},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::low_warning" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{low_warning},
+			data_type                                                             => $data_type,
+		}});
+		
+		# High warning
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu_phases}{phase_high_amp_warning},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::high_warning" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning},
+			data_type                                                              => $data_type,
+		}});
+		
+		# Phase high amperage threshold
+		($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical}, $data_type) = $anvil->Remote->read_snmp_oid({
+			debug     => 3,
+			target    => $pdu_ip, 
+			oid       => $anvil->data->{oids}{scan_apc_pdu_phases}{phase_high_amp_critical},
+			version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+			community => $anvil->data->{snmp}{community}{'read'}
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::high_critical" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical},
+			data_type                                                               => $data_type,
+		}});
+	
+		### Convert some unknown values to values we can store in the database
+		# MAC address
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address} eq "#!no_value!#")
+		{
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address} = "xx:xx:xx:xx:xx:xx";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_mac_address" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mac_address}, 
+			}});
+		}
+		# MTU
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size} eq "#!no_value!#")
+		{
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_mtu_size" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_mtu_size}, 
+			}});
+		}
+		# Link speed
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed} eq "#!no_value!#")
+		{
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_link_speed" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_link_speed}, 
+			}});
+		}
+		# Wattage isn't available on older PDUs
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{total_wattage_draw} eq "#!no_value!#")
+		{
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{total_wattage_draw} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_variables::total_wattage_draw" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{total_wattage_draw}, 
+			}});
+		}
+
+		### TODO: We should probably sanity check the various values. Error or set?
+		# If the (high critical amperage + 'scan-apc-pdu::critical_amps_below_max') > maximum 
+		# amperage, we'll set the critical warning level to be 
+		# (maximum - 'scan-apc-pdu::critical_amps_below_max')
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan-apc-pdu::critical_amps_below_max" => $anvil->data->{'scan-apc-pdu'}{critical_amps_below_max}, 
+		}});
+		if (($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical} + $anvil->data->{'scan-apc-pdu'}{critical_amps_below_max}) > $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{maximum})
+		{
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical} = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{maximum} - $anvil->data->{'scan-apc-pdu'}{critical_amps_below_max};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::high_critical" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical}, 
+			}});
+		}
+		
+		# Make sure that the warning is at least 'scan-apc-pdu::warning_amps_below_critical'
+		if (($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning} + $anvil->data->{'scan-apc-pdu'}{warning_amps_below_critical}) > $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical})
+		{
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning} = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical} - $anvil->data->{'scan-apc-pdu'}{warning_amps_below_critical};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::high_warning" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning}, 
+			}});
+		}
+		
+		# Set the alert clear levels
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_high_critical} = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_critical} - $anvil->data->{'scan-apc-pdu'}{clear_alert_threshold};
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_high_warning}  = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{high_warning} - $anvil->data->{'scan-apc-pdu'}{clear_alert_threshold};
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_low_warning}   = $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{low_warning} + $anvil->data->{'scan-apc-pdu'}{clear_alert_threshold};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::clear_high_critical" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_high_critical}, 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::clear_high_warning"  => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_high_warning}, 
+			"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::amperage::clear_low_warning"   => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{amperage}{clear_low_warning}, 
+		}});
+		
+		# Uptime is in ticks
+		$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{uptime} /= $anvil->data->{'scan-apc-pdu'}{ticks_per_second};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pdu:${scan_apc_pdu_serial_number}::scan_apc_pdu_variables::uptime" => $anvil->Convert->add_commas({number => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{uptime}})." (".$anvil->Convert->time({'time' => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_variables}{uptime}, translate => 1}).")", 
+		}});
+		
+		# The dates are in 'mm/dd/yyyy' or 'mm/dd/yy' format, convert them to 'yyyy/mm/dd'
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date} =~ /(\d\d)\/(\d\d)\/(\d\d\d\d)$/)
+		{
+			my $year  = $3;
+			my $month = $1;
+			my $day   = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				year  => $year, 
+				month => $month, 
+				day   => $day, 
+			}});
+			
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date} = $year."/".$month."/".$day;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_manufacture_date" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date}, 
+			}});
+		}
+		elsif ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date} =~ /(\d\d)\/(\d\d)\/(\d\d)$/)
+		{
+			my $year  = $3;
+			my $month = $1;
+			my $day   = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"year"  => $year, 
+				"month" => $month, 
+				"day"   => $day, 
+			}});
+			
+			if ($year < 70)
+			{
+				$year += 2000;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"year" => $year, 
+				}});
+			}
+			else
+			{
+				$year += 1900;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"year" => $year, 
+				}});
+			}
+			$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date} = $year."/".$month."/".$day;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu::scan_apc_pdu_manufacture_date" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_manufacture_date}, 
+			}});
+		}
+		
+		# If an alert (cleared) message/log is needed for either phase or outlet count, they'll use this hash 
+		my $variables = {
+			name          => $pdu_name, 
+			ip            => $pdu_ip,
+			serial_number => $scan_apc_pdu_serial_number, 
+		};
+		
+		# Verify that the phase count is valid
+		my $bad_phase_count_key = "scan_apc_pdu::".$scan_apc_pdu_uuid."::bad_phase_count";
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_phase_count} !~ /^\d+$/)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_pdu_message_0002", variables => $variables});
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 3,
+				record_locator => $bad_phase_count_key,
+				set_by         => $THIS_FILE,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Register an alert.
+				$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0002", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			$anvil->nice_exit({exit_code => 1});
+		}
+		else
+		{
+			# Clear the alert?
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 3,
+				clear          => 1,
+				record_locator => $bad_phase_count_key,
+				set_by         => $THIS_FILE,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Register an alert.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_pdu_message_0003", variables => $variables});
+				$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_pdu_message_0003", message_variables => $variables, set_by => $THIS_FILE});
+			}
+		}
+		# Now read the phase data
+		foreach my $scan_apc_pdu_phase_number (1..$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_phase_count})
+		{
+			# Stick the phase onto the end of the OID.
+			my $oid = $anvil->data->{oids}{scan_apc_pdu_phases}{scan_apc_pdu_phase_current_amperage}.$scan_apc_pdu_phase_number;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"scan_apc_pdu_phase_number" => $scan_apc_pdu_phase_number, 
+				"oid"                       => $oid, 
+			}});
+			
+			# Read this phase's amperage
+			($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage}, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $oid,
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_phases::${scan_apc_pdu_phase_number}::scan_apc_pdu_phase_current_amperage" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage}, 
+				data_type                                                                                                                             => $data_type,
+			}});
+			
+			# The amperage is in 1/10 amps, so divide by 10.
+			if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage} =~ /^\d+$/)
+			{
+				$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage} /= 10;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_phases::${scan_apc_pdu_phase_number}::scan_apc_pdu_phase_current_amperage" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_phases}{$scan_apc_pdu_phase_number}{scan_apc_pdu_phase_current_amperage}, 
+				}});
+			}
+		}
+		
+		# Read the outlet data, if the outlet count is sane.
+		my $bad_outlet_count_key = "scan_apc_pdu::".$scan_apc_pdu_uuid."::bad_outlet_count";
+		if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_outlet_count} !~ /^\d+$/)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_pdu_message_0004", variables => $variables});
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 3,
+				record_locator => $bad_outlet_count_key,
+				set_by         => $THIS_FILE,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Register an alert.
+				$anvil->Alert->register({alert_level => "warning", message => "scan_apc_pdu_message_0004", message_variables => $variables, set_by => $THIS_FILE});
+			}
+			$anvil->nice_exit({exit_code => 1});
+		}
+		else
+		{
+			# Clear the alert?
+			my $changed = $anvil->Alert->check_alert_sent({
+				debug          => 3,
+				clear          => 1,
+				record_locator => $bad_outlet_count_key,
+				set_by         => $THIS_FILE,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			if ($changed)
+			{
+				# Register an alert.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "scan_apc_pdu_message_0005", variables => $variables});
+				$anvil->Alert->register({alert_level => "warning", clear_alert => 1, message => "scan_apc_pdu_message_0005", message_variables => $variables, set_by => $THIS_FILE});
+			}
+		}
+		# Now read the outlet data
+		foreach my $scan_apc_pdu_outlet_number (1..$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu}{scan_apc_pdu_outlet_count})
+		{
+			# Stick the outlet onto the end of the OIDs.
+			my $outlet_name_oid  = $anvil->data->{oids}{scan_apc_pdu_outlets}{scan_apc_pdu_outlet_name}.$scan_apc_pdu_outlet_number;
+			my $outlet_phase_oid = $anvil->data->{oids}{scan_apc_pdu_outlets}{scan_apc_pdu_outlet_on_phase}.$scan_apc_pdu_outlet_number;
+			my $outlet_state_oid = $anvil->data->{oids}{scan_apc_pdu_outlets}{scan_apc_pdu_outlet_state}.$scan_apc_pdu_outlet_number;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"outlet_name_oid"  => $outlet_name_oid, 
+				"outlet_phase_oid" => $outlet_phase_oid, 
+				"outlet_state_oid" => $outlet_state_oid, 
+			}});
+			
+			### Read the OID
+			# outlet name
+			($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name}, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $outlet_name_oid,
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_name" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_name}, 
+				data_type                                                                                                                    => $data_type,
+			}});
+			
+			# Outlet number on phase
+			($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_on_phase}, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $outlet_phase_oid,
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_on_phase" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_on_phase}, 
+				data_type                                                                                                                        => $data_type,
+			}});
+			
+			# State of the outlet
+			($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state}, $data_type) = $anvil->Remote->read_snmp_oid({
+				debug     => 3,
+				target    => $pdu_ip, 
+				oid       => $outlet_state_oid,
+				version   => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{snmp_version},
+				community => $anvil->data->{snmp}{community}{'read'}
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_state" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state}, 
+				data_type                                                                                                                     => $data_type,
+			}});
+			
+			# The state is; 1 = on, 2 = off, 4 = unknown
+			if ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state} eq "1")
+			{
+				$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state} = "on";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_state" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state}, 
+				}});
+			}
+			elsif ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state} eq "2")
+			{
+				$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state} = "off";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_state" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state}, 
+				}});
+			}
+			elsif ($anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state} eq "3")
+			{
+				$anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state} = "unknown";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"pdu::scan_apc_pdu_uuid::${scan_apc_pdu_uuid}::scan_apc_pdu_outlets::${scan_apc_pdu_outlet_number}::scan_apc_pdu_outlet_state" => $anvil->data->{pdu}{scan_apc_pdu_uuid}{$scan_apc_pdu_uuid}{scan_apc_pdu_outlets}{$scan_apc_pdu_outlet_number}{scan_apc_pdu_outlet_state}, 
+				}});
+			}
+		}
+	}
+
+	return(0);
+}
+
+# This looks for APC PDUs.
+sub find_pdus
+{
+	my ($anvil) = @_;
+	
+	# Search in 'fences' for agents starting with 'fence_apc_'. These aren't bound to hosts (or even 
+	# Anvil! systems), so not all may be available.
+	my $query = "
+SELECT 
+    fence_uuid, 
+    fence_name, 
+    fence_arguments 
+FROM 
+    fences 
+WHERE 
+    fence_agent LIKE 'fence_apc_%' 
+ORDER BY 
+    fence_name ASC
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $fence_uuid      = $row->[0];
+		my $fence_name      = $row->[1];
+		my $fence_arguments = $row->[2];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			fence_uuid      => $fence_uuid, 
+			fence_name      => $fence_name, 
+			fence_arguments => $fence_arguments, 
+		}});
+		
+		if ($fence_arguments =~ /ip=\"(.*?)\"/)
+		{
+			my $ip_address = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ip_address => $ip_address }});
+			
+			$anvil->data->{fences}{fence_uuid}{$fence_uuid}{name}       = $fence_name;
+			$anvil->data->{fences}{fence_uuid}{$fence_uuid}{ip_address} = $ip_address;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"fences::fence_uuid::${fence_uuid}::name"       => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{name},
+				"fences::fence_uuid::${fence_uuid}::ip_address" => $anvil->data->{fences}{fence_uuid}{$fence_uuid}{ip_address},
+			}});
+		}
+	}
+	
+	my $pdu_count = keys %{$anvil->data->{fences}{fence_uuid}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pdu_count => $pdu_count }});
+	return($pdu_count);
+}

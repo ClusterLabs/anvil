@@ -14,6 +14,7 @@ my $THIS_FILE = "Server.pm";
 ### Methods;
 # boot_virsh
 # find
+# get_definition
 # get_runtime
 # get_status
 # map_network
@@ -344,6 +345,70 @@ sub find
 }
 
 
+=head2 get_definition
+
+This returns the server definition XML for a server. 
+
+Parameters;
+
+=head3 server_uuid (optional, if 'server_name' used. required if not)
+
+If provided, this is the specific server's definition we'll return. If it is not provided, C<< server_name >> is required.
+
+=head3 server_name (optional)
+
+If provided, and C<< server_uuid >> is not, the server will be searched for using this name. If C<< anvil_uuid >> is included, the name will be searched on the appropriate Anvil! system only. 
+
+=head3 anvil_uuid (optional)
+
+If set along with C<< server_name >>, the search for the server's XML will be restricted to the specified Anvil! system.
+
+=cut
+sub get_definition
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_runtime()" }});
+	
+	my $definition_xml = "";
+	my $anvil_uuid     = defined $parameter->{anvil_uuid}  ? $parameter->{anvil_uuid}  : "";
+	my $server_name    = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	my $server_uuid    = defined $parameter->{server_uuid} ? $parameter->{server_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_uuid  => $anvil_uuid, 
+		server_name => $server_name, 
+		server_uuid => $server_uuid, 
+	}});
+	
+	$server_uuid = $anvil->Get->server_uuid_from_name({
+		debug       => $debug, 
+		server_name => $server_name, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
+	if ($server_uuid)
+	{
+		my $query = "SELECT server_definition_xml FROM server_definitions WHERE server_definition_server_uuid = ".$anvil->Database->quote($server_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count == 1)
+		{
+			# Found it
+			$definition_xml = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_xml => $definition_xml }});
+		}
+	}
+	
+	return($definition_xml);
+}
+
+
 =head2 get_runtime
 
 This returns the number of seconds that a (virtual) server has been running on this host. 
@@ -365,7 +430,7 @@ sub get_runtime
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_status()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_runtime()" }});
 	
 	my $runtime = 0;
 	my $server  = defined $parameter->{server} ? $parameter->{server} : "";
@@ -504,7 +569,7 @@ sub get_status
 			remote_user => $remote_user, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			error                                     => $error,
+			error                                                 => $error,
 			"server::${host}::${server}::from_virsh::xml"         => $anvil->data->{server}{$host}{$server}{from_virsh}{xml},
 			"server::${host}::${server}::from_virsh::return_code" => $anvil->data->{server}{$host}{$server}{from_virsh}{return_code},
 		}});
@@ -528,6 +593,8 @@ sub get_status
 	}
 	
 	# Now get the on-disk XML.
+	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_file => $definition_file }});
 	($anvil->data->{server}{$host}{$server}{from_disk}{xml}) = $anvil->Storage->read_file({
 		debug       => $debug, 
 		password    => $password,
@@ -535,15 +602,89 @@ sub get_status
 		remote_user => $remote_user, 
 		target      => $target, 
 		force_read  => 1,
-		file        => $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml",
+		file        => $definition_file,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"server::${host}::${server}::from_disk::xml" => $anvil->data->{server}{$host}{$server}{from_disk}{xml},
 	}});
 	if (($anvil->data->{server}{$host}{$server}{from_disk}{xml} eq "!!error!!") or (not $anvil->data->{server}{$host}{$server}{from_disk}{xml}))
 	{
-		# Failed to read it.
-		$anvil->data->{server}{$host}{$server}{from_disk}{xml} = "";
+		# Failed to read it. Can we write it?
+		my $definition_xml = "";
+		if ($anvil->data->{server}{$host}{$server}{from_virsh}{xml})
+		{
+			$definition_xml = $anvil->data->{server}{$host}{$server}{from_virsh}{xml};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_xml => $definition_xml }});
+		}
+		else
+		{
+			# Read in from the database.
+			$definition_xml = $anvil->Server->get_definition({
+				debug       => $debug, 
+				server_name => $server,
+				anvil_uuid  => $anvil->Cluster->get_anvil_uuid({debug => $debug}),
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_xml => $definition_xml }});
+		}
+		
+		if ($definition_xml)
+		{
+			# Write it to disk
+			my ($failed) = $anvil->Storage->write_file({
+				secure      => 1, 
+				file        => $definition_file, 
+				body        => $definition_xml, 
+				overwrite   => 1,
+				password    => $password, 
+				port        => $port, 
+				remote_user => $remote_user, 
+				target      => $target,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+			if ($failed)
+			{
+				# Simething went weong.
+				$anvil->data->{server}{$host}{$server}{from_disk}{xml} = "";
+				return(1);
+			}
+			
+			# Now try to read it back.
+			($anvil->data->{server}{$host}{$server}{from_disk}{xml}) = $anvil->Storage->read_file({
+				debug       => $debug, 
+				password    => $password,
+				port        => $port, 
+				remote_user => $remote_user, 
+				target      => $target, 
+				force_read  => 1,
+				file        => $definition_file,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"server::${host}::${server}::from_disk::xml" => $anvil->data->{server}{$host}{$server}{from_disk}{xml},
+			}});
+			if (($anvil->data->{server}{$host}{$server}{from_disk}{xml} eq "!!error!!") or (not $anvil->data->{server}{$host}{$server}{from_disk}{xml}))
+			{
+				# Failed to read it.
+				$anvil->data->{server}{$host}{$server}{from_disk}{xml} = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"server::${host}::${server}::from_disk::xml" => $anvil->data->{server}{$host}{$server}{from_disk}{xml},
+				}});
+			}
+			else
+			{
+				# Load
+				$anvil->Server->parse_definition({
+					debug      => $debug,
+					host       => $this_host,
+					server     => $server, 
+					source     => "from_disk",
+					definition => $anvil->data->{server}{$host}{$server}{from_disk}{xml}, 
+				});
+			}
+		}
+		else
+		{
+			$anvil->data->{server}{$host}{$server}{from_disk}{xml} = "";
+		}
 	}
 	else
 	{
