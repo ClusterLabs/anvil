@@ -92,7 +92,8 @@ CREATE TABLE scan_apc_pdu_phases (
     scan_apc_pdu_phase_scan_apc_pdu_uuid    uuid                        not null,                   -- 
     scan_apc_pdu_phase_number               text                        not null,                   -- 
     scan_apc_pdu_phase_current_amperage     numeric                     not null,                   -- Max, low/high warn and high critical will be read from the PDU in the given pass.
-    scan_apc_pdu_phase_max_amperage         numeric,
+    scan_apc_pdu_phase_max_amperage         numeric                     not null,
+    scan_apc_pdu_phase_deleted              boolean                     not null    default false,
     modified_date                           timestamp with time zone    not null,
     
     FOREIGN KEY(scan_apc_pdu_phase_scan_apc_pdu_uuid) REFERENCES scan_apc_pdus(scan_apc_pdu_uuid)
@@ -106,6 +107,7 @@ CREATE TABLE history.scan_apc_pdu_phases (
     scan_apc_pdu_phase_number               text,
     scan_apc_pdu_phase_current_amperage     numeric,
     scan_apc_pdu_phase_max_amperage         numeric,
+    scan_apc_pdu_phase_deleted              boolean,
     modified_date                           timestamp with time zone    not null
 );
 ALTER TABLE history.scan_apc_pdu_phases OWNER TO admin;
@@ -122,6 +124,7 @@ BEGIN
          scan_apc_pdu_phase_number, 
          scan_apc_pdu_phase_current_amperage, 
          scan_apc_pdu_phase_max_amperage, 
+         scan_apc_pdu_phase_deleted, 
          modified_date)
     VALUES
         (history_scan_apc_pdu_phases.scan_apc_pdu_phase_uuid,
@@ -129,6 +132,7 @@ BEGIN
          history_scan_apc_pdu_phases.scan_apc_pdu_phase_number, 
          history_scan_apc_pdu_phases.scan_apc_pdu_phase_current_amperage, 
          history_scan_apc_pdu_phases.scan_apc_pdu_phase_max_amperage, 
+         history_scan_apc_pdu_phases.scan_apc_pdu_phase_deleted, 
          history_scan_apc_pdu_phases.modified_date);
     RETURN NULL;
 END;

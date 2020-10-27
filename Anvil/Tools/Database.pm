@@ -13666,7 +13666,7 @@ sub write
 		
 		foreach my $query (@{$query_set})
 		{
-			if ($anvil->data->{sys}{database}{log_transactions})
+			if (($anvil->data->{sys}{database}{log_transactions}) or ($debug <= $anvil->Log->level))
 			{
 				$anvil->Log->entry({source => $source, line => $line, secure => $secure, level => 0, key => "log_0083", variables => { 
 					uuid  => $uuid, 

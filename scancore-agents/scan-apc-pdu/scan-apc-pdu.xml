@@ -33,9 +33,65 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_apc_pdu_lo
 		<key name="scan_apc_pdu_message_0005">Able to now read the number of outlets for the PDU: [#!variable!name!#] at IP: [#!variable!ip!#] (sn: #!variable!serial_number!#).</key>
 		<key name="scan_apc_pdu_message_0006">The PDU: [#!variable!name!#] with the serial number: [#!variable!serial_number!#] at the IP address: [#!variable!ip_address!#] has returned.</key>
 		<key name="scan_apc_pdu_message_0007">The model of the PDU: [#!variable!name!#] has changed from; [#!variable!old_model_number!#] to: [#!variable!new_model_number!#]</key>
+		<key name="scan_apc_pdu_message_0008">The serial number of the PDU: [#!variable!name!#] has changed from; [#!variable!old_model_number!#] to: [#!variable!new_model_number!#]. This is expected if the PDU was replaced.</key>
+		<key name="scan_apc_pdu_message_0009">The manufacture date of the PDU: [#!variable!name!#] has changed from: [#!variable!old_manufacture_date!#] to: [#!variable!new_manufacture_date!#]. This is expected if the PDU was replaced.</key>
+		<key name="scan_apc_pdu_message_0010">The firmware on the PDU: [#!variable!name!#] has changed from: [#!variable!old_firmware_version!#] to: [#!variable!new_firmware_version!#].</key>
+		<key name="scan_apc_pdu_message_0011">The hardware version on the PDU: [#!variable!name!#] has changed from: [#!variable!old_hardware_version!#] to: [#!variable!new_hardware_version!#]. This is expected if the PDU was replaced.</key>
+		<key name="scan_apc_pdu_message_0012">The IP address assigned to the PDU: [#!variable!name!#] has changed from: [#!variable!old_ipv4_address!#] to: [#!variable!new_ipv4_address!#].</key>
+		<key name="scan_apc_pdu_message_0013">The MAC address on the PDU: [#!variable!name!#] has changed from: [#!variable!old_mac_address!#] to: [#!variable!new_mac_address!#]. This is expected if the PDU was replaced.</key>
+		<key name="scan_apc_pdu_message_0014">The MTU size set on the PDU: [#!variable!name!#] has changed from: [#!variable!old_mtu_size!# bytes] to: [#!variable!new_mtu_size!# bytes].</key>
+		<key name="scan_apc_pdu_message_0015">The link speed for the PDU: [#!variable!name!#] has changed from: [#!variable!old_link_speed_mbps!#] (#!variable!old_link_speed_hr!#) -> [#!variable!new_link_speed_mbps!#] (#!variable!new_link_speed_hr!#)</key>
+		<key name="scan_apc_pdu_message_0016">The number of phases on the PDU: [#!variable!name!#] has changed from: [#!variable!old_phase_count!#] to: [#!variable!new_phase_count!#]. This is expected if the PDU was replaced.</key>
+		<key name="scan_apc_pdu_message_0017">The number of outlets on the PDU: [#!variable!name!#] has changed from: [#!variable!old_outlet_count!#] to: [#!variable!new_outlet_count!#]. This is expected if the PDU was replaced.</key>
+		<key name="scan_apc_pdu_message_0018">The uptime of the PDU: [#!variable!name!#] has increased from: [#!variable!old_uptime!#] to: [#!variable!new_uptime!#].</key>
+		<key name="scan_apc_pdu_message_0019">The PDU: [#!variable!name!#] appears to have rebooted. The uptime changed from; [#!variable!old_uptime!#] to: [#!variable!new_uptime!#]. Was the power restored after a power outage?</key>
+		<key name="scan_apc_pdu_message_0020">The wattage draw through the PDU: [#!variable!name!#] has changed from: [#!variable!old_total_wattage_draw!#] to: [#!variable!new_total_wattage_draw!#].</key>
+		<key name="scan_apc_pdu_message_0021">The phase number: [#!variable!phase!#] on the PDU: [#!variable!name!#] has returned.</key>
+		<key name="scan_apc_pdu_message_0022">The maximum amperage threshold on the phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] has changed from: [#!variable!old_outlet_count!#] to: [#!variable!new_outlet_count!#].</key>
+		<key name="scan_apc_pdu_message_0023">The amperage draw on phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] has changed from: [#!variable!old_phase_current_amperage!#] to: [#!variable!new_phase_current_amperage!#].</key>
+		<key name="scan_apc_pdu_message_0024">The amperage drawing through the phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] is below the low-warning threshold. This is not a concern for the Anvil!, but would only happen if a user configured a low draw alert. So this could be a concern to a user of this Anvil! system.</key>
+		<key name="scan_apc_pdu_message_0025">The amperage drawing through the phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] has rised over the high critical alert threshold!</key>
+		<key name="scan_apc_pdu_message_0026">The amperage drawing through the phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] is back below the high critical alert threshold.</key>
+		<key name="scan_apc_pdu_message_0027">The amperage drawing through the phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] has rised over the high warning alert threshold!</key>
+		<key name="scan_apc_pdu_message_0028">The amperage drawing through the phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] is back below the high warning alert threshold.</key>
+		<key name="scan_apc_pdu_message_0029">The amperage drawing through the phase: [#!variable!phase!#] of the PDU: [#!variable!name!#] has risen above the low-warning threshold.</key>
+		<key name="scan_apc_pdu_message_0030">The phase number: [#!variable!phase!#] on the PDU: [#!variable!name!#] has vanished!</key>
+		<key name="scan_apc_pdu_message_0031">The outlet number: [#!variable!outlet!#] on the PDU: [#!variable!name!#] has returned.</key>
+		<key name="scan_apc_pdu_message_0032">The name of the outlet: [#!variable!outlet!#] on the PDU: [#!variable!name!#] has changed from: [#!variable!old_outlet_name!#] to: [#!variable!new_outlet_name!#].</key>
+		<key name="scan_apc_pdu_message_0033">The phase that the outlet: [#!variable!outlet!#], on the PDU: [#!variable!name!#] is on has changed from: [#!variable!old_outlet_on_phase!#] to: [#!variable!new_outlet_on_phase!#].</key>
+		<key name="scan_apc_pdu_message_0034">The state of the outlet: [#!variable!outlet!#], on the PDU: [#!variable!name!#] has changed from: [#!variable!old_outlet_state!#] to: [#!variable!new_outlet_state!#].</key>
+		<key name="scan_apc_pdu_message_0035">A new outlet: [#!variable!outlet!#] was found on the PDU: [#!variable!pdu_name!#], on phase: [#!variable!on_phase!#] and it is: [#!variable!state!#] (outlet name: [#!variable!name!#]).</key>
+		<key name="scan_apc_pdu_message_0036">The outlet number: [#!variable!outlet!#] on the PDU: [#!variable!name!#] has vanished!</key>
+		<key name="scan_apc_pdu_message_0037">
+A new PDU: [#!variable!name!#] has been found
+- Serial Number: .............. [#!variable!serial_number!#]
+- Model Number: ............... [#!variable!model_number!#]
+- Manufacture Date: ........... [#!variable!manufacture_date!#]
+- Firmware version: ........... [#!variable!firmware_version!#]
+- Hardware version: ........... [#!variable!hardware_version!#]
+- IP Address: ................. [#!variable!ipv4_address!#]
+- MAC Address: ................ [#!variable!mac_address!#]
+- MTU Size: ................... [#!variable!mtu_size!#] Bytes
+- Link Speed: ................. [#!variable!link_speed_mbps!#] (#!variable!link_speed_hr!#)
+- Number of phases:............ [#!variable!phase_count!#]
+- Max amps per phase: ......... [#!variable!phase_max_amperage!#]
+- Low amp warning: ............ [#!variable!phase_low_amp_warning!#]
+- High amp warning: ........... [#!variable!phase_high_amp_warning!#]
+- High amp critical: .......... [#!variable!phase_high_amp_critical!#]
+- Number of outlets: .......... [#!variable!outlet_count!#]
+		</key>
+		<key name="scan_apc_pdu_message_0038">- Phase: [#!variable!phase!#] current amperage draw: [#!variable!amps!#].</key>
+		<key name="scan_apc_pdu_message_0039">- Outlet: [#!variable!outlet!#], on phase: [#!variable!on_phase!#] is: [#!variable!state!#] (name: [#!variable!name!#]).</key>
+		<key name="scan_apc_pdu_message_0040">The PDU model: [#!variable!model!#] at the IP address: [#!variable!ip_address!#] has vanished! Did the network cable come unplugged?</key>
 		
 		<!-- Units -->
-		<key name="scan_apc_pdu_unit_0001"></key>
+		<key name="scan_apc_pdu_unit_0001">Unknown</key>
+		<key name="scan_apc_pdu_unit_0002">On</key>
+		<key name="scan_apc_pdu_unit_0003">Off</key>
+		<key name="scan_apc_pdu_unit_0004">Down</key>
+		<key name="scan_apc_pdu_unit_0005">Mbps</key>
+		<key name="scan_apc_pdu_unit_0006">s</key>		<!-- 's' for 'seconds', as in 'X MB/s' -->
+		<key name="scan_apc_pdu_unit_0007">(yyyy/mm/dd)</key>
 		
 	</language>
 </words>
