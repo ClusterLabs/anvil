@@ -236,6 +236,8 @@ The error was:
 		<key name="error_0161">Unable to mark the server with UUID: [#!variable!uuid!#] as "deleted" because it doesn't apprear to exist in the database in the first place.</key>
 		<key name="error_0162">The 'anvil_uuid': [#!variable!anvil_uuid!#] in invalid.</key>
 		<key name="error_0163">The MIB file: [#!variable!mib!#] doesn't exist or can't be read.</key>
+		<key name="error_0164">The date: [#!variable!date!#] is not in either the 'mm/dd/yy' or 'mm/dd/yyyy' formats. Can't convert to 'yyyy/mm/dd'.</key>
+		<key name="error_0165">The temperature: [#!variable!temperature!#] does not appear to be valid..</key>
 		
 		<!-- Table headers -->
 		<key name="header_0001">Current Network Interfaces and States</key>

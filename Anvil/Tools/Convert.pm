@@ -14,7 +14,10 @@ my $THIS_FILE = "Convert.pm";
 ### Methods;
 # add_commas
 # bytes_to_human_readable
+# celsius_to_fahrenheit
 # cidr
+# fahrenheit_to_celsius
+# format_mmddyy_to_yymmdd
 # host_name_to_ip
 # human_readable_to_bytes
 # round
@@ -80,6 +83,7 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+
 =head2 add_commas
 
 This takes an integer and inserts commas to make it more readable by people.
@@ -137,6 +141,7 @@ sub add_commas
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { number => $number }});
 	return ($number);
 }
+
 
 =head2 bytes_to_human_readable
 
@@ -490,6 +495,61 @@ sub bytes_to_human_readable
 	return($human_readable_size);
 }
 
+
+=head3 celsius_to_fahrenheit
+
+This takes value and converts it from celsius to fahrenheit. If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 temperature (required)
+
+This is the temperature to convert from fahrenheit to celsius.
+
+=cut
+sub celsius_to_fahrenheit
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->celsius_to_fahrenheit()" }});
+	
+	# Now see if the user passed the values in a hash reference or directly.
+	my $temperature = defined $parameter->{temperature} ? $parameter->{temperature} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature => $temperature }});
+	
+	if (not $temperature)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->celsius_to_fahrenheit()", parameter => "temperature" }});
+		return("!!error!!");
+	}
+	if ($temperature !~ /^\d/)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0165", variables => { $temperature => temperature }});
+		return("!!error!!");
+	}
+	
+	# Split off the value from the suffix, if any.
+	if ($temperature =~ /^(\d+\.\d+).*/)
+	{
+		$temperature = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature => $temperature }});
+	}
+	elsif ($temperature =~ /^(\d+)(.*)/)
+	{
+		$temperature = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature => $temperature }});
+	}
+	
+	# Convert the temperature.
+	my $new_temperature = (($temperature * 1.8) + 32);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_temperature => $new_temperature }});
+	
+	return($new_temperature);
+}
+
+
 =head2 cidr
 
 This takes an IPv4 CIDR notation and returns the dotted-decimal subnet mask, or the reverse.
@@ -611,6 +671,115 @@ sub cidr
 	return($output);
 }
 
+
+=head3 fahrenheit_to_celsius
+
+This takes value and converts it from fahrenheit to celsius. If there is a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 temperature (required)
+
+This is the temperature to convert from celsius to fahrenheit.
+
+=cut
+sub fahrenheit_to_celsius
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->fahrenheit_to_celsius()" }});
+	
+	# Now see if the user passed the values in a hash reference or directly.
+	my $temperature = defined $parameter->{temperature} ? $parameter->{temperature} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature => $temperature }});
+	
+	if (not $temperature)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->fahrenheit_to_celsius()", parameter => "temperature" }});
+		return("!!error!!");
+	}
+	if ($temperature !~ /^\d/)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0165", variables => { $temperature => temperature }});
+		return("!!error!!");
+	}
+	
+	# Split off the value from the suffix, if any.
+	if ($temperature =~ /^(\d+\.\d+).*/)
+	{
+		$temperature = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature => $temperature }});
+	}
+	elsif ($temperature =~ /^(\d+)(.*)/)
+	{
+		$temperature = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temperature => $temperature }});
+	}
+	
+	# Convert the temperature.
+	my $new_temperature = (($temperature - 32) / 1.8);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_temperature => $new_temperature }});
+	
+	return($new_temperature);
+}
+
+
+=head2 format_mmddyy_to_yymmdd
+
+This converts a C<< mm/dd/yy >> or C<< mm/dd/yyyy >> string into the more sensible yy/mm/dd or yyyy/mm/dd string.
+
+Returns C<< !!error!! >> if something goes wrong.
+
+Parameters;
+
+=head3 date (required)
+
+This is the C<< mm/dd/yy >> or C<< mm/dd/yyyy >> format to be converted.
+
+=cut
+sub format_mmddyy_to_yymmdd
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->format_mmddyy_to_yymmdd()" }});
+	
+	my $date   = defined $parameter->{date} ? $parameter->{date} : "";
+	my $output = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		date => $date, 
+	}});
+	
+	if (not $date)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Convert->host_name_to_ip()", parameter => "host_name" }});
+		return("!!error!!");
+	}
+	
+	# Split off the value from the suffix, if any.
+	if ($date =~ /^(\d\d)\/(\d\d)\/(\d\d\d\d)/)
+	{
+		$date = "$3/$1/$2";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { date => $date }});
+	}
+	elsif ($date =~ /^(\d\d)\/(\d\d)\/(\d\d)/)
+	{
+		$date = "$3/$1/$2";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { date => $date }});
+	}
+	else
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0164", variables => { date => $date }});
+		return("!!error!!");
+	}
+	
+	return($date);
+}
+
+
 =head2 host_name_to_ip
 
 This method takes a host name and tries to convert it to an IP address. If it fails, it will return C<< 0 >>.
@@ -663,6 +832,7 @@ sub host_name_to_ip
 	
 	return($ip);
 }
+
 
 =head2 human_readable_to_bytes
 
@@ -866,6 +1036,7 @@ sub human_readable_to_bytes
 	return ($bytes);
 }
 
+
 =head2 round
 
 This takes a number and rounds it to a given number of places after the decimal (defaulting to an even integer). This does financial-type rounding.
@@ -987,6 +1158,7 @@ sub round
 	# Return the number.
 	return ($rounded_number);
 }
+
 
 =head2 time
 

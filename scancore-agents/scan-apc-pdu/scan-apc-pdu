@@ -477,7 +477,7 @@ FROM
 			
 	}
 	
-	return($count);
+	return(0);
 }
 
 # This reads in the last scan data from one of the databases and compares it against the just-read data. If 
@@ -485,11 +485,6 @@ FROM
 sub find_changes
 {
 	my ($anvil) = @_;
-	
-	# If we can't ping or can't connect to a PDU, these keys will be used to see how long that's been the
-	# case to decide when to send an alert.
-	#my $ping_condition_key       = "scan-apc-pdu::".$fence_uuid."::no_ping";
-	#my $connection_condition_key = "scan-apc-pdu::".$fence_uuid."::no_connection";
 	
 	# This stores all the queries so that they're committed in one transaction.
 	$anvil->data->{sys}{queries} = [];
