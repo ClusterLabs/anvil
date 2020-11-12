@@ -605,6 +605,7 @@ INSERT INTO
 	return($alert_uuid);
 }
 
+
 ### TODO: Write this, maybe? Or remove it and ->warning()?
 =head2 error
 

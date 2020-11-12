@@ -370,7 +370,7 @@ sub get_definition
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_runtime()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_definition()" }});
 	
 	my $definition_xml = "";
 	my $anvil_uuid     = defined $parameter->{anvil_uuid}  ? $parameter->{anvil_uuid}  : "";
@@ -382,12 +382,16 @@ sub get_definition
 		server_uuid => $server_uuid, 
 	}});
 	
-	$server_uuid = $anvil->Get->server_uuid_from_name({
-		debug       => $debug, 
-		server_name => $server_name, 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
-	if ($server_uuid)
+	if (not $server_uuid)
+	{
+		$server_uuid = $anvil->Get->server_uuid_from_name({
+			debug       => $debug, 
+			server_name => $server_name, 
+			anvil_uuid  => $anvil_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
+	}
+	if (($server_uuid) && ($anvil->Validate->uuid({uuid => $server_uuid})))
 	{
 		my $query = "SELECT server_definition_xml FROM server_definitions WHERE server_definition_server_uuid = ".$anvil->Database->quote($server_uuid).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});

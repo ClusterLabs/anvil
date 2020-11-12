@@ -4017,17 +4017,15 @@ sub show_ups_config_main_menu
 				my $ups_uuid       = $anvil->data->{upses}{ups_name}{$ups_name}{ups_uuid};
 				my $ups_agent      = $anvil->data->{upses}{ups_name}{$ups_name}{ups_agent};
 				my $ups_ip_address = $anvil->data->{upses}{ups_name}{$ups_name}{ups_ip_address};
-				my $say_ups_device = $ups_agent." ".$ups_ip_address;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					ups_uuid       => $ups_uuid,
 					ups_agent      => $ups_agent, 
 					ups_ip_address => $ups_ip_address, 
-					say_ups_device => $say_ups_device, 
 				}});
 				
 				$ups_devices .= $anvil->Template->get({file => "anvil.html", name => "existing-ups-entry", variables => {
 					name       => $ups_name, 
-					ip_address => $say_ups_device,
+					ip_address => $ups_ip_address,
 					ups_agent  => $ups_agent, 
 					ups_uuid   => $ups_uuid, 
 				}});
@@ -4066,7 +4064,7 @@ sub show_ups_config_main_menu
 		options  => $brands,
 		blank    => 0,
 		'sort'   => 1,
-		selected => $anvil->data->{cgi}{ups_agent}{value} ? $anvil->data->{cgi}{ups_agent}{value} : "scan_ups_apc",
+		selected => $anvil->data->{cgi}{ups_agent}{value} ? $anvil->data->{cgi}{ups_agent}{value} : "scan-apc-ups",
 		class    => "input_clear",
 	});
 	my $ups_count_select = $anvil->Template->select_form({

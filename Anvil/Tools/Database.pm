@@ -8680,7 +8680,7 @@ sub insert_or_update_power
 		power_charge_percentage => $power_charge_percentage, 
 	}});
 
-	if ($power_ups_uuid)
+	if (not $power_ups_uuid)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_power()", parameter => "power_ups_uuid" }});
 		return("");
@@ -8732,7 +8732,6 @@ WHERE
 	{
 		my $query = "
 SELECT 
-    power_record_locator, 
     power_ups_uuid, 
     power_on_battery, 
     power_seconds_left, 
@@ -8767,7 +8766,7 @@ WHERE
 		}});
 		
 		# Convert the read-in "on battery" value to TRUE/FALSE
-		$old_power_on_battery = $power_on_battery ? "TRUE" : "FALSE";
+		$old_power_on_battery = $old_power_on_battery ? "TRUE" : "FALSE";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_power_on_battery => $old_power_on_battery }});
 		
 		if (($old_power_ups_uuid          ne $power_ups_uuid)       or 
@@ -10387,6 +10386,8 @@ This is the scan agent (or program name) setting this score.
 =head3 temperature_sensor_host (required)
 
 This is the host (uuid) that the sensor was read from. This is important as ScanCore on a striker will read available thermal data from a node using it's IPMI data.
+
+NOTE: For shared temperature sensors (like UPSes), set this to the device UUID (ie: C<< upses >> -> C<<ups_uuid>>). Devices that use the device will add these values to their own when doing post-scan calculations.
 
 =head3 temperature_sensor_name (required)
 

@@ -1896,7 +1896,14 @@
 							<td>
 								&nbsp;
 							</td>
-							<!-- agent and arguments -->
+							<!-- Scan agent -->
+							<td class="column_header">
+								#!string!header_0041!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<!-- IP Address -->
 							<td class="column_header">
 								#!string!header_0025!#
 							</td>
@@ -1913,40 +1920,30 @@
 			</tr>
 <!-- end existing-upses -->
 
-<!-- start existing-fence-device-entry -->
-						<tr style="border: 1px dotted #7f7f7f;">
-							<td>
-								<a href="?anvil=true&task=fences&fence_agent=#!variable!fence_agent!#&fence_count=1&fence_uuid_1=#!variable!fence_uuid!#" class="fixed_link_highlight">#!variable!name!#</a>
-							</td>
-							<td>
-								&nbsp;
-							</td>
-							<td style="text-align: center;">
-								<a href="?anvil=true&task=fences&delete_fence_uuid=#!variable!fence_uuid!#" class="fixed_link_highlight"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
-							</td>
-							<td>
-								&nbsp;
-							</td>
-							<td class="fixed_width">
-								#!variable!arguments!#
-							</td>
-						</tr>
-<!-- end existing-fence-device-entry -->
-
 <!-- start existing-ups-entry -->
 						<tr style="border: 1px dotted #7f7f7f;">
+							<!-- Device Name -->
 							<td>
 								<a href="?anvil=true&task=upses&ups_agent=#!variable!ups_agent!#&ups_count=1&ups_uuid_1=#!variable!ups_uuid!#" class="fixed_link_highlight">#!variable!name!#</a>
 							</td>
 							<td>
 								&nbsp;
 							</td>
+							<!-- Delete -->
 							<td style="text-align: center;">
 								<a href="?anvil=true&task=upses&delete_ups_uuid=#!variable!ups_uuid!#" class="fixed_link_highlight"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
 							</td>
 							<td>
 								&nbsp;
 							</td>
+							<!-- Scan agent -->
+							<td class="fixed_width">
+								#!variable!ups_agent!#
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<!-- IP Address -->
 							<td class="fixed_width">
 								#!variable!ip_address!#
 							</td>
@@ -2070,6 +2067,26 @@
 			</div>
 		</table>
 <!-- end fence-agent-menu -->
+
+<!-- start existing-fence-device-entry -->
+						<tr style="border: 1px dotted #7f7f7f;">
+							<td>
+								<a href="?anvil=true&task=fences&fence_agent=#!variable!fence_agent!#&fence_count=1&fence_uuid_1=#!variable!fence_uuid!#" class="fixed_link_highlight">#!variable!name!#</a>
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td style="text-align: center;">
+								<a href="?anvil=true&task=fences&delete_fence_uuid=#!variable!fence_uuid!#" class="fixed_link_highlight"><img src="#!data!skin::url!#/images/delete.png" alt="#!string!striker_0068!#" style="height: .8em;"></a>
+							</td>
+							<td>
+								&nbsp;
+							</td>
+							<td class="fixed_width">
+								#!variable!arguments!#
+							</td>
+						</tr>
+<!-- end existing-fence-device-entry -->
 
 <!-- start ups-agent-menu -->
 		<table align="center" class="anvil_main_menu">

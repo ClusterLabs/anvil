@@ -48,32 +48,153 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_apc_ups_lo
 
 - #!variable!health!#
 - #!variable!last_transfer_reason!#
-
-
-
-
-- #!variable!battery_health!#
-- #!variable!battery_state!#
-- #!variable!say_time_on_batteries!#
-- Delay between shutdown command received and actual shut down: [#!variable!shutdown_delay!#] second(s).
-- #!variable!input_sensitivity!#
-
--=] Current Sensor Values:
-
-- Battery Temperature:    [#!variable!battery_temperature!#]°C (alarms at: [#!variable!battery_alarm_temperature!#]°C)
-- Battery Voltage:        [#!variable!battery_voltage!#] vDC
-- Input Power Frequency:  [#!variable!input_frequency!#] Hz
-- Input Power Voltage:    [#!variable!input_voltage!#] vAC
-  - In the last 60 seconds, the input voltage ranged from: [#!variable!input_1m_minimum_input_voltage!#] to: [#!variable!input_1m_maximum_input_voltage!#] vAC.
-- Estimated Runtime:      [#!variable!say_estimated_runtime!#]
-- Output Load Percentage: [#!variable!output_load_percentage!#] %
-- Output Power Frequency: [#!variable!output_frequency!#] Hz
-- Output Power Voltage:   [#!variable!output_voltage!#] vAC
-- Lifetime Power Output:  [#!variable!output_total_output!#] kWh
 		</key>
+		<key name="scan_apc_ups_message_0003">A new UPS battery has been found;
+
+-=] In UPS: [#!variable!ups_name!#]
+
+- Battery Number: ........... [#!variable!battery_number!#]
+- Model Number: ............. [#!variable!model!#]
+- Install Date: ............. [#!variable!install_date!#] (yyyy/mm/dd)
+- Estimated Replacement Date: [#!variable!replacement_date!#] (yyyy/mm/dd)
+- Current Charge Percentage:  [#!variable!charge_percentage!#]
+- Health: ................... [#!variable!health!#]
+- State: .................... [#!variable!state!#]
+- Temperature: .............. [#!variable!temperature!#]°C (alarms above: [#!variable!alarm_temperature!#]°C)
+- Voltage: .................. [#!variable!battery_voltage!#] vDC
+		</key>
+		<key name="scan_apc_ups_message_0004">
+-=] Input power to: [#!variable!ups_name!#]
+
+- Last minute minimum / maximum voltage: [#!variable!1m_minimum_input_voltage!#] / [#!variable!1m_maximum_input_voltage!#]
+- Input sensitivity: ................... [#!variable!input_sensitivity!#]
+- Input frequence: ..................... [#!variable!input_frequency!#]
+		</key>
+		<key name="scan_apc_ups_message_0005">
+-=] Output power from: [#!variable!ups_name!#]
+
+- Voltage: ............. [#!variable!voltage!#]
+- Lifetime Power Output: [#!variable!total_output!#] kWh
+- Time on batteries: ... [#!variable!time_on_batteries!#]
+- Load percentage: ..... [#!variable!load_percentage!#]
+		</key>
+		<key name="scan_apc_ups_message_0006">The UPS is not running on batteries.</key>
+		<key name="scan_apc_ups_message_0007">The UPS has been running on batteries for: [#!variable!output_time_on_batteries!#]</key>
+		<key name="scan_apc_ups_message_0008">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#]'s estimated replacement date has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#] (yyyy/mm/dd).</key>
+		<key name="scan_apc_ups_message_0009">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] health has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_message_0010">
+The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] has failed! The health changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. 
+- Note: The battery will need to be replaced. Please order an APC brand: [#!variable!battery_model!#] battery.
+		</key>
+		<key name="scan_apc_ups_message_0011">
+The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] has been replaced. The health value changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].
+- Note: The battery appears to have been replaced with a: [#!variable!battery_model!#] model battery.
+		</key>
+		<key name="scan_apc_ups_message_0012">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] model has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_message_0013">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] has finished charging. The charge percentage changed from: [#!variable!old_value!#%] to: [#!variable!new_value!#%].</key>
+		<key name="scan_apc_ups_message_0014">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] has charged to its "minimum good" charge percentage of: [#!variable!low_charge_clear!#%]. The charge level changed from: [#!variable!old_value!#%] to: [#!variable!new_value!#%].</key>
+		<key name="scan_apc_ups_message_0015">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] is discharging. The charge percent dropped from: [#!variable!old_value!#%] to: [#!variable!new_value!#%].</key>
+		<key name="scan_apc_ups_message_0016">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] has discharged below the warning threshold of: [#!variable!low_charge_alert!#]. The charge percent dropped from: [#!variable!old_value!#%] to: [#!variable!new_value!#%].</key>
+		<key name="scan_apc_ups_message_0017">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#]'s last replacement date has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#] (yyyy/mm/dd). This is most likely due to an administrator replacing the battery pack in the UPS.</key>
+		<key name="scan_apc_ups_message_0018">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] has entered a warning state! The status changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_message_0019">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] has recovered from a warning state. The status changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_message_0020">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] temperature has changed from: [#!variable!old_value!#°C] to: [#!variable!new_value!#°C].</key>
+		<key name="scan_apc_ups_message_0021">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] alarm temperature has changed from: [#!variable!old_value!#°C] to: [#!variable!new_value!#°C].</key>
+		<key name="scan_apc_ups_message_0022">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] voltage has changed from: [#!variable!old_value!# vDC] to: [#!variable!new_value!# vDC].</key>
+		<key name="scan_apc_ups_message_0023">The UPS: [#!variable!ups_name!#] battery number: [#!variable!battery_number!#] temperature has jumped: [#!variable!difference!#°C] in: [#!variable!time_span!#] seconds! The temperature rose from: [#!variable!old_value!#°C] to: [#!variable!new_value!#°C].</key>
 		
 		<!-- Units -->
 		<key name="scan_apc_ups_unit_0001">Unknown</key>
+		
+		<!-- TODO: Entries below should have been messages... Rework this later. -->
+		<!-- Warnings -->
+		<key name="scan_apc_ups_warning_0001">
+-=] The temperature of: [#!variable!ups_name!#]'s, battery: [#!variable!battery_number!#] is now critically high!
+
+- Current temperature: .................. [#!variable!temperature!#°C]
+- Warning/critical threshold temps: ..... [#!variable!warning_temp!#°C]/[#!variable!critical_temp!#°C]
+- Clear warning/critical threshold temps: [#!variable!clear_critical_temp!#°C]/[#!variable!clear_warning_temp!#°C]
+
+Warning: If the UPS battery is the only high temperature, it could be a sign that the battery is failing. This can lead to battery swelling which could cause the battery to get stuck in the UPS. If this is the only high temperature, it is strongly advised that you check the battery is not swelling as soon as possible.
+		</key>
+		<key name="scan_apc_ups_warning_0002">
+-=] The temperature of: [#!variable!ups_name!#]'s battery: [#!variable!battery_number!#] has dropped and is no longer critically high.
+
+- Current temperature: .................. [#!variable!temperature!#°C]
+- Warning/critical threshold temps: ..... [#!variable!warning_temp!#°C]/[#!variable!critical_temp!#°C]
+- Clear warning/critical threshold temps: [#!variable!clear_critical_temp!#°C]/[#!variable!clear_warning_temp!#°C]
+		</key>
+		<key name="scan_apc_ups_warning_0003">
+-=] The temperature of: [#!variable!ups_name!#]'s, battery: [#!variable!battery_number!#] is above the warning temperature threshold. It is still under maximum allowed.
+
+- Current temperature: .................. [#!variable!temperature!#°C]
+- Warning/critical threshold temps: ..... [#!variable!warning_temp!#°C]/[#!variable!critical_temp!#°C]
+- Clear warning/critical threshold temps: [#!variable!clear_critical_temp!#°C]/[#!variable!clear_warning_temp!#°C]
+
+Warning: If the UPS battery is the only high temperature, it could be a sign that the battery is failing. This can lead to battery swelling which could cause the battery to get stuck in the UPS. If this is the only high temperature, it is strongly advised that you check the battery is not swelling as soon as possible.
+		</key>
+		<key name="scan_apc_ups_warning_0004">
+-=] The temperature of: [#!variable!ups_name!#]'s battery: [#!variable!battery_number!#] has dropped back down to nominal levels.
+
+- Current temperature: .................. [#!variable!temperature!#°C]
+- Warning/critical threshold temps: ..... [#!variable!warning_temp!#°C]/[#!variable!critical_temp!#°C]
+- Clear warning/critical threshold temps: [#!variable!clear_critical_temp!#°C]/[#!variable!clear_warning_temp!#°C]
+		</key>
+		<key name="scan_apc_ups_warning_0005">The UPS: [#!variable!old_ups_name!#] has been renamed to: [#!variable!new_ups_name!#]</key>
+		<key name="scan_apc_ups_warning_0006">The UPS: [#!variable!ups_name!#]'s serial number has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. Was the UPS replaced?</key>
+		<key name="scan_apc_ups_warning_0007">The UPS: [#!variable!ups_name!#]'s IP address has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_warning_0008">The UPS: [#!variable!ups_name!#]'s model has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. Was the UPS replaced?</key>
+		<key name="scan_apc_ups_warning_0009">The UPS: [#!variable!ups_name!#]'s start time after input power is restored has changed from: [#!variable!old_value!#s] to: [#!variable!new_value!#s]. This controls how long the UPS will wait after the input power has returned until it starts providing output power.</key>
+		<key name="scan_apc_ups_warning_0010">The UPS: [#!variable!ups_name!#]'s shutdown delay time has changed: from: [#!variable!old_value!#s] to [#!variable!new_value!#s]. This controls how long the UPS will wait after being asked to power down before actually disabling its output power.</key>
+		<key name="scan_apc_ups_warning_0011">The UPS: [#!variable!ups_name!#]'s firmware has been updated from: [#!variable!old_value!#] to: [#!variable!new_value!#]. The firmware is software inside the UPS that controls how the UPS operates and how users interact with it. Typically a firmware is upgraded by an administrator to fix bugs or add new functionality.</key>
+		<key name="scan_apc_ups_warning_0012">The UPS: [#!variable!ups_name!#]'s health status has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_warning_0013">The UPS: [#!variable!ups_name!#]'s low-voltage transfer voltage has increased from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. An administrator may have made this change in order to help protect more sensitive down-stream equipment from low input voltages. This will likely shorten the life of the UPSes as the UPS will switch to batteries earlier on low-input power.</key>
+		<key name="scan_apc_ups_warning_0014">The UPS: [#!variable!ups_name!#]'s low-voltage transfer voltage has decreased from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. An administrator may have made this change in order to reduce how often the UPS switches to batteries. This may be done in cases where input power is often low and the down-stream equipment is known to be able to handle the lower voltage without issue. This change would help extend the life of the batteries.</key>
+		<key name="scan_apc_ups_warning_0015">The UPS: [#!variable!ups_name!#]'s last transfer to batteries reason has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_warning_0016">The UPS: [#!variable!ups_name!#]'s manufacture data has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. Was the UPS replaced?</key>
+		<key name="scan_apc_ups_warning_0017">The UPS: [#!variable!ups_name!#]'s network interface's firmware has been updated from version: [#!variable!old_value!#] to: [#!variable!new_value!#]. The firmware is software inside the UPS's network interface card that controls how the card operates and how users interact with it. Typically a firmware is upgraded by an administrator to fix bugs or add new functionality.</key>
+		<key name="scan_apc_ups_warning_0018">The UPS: [#!variable!ups_name!#]'s network interface's serial number has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. Was the network card replaced?</key>
+		<key name="scan_apc_ups_warning_0019">The UPS: [#!variable!ups_name!#]'s network interface's MAC address has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. Was the network card replaced?</key>
+		<key name="scan_apc_ups_warning_0020">The input sensitivity for the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_warning_0021">The UPS: [#!variable!ups_name!#] has input power again. The input voltage is now: [#!variable!new_value!# vAC].</key>
+		<key name="scan_apc_ups_warning_0022">The input voltage for the UPS: [#!variable!ups_name!#] has gone above the high-voltage transfer level! The current input value rose from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. The high alert voltage threshold is: [#!variable!high_transfer_voltage!# vAC].</key>
+		<key name="scan_apc_ups_warning_0023">The input voltage for the UPS: [#!variable!ups_name!#] has risen back above the low-voltage transfer level and is operating normally again. Rose from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. The low-voltage clear voltage threshold is: [#!variable!clear_low_transfer!# vAC]</key>
+		<key name="scan_apc_ups_warning_0024">The input voltage for the UPS: [#!variable!ups_name!#] has risen from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
+		<key name="scan_apc_ups_warning_0025">The input voltage for the UPS: [#!variable!ups_name!#] has dropped from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
+		<key name="scan_apc_ups_warning_0026">The UPS: [#!variable!ups_name!#] has lost input power! The input voltage dropped from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
+		<key name="scan_apc_ups_warning_0027">The input voltage for the UPS: [#!variable!ups_name!#] has dropped below the low-voltage transfer level! The voltage dropped from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. The low-voltage transfer voltage is: [#!variable!low_transfer_voltage!#].</key>
+		<key name="scan_apc_ups_warning_0028">The input voltage for the UPS: [#!variable!ups_name!#] has dropped back down below the high-voltage transfer level and is operating normally again. The voltage changed from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC]. The clear high-voltage threshold is: [#!variable!clear_high_transfer!#].</key>
+		<key name="scan_apc_ups_warning_0029">The highest input voltage seen in the last 60 seconds for the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
+		<key name="scan_apc_ups_warning_0030">The lowest input voltage seen in the last 60 seconds for the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
+		<key name="scan_apc_ups_warning_0031">The load percentage on the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!#%] to [#!variable!new_value!#%].</key>
+		<key name="scan_apc_ups_warning_0032">The load percentage on the UPS: [#!variable!ups_name!#] has risen above the high-load threashold of: [#!variable!high_load!#]. It changed from: [#!variable!old_value!#%] to [#!variable!new_value!#%]. With a high load on the UPS, the effective hold up time will be reduced, meaning that if power is lost, the UPS batteries will drain quickly, possibly faster than a graceful shutdown can be performed. It's advised to reduce load, if possible.</key>
+		<key name="scan_apc_ups_warning_0033">The load percentage on the UPS: [#!variable!ups_name!#] has fallen below the high-load clear threashold of: [#!variable!high_clear!#]. It changed from: [#!variable!old_value!#%] to [#!variable!new_value!#%].</key>
+		<key name="scan_apc_ups_warning_0034">The time on batteries for the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_warning_0035">The UPS: [#!variable!ups_name!#] has returned to running on mains power. The time on batteries has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_warning_0036">The UPS: [#!variable!ups_name!#] is now running on batteries. Its time on batteries has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
+		<key name="scan_apc_ups_warning_0037">The estimated hold-up time for the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#]. This is an *estimate* of how long the UPS can provide power should the input power be lost at the current load level. An increase in the average load will shorten the actual hold-up time.</key>
+		<key name="scan_apc_ups_warning_0038">
+-=] The estimated hold-up time for the UPS: [#!variable!ups_name!#] is low! 
+
+If power is lost, the UPSes may run out of power faster than the Anvil! can shed load and/or gracefully shut down the hosted server. If at all possible, please remove non-critical devices from this UPS. If not possible, please add extended runtime batteries to the UPS, or replace the UPS with higher capacity versions (ideally with extended runtime battery support).
+
+- The estimated hold-up time changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].
+- This alert triggers below: ............. [#!variable!low_threshold!#]
+- This alert clears above: ............... [#!variable!clear_threshold!#]
+		</key>
+		<key name="scan_apc_ups_warning_0039">
+-=] The estimated hold-up time for the UPS: [#!variable!ups_name!#] is now ok. 
+
+The estimated holdup time of this UPS is back up to a reasonable level. In a power loss event, the chances of successful load shed and/or clean shut down are reasonably high.
+
+- The estimated hold-up time changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].
+- This alert triggers below: ............. [#!variable!low_threshold!#]
+- This alert clears above: ............... [#!variable!clear_threshold!#]
+		</key>
+		<key name="scan_apc_ups_warning_0040">The output frequency from the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!# Hz] to: [#!variable!new_value!# Hz].</key>
+		<key name="scan_apc_ups_warning_0041">The output voltage from the UPS: [#!variable!ups_name!#] has changed from: [#!variable!old_value!# vAC] to: [#!variable!new_value!# vAC].</key>
+		<key name="scan_apc_ups_warning_0042">The total lifetime power output from the UPS: [#!variable!ups_name!#] has increased from: [#!variable!old_value!# kWh] to: [#!variable!new_value!# kWh].</key>
+		<key name="scan_apc_ups_warning_0043">A new battery the UPS: [#!variable!ups_name!#] has increased from: [#!variable!old_value!# kWh] to: [#!variable!new_value!# kWh].</key>
 		
 		<!-- The UPS reports states as integers. These are used to translate those states into 
 		     strings that a human would understand. If we lose contact with the UPS entirely, we will

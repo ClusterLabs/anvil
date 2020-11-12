@@ -1649,8 +1649,8 @@ CREATE TABLE power (
     power_uuid                 uuid                       primary key,    
     power_ups_uuid             uuid                        not null,      -- This is the 'upses' -> 'ups_uuid' of the UPS. This is used to map what UPSes are powering a given node.
     power_on_battery           boolean                     not null,      -- TRUE == use "time_remaining" to determine if graceful power off is needed. FALSE == power loss NOT imminent, do not power off node. 
-    power_seconds_left         numeric,                                   -- Should always be set, but not required *EXCEPT* when 'power_on_battery' is TRUE.
-    power_charge_percentage    numeric,                                   -- Percentage charge in the UPS. Used to determine when the dashboard should boot the node after AC restore
+    power_seconds_left         numeric                     not null,      -- Should always be set, but not required *EXCEPT* when 'power_on_battery' is TRUE.
+    power_charge_percentage    numeric                     not null,      -- Percentage charge in the UPS. Used to determine when the dashboard should boot the node after AC restore
     modified_date              timestamp with time zone    not null,
     
     FOREIGN KEY(power_ups_uuid) REFERENCES upses(ups_uuid)

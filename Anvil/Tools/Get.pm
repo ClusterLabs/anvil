@@ -1371,7 +1371,7 @@ sub server_uuid_from_name
 	if ($anvil_uuid)
 	{
 		# Make sure the Anvil! UUID is valid. 
-		my $anvil_name = $anvil->Get->anvil_name_from_uuid({anvil_uuid => $anvil_uuid});
+		my $anvil_name = $anvil->Get->anvil_name_from_uuid({debug => $debug, anvil_uuid => $anvil_uuid});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 		if ((not $anvil_name) or ($anvil_name eq "!!error!!"))
 		{
@@ -1406,12 +1406,12 @@ AND
 	if ($count == 1)
 	{
 		# Found it
-		$server_name = defined $results->[0]->[0] ? $results->[0]->[0] : "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name }});
+		$server_uuid = defined $results->[0]->[0] ? $results->[0]->[0] : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name }});
-	return($server_name);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
+	return($server_uuid);
 }
 
 

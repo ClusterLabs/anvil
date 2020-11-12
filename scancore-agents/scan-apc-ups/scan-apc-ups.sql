@@ -15,7 +15,6 @@ CREATE TABLE scan_apc_upses (
     scan_apc_ups_last_transfer_reason     numeric                     not null,
     scan_apc_ups_manufactured_date        text                        not null,
     scan_apc_ups_model                    text                        not null,
-    scan_apc_ups_temperature_units        text                        not null,
     scan_apc_ups_nmc_firmware_version     text                        not null,
     scan_apc_ups_nmc_serial_number        text                        not null,
     scan_apc_ups_nmc_mac_address          text                        not null,
@@ -41,7 +40,6 @@ CREATE TABLE history.scan_apc_upses (
     scan_apc_ups_last_transfer_reason     numeric,
     scan_apc_ups_manufactured_date        text,
     scan_apc_ups_model                    text,
-    scan_apc_ups_temperature_units        text,
     scan_apc_ups_nmc_firmware_version     text,
     scan_apc_ups_nmc_serial_number        text,
     scan_apc_ups_nmc_mac_address          text,
@@ -56,7 +54,8 @@ DECLARE
 BEGIN
     SELECT INTO history_scan_apc_upses * FROM scan_apc_upses WHERE scan_apc_ups_uuid=new.scan_apc_ups_uuid;
     INSERT INTO history.scan_apc_upses
-        (scan_apc_ups_uuid,
+        (scan_apc_ups_uuid, 
+         scan_apc_ups_ups_uuid, 
          scan_apc_ups_serial_number, 
          scan_apc_ups_name, 
          scan_apc_ups_ip, 
@@ -69,30 +68,29 @@ BEGIN
          scan_apc_ups_last_transfer_reason, 
          scan_apc_ups_manufactured_date, 
          scan_apc_ups_model, 
-         scan_apc_ups_temperature_units, 
          scan_apc_ups_nmc_firmware_version,
          scan_apc_ups_nmc_serial_number,
          scan_apc_ups_nmc_mac_address,
          modified_date)
     VALUES
-        (history_scan_apc_ups.scan_apc_ups_uuid,
-         history_scan_apc_ups.scan_apc_ups_serial_number, 
-         history_scan_apc_ups.scan_apc_ups_name,
-         history_scan_apc_ups.scan_apc_ups_ip,
-         history_scan_apc_ups.scan_apc_ups_ac_restore_delay, 
-         history_scan_apc_ups.scan_apc_ups_shutdown_delay, 
-         history_scan_apc_ups.scan_apc_ups_firmware_version, 
-         history_scan_apc_ups.scan_apc_ups_health, 
-         history_scan_apc_ups.scan_apc_ups_high_transfer_voltage, 
-         history_scan_apc_ups.scan_apc_ups_low_transfer_voltage, 
-         history_scan_apc_ups.scan_apc_ups_last_transfer_reason, 
-         history_scan_apc_ups.scan_apc_ups_manufactured_date, 
-         history_scan_apc_ups.scan_apc_ups_model, 
-         history_scan_apc_ups.scan_apc_ups_temperature_units, 
-         history_scan_apc_ups.scan_apc_ups_nmc_firmware_version,
-         history_scan_apc_ups.scan_apc_ups_nmc_serial_number,
-         history_scan_apc_ups.scan_apc_ups_nmc_mac_address,
-         history_scan_apc_ups.modified_date);
+        (history_scan_apc_upses.scan_apc_ups_uuid,
+         history_scan_apc_upses.scan_apc_ups_ups_uuid, 
+         history_scan_apc_upses.scan_apc_ups_serial_number, 
+         history_scan_apc_upses.scan_apc_ups_name,
+         history_scan_apc_upses.scan_apc_ups_ip,
+         history_scan_apc_upses.scan_apc_ups_ac_restore_delay, 
+         history_scan_apc_upses.scan_apc_ups_shutdown_delay, 
+         history_scan_apc_upses.scan_apc_ups_firmware_version, 
+         history_scan_apc_upses.scan_apc_ups_health, 
+         history_scan_apc_upses.scan_apc_ups_high_transfer_voltage, 
+         history_scan_apc_upses.scan_apc_ups_low_transfer_voltage, 
+         history_scan_apc_upses.scan_apc_ups_last_transfer_reason, 
+         history_scan_apc_upses.scan_apc_ups_manufactured_date, 
+         history_scan_apc_upses.scan_apc_ups_model, 
+         history_scan_apc_upses.scan_apc_ups_nmc_firmware_version,
+         history_scan_apc_upses.scan_apc_ups_nmc_serial_number,
+         history_scan_apc_upses.scan_apc_ups_nmc_mac_address,
+         history_scan_apc_upses.modified_date);
     RETURN NULL;
 END;
 $$
@@ -109,7 +107,7 @@ CREATE TABLE scan_apc_ups_batteries (
     scan_apc_ups_battery_uuid                     uuid                        not null    primary key,
     scan_apc_ups_battery_scan_apc_ups_uuid        uuid                        not null,
     scan_apc_ups_battery_number                   numeric                     not null,
-    scan_apc_ups_battery_replacement_date         text                        not null,
+    scan_apc_ups_battery_next_replacement_date    text                        not null,
     scan_apc_ups_battery_health                   numeric                     not null,
     scan_apc_ups_battery_model                    text                        not null,
     scan_apc_ups_battery_percentage_charge        numeric                     not null,
@@ -122,14 +120,14 @@ CREATE TABLE scan_apc_ups_batteries (
     
     FOREIGN KEY(scan_apc_ups_battery_scan_apc_ups_uuid) REFERENCES scan_apc_upses(scan_apc_ups_uuid)
 );
-ALTER TABLE scan_apc_ups_battery OWNER TO admin;
+ALTER TABLE scan_apc_ups_batteries OWNER TO admin;
 
 CREATE TABLE history.scan_apc_ups_batteries (
     history_id                                    bigserial,
     scan_apc_ups_battery_uuid                     uuid,
     scan_apc_ups_battery_scan_apc_ups_uuid        uuid,
     scan_apc_ups_battery_number                   numeric,
-    scan_apc_ups_battery_replacement_date         text,
+    scan_apc_ups_battery_next_replacement_date    text,
     scan_apc_ups_battery_health                   numeric,
     scan_apc_ups_battery_model                    text,
     scan_apc_ups_battery_percentage_charge        numeric,
@@ -152,7 +150,7 @@ BEGIN
         (scan_apc_ups_battery_uuid,
          scan_apc_ups_battery_scan_apc_ups_uuid,
          scan_apc_ups_battery_number, 
-         scan_apc_ups_battery_replacement_date,
+         scan_apc_ups_battery_next_replacement_date,
          scan_apc_ups_battery_health,
          scan_apc_ups_battery_model,
          scan_apc_ups_battery_percentage_charge,
@@ -163,19 +161,19 @@ BEGIN
          scan_apc_ups_battery_voltage,
          modified_date)
     VALUES
-        (history_scan_apc_ups_battery.scan_apc_ups_battery_uuid,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_scan_apc_ups_uuid,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_number, 
-         history_scan_apc_ups_battery.scan_apc_ups_battery_replacement_date,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_health,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_model,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_percentage_charge,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_last_replacement_date,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_state,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_temperature,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_alarm_temperature,
-         history_scan_apc_ups_battery.scan_apc_ups_battery_voltage,
-         history_scan_apc_ups_battery.modified_date);
+        (history_scan_apc_ups_batteries.scan_apc_ups_battery_uuid,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_scan_apc_ups_uuid,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_number, 
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_next_replacement_date,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_health,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_model,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_percentage_charge,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_last_replacement_date,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_state,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_temperature,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_alarm_temperature,
+         history_scan_apc_ups_batteries.scan_apc_ups_battery_voltage,
+         history_scan_apc_ups_batteries.modified_date);
     RETURN NULL;
 END;
 $$
@@ -210,7 +208,7 @@ CREATE TABLE history.scan_apc_ups_input (
     scan_apc_ups_input_sensitivity                 numeric,
     scan_apc_ups_input_voltage                     numeric,
     scan_apc_ups_input_1m_maximum_input_voltage    numeric,
-    scan_apc_ups_input_1m_minimum_input_voltage    numeric
+    scan_apc_ups_input_1m_minimum_input_voltage    numeric, 
     modified_date                                  timestamp with time zone    not null
 );
 ALTER TABLE history.scan_apc_ups_input OWNER TO admin;

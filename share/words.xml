@@ -280,6 +280,7 @@ The error was:
 		<key name="header_0038">IFN link #!variable!number!#</key>
 		<key name="header_0039">New Hostname</key>
 		<key name="header_0040">#!string!brand_0006!# Description</key>
+		<key name="header_0041">Scan Agent</key>
 		
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -1776,10 +1777,10 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		           expansion of the list. Please do NOT remove any entries as they are linked by the 
 		           database. When translating, DO NOT CHANGE 'name' or 'agent'! The 'brand' key can
 		           be changed just fine though. -->
-		<key name="ups_0001" agent="scan_ups_apc" brand="APC"><![CDATA[APC (by Schneider) Networked UPS - <a href="https://www.apc.com/shop/ca/en/categories/power/uninterruptible-power-supply-ups-/network-and-server/N-15e4jmd" target="_new">Link</a>.]]></key>
-		<key name="ups_0002" agent="scan_ups_eaton" brand="Eaton"><![CDATA[Eaton Networked UPS - <a href="https://powerquality.eaton.com/Products-services/Backup-Power-UPS/default.asp" target="_new">Link</a>.]]></key>
-		<key name="ups_0003" agent="scan_ups_tripplite" brand="TrippLite"><![CDATA[TrippLite Networked UPS - <a href="https://www.tripplite.com/products/ups-battery-backup~11" target="_new">Link</a>.]]></key>
-		<key name="ups_0004" agent="scan_ups_cyberpower" brand="Cyberpower"><![CDATA[Cyberpower Networked UPS - <a href="https://www.cyberpowersystems.com/products/ups/" target="_new">Link</a>.]]></key>
+		<key name="ups_0001" agent="scan-apc-ups" brand="APC"><![CDATA[APC (by Schneider) Networked UPS - <a href="https://www.apc.com/shop/ca/en/categories/power/uninterruptible-power-supply-ups-/network-and-server/N-15e4jmd" target="_new">Link</a>.]]></key>
+		<key name="ups_0002" agent="scan-eaton-ups" brand="Eaton"><![CDATA[Eaton Networked UPS - <a href="https://powerquality.eaton.com/Products-services/Backup-Power-UPS/default.asp" target="_new">Link</a>.]]></key>
+		<key name="ups_0003" agent="scan-tripplite-ups" brand="TrippLite"><![CDATA[TrippLite Networked UPS - <a href="https://www.tripplite.com/products/ups-battery-backup~11" target="_new">Link</a>.]]></key>
+		<key name="ups_0004" agent="scan-cyberpower-ups" brand="Cyberpower"><![CDATA[Cyberpower Networked UPS - <a href="https://www.cyberpowersystems.com/products/ups/" target="_new">Link</a>.]]></key>
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">[ Warning ] - The IP address will change. You will need to reconnect after applying these changes.</key>

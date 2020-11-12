@@ -30,7 +30,7 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_apc_pdu_lo
 		<key name="scan_apc_pdu_message_0005">Able to now read the number of outlets for the PDU: [#!variable!name!#] at IP: [#!variable!ip!#] (sn: #!variable!serial_number!#).</key>
 		<key name="scan_apc_pdu_message_0006">The PDU: [#!variable!name!#] with the serial number: [#!variable!serial_number!#] at the IP address: [#!variable!ip_address!#] has returned.</key>
 		<key name="scan_apc_pdu_message_0007">The model of the PDU: [#!variable!name!#] has changed from; [#!variable!old_model_number!#] to: [#!variable!new_model_number!#]</key>
-		<key name="scan_apc_pdu_message_0008">The serial number of the PDU: [#!variable!name!#] has changed from; [#!variable!old_model_number!#] to: [#!variable!new_model_number!#]. This is expected if the PDU was replaced.</key>
+		<key name="scan_apc_pdu_message_0008">The serial number of the PDU: [#!variable!name!#] has changed from; [#!variable!old_serial_number!#] to: [#!variable!new_serial_number!#]. This is expected if the PDU was replaced.</key>
 		<key name="scan_apc_pdu_message_0009">The manufacture date of the PDU: [#!variable!name!#] has changed from: [#!variable!old_manufacture_date!#] to: [#!variable!new_manufacture_date!#]. This is expected if the PDU was replaced.</key>
 		<key name="scan_apc_pdu_message_0010">The firmware on the PDU: [#!variable!name!#] has changed from: [#!variable!old_firmware_version!#] to: [#!variable!new_firmware_version!#].</key>
 		<key name="scan_apc_pdu_message_0011">The hardware version on the PDU: [#!variable!name!#] has changed from: [#!variable!old_hardware_version!#] to: [#!variable!new_hardware_version!#]. This is expected if the PDU was replaced.</key>

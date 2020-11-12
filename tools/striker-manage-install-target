@@ -1337,8 +1337,6 @@ sub load_packages
 			"colord.x86_64",
 			"coreutils-common.x86_64",
 			"coreutils.x86_64",
-			"corosync.x86_64",
-			"corosynclib.x86_64",
 			"cpio.x86_64",
 			"cpp.x86_64", 
 			"cracklib-dicts.x86_64",
@@ -2446,6 +2444,12 @@ sub load_packages
 			"zlib.x86_64",
 		],
 	};
+	
+	# These packages can't be downloaded on RHEL Striker dashboads as they usually are not entitled to 
+	$anvil->data->{ha_packages} = [
+		"corosync.x86_64",
+		"corosynclib.x86_64",
+	];
 	
 	my ($os_type, $os_arch) = $anvil->Get->os_type();
 	if ($os_type eq "rhel8")

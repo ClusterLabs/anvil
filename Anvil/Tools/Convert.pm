@@ -526,7 +526,7 @@ sub celsius_to_fahrenheit
 	}
 	if ($temperature !~ /^\d/)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0165", variables => { $temperature => temperature }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0165", variables => { temperature => $temperature }});
 		return("!!error!!");
 	}
 	
@@ -702,7 +702,7 @@ sub fahrenheit_to_celsius
 	}
 	if ($temperature !~ /^\d/)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0165", variables => { $temperature => temperature }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0165", variables => { temperature => $temperature }});
 		return("!!error!!");
 	}
 	

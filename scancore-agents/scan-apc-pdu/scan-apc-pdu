@@ -89,7 +89,8 @@ if (($< != 0) && ($> != 0))
 }
 
 $anvil->data->{'scan-apc-pdu'} = {
-	alert_sort			=>	0,
+	# Starts at '2' so that anything set to '1' manually shows first
+	alert_sort			=>	2,
 	disable				=>	0,
 	# Ticks are genera	lly in 10ms increments
 	ticks_per_second		=>	100,
@@ -627,8 +628,8 @@ sub find_changes
 				
 				my $variables = {
 					name             => $pdu_host_name,
-					old_model_number => $old_scan_apc_pdu_serial_number,
-					new_model_number => $new_scan_apc_pdu_serial_number,
+					old_serial_number => $old_scan_apc_pdu_serial_number,
+					new_serial_number => $new_scan_apc_pdu_serial_number,
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_apc_pdu_message_0008", variables => $variables});
 				$anvil->Alert->register({
