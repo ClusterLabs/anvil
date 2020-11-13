@@ -38,6 +38,7 @@ my $THIS_FILE = "Database.pm";
 # get_recipients
 # get_servers
 # get_ssh_keys
+# get_tables_from_schema
 # get_upses
 # initialize
 # insert_or_update_anvils
@@ -3753,6 +3754,64 @@ FROM
 	}
 	
 	return(0);
+}
+
+
+=head2 get_tables_from_schema
+
+This reads in a schema file and generates an array of tables. The array contains the tables in the order they are found in the schema. If there is a problem, C<< !!error!! >> is returned. On success, an array reference is returned.
+
+Parameters;
+
+=head3 schema_file (required)
+
+This is the full path to a SQL schema file to look for tables in.
+
+=cut
+sub get_tables_from_schema
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_tables_from_schema()" }});
+	
+	my $tables      = [];
+	my $schema_file = defined $parameter->{schema_file} ? $parameter->{schema_file} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		schema_file => $schema_file, 
+	}});
+	
+	if (not $schema_file)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->get_tables_from_schema()", parameter => "schema_file" }});
+		return("!!error!!");
+	}
+	
+	my $schema = $anvil->Storage->read_file({file => $schema_file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { schema_file => $schema_file }});
+	
+	if ($schema eq "!!error!!")
+	{
+		return("!!error!!");
+	}
+	
+	foreach my $line (split/\n/, $schema)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		$line =~ s/--.*?//;
+		
+		next if $line =~ /CREATE TABLE history\./;
+		if ($line =~ /CREATE TABLE (.*?) \(/i)
+		{
+			my $table = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { table => $table }});
+			push @{$tables}, $table;
+		}
+	}
+	
+	return($tables);
 }
 
 

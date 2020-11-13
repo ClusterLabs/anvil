@@ -54,7 +54,7 @@ $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  = 75;
 $anvil->data->{switches}{force}                                  = 0;
 
 $anvil->Storage->read_config();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
 $anvil->Get->switches;

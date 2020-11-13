@@ -128,8 +128,21 @@ sub agent_startup
 	}
 	if ((not $tables) or (ref($tables) ne "ARRAY"))
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "tables" }});
-		return("!!error!!");
+		my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.".sql";
+		if (-e $schema_file)
+		{
+			$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => $schema_file});
+			if (($tables eq "!!error!!") or (ref($tables) ne "ARRAY"))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "tables" }});
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "ScanCore->agent_startup()", parameter => "tables" }});
+			return("!!error!!");
+		}
 	}
 	
 	# Connect to DBs.
