@@ -1015,6 +1015,21 @@ sub update_install_source
 		print $anvil->Words->string({key => "message_0077", variables => { directory => $packages }})."\n";
 		update_progress($anvil, $progress, "message_0077,!!directory!".$packages."!!");
 		
+		# If this host is not a RHEL host, add the HA packages to the main packages. If it is RHEL, 
+		# we'll pull the packages from a node.
+		if ($anvil->data->{host_os}{os_type} ne "rhel8")
+		{
+			foreach my $letter (sort {$a cmp $b} keys %{$anvil->data->{ha_packages}})
+			{
+				foreach my $package (sort {$a cmp $b} @{$anvil->data->{packages}{$letter}})
+				{
+					# Push the package onto the normal array.
+					push @{$anvil->data->{packages}{$letter}}, $package;
+				}
+			}
+			delete $anvil->data->{ha_packages};
+		}
+		
 		foreach my $letter (sort {$a cmp $b} keys %{$anvil->data->{packages}})
 		{
 			$progress += 2;
@@ -1164,6 +1179,206 @@ sub update_install_source
 			}
 			# Progress is '82' leaving this loop
 		}
+		
+		# If this is a RHEL host, we'll now look for a node to download HA packages from.
+		if ($anvil->data->{host_os}{os_type} eq "rhel8")
+		{
+			# Try to find a node to download the RPMs on.
+			update_progress($anvil, ++$progress, "message_0184");
+			my $use_node_name         = "";
+			my $use_node_ip           = "";
+			my $use_password          = "";
+			my $local_short_host_name = $anvil->Get->short_host_name;
+			$anvil->Network->load_ips({
+				debug => 3,
+				host  => $local_short_host_name, 
+			});
+
+			my $query = "
+SELECT 
+    a.host_uuid, 
+    a.host_name, 
+    b.anvil_password 
+FROM 
+    hosts a, 
+    anvils b 
+WHERE 
+    a.host_type = 'node' 
+AND 
+    (
+        a.host_uuid = b.anvil_node1_host_uuid 
+    OR 
+        a.host_uuid = b.anvil_node2_host_uuid
+    ) 
+ORDER BY 
+    a.host_name ASC
+;";
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count,
+			}});
+			foreach my $row (@{$results})
+			{
+				my $host_uuid       = $row->[0];
+				my $host_name       = $row->[1];
+				my $anvil_password  = $row->[2];
+				my $short_host_name = $host_name;
+				$short_host_name =~ s/\..*$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					host_uuid       => $host_uuid, 
+					host_name       => $host_name, 
+					anvil_password  => $anvil->Log->is_secure($anvil_password), 
+					short_host_name => $short_host_name, 
+				}});
+				$anvil->Network->load_ips({
+					debug     => 3, 
+					host_uuid => $host_uuid,
+					host      => $short_host_name, 
+				});
+
+				my $access  = 0;
+				my ($match) = $anvil->Network->find_matches({
+					debug  => 3,
+					first  => $local_short_host_name, 
+					second => $short_host_name,
+				});
+				
+				my $keys = keys %{$match};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'keys' => $keys }});
+				if ($keys)
+				{
+					foreach my $interface (sort {$a cmp $b} keys %{$match->{$short_host_name}})
+					{
+						my $remote_ip = $match->{$short_host_name}{$interface}{ip};
+						my $pinged    = $anvil->Network->ping({
+							ping  => $remote_ip, 
+							count => 1,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							remote_ip => $remote_ip, 
+							pinged    => $pinged,
+						}});
+						if ($pinged)
+						{
+							my $access = $anvil->Remote->test_access({
+								target   => $remote_ip,
+								password => $anvil_password,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+							if ($access)
+							{
+								my $internet = $anvil->Network->check_internet({
+									debug    => 3,
+									target   => $remote_ip, 
+									password => $anvil_password, 
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { internet => $internet }});
+								if ($internet)
+								{
+									my ($os_type, $os_arch) = $anvil->Get->os_type({
+										debug    => 3,
+										target   => $remote_ip,
+										password => $anvil_password, 
+									});
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+										os_type => $os_type, 
+										os_arch => $os_arch, 
+									}});
+									if (($anvil->data->{host_os}{os_type} eq $os_type) && ($os_arch eq $anvil->data->{host_os}{os_arch}))
+									{
+										update_progress($anvil, ++$progress, "message_0185,!!node!".$host_name."!!");
+										$use_node_name = $host_name;
+										$use_node_ip   = $remote_ip;
+										$use_password  = $anvil_password;
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+											use_node_name => $use_node_name, 
+											use_node_ip   => $use_node_ip,
+											use_password  => $anvil->Log->is_secure($use_password), 
+										}});
+										last;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_node_ip => $use_node_ip }});
+			if ($use_node_ip)
+			{
+				foreach my $letter (sort {$a cmp $b} keys %{$anvil->data->{ha_packages}})
+				{
+					my $download_path = "/tmp/Packages/".$letter;
+					my $local_path    = "/var/www/html/".$anvil->data->{host_os}{os_type}."/".$anvil->data->{host_os}{os_arch}."/os/Packages/".$letter;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						letter        => $letter, 
+						download_path => $download_path, 
+						local_path    => $local_path, 
+					}});
+					
+					# This is the directory we'll download the packages to on the node.
+					$anvil->Storage->make_directory({
+						debug     => 3,
+						directory => $download_path, 
+						target    => $use_node_ip, 
+						password  => $use_password, 
+						mode      => "0775", 
+					});
+					
+					my $packages   = "";
+					my $shell_call = $anvil->data->{path}{exe}{dnf}." download --destdir ".$download_path." ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+					foreach my $package (sort {$a cmp $b} @{$anvil->data->{ha_packages}{$letter}})
+					{
+						# Append the package to the active shell call.
+						$packages .= $package." ";
+					}
+					$packages   =~ s/ $//;
+					$shell_call .= " ".$packages;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					# None of the HA packages are large os it's not worth trying to monitor the downlaods
+					# in real time. As such, we'll make a standard remote call.
+					my ($output, $error, $return_code) = $anvil->Remote->call({
+						debug       => 3, 
+						target      => $use_node_ip,
+						password    => $use_password,
+						shell_call  => $shell_call,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						error       => $error, 
+						return_code => $return_code, 
+					}});
+					
+					if (not $return_code)
+					{
+						# Success! Copy the files.
+						my $failed = $anvil->Storage->rsync({
+							debug       => 3, 
+							source      => "root\@".$use_node_ip.":".$download_path."/*",
+							destination => $local_path."/",
+							password    => $use_password, 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+						if (not $failed)
+						{
+							update_progress($anvil, ++$progress, "message_0187,!!letter!".$letter."!!");
+						}
+					}
+				}
+				update_progress($anvil, ++$progress, "message_0188");
+			}
+			else
+			{
+				# No nodes found.
+				update_progress($anvil, ++$progress, "message_0186");
+			}
+		}
+
 	}
 	
 	# Create the repodata
@@ -1747,17 +1962,6 @@ sub load_packages
 			"libjpeg-turbo.x86_64",
 			"libkcapi-hmaccalc.x86_64",
 			"libkcapi.x86_64",
-			"libknet1.x86_64",
-			"libknet1-compress-bzip2-plugin.x86_64",
-			"libknet1-compress-lz4-plugin.x86_64",
-			"libknet1-compress-lzma-plugin.x86_64",
-			"libknet1-compress-lzo2-plugin.x86_64",
-			"libknet1-compress-plugins-all.x86_64",
-			"libknet1-compress-zlib-plugin.x86_64",
-			"libknet1-crypto-nss-plugin.x86_64", 
-			"libknet1-crypto-openssl-plugin.x86_64",
-			"libknet1-crypto-plugins-all.x86_64",
-			"libknet1-plugins-all.x86_64",
 			"libksba.x86_64",
 			"libldb.x86_64",
 			"libmaxminddb.x86_64",
@@ -1779,7 +1983,6 @@ sub load_packages
 			"libnl3.x86_64",
 			"libnma.x86_64",
 			"libnotify.x86_64",
-			"libnozzle1.x86_64",
 			"libnsl2.x86_64",
 			"liboauth.x86_64",
 			"libogg.x86_64",
@@ -1992,11 +2195,6 @@ sub load_packages
 		p	=>	[
 			"p11-kit-trust.x86_64",
 			"p11-kit.x86_64",
-			"pacemaker.x86_64",
-			"pacemaker-cli.x86_64",
-			"pacemaker-cluster-libs.x86_64",
-			"pacemaker-libs.x86_64",
-			"pacemaker-schemas.noarch",
 			"PackageKit-glib.x86_64",
 			"PackageKit.x86_64",
 			"pam.x86_64",
@@ -2007,7 +2205,6 @@ sub load_packages
 			"pciutils.x86_64",
 			"pcre.x86_64",
 			"pcre2.x86_64",
-			"pcs.x86_64",
 			"perl-aliased.noarch", 
 			"perl-Algorithm-C3.noarch", 
 			"perl-Algorithm-Diff.noarch",
@@ -2296,7 +2493,6 @@ sub load_packages
 			"radvd.x86_64",
 			"rdma-core.x86_64",
 			"readline.x86_64",
-			"resource-agents.x86_64",
 			"rest.x86_64",
 			"rootfiles.noarch",
 			"rpcbind.x86_64",
@@ -2446,10 +2642,37 @@ sub load_packages
 	};
 	
 	# These packages can't be downloaded on RHEL Striker dashboads as they usually are not entitled to 
-	$anvil->data->{ha_packages} = [
-		"corosync.x86_64",
-		"corosynclib.x86_64",
-	];
+	$anvil->data->{ha_packages} = {
+		c	=>	[
+			"corosync.x86_64",
+			"corosynclib.x86_64",
+		],
+		l	=>	[
+			"libknet1.x86_64",
+			"libknet1-compress-bzip2-plugin.x86_64",
+			"libknet1-compress-lz4-plugin.x86_64",
+			"libknet1-compress-lzma-plugin.x86_64",
+			"libknet1-compress-lzo2-plugin.x86_64",
+			"libknet1-compress-plugins-all.x86_64",
+			"libknet1-compress-zlib-plugin.x86_64",
+			"libknet1-crypto-nss-plugin.x86_64", 
+			"libknet1-crypto-openssl-plugin.x86_64",
+			"libknet1-crypto-plugins-all.x86_64",
+			"libknet1-plugins-all.x86_64",
+			"libnozzle1.x86_64",
+		],
+		p	=>	[
+			"pacemaker.x86_64",
+			"pacemaker-cli.x86_64",
+			"pacemaker-cluster-libs.x86_64",
+			"pacemaker-libs.x86_64",
+			"pacemaker-schemas.noarch",
+			"pcs.x86_64",
+		],
+		r	=>	[
+			"resource-agents.x86_64",
+		],
+	};
 	
 	my ($os_type, $os_arch) = $anvil->Get->os_type();
 	if ($os_type eq "rhel8")

@@ -1458,8 +1458,8 @@ sub connect
 			# local, use it.
 			if (($host eq $anvil->Get->host_name)       or 
 			    ($host eq $anvil->Get->short_host_name) or 
-			    ($host eq "localhost")              or 
-			    ($host eq "127.0.0.1")              or 
+			    ($host eq "localhost")                  or 
+			    ($host eq "127.0.0.1")                  or 
 			    (not $anvil->data->{sys}{database}{read_uuid}))
 			{
 				$anvil->data->{sys}{database}{read_uuid}  = $uuid;

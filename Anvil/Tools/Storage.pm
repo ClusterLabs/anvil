@@ -2391,7 +2391,7 @@ sub record_md5sums
 
 =head2 rsync
 
-This method copies a file or directory (and its contents) to a remote machine using C<< rsync >> and an C<< expect >> wrapper.
+This method copies a file or directory (and its contents) to or from a remote machine using C<< rsync >> and an C<< expect >> wrapper.
 
 This supports the source B<< or >> the destination being remote, so the C<< source >> or C<< destination >> paramter can be in the format C<< <remote_user>@<target>:/file/path >>. If neither parameter is remove, a local C<< rsync >> operation will be performed.
 

@@ -1271,7 +1271,7 @@ sub md5sum
 
 =head2 os_type
 
-This returns the operating system type and the system architecture as two separate string variables.
+This returns the operating system type and the system architecture as two separate string variables. This can be called on the local system, or against a remote system.
 
  # Run on RHEL 8, on a 64-bit system
  my ($os_type, $os_arch) = $anvil->Get->os_type();
@@ -1281,7 +1281,25 @@ This returns the operating system type and the system architecture as two separa
 
 If either can not be determined, C<< unknown >> will be returned.
 
-This method takes no parameters.
+Paramters;
+
+=head3 password (optional)
+
+If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
+
+=head3 port (optional, default 22)
+
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
+
+=head3 remote_user (optional, default 'root')
+
+If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 target (optional)
+
+If set, the os type of the target machine is determined. This must be either an IP address or a resolvable host name. 
+
+If not set, the local system's OS type is checked.
 
 =cut
 sub os_type
@@ -1295,13 +1313,31 @@ sub os_type
 	my $os_type = "unknown";
 	my $os_arch = "unknown";
 	
+	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
+	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
+	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password    => $anvil->Log->is_secure($password), 
+		port        => $port, 
+		remote_user => $remote_user, 
+		target      => $target,
+	}});
+	
 	### NOTE: Examples;
 	# Red Hat Enterprise Linux release 8.0 Beta (Ootpa)
 	# Red Hat Enterprise Linux Server release 7.5 (Maipo)
 	# CentOS Linux release 7.5.1804 (Core) 
 
 	# Read in the /etc/redhat-release file
-	my $release = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'redhat-release'}});
+	my $release = $anvil->Storage->read_file({
+		debug       => $debug, 
+		file        => $anvil->data->{path}{data}{'redhat-release'},
+		port        => $port, 
+		password    => $password, 
+		remote_user => $remote_user, 
+		target      => $target,
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { release => $release }});
 	if ($release =~ /Red Hat Enterprise Linux .* (\d+)\./)
 	{

@@ -3001,6 +3001,7 @@ sub find_upses
 {
 	my ($anvil) = @_;
 	
+	### TODO: On nodes and DR hosts, limit this to the UPSes selected as powering the given machine.
 	# Search in 'upses' for UPSes using this scan agent. These aren't bound to hosts (or even Anvil! 
 	# systems), so not all may be available.
 	my $query = "

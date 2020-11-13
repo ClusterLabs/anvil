@@ -262,10 +262,14 @@ sub add_databases
 			first  => $target,
 			second => $uuid,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
+		my $keys = keys %{$match};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			match  => $match,
+			'keys' => $keys,
+		}});
 		
 		# Did we find a match?
-		if ($match)
+		if ($keys)
 		{
 			# Yup!
 			my $match_found = 0;

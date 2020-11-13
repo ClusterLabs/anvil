@@ -1343,6 +1343,11 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0181">The scan agent: [#!variable!agent_name!#] check if it's schema was loaded! This is likely a problem with the SQL schema in the file: [#!variable!file!#]. Details are likely available in the: [#!data!path::log::main!#] log file.</key>
 		<key name="message_0182">The scan agent: [#!variable!agent_name!#] has now successfully loaded! Whatever issue existed with: [#!variable!file!#] has been resolved.</key>
 		<key name="message_0183">The SQL schema for the scan agent: [#!variable!agent_name!#] has been loaded into the database host: [#!variable!host_name!#].</key>
+		<key name="message_0184">This Striker is a RHEL host. As such, we'll need to download any updated to packages in the High Availability repositories from entitled nodes. Will search now for a node to use...</key>
+		<key name="message_0185">The node: [#!variable!node_name!#] is online, has internet access and it is a RHEL machine. Will use it to download HA packages.</key>
+		<key name="message_0186">No RHEL-based nodes are available. Unable to check for updated packages under the High Availability entitlement.</key>
+		<key name="message_0187">Downloaded and copied HA packages that started with the letter: [#!variable!letter!#].</key>
+		<key name="message_0188">Finished downloading HA packages!</key>
 		
 		<!-- Success messages shown to the user --> 
 		<key name="ok_0001">Saved the mail server information successfully!</key>
